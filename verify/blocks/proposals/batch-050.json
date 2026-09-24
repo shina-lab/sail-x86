@@ -1,0 +1,88 @@
+{
+  "1a87452664": {
+    "rewrite": null,
+    "why": "The byte-to-word expansions, modular sums, scaling and packing are needed, and xmm0 is an unconstrained input rather than a known zero."
+  },
+  "91f181b271": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi+r8*1-0x1]\nmovdqu xmm1,XMMWORD PTR [rsi+rdx*1+0x1]\npavgb xmm0,xmm1\nmovdqu xmm2,XMMWORD PTR [rsi+r8*1]\nmovdqu xmm3,XMMWORD PTR [rsi+rdx*1]\npavgb xmm2,xmm3\nmovdqu xmm4,XMMWORD PTR [rsi+r8*1+0x1]\nmovdqu xmm5,XMMWORD PTR [rsi+rdx*1-0x1]\npavgb xmm4,xmm5\nmovdqu xmm6,XMMWORD PTR [rsi-0x1]\nmovdqu xmm7,XMMWORD PTR [rsi+0x1]\npavgb xmm6,xmm7\nmovdqa xmm1,xmm0\npminub xmm0,xmm2\npmaxub xmm1,xmm2\npminub xmm0,xmm4\npmaxub xmm1,xmm4\npminub xmm0,xmm6\npmaxub xmm1,xmm6\nmovdqu xmm2,XMMWORD PTR [rsi]\npmaxub xmm2,xmm0\npminub xmm2,xmm1\nmovdqu XMMWORD PTR [rdi],xmm2\nadd rsi,0x10\nadd rdi,0x10\nsub ecx,0x10",
+    "saved": 3,
+    "why": "Accumulate the minimum and maximum from a single copy of the first average, eliminating three copies while preserving xmm0 and the clamped output."
+  },
+  "d3c643db52": {
+    "rewrite": "mov r8,rdx\nneg r8\npxor xmm15,xmm15",
+    "saved": 1,
+    "why": "Removing the stack adjustment does not affect any required register, flag or memory result and keeps rsp untouched."
+  },
+  "f54907a003": {
+    "rewrite": null,
+    "why": "All five pointer additions and the counter decrement produce required register values, with the decrement also supplying the required flags."
+  },
+  "73c7468166": {
+    "rewrite": null,
+    "why": "All five pointer additions and the counter decrement produce required register values, with the decrement also supplying the required flags."
+  },
+  "9afa5271db": {
+    "rewrite": null,
+    "why": "All initialized registers are required, and AVX2 needs a transfer to an XMM register before broadcasting a general-purpose register."
+  },
+  "ebb13c17f2": {
+    "rewrite": null,
+    "why": "All initialized registers are required, and AVX2 needs a transfer to an XMM register before broadcasting a general-purpose register."
+  },
+  "d68e3ab5d2": {
+    "rewrite": null,
+    "why": "Both arithmetic shifts and both saturation stages are needed to produce the stored bytes and the required duplicated xmm0 result under SSE2."
+  },
+  "f74482c625": {
+    "rewrite": "movd xmm1,DWORD PTR [rdx]\npunpcklwd xmm1,xmm1\npshufd xmm0,xmm1,0x0\npshufd xmm1,xmm1,0x55\npxor xmm4,xmm4\nmov r8d,0x0\nmov rdx,QWORD PTR [rsi+0x8]\nmov rsi,QWORD PTR [rsi]",
+    "saved": 1,
+    "why": "Duplicating both loaded words together lets two PSHUFD instructions broadcast the coefficients, replacing four shuffle/unpack instructions with three."
+  },
+  "2091678658": {
+    "rewrite": null,
+    "why": "The two expansions and low/high interleaves feed different required products, and xmm4 cannot be assumed to contain zero."
+  },
+  "05412a29c8": {
+    "rewrite": null,
+    "why": "Each pointer load, coefficient broadcast and zero initialization contributes to a required final value."
+  },
+  "a1f46d3bdd": {
+    "rewrite": null,
+    "why": "SSE2 needs separate dword and word broadcasts for these coefficients, and every pointer load and zero initialization is required."
+  },
+  "c1d5e5b97b": {
+    "rewrite": null,
+    "why": "All pointer loads and coefficient initializations are live, and SSE2 has no single-instruction word broadcast to replace the shuffle/unpack pair."
+  },
+  "dccf701dba": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi+rdx*1]\nmovdqa xmm2,xmm0\npaddd xmm0,XMMWORD PTR [rsi+rdx*1]\npsubd xmm2,XMMWORD PTR [rsi+rdx*1]\nmovdqa XMMWORD PTR [rdi+rdx*1],xmm0\nmovdqa XMMWORD PTR [rsi+rdx*1],xmm2\nadd rdx,0x10",
+    "saved": 1,
+    "why": "Fold the second vector load into both arithmetic instructions, reusing an original aligned load address and preserving xmm0 as the sum."
+  },
+  "1ba8406e15": {
+    "rewrite": null,
+    "why": "The 32-bit shift must wrap and zero-extend before either pointer update, and the negation and xmm0 zeroing are also required."
+  },
+  "dbb792dde4": {
+    "rewrite": null,
+    "why": "Both scaled scalar outputs and both zero initializations are live, and the final comparison supplies flags that the shift cannot replace."
+  },
+  "785c02c371": {
+    "rewrite": "lea rdi,[rdi+rdx*8]\nlea rsi,[rsi+rdx*8]\nimul rdx,rdx,0xfffffffffffffff8\nxorpd xmm0,xmm0\nxorpd xmm1,xmm1\nmovapd xmm2,xmm0\nmovapd xmm3,xmm1",
+    "saved": 1,
+    "why": "Two scaled LEAs update the pointers from the original rdx, while multiplication by -8 combines the shift and negation."
+  },
+  "6e94dbe0ec": {
+    "rewrite": "lea rdi,[rdi+rdx*8]\nlea rsi,[rsi+rdx*8]\nimul rdx,rdx,0xfffffffffffffff8\nvzeroall",
+    "saved": 4,
+    "why": "Scaled LEAs and multiplication by -8 remove one scalar instruction, and VZEROALL replaces all four vector-zeroing instructions because the other vector registers are unobserved."
+  },
+  "a2b3eed1ee": {
+    "rewrite": null,
+    "why": "Copying 64 bytes requires all four vector loads and four stores at SSE4.1 width, and the index update must also preserve ZF."
+  },
+  "2f501d892f": {
+    "rewrite": null,
+    "why": "Four row loads, SAD operations and accumulator additions are necessary, and both pointer advances and the counter update are live."
+  }
+}

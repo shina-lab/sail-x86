@@ -1,0 +1,88 @@
+{
+  "49df3319ef": {
+    "rewrite": "pmulld xmm0,XMMWORD PTR [CONST_1]\npmulld xmm2,XMMWORD PTR [CONST_1]\npaddd xmm0,xmm5\nmovdqa xmm4,xmm2\npaddd xmm2,xmm0\npsubd xmm0,xmm4\npsrad xmm2,0xc\npsrad xmm0,0xc\nmovdqa xmm4,XMMWORD PTR [CONST_2]\nmovdqa xmm6,xmm1\npmulld xmm6,xmm4\npmulld xmm4,xmm3\nmovdqa xmm7,XMMWORD PTR [CONST_3]\npmulld xmm1,xmm7\npmulld xmm3,xmm7\npaddd xmm6,xmm5\npaddd xmm3,xmm6\npaddd xmm1,xmm5\npsubd xmm1,xmm4\npsrad xmm3,0xc\npsrad xmm1,0xc\nmovdqa xmm4,xmm0\npsubd xmm4,xmm1\npaddd xmm1,xmm0\nmovdqa xmm0,xmm2\npaddd xmm0,xmm3\npsubd xmm2,xmm3",
+    "saved": 1,
+    "why": "Fold the initial CONST_1 load into both PMULLD operands because xmm7 is overwritten by the retained CONST_3 load."
+  },
+  "5b84746564": {
+    "rewrite": null,
+    "why": "The unpack network produces four reordered outputs plus two live intermediate vectors, and its copies preserve inputs needed by destructive SSE operations."
+  },
+  "ee1275ffe4": {
+    "rewrite": null,
+    "why": "Each of the four required destination vectors needs its own signed saturating pack."
+  },
+  "c2d4487e32": {
+    "rewrite": null,
+    "why": "All eight vectors need separate dword multiplications, additions, and arithmetic shifts with unconstrained input operands."
+  },
+  "1b06c8afe2": {
+    "rewrite": null,
+    "why": "The three pairs of distinct dword products require separate destinations, and the remaining multiplication and zeroing both produce live results."
+  },
+  "f9b0a8f270": {
+    "rewrite": "movdqa xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,xmm5\npmulld xmm9,xmm8\npmulld xmm8,xmm3\npmulld xmm5,XMMWORD PTR [CONST_2]\npmulld xmm3,XMMWORD PTR [CONST_2]\npaddd xmm3,xmm9\npsubd xmm5,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_3]\nmovdqa xmm9,xmm1\npmulld xmm9,xmm8\npmulld xmm8,xmm7\npmulld xmm1,XMMWORD PTR [CONST_4]\npmulld xmm7,XMMWORD PTR [CONST_4]\npaddd xmm7,xmm9\npsubd xmm1,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_5]\nmovdqa xmm9,xmm2\npmulld xmm9,xmm8\npmulld xmm8,xmm6\nmovdqa xmm10,XMMWORD PTR [CONST_6]\npmulld xmm2,xmm10\npmulld xmm6,xmm10\npaddd xmm6,xmm9\npsubd xmm2,xmm8\npmulld xmm0,xmm14\npmulld xmm4,xmm14",
+    "saved": 2,
+    "why": "Fold the CONST_2 and CONST_4 loads into their PMULLD consumers. Keep the final CONST_6 load so xmm10 retains its required value."
+  },
+  "07bdc7bbd4": {
+    "rewrite": null,
+    "why": "The rounding, butterflies, and signed clamps all contribute to required final registers, with no input bounds enabling narrower arithmetic."
+  },
+  "fb03598792": {
+    "rewrite": null,
+    "why": "Each butterfly requires a copy, a packed addition, and a packed subtraction to preserve both outputs with two-operand SSE instructions."
+  },
+  "905a573be1": {
+    "rewrite": null,
+    "why": "Each row needs its rounded multiply, wrapping word addition, two clamps, and store, while the constant and zero registers also remain live."
+  },
+  "5a5cc8bab1": {
+    "rewrite": "pcmpeqd xmm8,xmm8\npsignd xmm1,xmm8\npsignd xmm7,xmm8\npxor xmm3,xmm8\npxor xmm5,xmm8\npaddd xmm2,xmm11\npaddd xmm3,xmm11\npaddd xmm4,xmm11\npaddd xmm5,xmm11\npsrad xmm2,0xc\npsrad xmm3,0xc\npsrad xmm4,0xc\npsrad xmm5,0xc",
+    "saved": 2,
+    "why": "With xmm8 set to all ones, PSIGND performs the same wrapping dword negation as PXOR followed by PSUBD, saving one instruction for each of xmm1 and xmm7."
+  },
+  "c229bbbe0e": {
+    "rewrite": null,
+    "why": "Four distinct saturating packs must also be copied into four additional required destination registers."
+  },
+  "8171d5008b": {
+    "rewrite": null,
+    "why": "Doubling must retain dword wraparound before saturation, and the odd-numbered source registers must also retain their doubled values."
+  },
+  "fbc88793c1": {
+    "rewrite": null,
+    "why": "Each row requires loading, adding, clamping, and storing, while the pointer and loop-counter updates also remain observable."
+  },
+  "6ea1684494": {
+    "rewrite": "pcmpeqd xmm8,xmm8\npsubd xmm0,xmm8\npsubd xmm6,xmm8\npxor xmm3,xmm8\npxor xmm5,xmm8\npsrad xmm0,0x1\npsrad xmm1,0x1\npsrad xmm6,0x1\npsrad xmm7,0x1\npsignd xmm1,xmm8\npsignd xmm7,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_1]\npaddd xmm2,xmm8\npaddd xmm3,xmm8\npaddd xmm4,xmm8\npaddd xmm5,xmm8\npsrad xmm2,0xd\npsrad xmm3,0xd\npsrad xmm4,0xd\npsrad xmm5,0xd",
+    "saved": 2,
+    "why": "Arithmetic right shift commutes with bitwise complement, so complementing, shifting, and adding one equals shifting and negating. PSIGND with the existing all-ones vector saves one instruction for each of xmm1 and xmm7."
+  },
+  "a571702342": {
+    "rewrite": null,
+    "why": "All rounded products remain live, and the two ordered signed-saturating additions cannot be combined for arbitrary input words."
+  },
+  "f9c5ee2069": {
+    "rewrite": null,
+    "why": "The scalar arithmetic must preserve the final r9 value, and broadcasting its high word requires the move and two rearrangements with the available operands."
+  },
+  "6b79a401a0": {
+    "rewrite": null,
+    "why": "Both row results, both stores, and the pointer and counter updates are live, with no fused SSE4.1 operation covering the addition and clamps."
+  },
+  "05a005d8b8": {
+    "rewrite": null,
+    "why": "Each input produces two independent dword products, requiring two multiplications and a load or copy to initialize the second destination."
+  },
+  "ddffb60c7d": {
+    "rewrite": "movdqa xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,xmm0\npmulld xmm9,xmm8\npmulld xmm8,xmm7\npmulld xmm0,XMMWORD PTR [CONST_2]\npmulld xmm7,XMMWORD PTR [CONST_2]\npaddd xmm7,xmm9\npsubd xmm0,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_3]\nmovdqa xmm9,xmm6\npmulld xmm9,xmm8\npmulld xmm8,xmm1\npmulld xmm6,XMMWORD PTR [CONST_4]\npmulld xmm1,XMMWORD PTR [CONST_4]\npaddd xmm1,xmm9\npsubd xmm6,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_5]\nmovdqa xmm9,xmm2\npmulld xmm9,xmm8\npmulld xmm8,xmm5\npmulld xmm2,XMMWORD PTR [CONST_6]\npmulld xmm5,XMMWORD PTR [CONST_6]\npaddd xmm5,xmm9\npsubd xmm2,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_7]\nmovdqa xmm9,xmm4\npmulld xmm9,xmm8\npmulld xmm8,xmm3\npmulld xmm4,XMMWORD PTR [CONST_8]\npmulld xmm3,XMMWORD PTR [CONST_8]\npaddd xmm3,xmm9\npsubd xmm4,xmm8",
+    "saved": 4,
+    "why": "All four constant loads into scratch xmm10 can be folded into the corresponding PMULLD memory operands."
+  },
+  "4d98f9eab0": {
+    "rewrite": "psrld xmm14,0xb\npcmpeqd xmm8,xmm8\nmovdqa xmm13,XMMWORD PTR [CONST_1]\npsubd xmm13,xmm14\npaddd xmm0,xmm14\npaddd xmm2,xmm14\npaddd xmm4,XMMWORD PTR [CONST_1]\npaddd xmm6,XMMWORD PTR [CONST_1]\npxor xmm5,xmm8\npxor xmm7,xmm8\npsrad xmm1,0x1\npsrad xmm3,0x1\npaddd xmm5,XMMWORD PTR [CONST_1]\npaddd xmm7,XMMWORD PTR [CONST_1]\npsignd xmm1,xmm8\npsignd xmm3,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_1]\npaddd xmm8,xmm9\nmovdqa xmm9,xmm13\npsubd xmm9,xmm10\nmovdqa xmm10,XMMWORD PTR [CONST_1]\npaddd xmm10,xmm11\nmovdqa xmm11,xmm13\npsubd xmm11,xmm12\nmovdqa xmm12,XMMWORD PTR [rcx+0x30]\npaddd xmm12,xmm14\nmovdqa xmm13,xmm14\npsubd xmm13,XMMWORD PTR [rcx+0x20]\nmovdqa xmm15,xmm14\npsubd xmm15,XMMWORD PTR [rcx]\npaddd xmm14,XMMWORD PTR [rcx+0x10]\npsrad xmm0,0x1\npsrad xmm2,0x1\npsrad xmm12,0x1\npsrad xmm13,0x1\npsrad xmm14,0x1\npsrad xmm15,0x1\npsrad xmm4,0xd\npsrad xmm5,0xd\npsrad xmm6,0xd\npsrad xmm7,0xd\npsrad xmm8,0xd\npsrad xmm9,0xd\npsrad xmm10,0xd\npsrad xmm11,0xd",
+    "saved": 3,
+    "why": "Use PSIGND after shifting xmm1 and xmm3 to compute the same negated arithmetic halves. Fold the temporary xmm15 constant into its consumers because xmm15 is overwritten before exit."
+  }
+}

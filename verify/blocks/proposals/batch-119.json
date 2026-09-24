@@ -1,0 +1,83 @@
+{
+  "ecc977fe12": {
+    "rewrite": null,
+    "why": "Both carry-less products and both XORs are needed for each live accumulator, and the broadcast result and final TEST flag are also live."
+  },
+  "15341ed3ea": {
+    "rewrite": null,
+    "why": "Each loaded vector requires a shuffle and a complete two-product CRC fold, and both accumulators and the pointer advance are live."
+  },
+  "28a6438608": {
+    "rewrite": null,
+    "why": "The live broadcast, two carry-less products, two XORs, and final TEST each contribute required results."
+  },
+  "5aa72a4fe7": {
+    "rewrite": null,
+    "why": "VPSHUFB cannot fold its data load into a memory operand, and the two-product fold and pointer advance are required."
+  },
+  "4182636ca7": {
+    "rewrite": null,
+    "why": "The upper-half extraction feeds the live fold, while the loaded multiplier, both products, both XORs, and TEST flag must be retained."
+  },
+  "5978d61c28": {
+    "rewrite": null,
+    "why": "The data load and shuffle cannot be combined, and both carry-less products, their XOR combination, and the pointer advance are needed."
+  },
+  "8e709963cb": {
+    "rewrite": "vpclmulhqlqdq xmm1,xmm0,xmm7\nvpslldq xmm0,xmm0,0x8\nvpxor xmm0,xmm0,xmm1\nvpclmulhqhqdq xmm1,xmm0,XMMWORD PTR [rcx+0x40]\nvpxor xmm1,xmm1,xmm0\nvpclmulhqlqdq xmm1,xmm1,XMMWORD PTR [rcx+0x40]\nvpxor xmm0,xmm0,xmm1\nvpextrw eax,xmm0,0x3",
+    "saved": 2,
+    "why": "Use the original memory operand directly in both later carry-less multiplies, eliminating the temporary load. VEX XMM writes already clear the live ymm0 upper half, so vzeroupper only changes dead state."
+  },
+  "ca588f3293": {
+    "rewrite": null,
+    "why": "Moving the scalar and positioning its low word require separate instructions, and the broadcast and comparison produce independent live results."
+  },
+  "98c785f8a9": {
+    "rewrite": null,
+    "why": "The shuffle requires a register data source, and the XOR and pointer advance both produce live results."
+  },
+  "c225bc1565": {
+    "rewrite": null,
+    "why": "The data load, shuffle, XOR, pointer advance, and separate live multiplier load all remain necessary."
+  },
+  "0f3b9d03ba": {
+    "rewrite": null,
+    "why": "The data load cannot be folded into VPSHUFB, and the accumulator XOR and comparison flags are required."
+  },
+  "9b23cb1b98": {
+    "rewrite": null,
+    "why": "All three shuffled vectors and both updated scalar registers are live, and the final comparison supplies flags different from those of the decrement."
+  },
+  "8ec28ea8ae": {
+    "rewrite": null,
+    "why": "Each fold already combines its two carry-less products and input accumulator with one ternary XOR, while the broadcast and TEST remain live."
+  },
+  "0adc7c39ab": {
+    "rewrite": null,
+    "why": "Both live folds already use ternary XORs, and their data loads, shuffles, products, and shared pointer advance cannot be removed."
+  },
+  "c15f9ccd09": {
+    "rewrite": null,
+    "why": "The fold already uses one ternary XOR for its three inputs, and the live broadcast, two products, and TEST are required."
+  },
+  "bc19ba1eb3": {
+    "rewrite": null,
+    "why": "The load and shuffle must remain separate, and the two products, ternary XOR, and pointer advance all contribute live results."
+  },
+  "4fee0f9982": {
+    "rewrite": null,
+    "why": "The extracted upper half is needed by the ternary XOR, and the broadcast, two products, and TEST supply other live results."
+  },
+  "ca9177943a": {
+    "rewrite": null,
+    "why": "The fold already combines its three inputs in one ternary XOR, with a required data load, shuffle, two products, and pointer advance."
+  },
+  "67c19d7911": {
+    "rewrite": null,
+    "why": "The live multiplier load and upper-half extraction feed the two-product fold, which already uses a single ternary XOR before the required TEST."
+  },
+  "8120980d7f": {
+    "rewrite": null,
+    "why": "The required load and shuffle cannot be combined, and the two products already feed a single ternary XOR followed by the live pointer advance."
+  }
+}

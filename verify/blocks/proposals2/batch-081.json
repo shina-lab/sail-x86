@@ -1,0 +1,82 @@
+{
+  "ae925d7d96": {
+    "rewrite": null,
+    "why": "Both stores, the rdi update, and the r8 decrement producing ZF are required and cannot be combined under SSE2."
+  },
+  "9524456233": {
+    "rewrite": null,
+    "why": "The two loads and two stores implement the required copy and live vector results, while both pointer updates and the counter decrement remain necessary."
+  },
+  "6f6b8415e5": {
+    "rewrite": null,
+    "why": "The byte load and multiply are needed for the live replicated r8 value, followed by the required word store and separate pointer and counter updates."
+  },
+  "821b1aa46a": {
+    "rewrite": null,
+    "why": "The byte load, replication multiply, dword store, pointer addition, and counter decrement each produce required effects."
+  },
+  "e63894bd66": {
+    "rewrite": null,
+    "why": "The live replicated r8 value requires the load and multiply, and the six-byte fill requires both stores in addition to the pointer and counter updates."
+  },
+  "c45a69ac03": {
+    "rewrite": null,
+    "why": "SSE2 needs the load, multiply, movd, and shuffle to produce both live broadcast results, followed by the qword store and pointer and counter updates."
+  },
+  "10d69ac879": {
+    "rewrite": null,
+    "why": "The scalar and full xmm0 broadcasts must both survive, and the ten-byte fill still needs two stores plus the pointer and counter updates."
+  },
+  "f7e2c7678e": {
+    "rewrite": null,
+    "why": "Producing the live r8 and xmm0 broadcasts requires the existing SSE2 sequence, and neither store nor either register update is redundant."
+  },
+  "3816574ad7": {
+    "rewrite": null,
+    "why": "Both overlapping qword stores cover necessary bytes, and the live broadcast results and pointer and counter updates prevent removing the remaining instructions."
+  },
+  "1d8248bfea": {
+    "rewrite": null,
+    "why": "The existing SSE2 sequence constructs both required broadcast results and uses a single store, leaving only the necessary pointer and counter updates."
+  },
+  "f996e68ac9": {
+    "rewrite": null,
+    "why": "Both broadcast results are live, and the eighteen-byte fill requires its vector and word stores along with the pointer and counter updates."
+  },
+  "22981bd4b4": {
+    "rewrite": null,
+    "why": "The required scalar and vector broadcasts cannot be shortened under SSE2, and the twenty-byte fill needs both stores and both register updates."
+  },
+  "9613166ce6": {
+    "rewrite": null,
+    "why": "Both stores contribute required bytes, while the live r8 and xmm0 broadcasts and the pointer and counter updates require the remaining instructions."
+  },
+  "5a317a5034": {
+    "rewrite": null,
+    "why": "The byte load and broadcast are already fused, leaving only the required qword store, pointer addition, and counter decrement."
+  },
+  "cccbc05607": {
+    "rewrite": null,
+    "why": "The fused broadcast, two stores covering ten bytes, and separate pointer and counter updates all have required effects."
+  },
+  "7c2bcc8a37": {
+    "rewrite": null,
+    "why": "The broadcast is already one instruction, and the twelve-byte fill needs both stores plus the pointer and counter updates."
+  },
+  "b3d27cdbec": {
+    "rewrite": null,
+    "why": "Both overlapping stores contribute necessary bytes to the fourteen-byte fill, and the broadcast and register updates are already minimal."
+  },
+  "f5471b3c5c": {
+    "rewrite": null,
+    "why": "A fused byte broadcast, one vector store, one pointer addition, and one counter decrement already implement all required effects."
+  },
+  "c1b6d43110": {
+    "rewrite": null,
+    "why": "The eighteen-byte fill requires both stores, and the single broadcast and separate pointer and counter updates cannot be removed."
+  },
+  "bb21737eeb": {
+    "rewrite": null,
+    "why": "The twenty-byte fill requires its vector and dword stores, while the fused broadcast and pointer and counter updates already use one instruction each."
+  }
+}

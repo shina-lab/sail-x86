@@ -1,0 +1,84 @@
+{
+  "eb2fc0c7ed": {
+    "rewrite": null,
+    "why": "Each of the four live registers must be zeroed, and rbx must independently receive r8."
+  },
+  "8f5e4f2264": {
+    "rewrite": null,
+    "why": "All four loaded limbs require masking and accumulation, while the mask, loop counters, pointer update, and final ZF are live."
+  },
+  "30311bea42": {
+    "rewrite": null,
+    "why": "Both loaded limbs require masking and accumulation, and the remaining instructions produce the required mask, counters, pointer, and ZF."
+  },
+  "77a1cf3ef7": {
+    "rewrite": null,
+    "why": "The masked accumulation needs its load, AND, and OR, while the other four instructions establish required register values and ZF."
+  },
+  "e0130a45a8": {
+    "rewrite": null,
+    "why": "The two limb additions require carry propagation, and both results must be stored while preserving the final carry."
+  },
+  "b1ff04ef17": {
+    "rewrite": null,
+    "why": "The loads, carry-linked doubling, carry-byte extraction, address sum, square, and index update all produce required values."
+  },
+  "03675f2d0f": {
+    "rewrite": null,
+    "why": "All three limb additions and three stores are required, including carry propagation into the live rdx result."
+  },
+  "fbc66b8a81": {
+    "rewrite": null,
+    "why": "The block needs its load, doubling, subtraction, store, two carry masks, borrow setup, and three pointer updates."
+  },
+  "7361d2c526": {
+    "rewrite": null,
+    "why": "Both limbs require their loads, doubling and subtraction chains, and stores, together with carry-mask handling and three pointer updates."
+  },
+  "a1b4eec1b4": {
+    "rewrite": null,
+    "why": "All three limbs require their loads, doubling and subtraction chains, and stores, together with carry-mask handling and three pointer updates."
+  },
+  "bbdfa22a28": {
+    "rewrite": null,
+    "why": "Both incoming carry bits and outgoing masks matter, and every limb operation, store, and pointer update contributes to required outputs."
+  },
+  "060473b131": {
+    "rewrite": null,
+    "why": "The stored subtraction and final shifted subtraction each require their arithmetic, with the first borrow feeding the second subtraction."
+  },
+  "d79a9e3e11": {
+    "rewrite": null,
+    "why": "Every instruction supplies a required loaded value, shifted value, pointer update, stored subtraction, or carry."
+  },
+  "1917d5a8d5": {
+    "rewrite": null,
+    "why": "All six multiplication halves are live, and the final XOR is still needed to force CF to zero."
+  },
+  "825430d103": {
+    "rewrite": null,
+    "why": "All three products and their carry-propagating accumulation are needed, and the final subtraction supplies the required index and flags."
+  },
+  "375569c448": {
+    "rewrite": null,
+    "why": "Both full products, the carry-propagating addition, and the index update with its required CF and ZF are necessary."
+  },
+  "b6f733e32c": {
+    "rewrite": "mov rax,QWORD PTR [r11]\nmulx rdx,r9,rax\nmov QWORD PTR [rdi],r9\nimul rax,QWORD PTR [rsi+0x8]\nadd rdx,rax\nmov r9,QWORD PTR [r11+0x8]\nimul r9,QWORD PTR [rsi]\nadd rdx,r9\nmov QWORD PTR [rdi+0x8],rdx",
+    "saved": 2,
+    "why": "Keep the first multiplier in rax and multiply the second multiplier in place, allowing both IMUL instructions to read their other operands directly from memory. This removes two separate loads while preserving rax, rdx, and both stores."
+  },
+  "2a904beace": {
+    "rewrite": "mov r9,QWORD PTR [r11]\nmulx r10,rax,r9\nmov QWORD PTR [rdi],rax\nmov rdx,QWORD PTR [rsi+0x8]\nmulx r8,rax,r9\nimul r9,QWORD PTR [rsi+0x10]\nadd r10,rax\nadc r9,r8\nimul rdx,QWORD PTR [r11+0x8]\nadd r9,rdx\nmov rdx,QWORD PTR [rsi]\nmulx rcx,r8,QWORD PTR [r11+0x10]\nadd r9,r8\nmov rax,rdx\nmulx rdx,r8,QWORD PTR [r11+0x8]\nadd r10,r8\nadc r9,rdx\nmov QWORD PTR [rdi+0x8],r10\nmov QWORD PTR [rdi+0x10],r9",
+    "saved": 2,
+    "why": "Reuse the loaded multipliers in rdx to fold cross products into memory-source IMUL and MULX instructions. Reordering the high-limb additions preserves both propagated carries and all stores, while leaving rax equal to the loaded [rsi] value and rdx equal to the required high product."
+  },
+  "e00f66f76a": {
+    "rewrite": null,
+    "why": "All address updates and loaded values are live, and forming 4-rcx still needs a separate low-bit test for the required ZF."
+  },
+  "923248f4b7": {
+    "rewrite": null,
+    "why": "The four required stores and three carry-propagating additions are all necessary, including the final live carry."
+  }
+}

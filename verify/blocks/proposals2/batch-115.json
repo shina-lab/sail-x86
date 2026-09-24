@@ -1,0 +1,91 @@
+{
+  "16ee966261": {
+    "rewrite": "vpshufd ymm1,YMMWORD PTR [rdi+rsi*1],0xb1\nvpmuldq ymm0,ymm2,YMMWORD PTR [rdi+rsi*1]\nvpmuldq ymm1,ymm1,ymm2\nvpaddq ymm0,ymm0,ymm3\nvpaddq ymm1,ymm1,ymm3\nvpsrlq ymm0,ymm0,0x12\nvpsrlq ymm1,ymm1,0x12\nvpshufd ymm0,ymm0,0xd8\nvpshufd ymm1,ymm1,0xd8\nvpunpckldq ymm0,ymm0,ymm1\nvpminsd ymm0,ymm0,ymm4\nvmovdqu YMMWORD PTR [rdi+rsi*1],ymm0\nadd rsi,0x20",
+    "saved": 1,
+    "why": "Fold the input load into the odd-lane shuffle and the even-lane multiply, using multiplication's commutativity to place memory last. Both reads use the original address, and all final registers and flags are preserved."
+  },
+  "62839241c8": {
+    "rewrite": null,
+    "why": "AVX2 requires separate GPR-to-XMM moves and broadcasts, and the vector zeroing and pointer/index updates all produce required results."
+  },
+  "2797d61550": {
+    "rewrite": null,
+    "why": "The unpack operands, multipliers, and offsets are arbitrary inputs, and the live intermediate vectors prevent eliminating the widening, arithmetic, shifts, or packing."
+  },
+  "0c77282a68": {
+    "rewrite": null,
+    "why": "The two GPR broadcasts each require a move and a broadcast, while the constant vector and all pointer/index results must also be produced."
+  },
+  "a3de3e678a": {
+    "rewrite": "vpshufd ymm1,YMMWORD PTR [rdi+rdx*1],0xb1\nvpshufd ymm3,YMMWORD PTR [rsi+rdx*1],0xb1\nvpmuldq ymm0,ymm4,YMMWORD PTR [rdi+rdx*1]\nvpmuldq ymm1,ymm1,ymm4\nvpmuldq ymm2,ymm4,YMMWORD PTR [rsi+rdx*1]\nvpmuldq ymm3,ymm3,ymm4\nvpaddq ymm0,ymm0,ymm5\nvpaddq ymm1,ymm1,ymm5\nvpaddq ymm2,ymm2,ymm5\nvpaddq ymm3,ymm3,ymm5\nvpsrlq ymm0,ymm0,0x12\nvpsrlq ymm1,ymm1,0x12\nvpsrlq ymm2,ymm2,0x12\nvpsrlq ymm3,ymm3,0x12\nvpshufd ymm0,ymm0,0xd8\nvpshufd ymm1,ymm1,0xd8\nvpshufd ymm2,ymm2,0xd8\nvpshufd ymm3,ymm3,0xd8\nvpunpckldq ymm0,ymm0,ymm1\nvpunpckldq ymm2,ymm2,ymm3\nvpminsd ymm0,ymm0,ymm6\nvpminsd ymm2,ymm2,ymm6\nvmovdqu YMMWORD PTR [rdi+rdx*1],ymm0\nvmovdqu YMMWORD PTR [rsi+rdx*1],ymm2\nadd rdx,0x20",
+    "saved": 2,
+    "why": "Fold each input load into its shuffle and even-lane multiply, removing both standalone loads. The remaining arithmetic, live intermediate vectors, stores, and final flags are unchanged."
+  },
+  "6d5dfcd41d": {
+    "rewrite": null,
+    "why": "Each GPR broadcast needs two AVX2 instructions, and the 32-bit scaling, pointer addition, and 64-bit negation are independently necessary."
+  },
+  "ab6e272518": {
+    "rewrite": "vpshufd ymm1,YMMWORD PTR [rdi+rsi*1],0xb1\nvpmuldq ymm0,ymm2,YMMWORD PTR [rdi+rsi*1]\nvpmuldq ymm1,ymm1,ymm2\nvpaddq ymm0,ymm0,ymm3\nvpaddq ymm1,ymm1,ymm3\nvpsrlq ymm0,ymm0,0x12\nvpsrlq ymm1,ymm1,0x12\nvpshufd ymm0,ymm0,0xd8\nvpshufd ymm1,ymm1,0xd8\nvpunpckldq ymm0,ymm0,ymm1\nvmovdqu YMMWORD PTR [rdi+rsi*1],ymm0\nadd rsi,0x20",
+    "saved": 1,
+    "why": "Use the original memory operand directly in the shuffle and commuted even-lane multiply. This removes the standalone load while preserving both output vectors, the store, and the index flags."
+  },
+  "771e486080": {
+    "rewrite": null,
+    "why": "The two broadcasts require four AVX2 instructions, and the truncated scaling, two pointer additions, and 64-bit negation cannot be omitted."
+  },
+  "53b2fadd44": {
+    "rewrite": "vpshufd ymm1,YMMWORD PTR [rdi+rdx*1],0xb1\nvpshufd ymm3,YMMWORD PTR [rsi+rdx*1],0xb1\nvpmuldq ymm0,ymm4,YMMWORD PTR [rdi+rdx*1]\nvpmuldq ymm1,ymm1,ymm4\nvpmuldq ymm2,ymm4,YMMWORD PTR [rsi+rdx*1]\nvpmuldq ymm3,ymm3,ymm4\nvpaddq ymm0,ymm0,ymm5\nvpaddq ymm1,ymm1,ymm5\nvpaddq ymm2,ymm2,ymm5\nvpaddq ymm3,ymm3,ymm5\nvpsrlq ymm0,ymm0,0x12\nvpsrlq ymm1,ymm1,0x12\nvpsrlq ymm2,ymm2,0x12\nvpsrlq ymm3,ymm3,0x12\nvpshufd ymm0,ymm0,0xd8\nvpshufd ymm1,ymm1,0xd8\nvpshufd ymm2,ymm2,0xd8\nvpshufd ymm3,ymm3,0xd8\nvpunpckldq ymm0,ymm0,ymm1\nvpunpckldq ymm2,ymm2,ymm3\nvmovdqu YMMWORD PTR [rdi+rdx*1],ymm0\nvmovdqu YMMWORD PTR [rsi+rdx*1],ymm2\nadd rdx,0x20",
+    "saved": 2,
+    "why": "Fold the two standalone loads into their respective shuffles and even-lane multiplies. All reads retain the original addresses, and the remaining operations preserve the live vectors, stores, and flags."
+  },
+  "d3da44d1f1": {
+    "rewrite": null,
+    "why": "The mask load, signed length extension, two pointer additions, negation, and copied masked remainder all produce required results."
+  },
+  "9ea3f2e944": {
+    "rewrite": "movq mm0,rcx\nmov ecx,DWORD PTR [rdi+rdx*1]\nbswap ecx\nror ecx,0x8\nmov DWORD PTR [rsi+rdx*1],ecx\nmovq rcx,mm0\nmov cl,BYTE PTR [rdi+rdx*1+0x3]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 1,
+    "why": "Save RCX in an unpreserved MMX register and use BSWAP plus ROR to store the four bytes in order 2,1,0,3. Restore RCX and reload its final CL byte, retaining the original counter updates and flags."
+  },
+  "6e2aba3e69": {
+    "rewrite": null,
+    "why": "SSSE3 PSHUFB cannot fold its source-data load, and the shuffled vector, store, and flag-producing index increment are all required."
+  },
+  "8899ce16d5": {
+    "rewrite": null,
+    "why": "The constant mask, sign-extended length, adjusted pointers, negated index, and masked remainder all require the existing operations."
+  },
+  "e52feaef47": {
+    "rewrite": "movq mm0,rcx\nmov ecx,DWORD PTR [rdi+rdx*1]\nbswap ecx\nrol ecx,0x8\nmov DWORD PTR [rsi+rdx*1],ecx\nmovq rcx,mm0\nmov cl,BYTE PTR [rdi+rdx*1+0x1]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 1,
+    "why": "BSWAP followed by ROL produces byte order 0,3,2,1 for a single dword store while scratch MMX state preserves RCX. Reloading the final CL byte and retaining the counter updates preserves every required register and flag."
+  },
+  "c1d60be206": {
+    "rewrite": null,
+    "why": "The mask load and scalar setup contain no dead result, and SSSE3 provides no instruction combining the required copy with the immediate remainder mask."
+  },
+  "b29de8b405": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npunpckldq mm0,mm0\npsrlq mm0,0x8\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 3,
+    "why": "Duplicate the input dword in a scratch MMX register and shift right by eight bits to obtain byte order 1,2,3,0. The dword store writes exactly the original four bytes, and the explicit CL load and counter updates preserve the required final state."
+  },
+  "2902dac79c": {
+    "rewrite": null,
+    "why": "The mask, sign-extended length, two adjusted pointers, negated index, and copied masked remainder are all live results with no removable operation."
+  },
+  "6143fa03ed": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npunpckldq mm0,mm0\npsrlq mm0,0x18\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1+0x2]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 3,
+    "why": "Duplicate the input dword in a scratch MMX register and shift right by 24 bits to produce byte order 3,0,1,2. Restore the original final CL value explicitly and retain both counter updates and their flags."
+  },
+  "fb82518fb8": {
+    "rewrite": null,
+    "why": "Every instruction contributes to the required mask, pointer, index, remainder, or zero-flag result, with no shorter SSSE3 combination apparent."
+  },
+  "fca5c5d609": {
+    "rewrite": "movq mm0,rcx\nmov ecx,DWORD PTR [rdi+rdx*1]\nbswap ecx\nmov DWORD PTR [rsi+rdx*1],ecx\nmovq rcx,mm0\nmov cl,BYTE PTR [rdi+rdx*1]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 2,
+    "why": "Save RCX in a scratch MMX register and replace the four byte copies with a dword load, BSWAP, and dword store. Restoring RCX and reloading the final CL byte preserves its upper bits, while the original counter updates preserve all required flags."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "683134a0f8": {
+    "rewrite": null,
+    "why": "Both loads and stores, both pointer updates and the flag-producing counter subtraction are needed, and the second loaded value must also remain in RAX."
+  },
+  "1aee672967": {
+    "rewrite": null,
+    "why": "The two independent qword transfers and three scalar updates are required, and MOVQ already produces the required zero-extended XMM0 value."
+  },
+  "8c4fcc4a8c": {
+    "rewrite": null,
+    "why": "Both vector loads, both stores and all three scalar updates contribute to required outputs, with no wider transfer available at the allowed ISA level."
+  },
+  "a8f35900f6": {
+    "rewrite": null,
+    "why": "All four vector transfers and the pointer and counter updates are required, and SSSE3 cannot combine the adjacent 128-bit transfers into wider operations."
+  },
+  "a063f8f199": {
+    "rewrite": null,
+    "why": "Copying the 64 bytes requires all four loads and stores at this ISA level, and both pointer advances and the flag-producing decrement are live."
+  },
+  "286a6988f4": {
+    "rewrite": null,
+    "why": "All eight vector loads and stores are needed for the 128-byte copy, and the required pointer advances and counter decrement cannot be removed."
+  },
+  "22501c8c55": {
+    "rewrite": null,
+    "why": "Preserving the coefficient registers while multiplying both original and shifted samples requires the temporary copy, and the remaining operations feed required stores or final values."
+  },
+  "9d1b573fe4": {
+    "rewrite": null,
+    "why": "The independent row loads and arbitrary per-lane coefficients prevent merging the two products, while every remaining instruction feeds a required result or update."
+  },
+  "56ebfa3e9f": {
+    "rewrite": null,
+    "why": "Each row needs two overlapping loads, two multiplications, two additions, a shift and a store, together with the required pointer and counter updates."
+  },
+  "b766bec6a4": {
+    "rewrite": null,
+    "why": "Both output vectors require their two products, bias addition and shift, and the indexed stores and flag-producing RAX increment are all live."
+  },
+  "42e367224f": {
+    "rewrite": null,
+    "why": "Both incremented values and their copies are live, while the byte extraction and flag-producing EAX subtraction provide separate required results."
+  },
+  "62ab433f21": {
+    "rewrite": null,
+    "why": "The high-word shuffle creates a distinct sample vector, and arbitrary coefficient and bias lanes require both products, both additions and the final shift."
+  },
+  "ab5ed5e59c": {
+    "rewrite": null,
+    "why": "The two duplicated loads supply different samples, and arbitrary coefficient and bias values require both multiplications, both additions and the final shift."
+  },
+  "fce5f3ffb0": {
+    "rewrite": null,
+    "why": "Both overlapping loads, both products, both additions and the final shift are needed for arbitrary coefficient and bias values."
+  },
+  "041644e4c3": {
+    "rewrite": null,
+    "why": "The four independently addressed qword loads, two products, two subtractions and two stores are required along with all three scalar updates."
+  },
+  "d8449d0c89": {
+    "rewrite": null,
+    "why": "Each of the four independently addressed vectors needs a load, multiplication, subtraction and store, and the three scalar updates are also required."
+  },
+  "aabc2577a9": {
+    "rewrite": null,
+    "why": "All four vectors require their loads, products, subtractions and stores, with no wider operation available to merge them or eliminate the required scalar updates."
+  },
+  "77ad95eb77": {
+    "rewrite": null,
+    "why": "Arbitrary multiplier and offset lanes require separate multiplication and subtraction for each loaded vector, and every store and scalar update is live."
+  },
+  "0b205712e4": {
+    "rewrite": null,
+    "why": "All eight vectors require a load, multiplication, subtraction and store under SSSE3, and the pointer updates and flag-producing counter decrement remain necessary."
+  },
+  "ac783ec233": {
+    "rewrite": null,
+    "why": "The four qword loads assemble distinct sample vectors, and arbitrary coefficients require both products, subtraction, addition and arithmetic shift before the required store and scalar updates."
+  }
+}

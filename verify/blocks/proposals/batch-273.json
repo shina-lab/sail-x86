@@ -1,0 +1,97 @@
+{
+  "4631537ab2": {
+    "rewrite": null,
+    "why": "The loaded vector and comparison mask are live, and forming the nonzero equality mask, exporting it, and setting ZF already uses one instruction per required step."
+  },
+  "292c0e5052": {
+    "rewrite": "vmovq xmm0,QWORD PTR [rdi]\nvptestmb k2,xmm0,xmm0\nvpcmpeqb k1{k2},xmm0,XMMWORD PTR [rsi]\nkmovd ecx,k1\ninc cl",
+    "saved": 1,
+    "why": "Fold the second load into the masked comparison. Since vmovq clears the upper bytes, k2 disables every memory lane beyond the original eight-byte input."
+  },
+  "7be0139e8d": {
+    "rewrite": "vmovd xmm0,DWORD PTR [rdi]\nvptestmb k2,xmm0,xmm0\nvpcmpeqb k1{k2},xmm0,XMMWORD PTR [rsi]\nkmovd ecx,k1\nsub ecx,0xf",
+    "saved": 1,
+    "why": "Fold the second load into the masked comparison. Since vmovd clears the upper bytes, k2 disables every memory lane beyond the original four-byte input."
+  },
+  "dc9875738f": {
+    "rewrite": null,
+    "why": "The two required zeroed registers and the masked page-offset comparison need the existing initializations, bitwise operations, and comparison."
+  },
+  "bf3c305b6e": {
+    "rewrite": null,
+    "why": "The unaligned loads, preserved vector results, byte-mask construction, and ZF extraction leave no removable SSE2 instruction."
+  },
+  "bcfb0d92ed": {
+    "rewrite": "movdqu xmm6,XMMWORD PTR [rdi+0x10]\nmovdqu xmm3,XMMWORD PTR [rsi+0x10]\nmovdqu xmm5,XMMWORD PTR [rdi+0x20]\npcmpeqb xmm3,xmm6\nmovdqu xmm2,XMMWORD PTR [rsi+0x20]\npminub xmm3,xmm6\npcmpeqb xmm3,xmm1\nmovdqu xmm4,XMMWORD PTR [rdi+0x30]\npcmpeqb xmm2,xmm5\npmovmskb edx,xmm3\nmovdqu xmm0,XMMWORD PTR [rsi+0x30]\npminub xmm2,xmm5\npcmpeqb xmm2,xmm1\npcmpeqb xmm0,xmm4\npmovmskb eax,xmm2\nshl rdx,0x10\npminub xmm0,xmm4\npcmpeqb xmm0,xmm1\nshl rax,0x20\nor rax,rdx\npmovmskb edx,xmm0\nshl rdx,0x30\nor rax,rdx",
+    "saved": 1,
+    "why": "Extract the final mask directly into edx, eliminating the copy from rcx while preserving rax, rdx, xmm0, and the final ZF."
+  },
+  "b61ea18a9b": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdx]\nmovdqu xmm1,XMMWORD PTR [rdx+0x10]\npcmpeqb xmm0,XMMWORD PTR [rax]\nmovdqu xmm5,XMMWORD PTR [rdx+0x20]\npcmpeqb xmm1,XMMWORD PTR [rax+0x10]\npminub xmm0,XMMWORD PTR [rax]\nmovdqu xmm6,XMMWORD PTR [rdx+0x30]\npminub xmm1,XMMWORD PTR [rax+0x10]\npminub xmm0,xmm1\npcmpeqb xmm5,XMMWORD PTR [rax+0x20]\npcmpeqb xmm6,XMMWORD PTR [rax+0x30]\npminub xmm5,XMMWORD PTR [rax+0x20]\npminub xmm6,XMMWORD PTR [rax+0x30]\npminub xmm0,xmm5\npminub xmm0,xmm6\npcmpeqb xmm0,xmm7\npmovmskb ecx,xmm0\ntest ecx,ecx",
+    "saved": 4,
+    "why": "Fold all four aligned loads into their comparison and minimum users, since xmm2 and xmm3 are dead. The preserved vectors and the final reduction remain identical."
+  },
+  "3bbbaf5f5c": {
+    "rewrite": null,
+    "why": "Both independently masked register values are live, and SSE2 provides no single instruction combining either copy with its six-bit mask or the final flag comparison."
+  },
+  "4ccafd0201": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rdi]\nmovdqu xmm2,XMMWORD PTR [rsi]\npxor xmm0,xmm0\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 2,
+    "why": "Replace each pair of low- and high-qword loads with one unaligned 16-byte load covering exactly the same bytes. All subsequent operations remain unchanged."
+  },
+  "bcd4b03550": {
+    "rewrite": null,
+    "why": "The live zero-byte mask, equality mask, two independent variable shifts, and final subtraction have no removable instruction under SSE2."
+  },
+  "5ae2c4fc0e": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,XMMWORD PTR [rdi+rcx*1]\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Fold the aligned load of the dead xmm2 temporary into pcmpeqb, preserving xmm0 and the scalar result and flags."
+  },
+  "b29aec58e6": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0xf\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Remove the dead xmm1 load by reading its aligned memory operand directly in both comparisons; the zero-byte mask and shifted scalar subtraction are unchanged."
+  },
+  "db49488b11": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0x1\npslldq xmm2,0xf\npor xmm2,xmm3\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm2,XMMWORD PTR [rsi+rcx*1]\npsubb xmm2,xmm0\npmovmskb edx,xmm2\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Use the aligned rsi memory operand in both comparisons and retain the equality result in xmm2, eliminating the xmm1 load while preserving xmm0 and xmm4."
+  },
+  "26af0957e7": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0xe\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Fold the aligned xmm1 load into its two comparison users, leaving the required xmm0 value and scalar computation unchanged."
+  },
+  "c3c0b68ad5": {
+    "rewrite": "movdqa xmm4,XMMWORD PTR [rdi+rcx*1]\npsrldq xmm3,0x2\npinsrw xmm3,WORD PTR [rdi+rcx*1],0x7\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm3,XMMWORD PTR [rsi+rcx*1]\npsubb xmm3,xmm0\npmovmskb edx,xmm3\nsub edx,0xffff",
+    "saved": 3,
+    "why": "After shifting xmm3 by two bytes, insert the incoming low word directly into its high word while loading xmm4 separately. Folding the rsi load into both comparisons removes another instruction."
+  },
+  "f190a245d6": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0xd\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Fold the aligned xmm1 load into its two comparison users, leaving the required xmm0 value and scalar computation unchanged."
+  },
+  "0f779870be": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0x3\npslldq xmm2,0xd\npor xmm2,xmm3\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm2,XMMWORD PTR [rsi+rcx*1]\npsubb xmm2,xmm0\npmovmskb edx,xmm2\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Use the aligned rsi memory operand in both comparisons and retain the equality result in xmm2, eliminating the xmm1 load while preserving xmm0 and xmm4."
+  },
+  "c432050c9f": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0xc\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Fold the aligned xmm1 load into its two comparison users, leaving the required xmm0 value and scalar computation unchanged."
+  },
+  "d39b5f609a": {
+    "rewrite": "movdqa xmm4,XMMWORD PTR [rdi+rcx*1]\nmovss xmm3,xmm4\npshufd xmm3,xmm3,0x39\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm3,XMMWORD PTR [rsi+rcx*1]\npsubb xmm3,xmm0\npmovmskb edx,xmm3\nsub edx,0xffff",
+    "saved": 3,
+    "why": "Replace the low dword of xmm3 and rotate its dwords to construct the same concatenation with movss and pshufd. Folding the rsi load into both comparisons removes another instruction."
+  },
+  "14870cff12": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0xb\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Fold the aligned xmm1 load into its two comparison users, leaving the required xmm0 value and scalar computation unchanged."
+  }
+}

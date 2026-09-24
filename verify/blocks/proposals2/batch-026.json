@@ -1,0 +1,83 @@
+{
+  "8aa5672156": {
+    "rewrite": "vshufps ymm4,ymm0,ymm1,0x88\nvshufps ymm0,ymm0,ymm1,0xdd\nvshufps ymm5,ymm2,ymm3,0x88\nvshufps ymm2,ymm2,ymm3,0xdd\nvperm2i128 ymm1,ymm0,ymm2,0x20\nvperm2i128 ymm3,ymm0,ymm2,0x31\nvperm2i128 ymm2,ymm4,ymm5,0x31\nvperm2i128 ymm0,ymm4,ymm5,0x20",
+    "saved": 4,
+    "why": "VSHUFPS with immediates 0x88 and 0xdd directly produces the even- and odd-dword groups formed by the initial shuffles and qword unpacks. This preserves the full YMM results, including ymm4 and ymm5, while eliminating four instructions."
+  },
+  "cdb1f4a31f": {
+    "rewrite": null,
+    "why": "The two integer multiply-and-round stages, coefficient store, counter update, and saturating word broadcast all contribute to required results and have no shorter equivalent identified within AVX2."
+  },
+  "5f38cd1252": {
+    "rewrite": null,
+    "why": "The two independently addressed loads and stores, distinct saturation operations, pointer update, and flag-producing counter update leave no redundant instruction."
+  },
+  "a12929903c": {
+    "rewrite": null,
+    "why": "The word, dword, and 128-bit interleaving stages are needed to produce the required transpose, including the preserved intermediate in ymm4."
+  },
+  "2353c90e5e": {
+    "rewrite": null,
+    "why": "All eight dword additions and arithmetic shifts produce required outputs, and AVX2 has no fused operation for these arbitrary dword operands."
+  },
+  "0510006e7e": {
+    "rewrite": null,
+    "why": "The shared increment, eight wrapping dword butterfly results, and arithmetic shifts cannot use byte or word averaging without changing results for arbitrary dword inputs."
+  },
+  "6fd3c272c6": {
+    "rewrite": null,
+    "why": "Every biased dword sum or difference and subsequent shift is required, as is the updated bias in ymm8, with no applicable AVX2 fusion."
+  },
+  "6cc959c0f1": {
+    "rewrite": null,
+    "why": "All eight shifted results and the unshifted final values in ymm8 and ymm10 must be preserved, leaving no removable arithmetic or shift."
+  },
+  "f211d43330": {
+    "rewrite": null,
+    "why": "The dword, qword, and 128-bit interleaving stages form the required eight-register transpose while retaining the required intermediate values in ymm8 through ymm11."
+  },
+  "6021b1c698": {
+    "rewrite": null,
+    "why": "The shared rounding bias, eight wrapping dword butterfly operations, and eight arithmetic shifts are necessary for arbitrary inputs and cannot be fused by AVX2."
+  },
+  "c5d3ba7538": {
+    "rewrite": null,
+    "why": "The two bias constructions feed distinct dword calculations and shifts, and their final register values are also required, so no instruction is redundant."
+  },
+  "c7d12be9db": {
+    "rewrite": null,
+    "why": "Each of the eight instructions directly produces a distinct required YMM result with signed saturation, already using one instruction per output."
+  },
+  "5f73b1d1ee": {
+    "rewrite": null,
+    "why": "The word, dword, and 128-bit interleaving stages are all needed for the required transpose and preserved intermediate in ymm8."
+  },
+  "1eb92d5968": {
+    "rewrite": null,
+    "why": "Each required wrapping dword butterfly result must be clamped against two arbitrary vector bounds, which AVX2 cannot combine into a single saturation instruction."
+  },
+  "7a3a310c50": {
+    "rewrite": null,
+    "why": "The shifted inputs can still require 20 signed bits, so word multiplication is insufficient, and AVX2 needs separate broadcasts for the distinct dword multipliers."
+  },
+  "8ee4a505da": {
+    "rewrite": null,
+    "why": "The rotations operate on potentially 20-bit signed inputs, preventing word multiply-add substitution, while the existing dword multiplications already share each broadcast coefficient."
+  },
+  "82eb200cea": {
+    "rewrite": null,
+    "why": "The broadcast value and difference must both survive, and the right-shifted intermediate feeds both the difference and final left shift, making all four instructions necessary."
+  },
+  "8f0d18e78a": {
+    "rewrite": null,
+    "why": "The required scalar result retains both integer rounding stages, and the coefficient store, counter update, and saturating word broadcast offer no instruction-count reduction within AVX2."
+  },
+  "2af46909bb": {
+    "rewrite": null,
+    "why": "Both loads are already folded into saturated additions, and the two saturated subtractions, stores, pointer update, and flag-producing counter update are all required."
+  },
+  "e24effab3b": {
+    "rewrite": null,
+    "why": "The four instructions each directly produce a distinct required YMM sum or difference, already using one instruction per output."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "e8413bec1a": {
+    "rewrite": null,
+    "why": "Both XOR results, the xmm10 copy, both stores, and the pointer update are required and cannot be combined using SSE2."
+  },
+  "c793f08449": {
+    "rewrite": null,
+    "why": "Each of the three results needs a load and a two-operand XOR while preserving its mask register, and the pointer update is required."
+  },
+  "f8aafdd3f7": {
+    "rewrite": null,
+    "why": "The three XORs, three stores, live xmm10 copy, and pointer update each perform a required operation."
+  },
+  "a1a92ca143": {
+    "rewrite": null,
+    "why": "SSE2 requires separate loads and XORs for these four results while preserving all four mask registers, plus the pointer update."
+  },
+  "4560608405": {
+    "rewrite": null,
+    "why": "All four XOR results and stores, the xmm10 copy, and the pointer update must be retained."
+  },
+  "5d952dd8c5": {
+    "rewrite": "movzx eax,BYTE PTR [rdi]\nlea rdi,[rdi+0x1]\nxchg BYTE PTR [rsi-0x10],al\nmov BYTE PTR [rsi],al\nlea rsi,[rsi+0x1]\nsub rdx,0x1",
+    "saved": 1,
+    "why": "The byte XCHG combines loading the old byte with storing its replacement, and rax and rcx need not be preserved. The unchanged pointer updates and final SUB preserve the required registers and ZF."
+  },
+  "6741797faa": {
+    "rewrite": null,
+    "why": "The zero-extending r10 copy, two independent vector XORs, and rdx addition all produce required final values."
+  },
+  "6073e36842": {
+    "rewrite": null,
+    "why": "The five loaded XOR results require two SSE2 instructions each with their mask registers preserved, and rdi must also advance."
+  },
+  "749c99ebfc": {
+    "rewrite": null,
+    "why": "All five XORs and stores are required, and producing both preserved sign-mask vectors still needs three SSE2 instructions in addition to the pointer and r9 updates."
+  },
+  "2cb9daddfa": {
+    "rewrite": null,
+    "why": "The original and doubled xmm15 values must both survive, and SSE2 cannot fuse the required AND and XOR."
+  },
+  "40aebbf2c4": {
+    "rewrite": null,
+    "why": "The AES final round, whitening XOR, two live copies, store, and pointer update cannot be combined into fewer allowed instructions."
+  },
+  "8a4e523cf3": {
+    "rewrite": null,
+    "why": "Both XORs, both live vector copies, both stores, and the pointer update are independently required."
+  },
+  "679a744745": {
+    "rewrite": null,
+    "why": "The three XORs and stores, two live vector copies, and pointer update have no removable operation or SSE2 fusion."
+  },
+  "c90437b7e8": {
+    "rewrite": null,
+    "why": "All four XORs and stores, both live vector copies, and the pointer update are required under the SSE2 restriction."
+  },
+  "3affa9e63e": {
+    "rewrite": "movzx eax,BYTE PTR [rdi+0x10]\nlea rdi,[rdi+0x1]\nxchg BYTE PTR [rsi],al\nmov BYTE PTR [rsi+0x10],al\nlea rsi,[rsi+0x1]\nsub rdx,0x1",
+    "saved": 1,
+    "why": "The byte XCHG combines loading the old destination byte with storing the input byte, using only registers whose final values are unrestricted. Both stores, pointer updates, and the final SUB result and ZF are preserved."
+  },
+  "9f244c6d91": {
+    "rewrite": null,
+    "why": "The live vector copy, store, pointer advance, and counter decrement each require a separate instruction."
+  },
+  "f98b3cc394": {
+    "rewrite": null,
+    "why": "The three distinct inputs each need address arithmetic, a bit scan, and scaling, while the r8 and rdx updates must also be preserved."
+  },
+  "c3e9e75df4": {
+    "rewrite": null,
+    "why": "SSE2 needs all six 128-bit stores, followed by the required pointer update and flag-producing counter subtraction."
+  },
+  "710de5b746": {
+    "rewrite": null,
+    "why": "The vector copy, store, checksum XOR, pointer advance, and counter decrement all have required independent effects."
+  },
+  "8ecf5271bf": {
+    "rewrite": null,
+    "why": "The six stores and six checksum XORs are all required with SSE2, as are the pointer update and flag-producing counter subtraction."
+  }
+}

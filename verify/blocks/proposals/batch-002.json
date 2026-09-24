@@ -1,0 +1,6 @@
+{
+  "7c89d5461b": {
+    "rewrite": null,
+    "why": "With arbitrary xmm3, xmm4, and xmm5 inputs, the widening and arithmetic remain necessary, while folding the 8-byte loads into SSE2 packed memory operands would read additional addresses."
+  }
+}

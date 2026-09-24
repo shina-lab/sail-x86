@@ -1,0 +1,86 @@
+{
+  "2950404067": {
+    "rewrite": null,
+    "why": "The four live cross-lane permutations share the constant load and index shifts, and the broadcast result must also be preserved."
+  },
+  "bae3b254e3": {
+    "rewrite": null,
+    "why": "The successive rounded multiplications, coefficient store, counter update, broadcast, and saturated addition all contribute to required results."
+  },
+  "9da367c6ee": {
+    "rewrite": null,
+    "why": "The two separately addressed loads and stores, distinct saturation operations, pointer update, and flag-producing counter update are all required."
+  },
+  "72f49d3796": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required vector result."
+  },
+  "76b1c8ba70": {
+    "rewrite": null,
+    "why": "All four destination vectors are live, so both copies are required alongside the load and shift."
+  },
+  "2125456b27": {
+    "rewrite": "vpmulhrsw zmm24,zmm24,zmm27\nvpmulhrsw zmm25,zmm25,zmm27\nvmovdqa32 ymm26,YMMWORD PTR [rdi]\nvinserti32x8 zmm26,zmm26,YMMWORD PTR [rdi+rsi*1],0x1\nvpaddw zmm24,zmm24,zmm26\nvmovdqa32 ymm26,YMMWORD PTR [rdi+rsi*2]\nvinserti32x8 zmm26,zmm26,YMMWORD PTR [rdi+rax*1],0x1\nvpaddw zmm25,zmm25,zmm26\nvpmaxsw zmm24,zmm24,zmm28\nvpmaxsw zmm25,zmm25,zmm28\nvpminsw zmm24,zmm24,zmm29\nvpminsw zmm25,zmm25,zmm29\nvmovdqa32 YMMWORD PTR [rdi],ymm24\nvextracti32x8 YMMWORD PTR [rdi+rsi*1],zmm24,0x1\nvmovdqa32 YMMWORD PTR [rdi+rsi*2],ymm25\nvextracti32x8 YMMWORD PTR [rdi+rax*1],zmm25,0x1",
+    "saved": 1,
+    "why": "The final rdi update is dead because rdi is not a required output and all memory accesses precede it."
+  },
+  "6cae6515c6": {
+    "rewrite": null,
+    "why": "The broadcast and eight additions or subtractions each produce a distinct required vector result."
+  },
+  "ec23aecd9a": {
+    "rewrite": null,
+    "why": "The load is already folded into the first shift, and all four destination vectors must be preserved."
+  },
+  "75eb249f86": {
+    "rewrite": null,
+    "why": "The multiply, rounding addition, arithmetic shift, coefficient store, and ecx update are all required, including the final shift flags."
+  },
+  "f2689af868": {
+    "rewrite": null,
+    "why": "Four full-width stores at distinct addresses and the eax subtraction with its flags are all required."
+  },
+  "a078daa3ca": {
+    "rewrite": null,
+    "why": "All eight butterfly results are live and each requires both signed clamps because the bound vectors are arbitrary inputs."
+  },
+  "a12be329d3": {
+    "rewrite": "vpaddd zmm0,zmm23,DWORD PTR [r9+0x7c]{1to16}\nvpsubd zmm0,zmm0,zmm25\nvpsravd zmm0,zmm0,DWORD PTR [r9+0x7c]{1to16}",
+    "saved": 46,
+    "why": "Only zmm0 is a live vector result, so retain its addition, subtraction, and arithmetic shift. Both uses of the loaded scalar fold into broadcast memory operands at the original address."
+  },
+  "2a538f499f": {
+    "rewrite": "",
+    "saved": 32,
+    "why": "Every transpose result is dead, and the block has no memory effects or writes to any required register."
+  },
+  "ff980727d7": {
+    "rewrite": "vpaddd zmm0,zmm0,zmm29\nvpsrad zmm0,zmm0,0xc",
+    "saved": 12,
+    "why": "Only zmm0 is a live vector result, so the additions and shifts producing the other vectors can be removed."
+  },
+  "ae5b00f6f9": {
+    "rewrite": null,
+    "why": "Each of the eight saturating packs produces a distinct required vector result."
+  },
+  "3ab69e80ed": {
+    "rewrite": null,
+    "why": "All eleven instructions produce distinct required vector results, including both loaded constants and the shifted index vector."
+  },
+  "42720848a1": {
+    "rewrite": null,
+    "why": "All eight packed vectors are required, with one saturating pack already used per result."
+  },
+  "6fa74d9960": {
+    "rewrite": null,
+    "why": "The broadcast and eight additions or subtractions each produce a distinct required vector result."
+  },
+  "167556bff9": {
+    "rewrite": null,
+    "why": "All eleven instructions produce distinct required vector results, including both loaded constants and the shifted index vector."
+  },
+  "cbca51330b": {
+    "rewrite": null,
+    "why": "Both broadcast vectors, the rax copy, and the comparison flags are independently required."
+  }
+}

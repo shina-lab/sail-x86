@@ -1,0 +1,89 @@
+{
+  "31ea29674e": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rsi+rcx*1+0x10]\npaddw xmm0,XMMWORD PTR [rdi+rcx*1]\npaddw xmm2,XMMWORD PTR [rdi+rcx*1+0x10]\npand xmm0,xmm4\npand xmm2,xmm4\nmovdqa XMMWORD PTR [rdi+rcx*1],xmm0\nmovdqa XMMWORD PTR [rdi+rcx*1+0x10],xmm2\nadd rcx,0x20",
+    "saved": 2,
+    "why": "Fold the two aligned destination-buffer loads into PADDW memory operands because xmm1 and xmm3 are dead. The masked results, stores, index update, and required flags remain unchanged."
+  },
+  "f850d06986": {
+    "rewrite": null,
+    "why": "The inputs may be unaligned, so SSE2 PADDW memory operands cannot replace the MOVDQU loads, and the remaining arithmetic, stores, and index update are required."
+  },
+  "bfdbeae857": {
+    "rewrite": null,
+    "why": "AVX2 needs both the GPR-to-vector transfer and word broadcast, while doubling ECX and testing only the low six result bits require separate instructions."
+  },
+  "7a7e971242": {
+    "rewrite": "vmovdqa ymm0,YMMWORD PTR [rsi+rcx*1]\nvmovdqa ymm2,YMMWORD PTR [rsi+rcx*1+0x20]\nvpaddw ymm0,ymm0,YMMWORD PTR [rdi+rcx*1]\nvpaddw ymm2,ymm2,YMMWORD PTR [rdi+rcx*1+0x20]\nvpand ymm0,ymm0,ymm4\nvpand ymm2,ymm2,ymm4\nvmovdqa YMMWORD PTR [rdi+rcx*1],ymm0\nvmovdqa YMMWORD PTR [rdi+rcx*1+0x20],ymm2\nadd rcx,0x40",
+    "saved": 2,
+    "why": "Fold the two destination-buffer loads into VPADDW memory operands; ymm1 and ymm3 need not be preserved. Both full-width masked results and the final index flags are unchanged."
+  },
+  "1df3311874": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rsi+rcx*1]\nvmovdqu ymm2,YMMWORD PTR [rsi+rcx*1+0x20]\nvpaddw ymm0,ymm0,YMMWORD PTR [rdi+rcx*1]\nvpaddw ymm2,ymm2,YMMWORD PTR [rdi+rcx*1+0x20]\nvpand ymm0,ymm0,ymm4\nvpand ymm2,ymm2,ymm4\nvmovdqu YMMWORD PTR [rdi+rcx*1],ymm0\nvmovdqu YMMWORD PTR [rdi+rcx*1+0x20],ymm2\nadd rcx,0x40",
+    "saved": 2,
+    "why": "AVX2 VPADDW accepts unaligned memory operands, allowing both destination-buffer loads to be folded into the additions. The stores, live vectors, and final index flags remain identical."
+  },
+  "b765ec70d1": {
+    "rewrite": null,
+    "why": "The bytewise prefix sum requires both shifted additions and their SSE2 copies, together with the incoming-pixel broadcast, final addition, store, and index update."
+  },
+  "df5b40fec8": {
+    "rewrite": null,
+    "why": "All four GPR results are live and already use one instruction each, with NEG also producing the required ZF."
+  },
+  "079af5d832": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+r8*1]\nmovdqa xmm2,XMMWORD PTR [rsi+r8*1+0x10]\npsubw xmm0,XMMWORD PTR [rdx+r8*1]\npsubw xmm2,XMMWORD PTR [rdx+r8*1+0x10]\npand xmm0,xmm4\npand xmm2,xmm4\nmovdqa XMMWORD PTR [rdi+r8*1],xmm0\nmovdqa XMMWORD PTR [rdi+r8*1+0x10],xmm2\nadd r8,0x20",
+    "saved": 2,
+    "why": "Fold the two aligned subtrahend loads into PSUBW memory operands because xmm1 and xmm3 are dead. Subtraction order, masking, stores, and the index update are preserved."
+  },
+  "dfa6de4770": {
+    "rewrite": null,
+    "why": "Potentially unaligned inputs require the explicit MOVDQU loads because legacy SSE2 PSUBW memory operands require alignment, and the remaining operations are needed."
+  },
+  "1762bbc18a": {
+    "rewrite": null,
+    "why": "The three pointer additions and index negation each produce a required GPR result, and NEG also supplies the required ZF."
+  },
+  "990fcc2bc6": {
+    "rewrite": "vmovdqa ymm0,YMMWORD PTR [rsi+r8*1]\nvmovdqa ymm2,YMMWORD PTR [rsi+r8*1+0x20]\nvpsubw ymm0,ymm0,YMMWORD PTR [rdx+r8*1]\nvpsubw ymm2,ymm2,YMMWORD PTR [rdx+r8*1+0x20]\nvpand ymm0,ymm0,ymm4\nvpand ymm2,ymm2,ymm4\nvmovdqa YMMWORD PTR [rdi+r8*1],ymm0\nvmovdqa YMMWORD PTR [rdi+r8*1+0x20],ymm2\nadd r8,0x40",
+    "saved": 2,
+    "why": "Fold the two subtrahend loads into VPSUBW memory operands, eliminating dead ymm1 and ymm3 temporaries. The masked differences, stores, live vectors, and index flags are unchanged."
+  },
+  "41e19a0b41": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rsi+r8*1]\nvmovdqu ymm2,YMMWORD PTR [rsi+r8*1+0x20]\nvpsubw ymm0,ymm0,YMMWORD PTR [rdx+r8*1]\nvpsubw ymm2,ymm2,YMMWORD PTR [rdx+r8*1+0x20]\nvpand ymm0,ymm0,ymm4\nvpand ymm2,ymm2,ymm4\nvmovdqu YMMWORD PTR [rdi+r8*1],ymm0\nvmovdqu YMMWORD PTR [rdi+r8*1+0x20],ymm2\nadd r8,0x40",
+    "saved": 2,
+    "why": "AVX2 VPSUBW can read the unaligned subtrahends directly, removing two explicit loads. Subtraction order, masking, stores, and the final index flags remain identical."
+  },
+  "531e158709": {
+    "rewrite": null,
+    "why": "The unaligned loads, masked prediction, signed clamp, and live maximum leave no removable instruction in this destructive two-operand SSE2 sequence."
+  },
+  "28067f939d": {
+    "rewrite": "vmovdqu ymm3,YMMWORD PTR [rdx+r8*1]\nvpsubw ymm4,ymm2,ymm0\nvpmaxuw ymm0,ymm2,YMMWORD PTR [rsi+r8*1]\nvpaddw ymm4,ymm4,YMMWORD PTR [rsi+r8*1]\nvpminuw ymm2,ymm2,YMMWORD PTR [rsi+r8*1]\nvpand ymm4,ymm4,ymm5\nvpminuw ymm4,ymm4,ymm0\nvpmaxuw ymm4,ymm4,ymm2\nvpsubw ymm3,ymm3,ymm4\nvpand ymm3,ymm3,ymm5\nvmovdqu YMMWORD PTR [rdi+r8*1],ymm3\nadd r8,0x20",
+    "saved": 1,
+    "why": "Remove the ymm1 load by reading the same permitted source address directly in the maximum, addition, and minimum instructions. These repeated unaligned reads precede the store and preserve the live maximum, masked prediction, and index flags."
+  },
+  "e1034c719d": {
+    "rewrite": null,
+    "why": "All four constant vectors are live, and the scalar setup needs three pointer updates plus separate 32-bit scaling and 64-bit negation of the index."
+  },
+  "4d9f40ac8b": {
+    "rewrite": null,
+    "why": "All four full-width constant vectors are required, and the live pointer results and truncated-then-negated index leave no removable scalar instruction."
+  },
+  "fa2047c9ea": {
+    "rewrite": null,
+    "why": "The four constant loads and five scalar setup operations all produce required results, and FMA does not combine these operations."
+  },
+  "db2a86b0c9": {
+    "rewrite": null,
+    "why": "The three pointer additions are required, and the index needs both 32-bit truncating scaling and a subsequent 64-bit negation."
+  },
+  "7e3e34baef": {
+    "rewrite": null,
+    "why": "Both source vectors are reused in the output sums, so SSE2 needs the temporary copy for their shifted sum along with the three loads, five arithmetic operations, three stores, and index update."
+  },
+  "2a11617fc8": {
+    "rewrite": null,
+    "why": "All three pointer results and the index are live, and preserving the 32-bit shift truncation before 64-bit negation prevents combining the two index operations."
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "19703c5ac7": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0xf\npslldq xmm2,0x1\npor xmm2,xmm3\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm2,XMMWORD PTR [rsi+rcx*1]\npsubb xmm2,xmm0\npmovmskb edx,xmm2\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Use the shifted vector as the equality-comparison destination and read the original aligned memory operand directly in both comparisons, eliminating its temporary load while preserving xmm0, xmm4, rdx, and ZF."
+  },
+  "719039cb1b": {
+    "rewrite": null,
+    "why": "The comparison and subtraction by arbitrary xmm0 determine the extracted mask, and NOT is needed to form the full 32-bit complemented result."
+  },
+  "1032d1d41a": {
+    "rewrite": null,
+    "why": "Both preserved results require a copy and a six-bit mask, followed by the comparison that supplies CF and ZF."
+  },
+  "72db34328d": {
+    "rewrite": null,
+    "why": "The zero-byte mask and exact scalar result require the remaining operations, while folding either unaligned load into legacy PCMPEQB would introduce an alignment requirement."
+  },
+  "d8b46bb5fa": {
+    "rewrite": null,
+    "why": "Both comparisons are needed for xmm0 and the extracted mask, and the two right shifts cannot be combined with subtraction for arbitrary inputs."
+  },
+  "02bc72178c": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "54e93af282": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "34ebb51d7e": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "ac28cefc5a": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "8a903e9e32": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "58ba6b20ea": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "4264333e8f": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "24577c4ca3": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "b1bce84104": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "5f4373023a": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "4171d59bd1": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "f1abc8ac9b": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "2786fbddd9": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "8661810b5d": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  },
+  "133462567e": {
+    "rewrite": null,
+    "why": "The byte shift, comparison, subtraction by arbitrary xmm0, mask extraction, and separate shifts of both scalar operands are needed to preserve rdx and ZF."
+  }
+}

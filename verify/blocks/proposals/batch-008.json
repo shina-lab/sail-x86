@@ -1,0 +1,91 @@
+{
+  "89de5a3723": {
+    "rewrite": null,
+    "why": "Each load, pointer adjustment, count operation, and XMM initialization contributes to a required final value."
+  },
+  "898fbd09a9": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rsi+rcx*1]\npsubd xmm2,XMMWORD PTR [rdx+rcx*1]\npackssdw xmm2,XMMWORD PTR [rsi+rcx*1]\npshufd xmm0,xmm2,0x4e\npunpcklwd xmm0,xmm2\npsllw xmm0,xmm3\nmovdqa XMMWORD PTR [rdi+rcx*1],xmm0\nadd rcx,0x10",
+    "saved": 2,
+    "why": "Fold the side-channel load into the subtraction and pack the difference together with a reread of the left channel. Swapping the packed halves before unpacking reconstructs the same saturated interleave with fewer copies and packs."
+  },
+  "a5e0f0aa50": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rdx+rcx*1]\npaddd xmm2,xmm0\npackssdw xmm2,XMMWORD PTR [rdx+rcx*1]\npshufd xmm1,xmm2,0x4e\npunpcklwd xmm2,xmm1\npsllw xmm2,xmm3\nmovdqa XMMWORD PTR [rdi+rcx*1],xmm2\nadd rcx,0x10",
+    "saved": 1,
+    "why": "Accumulate the sum in the right-channel temporary and pack it together with a reread of that channel. A half swap and word unpack produce the original interleave while preserving the original input in xmm0."
+  },
+  "a57ba53573": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm1,XMMWORD PTR [rdx+rcx*1]\nmovdqa xmm2,xmm1\npsrad xmm2,0x1\npsubd xmm0,xmm2\npaddd xmm1,xmm0\npackssdw xmm1,xmm1\npackssdw xmm0,xmm0\npunpcklwd xmm1,xmm0\npsllw xmm1,xmm3\nmovdqa XMMWORD PTR [rdi+rcx*1],xmm1\nadd rcx,0x10",
+    "saved": 1,
+    "why": "Reuse the dead side-channel register as the destination of the left-channel sum, eliminating a copy. The packed right-channel value remains unchanged in xmm0."
+  },
+  "10bce63229": {
+    "rewrite": null,
+    "why": "The three pointer loads, offset subtraction, and shift-count transfer all produce required final values."
+  },
+  "caa14563b7": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi]\nmovdqa xmm2,xmm0\npsubd xmm2,XMMWORD PTR [rsi+rdx*1]\npslld xmm0,xmm3\npslld xmm2,xmm3\nmovdqa xmm1,xmm0\npunpckldq xmm0,xmm2\npunpckhdq xmm1,xmm2\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\nadd rsi,0x10\nadd rdi,0x20\nsub ecx,0x4",
+    "saved": 1,
+    "why": "Fold the side-channel load into psubd because its loaded register value is otherwise dead."
+  },
+  "f18743e38a": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi]\npaddd xmm0,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm2,xmm0\npunpckldq xmm2,XMMWORD PTR [rsi+rdx*1]\npunpckhdq xmm0,XMMWORD PTR [rsi+rdx*1]\npslld xmm2,xmm3\npslld xmm0,xmm3\nmovdqa XMMWORD PTR [rdi],xmm2\nmovdqa XMMWORD PTR [rdi+0x10],xmm0\nadd rsi,0x10\nadd rdi,0x20\nsub ecx,0x4",
+    "saved": 2,
+    "why": "Compute the sum directly in xmm0 and fold the right-channel reads into the addition and both unpacks. Moving the common dword shift after interleaving preserves every lane and the required high output in xmm0."
+  },
+  "961c1df0c6": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi]\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm2,xmm1\npsrad xmm2,0x1\npsubd xmm0,xmm2\npaddd xmm1,xmm0\npslld xmm1,xmm3\npslld xmm0,xmm3\nmovdqa xmm2,xmm1\npunpckldq xmm1,xmm0\npunpckhdq xmm2,xmm0\nmovdqa XMMWORD PTR [rdi],xmm1\nmovdqa XMMWORD PTR [rdi+0x10],xmm2\nadd rsi,0x10\nadd rdi,0x20\nsub ecx,0x4",
+    "saved": 1,
+    "why": "Accumulate the left-channel sum into the dead side-channel register instead of copying the right channel first. The shifted right channel remains in xmm0 and both stores retain their original lane order."
+  },
+  "3fdaa19bd7": {
+    "rewrite": null,
+    "why": "The constant and shift-count loads are live, and the pointer loads and count adjustments all contribute to preserved results."
+  },
+  "4b1c1b17c6": {
+    "rewrite": null,
+    "why": "Both input vectors require their own dword shift and byte shuffle with the arbitrary incoming mask before the live interleave and store."
+  },
+  "040d11fa20": {
+    "rewrite": null,
+    "why": "The three pointer loads, offset subtraction, and shift-count transfer all produce required final values."
+  },
+  "cd9e49b9e1": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi]\nmovdqa xmm2,xmm0\npunpckldq xmm0,XMMWORD PTR [rsi+rdx*1]\npunpckhdq xmm2,XMMWORD PTR [rsi+rdx*1]\npslld xmm0,xmm3\npslld xmm2,xmm3\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm2\nadd rsi,0x10\nadd rdi,0x20\nsub ecx,0x4",
+    "saved": 1,
+    "why": "Fold the second channel's load into both unpacks, eliminating its explicit load while reading only the original address."
+  },
+  "1636d3c74a": {
+    "rewrite": null,
+    "why": "All four channel-pointer loads, the output-pointer load, three differences, and the shift-count transfer contribute to live outputs."
+  },
+  "cfb3ed81b9": {
+    "rewrite": null,
+    "why": "The loads already feed memory-source packs, and both word and dword interleave stages are needed before shifting and storing the saturated samples."
+  },
+  "e62abeacca": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi]\nmovdqa xmm2,XMMWORD PTR [rsi+r8*1]\nmovdqa xmm4,xmm0\npunpckldq xmm0,XMMWORD PTR [rsi+rdx*1]\npunpckhdq xmm4,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm1,xmm2\npunpckldq xmm2,XMMWORD PTR [rsi+r9*1]\npunpckhdq xmm1,XMMWORD PTR [rsi+r9*1]\nmovdqa xmm3,xmm0\npunpcklqdq xmm0,xmm2\npunpckhqdq xmm3,xmm2\nmovdqa xmm2,xmm4\npunpcklqdq xmm4,xmm1\npunpckhqdq xmm2,xmm1\npslld xmm0,xmm5\npslld xmm3,xmm5\npslld xmm4,xmm5\npslld xmm2,xmm5\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm3\nmovdqa XMMWORD PTR [rdi+0x20],xmm4\nmovdqa XMMWORD PTR [rdi+0x30],xmm2\nadd rsi,0x10\nadd rdi,0x40\nsub ecx,0x4",
+    "saved": 2,
+    "why": "Fold the second and fourth channel loads into their low and high dword unpacks. The remaining transpose, shifts, stores, and final flags are unchanged."
+  },
+  "dbf2e252a8": {
+    "rewrite": null,
+    "why": "All six channel pointers, five relative offsets, the output pointer, and the shift count are required at exit."
+  },
+  "ba532f1781": {
+    "rewrite": null,
+    "why": "The six memory inputs already use folded packs, and the three-vector transpose needs its saved intermediates to preserve every output lane."
+  },
+  "cc215a4564": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi]\nmovdqa xmm2,XMMWORD PTR [rsi+r8*1]\nmovdqa xmm4,XMMWORD PTR [rsi+rax*1]\nmovdqa xmm6,xmm0\npunpckldq xmm0,XMMWORD PTR [rsi+rdx*1]\npunpckhdq xmm6,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm1,xmm2\npunpckldq xmm2,XMMWORD PTR [rsi+r9*1]\npunpckhdq xmm1,XMMWORD PTR [rsi+r9*1]\nmovdqa xmm3,xmm4\npunpckldq xmm4,XMMWORD PTR [rsi+r10*1]\npunpckhdq xmm3,XMMWORD PTR [rsi+r10*1]\nmovdqa xmm5,xmm0\npunpcklqdq xmm5,xmm2\npunpckhqdq xmm2,xmm4\nshufps xmm4,xmm0,0xe4\nmovdqa xmm0,xmm6\npunpcklqdq xmm0,xmm1\npunpckhqdq xmm1,xmm3\nshufps xmm3,xmm6,0xe4\npslld xmm5,xmm7\npslld xmm4,xmm7\npslld xmm2,xmm7\npslld xmm0,xmm7\npslld xmm3,xmm7\npslld xmm1,xmm7\nmovdqa XMMWORD PTR [rdi],xmm5\nmovdqa XMMWORD PTR [rdi+0x10],xmm4\nmovdqa XMMWORD PTR [rdi+0x20],xmm2\nmovdqa XMMWORD PTR [rdi+0x30],xmm0\nmovdqa XMMWORD PTR [rdi+0x40],xmm3\nmovdqa XMMWORD PTR [rdi+0x50],xmm1\nadd rsi,0x10\nadd rdi,0x60\nsub ecx,0x4",
+    "saved": 3,
+    "why": "Fold the second, fourth, and sixth channel loads into both of their dword unpacks. All subsequent register values, output stores, and required flags remain the same."
+  },
+  "099148eea3": {
+    "rewrite": null,
+    "why": "Every pointer load, relative-offset subtraction, and shift-count transfer contributes to a required final register."
+  },
+  "125d3a919a": {
+    "rewrite": null,
+    "why": "The memory-source packs are already folded, and each transpose stage preserves complementary halves needed by the four shifted output vectors."
+  }
+}

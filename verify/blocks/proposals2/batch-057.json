@@ -1,0 +1,91 @@
+{
+  "ddac5b6f2d": {
+    "rewrite": "pshufd xmm15,xmm15,0x0\npaddd xmm14,xmm8\nmovdqa xmm8,xmm14\npand xmm8,xmm10\npsrld xmm8,0x6\npaddd xmm15,xmm8\npshufd xmm7,xmm15,0xee\nmovd r8d,xmm15\nmovd r14d,xmm7\npsrldq xmm15,0x4\npsrldq xmm7,0x4\nmovd eax,xmm15\nmovd r12d,xmm7",
+    "saved": 1,
+    "why": "A single shuffle places the upper two dwords in xmm7's low half, replacing the copy and eight-byte shift. Only those two dwords are subsequently extracted, and xmm7 is not live at exit."
+  },
+  "e15b98baf5": {
+    "rewrite": "pshufb xmm14,xmm5\npaddb xmm14,xmm6\nmovq xmm10,r8\nmovq xmm3,QWORD PTR [rdx]\nmovhps xmm3,QWORD PTR [rdx+rcx*1]\nlea rdx,[rdx+rcx*2]\npunpcklbw xmm10,xmm10\npsraw xmm10,0x8\npunpckldq xmm15,xmm7\npunpcklqdq xmm15,xmm15\npand xmm11,xmm9\npandn xmm9,xmm15\npor xmm9,xmm11\npshufd xmm15,xmm10,0x0\npshufd xmm8,xmm10,0x55\npshufd xmm11,xmm10,0xff\npshufd xmm10,xmm10,0xaa\npshufb xmm0,xmm14\npshufb xmm1,xmm14\npshufb xmm3,xmm14\npmaddubsw xmm0,xmm9\npmaddubsw xmm1,xmm9\npmaddubsw xmm3,xmm9\nphaddw xmm1,xmm3\npslldq xmm3,0x8\nphaddw xmm0,xmm3\npmulhrsw xmm0,xmm12\npmulhrsw xmm1,xmm12\npshufd xmm2,xmm0,0xd4\npshufd xmm1,xmm1,0xd4\nmovdqa xmm3,xmm2\npunpcklwd xmm3,xmm1\npunpckhwd xmm2,xmm1",
+    "saved": 1,
+    "why": "Consume the unshifted xmm3 in xmm1's horizontal add first, then shift xmm3 in place for xmm0's horizontal add. This removes the temporary copy to xmm2; both temporaries are overwritten before exit."
+  },
+  "251326f89c": {
+    "rewrite": "movq xmm6,QWORD PTR [rdx]\nmovq xmm7,QWORD PTR [rdx+rcx*1]\nmovhps xmm6,QWORD PTR [rdx+rcx*2]\nmovhps xmm7,QWORD PTR [rdx+rbp*1]\nlea rdx,[rdx+rcx*4]\nmovdqa xmm4,xmm3\npmaddwd xmm4,xmm15\nmovdqa xmm5,xmm2\npmaddwd xmm5,xmm8\npshufb xmm6,xmm14\npshufb xmm7,xmm14\npmaddubsw xmm6,xmm9\npmaddubsw xmm7,xmm9\nphaddw xmm6,xmm7\npmulhrsw xmm6,xmm12\nshufps xmm0,xmm6,0x4e\nshufps xmm1,xmm6,0xee\npshufd xmm6,xmm0,0xe9\npshufd xmm7,xmm1,0xe9\nmovdqa xmm3,xmm6\npunpcklwd xmm3,xmm7\nmovdqa xmm2,xmm6\npunpckhwd xmm2,xmm7\nmovdqa xmm6,xmm3\npmaddwd xmm6,xmm10\nmovdqa xmm7,xmm2\npmaddwd xmm7,xmm11\npaddd xmm4,xmm5\npaddd xmm4,xmm13\npaddd xmm6,xmm7\npaddd xmm4,xmm6\npsrad xmm4,0xa\npackssdw xmm4,xmm4\npackuswb xmm4,xmm4\nmovd r8d,xmm4\nmov WORD PTR [rdi],r8w\nshr r8d,0x10\nmov WORD PTR [rdi+rsi*1],r8w\nlea rdi,[rdi+rsi*2]\nsub r9d,0x2",
+    "saved": 4,
+    "why": "Two SHUFPS instructions directly concatenate each old vector's upper half with the appropriate half of the new xmm6. Shuffling those results into xmm6 and xmm7 replaces the eight-instruction copy, shift, align, and shuffle sequence with four instructions."
+  },
+  "15ae9861b4": {
+    "rewrite": null,
+    "why": "The four loads, pointer update, comparison, shifts, and lane assembly each contribute to required final values."
+  },
+  "6ab10f6bbe": {
+    "rewrite": "movdqu xmm4,XMMWORD PTR [rdx]\nmovdqu xmm5,XMMWORD PTR [rdx+rcx*1]\nlea rdx,[rdx+rcx*2]\npand xmm11,xmm8\npandn xmm8,xmm15\npor xmm8,xmm11\npaddb xmm14,xmm6\nmovq xmm11,r8\npunpcklbw xmm11,xmm11\npsraw xmm11,0x8\npshufb xmm0,xmm14\npshufb xmm2,xmm14\npshufb xmm1,xmm14\npshufb xmm3,xmm14\npshufb xmm4,xmm14\npshufb xmm5,xmm14\npmaddubsw xmm0,xmm8\npmaddubsw xmm2,xmm8\npmaddubsw xmm1,xmm8\npmaddubsw xmm3,xmm8\npmaddubsw xmm4,xmm8\npmaddubsw xmm5,xmm8\nphaddw xmm0,xmm2\nphaddw xmm1,xmm3\nphaddw xmm4,xmm5\npmulhrsw xmm0,xmm12\npmulhrsw xmm1,xmm12\npmulhrsw xmm4,xmm12\npshufd xmm15,xmm11,0x0\npshufd xmm9,xmm11,0x55\npshufd xmm10,xmm11,0xaa\npshufd xmm11,xmm11,0xff\npshufd xmm5,xmm4,0xee\nmovdqa xmm2,xmm0\npunpckhwd xmm2,xmm1\npunpcklwd xmm0,xmm1\npunpcklwd xmm4,xmm5",
+    "saved": 1,
+    "why": "A shuffle replaces the copy and eight-byte shift of xmm4 into xmm5. The following low-word unpack reads only xmm5's low half, and xmm5 is not live at exit."
+  },
+  "903ac3a39b": {
+    "rewrite": "pmaddwd xmm0,xmm15\nmovdqa xmm5,xmm2\npmaddwd xmm5,xmm15\npmaddwd xmm2,xmm9\nmovdqa xmm7,xmm4\npmaddwd xmm7,xmm9\nmovdqa xmm3,xmm4\npmaddwd xmm3,xmm10\npaddd xmm0,xmm13\npaddd xmm5,xmm13\npaddd xmm0,xmm2\npaddd xmm5,xmm7\npaddd xmm0,xmm3\nmovdqu xmm6,XMMWORD PTR [rdx]\nmovdqu xmm7,XMMWORD PTR [rdx+rcx*1]\nmovdqu xmm3,XMMWORD PTR [rdx+rcx*2]\nmovdqu xmm1,XMMWORD PTR [rdx+rbp*1]\nlea rdx,[rdx+rcx*4]\npshufb xmm6,xmm14\npshufb xmm7,xmm14\npshufb xmm3,xmm14\npshufb xmm1,xmm14\npmaddubsw xmm6,xmm8\npmaddubsw xmm7,xmm8\npmaddubsw xmm3,xmm8\npmaddubsw xmm1,xmm8\nphaddw xmm6,xmm7\nphaddw xmm3,xmm1\npmulhrsw xmm6,xmm12\npmulhrsw xmm3,xmm12\npshufd xmm7,xmm6,0xee\npshufd xmm1,xmm3,0xee\npunpcklwd xmm6,xmm7\npunpcklwd xmm3,xmm1\nmovdqa xmm2,xmm6\nmovdqa xmm1,xmm6\npmaddwd xmm1,xmm10\npmaddwd xmm6,xmm11\nmovdqa xmm7,xmm3\npmaddwd xmm7,xmm11\npaddd xmm5,xmm1\npaddd xmm0,xmm6\npaddd xmm5,xmm7\npsrad xmm0,0xa\npsrad xmm5,0xa\npackssdw xmm0,xmm5\npackuswb xmm0,xmm0\nmovdqa xmm1,xmm0\npsrldq xmm1,0x4\nmovd DWORD PTR [rdi],xmm0\nmovd DWORD PTR [rdi+rsi*1],xmm1\nlea rdi,[rdi+rsi*2]\nmovdqa xmm0,xmm4\nmovdqa xmm4,xmm3\nsub r9d,0x2",
+    "saved": 2,
+    "why": "Replace each copy followed by an eight-byte shift with a single shuffle. Only the low halves feed the unpacks, and xmm1 and xmm7 are subsequently overwritten with their required final values."
+  },
+  "09e7a4f68c": {
+    "rewrite": "movq xmm10,r9\npunpcklbw xmm10,xmm10\npsraw xmm10,0x8\npshufd xmm4,xmm10,0x0\npshufd xmm8,xmm10,0x55\npshufd xmm9,xmm10,0xaa\npshufd xmm10,xmm10,0xff\npmaddwd xmm4,xmm15\nmovdqa xmm5,xmm1\npmaddwd xmm5,xmm8\nmovdqa xmm6,xmm2\npmaddwd xmm6,xmm9\nmovdqa xmm7,xmm3\npmaddwd xmm7,xmm10\npaddd xmm4,xmm5\npaddd xmm6,xmm7\npaddd xmm4,xmm13\npaddd xmm4,xmm6\npsrad xmm4,0x6\npackssdw xmm4,xmm4\nmovq QWORD PTR [rdi],xmm4\nadd rdi,0x8\ndec r8d",
+    "saved": 1,
+    "why": "Broadcast the first coefficient directly into xmm4 and use PMADDWD's commutativity to multiply it by xmm15, removing the copy of xmm15. The original coefficient in xmm7 was overwritten before exit."
+  },
+  "74721ff0f6": {
+    "rewrite": "pmaddwd xmm0,xmm15\nmovdqa xmm5,xmm2\npmaddwd xmm5,xmm15\npmaddwd xmm2,xmm9\nmovdqa xmm7,xmm4\npmaddwd xmm7,xmm9\nmovdqa xmm3,xmm4\npmaddwd xmm3,xmm10\npaddd xmm0,xmm13\npaddd xmm5,xmm13\npaddd xmm0,xmm2\npaddd xmm5,xmm7\npaddd xmm0,xmm3\nmovdqu xmm6,XMMWORD PTR [rsi]\nmovdqu xmm7,XMMWORD PTR [rsi+rdx*1]\nmovdqu xmm3,XMMWORD PTR [rsi+rdx*2]\nmovdqu xmm1,XMMWORD PTR [rsi+rbx*1]\nlea rsi,[rsi+rdx*4]\npshufb xmm6,xmm14\npshufb xmm7,xmm14\npshufb xmm3,xmm14\npshufb xmm1,xmm14\npmaddubsw xmm6,xmm8\npmaddubsw xmm7,xmm8\npmaddubsw xmm3,xmm8\npmaddubsw xmm1,xmm8\nphaddw xmm6,xmm7\nphaddw xmm3,xmm1\npmulhrsw xmm6,xmm12\npmulhrsw xmm3,xmm12\npshufd xmm7,xmm6,0xee\npshufd xmm1,xmm3,0xee\npunpcklwd xmm6,xmm7\npunpcklwd xmm3,xmm1\nmovdqa xmm2,xmm6\nmovdqa xmm1,xmm6\npmaddwd xmm1,xmm10\npmaddwd xmm6,xmm11\nmovdqa xmm7,xmm3\npmaddwd xmm7,xmm11\npaddd xmm5,xmm1\npaddd xmm0,xmm6\npaddd xmm5,xmm7\npsrad xmm0,0x6\npsrad xmm5,0x6\npackssdw xmm0,xmm5\nmovdqa XMMWORD PTR [rdi],xmm0\nadd rdi,0x10\nmovdqa xmm0,xmm4\nmovdqa xmm4,xmm3\nsub r8d,0x2",
+    "saved": 2,
+    "why": "Each upper-half extraction needs only one shuffle because its consumer unpacks low words. The differing upper halves of xmm1 and xmm7 are overwritten before they can affect any required output."
+  },
+  "d52831a84d": {
+    "rewrite": null,
+    "why": "The absolute differences, saturated masks, weighting, and packing feed required vector results, with no removable copies under SSSE3."
+  },
+  "475059273a": {
+    "rewrite": null,
+    "why": "The mask and pixel calculations require their separate intermediates, and all final vectors, the mask store, and pointer-update flags must be preserved."
+  },
+  "b3b4cdc509": {
+    "rewrite": null,
+    "why": "Both row loads and the coefficient/data interleaves are needed, and the required final intermediate registers prevent deleting their copies."
+  },
+  "f31f3110c7": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [r9]\nmovdqa xmm6,XMMWORD PTR [rdx]\nmovdqa xmm3,xmm4\npsubb xmm3,xmm0\nmovdqa xmm2,xmm3\npunpcklbw xmm2,xmm0\npunpckhbw xmm3,xmm0\nmovq xmm0,QWORD PTR [rdi]\nmovhps xmm1,QWORD PTR [rdi+rsi*1]\npunpcklbw xmm0,xmm6\npunpckhbw xmm1,xmm6\npmaddubsw xmm0,xmm2\npmaddubsw xmm1,xmm3\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npackuswb xmm0,xmm1\nmovq QWORD PTR [rdi],xmm0\nmovhps QWORD PTR [rdi+rsi*1],xmm0\nadd r9,0x10\nadd rdx,0x10\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 1,
+    "why": "After consuming the mask, load the first row directly into xmm0 and the second row into xmm1's high half, eliminating the vector copy. The high-byte unpack discards xmm1's untouched low half."
+  },
+  "7caa58b9d4": {
+    "rewrite": null,
+    "why": "Both halves require separate interleaves and saturated multiply/round stages, while the copies preserve inputs needed by the other half."
+  },
+  "449d848e61": {
+    "rewrite": null,
+    "why": "Each 16-byte group needs both interleaved halves for its store, and SSSE3 offers no shorter equivalent for the arbitrary coefficients and required final vectors."
+  },
+  "0779183f08": {
+    "rewrite": null,
+    "why": "The vector copy preserves the required xmm1 value, and the two word stores still require separate extraction or shifting with SSSE3."
+  },
+  "075b25feb0": {
+    "rewrite": null,
+    "why": "The separate four-byte row loads must be assembled without SSE4.1 insertion instructions, and the remaining arithmetic, stores, and pointer updates are required."
+  },
+  "532b4fed38": {
+    "rewrite": "movq xmm0,QWORD PTR [rdi]\nmovhps xmm1,QWORD PTR [rdi+rsi*1]\nmovdqa xmm2,XMMWORD PTR [rdx]\npunpcklbw xmm0,xmm2\npunpckhbw xmm1,xmm2\npmaddubsw xmm0,xmm3\npmaddubsw xmm1,xmm3\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npackuswb xmm0,xmm1\nmovq QWORD PTR [rdi],xmm0\nmovhps QWORD PTR [rdi+rsi*1],xmm0\nadd rdx,0x10\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Load the first row directly into xmm0 and the second into xmm1's high half, removing the copy from xmm1 to xmm0. The following high-byte unpack ignores xmm1's untouched low half."
+  },
+  "57c8f0ae6c": {
+    "rewrite": null,
+    "why": "The low/high byte interleaves share their input, requiring the copy before separate multiply, rounding, and packing operations."
+  },
+  "8f7b8a504e": {
+    "rewrite": null,
+    "why": "The main vector needs separate low/high processing, and the tail already folds its source load into the unpack."
+  },
+  "f937abcd9a": {
+    "rewrite": null,
+    "why": "The coefficient-word duplication, saturated multiply/round/pack stages, and two word stores all contribute to required outputs."
+  }
+}

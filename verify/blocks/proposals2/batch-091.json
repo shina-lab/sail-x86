@@ -1,0 +1,87 @@
+{
+  "f4e1d54777": {
+    "rewrite": null,
+    "why": "Each live vector requires its source load, word average, and store, and the pointer and counter updates are also required."
+  },
+  "f00028e8ea": {
+    "rewrite": null,
+    "why": "The four averages already use memory operands, and all vector results, stores, pointer updates, and counter flags must be preserved."
+  },
+  "40f543840d": {
+    "rewrite": null,
+    "why": "Each vector already uses one load, one memory-source average, and one store, with no redundant live-state updates."
+  },
+  "cecd477920": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks, coefficients, and accumulator bias require the existing dot-product setup, and all resulting vectors remain live."
+  },
+  "90145a3341": {
+    "rewrite": null,
+    "why": "The four instructions produce four independently required register values, and the subtraction must also supply the final flags."
+  },
+  "0318c1374a": {
+    "rewrite": null,
+    "why": "The shuffle and dot-product intermediates are all live, and the final byte average already folds its destination-buffer load."
+  },
+  "57bc78c509": {
+    "rewrite": null,
+    "why": "All seven initialized vectors are live, and each already takes a single load or zeroing instruction."
+  },
+  "8025535843": {
+    "rewrite": null,
+    "why": "The interleaves, dot products, and clamps are required, while folding the unaligned loads into legacy SSE2 unpack operands would introduce alignment requirements."
+  },
+  "f87ad6d282": {
+    "rewrite": null,
+    "why": "The filter intermediates and the zero-extended destination load are live, and legacy SSE2 memory folding would require unprovided alignment guarantees."
+  },
+  "c9ec2d4095": {
+    "rewrite": null,
+    "why": "SSE2 needs separate unaligned loads and destructive dot products, and both packed result vectors and all surviving temporaries must be preserved."
+  },
+  "04b495b59b": {
+    "rewrite": null,
+    "why": "The destructive SSE2 dot products and live packed intermediates prevent a shorter sequence, and the final average already uses a memory operand."
+  },
+  "19dede79f5": {
+    "rewrite": "vpmaddwd ymm0,ymm7,YMMWORD PTR [rdx-0x6]\nvpmaddwd ymm1,ymm7,YMMWORD PTR [rdx-0x4]\nvpmaddwd ymm2,ymm8,YMMWORD PTR [rdx-0x2]\nvpmaddwd ymm3,ymm8,YMMWORD PTR [rdx]\nvpmaddwd ymm4,ymm9,YMMWORD PTR [rdx+0x2]\nvpaddd ymm0,ymm0,ymm2\nvpaddd ymm1,ymm1,ymm3\nvpaddd ymm0,ymm0,ymm4\nvpmaddwd ymm2,ymm9,YMMWORD PTR [rdx+0x4]\nvpmaddwd ymm3,ymm10,YMMWORD PTR [rdx+0x6]\nvpmaddwd ymm4,ymm10,YMMWORD PTR [rdx+0x8]\nadd rdx,rcx\nvpaddd ymm1,ymm1,ymm2\nvpaddd ymm0,ymm0,ymm3\nvpaddd ymm1,ymm1,ymm4\nvpaddd ymm0,ymm0,ymm6\nvpaddd ymm1,ymm1,ymm6\nvpsrad ymm0,ymm0,0x7\nvpsrad ymm1,ymm1,0x7\nvpackusdw ymm0,ymm0,ymm0\nvpackusdw ymm1,ymm1,ymm1\nvpunpcklwd ymm0,ymm0,ymm1\nvpminsw ymm0,ymm0,ymm5\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 8,
+    "why": "Fold all eight source loads into commutative VPMADDWD memory operands. Move the source-pointer increment after the last folded load, preserving every live product, store, and final flag."
+  },
+  "e081ce42ac": {
+    "rewrite": "vpmaddwd ymm0,ymm7,YMMWORD PTR [rdx-0x6]\nvpmaddwd ymm1,ymm7,YMMWORD PTR [rdx-0x4]\nvpmaddwd ymm2,ymm8,YMMWORD PTR [rdx-0x2]\nvpmaddwd ymm3,ymm8,YMMWORD PTR [rdx]\nvpmaddwd ymm4,ymm9,YMMWORD PTR [rdx+0x2]\nvpaddd ymm0,ymm0,ymm2\nvpaddd ymm1,ymm1,ymm3\nvpaddd ymm0,ymm0,ymm4\nvpmaddwd ymm2,ymm9,YMMWORD PTR [rdx+0x4]\nvpmaddwd ymm3,ymm10,YMMWORD PTR [rdx+0x6]\nvpmaddwd ymm4,ymm10,YMMWORD PTR [rdx+0x8]\nadd rdx,rcx\nvpaddd ymm1,ymm1,ymm2\nvpaddd ymm0,ymm0,ymm3\nvpaddd ymm1,ymm1,ymm4\nvpaddd ymm0,ymm0,ymm6\nvpaddd ymm1,ymm1,ymm6\nvpsrad ymm0,ymm0,0x7\nvpsrad ymm1,ymm1,0x7\nvpackusdw ymm0,ymm0,ymm0\nvpackusdw ymm1,ymm1,ymm1\nvpunpcklwd ymm0,ymm0,ymm1\nvpminsw ymm0,ymm0,ymm5\nvpavgw ymm0,ymm0,YMMWORD PTR [rdi]\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 8,
+    "why": "Fold all eight source loads into VPMADDWD, using multiplication's commutativity to keep each coefficient register intact. Increment rdx after those accesses and retain the remaining arithmetic, average, store, and flag-producing instructions."
+  },
+  "f59c7fd0fc": {
+    "rewrite": null,
+    "why": "The qword loads supply distinct rows, and folding them into wider SSE2 memory operands could access additional bytes while the resulting temporaries remain live."
+  },
+  "6830970e06": {
+    "rewrite": null,
+    "why": "The distinct qword row loads and live destination vector must retain their widths, leaving no shorter SSE2 unpack, dot-product, and averaging sequence."
+  },
+  "90cb24ba76": {
+    "rewrite": null,
+    "why": "The low and high word interleaves require separate SSE2 operations and copies, while folding the unaligned row loads would add alignment requirements."
+  },
+  "0f97eed799": {
+    "rewrite": null,
+    "why": "All filter intermediates remain live, legacy SSE2 unpack memory operands cannot safely replace arbitrary unaligned row loads, and the final average already folds its load."
+  },
+  "364ed49f7b": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdx]\nvmovdqu ymm2,YMMWORD PTR [rdx+rcx*2]\nvmovdqu ymm4,YMMWORD PTR [rax]\nvpunpckhwd ymm6,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpcklwd ymm0,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpckhwd ymm1,ymm2,YMMWORD PTR [rdx+r10*1]\nvpunpcklwd ymm2,ymm2,YMMWORD PTR [rdx+r10*1]\nadd rdx,rcx\nvpmaddwd ymm0,ymm0,ymm7\nvpmaddwd ymm6,ymm6,ymm7\nvpmaddwd ymm2,ymm8,ymm2\nvpmaddwd ymm1,ymm8,ymm1\nvpaddd ymm0,ymm0,ymm2\nvpaddd ymm6,ymm6,ymm1\nvmovdqu ymm1,YMMWORD PTR [rax+rcx*2]\nvpunpckhwd ymm3,ymm4,YMMWORD PTR [rax+rcx*1]\nvpunpcklwd ymm4,ymm4,YMMWORD PTR [rax+rcx*1]\nvpmaddwd ymm4,ymm9,ymm4\nvpmaddwd ymm3,ymm9,ymm3\nvpaddd ymm0,ymm0,ymm4\nvpaddd ymm6,ymm6,ymm3\nvmovdqu ymm4,YMMWORD PTR [rax+r10*1]\nadd rax,rcx\nvpunpckhwd ymm2,ymm1,ymm4\nvpunpcklwd ymm1,ymm1,ymm4\nvpmaddwd ymm1,ymm10,ymm1\nvpmaddwd ymm2,ymm10,ymm2\nvpaddd ymm0,ymm0,ymm1\nvpaddd ymm6,ymm6,ymm2\nvpaddd ymm0,ymm11,ymm0\nvpaddd ymm6,ymm11,ymm6\nvpsrad ymm0,ymm0,0x7\nvpsrad ymm6,ymm6,0x7\nvpackusdw ymm0,ymm0,ymm6\nvpminsw ymm0,ymm0,ymm5\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 3,
+    "why": "Replace three temporary row loads with memory operands on both corresponding VEX unpacks, repeating only existing reads. Delay the rdx increment until its folded accesses finish and retain the final live ymm4 row load."
+  },
+  "0d48c13b68": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdx]\nvmovdqu ymm2,YMMWORD PTR [rdx+rcx*2]\nvmovdqu ymm4,YMMWORD PTR [rax]\nvpunpckhwd ymm6,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpcklwd ymm0,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpckhwd ymm1,ymm2,YMMWORD PTR [rdx+r10*1]\nvpunpcklwd ymm2,ymm2,YMMWORD PTR [rdx+r10*1]\nadd rdx,rcx\nvpmaddwd ymm0,ymm0,ymm7\nvpmaddwd ymm6,ymm6,ymm7\nvpmaddwd ymm2,ymm8,ymm2\nvpmaddwd ymm1,ymm8,ymm1\nvpaddd ymm0,ymm0,ymm2\nvpaddd ymm6,ymm6,ymm1\nvmovdqu ymm1,YMMWORD PTR [rax+rcx*2]\nvpunpckhwd ymm3,ymm4,YMMWORD PTR [rax+rcx*1]\nvpunpcklwd ymm4,ymm4,YMMWORD PTR [rax+rcx*1]\nvpmaddwd ymm4,ymm9,ymm4\nvpmaddwd ymm3,ymm9,ymm3\nvpaddd ymm0,ymm0,ymm4\nvpaddd ymm6,ymm6,ymm3\nvmovdqu ymm4,YMMWORD PTR [rax+r10*1]\nadd rax,rcx\nvpunpckhwd ymm2,ymm1,ymm4\nvpunpcklwd ymm1,ymm1,ymm4\nvpmaddwd ymm1,ymm10,ymm1\nvpmaddwd ymm2,ymm10,ymm2\nvpaddd ymm0,ymm0,ymm1\nvpaddd ymm6,ymm6,ymm2\nvpaddd ymm0,ymm11,ymm0\nvpaddd ymm6,ymm11,ymm6\nvpsrad ymm0,ymm0,0x7\nvpsrad ymm6,ymm6,0x7\nvpackusdw ymm0,ymm0,ymm6\nvpminsw ymm0,ymm0,ymm5\nvpavgw ymm0,ymm0,YMMWORD PTR [rdi]\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 3,
+    "why": "Fold three overwritten row loads into the low and high VEX unpacks, using the original addresses and widths. Preserve the last ymm4 load, all arithmetic results, the destination average, and the final flag-producing updates."
+  },
+  "d2ff70accc": {
+    "rewrite": "pshufd xmm0,XMMWORD PTR [rdi+0x30],0x44\npshufd xmm1,xmm0,0x11\npmaddwd xmm0,XMMWORD PTR [CONST_1]\npmaddwd xmm1,XMMWORD PTR [CONST_2]\npshufd xmm2,XMMWORD PTR [rdi+0x30],0xbb\npshufd xmm3,xmm2,0x11\npmaddwd xmm2,XMMWORD PTR [CONST_3]\npmaddwd xmm3,XMMWORD PTR [CONST_4]\npaddd xmm0,xmm1\npaddd xmm2,xmm3\npaddd xmm0,XMMWORD PTR [CONST_5]\nmovdqa xmm3,xmm2\npaddd xmm2,xmm0\npsubd xmm0,xmm3\npsrad xmm2,0xb\npsrad xmm0,0xb\npackssdw xmm2,xmm0\npshufhw xmm4,xmm2,0x1b",
+    "saved": 2,
+    "why": "Generate the duplicated low and high qwords with memory-source PSHUFD instructions and obtain their swapped dword orders with register shuffles. This replaces the original load, copy, and four rearrangements with four shuffles while preserving both live outputs."
+  }
+}

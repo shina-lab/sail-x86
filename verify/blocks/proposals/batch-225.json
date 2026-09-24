@@ -1,0 +1,89 @@
+{
+  "1793ee47d7": {
+    "rewrite": null,
+    "why": "The unpermuted packed result is preserved while the store needs its permutation, and both multiply-adds and all scalar updates remain necessary."
+  },
+  "6f4976ce16": {
+    "rewrite": null,
+    "why": "AVX2 requires both 32-byte stores, and the pointer and counter updates are observable."
+  },
+  "ea4ecb81c0": {
+    "rewrite": null,
+    "why": "The masked scalar result, byte broadcast, and unsigned minimum are all required, and AVX2 cannot broadcast directly from a general-purpose register."
+  },
+  "b93fc52929": {
+    "rewrite": null,
+    "why": "Both multiply-adds, the saturating pack, lane permutation, store, and scalar updates contribute to required results."
+  },
+  "f7191c72ad": {
+    "rewrite": null,
+    "why": "AVX2 requires four 32-byte stores, and both the pointer and counter updates are observable."
+  },
+  "ebdbc10e3a": {
+    "rewrite": null,
+    "why": "The load supplies the unsigned VPMADDUBSW operand and cannot fold into its signed memory operand, while the remaining instructions produce required results."
+  },
+  "1d29a0e7f3": {
+    "rewrite": null,
+    "why": "Both source vectors need separate multiply-adds before the required pack, store, and scalar updates."
+  },
+  "38a682864e": {
+    "rewrite": null,
+    "why": "The narrowed value must remain in zmm16 as well as memory, preventing replacement of the narrowing and store with a single narrowing store."
+  },
+  "f160382318": {
+    "rewrite": null,
+    "why": "Each permutation produces a distinct preserved register value."
+  },
+  "e70d7191ba": {
+    "rewrite": null,
+    "why": "All four loads produce preserved registers, and the comparison supplies the required SF and OF values."
+  },
+  "4831cc4452": {
+    "rewrite": null,
+    "why": "Both 64-byte stores and both scalar updates are required."
+  },
+  "2c76bbf259": {
+    "rewrite": null,
+    "why": "All intermediate computations feed preserved vectors, and the destructive SSSE3 operations require the source copies."
+  },
+  "bcffe45962": {
+    "rewrite": "movd DWORD PTR [rdi+rcx*1],xmm0\npsrlq xmm0,0x8\nmovd DWORD PTR [rdi+rcx*1+0x1],xmm0",
+    "saved": 1,
+    "why": "Remove the final rcx increment because neither rcx nor flags are preserved; both stores and the final xmm0 value are unchanged."
+  },
+  "ef7415cc62": {
+    "rewrite": "movq QWORD PTR [rdi+rcx*1],xmm0\npsrlq xmm0,0x8\nmovd DWORD PTR [rdi+rcx*1+0x6],xmm0",
+    "saved": 1,
+    "why": "Remove the final rcx increment because neither rcx nor flags are preserved; both stores and the final xmm0 value are unchanged."
+  },
+  "a98ce303e0": {
+    "rewrite": "pshufb xmm0,xmm9\nmovdqu XMMWORD PTR [rdi+rcx*1],xmm0\npsrlq xmm0,0x8\nmovd DWORD PTR [rdi+rcx*1+0x10],xmm0",
+    "saved": 1,
+    "why": "The final rcx increment has no observed result, so it can be removed while retaining both stores and the required xmm0 value."
+  },
+  "df3917d8b9": {
+    "rewrite": "movdqa xmm2,xmm0\npshufb xmm2,xmm9\nmovdqu XMMWORD PTR [rdi+rcx*1],xmm2\npshufb xmm0,xmm10\nmovdqu XMMWORD PTR [rdi+rcx*1+0x10],xmm0\npsrldq xmm2,0x2\nmovq QWORD PTR [rdi+rcx*1+0x20],xmm2",
+    "saved": 1,
+    "why": "Remove the final rcx increment because its register result and flags are unobserved."
+  },
+  "a49585fcf6": {
+    "rewrite": "movdqa xmm2,xmm0\npshufb xmm2,xmm9\nmovdqu XMMWORD PTR [rdi+rcx*1],xmm2\npshufb xmm0,xmm10\nmovdqu XMMWORD PTR [rdi+rcx*1+0x10],xmm0\nshufps xmm2,xmm0,0x4e\nmovdqu XMMWORD PTR [rdi+rcx*1+0x30],xmm2\nshufps xmm2,xmm0,0x99\nmovdqu XMMWORD PTR [rdi+rcx*1+0x20],xmm2\nshufps xmm0,xmm2,0x4e\nmovdqu XMMWORD PTR [rdi+rcx*1+0x40],xmm0",
+    "saved": 1,
+    "why": "Remove the unobserved final rcx increment, retaining every store and the final xmm0 value."
+  },
+  "577b01e984": {
+    "rewrite": "xor r13d,r13d\ncmp DWORD PTR [rdi+0x80],0x1\nmov r12d,DWORD PTR [rdi+0x14]\nmov r15d,DWORD PTR [rdi+0x10]\nmov edx,edx\nmov ecx,ecx",
+    "saved": 1,
+    "why": "Remove the stack adjustment because rsp has no required final value and the rewrite must not touch it; its flags are overwritten before the required final ZF is established."
+  },
+  "57eb8fca39": {
+    "rewrite": null,
+    "why": "The comparison, shuffle, and separate masks all contribute to preserved results, and AVX2 lacks ternary logic to combine the Boolean operations."
+  },
+  "83b0422f44": {
+    "rewrite": "vmovq QWORD PTR [rdi+rcx*1],xmm0\nvpsrlq xmm1,xmm0,0x8\nvmovd DWORD PTR [rdi+rcx*1+0x6],xmm1",
+    "saved": 1,
+    "why": "Remove the final rcx increment because its register result and flags are unobserved, preserving both stores and the entire ymm0 value."
+  }
+}

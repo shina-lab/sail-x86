@@ -1,0 +1,84 @@
+{
+  "3816574ad7": {
+    "rewrite": null,
+    "why": "The SSE2 byte broadcast, two overlapping eight-byte stores, and required pointer and counter updates have no removable instructions."
+  },
+  "1d8248bfea": {
+    "rewrite": null,
+    "why": "The four-instruction SSE2 byte broadcast is needed for the live xmm0 value, followed by one store and two independent register updates."
+  },
+  "f996e68ac9": {
+    "rewrite": null,
+    "why": "The SSE2 broadcast already supplies both store operands, and the sixteen-byte store, two-byte tail, and live register updates are required."
+  },
+  "22981bd4b4": {
+    "rewrite": null,
+    "why": "The SSE2 broadcast and separate sixteen-byte and four-byte stores are required alongside the pointer and counter updates."
+  },
+  "9613166ce6": {
+    "rewrite": null,
+    "why": "The live broadcast result, two stores covering exactly the original bytes, and independent pointer and counter updates leave no removable instruction."
+  },
+  "5a317a5034": {
+    "rewrite": null,
+    "why": "One AVX2 broadcast, one eight-byte store, and the two required scalar updates already form a minimal sequence."
+  },
+  "7c2bcc8a37": {
+    "rewrite": null,
+    "why": "The broadcast is already a single instruction, and the twelve-byte output needs both stores in addition to the live pointer and counter updates."
+  },
+  "b3d27cdbec": {
+    "rewrite": null,
+    "why": "The single broadcast, two overlapping stores covering fourteen bytes, and two required scalar updates cannot be shortened within AVX2."
+  },
+  "f5471b3c5c": {
+    "rewrite": null,
+    "why": "The block already uses one instruction each for the broadcast, sixteen-byte store, pointer advance, and counter decrement."
+  },
+  "c1b6d43110": {
+    "rewrite": null,
+    "why": "The eighteen-byte output requires both existing stores, while the broadcast and two live scalar updates are already single instructions."
+  },
+  "bb21737eeb": {
+    "rewrite": null,
+    "why": "The twenty-byte output requires the vector store and four-byte tail, with no redundancy in the broadcast or scalar updates."
+  },
+  "4b5ce16fac": {
+    "rewrite": null,
+    "why": "The two stores preserve the exact twenty-two-byte output, and the broadcast, pointer advance, and counter decrement are all required."
+  },
+  "49d0b0df79": {
+    "rewrite": null,
+    "why": "The 32-bit shift must retain its wraparound and zero extension, and the two pointer updates, final negation, and live constant load are all required."
+  },
+  "6a5982b16d": {
+    "rewrite": "sub rsi,rdx\npxor xmm7,xmm7\nmovq xmm3,QWORD PTR [rcx]\npunpcklwd xmm3,xmm3\npshufd xmm4,xmm3,0x0\npshufd xmm5,xmm3,0x55\npshufd xmm6,xmm3,0xaa\npshufd xmm3,xmm3,0xff\nlea rcx,[rsp-0xb8]\nmov r9d,0xb",
+    "saved": 1,
+    "why": "The required rcx value is the incoming rsp minus 0xb8, so one LEA replaces the stack subtraction and copy while leaving rsp untouched."
+  },
+  "d928155136": {
+    "rewrite": null,
+    "why": "The unpack operand and filter coefficients are unconstrained, so the widening, four products, distinct wrapping and saturating sums, and output clamp cannot be collapsed with SSE2."
+  },
+  "0bcbb04858": {
+    "rewrite": null,
+    "why": "Folding sample loads into SSE2 multiplies would require copies to preserve the coefficient registers, and the remaining rounding and saturation steps are required."
+  },
+  "93702bddbe": {
+    "rewrite": null,
+    "why": "The two differently arranged products, live partial-register result in xmm2, rounding, packing, and pointer and counter updates leave no removable instruction."
+  },
+  "5189c5063a": {
+    "rewrite": null,
+    "why": "The live xmm1 value includes its untouched upper half, and the full xmm0 output requires the existing shuffle, products, saturated addition, and packing."
+  },
+  "22baa72fe5": {
+    "rewrite": null,
+    "why": "The three vector copies establish distinct live outputs, and the second four-byte store still requires an extraction shift because SSE4.1 is unavailable."
+  },
+  "2e8fe3142a": {
+    "rewrite": "movd xmm5,DWORD PTR [rdx+rcx*1]\nmovd xmm6,DWORD PTR [rdx+rcx*2]\npmaddubsw xmm0,XMMWORD PTR [rax-0x30]\npunpcklbw xmm2,xmm5\npunpcklqdq xmm1,xmm2\npmaddubsw xmm1,XMMWORD PTR [rax-0x20]\npunpcklbw xmm3,xmm6\npunpcklqdq xmm2,xmm3\npaddw xmm1,xmm0\nmovdqa xmm0,xmm2\npmaddubsw xmm2,XMMWORD PTR [rax-0x10]\nlea rdx,[rdx+rcx*2]\npaddsw xmm2,xmm1\npmulhrsw xmm2,XMMWORD PTR [CONST_1]\npackuswb xmm2,xmm2\nmovd DWORD PTR [rdi],xmm2\npsrldq xmm2,0x4\nmovd DWORD PTR [rdi+rsi*1],xmm2\nmovdqa xmm2,xmm4\nmovdqa xmm4,xmm6\nlea rdi,[rdi+rsi*2]\nmovdqa xmm1,xmm3\nmovdqa xmm3,xmm5\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Accumulate the first two products in xmm1, preserve the combined source lanes in xmm0, and multiply xmm2 in place. This removes one vector copy while preserving all live outputs and both stores."
+  }
+}

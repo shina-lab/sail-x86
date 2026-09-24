@@ -1,0 +1,86 @@
+{
+  "0d51a63d46": {
+    "rewrite": null,
+    "why": "The XOR and store, preserved high-half extraction and sum, and comparison setting SF and OF each require their instruction."
+  },
+  "d073114072": {
+    "rewrite": null,
+    "why": "The XOR and store, preserved extraction and register copy, and required comparison leave no removable instruction."
+  },
+  "c10ff77e87": {
+    "rewrite": null,
+    "why": "The XOR and store are necessary, and the copy and comparison independently produce the required zmm7 value and flags."
+  },
+  "fc9394f6de": {
+    "rewrite": null,
+    "why": "The XOR and store are necessary, and the copy and comparison independently produce the required zmm7 value and flags."
+  },
+  "9bcb7821d2": {
+    "rewrite": null,
+    "why": "The XOR and store are necessary, and the copy and comparison independently produce the required zmm7 value and flags."
+  },
+  "6a96660d89": {
+    "rewrite": "vbroadcasti128 ymm0,XMMWORD PTR [rdi]\nvbroadcasti128 ymm1,XMMWORD PTR [rdi+0x10]\nvbroadcasti128 ymm2,XMMWORD PTR [rdi+0x20]\nvbroadcasti128 ymm3,XMMWORD PTR [rdi+0x30]\nvmovdqa ymm4,ymm0\nvmovdqa ymm5,ymm1\nvmovdqa ymm6,ymm2\nvpaddd ymm7,ymm3,YMMWORD PTR [CONST_2]\nvpaddd ymm3,ymm3,YMMWORD PTR [CONST_1]\nvmovdqa ymm11,ymm0\nvmovdqa ymm12,ymm1\nvmovdqa ymm13,ymm2\nvmovdqa ymm14,ymm3\nvmovdqa ymm15,ymm7",
+    "saved": 2,
+    "why": "Every preserved vector register is overwritten by a VEX instruction, making vzeroupper redundant. Computing ymm7 directly from the broadcast value before updating ymm3 also removes its initial copy."
+  },
+  "0690bd5037": {
+    "rewrite": null,
+    "why": "The XOR, store, preserved sum, and comparison each supply a required and independent result."
+  },
+  "833a52c47a": {
+    "rewrite": null,
+    "why": "The XOR and store, preserved high-half extraction and sum, and required comparison leave no removable instruction."
+  },
+  "fe07a509d7": {
+    "rewrite": null,
+    "why": "The XOR and store, preserved high-half extraction and sum, and required comparison leave no removable instruction."
+  },
+  "1f56a7918b": {
+    "rewrite": null,
+    "why": "The XOR and store, preserved high-half extraction and sum, and required comparison leave no removable instruction."
+  },
+  "f0abc80e7f": {
+    "rewrite": null,
+    "why": "The XOR and store, preserved extraction and register copy, and required comparison leave no removable instruction."
+  },
+  "e7ead0d705": {
+    "rewrite": null,
+    "why": "The XOR and store are necessary, and the copy and comparison independently produce the required zmm10 value and flags."
+  },
+  "b66d05fd09": {
+    "rewrite": null,
+    "why": "The XOR and store are necessary, and the copy and comparison independently produce the required zmm10 value and flags."
+  },
+  "e1d17a777a": {
+    "rewrite": null,
+    "why": "The XOR and store are necessary, and the copy and comparison independently produce the required zmm10 value and flags."
+  },
+  "1645a42bca": {
+    "rewrite": "vpbroadcastd ymm0,DWORD PTR [rdi]\nvpbroadcastd ymm1,DWORD PTR [rdi+0x4]\nvpbroadcastd ymm2,DWORD PTR [rdi+0x8]\nvpbroadcastd ymm3,DWORD PTR [rdi+0xc]\nvpbroadcastd ymm4,DWORD PTR [rdi+0x10]\nvpbroadcastd ymm5,DWORD PTR [rdi+0x14]\nvpbroadcastd ymm6,DWORD PTR [rdi+0x18]\nvpbroadcastd ymm7,DWORD PTR [rdi+0x1c]\nvpbroadcastd ymm8,DWORD PTR [rdi+0x20]\nvpbroadcastd ymm9,DWORD PTR [rdi+0x24]\nvpbroadcastd ymm10,DWORD PTR [rdi+0x28]\nvpbroadcastd ymm11,DWORD PTR [rdi+0x2c]\nvpbroadcastd ymm12,DWORD PTR [rdi+0x30]\nvpbroadcastd ymm13,DWORD PTR [rdi+0x34]\nvpbroadcastd ymm14,DWORD PTR [rdi+0x38]\nvpbroadcastd ymm15,DWORD PTR [rdi+0x3c]\nvpaddd ymm12,ymm12,YMMWORD PTR [CONST_1]\nvmovdqa64 ymm16,ymm0\nvmovdqa64 ymm17,ymm1\nvmovdqa64 ymm18,ymm2\nvmovdqa64 ymm19,ymm3\nvmovdqa64 ymm20,ymm4\nvmovdqa64 ymm21,ymm5\nvmovdqa64 ymm22,ymm6\nvmovdqa64 ymm23,ymm7\nvmovdqa64 ymm24,ymm8\nvmovdqa64 ymm25,ymm9\nvmovdqa64 ymm26,ymm10\nvmovdqa64 ymm27,ymm11\nvmovdqa64 ymm28,ymm12\nvmovdqa64 ymm29,ymm13\nvmovdqa64 ymm30,ymm14\nvmovdqa64 ymm31,ymm15",
+    "saved": 1,
+    "why": "All vector registers are subsequently overwritten by VEX or EVEX instructions that also zero bits above their destination width, so vzeroupper has no surviving effect."
+  },
+  "536730f2eb": {
+    "rewrite": "vpaddd ymm0,ymm0,ymm16\nvpaddd ymm1,ymm1,ymm17\nvpaddd ymm2,ymm2,ymm18\nvpaddd ymm3,ymm3,ymm19\nvpaddd ymm4,ymm4,ymm20\nvpaddd ymm5,ymm5,ymm21\nvpaddd ymm6,ymm6,ymm22\nvpaddd ymm7,ymm7,ymm23\nvpaddd ymm8,ymm8,ymm24\nvpaddd ymm9,ymm9,ymm25\nvpaddd ymm10,ymm10,ymm26\nvpaddd ymm11,ymm11,ymm27\nvpaddd ymm12,ymm12,ymm28\nvpaddd ymm13,ymm13,ymm29\nvpaddd ymm14,ymm14,ymm30\nvpaddd ymm15,ymm15,ymm31\nvpunpckldq ymm16,ymm0,ymm1\nvpunpckhdq ymm17,ymm0,ymm1\nvpunpckldq ymm18,ymm2,ymm3\nvpunpckhdq ymm19,ymm2,ymm3\nvpunpckldq ymm20,ymm4,ymm5\nvpunpckhdq ymm21,ymm4,ymm5\nvpunpckldq ymm22,ymm6,ymm7\nvpunpckhdq ymm23,ymm6,ymm7\nvpunpckldq ymm24,ymm8,ymm9\nvpunpckhdq ymm25,ymm8,ymm9\nvpunpckldq ymm26,ymm10,ymm11\nvpunpckhdq ymm27,ymm10,ymm11\nvpunpckldq ymm28,ymm12,ymm13\nvpunpckhdq ymm29,ymm12,ymm13\nvpunpckldq ymm30,ymm14,ymm15\nvpunpckhdq ymm31,ymm14,ymm15\nvpunpckhqdq ymm2,ymm16,ymm18\nvpunpcklqdq ymm16,ymm16,ymm18\nvpunpcklqdq ymm1,ymm17,ymm19\nvpunpckhqdq ymm3,ymm17,ymm19\nvpunpcklqdq ymm4,ymm20,ymm22\nvpunpcklqdq ymm5,ymm21,ymm23\nvpunpckhqdq ymm6,ymm20,ymm22\nvpunpckhqdq ymm7,ymm21,ymm23\nvpunpcklqdq ymm8,ymm24,ymm26\nvpunpcklqdq ymm9,ymm25,ymm27\nvpunpckhqdq ymm10,ymm24,ymm26\nvpunpckhqdq ymm11,ymm25,ymm27\nvpunpcklqdq ymm12,ymm28,ymm30\nvpunpcklqdq ymm13,ymm29,ymm31\nvpunpckhqdq ymm14,ymm28,ymm30\nvpunpckhqdq ymm15,ymm29,ymm31\nvshufi32x4 ymm0,ymm16,ymm4,0x0\ncmp rcx,0x20",
+    "saved": 1,
+    "why": "Compute the copied unpack result directly in ymm16 after its other consumer has read the old value. An EVEX shuffle can then read ymm16 directly and concatenate the same low 128-bit halves, eliminating the copy."
+  },
+  "4f3bf75940": {
+    "rewrite": "vpxord ymm0,ymm0,YMMWORD PTR [rdx]\nvmovdqu64 YMMWORD PTR [rsi],ymm0\nvshufi32x4 ymm4,ymm16,ymm4,0x3\nvperm2i128 ymm0,ymm8,ymm12,0x20\ncmp rcx,0x40",
+    "saved": 1,
+    "why": "The EVEX shuffle directly concatenates the high 128-bit halves of ymm16 and ymm4, removing the temporary copy into ymm0. The later permutation still supplies the required final zmm0 value."
+  },
+  "34a18b0dfe": {
+    "rewrite": null,
+    "why": "The XOR and store, two independently required vector permutations, and comparison already use one instruction for each necessary operation."
+  },
+  "751e99ac5b": {
+    "rewrite": null,
+    "why": "The XOR and store, two independently required vector permutations, and comparison already use one instruction for each necessary operation."
+  },
+  "cd89bfdcfe": {
+    "rewrite": null,
+    "why": "The XOR and store, two independently required vector permutations, and comparison already use one instruction for each necessary operation."
+  }
+}

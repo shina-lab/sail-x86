@@ -1,0 +1,82 @@
+{
+  "5565a598b2": {
+    "rewrite": null,
+    "why": "The vector and word copies, final XMM0 and CX values, two pointer results, and flag-setting counter decrement all require the existing instructions."
+  },
+  "49dbf1680a": {
+    "rewrite": null,
+    "why": "The overlapping vector and dword copies both contain required bytes and produce preserved register values, while all three scalar updates remain necessary."
+  },
+  "711fa0b221": {
+    "rewrite": null,
+    "why": "The vector and dword loads and stores are necessary, and the preserved RAX, RDI, R8, and flags require the three remaining instructions."
+  },
+  "442a458efc": {
+    "rewrite": null,
+    "why": "The vector copy, dword copy, independent DH byte store, and three required scalar updates cannot be shortened within SSE2."
+  },
+  "8b988c41b1": {
+    "rewrite": null,
+    "why": "The overlapping vector and qword transfers supply distinct required bytes and preserved register values, and the pointer and counter updates are already direct."
+  },
+  "4cef998dcc": {
+    "rewrite": null,
+    "why": "Both overlapping loads and stores are needed for the copied bytes and preserved XMM0 and RCX values, with no redundant scalar update."
+  },
+  "c6f0008dbb": {
+    "rewrite": null,
+    "why": "The 16-byte and 8-byte copies each require a load and store, followed by three necessary instructions for the preserved pointers, counter, and flags."
+  },
+  "1a0d172150": {
+    "rewrite": null,
+    "why": "The vector and qword copies, separate DH byte store, and three live scalar updates each require their existing instructions."
+  },
+  "7c517bed7a": {
+    "rewrite": null,
+    "why": "The vector, qword, and word transfers all produce required memory and register values, and the pointer and flag-setting counter updates cannot be omitted."
+  },
+  "2a6bb0b9fc": {
+    "rewrite": null,
+    "why": "The overlapping qword and dword tail transfers remain necessary alongside the vector copy because their bytes and final RDX and RCX values are preserved."
+  },
+  "40e68db098": {
+    "rewrite": null,
+    "why": "All three loads and stores are required for the vector, qword, and dword results, and the remaining three instructions separately update preserved scalar outputs."
+  },
+  "070f9d6e36": {
+    "rewrite": null,
+    "why": "The two overlapping vector transfers preserve distinct XMM0 and XMM2 values and required stores, while SSE2 offers no wider transfer to reduce their count."
+  },
+  "c52bb0693d": {
+    "rewrite": null,
+    "why": "Both vector loads and stores and all three scalar updates are required, with no SSE2 instruction combining these preserved results."
+  },
+  "6e2654ea9d": {
+    "rewrite": null,
+    "why": "The one-byte overlap does not make either vector transfer redundant, and the preserved pointer, counter, and flag results require the remaining instructions."
+  },
+  "5715e72813": {
+    "rewrite": null,
+    "why": "SSE2 requires two loads and two stores for these two preserved vectors, plus separate instructions for RAX, RDI, and the flag-setting R8 decrement."
+  },
+  "95543fd205": {
+    "rewrite": null,
+    "why": "Computing both the aligned pointer and preserved remainder needs the existing operations, and folding the R8 addition and subtraction would lose the required carry behavior on wraparound."
+  },
+  "9651ed0975": {
+    "rewrite": null,
+    "why": "Four SSE2 stores are needed for the arbitrary 16-byte pattern, and the preserved RDI, R8, and carry flag require the two scalar updates."
+  },
+  "b3b8a65b8f": {
+    "rewrite": null,
+    "why": "The two vector stores and independent pointer and counter updates are necessary, including the subtraction that supplies the required SF and OF values."
+  },
+  "d593a7e096": {
+    "rewrite": null,
+    "why": "Zeroing RCX, forming the preserved byte-comparison vector, extracting its mask into RDX, and updating R8 with the required flags are four distinct necessary operations."
+  },
+  "75925a925f": {
+    "rewrite": null,
+    "why": "The preserved comparison vector, scalar mask, vector store, RCX update, and flag-setting R8 subtraction each require their existing instruction under SSE2."
+  }
+}

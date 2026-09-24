@@ -1,0 +1,85 @@
+{
+  "c688a2e8fa": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmovdqu xmm1,XMMWORD PTR [rsi+0x30]\npsraw xmm0,0x5\npsraw xmm1,0x5\npackuswb xmm0,xmm1\npavgb xmm0,XMMWORD PTR [rdx]\nmovq QWORD PTR [rdi],xmm0\nmovhps QWORD PTR [rdi+rcx*1],xmm0\nadd rsi,0x60\nadd rdx,0x10\nlea rdi,[rdi+rcx*2]\nsub r8d,0x2",
+    "saved": 1,
+    "why": "MOVHPS stores the high 64 bits directly, eliminating the shuffle into dead xmm1 while preserving xmm0 and both stores."
+  },
+  "62bd24605e": {
+    "rewrite": null,
+    "why": "Both rounded averages and the preserved high half of xmm0 are needed, and folding either 8-byte destination load would read extra bytes."
+  },
+  "14cf0dd21a": {
+    "rewrite": null,
+    "why": "Each input must be shifted before packing, and both averages, both stores, and all pointer and counter updates contribute to required outputs."
+  },
+  "fc4c7559e6": {
+    "rewrite": null,
+    "why": "The four shifts, two packs, and four averages all contribute to required outputs, with no redundant copy or separate load that can be folded."
+  },
+  "39582a2391": {
+    "rewrite": null,
+    "why": "All four instructions independently initialize required final registers."
+  },
+  "6ab3559e60": {
+    "rewrite": null,
+    "why": "The window shifts and arithmetic feed the stored output or live xmm0, while the separate lddqu load preserves support for unaligned input."
+  },
+  "20b41d3f58": {
+    "rewrite": null,
+    "why": "The window calculations and both rounded averages feed required outputs, while the separate lddqu load preserves support for unaligned input."
+  },
+  "390e9a71b5": {
+    "rewrite": "lea r9,[r9+r9*1+0x1]\nmovd xmm3,r8d\nmovd xmm5,r9d\nmovd xmm6,ecx\npslld xmm5,xmm6\npsrld xmm5,0x1\npshuflw xmm3,xmm3,0x0\npshuflw xmm5,xmm5,0x0\npunpcklqdq xmm3,xmm3\npunpcklqdq xmm5,xmm5\npxor xmm7,xmm7",
+    "saved": 1,
+    "why": "LEA computes twice r9 plus one in a single instruction, replacing ADD and INC because their flags are not required."
+  },
+  "31ddb463a9": {
+    "rewrite": null,
+    "why": "Each loaded half needs its own unpack, multiply, saturating add, and variable shift, with xmm7 an arbitrary input rather than a known zero."
+  },
+  "5262292fae": {
+    "rewrite": null,
+    "why": "The two indexed rows require separate loads and arithmetic chains, and the packed xmm0 result and both stores must be preserved."
+  },
+  "3d074bef33": {
+    "rewrite": null,
+    "why": "All four scalar operations update separately preserved registers."
+  },
+  "b167deaf17": {
+    "rewrite": null,
+    "why": "Each weight or offset requires a full word broadcast, and the packed shifts and zeroing establish required final vector values."
+  },
+  "1d57b4132d": {
+    "rewrite": null,
+    "why": "The separate products and ordered saturating additions are required for arbitrary vector inputs, and SSE2 provides no fused replacement."
+  },
+  "649b386cf0": {
+    "rewrite": null,
+    "why": "Both indexed rows need their separate products, ordered saturating additions, and shifts, and the 8-byte loads cannot be folded into wider memory operands."
+  },
+  "c1112fa78e": {
+    "rewrite": null,
+    "why": "All four scalar operations update separately preserved registers."
+  },
+  "d7508ec983": {
+    "rewrite": null,
+    "why": "Using SSSE3 byte shuffles would require constructing a mask that offsets any broadcast savings, and all three resulting vectors are live."
+  },
+  "0c252252cc": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi]\nmovdqa xmm2,xmm0\npunpckhbw xmm2,XMMWORD PTR [rsi]\npunpcklbw xmm0,XMMWORD PTR [rsi]\npmaddubsw xmm0,xmm4\npmaddubsw xmm2,xmm4\npaddsw xmm0,xmm5\npaddsw xmm2,xmm5\npsraw xmm0,xmm6\npsraw xmm2,xmm6\npackuswb xmm0,xmm2\nmovdqa XMMWORD PTR [rdi],xmm0\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 1,
+    "why": "Load both destination halves together and interleave their low and high bytes directly with the existing full-width source operand. This removes one instruction and reads only bytes already loaded by the original."
+  },
+  "4dec3ae41a": {
+    "rewrite": null,
+    "why": "The independently indexed 8-byte rows prevent safely folding the source loads into 16-byte unpack operands, and the remaining arithmetic already uses PMADDUBSW."
+  },
+  "a5ddc0ab10": {
+    "rewrite": null,
+    "why": "The unpacked halves use distinct lanes of arbitrary xmm0, and every multiply-add, shift, saturation, and clamp contributes to the stored values."
+  },
+  "d5aebb20ce": {
+    "rewrite": null,
+    "why": "The arbitrary unpacked xmm0 lanes and signed minimum after unsigned packing must be preserved, leaving no redundant SSE4.1 operation."
+  }
+}

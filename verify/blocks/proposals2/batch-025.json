@@ -1,0 +1,86 @@
+{
+  "89c21216db": {
+    "rewrite": null,
+    "why": "The saturated products, packing, alignment, stores, and address updates all contribute to required outputs, including every modified register and the subtraction flags."
+  },
+  "626336af17": {
+    "rewrite": null,
+    "why": "The load and both address results are required, and a single LEA cannot combine subtraction of an arbitrary register with the constant offset."
+  },
+  "efa675297a": {
+    "rewrite": "paddw xmm6,xmm1\npshufd xmm1,xmm0,0xaa\npmaddubsw xmm1,xmm4\npaddw xmm6,xmm1\npshufd xmm1,xmm0,0xff\npmaddubsw xmm1,xmm5\npaddw xmm6,xmm1\npsraw xmm6,0x4\npackuswb xmm6,xmm6\nmovdqu xmm1,XMMWORD PTR [r9]\nmovdqa xmm0,xmm7\npunpckldq xmm0,xmm1\npunpcklqdq xmm0,xmm6\nmovd DWORD PTR [rdi+0xc],xmm6\npsrlq xmm6,0x20\npalignr xmm6,xmm7,0x4\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm6",
+    "saved": 1,
+    "why": "The final copy into xmm6 is dead because xmm6 is not required at exit and its last memory use precedes the copy."
+  },
+  "179ec3640c": {
+    "rewrite": null,
+    "why": "Both final vector layouts and the scalar store require the packed result, while the saturated products and separate alignment steps cannot be combined using SSSE3."
+  },
+  "8ea34e4717": {
+    "rewrite": null,
+    "why": "The packed result feeds the store and two distinct required vector layouts, leaving no removable copy, product, or alignment step within SSSE3."
+  },
+  "a094bbc26c": {
+    "rewrite": null,
+    "why": "The arithmetic feeds both required vector results and the store, and SSSE3 offers no shorter combination of the packing, copying, and alignment operations."
+  },
+  "7a97beba39": {
+    "rewrite": null,
+    "why": "The filter result is stored before xmm6 is reloaded, and all remaining loads, vector operations, address results, and subtraction flags are required."
+  },
+  "31d7e1bdd1": {
+    "rewrite": null,
+    "why": "The two rounded scalar multiplication stages, live scalar results, and saturated word broadcast cannot be collapsed for arbitrary 32-bit inputs."
+  },
+  "c48392de0e": {
+    "rewrite": null,
+    "why": "The unknown row stride requires separate loads and stores, and both saturation operations, the pointer update, and the flag-producing counter update are required."
+  },
+  "ca94085c07": {
+    "rewrite": null,
+    "why": "Arbitrary 32-bit inputs require the full-width products and rounding shifts, and the constant registers and intermediate outputs must also be preserved."
+  },
+  "6c714cc7cb": {
+    "rewrite": "vmovdqa xmm0,XMMWORD PTR [rdx]\nvmovdqa xmm2,XMMWORD PTR [rdx+0x20]\nvpbroadcastd xmm5,DWORD PTR [CONST_1]\nvpbroadcastd xmm7,DWORD PTR [CONST_2]\nvpmulld xmm4,xmm0,xmm5\nvpmulld xmm6,xmm7,XMMWORD PTR [rdx+0x30]\nvpaddd xmm4,xmm4,xmm6\nvpmulld xmm6,xmm0,xmm7\nvpaddd xmm0,xmm0,XMMWORD PTR [rdx+0x30]\nvpaddd xmm7,xmm7,xmm5\nvpmulld xmm5,xmm5,xmm2\nvpmulld xmm3,xmm7,XMMWORD PTR [rdx+0x30]\nvpmulld xmm7,xmm7,xmm2\nvpsubd xmm2,xmm2,xmm0\nvpbroadcastd xmm0,DWORD PTR [CONST_3]\nvpmulld xmm1,xmm0,XMMWORD PTR [rdx+0x10]\nvpmulld xmm2,xmm2,xmm0\nvpsubd xmm6,xmm6,xmm5\nvpaddd xmm4,xmm4,xmm7\nvpsubd xmm6,xmm6,xmm3\nvpaddd xmm3,xmm4,xmm6\nvpsubd xmm4,xmm4,xmm1\nvpsubd xmm6,xmm6,xmm1\nvpaddd xmm3,xmm3,xmm1",
+    "saved": 2,
+    "why": "Fold the loads at [rdx+0x10] and [rdx+0x30] into their arithmetic consumers. Repeated reads at [rdx+0x30] access only the original bytes, and every final vector value and zeroed upper half is preserved."
+  },
+  "7a38c37604": {
+    "rewrite": "",
+    "saved": 8,
+    "why": "All modified vector registers are dead at exit, and the block neither accesses memory nor changes flags."
+  },
+  "73086d08bc": {
+    "rewrite": null,
+    "why": "The rotations require full-width multiplication and separate rounding shifts, and every broadcast result remains live, including the otherwise unused ymm6."
+  },
+  "93027ae96e": {
+    "rewrite": null,
+    "why": "Each butterfly result and shifted intermediate is live, and AVX2 has no integer instruction that combines these independent sums, differences, and arithmetic shifts."
+  },
+  "b54f120542": {
+    "rewrite": null,
+    "why": "Both saturated sums must precede their rounded multiplications, and the broadcast multiplier is also a required final value."
+  },
+  "69aa9ff9bf": {
+    "rewrite": null,
+    "why": "The transpose requires both levels of lane-local interleaving and the cross-lane permutations, with all four intermediate vector outputs also required."
+  },
+  "5649ac65eb": {
+    "rewrite": null,
+    "why": "All arithmetic outputs are live, and the signed halving followed by bias addition cannot be fused or reassociated across potentially overflowing 32-bit sums."
+  },
+  "63cb859e20": {
+    "rewrite": null,
+    "why": "The full-width rotations, rounding, and clamps all feed required outputs, and arbitrary inputs and clamp bounds prevent replacing them with narrower saturated arithmetic."
+  },
+  "84d8a4deac": {
+    "rewrite": "",
+    "saved": 4,
+    "why": "Only ymm0 and ymm1 are modified, neither is required at exit, and there are no memory or flag effects."
+  },
+  "11f389f1d4": {
+    "rewrite": null,
+    "why": "The input loads are already folded into multiplications, while the rounded 32-bit scaling and subsequent transform retain every computed register value."
+  }
+}

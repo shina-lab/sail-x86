@@ -1,0 +1,82 @@
+{
+  "d15e9a33d8": {
+    "rewrite": null,
+    "why": "All four XOR results and their four copies are live, and baseline x86-64 cannot combine each XOR with duplication into another register."
+  },
+  "f9909f746c": {
+    "rewrite": null,
+    "why": "Both complemented outputs and both unchanged inputs are required, so baseline x86-64 needs a copy and a complement for each output."
+  },
+  "08328fed87": {
+    "rewrite": null,
+    "why": "Each word needs its byte swap, its store before XOR, and its memory-source XOR to produce the required register and memory values."
+  },
+  "792d42103b": {
+    "rewrite": null,
+    "why": "SSSE3 lacks packed dword rotates, the copies feed necessary complementary shifts, and all remaining arithmetic and permutations contribute to live outputs."
+  },
+  "3f3dd2d41a": {
+    "rewrite": null,
+    "why": "The SSSE3 shift-and-OR rotations and lane permutations are needed, including the live xmm4 intermediate and the decrement that produces r8 and ZF."
+  },
+  "afe77f0a24": {
+    "rewrite": null,
+    "why": "Folding the early MOVDQU loads into legacy PXOR memory operands would require unprovided alignment, while the later loads, all stores, and pointer/count updates have live results."
+  },
+  "8c7ac2d2b7": {
+    "rewrite": null,
+    "why": "Each live vector result already uses one memory-source XOR and one required store, with VEX encoding providing the required zeroed upper halves."
+  },
+  "7eaaf3357e": {
+    "rewrite": null,
+    "why": "The two independent live YMM results each require their memory-source XOR and their store."
+  },
+  "5e34ba6c3e": {
+    "rewrite": null,
+    "why": "All four YMM results and stores are required, and each load is already folded into its XOR."
+  },
+  "0d6d1cfbaf": {
+    "rewrite": null,
+    "why": "The three initial vector copies, both copies of the vector sum, and the r8 initialization are all required outputs."
+  },
+  "c6c823efbe": {
+    "rewrite": null,
+    "why": "The dependent ChaCha rounds already use single-instruction packed rotates, and their arithmetic, lane permutations, and r8/ZF update all contribute to required outputs."
+  },
+  "609f7d0ff0": {
+    "rewrite": null,
+    "why": "Each of the four independent live ZMM sums requires its addition, and the subtraction must produce both rdx and the specified flags."
+  },
+  "354acae1d1": {
+    "rewrite": null,
+    "why": "The four live vector results already fold their loads into XORs, and all four stores and both pointer updates are required."
+  },
+  "4d70968148": {
+    "rewrite": null,
+    "why": "Each extraction produces a distinct required vector result with zeroed upper bits, and the subtraction supplies the required rdx and flags."
+  },
+  "cc9a597b4a": {
+    "rewrite": null,
+    "why": "Each live vector result needs its memory-source XOR and store, while both pointer advances are also required."
+  },
+  "c615266d67": {
+    "rewrite": null,
+    "why": "All four lane extractions have live destinations, and the separate subtraction is needed for rdx and the specified flags."
+  },
+  "57af91c7a8": {
+    "rewrite": null,
+    "why": "The four independent lane extractions and the flag-setting count update each produce required outputs."
+  },
+  "599a52640c": {
+    "rewrite": null,
+    "why": "All four register assignments are live, and the original accesses to ymm18-ymm20 additionally require AVX-512 beyond the stated AVX2 limit."
+  },
+  "58dfbcc1ef": {
+    "rewrite": null,
+    "why": "The round operations and counter update are live, and replacing the supplied AVX-512 VPROLD operations within the stated AVX2 limit would require more instructions."
+  },
+  "208fb5bf1e": {
+    "rewrite": null,
+    "why": "Each live vector sum and the flag-setting subtraction is required, while accessing ymm16-ymm19 requires AVX-512 beyond the stated AVX2 limit."
+  }
+}

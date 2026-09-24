@@ -1,0 +1,82 @@
+{
+  "3192a74606": {
+    "rewrite": null,
+    "why": "The byte comparison, vector store, mask extraction, and scalar comparison each produce a required result."
+  },
+  "d46d7a58f3": {
+    "rewrite": null,
+    "why": "All four register updates are live, and the final comparison is needed to produce the required CF."
+  },
+  "c6102868bb": {
+    "rewrite": null,
+    "why": "The live RSI and RDX results require the bit scan and offset arithmetic, and the final comparison must supply CF."
+  },
+  "0e21f5ca45": {
+    "rewrite": null,
+    "why": "The byte store, original destination in RAX, incremented RDI, and R8 subtraction with matching flags are all required."
+  },
+  "6bd240b854": {
+    "rewrite": null,
+    "why": "The word load must preserve the upper bits of RDX, and the store, two destination results, and flag-producing count update are all live."
+  },
+  "ed4b9887b8": {
+    "rewrite": null,
+    "why": "The partial RCX load, word and byte stores, two destination results, and count subtraction with matching flags all remain necessary."
+  },
+  "a60ab38217": {
+    "rewrite": null,
+    "why": "The loaded and zero-extended RDX, dword store, RAX and RDI results, and R8 subtraction flags are all observable."
+  },
+  "7f259b1a9e": {
+    "rewrite": null,
+    "why": "The loaded RCX, separate byte and dword stores, two destination results, and flag-producing count update are all required."
+  },
+  "bfedbf18f7": {
+    "rewrite": null,
+    "why": "Both loaded register results and both stores are required, along with the separate RAX, RDI, and R8 updates and subtraction flags."
+  },
+  "bbf3c927b2": {
+    "rewrite": null,
+    "why": "The overlapping dword copies each supply a live register and required store, while the destination and count updates remain necessary."
+  },
+  "757ea78378": {
+    "rewrite": null,
+    "why": "The qword load and store, two distinct destination results, and count subtraction with matching flags each require an instruction."
+  },
+  "e883e58663": {
+    "rewrite": null,
+    "why": "The live qword load, qword and byte stores, two destination results, and flag-producing count subtraction cannot be dropped."
+  },
+  "eaf67572b0": {
+    "rewrite": null,
+    "why": "The qword and partial-word register results, both stores, and all three scalar updates with subtraction flags are required."
+  },
+  "c0b55410a3": {
+    "rewrite": null,
+    "why": "The overlapping qword and dword copies produce live RCX and RDX values and required stores, followed by three necessary scalar updates."
+  },
+  "e9511864cb": {
+    "rewrite": null,
+    "why": "Both loaded registers and both stores must be preserved, and the RAX, RDI, and flag-producing R8 updates remain independent."
+  },
+  "f87dbf2caa": {
+    "rewrite": null,
+    "why": "Both overlapping qword copies supply live registers and required stores, and widening them would read beyond the original bytes."
+  },
+  "a485cd7a14": {
+    "rewrite": null,
+    "why": "Both qword loads and stores are necessary with RCX and RDX live, and the destination and count updates produce required results and flags."
+  },
+  "8b792b8914": {
+    "rewrite": null,
+    "why": "The overlapping qword transfers preserve two live register values, and a wider transfer would access an extra byte without eliminating the scalar updates."
+  },
+  "202f0f0fdf": {
+    "rewrite": null,
+    "why": "The live XMM0 load, vector store, two destination results, and count subtraction with matching flags are already five necessary operations."
+  },
+  "c8e9524e42": {
+    "rewrite": null,
+    "why": "The live XMM0 load, vector and byte stores, two destination results, and flag-producing count update are all required."
+  }
+}

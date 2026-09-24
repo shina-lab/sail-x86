@@ -1,0 +1,86 @@
+{
+  "e3975e39f5": {
+    "rewrite": null,
+    "why": "The index clamp, both dependent permutations, and the rounded arithmetic all contribute to required final register values."
+  },
+  "f432a6c1c7": {
+    "rewrite": "valignd zmm27,zmm24,zmm23,0x1\nvpaddd zmm29,zmm29,DWORD BCST [r10+0x154]\nvpshrdd zmm26,zmm23,zmm27,0x10\nvpaddw zmm17,zmm17,zmm26\nvalignd zmm26,zmm24,zmm23,0xf\nvpavgw zmm27,zmm27,zmm18\nvpermw zmm18,zmm16,zmm24\nvpaddw zmm17,zmm17,zmm27\nvpsrlw zmm23{k1},zmm17,0x2\nvpshrdd zmm17,zmm26,zmm24,0x10\nvpaddw zmm17,zmm17,zmm24\nvpaddw zmm17,zmm17,zmm18\nvpermw zmm18,zmm16,zmm18\nvpaddw zmm26,zmm26,zmm21\nvpcmpgtw k1,zmm22,zmm29\nvpavgw zmm18,zmm18,zmm26\nvpaddw zmm17,zmm17,zmm18\nvpsrlw zmm24{k1},zmm17,0x2",
+    "saved": 2,
+    "why": "For each pair of two-byte and four-byte shifts, VALIGND forms the four-byte shift and VPSHRDD derives the two-byte shift. This replaces each three-instruction alignment sequence with two instructions while retaining every final value."
+  },
+  "9c237524c7": {
+    "rewrite": null,
+    "why": "The unpack halves, lane insertions, and final alignment are needed to form both preserved interleaved outputs with their required upper bits zeroed."
+  },
+  "2e8c04dd5b": {
+    "rewrite": null,
+    "why": "Both lookups and the independently masked and shifted weights are preserved, along with the scalar subtraction and its required flags."
+  },
+  "b800ae6f49": {
+    "rewrite": null,
+    "why": "The generated mask and all three masked vector updates are preserved, so each instruction supplies a required result."
+  },
+  "0ceec21372": {
+    "rewrite": null,
+    "why": "The rounded interpolation, four stores at independent indexed addresses, and flagged counter update each have required effects."
+  },
+  "95f3bd1cb9": {
+    "rewrite": null,
+    "why": "Each instruction independently supplies a preserved vector value, address, or comparison flags."
+  },
+  "709c26716c": {
+    "rewrite": null,
+    "why": "The broadcasts, mask construction, alignments, and arithmetic all feed preserved results, and arbitrary input values prevent simplifying the masked updates."
+  },
+  "62519e0638": {
+    "rewrite": null,
+    "why": "Both table lookups, the rounded interpolation, the independent vector increment, and the flagged scalar subtraction contribute to preserved outputs."
+  },
+  "6a9e2bec53": {
+    "rewrite": null,
+    "why": "The interpolation, preserved sample copy, two independently addressed stores, and scalar and vector updates are all required."
+  },
+  "1ab2357a25": {
+    "rewrite": null,
+    "why": "The two shifted outputs, arbitrary AND mask, subtraction, and register copy each determine preserved values."
+  },
+  "80b5f1fcf0": {
+    "rewrite": "vpbroadcastw zmm18,WORD PTR [rdx]\nvpbroadcastd zmm21,DWORD PTR [r10-0x70]\nvalignd zmm17,zmm22,zmm18,0xf\nvalignd zmm19,zmm23,zmm22,0x1\nvalignq zmm26,zmm23,zmm22,0x6\nvpshrdd zmm18,zmm17,zmm22,0x10\nvpaddw zmm17,zmm17,zmm21\nvpshrdd zmm20,zmm22,zmm19,0x10\nvpaddw zmm22,zmm22,zmm18\nvpavgw zmm17,zmm17,zmm19\nvpalignr zmm19,zmm23,zmm26,0xc\nvpaddw zmm22,zmm22,zmm20\nvpalignr zmm20,zmm23,zmm26,0xe\nvpaddw zmm22,zmm22,zmm17\nvalignd zmm17,zmm24,zmm23,0x1\nvpsrlw zmm22,zmm22,0x2\nvpshrdd zmm18,zmm23,zmm17,0x10\nvpaddw zmm19,zmm19,zmm21\nvpaddw zmm23,zmm23,zmm20\nvpavgw zmm19,zmm19,zmm17\nvpaddw zmm23,zmm23,zmm18\nvpaddw zmm23,zmm23,zmm19\nvpsrlw zmm23,zmm23,0x2",
+    "saved": 3,
+    "why": "Three alignment sequences can each use VALIGND for the four-byte shift and VPSHRDD for the adjacent two-byte shift. The separate VALIGNQ producing the preserved zmm26 value remains unchanged."
+  },
+  "a9b715746b": {
+    "rewrite": "valignd zmm17,zmm25,zmm24,0x1\nvpalignr zmm19,zmm24,zmm27,0xc\nvpalignr zmm20,zmm24,zmm27,0xe\nvpaddw zmm19,zmm19,zmm21\nvpshrdd zmm18,zmm24,zmm17,0x10\nvpaddw zmm24,zmm24,zmm20\nvpavgw zmm19,zmm19,zmm17\nvpaddw zmm24,zmm24,zmm18\nvpaddw zmm24,zmm24,zmm19\nvpsrlw zmm24,zmm24,0x2",
+    "saved": 1,
+    "why": "VALIGND directly produces the four-byte shifted zmm17, and VPSHRDD combines it with the original zmm24 to produce the two-byte shifted zmm18, replacing three instructions with two."
+  },
+  "29cf3d401f": {
+    "rewrite": null,
+    "why": "The table indices, lookup results, interpolation results, copied history vectors, stores, and scalar updates are all preserved, leaving no removable copies."
+  },
+  "4a2d067e4a": {
+    "rewrite": "vpbroadcastw xmm18,xmm29\nvalignd zmm17,zmm18,zmm25,0x1\nvpalignr zmm19,zmm25,zmm28,0xc\nvpalignr zmm20,zmm25,zmm28,0xe\nvpaddw zmm19,zmm19,zmm21\nvpshrdd zmm18,zmm25,zmm17,0x10\nvpaddw zmm25,zmm25,zmm20\nvpavgw zmm19,zmm19,zmm17\nvpaddw zmm25,zmm25,zmm18\nvpaddw zmm25,zmm25,zmm19\nvpsrlw zmm25,zmm25,0x2",
+    "saved": 1,
+    "why": "After the word broadcast, VALIGND forms the four-byte shift and VPSHRDD derives the two-byte shift, eliminating one alignment instruction."
+  },
+  "8934cb22c1": {
+    "rewrite": null,
+    "why": "The arbitrary byte controls require both multishifts and separate low-byte and high-byte word lookups, and all four stores and scalar updates are required."
+  },
+  "0117a0b2c9": {
+    "rewrite": null,
+    "why": "Both dot products, the horizontal reduction, signed-to-unsigned saturation, and variable shifts are required, and the extracted xmm17 value must also be preserved."
+  },
+  "cbef074595": {
+    "rewrite": null,
+    "why": "Arbitrary xmm3 contents and the required xmm1 and xmm4 intermediates prevent replacing the unpack and reduction sequence with a shorter horizontal sum."
+  },
+  "245a29bd76": {
+    "rewrite": null,
+    "why": "The dword preshift, unsigned word high multiplication, and word postshift cannot be combined for arbitrary inputs, and the scalar copy in xmm1 is preserved."
+  },
+  "790d74e223": {
+    "rewrite": null,
+    "why": "The four independently indexed stores, pointer advance, and flagged counter subtraction each have required effects."
+  }
+}

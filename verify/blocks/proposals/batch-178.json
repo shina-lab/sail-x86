@@ -1,0 +1,87 @@
+{
+  "132e287343": {
+    "rewrite": "",
+    "saved": 17,
+    "why": "Every computed vector result is dead, and the block has no stores or writes to preserved registers."
+  },
+  "dd232e7fca": {
+    "rewrite": null,
+    "why": "All lane-assembly and unpack results are live, and the coefficient construction needs its broadcast, shift, and subtraction."
+  },
+  "be665474b5": {
+    "rewrite": null,
+    "why": "Every permutation and rounded product is live, and the 128-bit coefficient broadcast must retain its distinct upper-half zeroing."
+  },
+  "b92c2e2fd8": {
+    "rewrite": null,
+    "why": "Each vector requires its permutation, rounded product, saturated doubling, and saturated addition; arbitrary inputs prevent combining those saturating stages."
+  },
+  "68aa1ae6ef": {
+    "rewrite": null,
+    "why": "The independently rounded multiplies, broadcast, store, counter update, and required zeroing have no removable operations or safely foldable scalar loads."
+  },
+  "09743c49bb": {
+    "rewrite": null,
+    "why": "Arbitrary inputs in ymm0 and ymm3 require the unpack/add/pack steps, while both stores and the pointer and flag-setting counter updates remain necessary."
+  },
+  "c239c8deea": {
+    "rewrite": null,
+    "why": "All assembled lanes and unpack outputs are live, including both final copies of the broadcast coefficient."
+  },
+  "0d497f0e4a": {
+    "rewrite": "vpbroadcastd ymm6,DWORD PTR [rax-0x34]\nvpunpckhwd ymm4,ymm3,ymm1\nvpunpcklwd ymm3,ymm3,ymm1\nvpbroadcastd ymm5,DWORD PTR [rax-0x28]\nvpmaddwd ymm4,ymm4,ymm5\nvpmaddwd ymm3,ymm3,ymm5\nvpaddd ymm4,ymm4,ymm6\nvpaddd ymm3,ymm3,ymm6\nvpsrad ymm4,ymm4,0xc\nvpsrad ymm3,ymm3,0xc\nvpackssdw ymm4,ymm3,ymm4\nvpunpckhwd ymm3,ymm2,ymm0\nvpunpcklwd ymm2,ymm2,ymm0\nvpbroadcastd ymm5,DWORD PTR [rax-0x30]\nvpmaddwd ymm3,ymm3,ymm5\nvpmaddwd ymm2,ymm2,ymm5\nvpaddd ymm3,ymm3,ymm6\nvpaddd ymm2,ymm2,ymm6\nvpsrad ymm3,ymm3,0xc\nvpsrad ymm2,ymm2,0xc\nvpackssdw ymm3,ymm2,ymm3\nvpaddsw ymm0,ymm3,ymm4",
+    "saved": 19,
+    "why": "Only the transform branches using coefficients at [rax-0x28] and [rax-0x30] feed the preserved ymm0. Remove the other branches and dead butterfly outputs while retaining the original rounding and saturation."
+  },
+  "e91e887595": {
+    "rewrite": null,
+    "why": "Each instruction already combines a required load with the permutation for a distinct live output."
+  },
+  "b615baf820": {
+    "rewrite": null,
+    "why": "The coefficient construction, rounded products, lane combinations, and transpose stages all contribute to preserved outputs without redundant operations."
+  },
+  "22269ba73b": {
+    "rewrite": "vpbroadcastd ymm7,DWORD PTR [rax-0x70]\nvpbroadcastd ymm9,DWORD PTR [rax-0x68]\nvpunpcklwd ymm4,ymm2,ymm0\nvpunpckhwd ymm2,ymm2,ymm0\nvpmaddwd ymm0,ymm7,ymm4\nvpmaddwd ymm7,ymm7,ymm2\nvpunpckhwd ymm2,ymm3,ymm1\nvpunpcklwd ymm3,ymm3,ymm1\nvpbroadcastd ymm1,DWORD PTR [rax-0x34]\nvpmaddwd ymm5,ymm9,ymm3\nvpmaddwd ymm9,ymm9,ymm2\nvpaddd ymm0,ymm0,ymm1\nvpaddd ymm7,ymm7,ymm1\nvpaddd ymm0,ymm0,ymm5\nvpaddd ymm7,ymm9,ymm7\nvpsrad ymm0,ymm0,0xc\nvpsrad ymm7,ymm7,0xc\nvpackssdw ymm0,ymm0,ymm7",
+    "saved": 36,
+    "why": "Retain only the four products, bias additions, shifts, and packing that produce the preserved ymm0. All other transform branches and their coefficient loads are dead."
+  },
+  "2c0240065f": {
+    "rewrite": null,
+    "why": "The four word unpacks, four lane combinations, coefficient broadcast, and subtraction each contribute to required register values."
+  },
+  "8ae94a1209": {
+    "rewrite": null,
+    "why": "The discontiguous lane loads, transpose stages, separately rounded products, and saturated sums all contribute to preserved outputs."
+  },
+  "743b667583": {
+    "rewrite": null,
+    "why": "The four rounded products are themselves preserved, so each product and each saturated sum requires a separate instruction in addition to the coefficient broadcast."
+  },
+  "c64a3de25e": {
+    "rewrite": null,
+    "why": "Both scalar coefficient loads are live, the two multiplies round separately, and the store and flag-setting OR are required."
+  },
+  "21474b4560": {
+    "rewrite": null,
+    "why": "The scaling and transpose stages all contribute to required outputs, including the surviving intermediate values in ymm8 and ymm9."
+  },
+  "47127f4588": {
+    "rewrite": null,
+    "why": "All unpacked outputs, the coefficient difference, and the four rounded products are live and require distinct AVX2 operations."
+  },
+  "cc6b840e08": {
+    "rewrite": null,
+    "why": "Without a known negative sign mask, the packed-word negation needs its zero/subtract pair, and all four rounded products are required."
+  },
+  "b8444f4308": {
+    "rewrite": "",
+    "saved": 34,
+    "why": "The block leaves ymm0 and every preserved general-purpose register untouched, has no stores, and computes only dead vector results."
+  },
+  "9de8b69d26": {
+    "rewrite": "",
+    "saved": 10,
+    "why": "All vector destinations are unpreserved, and the block has no stores or changes to any preserved register."
+  }
+}

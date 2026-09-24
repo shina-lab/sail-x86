@@ -1,0 +1,82 @@
+{
+  "3989558c30": {
+    "rewrite": null,
+    "why": "Both dword shifts, unsigned packing and the 1023 clamp are needed for arbitrary inputs, and the store and both scalar updates are live."
+  },
+  "54d495db25": {
+    "rewrite": null,
+    "why": "Both dword shifts, unsigned packing and the 1023 clamp are needed for arbitrary inputs, and the store and both scalar updates are live."
+  },
+  "6ba4386bb8": {
+    "rewrite": null,
+    "why": "Preserving xmm2 and xmm3 makes folding the loads into saturating adds require replacement copies, while both shifts, the pack, the store and the index update remain necessary."
+  },
+  "6e6b9beabe": {
+    "rewrite": null,
+    "why": "Preserving xmm2 and xmm3 makes folding the loads into saturating adds require replacement copies, while both shifts, the pack, the store and the index update remain necessary."
+  },
+  "decfddd508": {
+    "rewrite": null,
+    "why": "Both load/add/shift/clamp chains feed required stores, and the arbitrary preserved addend and clamp bounds prevent eliminating operations under SSE2."
+  },
+  "328dac2706": {
+    "rewrite": null,
+    "why": "Both load/add/shift/clamp chains feed required stores, and the arbitrary preserved addend and clamp bounds prevent eliminating operations under SSE2."
+  },
+  "1bfd1ae505": {
+    "rewrite": null,
+    "why": "Both load/add/shift/clamp chains feed required stores, and the arbitrary preserved addend and clamp bounds prevent eliminating operations under SSE2."
+  },
+  "1fdb71be7f": {
+    "rewrite": null,
+    "why": "Both load/add/shift/clamp chains feed required stores, and the arbitrary preserved addend and clamp bounds prevent eliminating operations under SSE2."
+  },
+  "c9438c5c81": {
+    "rewrite": null,
+    "why": "The preserved arbitrary addends require all additions, and shifting after signed packing would change saturation, leaving no shorter SSE2 sequence for the required outputs."
+  },
+  "db96bf60ad": {
+    "rewrite": null,
+    "why": "The preserved arbitrary addends require all additions, and shifting after signed packing would change saturation, leaving no shorter SSE2 sequence for the required outputs."
+  },
+  "8964ee11a5": {
+    "rewrite": null,
+    "why": "Preserving xmm4 prevents saving instructions through memory-source adds, and all four dword shifts must precede unsigned packing to preserve saturation."
+  },
+  "b65fc52eaf": {
+    "rewrite": null,
+    "why": "Preserving xmm4 prevents saving instructions through memory-source adds, and all four dword shifts must precede unsigned packing to preserve saturation."
+  },
+  "1ce59e6c0b": {
+    "rewrite": null,
+    "why": "The loads are already folded into saturating adds, and both shifts, unsigned packing, the store and the flag-setting index update are necessary without AVX2."
+  },
+  "15134c6cc8": {
+    "rewrite": null,
+    "why": "The loads are already folded into saturating adds, and both shifts, unsigned packing, the store and the flag-setting index update are necessary without AVX2."
+  },
+  "76692ef19c": {
+    "rewrite": null,
+    "why": "Memory-source adds are already used, both arbitrary clamp bounds must be applied to each result, and AVX cannot combine the two integer chains into 256-bit operations."
+  },
+  "6497434915": {
+    "rewrite": null,
+    "why": "Memory-source adds are already used, both arbitrary clamp bounds must be applied to each result, and AVX cannot combine the two integer chains into 256-bit operations."
+  },
+  "e8688ad737": {
+    "rewrite": null,
+    "why": "Memory-source adds are already used, both arbitrary clamp bounds must be applied to each result, and AVX cannot combine the two integer chains into 256-bit operations."
+  },
+  "90d7a7d849": {
+    "rewrite": null,
+    "why": "Memory-source adds are already used, both arbitrary clamp bounds must be applied to each result, and AVX cannot combine the two integer chains into 256-bit operations."
+  },
+  "993b610f00": {
+    "rewrite": null,
+    "why": "All loads are folded into adds, the four shifts must precede unsigned packing to preserve saturation, and AVX2 would be required to widen the integer operations."
+  },
+  "53885288e4": {
+    "rewrite": null,
+    "why": "All loads are folded into adds, the four shifts must precede unsigned packing to preserve saturation, and AVX2 would be required to widen the integer operations."
+  }
+}

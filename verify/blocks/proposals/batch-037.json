@@ -1,0 +1,86 @@
+{
+  "ba88ac7042": {
+    "rewrite": null,
+    "why": "The byte load, two-instruction reverse subtraction, and required r8 assignment all contribute to preserved outputs."
+  },
+  "861e2c3663": {
+    "rewrite": null,
+    "why": "The two rounded 64-bit multiplications, zero store, preserved xmm2 zero, SSE2 word broadcast, and rdx assignment have no removable instructions."
+  },
+  "172d01b084": {
+    "rewrite": null,
+    "why": "Both scalar rounding stages and the broadcast with saturating addition are needed, alongside the store and preserved scalar outputs."
+  },
+  "33b5a22e52": {
+    "rewrite": null,
+    "why": "Each independently addressed row needs both saturation operations and its store, while the pointer update and flag-producing decrement are preserved."
+  },
+  "6bb0b87b19": {
+    "rewrite": null,
+    "why": "The shuffle and unpack stages form distinct required permutations, and every vector output including the final zmm0 temporary must be preserved."
+  },
+  "9c26780e48": {
+    "rewrite": null,
+    "why": "Four maximum-width stores are required, as is the eax subtraction with all its resulting arithmetic flags."
+  },
+  "14f98ff155": {
+    "rewrite": null,
+    "why": "Both unpack stages are needed for the two transposes, with every output and the final zmm0 temporary preserved."
+  },
+  "0ccb160905": {
+    "rewrite": null,
+    "why": "Each instruction computes a distinct preserved vector result, and the independent packs and arithmetic shifts cannot be combined."
+  },
+  "a138551bfb": {
+    "rewrite": "vmovdqa ymm0,YMMWORD PTR [rdi]\nvinserti32x8 zmm0,zmm0,YMMWORD PTR [rdi+rsi*1],0x1\nvmovdqa ymm1,YMMWORD PTR [rdi+rsi*2]\nvinserti32x8 zmm1,zmm1,YMMWORD PTR [rdi+rax*1],0x1\nvpermq zmm16,zmm18,zmm16\nvpermq zmm17,zmm18,zmm17\nvpaddsw zmm0,zmm0,zmm16\nvpaddsw zmm1,zmm1,zmm17\nvpsubusw zmm0,zmm0,zmm19\nvpsubusw zmm1,zmm1,zmm19\nvmovdqa YMMWORD PTR [rdi],ymm0\nvextracti32x8 YMMWORD PTR [rdi+rsi*1],zmm0,0x1\nvmovdqa YMMWORD PTR [rdi+rsi*2],ymm1\nvextracti32x8 YMMWORD PTR [rdi+rax*1],zmm1,0x1",
+    "saved": 1,
+    "why": "The final lea only changes rdi, whose final value is not preserved, after all memory accesses have completed."
+  },
+  "f6e1a93f82": {
+    "rewrite": null,
+    "why": "All products and adjusted results are preserved, both zmm16 and its zmm2 copy are required, and the allowed ISA has no fused arbitrary dword multiply-add."
+  },
+  "eca0eac467": {
+    "rewrite": "",
+    "saved": 28,
+    "why": "All instructions write only unpreserved vector registers; preserved zmm0 is only read, and memory and scalar registers are untouched."
+  },
+  "f55bc8eb2d": {
+    "rewrite": null,
+    "why": "Each instruction supplies a distinct preserved vector result, including the zero in zmm0 needed for the four negations."
+  },
+  "6077152796": {
+    "rewrite": null,
+    "why": "Each packed result needs separate signed narrowing and saturating addition, and all four independently shifted vectors are preserved."
+  },
+  "17f0a6570a": {
+    "rewrite": null,
+    "why": "The allowed ISA cannot fuse signed dword-to-word saturation with the subsequent signed saturating word addition for arbitrary inputs."
+  },
+  "21e5503828": {
+    "rewrite": null,
+    "why": "Every product or adjusted product is preserved, and the arbitrary dword multiplications cannot be fused with their following subtractions."
+  },
+  "ada242be78": {
+    "rewrite": "",
+    "saved": 12,
+    "why": "All destinations are unpreserved vector registers, while preserved zmm0 is only read and there are no memory or scalar effects."
+  },
+  "ea625f1476": {
+    "rewrite": null,
+    "why": "The scalar outputs require both rounded multiplication stages, and the remaining store, broadcast, and saturating addition each have required effects."
+  },
+  "26cf3203e3": {
+    "rewrite": null,
+    "why": "Both rows require separate signed additions, unsigned saturating subtractions, and stores, followed by the preserved pointer and counter updates."
+  },
+  "1458731da9": {
+    "rewrite": "",
+    "saved": 16,
+    "why": "The entire shuffle network writes only unpreserved vector registers and leaves all preserved registers and memory unchanged."
+  },
+  "fb0260da48": {
+    "rewrite": null,
+    "why": "All sixteen product outputs and the four subsequent adjustments are required, with no permitted fused operation for arbitrary dword multiplication and subtraction."
+  }
+}

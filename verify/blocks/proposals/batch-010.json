@@ -1,0 +1,91 @@
+{
+  "c45199e7f2": {
+    "rewrite": "movdqa xmm6,XMMWORD PTR [CONST_1]\nimul r8d,r8d,0xff\nadd r8d,0x8\nmovd xmm7,r8d\npshuflw xmm7,xmm7,0x0\nmovlhps xmm7,xmm7",
+    "saved": 2,
+    "why": "The broadcast word is the low 16 bits of 255 times the incoming r8d plus 8, so an immediate multiply and add replace the four-instruction scalar calculation."
+  },
+  "2090c9c269": {
+    "rewrite": "movdqa xmm5,XMMWORD PTR [CONST_1]\nimul r8d,r8d,0xff\nadd r8d,0x8\nmovd xmm0,DWORD PTR [rsi]\nlea eax,[r9-0x8]\nshl r9d,0x10\nmovd xmm1,DWORD PTR [rsi+0x1]\nsub r9d,eax\nimul r8d,r9d\nadd rsi,rdx\nmovd xmm6,r8d\npunpcklwd xmm6,xmm6\npshufd xmm7,xmm6,0x55\npunpcklbw xmm0,xmm1\npshufd xmm6,xmm6,0x0",
+    "saved": 3,
+    "why": "An immediate multiply and add compute the first coefficient in two instructions, and LEA combines the second coefficient's copy and subtraction while preserving the required final rax."
+  },
+  "482d4e59f6": {
+    "rewrite": null,
+    "why": "The interleaves, saturated products, packing, separate four-byte stores, and retained unpacked row all contribute to required outputs."
+  },
+  "13fc3907b7": {
+    "rewrite": "movq xmm1,QWORD PTR [rsi+rdx*1]\nmovq xmm2,QWORD PTR [rsi+rdx*1+0x1]\npunpcklbw xmm1,xmm2\nmovdqa xmm2,xmm1\npmaddubsw xmm0,xmm7\npmaddubsw xmm1,xmm6\npmaddubsw xmm2,xmm7\npaddw xmm0,xmm5\npaddw xmm2,xmm5\npaddw xmm1,xmm0\nmovq xmm0,QWORD PTR [rsi+rdx*2]\nmovq xmm4,QWORD PTR [rsi+rdx*2+0x1]\nlea rsi,[rsi+rdx*2]\npunpcklbw xmm0,xmm4\nmovdqa xmm3,xmm0\npmaddubsw xmm3,xmm6\npaddw xmm3,xmm2\npsrlw xmm1,0x6\npsrlw xmm3,0x6\nmovq xmm2,QWORD PTR [rdi]\nmovhps xmm2,QWORD PTR [rdi+rdx*1]\npackuswb xmm1,xmm3\npavgb xmm1,xmm2\nmovq QWORD PTR [rdi],xmm1\nmovhps QWORD PTR [rdi+rdx*1],xmm1\nsub ecx,0x2\nlea rdi,[rdi+rdx*2]",
+    "saved": 1,
+    "why": "Consume the incoming xmm0 before loading the last row directly into it, eliminating the final copy back into xmm0 while retaining a separate multiplication temporary."
+  },
+  "3604126cb1": {
+    "rewrite": null,
+    "why": "Both rows need independent loads, interleaves, products, and shifts before the shared packing and averaging, with no redundant copy to remove."
+  },
+  "299a9c3c83": {
+    "rewrite": "movq xmm0,QWORD PTR [rsi]\nmovq xmm1,QWORD PTR [rsi+rdx*1]\nmovq xmm3,QWORD PTR [rsi+rdx*2]\nlea rsi,[rsi+rdx*2]\npunpcklbw xmm0,xmm1\npunpcklbw xmm1,xmm3\npmaddubsw xmm0,xmm7\npmaddubsw xmm1,xmm7\nmovq xmm4,QWORD PTR [rdi]\nmovhps xmm4,QWORD PTR [rdi+rdx*1]\npaddw xmm0,xmm6\npaddw xmm1,xmm6\npsrlw xmm0,0x3\npsrlw xmm1,0x3\npackuswb xmm0,xmm1\npavgb xmm0,xmm4\nmovq QWORD PTR [rdi],xmm0\nmovhps QWORD PTR [rdi+rdx*1],xmm0\nsub ecx,0x2\nlea rdi,[rdi+rdx*2]",
+    "saved": 1,
+    "why": "After the first interleave consumes xmm1, its original value is no longer needed separately, so the second row calculation can overwrite it and drop the copy to xmm2."
+  },
+  "fe8b6dcc92": {
+    "rewrite": null,
+    "why": "The weighted row pairs, two separate destination averages and stores, and retained unpacked row leave no removable operation under SSSE3."
+  },
+  "9e7601b00d": {
+    "rewrite": null,
+    "why": "Four rows at unknown offsets require four loads and four stores, followed by the required pointer and counter updates."
+  },
+  "aff73c7e5c": {
+    "rewrite": null,
+    "why": "SSE2 needs the scalar OR, three instructions to broadcast its low word, both constant vectors, and the subtraction to produce all three live vectors."
+  },
+  "c7c16d219e": {
+    "rewrite": null,
+    "why": "Both coefficient vectors must survive, so folding a load into a destructive SSE2 multiply would require a replacement copy and save no instructions."
+  },
+  "d6e74e3337": {
+    "rewrite": "movd xmm4,r8d\nmovd xmm6,r9d\npshuflw xmm4,xmm4,0x0\npunpcklqdq xmm4,xmm4\npshuflw xmm6,xmm6,0x0\npunpcklqdq xmm6,xmm6\nmovdqa xmm5,xmm4\npsllw xmm5,0x3\npmullw xmm4,xmm6\npsllw xmm6,0x3\nmovdqa xmm7,xmm4\npaddw xmm4,XMMWORD PTR [CONST_1]\npsubw xmm4,xmm5\npsubw xmm4,xmm6\npsubw xmm5,xmm7\npsubw xmm6,xmm7\nmovdqu xmm0,XMMWORD PTR [rsi]\nmovdqu xmm1,XMMWORD PTR [rsi+0x2]",
+    "saved": 1,
+    "why": "Subtract the two shifted coefficients directly from product plus 64 instead of copying and adding them into a temporary sum; use the preserved product in xmm7 for the other subtractions."
+  },
+  "d0b0992cbb": {
+    "rewrite": null,
+    "why": "The unknown row offsets prevent merging accesses, leaving four necessary loads, four stores, and three pointer or counter updates."
+  },
+  "ddadc2dc94": {
+    "rewrite": null,
+    "why": "The word broadcast still requires two shuffles after VMOVD at AVX level, and the live constants and subtraction have no redundant instruction."
+  },
+  "90a862a424": {
+    "rewrite": "vpmullw xmm0,xmm4,XMMWORD PTR [rsi]\nvpmullw xmm2,xmm5,XMMWORD PTR [rsi+rax*1]\nvpaddw xmm0,xmm0,xmm6\nvpaddw xmm0,xmm0,xmm2\nvpsrlw xmm0,xmm0,0x3\nvmovdqa XMMWORD PTR [rdi],xmm0\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 2,
+    "why": "The three-operand VEX multiplies can consume both source memory operands directly while preserving the coefficient registers and zeroing the upper half of ymm0 as before."
+  },
+  "fd050bf7c9": {
+    "rewrite": "vmovd xmm4,r8d\nvmovd xmm6,r9d\nvpshuflw xmm4,xmm4,0x0\nvpunpcklqdq xmm4,xmm4,xmm4\nvpshuflw xmm6,xmm6,0x0\nvpunpcklqdq xmm6,xmm6,xmm6\nvpsllw xmm5,xmm4,0x3\nvpmullw xmm7,xmm4,xmm6\nvpsllw xmm6,xmm6,0x3\nvpaddw xmm1,xmm5,xmm6\nvpsubw xmm5,xmm5,xmm7\nvpsubw xmm6,xmm6,xmm7\nvpaddw xmm4,xmm7,XMMWORD PTR [CONST_1]\nvpsubw xmm4,xmm4,xmm1\nvmovdqu xmm0,XMMWORD PTR [rsi]\nvmovdqu xmm1,XMMWORD PTR [rsi+0x2]",
+    "saved": 1,
+    "why": "Write the product directly into its final register xmm7 and use it as the source of later arithmetic, eliminating the explicit product copy while retaining VEX upper-half zeroing."
+  },
+  "ce72fa6d81": {
+    "rewrite": null,
+    "why": "Each row already uses one source load, one average with a memory operand, and one store, plus the required pointer and counter updates."
+  },
+  "52d5387214": {
+    "rewrite": null,
+    "why": "SSE2's destructive multiplies need both loaded temporaries because the coefficients are live, and the destination average already folds its load."
+  },
+  "bf723cf264": {
+    "rewrite": null,
+    "why": "Each independent row already needs only one explicit load, one memory-source average, and one store, and unknown offsets prevent combining rows."
+  },
+  "e9c02c8ede": {
+    "rewrite": "vpmullw xmm0,xmm4,XMMWORD PTR [rsi]\nvpmullw xmm2,xmm5,XMMWORD PTR [rsi+rax*1]\nvpaddw xmm0,xmm0,xmm6\nvpaddw xmm0,xmm0,xmm2\nvpsrlw xmm0,xmm0,0x3\nvpavgw xmm0,xmm0,XMMWORD PTR [rdi]\nvmovdqa XMMWORD PTR [rdi],xmm0\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 2,
+    "why": "Fold the two source loads into the three-operand VEX multiplies, preserving the live coefficients, final ymm0, destination average, and loop updates."
+  },
+  "7e2fd4fdcd": {
+    "rewrite": "shl edx,0x2\nshl ecx,0x2\nmovd xmm12,edx\nmovd xmm13,ecx\npshuflw xmm12,xmm12,0x0\npunpcklqdq xmm12,xmm12\npshuflw xmm13,xmm13,0x0\npunpcklqdq xmm13,xmm13\nmov rdx,rdi\nlea r9,[rsi+rsi*2]\nsub rdi,r9\nmov ecx,0x2",
+    "saved": 1,
+    "why": "Compute three times rsi in the dead register r9 and subtract it once, replacing three subtractions with two instructions when flags are not live."
+  }
+}

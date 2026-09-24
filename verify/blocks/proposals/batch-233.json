@@ -1,0 +1,88 @@
+{
+  "a4d43716fb": {
+    "rewrite": "movups XMMWORD PTR [rsi],xmm2\nmovups XMMWORD PTR [rsi+0x10],xmm3\nmovups XMMWORD PTR [rsi+0x20],xmm4\nmovups XMMWORD PTR [rsi+0x30],xmm5",
+    "saved": 4,
+    "why": "The final values of xmm2 through xmm5 are not required, so their clears can be removed while retaining every store."
+  },
+  "6ff63f8af9": {
+    "rewrite": "movups XMMWORD PTR [rsi],xmm2\nmovups XMMWORD PTR [rsi+0x10],xmm3\nmovups XMMWORD PTR [rsi+0x20],xmm4\nmovups XMMWORD PTR [rsi+0x30],xmm5\nmovups XMMWORD PTR [rsi+0x40],xmm6",
+    "saved": 6,
+    "why": "All six register clears produce unused final values; the five stores retain their original addresses and values."
+  },
+  "c77354ebaf": {
+    "rewrite": "movups XMMWORD PTR [rsi],xmm2\nmovups XMMWORD PTR [rsi+0x10],xmm3\nmovups XMMWORD PTR [rsi+0x20],xmm4\nmovups XMMWORD PTR [rsi+0x30],xmm5\nmovups XMMWORD PTR [rsi+0x40],xmm6\nmovups XMMWORD PTR [rsi+0x50],xmm7",
+    "saved": 6,
+    "why": "The six clears are dead because none of xmm2 through xmm7 has a required final value."
+  },
+  "e50e972759": {
+    "rewrite": null,
+    "why": "The loads and three XORs serve required outputs, and eliminating the shared key load through legacy SSE memory XORs would require an unstated alignment guarantee."
+  },
+  "e00186d27a": {
+    "rewrite": "pxor xmm0,xmm0\nmovups XMMWORD PTR [r9],xmm3",
+    "saved": 5,
+    "why": "Only xmm0 must retain its cleared value; the other five clears are unused and the store still writes the original xmm3."
+  },
+  "fd5ce7e146": {
+    "rewrite": null,
+    "why": "The AES round, eax decrement with its ZF result, next-key load, and rcx update each provide a required effect."
+  },
+  "ed19e3f178": {
+    "rewrite": null,
+    "why": "All six instructions supply required effects, including the copy needed to shuffle xmm6 into xmm2 while preserving xmm6 under SSSE3."
+  },
+  "1eabbb12b1": {
+    "rewrite": null,
+    "why": "The shared key load feeds both XOR chains, and replacing it with legacy SSE memory XORs would require alignment that is not guaranteed."
+  },
+  "e44564e6e7": {
+    "rewrite": null,
+    "why": "All three loads, both dependent XORs, and the r11 update produce required final values."
+  },
+  "23e5478e61": {
+    "rewrite": "aesenclast xmm3,xmm1\npxor xmm0,xmm0\nmovups XMMWORD PTR [r9],xmm3",
+    "saved": 5,
+    "why": "Keep the final AES round, its store, and the required xmm0 clear; the other five register clears are dead."
+  },
+  "cc1a698779": {
+    "rewrite": null,
+    "why": "The AES round, edx decrement with its ZF result, key load, and rcx update are independently required."
+  },
+  "34c1a2b568": {
+    "rewrite": "aesenclast xmm2,xmm1\npxor xmm0,xmm0\nxorps xmm2,xmm3\nmovups XMMWORD PTR [rsi],xmm2",
+    "saved": 3,
+    "why": "The clears of xmm1, xmm3, and xmm2 are unused, while the AES result, plaintext XOR, store, and xmm0 clear remain required."
+  },
+  "6277ef5f65": {
+    "rewrite": null,
+    "why": "Both loaded registers and all five XOR results are live, and the five stores and final CF/ZF comparison are required."
+  },
+  "ea2c2058d0": {
+    "rewrite": null,
+    "why": "All three AES results and the loaded xmm10 are live, alongside the XOR result, store, and comparison flags."
+  },
+  "552743c7eb": {
+    "rewrite": null,
+    "why": "The arbitrary 32-bit subtraction followed by a logical shift requires the existing arithmetic sequence, and rcx must independently receive rbp."
+  },
+  "5c2dee0c2d": {
+    "rewrite": null,
+    "why": "The five loaded-and-XORed results, preserved tweak registers, xmm7 clear, and flag-preserving rdi update leave no removable instruction under SSE2."
+  },
+  "167c3f2559": {
+    "rewrite": null,
+    "why": "Every XOR result is live and stored, while the xmm10 copy and rsi update also have required final values."
+  },
+  "8ba3b36da3": {
+    "rewrite": null,
+    "why": "The three-input XOR needs two SSE2 XOR instructions, and all three loads and both pointer updates produce required outputs."
+  },
+  "4bf8ecae68": {
+    "rewrite": null,
+    "why": "The final AES round, tweak XOR, xmm10 replacement, store, and rsi update each provide a required effect."
+  },
+  "f0946c290c": {
+    "rewrite": null,
+    "why": "Both load-and-XOR pairs must preserve their tweak registers, and the rdi increment must preserve all listed flags."
+  }
+}

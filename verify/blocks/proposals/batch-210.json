@@ -1,0 +1,86 @@
+{
+  "bc5622fc5c": {
+    "rewrite": null,
+    "why": "The independently addressed rows require separate loads, and the arbitrary shuffle masks and coefficients prevent combining the remaining operations."
+  },
+  "198640af7f": {
+    "rewrite": null,
+    "why": "Each independently addressed row supplies only 24 readable bytes, so a 32-byte permutation load would read bytes the original does not load."
+  },
+  "221bf92006": {
+    "rewrite": "vpermq ymm0,YMMWORD PTR [rsi],0x94\nvpermq ymm1,YMMWORD PTR [rsi+0x8],0xe9\nvpermq ymm2,YMMWORD PTR [rsi+rdx*1],0x94\nvpermq ymm3,YMMWORD PTR [rsi+rdx*1+0x8],0xe9\nlea rsi,[rsi+rdx*2]\nvpshufb ymm0,ymm0,ymm4\nvpshufb ymm1,ymm1,ymm4\nvpshufb ymm2,ymm2,ymm4\nvpshufb ymm3,ymm3,ymm4\nvpmaddubsw ymm0,ymm0,ymm5\nvpmaddubsw ymm1,ymm1,ymm5\nvpmaddubsw ymm2,ymm2,ymm5\nvpmaddubsw ymm3,ymm3,ymm5\nvmovdqa YMMWORD PTR [rdi],ymm0\nvmovdqa YMMWORD PTR [rdi+0x20],ymm1\nvmovdqa YMMWORD PTR [rdi+0x40],ymm2\nvmovdqa YMMWORD PTR [rdi+0x60],ymm3\nsub rdi,0xffffffffffffff80\nsub r8d,0x2",
+    "saved": 4,
+    "why": "Memory-source VPERMQ selects qwords [0,1,1,2] or [1,2,2,3], replacing each load-and-insert pair with one instruction. Both 32-byte reads per row remain within the 40 bytes loaded by the original."
+  },
+  "84265b7ffd": {
+    "rewrite": "vpermq ymm0,YMMWORD PTR [rsi],0x94\nvpermq ymm1,YMMWORD PTR [rsi+0x8],0xe9\nvpermq ymm2,YMMWORD PTR [rsi+0x20],0x94\nvpermq ymm3,YMMWORD PTR [rsi+0x28],0xe9\nadd rsi,rdx\nvpshufb ymm0,ymm0,ymm4\nvpshufb ymm1,ymm1,ymm4\nvpshufb ymm2,ymm2,ymm4\nvpshufb ymm3,ymm3,ymm4\nvpmaddubsw ymm0,ymm0,ymm5\nvpmaddubsw ymm1,ymm1,ymm5\nvpmaddubsw ymm2,ymm2,ymm5\nvpmaddubsw ymm3,ymm3,ymm5\nvmovdqa YMMWORD PTR [rdi],ymm0\nvmovdqa YMMWORD PTR [rdi+0x20],ymm1\nvmovdqa YMMWORD PTR [rdi+0x40],ymm2\nvmovdqa YMMWORD PTR [rdi+0x60],ymm3\nsub rdi,0xffffffffffffff80\ndec r8d",
+    "saved": 4,
+    "why": "Four memory-source VPERMQ instructions construct exactly the overlapping 128-bit lanes produced by eight load-and-insert instructions. Their reads stay within the original bytes 0 through 71 and use existing address displacements."
+  },
+  "7d088d3ce0": {
+    "rewrite": null,
+    "why": "Both updated pointers and their copies are live, as are the extracted byte and the subtraction result and flags."
+  },
+  "4b60e610b7": {
+    "rewrite": null,
+    "why": "The constant mask must remain in ymm4, while broadcasting the input, arranging adjacent bytes, and multiplying by arbitrary coefficients each require an instruction."
+  },
+  "66ce51ba7c": {
+    "rewrite": null,
+    "why": "Only 24 input bytes are loaded, preventing a single 32-byte permutation load, and the arbitrary shuffle and coefficients require their separate operations."
+  },
+  "21d0326a4b": {
+    "rewrite": "vpermq ymm0,YMMWORD PTR [rsi],0x94\nvpermq ymm1,YMMWORD PTR [rsi+0x8],0xe9\nvpshufb ymm0,ymm0,ymm4\nvpshufb ymm1,ymm1,ymm4\nvpmaddubsw ymm0,ymm0,ymm5\nvpmaddubsw ymm1,ymm1,ymm5",
+    "saved": 2,
+    "why": "The two VPERMQ loads produce the same overlapping lanes as the four original load-and-insert instructions. The reads cover only the original bytes 0 through 39."
+  },
+  "f44ee60309": {
+    "rewrite": null,
+    "why": "Each pointer update and copy produces a required register value, and the byte extraction and flag-producing subtraction are also necessary."
+  },
+  "e5a6689d37": {
+    "rewrite": null,
+    "why": "The two row loads, arbitrary shuffle and coefficients, horizontal sum, arbitrary bias, shift, packing, stores, and live scalar updates have no redundant step."
+  },
+  "36e202c89b": {
+    "rewrite": null,
+    "why": "Each row needs its own zero-extended load, shuffle, and multiplication before the shared horizontal sum, bias, shift, and packing."
+  },
+  "a8af454374": {
+    "rewrite": null,
+    "why": "Each instruction independently produces a required scalar or vector register value."
+  },
+  "a24de7e303": {
+    "rewrite": null,
+    "why": "Three distinct broadcast results and the scalar addition with its required flags already take one instruction each."
+  },
+  "ceb7df257c": {
+    "rewrite": null,
+    "why": "Arbitrary masks, coefficients, and bias require all three filter terms, and extracting the upper lane before 128-bit packing preserves the required zero upper half of ymm0."
+  },
+  "97485f8418": {
+    "rewrite": null,
+    "why": "Both independently addressed rows and both overlapping windows contribute to the packed output, with arbitrary masks and coefficients preventing reuse of the filter results."
+  },
+  "dc418c4c5b": {
+    "rewrite": null,
+    "why": "Both loaded windows need all three independently shuffled and saturated products, followed by their bias, sums, shift, and shared packing."
+  },
+  "b81cd4e117": {
+    "rewrite": null,
+    "why": "All four instructions produce separate required scalar values, and the decrement also establishes the required flags."
+  },
+  "f4c1baf831": {
+    "rewrite": null,
+    "why": "The broadcasts and addition are live, and replacing the copy and negate with multiplication would not preserve the required NEG flags."
+  },
+  "142f47772d": {
+    "rewrite": "vpbroadcastd ymm7,DWORD PTR [CONST_1]\nvpunpcklbw ymm0,ymm0,ymm0\nvpbroadcastd ymm8,DWORD PTR [CONST_2]\nvpsraw ymm0,ymm0,0x8\nimul r11,rcx,0xffffffffffffffff\nvpshufd ymm9,ymm0,0x0\nvpshufd ymm10,ymm0,0x55\nvpshufd ymm11,ymm0,0xaa\ncmp r8d,0x4",
+    "saved": 1,
+    "why": "Multiplication by -1 produces the same 64-bit r11 value as copying rcx and negating it. The final comparison overwrites ZF, the only required flag."
+  },
+  "3e0dabe662": {
+    "rewrite": null,
+    "why": "The three broadcasts and two scalar extractions all produce required values, and the final comparison is needed for SF."
+  }
+}

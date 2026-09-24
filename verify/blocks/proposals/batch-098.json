@@ -1,0 +1,84 @@
+{
+  "c2dc6fdd99": {
+    "rewrite": null,
+    "why": "The scalar merge, vector XORs, count-state updates, and both variable-shift paths all contribute to required outputs."
+  },
+  "7faf888fbc": {
+    "rewrite": null,
+    "why": "All packing and count-state operations are live, and unrestricted shift counts prevent replacing either shift-and-OR path with a rotate."
+  },
+  "5547c46234": {
+    "rewrite": null,
+    "why": "Both subtraction and variable-shift paths feed required GPR results, while the scalar packing and vector-state updates are also live."
+  },
+  "bc1df405af": {
+    "rewrite": null,
+    "why": "The scalar merge, vector XORs, count-state updates, and both variable-shift paths all contribute to required outputs."
+  },
+  "b8f786864e": {
+    "rewrite": null,
+    "why": "All packing and count-state operations are live, and unrestricted shift counts prevent replacing either shift-and-OR path with a rotate."
+  },
+  "711b417d53": {
+    "rewrite": null,
+    "why": "Both subtraction and variable-shift paths feed required GPR results, while the scalar packing and vector-state updates are also live."
+  },
+  "0681407e08": {
+    "rewrite": null,
+    "why": "The scalar merge, vector XORs, count-state updates, and both variable-shift paths all contribute to required outputs."
+  },
+  "d68d5ecbee": {
+    "rewrite": null,
+    "why": "All packing and count-state operations are live, and unrestricted shift counts prevent replacing either shift-and-OR path with a rotate."
+  },
+  "6da9e11373": {
+    "rewrite": null,
+    "why": "Both subtraction and variable-shift paths feed required GPR results, while the scalar packing and vector-state updates are also live."
+  },
+  "1120197c98": {
+    "rewrite": null,
+    "why": "The scalar merge and vector XORs are live, and the byte load plus test are both needed to preserve RAX and ZF."
+  },
+  "4f3d96df25": {
+    "rewrite": null,
+    "why": "The count-state updates and both shift-and-OR paths feed required outputs, with no dead intermediate or removable copy."
+  },
+  "547b550fed": {
+    "rewrite": null,
+    "why": "All packing and count-state operations are live, and unrestricted shift counts prevent replacing either shift-and-OR path with a rotate."
+  },
+  "dd1d611c2b": {
+    "rewrite": null,
+    "why": "Both subtraction and variable-shift paths feed required GPR results, while the scalar packing and vector-state updates are also live."
+  },
+  "2c5f95cb6b": {
+    "rewrite": "sub r8d,DWORD PTR [rdi+rsi*4]\nshl r8,0x20\nor r10,r8\nvmovq xmm15,r9\nvpinsrq xmm15,xmm15,r10,0x1\nvpxor xmm4,xmm8,xmm4\nvpxor xmm6,xmm15,xmm6\nvbroadcastss xmm9,DWORD PTR [r15+0x3c]\nvpand xmm11,xmm10,xmm14\nvpsubq xmm12,xmm13,xmm11\nvpaddd xmm8,xmm9,xmm0\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rdx,xmm8\nvpextrq rcx,xmm8,0x1\nvpaddd xmm8,xmm9,xmm2\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rax,xmm8\nvpextrq rbx,xmm8,0x1\nmovzx edi,dh",
+    "saved": 1,
+    "why": "The byte shift of xmm10 is dead because ymm10 is not preserved and no later instruction reads the shifted value."
+  },
+  "b14ed37243": {
+    "rewrite": null,
+    "why": "All seven instructions are needed to form the merged scalar value, pack both qwords, and update the two preserved vector registers."
+  },
+  "c8fc598f1d": {
+    "rewrite": "vshufps xmm0,xmm1,xmm0,0xdd\nvpshufd xmm0,xmm0,0xd8\nvpshufb xmm0,xmm0,XMMWORD PTR [CONST_1]",
+    "saved": 22,
+    "why": "Only ymm0 is live: the first two shuffles gather dwords 1 and 3 from the original xmm1 and xmm0 in alternating order. The final shuffle reverses bytes within each dword using the original constant, and VEX encoding preserves the required zero upper half."
+  },
+  "1a41995201": {
+    "rewrite": null,
+    "why": "The count-state updates and both shift-and-OR paths feed required outputs, with no dead intermediate or removable copy."
+  },
+  "bcb35ab29a": {
+    "rewrite": null,
+    "why": "Both subtraction and variable-shift paths feed required GPR results, while the scalar packing and vector-state updates are also live."
+  },
+  "f9c08f3164": {
+    "rewrite": null,
+    "why": "All packing and count-state operations are live, and unrestricted shift counts prevent replacing either shift-and-OR path with a rotate."
+  },
+  "9386fcb866": {
+    "rewrite": null,
+    "why": "The scalar merge, vector XORs, count-state updates, and both variable-shift paths all contribute to required outputs."
+  }
+}

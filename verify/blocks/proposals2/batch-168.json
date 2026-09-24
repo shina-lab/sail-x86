@@ -1,0 +1,83 @@
+{
+  "c46bc10751": {
+    "rewrite": null,
+    "why": "Preserving xmm1 requires separate load and comparison instructions, and the pointer update, live scalar mask, and final flags require the remaining three instructions."
+  },
+  "f16d4e14db": {
+    "rewrite": null,
+    "why": "The load and destructive SSE2 comparison are needed to preserve xmm1, while the mask extraction, pointer update, and flag-setting test each produce required outputs."
+  },
+  "371fbb9b76": {
+    "rewrite": "shld ecx,edi,0x1e\nand ecx,0xf\nand rdi,0xffffffffffffffc0\nadd rdx,rcx",
+    "saved": 1,
+    "why": "SHLD places the original rdi bits 2..5 into ecx bits 0..3, and AND discards every other bit, replacing the copy/mask/shift with two instructions. The aligned rdi and adjusted rdx are preserved, and no flags must match."
+  },
+  "77fc26a3a6": {
+    "rewrite": null,
+    "why": "The comparison vectors and their accumulated maxima are all live, and SSE2 still needs mask extraction plus a scalar test to produce the required ZF."
+  },
+  "320e597a8c": {
+    "rewrite": null,
+    "why": "Both comparison vectors and the scalar mask are live, so neither comparison nor the load, extraction, or final flag-setting test can be removed."
+  },
+  "256258c674": {
+    "rewrite": null,
+    "why": "The counter update, comparison vector, scalar mask, and ZF are required, leaving no redundant instruction in this SSE2 sequence."
+  },
+  "4d4035ba45": {
+    "rewrite": null,
+    "why": "The full comparison vector and incremented scalar mask are live, requiring the load, comparison, mask extraction, and increment."
+  },
+  "f9971cd4f5": {
+    "rewrite": null,
+    "why": "Preserving ymm2, rax, and ZF requires both memory inputs, the vector comparison, the scalar mask extraction, and its increment."
+  },
+  "573878b866": {
+    "rewrite": null,
+    "why": "Although rcx is scratch, the required ymm3 comparison result and incremented rax mask still need all four instructions."
+  },
+  "1513372f2b": {
+    "rewrite": null,
+    "why": "The live ymm4 comparison result and incremented rcx mask require the load, comparison, extraction, and increment."
+  },
+  "8c733e3a82": {
+    "rewrite": null,
+    "why": "The indexed comparison vector and incremented rax mask are live, and INC supplies the required ZF while preserving the incoming CF."
+  },
+  "8a8b340331": {
+    "rewrite": null,
+    "why": "All four instructions contribute to the required comparison vector, incremented scalar mask, and final flags."
+  },
+  "0b87a6c017": {
+    "rewrite": null,
+    "why": "The comparison vector, incremented rax mask, and separately truncated rdx mask are all live, so the load, comparison, extraction, increment, and BZHI are needed."
+  },
+  "e246221953": {
+    "rewrite": null,
+    "why": "The two eight-byte loads with zeroed upper lanes, vector comparison, mask extraction, and subtraction are needed to preserve ymm1, ymm2, rax, and ZF."
+  },
+  "6f3c1355fc": {
+    "rewrite": null,
+    "why": "Both memory inputs, the live comparison vector, and the subtracted scalar mask require the existing load, comparison, extraction, and subtraction."
+  },
+  "78da7e9e82": {
+    "rewrite": null,
+    "why": "The live ecx and k2 masks, masked load result, k1 comparison result, rax mask, and final TEST flags leave no removable instruction."
+  },
+  "c40ccbbf25": {
+    "rewrite": null,
+    "why": "The loaded vector, k1 mask, and rax mask must all be preserved, and the comparison and KMOV do not set the required ZF."
+  },
+  "961a28489b": {
+    "rewrite": null,
+    "why": "The vector load, comparison into k1, transfer into rax, and test each supply a required register value or ZF."
+  },
+  "dd8740d30b": {
+    "rewrite": null,
+    "why": "Even with rcx available as scratch, the live zmm19, k1, and rax outputs plus ZF require the existing four instructions."
+  },
+  "8d3ea256e2": {
+    "rewrite": null,
+    "why": "The loaded zmm20 value, comparison mask k1, scalar mask rcx, and ZF each require their existing instruction."
+  }
+}

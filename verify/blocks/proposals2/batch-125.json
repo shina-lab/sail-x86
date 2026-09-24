@@ -1,0 +1,84 @@
+{
+  "fd464da78a": {
+    "rewrite": null,
+    "why": "The four required 128-bit loads, four stores, and three live register decrements leave no removable instruction under SSSE3."
+  },
+  "fe89396baa": {
+    "rewrite": null,
+    "why": "Eight live XMM load results, eight required stores, and three live scalar updates leave no removable instruction at this ISA level."
+  },
+  "ab008dbf15": {
+    "rewrite": null,
+    "why": "All four loads feed required stores, the last two also define live XMM outputs, and each of the three scalar decrements is required."
+  },
+  "254d0f7161": {
+    "rewrite": null,
+    "why": "The eight loads, eight stores, and three live scalar updates are all necessary, including the subtraction that produces the required CF."
+  },
+  "b0c05180a1": {
+    "rewrite": null,
+    "why": "Both vector loads, both stores, and all three live decrements are required, with the final decrement also producing the live flags."
+  },
+  "0307cbd824": {
+    "rewrite": null,
+    "why": "The three stores and the updates of rdx, rdi, and rsi are all required, and the final add must also reproduce the live flags."
+  },
+  "2b34608201": {
+    "rewrite": null,
+    "why": "All three stores and all three scalar updates contribute required results, including the live flags from the final add to rdi."
+  },
+  "a3838cc5c4": {
+    "rewrite": null,
+    "why": "Four loads must produce live XMM values and feed four required stores, while both pointer updates and the count decrement are also live."
+  },
+  "4d84768b11": {
+    "rewrite": null,
+    "why": "The four live vector loads, four required stores, and three live scalar updates leave no instruction to remove under SSSE3."
+  },
+  "5aea612813": {
+    "rewrite": null,
+    "why": "All eight loads, eight stores, and three live scalar updates are required, with CF retained from the subtraction from rdx."
+  },
+  "03004ceaed": {
+    "rewrite": null,
+    "why": "All four loads and stores are required, and the three scalar updates preserve live register results and the final subtraction flags."
+  },
+  "575f4d1f96": {
+    "rewrite": null,
+    "why": "Eight live XMM results, eight required stores, and three live scalar updates account for every instruction, including the subtraction producing CF."
+  },
+  "754d120807": {
+    "rewrite": null,
+    "why": "The four loads, four stores, and three live scalar updates are all required, with the final subtraction also defining the live flags."
+  },
+  "db49a79929": {
+    "rewrite": null,
+    "why": "Adding 0x20 and aligning rdi requires two operations, and computing rdx+0x20-rcx requires two more with rcx preserved."
+  },
+  "073752abfd": {
+    "rewrite": null,
+    "why": "Adding 0x80 and aligning rdi requires two operations, and the independent live length adjustment needs a separate add and subtract."
+  },
+  "bee6421ffd": {
+    "rewrite": "vpcmpeqb ymm1,ymm0,YMMWORD PTR [rdi]\nvpcmpeqb ymm2,ymm0,YMMWORD PTR [rdi+0x20]\nvpcmpeqb ymm3,ymm0,YMMWORD PTR [rdi+0x40]\nvpcmpeqb ymm4,ymm0,YMMWORD PTR [rdi+0x60]\nvpor ymm5,ymm2,ymm1\nvpor ymm6,ymm4,ymm3\nvpor ymm5,ymm6,ymm5\nvptest ymm5,ymm5",
+    "saved": 5,
+    "why": "Fold the four loads into their VPCMPEQB instructions. The comparison masks contain only 0x00 or 0xff bytes, so VPTEST on their union gives the same ZF without producing the dead scalar mask."
+  },
+  "fb60ee553c": {
+    "rewrite": null,
+    "why": "Mask extraction, bit scanning, the flag-setting address addition, and clearing the live YMM upper halves each require their own instruction."
+  },
+  "a9b6c50df2": {
+    "rewrite": null,
+    "why": "The live flags prevent combining the two additions into LEA, and VZEROUPPER is required to match the preserved YMM values."
+  },
+  "dfbdfe4c53": {
+    "rewrite": null,
+    "why": "The live flags prevent folding the constant and address additions into LEA, and VZEROUPPER must remain to reproduce the live vector state."
+  },
+  "7b2c1f679b": {
+    "rewrite": "mov ecx,edx\nvpcmpeqb ymm1,ymm0,YMMWORD PTR [rdi]\nmov edx,0x1\nshl rdx,cl\nsub rdx,0x1\nvpmovmskb eax,ymm1\nand eax,edx",
+    "saved": 1,
+    "why": "AND already sets ZF from the final eax value, so the following TEST is redundant."
+  }
+}

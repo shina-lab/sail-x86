@@ -1,0 +1,92 @@
+{
+  "fd197fec6c": {
+    "rewrite": "movdqa xmm7,XMMWORD PTR [CONST_1]\nmovdqa XMMWORD PTR [rdx+0x60],xmm6\nmovdqa xmm6,xmm7\npmulhrsw xmm6,xmm0\npaddsw xmm0,xmm0\npaddsw xmm0,xmm6\nmovdqa xmm6,xmm7\npmulhrsw xmm6,xmm1\npaddsw xmm1,xmm1\npaddsw xmm1,xmm6\nmovdqa xmm6,xmm7\npmulhrsw xmm6,xmm2\npaddsw xmm2,xmm2\npaddsw xmm2,xmm6\nmovdqa xmm6,xmm7\npmulhrsw xmm6,xmm3\npaddsw xmm3,xmm3\npaddsw xmm3,xmm6\nmovdqa xmm6,xmm7\npmulhrsw xmm6,xmm4\npaddsw xmm4,xmm4\npaddsw xmm4,xmm6\nmovdqa xmm6,xmm7\npmulhrsw xmm6,xmm5\npaddsw xmm5,xmm5\npaddsw xmm5,xmm6\nmovdqa xmm6,xmm7\npmulhrsw xmm6,XMMWORD PTR [rdx+0x60]\npaddsw xmm6,XMMWORD PTR [rdx+0x60]\npaddsw xmm6,XMMWORD PTR [rdx+0x60]\npmulhrsw xmm7,XMMWORD PTR [rdx+0x70]\npaddsw xmm7,XMMWORD PTR [rdx+0x70]\npaddsw xmm7,XMMWORD PTR [rdx+0x70]\nmovdqa XMMWORD PTR [rdx+0x70],xmm7\npmulhrsw xmm0,XMMWORD PTR [CONST_2]\npmulhrsw xmm1,XMMWORD PTR [CONST_2]\npmulhrsw xmm2,XMMWORD PTR [CONST_2]\npmulhrsw xmm3,XMMWORD PTR [CONST_2]\npmulhrsw xmm4,XMMWORD PTR [CONST_2]\npmulhrsw xmm5,XMMWORD PTR [CONST_2]\npmulhrsw xmm6,XMMWORD PTR [CONST_2]\npmulhrsw xmm7,XMMWORD PTR [CONST_2]\nmovdqa XMMWORD PTR [rdx+0x40],xmm4",
+    "saved": 3,
+    "why": "The positive multiplier makes each rounded product have the input's sign or be zero, so adding the input twice with signed saturation equals saturating the doubled input and then adding the product. Memory operands eliminate reloads while retaining the required stores and all final vector values."
+  },
+  "c3dc310255": {
+    "rewrite": null,
+    "why": "Both unpacked high-half sums remain live, and arbitrary xmm0 and xmm5 values prevent replacing the unpack, word-add, and saturation sequence with byte arithmetic."
+  },
+  "bf9c7328b1": {
+    "rewrite": "movdqa xmm7,xmm0\npunpckhwd xmm7,xmm2\npunpcklwd xmm0,xmm2\nmovdqa xmm2,xmm1\npunpcklwd xmm2,xmm3\npunpckhwd xmm1,xmm3\nmovdqa XMMWORD PTR [rdx+0x60],xmm7\nmovdqa xmm3,xmm4\npunpckhwd xmm3,xmm6\npunpcklwd xmm4,xmm6\nmovdqa xmm6,xmm5\npunpcklwd xmm6,XMMWORD PTR [rdx+0x70]\npunpckhwd xmm5,XMMWORD PTR [rdx+0x70]\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npmulhrsw xmm1,XMMWORD PTR [CONST_1]\npmulhrsw xmm2,XMMWORD PTR [CONST_1]\npmulhrsw xmm3,XMMWORD PTR [CONST_1]\npmulhrsw xmm4,XMMWORD PTR [CONST_1]\npmulhrsw xmm5,XMMWORD PTR [CONST_1]\npmulhrsw xmm6,XMMWORD PTR [CONST_1]\npmulhrsw xmm7,XMMWORD PTR [CONST_1]\nmovdqa XMMWORD PTR [rdx+0x60],xmm7\nmovdqa xmm7,xmm3\npunpckhwd xmm7,xmm6\npunpcklwd xmm3,xmm6\nmovdqa xmm6,xmm4\npunpckhwd xmm6,xmm5\npunpcklwd xmm4,xmm5\nmovdqa xmm5,xmm4\npunpckhwd xmm5,xmm3\npunpcklwd xmm4,xmm3\nmovdqa xmm3,xmm6\npunpckhwd xmm3,xmm7\npunpcklwd xmm6,xmm7\nmovdqa XMMWORD PTR [rdx+0x70],xmm3\nmovdqa xmm3,XMMWORD PTR [rdx+0x60]\nmovdqa xmm7,xmm3\npunpckhwd xmm7,xmm2\npunpcklwd xmm3,xmm2\nmovdqa xmm2,xmm0\npunpckhwd xmm2,xmm1\npunpcklwd xmm0,xmm1\nmovdqa xmm1,xmm0\npunpckhwd xmm1,xmm3\npunpcklwd xmm0,xmm3\nmovdqa xmm3,xmm2\npunpckhwd xmm3,xmm7\npunpcklwd xmm2,xmm7",
+    "saved": 2,
+    "why": "Fold the buffer load into both unpacks and use memory operands for the constant multiplies. This retains the first stored value in xmm7 for its multiply and removes two explicit loads."
+  },
+  "28f3f9ad3e": {
+    "rewrite": "movdqa xmm6,xmm7\npunpckhwd xmm6,xmm0\npunpcklwd xmm0,xmm7\nmovdqa xmm7,xmm3\npunpcklwd xmm7,xmm4\npunpckhwd xmm4,xmm3\nmovdqa xmm3,XMMWORD PTR [rdx+0x60]\npunpcklwd xmm3,xmm5\npunpckhwd xmm5,XMMWORD PTR [rdx+0x60]\nmovdqa xmm1,XMMWORD PTR [rdx+0x70]\nmovdqa XMMWORD PTR [rdx+0x60],xmm3\nmovdqa XMMWORD PTR [rdx+0x70],xmm7\nmovdqa xmm3,xmm2\npunpckhwd xmm3,xmm1\npunpcklwd xmm1,xmm2\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npmulhrsw xmm1,XMMWORD PTR [CONST_1]\npmulhrsw xmm4,XMMWORD PTR [CONST_1]\npmulhrsw xmm5,XMMWORD PTR [CONST_1]\npxor xmm2,xmm2\npsubw xmm2,XMMWORD PTR [CONST_1]\nmovdqa xmm7,XMMWORD PTR [rdx+0x60]\npmulhrsw xmm7,xmm2\npmulhrsw xmm3,xmm2\npmulhrsw xmm6,xmm2\npmulhrsw xmm2,XMMWORD PTR [rdx+0x70]\nmovdqa XMMWORD PTR [rdx+0x60],xmm7",
+    "saved": 2,
+    "why": "Load the first unpack directly into xmm3 and fold its other use into a memory operand, eliminating the temporary xmm1 copy. Folding the positive constant into its consumers also removes its explicit load."
+  },
+  "53b569548f": {
+    "rewrite": "movdqa XMMWORD PTR [rdx+0x40],xmm0\nmovdqa XMMWORD PTR [rdx+0x50],xmm3",
+    "saved": 41,
+    "why": "Only the two stores and the original xmm0 value are observable; all computed vector results are dead. Keeping xmm0 unchanged makes its reload unnecessary."
+  },
+  "fc4a493b40": {
+    "rewrite": "",
+    "saved": 23,
+    "why": "Every instruction computes unpreserved vector registers, with no stores or required flag effects, so the entire block can be removed."
+  },
+  "ac5aeba5b2": {
+    "rewrite": "movdqa xmm6,xmm7\npunpcklwd xmm6,xmm0\npunpckhwd xmm0,xmm7\nmovdqa xmm7,xmm3\npunpckhwd xmm7,xmm4\npunpcklwd xmm4,xmm3\nmovdqa xmm3,XMMWORD PTR [rdx+0x60]\npunpckhwd xmm3,xmm5\npunpcklwd xmm5,XMMWORD PTR [rdx+0x60]\nmovdqa xmm1,XMMWORD PTR [rdx+0x70]\nmovdqa XMMWORD PTR [rdx+0x60],xmm3\nmovdqa XMMWORD PTR [rdx+0x70],xmm7\nmovdqa xmm3,xmm2\npunpcklwd xmm3,xmm1\npunpckhwd xmm1,xmm2\nmovdqa xmm7,XMMWORD PTR [CONST_1]",
+    "saved": 1,
+    "why": "Load xmm3 directly and use the same memory operand for the other unpack, eliminating the temporary copy through xmm1 before xmm1 is overwritten."
+  },
+  "03302b4b71": {
+    "rewrite": "movdqa xmm6,XMMWORD PTR [rdx+0x60]\npmulhrsw xmm6,XMMWORD PTR [CONST_1]\npmulhrsw xmm6,XMMWORD PTR [CONST_2]\npaddsw xmm6,XMMWORD PTR [rdx+0x60]\nmovdqa xmm5,XMMWORD PTR [rdx+0x50]\npmulhrsw xmm5,XMMWORD PTR [CONST_1]\npmulhrsw xmm5,XMMWORD PTR [CONST_2]\npaddsw xmm5,XMMWORD PTR [rdx+0x50]\nmovdqa xmm7,XMMWORD PTR [rdx+0x70]\npmulhrsw xmm7,XMMWORD PTR [CONST_1]\npmulhrsw xmm7,XMMWORD PTR [CONST_2]\npaddsw xmm7,XMMWORD PTR [rdx+0x70]\nmovdqa XMMWORD PTR [rdx+0x60],xmm6\nmovdqa XMMWORD PTR [rdx+0x50],xmm5\nmovdqa XMMWORD PTR [rdx+0x70],xmm7\nmovdqa xmm2,XMMWORD PTR [rdx+0x20]\npmulhrsw xmm2,XMMWORD PTR [CONST_1]\npmulhrsw xmm2,XMMWORD PTR [CONST_2]\npaddsw xmm2,XMMWORD PTR [rdx+0x20]\nmovdqa xmm3,XMMWORD PTR [rdx+0x30]\npmulhrsw xmm3,XMMWORD PTR [CONST_1]\npmulhrsw xmm3,XMMWORD PTR [CONST_2]\npaddsw xmm3,XMMWORD PTR [rdx+0x30]\nmovdqa xmm4,XMMWORD PTR [rdx+0x40]\npmulhrsw xmm4,XMMWORD PTR [CONST_1]\npmulhrsw xmm4,XMMWORD PTR [CONST_2]\npaddsw xmm4,XMMWORD PTR [rdx+0x40]\nmovdqa xmm0,XMMWORD PTR [rdx]\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npmulhrsw xmm0,XMMWORD PTR [CONST_2]\npaddsw xmm0,XMMWORD PTR [rdx]\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\npmulhrsw xmm1,XMMWORD PTR [CONST_1]\npmulhrsw xmm1,XMMWORD PTR [CONST_2]\npaddsw xmm1,XMMWORD PTR [rdx+0x10]\nmovdqa xmm7,xmm0\npunpckhwd xmm7,xmm2\npunpcklwd xmm0,xmm2\nmovdqa xmm2,xmm1\npunpckhwd xmm2,xmm3\npunpcklwd xmm1,xmm3\nmovdqa XMMWORD PTR [rdx+0x60],xmm7\nmovdqa xmm7,XMMWORD PTR [rdx+0x70]\nmovdqa xmm3,xmm4\npunpckhwd xmm3,xmm6\npunpcklwd xmm4,xmm6\nmovdqa xmm6,xmm5\npunpckhwd xmm6,xmm7\npunpcklwd xmm5,xmm7",
+    "saved": 11,
+    "why": "Compute each result in its transpose input register, using memory operands for both constants and the original-value addition. This removes constant loads, scratch copies, and two reloads while preserving both rounding stages, saturation, and every store."
+  },
+  "9637ad00be": {
+    "rewrite": null,
+    "why": "The sixteen required 128-bit stores already use the widest available vectors and share a single zeroing instruction."
+  },
+  "a297cede10": {
+    "rewrite": null,
+    "why": "All eight stores, the final rdx adjustment and its flags, and the r8 assignment are required, with no redundant instruction."
+  },
+  "6b6110b648": {
+    "rewrite": null,
+    "why": "All four zeroed vector registers are live, and SSSE3 requires a separate instruction to write each one."
+  },
+  "fdda829be3": {
+    "rewrite": null,
+    "why": "Both packed outputs and high-half word sums are live, and the unrestricted input vectors prevent replacing the unpack-and-add sequences with simpler byte arithmetic."
+  },
+  "fa67e74063": {
+    "rewrite": "mov r9d,0x4\nmov r8d,0x2\ncmp ecx,0x6b",
+    "saved": 1,
+    "why": "The stack adjustment has no required final register output, and cmp overwrites its flags; removing it leaves rsp untouched and preserves both assignments and all required flags."
+  },
+  "7834dfb9e1": {
+    "rewrite": null,
+    "why": "The saved input, two independent loads, and four zeroed registers are all live and each already uses one instruction."
+  },
+  "fcd509d499": {
+    "rewrite": "mov r8d,0xc\nmov r9d,0x88\ncmp ecx,0x2c",
+    "saved": 1,
+    "why": "The stack adjustment has no required final register output, and cmp supplies the required SF value, so the adjustment can be removed while leaving rsp untouched."
+  },
+  "09da3a972c": {
+    "rewrite": null,
+    "why": "The eight separated stores require eight SSSE3-width writes, and zero initialization, both live pointer updates, and the live shift result and ZF are necessary."
+  },
+  "165ce2eaaf": {
+    "rewrite": "mov r8d,0x2\ncmp ecx,0x88\nmov ecx,0x4",
+    "saved": 1,
+    "why": "The stack adjustment has no required final register output and its flags are overwritten by cmp, so removing it preserves the live assignments and comparison flags while leaving rsp untouched."
+  },
+  "083a4f0e80": {
+    "rewrite": null,
+    "why": "The store, required r8 constant, required xmm7 zero, and rdx update each need an instruction even though flags are dead."
+  },
+  "0f9b67a4be": {
+    "rewrite": null,
+    "why": "All packed outputs and final word-sum temporaries are live, and unrestricted xmm0 and xmm7 values prevent a shorter byte-arithmetic replacement under SSSE3."
+  },
+  "683c8f9ed0": {
+    "rewrite": null,
+    "why": "Eight separated vector stores and three independent live scalar updates are required, including the carry from the rdi addition and the other flags from dec."
+  }
+}

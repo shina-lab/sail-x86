@@ -1,0 +1,87 @@
+{
+  "32b9057c03": {
+    "rewrite": null,
+    "why": "The arbitrary masks and coefficients require both multiply-add paths, and the remaining shifts, packs, stores, and index update contribute to required results."
+  },
+  "2fd9cba509": {
+    "rewrite": "vmovd xmm0,DWORD PTR [rcx+r9*2]\nvpand xmm1,xmm7,xmm0\nvpsrlw xmm0,xmm0,0x8\nvpsrlw xmm4,xmm4,0x8\nvpmaddwd xmm3,xmm10,xmm1\nvpmaddwd xmm2,xmm11,xmm0\nvpmaddwd xmm1,xmm8,xmm1\nvpmaddwd xmm0,xmm9,xmm0\nvpaddd xmm3,xmm3,xmm6\nvpaddd xmm1,xmm1,xmm6\nvpaddd xmm2,xmm2,xmm3\nvpaddd xmm0,xmm0,xmm1\nvpsrad xmm0,xmm0,0x9\nvpsrad xmm2,xmm2,0x9\nvpackssdw xmm0,xmm0,xmm0\nvpackssdw xmm2,xmm2,xmm2\nvmovd DWORD PTR [rdi+r9*1],xmm0\nvmovd DWORD PTR [rsi+r9*1],xmm2\nadd r9,0x2",
+    "saved": 1,
+    "why": "The mask calculation in xmm5 is unused and its destination is not preserved, so it can be removed."
+  },
+  "7bba40c8c3": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rsi+r8*2]\nvperm2i128 ymm2,ymm0,YMMWORD PTR [rsi+r8*2+0x20],0x31\nvinserti128 ymm0,ymm0,XMMWORD PTR [rsi+r8*2+0x20],0x1\nvpand ymm3,ymm7,ymm2\nvpand ymm1,ymm7,ymm0\nvpsrlw ymm0,ymm0,0x8\nvpsrlw ymm2,ymm2,0x8\nvpmaddwd ymm1,ymm1,ymm5\nvpmaddwd ymm0,ymm0,ymm6\nvpmaddwd ymm3,ymm3,ymm5\nvpmaddwd ymm2,ymm2,ymm6\nvpaddd ymm0,ymm0,ymm4\nvpaddd ymm2,ymm2,ymm4\nvpaddd ymm0,ymm0,ymm1\nvpaddd ymm2,ymm2,ymm3\nvpsrad ymm0,ymm0,0x9\nvpsrad ymm2,ymm2,0x9\nvpackssdw ymm0,ymm0,ymm2\nvmovdqa YMMWORD PTR [rdi+r8*1],ymm0\nadd r8,0x20",
+    "saved": 1,
+    "why": "A 256-bit load, a memory-source lane permutation, and an insertion construct the original two vectors in three instructions instead of four. All loaded bytes belong to the original input range, and the lane order is unchanged."
+  },
+  "2dcb3316c4": {
+    "rewrite": "vmovd xmm0,DWORD PTR [rsi+r8*2]\nvpand xmm1,xmm7,xmm0\nvpsrlw xmm0,xmm0,0x8\nvpsrlw xmm2,xmm2,0x8\nvpmaddwd xmm1,xmm1,xmm5\nvpmaddwd xmm0,xmm0,xmm6\nvpaddd xmm0,xmm0,xmm4\nvpaddd xmm0,xmm0,xmm1\nvpsrad xmm0,xmm0,0x9\nvpackssdw xmm0,xmm0,xmm0\nvmovd DWORD PTR [rdi+r8*1],xmm0\nadd r8,0x2",
+    "saved": 1,
+    "why": "The mask calculation in xmm3 is unused and its destination is not preserved, so it can be removed."
+  },
+  "347fc553de": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rcx+r9*2]\nvperm2i128 ymm4,ymm0,YMMWORD PTR [rcx+r9*2+0x20],0x31\nvinserti128 ymm0,ymm0,XMMWORD PTR [rcx+r9*2+0x20],0x1\nvpand ymm5,ymm7,ymm4\nvpand ymm1,ymm7,ymm0\nvpsrlw ymm0,ymm0,0x8\nvpsrlw ymm4,ymm4,0x8\nvpmaddwd ymm3,ymm10,ymm1\nvpmaddwd ymm2,ymm11,ymm0\nvpmaddwd ymm1,ymm8,ymm1\nvpmaddwd ymm0,ymm9,ymm0\nvpaddd ymm3,ymm3,ymm6\nvpaddd ymm1,ymm1,ymm6\nvpaddd ymm2,ymm2,ymm3\nvpaddd ymm0,ymm0,ymm1\nvpmaddwd ymm3,ymm10,ymm5\nvpmaddwd ymm1,ymm11,ymm4\nvpmaddwd ymm5,ymm8,ymm5\nvpmaddwd ymm4,ymm9,ymm4\nvpaddd ymm3,ymm3,ymm6\nvpaddd ymm5,ymm5,ymm6\nvpsrad ymm0,ymm0,0x9\nvpaddd ymm1,ymm1,ymm3\nvpaddd ymm4,ymm4,ymm5\nvpsrad ymm2,ymm2,0x9\nvpsrad ymm4,ymm4,0x9\nvpsrad ymm1,ymm1,0x9\nvpackssdw ymm0,ymm0,ymm4\nvpackssdw ymm2,ymm2,ymm1\nvmovdqu YMMWORD PTR [rdi+r9*1],ymm0\nvmovdqu YMMWORD PTR [rsi+r9*1],ymm2\nadd r9,0x20",
+    "saved": 1,
+    "why": "A 256-bit load, a memory-source lane permutation, and an insertion construct the original two vectors in three instructions instead of four. All loaded bytes belong to the original input range, and the lane order is unchanged."
+  },
+  "7e2151aa7d": {
+    "rewrite": "vmovd xmm0,DWORD PTR [rcx+r9*2]\nvpand xmm1,xmm7,xmm0\nvpsrlw xmm0,xmm0,0x8\nvpsrlw xmm4,xmm4,0x8\nvpmaddwd xmm3,xmm10,xmm1\nvpmaddwd xmm2,xmm11,xmm0\nvpmaddwd xmm1,xmm8,xmm1\nvpmaddwd xmm0,xmm9,xmm0\nvpaddd xmm3,xmm3,xmm6\nvpaddd xmm1,xmm1,xmm6\nvpaddd xmm2,xmm2,xmm3\nvpaddd xmm0,xmm0,xmm1\nvpsrad xmm0,xmm0,0x9\nvpsrad xmm2,xmm2,0x9\nvpackssdw xmm0,xmm0,xmm0\nvpackssdw xmm2,xmm2,xmm2\nvmovd DWORD PTR [rdi+r9*1],xmm0\nvmovd DWORD PTR [rsi+r9*1],xmm2\nadd r9,0x2",
+    "saved": 1,
+    "why": "The mask calculation in xmm5 is unused and its destination is not preserved, so it can be removed."
+  },
+  "4a0d2feca1": {
+    "rewrite": null,
+    "why": "Both input vectors must be masked with the arbitrary preserved xmm2 value before saturation, leaving no removable instruction in this SSE2 sequence."
+  },
+  "bed95cbf9a": {
+    "rewrite": null,
+    "why": "Both input vectors must be masked with the arbitrary preserved xmm2 value before saturation, leaving no removable instruction in this SSE2 sequence."
+  },
+  "317987045a": {
+    "rewrite": null,
+    "why": "SSE2 needs the two loads, two word shifts, and packing operation to collect the high bytes before the required store and index update."
+  },
+  "9ae934e443": {
+    "rewrite": null,
+    "why": "SSE2 needs the two loads, two word shifts, and packing operation to collect the high bytes before the required store and index update."
+  },
+  "de84dcd0bd": {
+    "rewrite": null,
+    "why": "The two packing stages and intervening copy preserve both the arbitrarily masked output and the required shifted xmm0 value using SSE2."
+  },
+  "3e77406622": {
+    "rewrite": null,
+    "why": "The two packing stages and intervening copy preserve both the arbitrarily masked output and the required shifted xmm0 value using SSE2."
+  },
+  "c575fcf922": {
+    "rewrite": null,
+    "why": "The arbitrary preserved mask is required at both packing stages, and the copy keeps the masked output independent of the required shifted xmm0 value."
+  },
+  "f5b47f58a1": {
+    "rewrite": null,
+    "why": "The arbitrary preserved mask is required at both packing stages, and the copy keeps the masked output independent of the required shifted xmm0 value."
+  },
+  "01be86aad5": {
+    "rewrite": null,
+    "why": "SSE2 requires separate copies for the arbitrary-mask and high-byte paths, and both packed outputs, stores, and the index update remain necessary."
+  },
+  "e159475641": {
+    "rewrite": null,
+    "why": "SSE2 requires separate copies for the arbitrary-mask and high-byte paths, and both packed outputs, stores, and the index update remain necessary."
+  },
+  "363d9f0fca": {
+    "rewrite": null,
+    "why": "The VEX forms already avoid copies, and the extraction, arbitrary masking, and packing operations all feed the required stores or preserved ymm0 value."
+  },
+  "0d1ba9c69f": {
+    "rewrite": null,
+    "why": "The VEX forms already avoid copies, and the extraction, arbitrary masking, and packing operations all feed the required stores or preserved ymm0 value."
+  },
+  "cce4463c87": {
+    "rewrite": null,
+    "why": "The input loads are already folded into masking operations, and both packing stages are needed for the arbitrary mask and preserved ymm0 result."
+  },
+  "e3df92d136": {
+    "rewrite": null,
+    "why": "The VEX forms already avoid copies, while each input supplies both an arbitrary-mask path and a high-byte path that must be packed and stored."
+  }
+}

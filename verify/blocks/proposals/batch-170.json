@@ -1,0 +1,82 @@
+{
+  "73fe1a70a3": {
+    "rewrite": null,
+    "why": "Both signed-saturating packs and both unpack stages are needed, including the copies that preserve the independently required xmm2 result."
+  },
+  "934cc664fc": {
+    "rewrite": null,
+    "why": "The full-width products, rounding, saturation and transpose all contribute to required outputs, and narrowing the arbitrary dword inputs would change results."
+  },
+  "d46be548a9": {
+    "rewrite": null,
+    "why": "The two multiplies surround a required rounding shift, while the store and counter assignment are independent required effects."
+  },
+  "0426b236ed": {
+    "rewrite": null,
+    "why": "The constant load is live, and the signed comparison needs a normalized Boolean, scaling to 16 and the final shift flags."
+  },
+  "ce6a1d0ffc": {
+    "rewrite": null,
+    "why": "Each required vector needs its load, full-width multiply, addition of the arbitrary xmm5 value and arithmetic shift, with the last load already folded into multiplication."
+  },
+  "b728185ffe": {
+    "rewrite": null,
+    "why": "Both transposes require low and high word interleaves, and the loaded xmm6 value and intermediate xmm4 value must also be retained."
+  },
+  "d86de5f1e5": {
+    "rewrite": null,
+    "why": "The two word transposes need their source-preserving copies, and both the loaded xmm6 and intermediate xmm4 are required final values."
+  },
+  "3629de6739": {
+    "rewrite": null,
+    "why": "The signed comparison, Boolean normalization and scaling must produce both r9 and the shift flags, in addition to the independent rcx address calculation."
+  },
+  "121375891d": {
+    "rewrite": null,
+    "why": "All four rounded dword products, both constants and the store are required, and arbitrary input values prevent replacing the arithmetic with narrower multiplication."
+  },
+  "688c21f256": {
+    "rewrite": null,
+    "why": "The reversed transposes need both unpack stages and their copies, while xmm4 and the loaded xmm6 must retain their intermediate values."
+  },
+  "6424cedc25": {
+    "rewrite": null,
+    "why": "The two exchanges of shuffled values require saving their overwritten sources, and the original xmm1 copy in xmm5 and final constant in xmm4 are both live."
+  },
+  "f152eafe3c": {
+    "rewrite": null,
+    "why": "All three constants and the zero vector are required outputs, and the signed threshold result still needs normalization and scaling despite dead flags."
+  },
+  "9671545a9a": {
+    "rewrite": null,
+    "why": "Both stages of multiplication, addition and shifting are needed for arbitrary input registers, and the temporary vectors remain necessary as packing inputs."
+  },
+  "ec03892bcf": {
+    "rewrite": null,
+    "why": "Both word transposes need their unpack stages and copies, and xmm7 is an arbitrary preserved input rather than a known zero vector."
+  },
+  "5b440cf1c8": {
+    "rewrite": null,
+    "why": "The multiply, rounding addition and arithmetic shift each affect the required result, while the store, counter assignment and final flags must also be preserved."
+  },
+  "b34344837c": {
+    "rewrite": null,
+    "why": "The wrapping dword increments must precede halving and saturation, and the packed xmm4 output, transpose results and final test flags are all required."
+  },
+  "7584ba738c": {
+    "rewrite": null,
+    "why": "The wrapping increments, shifts, packs and transpose all feed live outputs, including the all-ones xmm3 and shifted xmm4 values."
+  },
+  "ee92f3d311": {
+    "rewrite": null,
+    "why": "Every rounded product contributes to a required register or high-half store, and the final low-half unpacks need copies to populate xmm2 and xmm3."
+  },
+  "35483ea40b": {
+    "rewrite": null,
+    "why": "The rounded saturated values and reversed transpose are all required, together with the intermediate xmm2, all-ones xmm3 and shifted xmm4 values."
+  },
+  "e07c200c6f": {
+    "rewrite": null,
+    "why": "Every rounded product contributes to a required register or low-half store, and the final high-half unpacks need copies to populate xmm2 and xmm3."
+  }
+}

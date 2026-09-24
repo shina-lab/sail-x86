@@ -1,0 +1,90 @@
+{
+  "aa22f95363": {
+    "rewrite": null,
+    "why": "The byte comparison, required mask in rdx, pointer update, and ZF test each need a separate instruction."
+  },
+  "1c479532f2": {
+    "rewrite": null,
+    "why": "Both vector minimum results are live, and the comparison, pointer update, and mask test are also required."
+  },
+  "b0966f81c9": {
+    "rewrite": null,
+    "why": "The byte comparison, required mask in rdx, pointer subtraction, and ZF test each need a separate instruction."
+  },
+  "0cd16de89e": {
+    "rewrite": "vpcmpeqb k3,ymm16,YMMWORD PTR [rax+0x80]\nkmovd edx,k3\nsub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x80]",
+    "saved": 1,
+    "why": "LEA combines the two final additions while preserving their 64-bit result; no final flags are required."
+  },
+  "c515e6e88e": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x20]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition, and the final flags are unconstrained."
+  },
+  "6ef46d0944": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x40]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition, and the final flags are unconstrained."
+  },
+  "eba21685c3": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x60]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition, and the final flags are unconstrained."
+  },
+  "a100a3b48c": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x80]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition, and the final flags are unconstrained."
+  },
+  "be7cce16a4": {
+    "rewrite": null,
+    "why": "The required rdi and rax values, masked copy in rcx, and comparison flags need all five operations."
+  },
+  "3fb814d3bc": {
+    "rewrite": null,
+    "why": "The pointer copy, scalar and vector zeroing, masked copy in rcx, and comparison flags all remain necessary under SSE2."
+  },
+  "310711099d": {
+    "rewrite": null,
+    "why": "Both the loaded vector and comparison vector are live, and SSE2 needs separate instructions for mask extraction and the ZF test."
+  },
+  "71f5b701aa": {
+    "rewrite": null,
+    "why": "The three retained zero vectors and zero-based byte comparison require all four zeroing operations, followed by mask extraction and testing."
+  },
+  "3c4fb0517d": {
+    "rewrite": null,
+    "why": "The comparison vector, updated pointer, extracted mask, and ZF are all required and need separate SSE2 or scalar instructions."
+  },
+  "f6bdb28541": {
+    "rewrite": null,
+    "why": "The comparison vector, updated pointer, extracted mask, and ZF are all required and need separate SSE2 or scalar instructions."
+  },
+  "051a6d07fb": {
+    "rewrite": null,
+    "why": "The comparison vector, updated pointer, extracted mask, and ZF are all required and need separate SSE2 or scalar instructions."
+  },
+  "9b314e5008": {
+    "rewrite": null,
+    "why": "The live minimum and comparison vectors require the load/minimum chain, while the pointer update and SSE2 mask extraction and test are also necessary."
+  },
+  "874e8c7ef7": {
+    "rewrite": null,
+    "why": "The comparison vector, adjusted pointer, extracted mask, and ZF are all required and need separate SSE2 or scalar instructions."
+  },
+  "e240312d44": {
+    "rewrite": "pcmpeqb xmm3,XMMWORD PTR [rax+0x40]\npmovmskb edx,xmm3\nsub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x40]",
+    "saved": 1,
+    "why": "LEA combines the two final additions while preserving their 64-bit result; no final flags are required."
+  },
+  "3d15294d7d": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x10]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition, and the final flags are unconstrained."
+  },
+  "31902eedae": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x20]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition, and the final flags are unconstrained."
+  }
+}

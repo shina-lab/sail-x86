@@ -1,0 +1,47 @@
+{
+  "51f4b087ba": {
+    "rewrite": null,
+    "why": "Both packed shift sequences feed required scalar outputs, and all broadcast and count-state updates must be preserved."
+  },
+  "a52a777ad1": {
+    "rewrite": null,
+    "why": "The scalar packing feeds a required vector XOR, while both packed shift sequences and all count-state updates remain live."
+  },
+  "2c4d527097": {
+    "rewrite": null,
+    "why": "The scalar packing feeds a required vector XOR, and AVX provides no single instruction replacing the shifts and OR for arbitrary counts."
+  },
+  "c8a6e009bc": {
+    "rewrite": null,
+    "why": "Every intermediate contributes to required vector state or scalar outputs, and the arbitrary shift counts prevent replacing the shift pairs with rotates."
+  },
+  "f912d4ec65": {
+    "rewrite": null,
+    "why": "The scalar packing and vector XORs remain live, as do both shift sequences and the final broadcast and count-state values."
+  },
+  "92be5f0bdb": {
+    "rewrite": null,
+    "why": "The packed additions and shifts produce four required scalar outputs, and the preceding packing and vector-state updates have no dead results."
+  },
+  "98c9dfede7": {
+    "rewrite": null,
+    "why": "The packing, vector XORs, count updates, and both subtraction-and-shift sequences all contribute to required outputs."
+  },
+  "2c7bdeeae7": {
+    "rewrite": null,
+    "why": "All packing and count-state updates are live, and the arbitrary-count packed shift sequences have no shorter direct equivalent within AVX."
+  },
+  "1cc3fbfa40": {
+    "rewrite": null,
+    "why": "All intermediate results feed required vector state or scalar outputs, including the final shifted value of xmm10."
+  },
+  "eff8f1345b": {
+    "rewrite": "xor r8d,DWORD PTR [rdi+rsi*4]\nshl r8,0x20\nor r10,r8\nvmovq xmm15,r9\nvpinsrq xmm15,xmm15,r10,0x1\nvpxor xmm4,xmm8,xmm4\nvpxor xmm6,xmm15,xmm6\nvbroadcastss xmm9,DWORD PTR [r15]\nvpand xmm11,xmm10,xmm14\nvpsubq xmm12,xmm13,xmm11\nvpaddd xmm8,xmm9,xmm0\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rdx,xmm8\nvpextrq rcx,xmm8,0x1\nvpaddd xmm8,xmm9,xmm2\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rax,xmm8\nvpextrq rbx,xmm8,0x1\nmovzx edi,dh",
+    "saved": 1,
+    "why": "The vpsrldq result is never read and ymm10 is not required at the end, so that instruction can be removed."
+  },
+  "84147f7636": {
+    "rewrite": null,
+    "why": "The shift and OR must retain arbitrary existing bits of r10 for the required vector XOR, and both vector updates and the constant load are live."
+  }
+}

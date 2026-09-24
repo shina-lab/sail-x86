@@ -1,0 +1,82 @@
+{
+  "1c57eae833": {
+    "rewrite": null,
+    "why": "The live register copy, subtraction, borrow mask, store, and index increment each require an instruction, with the increment also supplying the required SF."
+  },
+  "00ec3de6b8": {
+    "rewrite": null,
+    "why": "All register results are live, and the partial-byte shift must supply the incoming borrow to the subtraction while the intervening loads and zero initialization preserve CF."
+  },
+  "5fc21f8ae0": {
+    "rewrite": null,
+    "why": "Both limb subtractions and stores are required, and ADC must incorporate the final borrow into the live EAX result."
+  },
+  "2e7ac64433": {
+    "rewrite": null,
+    "why": "The third-limb load, three chained subtractions, three stores, and final borrow extraction all contribute to required results."
+  },
+  "e149e99437": {
+    "rewrite": null,
+    "why": "The pointer updates and four stored differences are required, while INC followed by DEC zero-extends EAX and sets ZF from its unchanged value without disturbing the subtraction chain's CF."
+  },
+  "ad66b54402": {
+    "rewrite": null,
+    "why": "The three copies preserve distinct required input values, and the addition separately produces the required RCX result and ZF."
+  },
+  "80fc40d68d": {
+    "rewrite": null,
+    "why": "Baseline x86-64 needs separate AND and NOT operations for this NAND value, followed by the required store and index decrement."
+  },
+  "15edfd5119": {
+    "rewrite": null,
+    "why": "Baseline x86-64 needs separate OR and NOT operations for this NOR value, followed by the required store and index decrement."
+  },
+  "d64670b27c": {
+    "rewrite": null,
+    "why": "The NAND computation requires both logical instructions, and the store and index increment are needed for memory, RCX, and ZF."
+  },
+  "4ae28fb69c": {
+    "rewrite": null,
+    "why": "The NOR computation requires both logical instructions, and the store and index increment are needed for memory, RCX, and ZF."
+  },
+  "04598790d1": {
+    "rewrite": null,
+    "why": "Both NAND results and stores are needed, and packing the mixed register and memory inputs plus safely loading unaligned data prevents an SSE2 instruction-count reduction."
+  },
+  "86ecd5bff3": {
+    "rewrite": null,
+    "why": "Both NOR results and stores are needed, and packing the mixed register and memory inputs plus safely loading unaligned data prevents an SSE2 instruction-count reduction."
+  },
+  "c323505dc2": {
+    "rewrite": null,
+    "why": "The two stored results require independent XOR operations and a complement on the second input, with SSE2 packing and mask preparation costing at least the scalar sequence."
+  },
+  "045fe569e2": {
+    "rewrite": null,
+    "why": "The two XOR results and stores are required, SSE2 packing and an unaligned load erase vectorization savings, and ADD must produce both RCX and CF."
+  },
+  "e5fc288511": {
+    "rewrite": null,
+    "why": "Packing and unaligned-load overhead prevent shortening the paired NAND operations with SSE2, and the final ADD is required for RCX and CF."
+  },
+  "8bd9b202c4": {
+    "rewrite": null,
+    "why": "Packing and unaligned-load overhead prevent shortening the paired NOR operations with SSE2, and the final ADD is required for RCX and CF."
+  },
+  "31a45160e1": {
+    "rewrite": null,
+    "why": "The second input's complement and both OR results must reach their stores, and neither SSE2 packing nor the required RCX and CF update removes an instruction."
+  },
+  "56f8d89a63": {
+    "rewrite": null,
+    "why": "The second input's complement and both XOR results must reach their stores, and neither SSE2 packing nor the required RCX and CF update removes an instruction."
+  },
+  "6cf0d06d16": {
+    "rewrite": null,
+    "why": "All three full-width products are needed, their accumulation requires both carries and preservation of the first high half, and the pointer and counter updates are live."
+  },
+  "2582981330": {
+    "rewrite": null,
+    "why": "The product halves, shifted store, complemented multiplication, accumulated R12, and final comparison all contribute to required outputs, including distinct live RDX and R12 values."
+  }
+}

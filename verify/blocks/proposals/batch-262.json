@@ -1,0 +1,98 @@
+{
+  "2b13070482": {
+    "rewrite": null,
+    "why": "The vector comparison, movemask, store, and two live counter updates each require their own instruction."
+  },
+  "c0a14569d2": {
+    "rewrite": null,
+    "why": "The live comparison mask, bit index, store, two pointer updates, and final carry flag leave no redundant instruction."
+  },
+  "82d36cf38d": {
+    "rewrite": null,
+    "why": "Both masked offsets require a copy and mask, all three vector constants are live, and the final comparison supplies the required flags."
+  },
+  "4e309f2714": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rdi]\nmovdqu xmm2,XMMWORD PTR [rsi]\nmovdqa xmm8,xmm1\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm8,xmm5\npcmpgtb xmm9,xmm1\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm8,xmm9\npand xmm10,xmm11\npand xmm8,xmm7\npand xmm10,xmm7\npor xmm1,xmm8\npor xmm2,xmm10\npxor xmm0,xmm0\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 2,
+    "why": "Each pair of low- and high-qword loads is replaced by one unaligned 128-bit load covering exactly the same bytes."
+  },
+  "cad070617e": {
+    "rewrite": null,
+    "why": "All six register updates are live, and the final comparison is needed to produce CF and ZF."
+  },
+  "92f16e8435": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi]\npxor xmm0,xmm0\npcmpeqb xmm0,xmm1\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm9,xmm6\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm11,xmm2\npcmpgtb xmm1,xmm5\npcmpgtb xmm2,xmm5\npand xmm1,xmm9\npand xmm2,xmm11\npand xmm1,xmm7\npand xmm2,xmm7\npor xmm1,XMMWORD PTR [rsi]\npor xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb r9d,xmm1\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 2,
+    "why": "Use each loaded vector directly for its lower-bound comparison and reload the original bytes through the final POR memory operand, eliminating two temporary copies."
+  },
+  "35690aa55d": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm9,xmm6\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm11,xmm2\npcmpgtb xmm1,xmm5\npcmpgtb xmm2,xmm5\npand xmm1,xmm9\npand xmm2,xmm11\npand xmm1,xmm7\npand xmm2,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\npor xmm2,XMMWORD PTR [rdi+rcx*1]\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 2,
+    "why": "Compute both range masks in the loaded registers and fold rereads of the original vectors into POR, removing two copies while preserving the incoming xmm0 comparison."
+  },
+  "895ad40522": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0xf\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi]\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Compute the first range mask in xmm1 and recover its original bytes with a POR memory operand, eliminating the copy to xmm8."
+  },
+  "d9ff874757": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x1\nlea r10,[rdi+0x1]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit value v, (v & 0xfff) - 0x1000 equals v | 0xfffffffffffff000, and no flags are live."
+  },
+  "5bc06d5d19": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0x1\npslldq xmm2,0xf\npor xmm2,xmm3\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Use xmm1 for its range mask and fold a reread at the original indexed address into POR, eliminating one temporary copy."
+  },
+  "8593cab176": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0xe\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi]\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Compute the first range mask in xmm1 and recover its original bytes with a POR memory operand, eliminating the copy to xmm8."
+  },
+  "c090432ac8": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x2\nlea r10,[rdi+0x2]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "OR with the sign-extended mask directly produces the low twelve bits minus 0x1000, replacing the AND and SUB with one instruction."
+  },
+  "2e26f9f694": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm4,XMMWORD PTR [rdi+rcx*1]\npsrldq xmm3,0x2\npinsrw xmm3,WORD PTR [rdi+rcx*1],0x7\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm3\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm3\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\npor xmm3,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm3\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 3,
+    "why": "Load xmm4 directly and insert the new low word into the high word of shifted xmm3, removing two alignment instructions. Folding the original first vector into POR removes one more copy."
+  },
+  "b0641f28e8": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0xd\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi]\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Compute the first range mask in xmm1 and recover its original bytes with a POR memory operand, eliminating the copy to xmm8."
+  },
+  "14b8c23c5a": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x3\nlea r10,[rdi+0x3]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "OR with the sign-extended mask directly produces the low twelve bits minus 0x1000, replacing the AND and SUB with one instruction."
+  },
+  "5c3c3ebc5c": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0x3\npslldq xmm2,0xd\npor xmm2,xmm3\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Use xmm1 for its range mask and fold a reread at the original indexed address into POR, eliminating one temporary copy."
+  },
+  "97dd01a1fb": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0xc\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi]\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Compute the first range mask in xmm1 and recover its original bytes with a POR memory operand, eliminating the copy to xmm8."
+  },
+  "f0f49e53af": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x4\nlea r10,[rdi+0x4]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "OR with the sign-extended mask directly produces the low twelve bits minus 0x1000, replacing the AND and SUB with one instruction."
+  },
+  "d8b9d41651": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm4,XMMWORD PTR [rdi+rcx*1]\nmovss xmm3,xmm4\npshufd xmm2,xmm3,0x39\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 3,
+    "why": "Load xmm4 directly, replace xmm3's low dword with MOVSS, and rotate its dwords to form the required concatenation in two instructions. Folding the original first vector into POR removes another copy."
+  },
+  "25f44a044a": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0xb\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi]\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Compute the first range mask in xmm1 and recover its original bytes with a POR memory operand, eliminating the copy to xmm8."
+  }
+}

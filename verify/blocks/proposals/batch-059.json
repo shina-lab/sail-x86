@@ -1,0 +1,93 @@
+{
+  "4c62cc009c": {
+    "rewrite": null,
+    "why": "Both packed outputs are required, and the arbitrary xmm5 mask prevents simplifying the masking and saturation while the shifts, stores, and index update remain necessary."
+  },
+  "c715fc2f53": {
+    "rewrite": "movq xmm11,QWORD PTR [rcx]\npshufd xmm10,xmm11,0x0\npshufd xmm11,xmm11,0x55\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm8,XMMWORD PTR [CONST_1]\nmov r10d,0x8004000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One MOVQ reads the first two coefficients, and two PSHUFD instructions broadcast them, replacing four instructions with three without reading additional bytes."
+  },
+  "c5cfe38e02": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\nmov r11d,0x400100\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 5,
+    "why": "Two loads and six PSHUFD broadcasts replace twelve coefficient setup instructions while reading the same bytes. The zeroing of unpreserved xmm9 is also dead."
+  },
+  "71b768612e": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\npxor xmm9,xmm9\nmov r11d,0x800200\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "One MOVDQU and one MOVQ read the six adjacent coefficients, then six PSHUFD instructions broadcast them, replacing twelve instructions with eight without reading additional bytes."
+  },
+  "688c37cc40": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\npxor xmm9,xmm9\nmov r11d,0x1000400\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "One MOVDQU and one MOVQ read the six adjacent coefficients, then six PSHUFD instructions broadcast them, replacing twelve instructions with eight without reading additional bytes."
+  },
+  "783079e8af": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\npxor xmm9,xmm9\nmov r11d,0x4001000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "One MOVDQU and one MOVQ read the six adjacent coefficients, then six PSHUFD instructions broadcast them, replacing twelve instructions with eight without reading additional bytes."
+  },
+  "6f88abf91f": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\npxor xmm9,xmm9\nmov r11d,0x10004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "One MOVDQU and one MOVQ read the six adjacent coefficients, then six PSHUFD instructions broadcast them, replacing twelve instructions with eight without reading additional bytes."
+  },
+  "53009b77ec": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\npxor xmm9,xmm9\nmov r11d,0x40004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "One MOVDQU and one MOVQ read the six adjacent coefficients, then six PSHUFD instructions broadcast them, replacing twelve instructions with eight without reading additional bytes."
+  },
+  "c40506f084": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\npxor xmm9,xmm9\nmovdqu xmm8,XMMWORD PTR [CONST_1]\nmov r11d,0x40004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "One MOVDQU and one MOVQ read the six adjacent coefficients, then six PSHUFD instructions broadcast them, replacing twelve instructions with eight without reading additional bytes."
+  },
+  "9c38a5644a": {
+    "rewrite": null,
+    "why": "The unpack, shift, store, full-width index update, and comparison each contribute a required result."
+  },
+  "ba8626a465": {
+    "rewrite": null,
+    "why": "The load, word shift, store, 64-bit index increment, and final comparison are all needed for the required vector, memory, register, and flag results."
+  },
+  "97d04ab9ee": {
+    "rewrite": null,
+    "why": "SSE2 lacks a byte shuffle to shorten the copy, shifts, and merge needed for arbitrary input words, and the final scaling shift, store, index update, and comparison remain required."
+  },
+  "59e640769c": {
+    "rewrite": null,
+    "why": "The load, word shift, store, 64-bit index increment, and final comparison are all needed for the required vector, memory, register, and flag results."
+  },
+  "7eeb92c4ae": {
+    "rewrite": null,
+    "why": "SSE2 lacks a byte shuffle to shorten the copy, shifts, and merge needed for arbitrary input words, and the final scaling shift, store, index update, and comparison remain required."
+  },
+  "9da092dc7f": {
+    "rewrite": null,
+    "why": "The vector load and store and the separate index update and comparison are each necessary to preserve the required results."
+  },
+  "10ab3ee53d": {
+    "rewrite": null,
+    "why": "SSE2 requires separate shifts and a merge for the byte swap, with a copy retaining both halves, while the load, store, index update, and comparison remain necessary."
+  },
+  "aaa61a906f": {
+    "rewrite": null,
+    "why": "All four instructions establish distinct required outputs: xmm8, xmm9, r8, and r9."
+  },
+  "80e80bf6c1": {
+    "rewrite": "movq xmm11,QWORD PTR [rcx]\npshufd xmm10,xmm11,0x0\npshufd xmm11,xmm11,0x55\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r10d,0x80100\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 2,
+    "why": "One MOVQ supplies the first two coefficient broadcasts without reading additional bytes, saving one instruction, and the zeroing of unpreserved xmm9 can be omitted."
+  },
+  "c25df7e097": {
+    "rewrite": "movq xmm11,QWORD PTR [rcx]\npshufd xmm10,xmm11,0x0\npshufd xmm11,xmm11,0x55\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r10d,0x100200\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 2,
+    "why": "One MOVQ supplies the first two coefficient broadcasts without reading additional bytes, saving one instruction, and the zeroing of unpreserved xmm9 can be omitted."
+  },
+  "4cd17cc29d": {
+    "rewrite": "movq xmm11,QWORD PTR [rcx]\npshufd xmm10,xmm11,0x0\npshufd xmm11,xmm11,0x55\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r10d,0x100200\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 2,
+    "why": "One MOVQ supplies the first two coefficient broadcasts without reading additional bytes, saving one instruction, and the zeroing of unpreserved xmm9 can be omitted."
+  }
+}

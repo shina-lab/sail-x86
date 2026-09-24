@@ -1,0 +1,92 @@
+{
+  "13d6507c60": {
+    "rewrite": null,
+    "why": "The XOR, store, two pointer increments, and flag-producing count subtraction each perform a required operation."
+  },
+  "c12be74bdd": {
+    "rewrite": "vpxor ymm14,ymm8,ymm12\nvpxor ymm0,ymm9,ymm14\nvpaddq ymm1,ymm9,ymm10\nvpxor ymm1,ymm1,ymm14\nvpaddq ymm9,ymm9,ymm11\nvpxor ymm2,ymm9,ymm14\nvpaddq ymm3,ymm9,ymm10\nvpxor ymm3,ymm3,ymm14\nvpaddq ymm9,ymm9,ymm11\nvpxor ymm4,ymm9,ymm14\nvpaddq ymm5,ymm9,ymm10\nvpxor ymm5,ymm5,ymm14\nvpaddq ymm9,ymm9,ymm11\nvpxor ymm6,ymm9,ymm14\nvpaddq ymm7,ymm9,ymm10\nvpxor ymm7,ymm7,ymm14\nvpaddq ymm9,ymm9,ymm11\nmov rax,rdi",
+    "saved": 7,
+    "why": "Compute ymm8 XOR ymm12 once in the unpreserved ymm14 and reuse it for all eight outputs. The 256-bit operations retain the original zeroing of the upper vector bits."
+  },
+  "bf37c71de4": {
+    "rewrite": "vpxor ymm14,ymm8,ymm12\nvpxor ymm0,ymm9,ymm14\nvpaddq ymm1,ymm9,ymm10\nvpxor ymm1,ymm1,ymm14\nvpaddq ymm9,ymm9,ymm11\nvpxor ymm2,ymm9,ymm14\nvpaddq ymm3,ymm9,ymm10\nvpxor ymm3,ymm3,ymm14\nvpaddq ymm9,ymm9,ymm11\ncmp ecx,0x80",
+    "saved": 3,
+    "why": "Share ymm8 XOR ymm12 through the unpreserved ymm14, replacing four XOR pairs with one setup and four XORs. The counter updates, upper-bit zeroing, and final comparison are preserved."
+  },
+  "2a6b17423c": {
+    "rewrite": "vpxor ymm14,ymm8,ymm12\nvpxor ymm4,ymm9,ymm14\nvpaddq ymm5,ymm9,ymm10\nvpxor ymm5,ymm5,ymm14\nvpaddq ymm9,ymm9,ymm11\nvpxor ymm6,ymm9,ymm14\nvpaddq ymm7,ymm9,ymm10\nvpxor ymm7,ymm7,ymm14\nmov rax,rdi",
+    "saved": 3,
+    "why": "Compute the common XOR mask in the unpreserved ymm14 and apply it once to each counter value. All required outputs retain their original upper-bit zeroing."
+  },
+  "fff27e9f94": {
+    "rewrite": null,
+    "why": "Each byte shuffle, key XOR, counter addition, and final register copy contributes a required result, with no known shuffle-mask identity to eliminate an operation."
+  },
+  "7ff8f5d7d8": {
+    "rewrite": null,
+    "why": "The independent byte shuffles and key XORs are necessary for the four live outputs, along with the counter additions and flag-producing comparison."
+  },
+  "924ac28075": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask prevents combining the byte shuffles with the key XORs, and all counter additions and the final register copy are required."
+  },
+  "8faf8e1d5a": {
+    "rewrite": "vpxord zmm14,zmm8,zmm12\nvpxord zmm0,zmm9,zmm14\nvpaddq zmm1,zmm9,zmm10\nvpxord zmm1,zmm1,zmm14\nvpaddq zmm9,zmm9,zmm11\nvpxord zmm2,zmm9,zmm14\nvpaddq zmm3,zmm9,zmm10\nvpxord zmm3,zmm3,zmm14\nvpaddq zmm9,zmm9,zmm11\nvpxord zmm4,zmm9,zmm14\nvpaddq zmm5,zmm9,zmm10\nvpxord zmm5,zmm5,zmm14\nvpaddq zmm9,zmm9,zmm11\nvpxord zmm6,zmm9,zmm14\nvpaddq zmm7,zmm9,zmm10\nvpxord zmm7,zmm7,zmm14\nvpaddq zmm9,zmm9,zmm11\nmov rax,rdi",
+    "saved": 3,
+    "why": "Precompute zmm8 XOR zmm12 in the unpreserved zmm14. Each counter then needs one XOR, eliminating four copies at the cost of one shared setup instruction."
+  },
+  "585cb3b388": {
+    "rewrite": "vpxord zmm14,zmm8,zmm12\nvpxord zmm0,zmm9,zmm14\nvpaddq zmm1,zmm9,zmm10\nvpxord zmm1,zmm1,zmm14\nvpaddq zmm9,zmm9,zmm11\nvpxord zmm2,zmm9,zmm14\nvpaddq zmm3,zmm9,zmm10\nvpxord zmm3,zmm3,zmm14\nvpaddq zmm9,zmm9,zmm11\ncmp ecx,0x100",
+    "saved": 1,
+    "why": "Sharing zmm8 XOR zmm12 in the unpreserved zmm14 removes two counter copies for one setup instruction. The final comparison preserves the required flags."
+  },
+  "2dabab705b": {
+    "rewrite": "vpxord zmm14,zmm8,zmm12\nvpxord zmm4,zmm9,zmm14\nvpaddq zmm5,zmm9,zmm10\nvpxord zmm5,zmm5,zmm14\nvpaddq zmm9,zmm9,zmm11\nvpxord zmm6,zmm9,zmm14\nvpaddq zmm7,zmm9,zmm10\nvpxord zmm7,zmm7,zmm14\nmov rax,rdi",
+    "saved": 1,
+    "why": "Precompute the common XOR mask in the unpreserved zmm14 and use ordinary three-operand XORs. This removes both counter copies while adding one setup instruction."
+  },
+  "739da5fad0": {
+    "rewrite": "aesenclast xmm3,XMMWORD PTR [rsi]\npshufb xmm3,XMMWORD PTR [CONST_1]\npshufd xmm0,xmm3,0xd3\npsrad xmm0,0x1f\npaddq xmm3,xmm3\npand xmm0,XMMWORD PTR [CONST_2]\npxor xmm3,xmm0\nmovdqa XMMWORD PTR [rdi+0x180],xmm3\nmovq xmm5,QWORD PTR [CONST_3]\npshufd xmm0,xmm3,0x4e\nmovdqa xmm4,xmm5\npclmullqlqdq xmm4,xmm3\npxor xmm4,xmm0\nmovdqa XMMWORD PTR [rdi+0x1d0],xmm4\npxor xmm0,xmm3\nmovq QWORD PTR [rdi+0x1c8],xmm0\nmovdqa xmm2,xmm3\nmov eax,0x30",
+    "saved": 1,
+    "why": "PSHUFD can read xmm3 directly while writing xmm0, so the preceding copy is redundant. All arithmetic, stores, and required final values are unchanged."
+  },
+  "6819a32e50": {
+    "rewrite": null,
+    "why": "The carryless products, reduction, and stored results require the existing destructive SSE operand copies, and all final temporaries and subtraction flags are live."
+  },
+  "0b2e84c923": {
+    "rewrite": null,
+    "why": "Each of the five loads establishes a different required vector value, and the subtraction supplies the required count and flags."
+  },
+  "a3fd05fe81": {
+    "rewrite": null,
+    "why": "The shuffled input, carryless products, reduction intermediates, and scalar updates all feed required outputs, while destructive SSE multiplication requires the operand copies."
+  },
+  "7ce89ffe90": {
+    "rewrite": null,
+    "why": "The carryless products and reduction all feed preserved outputs, and destructive SSE operands require the existing copies."
+  },
+  "5ee9507d51": {
+    "rewrite": "movq xmm0,QWORD PTR [CONST_1]\nmovdqa xmm8,xmm7\npshufb xmm8,xmm6\npxor xmm8,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm9,xmm7\npshufb xmm9,xmm6\npxor xmm9,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm10,xmm7\npshufb xmm10,xmm6\npxor xmm10,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm11,xmm7\npshufb xmm11,xmm6\npxor xmm11,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm12,xmm7\npshufb xmm12,xmm6\npxor xmm12,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm13,xmm7\npshufb xmm13,xmm6\npxor xmm13,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm14,xmm7\npshufb xmm14,xmm6\npxor xmm14,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm15,xmm7\npshufb xmm15,xmm6\npxor xmm15,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nlea rsi,[rdi+0x20]",
+    "saved": 1,
+    "why": "Fold the key load into each PXOR memory operand because xmm1 is not preserved. This removes one instruction while rereading only the original 16-byte key address."
+  },
+  "c3ac803133": {
+    "rewrite": "xor eax,eax\nmovdqu xmm1,XMMWORD PTR [r8]\npshufb xmm1,xmm6\npxor xmm5,xmm1\npshufd xmm4,xmm5,0x4e\npxor xmm4,xmm5\nmovdqa xmm3,xmm5\npclmullqlqdq xmm3,XMMWORD PTR [rdi+0x110]\npclmulhqhqdq xmm5,XMMWORD PTR [rdi+0x110]\npclmullqlqdq xmm4,XMMWORD PTR [rdi+0x190]",
+    "saved": 1,
+    "why": "Fold the unpreserved xmm0 load into the two carryless multiplication memory operands. Both reads use the same 16-byte address as the original load."
+  },
+  "3fbac1f598": {
+    "rewrite": null,
+    "why": "Both carryless reduction stages and their XORs are needed, with every intermediate vector register and the updated r8 value preserved."
+  },
+  "af1fe9925b": {
+    "rewrite": "movq xmm10,QWORD PTR [CONST_1]\npxor xmm3,xmm3\npxor xmm4,xmm4\npxor xmm2,xmm2\nmov eax,r9d\nneg eax\nsar eax,0x4\nlea eax,[rax*8+0x40]\nsub r9d,0x10",
+    "saved": 1,
+    "why": "For any 32-bit value t, arithmetic-shifting (t AND -16) by one equals eight times arithmetic-shifting t by four modulo 2^32. LEA combines that scaling with the addition of 64, and the final subtraction preserves the required flags."
+  },
+  "ef78ffe3a8": {
+    "rewrite": null,
+    "why": "SSE requires the counter copy before the destructive shuffle, and the increment, key XOR, address calculation, and comparison are all live."
+  }
+}

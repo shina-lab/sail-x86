@@ -1,0 +1,89 @@
+{
+  "e4b72875c3": {
+    "rewrite": null,
+    "why": "The shifted byte expansions, products, and saturation steps feed live results, and the final temporary-register values must also be preserved."
+  },
+  "3ba7173434": {
+    "rewrite": "pxor xmm3,xmm3\npshufb xmm2,xmm3\npandn xmm0,xmm2",
+    "saved": 5,
+    "why": "Only xmm0 is live among the modified registers, so retain the byte broadcast and its AND-NOT while dropping the other masking and merging operations."
+  },
+  "36bed03ac1": {
+    "rewrite": null,
+    "why": "Both loads, the pointer update, and the shift and merge are required to prepend four bytes while retaining twelve bytes of the other input under SSSE3."
+  },
+  "665941463c": {
+    "rewrite": null,
+    "why": "The independent shuffle and multiply paths and saturating additions remain necessary for arbitrary masks and coefficients, with xmm2 and xmm3 also live at exit."
+  },
+  "28ce0bde6d": {
+    "rewrite": "mov r13,r12\nmov r12,r15\nmov r15,r14\nmov r14,rbp\nmov rbp,r10\nmov rbx,r13",
+    "saved": 2,
+    "why": "The updates to rdi and r10 are dead, and no flags need to match; the remaining moves preserve every live result."
+  },
+  "c18ad04483": {
+    "rewrite": "mov r13,r12\nmov r12,r15\nmov r15,r14\nmov r14,rbp\nmov rbp,r10",
+    "saved": 1,
+    "why": "The addition changes only dead rdi and flags, so it can be removed."
+  },
+  "a5f7f9836a": {
+    "rewrite": null,
+    "why": "The addition must preserve its result and flags, and all three register-copy results are live."
+  },
+  "9073ffff10": {
+    "rewrite": null,
+    "why": "The distinct shuffles and multiplication paths use arbitrary masks and coefficients, and the live products and saturated results prevent eliminating their required copies."
+  },
+  "63415a881d": {
+    "rewrite": "mov r15,r14\nmov r14,rbp\nmov rbp,r10\nmov rbx,r15",
+    "saved": 2,
+    "why": "The rdi addition and the assignment to r10 have dead results, while the retained moves preserve rbp, r14, r15, and rbx."
+  },
+  "f2e14acbb4": {
+    "rewrite": "",
+    "saved": 10,
+    "why": "All modified registers are dead, no flags are required, and there are no stores, so the whole block can be removed."
+  },
+  "2b7b844f58": {
+    "rewrite": null,
+    "why": "Both loaded vectors, the concatenation result, and the updated pointer are live, requiring the two loads, alignment, and addition."
+  },
+  "af42b460b8": {
+    "rewrite": null,
+    "why": "The live sums, squared sums, and final temporaries require the unpacking and multiplication work, and xmm6 cannot be assumed to be zero."
+  },
+  "c2c651c2d9": {
+    "rewrite": null,
+    "why": "The full unsigned word products require both multiplies and unpacking, and the subsequent saturation, rounding, store, and index update all affect required outputs."
+  },
+  "bcd09cc257": {
+    "rewrite": "movd xmm0,DWORD PTR [rcx-0x1]\npshufb xmm0,xmm6",
+    "saved": 9,
+    "why": "Only xmm0 is live among the modified registers, so retain its load and shuffle and remove the dead mask and blend calculations."
+  },
+  "b3bc683ccd": {
+    "rewrite": null,
+    "why": "Both loaded vectors, the concatenation result, and the updated pointer are live, requiring the two loads, alignment, and addition."
+  },
+  "0f7e07194d": {
+    "rewrite": "",
+    "saved": 10,
+    "why": "All modified registers are dead, no flags are required, and there are no stores, so the whole block can be removed."
+  },
+  "2b334026db": {
+    "rewrite": null,
+    "why": "The two loads and stores, both pointer updates, and the flag-setting counter decrement are required, and the unknown strides prevent combining the memory accesses."
+  },
+  "04a2446fdb": {
+    "rewrite": null,
+    "why": "The two loads and stores, both pointer updates, and the flag-setting counter decrement are required, and the unknown strides prevent combining the memory accesses."
+  },
+  "6098156d04": {
+    "rewrite": null,
+    "why": "The two loads and stores, both pointer updates, and the flag-setting counter decrement are required, including the zeroed upper half of live ymm0."
+  },
+  "bdff7cd751": {
+    "rewrite": null,
+    "why": "The two vector loads and stores, both pointer updates, and the flag-setting counter decrement are required, and the unknown strides prevent combining the memory accesses."
+  }
+}

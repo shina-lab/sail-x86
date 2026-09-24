@@ -1,0 +1,82 @@
+{
+  "c0698a1f0c": {
+    "rewrite": null,
+    "why": "The multiply, both pointer updates, and the carry-consuming addition all produce required final values."
+  },
+  "360e594b21": {
+    "rewrite": null,
+    "why": "Both product halves, both updated pointers, and the addition's carry must be preserved, leaving no removable instruction."
+  },
+  "5491b0deda": {
+    "rewrite": null,
+    "why": "The multiply, two independent pointer updates, and carry-consuming addition each perform necessary work."
+  },
+  "43d853d2dd": {
+    "rewrite": null,
+    "why": "The product, counter update, store, and carry propagation are all required and cannot be combined into fewer allowed instructions."
+  },
+  "d15be18c1b": {
+    "rewrite": null,
+    "why": "The multiply, source-pointer update, carry propagation, and store each have a required effect."
+  },
+  "791b32818b": {
+    "rewrite": null,
+    "why": "Both multiplies produce live results, while the store, destination-pointer update, and carry addition are independently required."
+  },
+  "702978c962": {
+    "rewrite": null,
+    "why": "Both pointer decrements and both product halves are live, and the addition must consume the incoming carry and produce the final carry."
+  },
+  "5e1cb978e2": {
+    "rewrite": null,
+    "why": "All three stores are required, and the two additions compute the stored limbs with the necessary carry propagation."
+  },
+  "f9229774c0": {
+    "rewrite": null,
+    "why": "The multiplier load, two products, four stores, and separate carry propagations are needed to preserve the stored limbs and final RAX and RDX for arbitrary inputs."
+  },
+  "d2f9d73431": {
+    "rewrite": null,
+    "why": "The product halves, both updated pointers, and incremented counter are all live, and the sequence must preserve the incoming carry."
+  },
+  "de31a6c9e0": {
+    "rewrite": null,
+    "why": "The multiply and three independent register updates are all required while leaving the carry flag unchanged."
+  },
+  "8570ce621b": {
+    "rewrite": null,
+    "why": "Both product halves, both pointer increments, and the counter increment must survive, so none of the four instructions is redundant."
+  },
+  "9b13d80a83": {
+    "rewrite": null,
+    "why": "The product and three independent register updates are required, with the incoming carry preserved throughout."
+  },
+  "66f5e6721a": {
+    "rewrite": null,
+    "why": "The multiply, two pointer increments, and counter increment each produce required results without disturbing the carry flag."
+  },
+  "28133b48c5": {
+    "rewrite": null,
+    "why": "The live product halves, carry-consuming addition, source-pointer update, and store require all four instructions."
+  },
+  "a26e741f17": {
+    "rewrite": null,
+    "why": "The store, multiply, destination-pointer update, and carry-consuming addition all have distinct required effects."
+  },
+  "591722de65": {
+    "rewrite": null,
+    "why": "Both multiplies and the store are required, while ADC supplies the final carry and DEC supplies the live counter and zero flag."
+  },
+  "7b442d9703": {
+    "rewrite": null,
+    "why": "The three stores and two carry-linked additions are required, and DEC must produce the final counter and arithmetic flags while preserving carry."
+  },
+  "54c8425078": {
+    "rewrite": null,
+    "why": "The overflow and carry additions both contribute to the required results, and the two stores and flag-producing decrement cannot be omitted."
+  },
+  "0154239d79": {
+    "rewrite": null,
+    "why": "Both products, all three address-register updates, and the independent carry and overflow additions are required for the live outputs."
+  }
+}

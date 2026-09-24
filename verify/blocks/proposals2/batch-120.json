@@ -1,0 +1,83 @@
+{
+  "dc84fecf9e": {
+    "rewrite": null,
+    "why": "The independent 64-bit lane rotations require both shifts, a temporary copy, and a merge under SSE3."
+  },
+  "c61205640b": {
+    "rewrite": null,
+    "why": "The four shifts, two saturated packs, memory operations, register updates, and final comparison all produce required effects."
+  },
+  "c4c5d46882": {
+    "rewrite": null,
+    "why": "The required shifted inputs, saturated packed outputs, lane permutations, stores, register updates, and comparison cannot be combined into fewer AVX2 instructions."
+  },
+  "1c39fdd7c4": {
+    "rewrite": null,
+    "why": "AVX2 needs a transfer before the byte broadcast, and preserving rdi while producing both page-offset comparison flags requires the remaining three instructions."
+  },
+  "ac61abe8a3": {
+    "rewrite": null,
+    "why": "The trailing-zero count, incremented rdi, final sum and addition flags, and cleared upper vector halves are all required."
+  },
+  "bc91030833": {
+    "rewrite": null,
+    "why": "The trailing-zero count, rdi adjustment by 0x21, final sum and addition flags, and upper-vector clearing each require an instruction."
+  },
+  "bf87cb56dc": {
+    "rewrite": null,
+    "why": "The trailing-zero count, rdi adjustment by 0x41, final sum and addition flags, and upper-vector clearing each require an instruction."
+  },
+  "0d40b03f85": {
+    "rewrite": null,
+    "why": "The trailing-zero count, rdi adjustment by 0x61, final sum and addition flags, and upper-vector clearing each require an instruction."
+  },
+  "99a67a9079": {
+    "rewrite": "lea rdx,[rdx+rdi*1+0x80]\ninc rdi\nor rdi,0x7f\nsub rdx,rdi",
+    "saved": 1,
+    "why": "For original rdi equal to a, a + 0x80 - ((a + 1) | 0x7f) equals (a + 1) & 0x7f modulo 2^64, so the LEA and subtraction add the same offset to rdx. The final rdi is unchanged, and rcx and flags are not required."
+  },
+  "f7f426615e": {
+    "rewrite": null,
+    "why": "The four comparison vectors, three binary OR operations combining them, scalar mask extraction, and zero-flag test are all needed under AVX2."
+  },
+  "cce4f5b49b": {
+    "rewrite": null,
+    "why": "The comparison vector, extracted trailing-zero count, and CF/ZF from comparison with edx require the complete four-instruction chain."
+  },
+  "c0639d5933": {
+    "rewrite": null,
+    "why": "The shifted rcx, combined-mask count, adjusted rdi, final sum and flags, and upper-vector clearing are all required outputs."
+  },
+  "f8bb98534f": {
+    "rewrite": null,
+    "why": "The trailing-zero count, rdi adjustment by 0x21, final sum and addition flags, and upper-vector clearing each require an instruction."
+  },
+  "e2726bd41b": {
+    "rewrite": null,
+    "why": "The comparison vector, scalar mask, updated rdi, and mask-dependent ZF each require a separate instruction."
+  },
+  "1542c87adc": {
+    "rewrite": null,
+    "why": "The generated 64-bit mask in rcx is itself required, so directly truncating eax with BZHI would not eliminate the mask-construction instructions."
+  },
+  "f164f8664c": {
+    "rewrite": null,
+    "why": "The comparison vector, extracted mask, shifted rcx, and masked eax with matching logical flags all remain required."
+  },
+  "2f72c8b71e": {
+    "rewrite": null,
+    "why": "The trailing-zero count, rdi adjustment by 0x41, final sum and addition flags, and upper-vector clearing each require an instruction."
+  },
+  "b2ff910218": {
+    "rewrite": null,
+    "why": "The broadcast is already a single instruction, while the preserved page offset in rax and its CF/ZF comparison require the remaining three instructions."
+  },
+  "a6a9621c24": {
+    "rewrite": null,
+    "why": "The four scalar instructions jointly produce the aligned rdi and adjusted rdx, and the vector copy is required with its upper-half zeroing."
+  },
+  "9372885aa9": {
+    "rewrite": null,
+    "why": "All comparison results, the ternary OR result, both scalar mask outputs, and the final sum with ZF are required, and the three-way OR already uses one instruction."
+  }
+}

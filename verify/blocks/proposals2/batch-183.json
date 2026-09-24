@@ -1,0 +1,88 @@
+{
+  "37bfc90075": {
+    "rewrite": null,
+    "why": "All five pointer loads produce live register values, and the separate test supplies the required ZF."
+  },
+  "7d824c5f71": {
+    "rewrite": null,
+    "why": "The shared high-word mask, its copy, both masked loads, and both stores are needed with SSE2 and the original memory displacements."
+  },
+  "f7b4cca45e": {
+    "rewrite": null,
+    "why": "Zero-extension must precede the 64-bit rounding addition to retain a possible carry into bit 32, and the live copy and final mask are also required."
+  },
+  "854fb35764": {
+    "rewrite": null,
+    "why": "Both byte-duplicated vectors are live, so the load, copy, two destructive SSE2 unpacks, two stores, and counter update are all needed."
+  },
+  "0f920c8a3a": {
+    "rewrite": null,
+    "why": "Both byte-duplicated vectors are live, so the load, copy, two destructive SSE2 unpacks, two stores, and counter update are all needed."
+  },
+  "eff9ff2aa4": {
+    "rewrite": null,
+    "why": "The load, copy, and two SSE2 unpacks produce both live vectors, and all four stores and the counter update are required."
+  },
+  "6aca5d3c06": {
+    "rewrite": null,
+    "why": "The load, copy, and two SSE2 unpacks produce both live vectors, and all four stores and the counter update are required."
+  },
+  "9853392cac": {
+    "rewrite": "mov rax,QWORD PTR [rsi+0x10]\nor rax,QWORD PTR [rsi+0x20]\nor rax,QWORD PTR [rsi+0x30]\nor rax,QWORD PTR [rsi+0x40]\nor rax,QWORD PTR [rsi+0x50]\nor rax,QWORD PTR [rsi+0x60]\nor rax,QWORD PTR [rsi+0x70]",
+    "saved": 9,
+    "why": "Signed saturation maps a word to zero exactly when that word is zero, so the original ZF tests whether all seven loaded qwords are zero. Scalar memory-source ORs perform that reduction directly, and the last OR sets the required ZF."
+  },
+  "4cb538b9ec": {
+    "rewrite": null,
+    "why": "Each arithmetic instruction updates a different live register, and the decrement also determines the required ZF."
+  },
+  "1e29d8c8cf": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+0x10]\npor xmm1,XMMWORD PTR [rsi+0x20]\npor xmm1,XMMWORD PTR [rsi+0x30]\npor xmm1,XMMWORD PTR [rsi+0x40]\npor xmm1,XMMWORD PTR [rsi+0x50]\npor xmm1,XMMWORD PTR [rsi+0x60]\npor xmm1,XMMWORD PTR [rsi+0x70]\npacksswb xmm1,xmm1\npacksswb xmm1,xmm1\nmovd eax,xmm1\ntest rax,rax",
+    "saved": 1,
+    "why": "Combine both OR chains in one scratch vector, eliminating their final merge while retaining the exact packed result and all TEST flags."
+  },
+  "cc3f06c239": {
+    "rewrite": null,
+    "why": "All eight word broadcasts feed live registers or stores, and their shared SSE2 low/high unpacking leaves no redundant copy or shuffle."
+  },
+  "54c17fff40": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [r11+0x10]\nvpor ymm0,ymm0,YMMWORD PTR [r11+0x30]\nvpor ymm0,ymm0,YMMWORD PTR [r11+0x50]\nvextracti128 xmm1,ymm0,0x1\nvpor xmm0,xmm0,xmm1\nvpor xmm1,xmm0,XMMWORD PTR [r11+0x70]\nvpacksswb xmm1,xmm1,xmm1\nvpacksswb xmm1,xmm1,xmm1\nmovd eax,xmm1\ntest rax,rax",
+    "saved": 2,
+    "why": "Combine pairs of original 16-byte reads into three 32-byte reads, then OR their halves and the remaining 16 bytes. The wider reads stay within the originally loaded bytes, and retaining both packs and TEST preserves every required flag."
+  },
+  "4fc6e92f55": {
+    "rewrite": "movdqa xmm5,XMMWORD PTR [r11]\nvpmullw xmm5,xmm5,XMMWORD PTR [r10]\nvpsllw xmm5,xmm5,0x2\nvpermq ymm4,ymm5,0x50\nvpunpcklwd ymm4,ymm4,ymm4\nvpshufd ymm0,ymm4,0x0\nvpshufd ymm1,ymm4,0x55\nvpshufd ymm2,ymm4,0xaa\nvpshufd ymm3,ymm4,0xff",
+    "saved": 1,
+    "why": "VPERMQ places the two input qwords at the bottoms of the two 128-bit lanes, allowing one 256-bit self-unpack to replace the two 128-bit unpacks and insertion. The four final shuffles therefore produce identical full YMM values."
+  },
+  "2683620a85": {
+    "rewrite": null,
+    "why": "The multiply, scaling, shared low/high word duplication, eight broadcasts, and four stores all contribute to required outputs."
+  },
+  "1990e21b9b": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+0x10]\npor xmm0,XMMWORD PTR [rsi+0x20]\npor xmm0,XMMWORD PTR [rsi+0x30]\npor xmm0,XMMWORD PTR [rsi+0x50]\npor xmm0,XMMWORD PTR [rsi+0x60]\npor xmm0,XMMWORD PTR [rsi+0x70]\npacksswb xmm0,xmm0\npacksswb xmm0,xmm0\nmovd eax,xmm0\ntest rax,rax",
+    "saved": 1,
+    "why": "Accumulate all six memory operands in one scratch vector to remove the merge between two OR chains, preserving the exact packed result and all TEST flags."
+  },
+  "814dc3cfc4": {
+    "rewrite": null,
+    "why": "The four live vectors require the shared low/high word duplication and four distinct shuffles after multiplication and scaling."
+  },
+  "191251409a": {
+    "rewrite": null,
+    "why": "The three vector instructions construct the required 0x80 byte constant, and all four scalar initializations are live."
+  },
+  "bc25078614": {
+    "rewrite": null,
+    "why": "The zero vector, 0xff80 word constant, and four scalar initializations are all live with no redundant setup."
+  },
+  "3d2e5fd61a": {
+    "rewrite": null,
+    "why": "The five vector loads, saved original count, and flag-setting count subtraction all produce required outputs."
+  },
+  "631c6d5f40": {
+    "rewrite": "movq xmm5,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+rcx*1]\nimul ecx,ecx,0xfffffff8\nshr rax,cl\npinsrq xmm5,rax,0x1",
+    "saved": 1,
+    "why": "Multiplication by -8 gives the same 32-bit shift-count value as negation followed by a three-bit left shift. Flags are not live, and the indexed load still uses the original RCX before it changes."
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "f821524adf": {
+    "rewrite": null,
+    "why": "The broadcast needs a load and shuffle at SSSE3, and updating r10 and testing only bit 16 both remain necessary."
+  },
+  "a37cc58760": {
+    "rewrite": null,
+    "why": "The signed expansion, arbitrary byte shuffle, high-word interleave, two independent dot products and final sum are all required."
+  },
+  "2fb5a49479": {
+    "rewrite": null,
+    "why": "The preserved vector shift, scalar arithmetic, signed byte load and final comparison have no removable intermediates."
+  },
+  "f554841272": {
+    "rewrite": null,
+    "why": "The arbitrary blend mask makes the packed vector lanes observable, and the arithmetic, store, shifts and counter update remain necessary."
+  },
+  "12d38be0db": {
+    "rewrite": null,
+    "why": "The broadcast sum contributes to multiple observable packed lanes under an arbitrary blend mask, preventing replacement with a scalar-only horizontal reduction."
+  },
+  "a1f561ecdb": {
+    "rewrite": null,
+    "why": "The affine multiply, rotated 16-bit extraction, memory XOR and three preserved address-register updates have no redundant instructions."
+  },
+  "61f1143098": {
+    "rewrite": "vmovdqu xmm4,XMMWORD PTR [rsi]\nvinserti128 ymm4,ymm4,XMMWORD PTR [rsi+0x20],0x1\nvmovdqu xmm0,XMMWORD PTR [rsi+0x52]\nvinserti128 ymm0,ymm0,XMMWORD PTR [rsi+0x72],0x1\nvmovdqu xmm5,XMMWORD PTR [rsi+0x10]\nvinserti128 ymm5,ymm5,XMMWORD PTR [rsi+0x30],0x1\nvmovdqu xmm1,XMMWORD PTR [rsi+0x62]\nvinserti128 ymm1,ymm1,XMMWORD PTR [rsi+0x82],0x1\nvpmaddubsw ymm4,ymm7,ymm4\nvpmaddubsw ymm0,ymm7,ymm0\nvpmaddubsw ymm5,ymm7,ymm5\nvpmaddubsw ymm1,ymm7,ymm1\nvpaddw ymm4,ymm4,ymm0\nvpaddw ymm5,ymm5,ymm1\nvpmulhrsw ymm4,ymm4,ymm6\nvpmulhrsw ymm5,ymm5,ymm6\nvpmullw ymm4,ymm4,ymm2\nvpmullw ymm5,ymm5,ymm2\nvpmulhrsw ymm4,ymm4,ymm3\nvpmulhrsw ymm5,ymm5,ymm3\nvmovdqu ymm1,YMMWORD PTR [rdi]\nvpcmpgtb ymm8,ymm12,ymm1\nvpunpcklbw ymm0,ymm1,ymm8\nvpunpckhbw ymm1,ymm1,ymm8\nvpaddw ymm0,ymm0,ymm4\nvpaddw ymm1,ymm1,ymm5\nvpacksswb ymm0,ymm0,ymm1\nvmovdqu YMMWORD PTR [rdi],ymm0\nvpmaddubsw xmm4,xmm7,XMMWORD PTR [rsi+0x40]\nvpmaddubsw xmm5,xmm7,XMMWORD PTR [rsi+0x92]\nvpaddw xmm4,xmm4,xmm5\nvmovq xmm0,QWORD PTR [rdi+0x20]\nvpmulhrsw xmm4,xmm4,xmm6\nvpmullw xmm4,xmm4,xmm2\nvpmulhrsw xmm4,xmm4,xmm3\nvpcmpgtb xmm5,xmm12,xmm0\nvpunpcklbw xmm5,xmm0,xmm5\nvpaddw xmm4,xmm4,xmm5\nvpacksswb xmm4,xmm4,xmm4\nvpblendw xmm0,xmm4,xmm0,0x8\nvmovq QWORD PTR [rdi+0x20],xmm0\nadd rdi,0x52\nadd rsi,0xa4\ndec edx",
+    "saved": 2,
+    "why": "Fold the two tail vector loads into their VPMADDUBSW memory operands, preserving the load addresses and widths."
+  },
+  "443e11d18d": {
+    "rewrite": null,
+    "why": "The preserved vector shift, scalar arithmetic, signed byte load and final comparison have no removable intermediates."
+  },
+  "4b8787aca2": {
+    "rewrite": null,
+    "why": "The selected updated word requires alignment, addition and blending, while the packed vector, shifted accumulator, store and counter are all observable."
+  },
+  "be6c31e1c6": {
+    "rewrite": "vpmovsxbw xmm1,xmm1\nvpmaddwd xmm2,xmm13,xmm1\nvphaddd xmm2,xmm2,xmm2\nvpaddd xmm2,xmm2,xmm0\nvpsrldq xmm0,xmm0,0x4\nvpsrad xmm2,xmm2,XMMWORD PTR [rdx+0xb0]\nvpsrldq xmm1,xmm1,0x2\nvpunpckldq xmm2,xmm2,xmm2\nvpblendw xmm1,xmm1,xmm2,0x4\nvpacksswb xmm1,xmm1,xmm1\nvpextrb BYTE PTR [rdi+r9*1],xmm1,0x2\ninc r9",
+    "saved": 1,
+    "why": "Only the lowest dword of the accumulated dot products reaches the selected word. VPHADDD replaces the shuffle and one addition while retaining that dword."
+  },
+  "fd7f3c96ce": {
+    "rewrite": "vmovdqu xmm4,XMMWORD PTR [rsi]\nvinserti128 ymm4,ymm4,XMMWORD PTR [rsi+0x20],0x1\nvmovdqu xmm5,XMMWORD PTR [rsi+0x10]\nvinserti128 ymm5,ymm5,XMMWORD PTR [rsi+0x30],0x1\nvpmaddubsw ymm4,ymm7,ymm4\nvpmaddubsw ymm5,ymm7,ymm5\nvpmulhrsw ymm4,ymm4,ymm6\nvpmulhrsw ymm5,ymm5,ymm6\nvpmullw ymm4,ymm4,ymm2\nvpmullw ymm5,ymm5,ymm2\nvpmulhrsw ymm4,ymm4,ymm3\nvpmulhrsw ymm5,ymm5,ymm3\nvmovdqu ymm1,YMMWORD PTR [rdi]\nvpcmpgtb ymm8,ymm12,ymm1\nvpunpcklbw ymm0,ymm1,ymm8\nvpunpckhbw ymm1,ymm1,ymm8\nvpaddw ymm0,ymm0,ymm4\nvpaddw ymm1,ymm1,ymm5\nvpacksswb ymm0,ymm0,ymm1\nvmovdqu YMMWORD PTR [rdi],ymm0\nvpmaddubsw xmm4,xmm7,XMMWORD PTR [rsi+0x40]\nvmovq xmm0,QWORD PTR [rdi+0x20]\nvpmulhrsw xmm4,xmm4,xmm6\nvpmullw xmm4,xmm4,xmm2\nvpmulhrsw xmm4,xmm4,xmm3\nvpcmpgtb xmm5,xmm12,xmm0\nvpunpcklbw xmm5,xmm0,xmm5\nvpaddw xmm4,xmm4,xmm5\nvpacksswb xmm4,xmm4,xmm4\nvpblendw xmm0,xmm4,xmm0,0x8\nvmovq QWORD PTR [rdi+0x20],xmm0\nadd rdi,0x52\nadd rsi,0x52\ndec edx",
+    "saved": 1,
+    "why": "Fold the tail vector load into VPMADDUBSW using the same memory address and width."
+  },
+  "f3e1baa1c2": {
+    "rewrite": null,
+    "why": "Both inputs are widened using arbitrary comparison thresholds, and the wrapping products, rounded scaling, saturating pack and final comparison remain necessary."
+  },
+  "43a943ae7a": {
+    "rewrite": null,
+    "why": "The arbitrary comparison thresholds and upper-word scaling blend prevent simpler widening or scaling replacements, and every result feeds the store or a preserved output."
+  },
+  "1fa49b3943": {
+    "rewrite": null,
+    "why": "The affine multiply, rotated 16-bit extraction, memory XOR and three preserved address-register updates have no redundant instructions."
+  },
+  "7e9648d102": {
+    "rewrite": null,
+    "why": "The preserved vector outputs require the discontiguous loads, unpacked arithmetic, masked merge and final unpack, leaving no removable intermediates."
+  },
+  "29c11ee2c7": {
+    "rewrite": null,
+    "why": "Both independent saturated dot products and rounded high-word multiplies are needed before the final signed byte pack."
+  },
+  "93c46f26f1": {
+    "rewrite": null,
+    "why": "The two shuffles, preserved rdx constant and rdi adjustment each produce an independently required output."
+  },
+  "487b4ef382": {
+    "rewrite": "movsx edx,BYTE PTR [rsi+0x63]\nmovd xmm4,DWORD PTR [rsi+0x60]\nmov ecx,DWORD PTR [rsi+0xb0]\npxor xmm6,xmm6\npunpcklbw xmm4,xmm4\npsraw xmm4,0x8",
+    "saved": 1,
+    "why": "Duplicating each byte into a word and shifting arithmetically sign-extends it, replacing the mask copy, comparison and unpack with two instructions."
+  },
+  "8a4f883b5b": {
+    "rewrite": null,
+    "why": "The shuffle, pointer adjustment and three immediate loads each establish a different preserved output."
+  },
+  "a518309db3": {
+    "rewrite": "movq xmm0,QWORD PTR [r10+rdi*1-0x53]\nmovdqa xmm7,xmm6\npcmpgtb xmm7,xmm0\npunpcklbw xmm0,xmm7\npalignr xmm2,xmm0,0x2\npshufd xmm1,xmm0,0x39\npunpcklwd xmm0,xmm2\npunpcklwd xmm1,xmm3\npmaddwd xmm0,xmm4\npmaddwd xmm1,xmm5\npaddd xmm0,xmm1",
+    "saved": 2,
+    "why": "PALIGNR produces one required low-word window without a copy, and PSHUFD produces the other directly. The differing high words are discarded by the low-word unpacks."
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "afc8814563": {
+    "rewrite": null,
+    "why": "The min/max reductions, shifted temporaries, funnel-shift result, and narrowed output are all live, leaving no removable intermediate operation."
+  },
+  "5bab07bf6e": {
+    "rewrite": null,
+    "why": "The loaded permutation indices and funnel-shift result are required outputs, and the addition and byte permutation each perform a distinct necessary transformation."
+  },
+  "124651c28c": {
+    "rewrite": null,
+    "why": "The four independently addressed stores are required, and the extraction both supplies the final two stores and establishes the required final zmm16 value."
+  },
+  "df3080f421": {
+    "rewrite": null,
+    "why": "The broadcast, sign masks, extrema, and filtered results are all live, and arbitrary input words prevent folding the wrapping additions, rounding, and clamps."
+  },
+  "cd48d2e6dd": {
+    "rewrite": null,
+    "why": "Both sign masks and the broadcast multiplier must survive, while each output requires the wrapping additions and rounded multiplication."
+  },
+  "d3869b68aa": {
+    "rewrite": null,
+    "why": "Each of the four instructions directly computes a separate required min/max output."
+  },
+  "95fa29e7f3": {
+    "rewrite": null,
+    "why": "Six separately addressed qword loads and two lane insertions are needed to assemble the three required vector results."
+  },
+  "ee47ee3108": {
+    "rewrite": null,
+    "why": "The broadcast, two scalar loads, subtraction, and zeroing all produce required values, and the final test independently supplies the required ZF."
+  },
+  "45bfb316ae": {
+    "rewrite": null,
+    "why": "The two noncontiguous loads, scalar initialization, vector zeroing, and two copies each contribute to required final outputs."
+  },
+  "6e385db44b": {
+    "rewrite": null,
+    "why": "The comparison mask, multiplier, rounded intermediate, packed vectors, stores, pointer updates, and final flags are all required, with no redundant step."
+  },
+  "4cac12c7d1": {
+    "rewrite": null,
+    "why": "Two loads are needed for the noncontiguous vector halves, and the remaining instructions initialize separate required scalar and vector outputs."
+  },
+  "180539c6a8": {
+    "rewrite": null,
+    "why": "The live comparison and rounded result require their arithmetic chain, while packing, extraction, stores, and scalar updates each supply required effects."
+  },
+  "aeaed843ca": {
+    "rewrite": "vpcmpgtw ymm6,ymm1,ymm12\nvpcmpgtw ymm5,ymm1,ymm15\nvpaddw ymm12,ymm12,ymm6\nvpaddw ymm15,ymm15,ymm5\nvpmulhrsw ymm12,ymm12,ymm3\nvpmulhrsw ymm15,ymm15,ymm3\nvpacksswb ymm15,ymm15,ymm12\nvpaddb ymm4,ymm15,ymm4\nvextracti128 xmm5,ymm4,0x1\nvmovd DWORD PTR [rdi],xmm4\nvmovd DWORD PTR [rbp+0x0],xmm5\nvpextrd DWORD PTR [rdi+rsi*1],xmm4,0x1\nvpextrd DWORD PTR [rbp+rsi*1+0x0],xmm5,0x1\nvpextrd DWORD PTR [rdi+rsi*2],xmm4,0x2\nvpextrd DWORD PTR [rbp+rsi*2+0x0],xmm5,0x2\nvpextrd DWORD PTR [rdi+r14*1],xmm4,0x3\nvpextrd DWORD PTR [rbp+r14*1+0x0],xmm5,0x3",
+    "saved": 1,
+    "why": "The final mov changes only rsp, which is absent from the required outputs and must remain untouched by the rewrite. Omitting it preserves every listed register, flag, and store."
+  },
+  "b43f21623a": {
+    "rewrite": null,
+    "why": "The separately addressed loads, transposes, widening, lane assembly, and blend are needed, including the required final shuffle temporaries."
+  },
+  "eb0bfa8b9e": {
+    "rewrite": null,
+    "why": "Four separated qword loads and a lane insertion assemble the vector, and both copies, scalar initialization, and vector zeroing remain required."
+  },
+  "3d56cf9327": {
+    "rewrite": null,
+    "why": "The vector needs four separated qword loads and a lane insertion, in addition to the independent required scalar initialization and vector zeroing."
+  },
+  "6e68bbb39a": {
+    "rewrite": null,
+    "why": "All vector intermediates and four stores are required, and the scalar updates must also preserve the subtraction's CF through the final decrement."
+  },
+  "110cb75b4e": {
+    "rewrite": "vpcmpgtw ymm1,ymm1,ymm15\nvpaddw ymm15,ymm15,ymm1\nvpmulhrsw ymm15,ymm15,ymm3\nvpacksswb ymm15,ymm15,ymm15\nvpaddb ymm4,ymm15,ymm4\nvextracti128 xmm5,ymm4,0x1\nvmovd DWORD PTR [rdi],xmm4\nvmovd DWORD PTR [rdi+rsi*2],xmm5\nvpextrd DWORD PTR [rdi+rsi*1],xmm4,0x1\nvpextrd DWORD PTR [rdi+rbp*1],xmm5,0x1",
+    "saved": 1,
+    "why": "The final mov changes only rsp, which is absent from the required outputs and must remain untouched by the rewrite. Omitting it preserves every listed register, flag, and store."
+  },
+  "b563aa73e1": {
+    "rewrite": null,
+    "why": "The broadcasts, loads, and blends construct distinct required lane patterns, and both the broadcast temporary and the assembled vectors remain live."
+  },
+  "cdc3754110": {
+    "rewrite": "vpmovzxwd xmm11,QWORD PTR [rdx]\nvmovq xmm6,QWORD PTR [rdi-0x2]\nvmovq xmm9,QWORD PTR [rdi+rsi*1-0x2]\nvinserti128 ymm6,ymm6,XMMWORD PTR [rdi+rsi*2-0x2],0x1\nvinserti128 ymm9,ymm9,XMMWORD PTR [rdi+rbp*1-0x2],0x1\nvpermq ymm11,ymm11,0x50\nvpsrldq ymm5,ymm6,0x4\nvpsrldq ymm10,ymm9,0x4\nvpunpckldq ymm6,ymm6,ymm9\nvpunpckldq ymm5,ymm5,ymm10\nvpblendw ymm6,ymm6,ymm11,0x5",
+    "saved": 1,
+    "why": "Widen the four loaded words directly, then duplicate qwords with vpermq 0x50 to obtain dwords [w0,w1,w0,w1,w2,w3,w2,w3]. This replaces the load, dword unpack, and widening with two instructions while reading the same eight bytes."
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "90d1f53cc2": {
+    "rewrite": null,
+    "why": "The aligned loads, byte alignment, comparison masks, converted vectors, and string comparison all contribute to required outputs, with no shorter SSE4.2 sequence identified."
+  },
+  "5e7f9da2cc": {
+    "rewrite": null,
+    "why": "The r10 update, load, byte shift, string index, and final comparison flags are all required, and the load address cannot be changed to absorb the shift."
+  },
+  "f0c89f1c08": {
+    "rewrite": null,
+    "why": "The byte comparisons and masks have live results, while the equality subtraction, mask extraction, scalar shifts, and final subtraction are needed for the remaining required outputs."
+  },
+  "26f49fb759": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0x7\nlea r10,[rdi+0x7]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. One OR replaces the AND and SUB, and no final flags are required."
+  },
+  "b1e6e7632f": {
+    "rewrite": null,
+    "why": "The aligned loads, byte alignment, comparison masks, converted vectors, and string comparison all contribute to required outputs, with no shorter SSE4.2 sequence identified."
+  },
+  "649287a9d5": {
+    "rewrite": null,
+    "why": "The r10 update, load, byte shift, string index, and final comparison flags are all required, and the load address cannot be changed to absorb the shift."
+  },
+  "8f145d2f91": {
+    "rewrite": null,
+    "why": "The byte comparisons and masks have live results, while the equality subtraction, mask extraction, scalar shifts, and final subtraction are needed for the remaining required outputs."
+  },
+  "c3a774e8ac": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0x8\nlea r10,[rdi+0x8]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. One OR replaces the AND and SUB, and no final flags are required."
+  },
+  "8c8a99cd56": {
+    "rewrite": null,
+    "why": "The aligned loads, byte alignment, comparison masks, converted vectors, and string comparison all contribute to required outputs, with no shorter SSE4.2 sequence identified."
+  },
+  "8a227c7c53": {
+    "rewrite": null,
+    "why": "The r10 update, load, byte shift, string index, and final comparison flags are all required, and the load address cannot be changed to absorb the shift."
+  },
+  "de4fb45419": {
+    "rewrite": null,
+    "why": "The byte comparisons and masks have live results, while the equality subtraction, mask extraction, scalar shifts, and final subtraction are needed for the remaining required outputs."
+  },
+  "bed3981f5d": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0x9\nlea r10,[rdi+0x9]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. One OR replaces the AND and SUB, and no final flags are required."
+  },
+  "5c27ee3927": {
+    "rewrite": null,
+    "why": "The aligned loads, byte alignment, comparison masks, converted vectors, and string comparison all contribute to required outputs, with no shorter SSE4.2 sequence identified."
+  },
+  "04bf7791da": {
+    "rewrite": null,
+    "why": "The r10 update, load, byte shift, string index, and final comparison flags are all required, and the load address cannot be changed to absorb the shift."
+  },
+  "59eff7d5f1": {
+    "rewrite": null,
+    "why": "The byte comparisons and masks have live results, while the equality subtraction, mask extraction, scalar shifts, and final subtraction are needed for the remaining required outputs."
+  },
+  "cc6a5e3b6c": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0xa\nlea r10,[rdi+0xa]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. One OR replaces the AND and SUB, and no final flags are required."
+  },
+  "a533f573d4": {
+    "rewrite": null,
+    "why": "The aligned loads, byte alignment, comparison masks, converted vectors, and string comparison all contribute to required outputs, with no shorter SSE4.2 sequence identified."
+  },
+  "91bef1d7b9": {
+    "rewrite": null,
+    "why": "The r10 update, load, byte shift, string index, and final comparison flags are all required, and the load address cannot be changed to absorb the shift."
+  },
+  "b3d710df05": {
+    "rewrite": null,
+    "why": "The byte comparisons and masks have live results, while the equality subtraction, mask extraction, scalar shifts, and final subtraction are needed for the remaining required outputs."
+  },
+  "d1dc4056d3": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0xb\nlea r10,[rdi+0xb]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. One OR replaces the AND and SUB, and no final flags are required."
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "6250861a1a": {
+    "rewrite": null,
+    "why": "The multiplication produces the required RBX value and supplies carry to three dependent memory updates, leaving no removable instruction."
+  },
+  "ef6e9b2736": {
+    "rewrite": null,
+    "why": "The intermediate addition supplies carry to the memory ADC, so combining the EAX arithmetic would change a required store."
+  },
+  "455ab64e4d": {
+    "rewrite": "mov eax,0x47af2e4b\nadd DWORD PTR [r15+0x2],r8d\nadd DWORD PTR [r15+0x2],r8d\nand DWORD PTR [rdx],ebx",
+    "saved": 5,
+    "why": "The ES loads affect no required final register, and the SAHF and TEST flag results are unused. Both ADD stores and the final AND store are retained."
+  },
+  "ccdee6af78": {
+    "rewrite": "and DWORD PTR [rdx],ebx",
+    "saved": 4,
+    "why": "The three SAHF instructions and TEST only produce unused flags, leaving the memory AND as the sole required operation."
+  },
+  "a69954fcc1": {
+    "rewrite": "mov edx,0x45eaa00d\nor DWORD PTR [r13+0x12],r8d\nor DWORD PTR [r13+0x12],r8d\nmov r10b,BYTE PTR [rdi-0xd]",
+    "saved": 1,
+    "why": "The first R10B load is overwritten before use. Both memory OR stores remain, and the final CF is still zero."
+  },
+  "4ef29d17b1": {
+    "rewrite": "rol al,0x27\nror BYTE PTR [rsi-0x19],0x9d\nshl BYTE PTR [rdi],0xc0\nout 0x9d,eax",
+    "saved": 3,
+    "why": "The ESP, ES, and DS assignments have no consumers affecting required outputs and can be removed while leaving RSP untouched. The rotations, memory shift, and port output are retained, preserving RAX, memory operations, and CF."
+  },
+  "59caf9dae4": {
+    "rewrite": "sbb BYTE PTR [rsi],al\nxor BYTE PTR [rsi],bl\nor al,0x36",
+    "saved": 1,
+    "why": "The ESP assignment has no consumer and does not contribute to any required output, so it can be removed while leaving RSP untouched."
+  },
+  "3987f48270": {
+    "rewrite": "mov WORD PTR [rdx+rcx*1+0x586148c],cs\ncwde\nmov WORD PTR [rdx+rcx*1+0x586148c],cs\nrcl ecx,1\nmovsxd edx,ecx",
+    "saved": 1,
+    "why": "CWDE leaves AX unchanged, so repeating it produces the same RAX value. Removing the second CWDE preserves both stores and the carry-dependent rotation."
+  },
+  "52926413f1": {
+    "rewrite": "mov bl,0xf1\njnp 0x14ca\nmov bl,0xb3",
+    "saved": 1,
+    "why": "The first BL assignment is overwritten before the conditional branch. Retaining the branch and the remaining assignments preserves the BL value on either path."
+  },
+  "3f49200669": {
+    "rewrite": "rcl ebx,cl\nimul edx,ebx,0xffffffd6\nmov eax,0xe7e705bb\nmov ebx,0xd35c6be7\nmov edi,fs",
+    "saved": 2,
+    "why": "The first multiplication is repeated with identical operands before EDX is used, and the first EAX constant is overwritten. Removing both preserves every required register value."
+  }
+}

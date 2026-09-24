@@ -1,0 +1,92 @@
+{
+  "18095e1005": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi+rdx*1]\npalignr xmm0,XMMWORD PTR [rdi+rdx*1-0x10],0x1\nmovdqa xmm7,xmm0\nmovdqa xmm8,xmm5\npcmpgtb xmm7,xmm4\npcmpgtb xmm8,xmm0\npand xmm7,xmm8\npand xmm7,xmm6\npor xmm0,xmm7\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm10,xmm5\npcmpgtb xmm1,xmm4\npcmpgtb xmm10,XMMWORD PTR [rsi+rdx*1]\npand xmm1,xmm10\npand xmm1,xmm6\npor xmm1,XMMWORD PTR [rsi+rdx*1]\npcmpistri xmm0,xmm1,0x1a",
+    "saved": 1,
+    "why": "Fold the second vector's source into memory operands for the upper-bound comparison and final OR, removing one register copy. All reads use original addresses, and both normalized vectors and the final comparison remain identical."
+  },
+  "a834f455d9": {
+    "rewrite": null,
+    "why": "The preserved r10 update, shifted xmm0 value, terminator index, and final CF/ZF comparison require the existing instructions."
+  },
+  "130e5b6818": {
+    "rewrite": null,
+    "why": "With arbitrary incoming bounds and masks, both byte-normalization paths and the two shifts feeding the live subtraction are needed."
+  },
+  "42562a04d5": {
+    "rewrite": "mov rcx,0x10\nmov r9d,0x2\nlea r10,[rdi+0x2]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 2,
+    "why": "Remove the unused xmm3 load and replace the AND/subtract pair with an OR setting all bits above bit 11. This produces the same r10 value, and no flags are live."
+  },
+  "52e5cc6c89": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi+rdx*1]\npalignr xmm0,XMMWORD PTR [rdi+rdx*1-0x10],0x2\nmovdqa xmm7,xmm0\nmovdqa xmm8,xmm5\npcmpgtb xmm7,xmm4\npcmpgtb xmm8,xmm0\npand xmm7,xmm8\npand xmm7,xmm6\npor xmm0,xmm7\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm10,xmm5\npcmpgtb xmm1,xmm4\npcmpgtb xmm10,XMMWORD PTR [rsi+rdx*1]\npand xmm1,xmm10\npand xmm1,xmm6\npor xmm1,XMMWORD PTR [rsi+rdx*1]\npcmpistri xmm0,xmm1,0x1a",
+    "saved": 1,
+    "why": "Fold the second vector's source into memory operands for the upper-bound comparison and final OR, removing one register copy. All reads use original addresses, and both normalized vectors and the final comparison remain identical."
+  },
+  "7c89fd86fe": {
+    "rewrite": null,
+    "why": "The preserved r10 update, shifted xmm0 value, terminator index, and final CF/ZF comparison require the existing instructions."
+  },
+  "0367a4c6d5": {
+    "rewrite": null,
+    "why": "With arbitrary incoming bounds and masks, both byte-normalization paths and the two shifts feeding the live subtraction are needed."
+  },
+  "6f722c90d5": {
+    "rewrite": "mov rcx,0x10\nmov r9d,0x3\nlea r10,[rdi+0x3]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 2,
+    "why": "Remove the unused xmm3 load and replace the AND/subtract pair with an OR setting all bits above bit 11. This produces the same r10 value, and no flags are live."
+  },
+  "9d6b9bcaab": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi+rdx*1]\npalignr xmm0,XMMWORD PTR [rdi+rdx*1-0x10],0x3\nmovdqa xmm7,xmm0\nmovdqa xmm8,xmm5\npcmpgtb xmm7,xmm4\npcmpgtb xmm8,xmm0\npand xmm7,xmm8\npand xmm7,xmm6\npor xmm0,xmm7\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm10,xmm5\npcmpgtb xmm1,xmm4\npcmpgtb xmm10,XMMWORD PTR [rsi+rdx*1]\npand xmm1,xmm10\npand xmm1,xmm6\npor xmm1,XMMWORD PTR [rsi+rdx*1]\npcmpistri xmm0,xmm1,0x1a",
+    "saved": 1,
+    "why": "Fold the second vector's source into memory operands for the upper-bound comparison and final OR, removing one register copy. All reads use original addresses, and both normalized vectors and the final comparison remain identical."
+  },
+  "7a37f8cf7a": {
+    "rewrite": null,
+    "why": "The preserved r10 update, shifted xmm0 value, terminator index, and final CF/ZF comparison require the existing instructions."
+  },
+  "06f28b75ff": {
+    "rewrite": null,
+    "why": "With arbitrary incoming bounds and masks, both byte-normalization paths and the two shifts feeding the live subtraction are needed."
+  },
+  "5a7538e66b": {
+    "rewrite": "mov rcx,0x10\nmov r9d,0x4\nlea r10,[rdi+0x4]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 2,
+    "why": "Remove the unused xmm3 load and replace the AND/subtract pair with an OR setting all bits above bit 11. This produces the same r10 value, and no flags are live."
+  },
+  "64ca81081f": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi+rdx*1]\npalignr xmm0,XMMWORD PTR [rdi+rdx*1-0x10],0x4\nmovdqa xmm7,xmm0\nmovdqa xmm8,xmm5\npcmpgtb xmm7,xmm4\npcmpgtb xmm8,xmm0\npand xmm7,xmm8\npand xmm7,xmm6\npor xmm0,xmm7\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm10,xmm5\npcmpgtb xmm1,xmm4\npcmpgtb xmm10,XMMWORD PTR [rsi+rdx*1]\npand xmm1,xmm10\npand xmm1,xmm6\npor xmm1,XMMWORD PTR [rsi+rdx*1]\npcmpistri xmm0,xmm1,0x1a",
+    "saved": 1,
+    "why": "Fold the second vector's source into memory operands for the upper-bound comparison and final OR, removing one register copy. All reads use original addresses, and both normalized vectors and the final comparison remain identical."
+  },
+  "797f0eeaed": {
+    "rewrite": null,
+    "why": "The preserved r10 update, shifted xmm0 value, terminator index, and final CF/ZF comparison require the existing instructions."
+  },
+  "574e0dbf03": {
+    "rewrite": null,
+    "why": "With arbitrary incoming bounds and masks, both byte-normalization paths and the two shifts feeding the live subtraction are needed."
+  },
+  "970e2ccaa9": {
+    "rewrite": "mov rcx,0x10\nmov r9d,0x5\nlea r10,[rdi+0x5]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 2,
+    "why": "Remove the unused xmm3 load and replace the AND/subtract pair with an OR setting all bits above bit 11. This produces the same r10 value, and no flags are live."
+  },
+  "b99234d3af": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi+rdx*1]\npalignr xmm0,XMMWORD PTR [rdi+rdx*1-0x10],0x5\nmovdqa xmm7,xmm0\nmovdqa xmm8,xmm5\npcmpgtb xmm7,xmm4\npcmpgtb xmm8,xmm0\npand xmm7,xmm8\npand xmm7,xmm6\npor xmm0,xmm7\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm10,xmm5\npcmpgtb xmm1,xmm4\npcmpgtb xmm10,XMMWORD PTR [rsi+rdx*1]\npand xmm1,xmm10\npand xmm1,xmm6\npor xmm1,XMMWORD PTR [rsi+rdx*1]\npcmpistri xmm0,xmm1,0x1a",
+    "saved": 1,
+    "why": "Fold the second vector's source into memory operands for the upper-bound comparison and final OR, removing one register copy. All reads use original addresses, and both normalized vectors and the final comparison remain identical."
+  },
+  "43d080c099": {
+    "rewrite": null,
+    "why": "The preserved r10 update, shifted xmm0 value, terminator index, and final CF/ZF comparison require the existing instructions."
+  },
+  "e287d68d83": {
+    "rewrite": null,
+    "why": "With arbitrary incoming bounds and masks, both byte-normalization paths and the two shifts feeding the live subtraction are needed."
+  },
+  "4ab63ce92a": {
+    "rewrite": "mov rcx,0x10\nmov r9d,0x6\nlea r10,[rdi+0x6]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 2,
+    "why": "Remove the unused xmm3 load and replace the AND/subtract pair with an OR setting all bits above bit 11. This produces the same r10 value, and no flags are live."
+  }
+}

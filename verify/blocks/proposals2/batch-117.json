@@ -1,0 +1,89 @@
+{
+  "461d6c8dbd": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, pointer updates, negation, and copied masked remainder all produce required outputs, with no removable instruction."
+  },
+  "474f28cc57": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npunpcklbw mm0,mm0\npsrlw mm0,0x8\npshufw mm0,mm0,0xd2\npackuswb mm0,mm0\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1+0x3]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 1,
+    "why": "Use the unlisted MMX scratch register to widen, permute, and repack the four bytes, combining their transfers into a dword load and store. The final byte load preserves rcx's required value, and the original counter updates preserve the flags."
+  },
+  "964ca67232": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, pointer updates, negation, and copied masked remainder all produce required outputs, with no removable instruction."
+  },
+  "ac2ebead58": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npunpcklbw mm0,mm0\npsrlw mm0,0x8\npshufw mm0,mm0,0x36\npackuswb mm0,mm0\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 1,
+    "why": "Use the unlisted MMX scratch register to widen, permute, and repack the four bytes, combining their transfers into a dword load and store. The final byte load preserves rcx's required value, and the original counter updates preserve the flags."
+  },
+  "ca4343a36e": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, pointer updates, negation, and copied masked remainder all produce required outputs, with no removable instruction."
+  },
+  "78ee1466a3": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npunpcklbw mm0,mm0\npsrlw mm0,0x8\npshufw mm0,mm0,0xc9\npackuswb mm0,mm0\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1+0x3]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 1,
+    "why": "Use the unlisted MMX scratch register to widen, permute, and repack the four bytes, combining their transfers into a dword load and store. The final byte load preserves rcx's required value, and the original counter updates preserve the flags."
+  },
+  "6d0cc3d334": {
+    "rewrite": "mov r15,r8\nneg r8\nlea rbx,[r8+r8*1]\nneg rbp\nand r15,0x1f",
+    "saved": 2,
+    "why": "Doubling the already-negated r8 computes the original rbx result modulo 2^64, replacing its copy, doubling, and negation with one LEA. The final AND preserves the required ZF."
+  },
+  "b3e4b6bf95": {
+    "rewrite": null,
+    "why": "The four pointer updates, two copies, copy-and-shift for rbp, and flag-setting 32-bit decrement each contribute required final state."
+  },
+  "1f60a70121": {
+    "rewrite": "mov r15,r8\nneg r8\nlea rbx,[r8+r8*1]\nneg rbp\nand r15,0x1f",
+    "saved": 2,
+    "why": "Doubling the already-negated r8 computes the original rbx result modulo 2^64, replacing its copy, doubling, and negation with one LEA. The final AND preserves the required ZF."
+  },
+  "661ae0af2a": {
+    "rewrite": null,
+    "why": "The four pointer updates, two copies, copy-and-shift for rbp, and flag-setting 32-bit decrement each contribute required final state."
+  },
+  "1b050e061e": {
+    "rewrite": "mov r15,r8\nneg r8\nlea rbx,[r8+r8*1]\nneg rbp\nand r15,0x3f",
+    "saved": 2,
+    "why": "Doubling the already-negated r8 computes the original rbx result modulo 2^64, replacing its copy, doubling, and negation with one LEA. The final AND preserves the required ZF."
+  },
+  "d48e494270": {
+    "rewrite": null,
+    "why": "The four pointer updates, two copies, copy-and-shift for rbp, and flag-setting 32-bit decrement each contribute required final state."
+  },
+  "674a6c6200": {
+    "rewrite": "mov r15,r8\nneg r8\nlea rbx,[r8+r8*1]\nneg rbp\nand r15,0x7f",
+    "saved": 2,
+    "why": "Doubling the already-negated r8 computes the original rbx result modulo 2^64, replacing its copy, doubling, and negation with one LEA. The final AND preserves the required ZF."
+  },
+  "74459a6138": {
+    "rewrite": null,
+    "why": "The four pointer updates, two copies, copy-and-shift for rbp, and flag-setting 32-bit decrement each contribute required final state."
+  },
+  "4d4d5c8d52": {
+    "rewrite": null,
+    "why": "The two sign-extending loads, two independently required zeroed XMM registers, and r11 copy each need their own instruction."
+  },
+  "b12b2a8a18": {
+    "rewrite": null,
+    "why": "SSE2 requires separate unpacking, multiply-add, and accumulation for each input, together with both pointer updates and the final comparison."
+  },
+  "6227a8f6b0": {
+    "rewrite": null,
+    "why": "The required xmm1 and xmm4 intermediates and xmm0's retained high half prevent dropping the unpack, shuffle, or partial-register move in this SSE2 reduction."
+  },
+  "afbac97c35": {
+    "rewrite": null,
+    "why": "Both independent loads, multiply-adds, and accumulations are needed, as are the two pointer updates and comparison that establishes the required flags."
+  },
+  "9d9a6fdd3b": {
+    "rewrite": null,
+    "why": "The required xmm1 and xmm4 intermediates and xmm0's retained high half prevent dropping the unpack, shuffle, or partial-register move in this SSE2 reduction."
+  },
+  "59f54574b4": {
+    "rewrite": null,
+    "why": "The required xmm1 and xmm4 intermediates and xmm0's retained high half prevent dropping the unpack, shuffle, or partial-register move in this SSE2 reduction."
+  }
+}

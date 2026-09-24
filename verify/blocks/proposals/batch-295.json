@@ -1,0 +1,82 @@
+{
+  "036c269f89": {
+    "rewrite": null,
+    "why": "The load, comparison, mask extraction, and test are needed to preserve xmm0, xmm1, rax, and ZF."
+  },
+  "931ed26c50": {
+    "rewrite": null,
+    "why": "Pointer alignment and index extraction each need two operations, and the count addition and subtraction preserve the required wraparound-dependent CF and ZF."
+  },
+  "a36541f3ed": {
+    "rewrite": null,
+    "why": "The bit-scan result must remain in rax, so its shifted copy and the flag-setting subtraction are still required."
+  },
+  "81bf85a5e0": {
+    "rewrite": null,
+    "why": "The count requires negation, an offset, and a logical shift before the final subtraction that supplies CF and ZF."
+  },
+  "8a03ca2796": {
+    "rewrite": null,
+    "why": "The load, comparison, mask extraction, and test are needed to preserve xmm0, xmm1, rax, and ZF."
+  },
+  "3091e08d0f": {
+    "rewrite": null,
+    "why": "Preserving xmm1 requires a separate load or copy before the comparison, followed by mask extraction and a test for ZF."
+  },
+  "7247763747": {
+    "rewrite": null,
+    "why": "Preserving xmm1 requires a separate load or copy before the comparison, followed by mask extraction and a test for ZF."
+  },
+  "c46bc10751": {
+    "rewrite": null,
+    "why": "The comparison and mask extraction must preserve xmm1, while the pointer increment and the mask-dependent ZF update are independently required."
+  },
+  "f16d4e14db": {
+    "rewrite": null,
+    "why": "The comparison and mask extraction must preserve xmm1, while the pointer increment and the mask-dependent ZF update are independently required."
+  },
+  "371fbb9b76": {
+    "rewrite": null,
+    "why": "The aligned pointer and adjusted count require retaining the original low pointer bits, masking and shifting them, and adding the extracted count."
+  },
+  "77fc26a3a6": {
+    "rewrite": null,
+    "why": "All four comparisons contribute to ZF, xmm0 and xmm2 must retain their masks, and SSE2 requires the reduction, mask extraction, and explicit flag update."
+  },
+  "320e597a8c": {
+    "rewrite": null,
+    "why": "Both comparisons contribute required outputs, and extracting the first comparison mask into rax and setting ZF still require separate instructions."
+  },
+  "256258c674": {
+    "rewrite": null,
+    "why": "The edx adjustment and xmm0 comparison mask are live, while extracting eax and setting ZF require separate instructions."
+  },
+  "4d4035ba45": {
+    "rewrite": null,
+    "why": "The comparison already folds in the second buffer load, and mask extraction plus increment are needed to produce rax and ZF."
+  },
+  "f9971cd4f5": {
+    "rewrite": null,
+    "why": "The comparison already folds in the second buffer load, and mask extraction plus increment are needed to produce rax and ZF."
+  },
+  "573878b866": {
+    "rewrite": null,
+    "why": "The comparison already folds in the second buffer load, and mask extraction plus increment are needed to produce rax and ZF."
+  },
+  "1513372f2b": {
+    "rewrite": null,
+    "why": "The comparison already folds in the second buffer load, and mask extraction plus increment are needed to produce rcx and ZF."
+  },
+  "8c733e3a82": {
+    "rewrite": null,
+    "why": "The indexed comparison already folds in the second buffer load, and mask extraction plus increment are needed to produce rax and ZF."
+  },
+  "8a8b340331": {
+    "rewrite": null,
+    "why": "The indexed comparison already folds in the second buffer load, and mask extraction plus increment are needed to produce rax and ZF."
+  },
+  "0b87a6c017": {
+    "rewrite": null,
+    "why": "The comparison, incremented mask in rax, and masked result in rdx are all required, with bzhi also supplying the final ZF."
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "5d619baded": {
+    "rewrite": null,
+    "why": "The loaded vectors, final comparison vector and zeroed xmm6 are all live, and the minimum reduction, byte comparisons and scalar mask assembly have no removable SSE2 instruction."
+  },
+  "3db19fc6c8": {
+    "rewrite": null,
+    "why": "Both byte broadcasts require their SSE2 replication steps, while the masked address comparison must preserve both CF and ZF."
+  },
+  "df7cdc5176": {
+    "rewrite": "movdqu xmm3,XMMWORD PTR [rdi]\npxor xmm5,xmm5\nmovdqu xmm4,XMMWORD PTR [rdi+0x1]\nmovdqa xmm6,xmm3\npcmpeqb xmm3,xmm1\npcmpeqb xmm4,xmm2\nmovdqu xmm0,XMMWORD PTR [rdi+0x10]\npcmpeqb xmm6,xmm5\npminub xmm4,xmm3\nmovdqu xmm3,XMMWORD PTR [rdi+0x11]\npcmpeqb xmm5,xmm0\npcmpeqb xmm3,xmm2\npor xmm4,xmm6\npcmpeqb xmm0,xmm1\npminub xmm0,xmm3\npor xmm0,xmm5\npmovmskb r8d,xmm4\npmovmskb eax,xmm0\nshl rax,0x10\nor r8,rax",
+    "saved": 1,
+    "why": "PMINUB is commutative, so computing the first minimum directly in xmm4 eliminates the following copy. The old xmm3 temporary is overwritten by the next load."
+  },
+  "21bf8f47d1": {
+    "rewrite": "movdqu xmm3,XMMWORD PTR [rdi+0x20]\npxor xmm5,xmm5\nmovdqu xmm4,XMMWORD PTR [rdi+0x21]\nmovdqa xmm6,xmm3\npcmpeqb xmm3,xmm1\npcmpeqb xmm4,xmm2\nmovdqu xmm0,XMMWORD PTR [rdi+0x30]\npcmpeqb xmm6,xmm5\npminub xmm4,xmm3\nmovdqu xmm3,XMMWORD PTR [rdi+0x31]\npcmpeqb xmm5,xmm0\npcmpeqb xmm3,xmm2\npor xmm4,xmm6\npcmpeqb xmm0,xmm1\npminub xmm0,xmm3\npor xmm0,xmm5\npmovmskb eax,xmm4\nshl rax,0x20\npmovmskb r8d,xmm0\nshl r8,0x30\nor r8,rax",
+    "saved": 1,
+    "why": "Writing the commutative first minimum directly to xmm4 removes its copy from xmm3. The subsequent load replaces xmm3 before its final value is computed."
+  },
+  "d4dd80fe40": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required result: r11, the original pointer in r9, zero in xmm7, or the aligned pointer in rdi."
+  },
+  "2ddade029b": {
+    "rewrite": null,
+    "why": "All vector masks and scalar partial masks are required outputs, and the xmm8 copy is needed to compute two different comparisons of the same loaded data."
+  },
+  "a86b75690f": {
+    "rewrite": null,
+    "why": "The updated r11 and pointer difference in rax are both live, and the final comparison is needed to produce the required SF and OF."
+  },
+  "f8a906477f": {
+    "rewrite": null,
+    "why": "AVX2 needs separate GPR transfer and broadcast instructions, while the zeroed ymm9 and the address comparison producing CF and ZF are also required."
+  },
+  "9992e29dbf": {
+    "rewrite": null,
+    "why": "The loaded ymm8, both final comparison vectors and scalar mask are live, and extracting the mask does not set the required ZF."
+  },
+  "e1c596c09c": {
+    "rewrite": null,
+    "why": "The load, two comparisons, mask union and scalar extraction each produce required data, and TEST is still needed for ZF."
+  },
+  "b8610f88b1": {
+    "rewrite": null,
+    "why": "The loaded vector and resulting vector and scalar masks must all be preserved, leaving no removable operation before the required ZF test."
+  },
+  "ab4fa0a214": {
+    "rewrite": null,
+    "why": "Every data-producing instruction contributes a required vector or scalar result, and the final TEST supplies ZF."
+  },
+  "3360ce3585": {
+    "rewrite": null,
+    "why": "Preserving ymm8, the comparison results and rax requires all five data operations, while a separate instruction must set ZF."
+  },
+  "a9ae891bdb": {
+    "rewrite": "vmovdqa ymm7,YMMWORD PTR [rdi+0x40]\nvmovdqa ymm8,YMMWORD PTR [rdi+0x60]\nvpxor ymm1,ymm0,YMMWORD PTR [rdi]\nvpxor ymm2,ymm0,YMMWORD PTR [rdi+0x20]\nvpxor ymm3,ymm0,ymm7\nvpxor ymm4,ymm0,ymm8\nvpminud ymm1,ymm1,YMMWORD PTR [rdi]\nvpminud ymm2,ymm2,YMMWORD PTR [rdi+0x20]\nvpminud ymm3,ymm7,ymm3\nvpminud ymm4,ymm8,ymm4\nvpminud ymm5,ymm2,ymm1\nvpminud ymm6,ymm4,ymm3\nvpminud ymm6,ymm6,ymm5\nvpcmpeqd ymm6,ymm9,ymm6\nvpmovmskb ecx,ymm6\nsub rdi,0xffffffffffffff80\ntest ecx,ecx",
+    "saved": 2,
+    "why": "The initial loaded values of ymm5 and ymm6 are temporary, so their loads can be folded into the XOR and unsigned-minimum memory operands at the original addresses. The subsequent reduction still produces every required vector, rcx, rdi and ZF."
+  },
+  "1d19d35997": {
+    "rewrite": null,
+    "why": "The broadcast and vector zeroing are already single instructions, and the copied, masked address still needs its comparison to preserve CF and ZF."
+  },
+  "184b761cd2": {
+    "rewrite": null,
+    "why": "The loaded vector, XOR/minimum result, k0 and rax are all required, and neither the mask comparison nor KMOVD sets ZF."
+  },
+  "5a18980bc0": {
+    "rewrite": null,
+    "why": "All vector and mask results are live, and the required scalar mask extraction and ZF test cannot be combined."
+  },
+  "344f252061": {
+    "rewrite": null,
+    "why": "The loaded vector and both comparison masks are required outputs, and KORTESTD is needed to produce the required PF and ZF."
+  },
+  "166aaa9735": {
+    "rewrite": null,
+    "why": "Preserving the loaded vector, minimum result, k0 and rax requires the existing data operations, followed by TEST for ZF."
+  },
+  "a361cc4f36": {
+    "rewrite": null,
+    "why": "The load and two comparisons each produce a required result, and the final mask test supplies the required PF and ZF."
+  }
+}

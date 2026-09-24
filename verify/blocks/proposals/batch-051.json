@@ -1,0 +1,89 @@
+{
+  "38151d5cb7": {
+    "rewrite": "vextracti128 xmm1,ymm0,0x1\nvpaddd xmm0,xmm0,xmm1\nvpshufd xmm1,xmm0,0x2\nvpaddd xmm0,xmm0,xmm1\nvmovd eax,xmm0",
+    "saved": 1,
+    "why": "The VEX-encoded writes to xmm0 already zero the upper half of ymm0, and no other vector register is preserved, so vzeroupper is redundant."
+  },
+  "07ef89dfb6": {
+    "rewrite": "mov rbp,rsp\nmovsxd r8,DWORD PTR [rdi]\nmov r9,QWORD PTR [rdi+0x8]\nmov r11,r8",
+    "saved": 2,
+    "why": "The stack alignment and allocation affect only rsp and dead flags; removing them preserves every required output and leaves rsp untouched."
+  },
+  "68e72201a3": {
+    "rewrite": null,
+    "why": "The saved stack pointer, two loaded values, and flags from the aligned-pointer subtraction cannot be reproduced with fewer instructions while leaving rsp untouched."
+  },
+  "c5df562b36": {
+    "rewrite": null,
+    "why": "The saved stack pointer, two loaded values, and flags from the aligned-pointer subtraction cannot be reproduced with fewer instructions while leaving rsp untouched."
+  },
+  "85ff36d3b2": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required value, and replacing the immediate multiplies with LEA would not reduce the instruction count."
+  },
+  "55e5705977": {
+    "rewrite": null,
+    "why": "AVX2 requires a separate register transfer and broadcast for each scalar, and the doubling, pointer copy, and all-ones vector are also needed."
+  },
+  "246faceda9": {
+    "rewrite": "vmovshdup ymm4,YMMWORD PTR [rax+r11*1]\nvmovshdup ymm5,YMMWORD PTR [rax+r10*1]\nvmovsldup ymm6,YMMWORD PTR [rax+r11*1]\nvmovsldup ymm7,YMMWORD PTR [rax+r10*1]\nvpermilps ymm2,YMMWORD PTR [rsi+r11*1],0xb1\nvpermilps ymm3,YMMWORD PTR [rsi+r10*1],0xb1\nvmulps ymm6,ymm6,YMMWORD PTR [rsi+r11*1]\nvmulps ymm7,ymm7,YMMWORD PTR [rsi+r10*1]\nvfmaddsub213ps ymm4,ymm2,ymm6\nvfmaddsub213ps ymm5,ymm3,ymm7\nvpermpd ymm3,ymm5,0x1b\nvpermpd ymm2,ymm4,0x1b\nvblendps ymm1,ymm2,ymm5,0x55\nvblendps ymm0,ymm3,ymm4,0x55\nvmovups YMMWORD PTR [rsi+r11*1],ymm0\nvmovups YMMWORD PTR [rsi+r10*1],ymm1\nadd r10,0x20\nsub r11,0x20\nsub r8,0x10",
+    "saved": 4,
+    "why": "Fold the four explicit loads into memory-source duplication, permutation, and multiply instructions. The floating-point operations, store order, final ymm0, and scalar updates remain identical."
+  },
+  "b4f2b952c6": {
+    "rewrite": null,
+    "why": "Preserving the saved stack pointer, both loads, and all subtraction flags leaves no shorter sequence that keeps rsp untouched."
+  },
+  "9c888a2de8": {
+    "rewrite": null,
+    "why": "All seven pointer loads, the saved count, and the five independently required pointer differences are necessary."
+  },
+  "dd92417fb0": {
+    "rewrite": null,
+    "why": "The unaligned loads cannot safely be folded into legacy SSE unpack memory operands, and the unpack-and-merge network has no removable copy."
+  },
+  "5e0a8c946b": {
+    "rewrite": null,
+    "why": "Every loaded pointer and the saved count must survive, and TEST is needed to reproduce the required flags."
+  },
+  "c7ebf5dfeb": {
+    "rewrite": null,
+    "why": "Each subtraction updates a different required register, so none can be removed or combined into a single SSE2-level scalar instruction."
+  },
+  "c6278da049": {
+    "rewrite": "movaps xmm0,XMMWORD PTR [rsi]\nmovaps xmm2,XMMWORD PTR [rsi+rcx*1]\nmovaps xmm4,XMMWORD PTR [rsi+r9*1]\nmovaps xmm6,xmm0\nunpcklps xmm6,XMMWORD PTR [rsi+rdx*1]\nunpckhps xmm0,XMMWORD PTR [rsi+rdx*1]\nmovaps xmm1,xmm2\nunpcklps xmm1,XMMWORD PTR [rsi+r8*1]\nunpckhps xmm2,XMMWORD PTR [rsi+r8*1]\nmovaps xmm3,xmm4\nunpcklps xmm3,XMMWORD PTR [rsi+rax*1]\nunpckhps xmm4,XMMWORD PTR [rsi+rax*1]\nmovaps xmm5,xmm3\nshufps xmm3,xmm6,0xe4\nmovlhps xmm6,xmm1\nmovhlps xmm5,xmm1\nmovaps xmm1,xmm4\nshufps xmm4,xmm0,0xe4\nmovlhps xmm0,xmm2\nmovhlps xmm1,xmm2\nmovaps XMMWORD PTR [rdi],xmm6\nmovaps XMMWORD PTR [rdi+0x10],xmm3\nmovaps XMMWORD PTR [rdi+0x20],xmm5\nmovaps XMMWORD PTR [rdi+0x30],xmm0\nmovaps XMMWORD PTR [rdi+0x40],xmm4\nmovaps XMMWORD PTR [rdi+0x50],xmm1\nadd rsi,0x10\nadd rdi,0x60\nsub r10d,0x4",
+    "saved": 3,
+    "why": "Fold the three aligned second-source loads into the low/high unpack pairs, leaving the remaining shuffle network, stores, and scalar updates unchanged."
+  },
+  "4c2cfe327a": {
+    "rewrite": "movups xmm0,XMMWORD PTR [rsi]\nmovups xmm1,XMMWORD PTR [rsi+0x10]\nmovups xmm2,XMMWORD PTR [rsi+0x20]\nmovups xmm3,XMMWORD PTR [rsi+0x30]\nmovups xmm4,XMMWORD PTR [rsi+0x40]\nmovups xmm5,XMMWORD PTR [rsi+0x50]\nmovaps xmm6,xmm0\nshufps xmm6,xmm1,0xe4\nshufps xmm1,xmm2,0xe4\nshufpd xmm0,xmm2,0x1\nmovaps xmm7,xmm3\nshufps xmm7,xmm4,0xe4\nshufps xmm4,xmm5,0xe4\nshufpd xmm3,xmm5,0x1\nmovaps xmm5,xmm6\nshufps xmm5,xmm7,0x88\nshufps xmm6,xmm7,0xdd\nmovaps xmm2,xmm0\nshufps xmm2,xmm3,0x88\nshufps xmm0,xmm3,0xdd\nmovaps xmm3,xmm1\nshufps xmm3,xmm4,0x88\nshufps xmm1,xmm4,0xdd\nmovups XMMWORD PTR [rdi],xmm5\nmovups XMMWORD PTR [rdi+rdx*1],xmm6\nmovups XMMWORD PTR [rdi+rcx*1],xmm2\nmovups XMMWORD PTR [rdi+r8*1],xmm0\nmovups XMMWORD PTR [rdi+r9*1],xmm3\nmovups XMMWORD PTR [rdi+rax*1],xmm1\nadd rsi,0x60\nadd rdi,0x10\nsub r10d,0x4",
+    "saved": 1,
+    "why": "Regroup adjacent channel pairs before separating channels, reducing the register shuffle network from 18 instructions to 17. All loads, ordered store values, final xmm0, and scalar updates are preserved."
+  },
+  "dd5b1c59ed": {
+    "rewrite": null,
+    "why": "Every loaded pointer and the saved count must survive, and TEST is needed to reproduce the required flags."
+  },
+  "3003e11875": {
+    "rewrite": "movaps xmm0,XMMWORD PTR [rsi]\nmovaps xmm1,XMMWORD PTR [rsi+0x10]\nmovaps xmm2,XMMWORD PTR [rsi+0x20]\nmovaps xmm6,xmm0\nunpcklps xmm6,XMMWORD PTR [rsi+0x30]\nunpckhps xmm0,XMMWORD PTR [rsi+0x30]\nmovaps xmm3,xmm1\nunpcklps xmm3,XMMWORD PTR [rsi+0x40]\nunpckhps xmm1,XMMWORD PTR [rsi+0x40]\nmovaps xmm4,xmm2\nunpcklps xmm4,XMMWORD PTR [rsi+0x50]\nunpckhps xmm2,XMMWORD PTR [rsi+0x50]\nmovaps xmm5,xmm6\nunpcklps xmm5,xmm1\nunpckhps xmm6,xmm1\nmovaps xmm1,xmm0\nunpcklps xmm1,xmm4\nunpckhps xmm0,xmm4\nmovaps xmm4,xmm3\nunpcklps xmm4,xmm2\nunpckhps xmm3,xmm2\nmovaps XMMWORD PTR [rdi],xmm5\nmovaps XMMWORD PTR [rdi+rdx*1],xmm6\nmovaps XMMWORD PTR [rdi+rcx*1],xmm1\nmovaps XMMWORD PTR [rdi+r8*1],xmm0\nmovaps XMMWORD PTR [rdi+r9*1],xmm4\nmovaps XMMWORD PTR [rdi+rax*1],xmm3\nadd rsi,0x60\nadd rdi,0x10\nsub r10d,0x4",
+    "saved": 3,
+    "why": "Fold the three aligned second-source loads into the first-stage unpack instructions while preserving every later operation and store."
+  },
+  "9cc509f5c8": {
+    "rewrite": null,
+    "why": "The four shifted-word expansions need their zero/unpack pairs, and the unaligned source loads cannot safely be folded into legacy SSE2 unpack memory operands."
+  },
+  "0a8aff974c": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+rdx*2]\npxor xmm2,xmm2\npxor xmm3,xmm3\npunpcklwd xmm2,XMMWORD PTR [rsi+rdx*2+0x10]\npunpckhwd xmm3,XMMWORD PTR [rsi+rdx*2+0x10]\npxor xmm4,xmm4\npxor xmm1,xmm1\npunpcklwd xmm4,xmm0\npunpckhwd xmm1,xmm0\nmovdqa XMMWORD PTR [rdi+rdx*4],xmm4\nmovdqa XMMWORD PTR [rdi+rdx*4+0x10],xmm1\nmovdqa XMMWORD PTR [rdi+rdx*4+0x20],xmm2\nmovdqa XMMWORD PTR [rdi+rdx*4+0x30],xmm3\nadd rdx,0x10",
+    "saved": 1,
+    "why": "Fold the second aligned vector load into its two unpack instructions; xmm0, the expanded vectors, stores, and final flags remain unchanged."
+  },
+  "3e1a6005e2": {
+    "rewrite": null,
+    "why": "SSE2 needs the four arithmetic shifts before the two signed packs, and these immediate shifts cannot absorb their source loads."
+  },
+  "2a50aa4e93": {
+    "rewrite": null,
+    "why": "SSE2 needs the four arithmetic shifts before the two signed packs, and these immediate shifts cannot absorb their source loads."
+  }
+}

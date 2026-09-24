@@ -1,0 +1,89 @@
+{
+  "45526a7e8e": {
+    "rewrite": null,
+    "why": "Both carry chains, their saved limb values, the borrow mask, and the final flag-setting TEST are required."
+  },
+  "432609a26a": {
+    "rewrite": null,
+    "why": "Both carry chains and all saved limb values are live, and the final TEST must set flags from the borrow mask."
+  },
+  "d488aea48f": {
+    "rewrite": null,
+    "why": "The doubled limbs, saved copies, carry bit, and complete subtraction chain are all required outputs or dependencies."
+  },
+  "2228140b43": {
+    "rewrite": "xor r11,r11\nadc r12,QWORD PTR [rbx]\nadc r13,QWORD PTR [rbx+0x8]\nmov rax,r12\nadc r8,QWORD PTR [rbx+0x10]\nadc r9,QWORD PTR [rbx+0x18]\nmov rbp,r13\nadc r11,0x0\nsub r12,0xffffffffffffffff\nmov rcx,r8\nsbb r13,r14\nsbb r8,0x0\nmov r10,r9\nsbb r9,r15\nsbb r11,0x0",
+    "saved": 1,
+    "why": "Replace the carry-clearing XOR and following SBB with SUB; the zeroed r10 value is overwritten before use."
+  },
+  "ee68cc19f6": {
+    "rewrite": "sub r12,QWORD PTR [rbx]\nsbb r13,QWORD PTR [rbx+0x8]\nmov rax,r12\nsbb r8,QWORD PTR [rbx+0x10]\nsbb r9,QWORD PTR [rbx+0x18]\nmov rbp,r13\nsbb r11,r11\nadd r12,0xffffffffffffffff\nmov rcx,r8\nadc r13,r14\nadc r8,0x0\nmov r10,r9\nadc r9,r15\nbt r11,0x0",
+    "saved": 2,
+    "why": "Starting with SUB and forming the borrow mask with SBB r11,r11 removes the initial zeroing. Replacing the later carry clear and ADC with ADD removes another instruction."
+  },
+  "9d4408dc99": {
+    "rewrite": "sub rax,r12\nsbb rbp,r13\nmov r12,rax\nsbb rcx,r8\nsbb r10,r9\nmov r13,rbp\nsbb r11,r11\nadd rax,0xffffffffffffffff\nmov r8,rcx\nadc rbp,r14\nadc rcx,0x0\nmov r9,r10\nadc r10,r15\nbt r11,0x0",
+    "saved": 2,
+    "why": "SUB and SBB r11,r11 eliminate the initial zeroing while preserving the borrow mask. ADD replaces the later carry-clearing XOR and ADC pair."
+  },
+  "e4f3b019b2": {
+    "rewrite": "xor r11,r11\nadc r12,r12\nadc r13,r13\nmov rax,r12\nadc r8,r8\nadc r9,r9\nmov rbp,r13\nadc r11,0x0\nsub r12,0xffffffffffffffff\nmov rcx,r8\nsbb r13,r14\nsbb r8,0x0\nmov r10,r9\nsbb r9,r15\nsbb r11,0x0",
+    "saved": 1,
+    "why": "SUB replaces the carry-clearing XOR and following SBB, and the discarded zero in r10 is overwritten before use."
+  },
+  "2c97c80d99": {
+    "rewrite": null,
+    "why": "The four widening products, carry propagation, two reduction folds, and stores are required with every resulting register and flag preserved."
+  },
+  "0ae523fa31": {
+    "rewrite": null,
+    "why": "Arbitrary full-width inputs require both carry-reduction folds, and every loaded limb, result, store, and final flag is live."
+  },
+  "56125377c9": {
+    "rewrite": null,
+    "why": "Arbitrary full-width inputs require both borrow-reduction folds, and all result registers, stores, and final flags must be retained."
+  },
+  "1ba44dfd28": {
+    "rewrite": null,
+    "why": "Each of the four instructions produces a distinct required vector result."
+  },
+  "b37f581271": {
+    "rewrite": null,
+    "why": "The loaded shuffle mask and increments are arbitrary, and all six shuffled counter results, both XOR results, and the separate load are needed."
+  },
+  "8aeb2db7a3": {
+    "rewrite": null,
+    "why": "Every instruction produces a required register value, including the loaded XOR operand, and the final addition must preserve carry."
+  },
+  "adc5f54361": {
+    "rewrite": null,
+    "why": "All six bytewise sums and five XOR results are required, with no permitted instruction combining these operations."
+  },
+  "35d00cbf3f": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask and increments require the six addition-and-shuffle results and five separate XOR operations."
+  },
+  "392bd2204f": {
+    "rewrite": null,
+    "why": "The carry-less products and saved vectors are live, and combining the two scalar subtractions would change the required final carry flag."
+  },
+  "2290c177fd": {
+    "rewrite": "pclmullqlqdq xmm0,xmm15\npclmulhqhqdq xmm1,xmm15\npclmullqhqdq xmm8,xmm7\nxorps xmm4,xmm12\nxorps xmm0,xmm3\nxorps xmm1,xmm5\npxor xmm8,xmm4\npxor xmm8,xmm0\npxor xmm8,xmm1\nmovdqa xmm9,xmm8\npsrldq xmm8,0x8\npslldq xmm9,0x8\npxor xmm1,xmm8\npxor xmm0,xmm9\nmovdqa xmm4,xmm0\nmovdqa xmm3,xmm0\npsllq xmm0,0x5\npxor xmm3,xmm0\npsllq xmm0,0x1\npxor xmm0,xmm3\npsllq xmm0,0x39\nmovdqa xmm3,xmm0\npslldq xmm0,0x8\npsrldq xmm3,0x8\npxor xmm0,xmm4\npxor xmm1,xmm3\nmovdqa xmm4,xmm0\npsrlq xmm0,0x1\npxor xmm1,xmm4\npxor xmm4,xmm0\npsrlq xmm0,0x5\npxor xmm0,xmm4\npsrlq xmm0,0x1\npxor xmm0,xmm1\nadd rcx,0x40",
+    "saved": 1,
+    "why": "XOR xmm0 and xmm1 directly into xmm8 instead of temporarily XORing xmm0 into xmm1 and then restoring xmm1. This computes the same accumulated value with one fewer XOR."
+  },
+  "360c42e9f3": {
+    "rewrite": null,
+    "why": "The two shuffled loads and three distinct carry-less products require the existing operand preparation under the legacy two-operand ISA."
+  },
+  "ba2c2a562f": {
+    "rewrite": "movdqa xmm1,xmm0\npshufd xmm8,xmm0,0x4e\npxor xmm8,xmm0\npclmullqlqdq xmm0,xmm6\npclmulhqhqdq xmm1,xmm6\npclmullqhqdq xmm8,xmm7\npxor xmm0,xmm3\npxor xmm1,xmm5\nmovdqu xmm9,XMMWORD PTR [rdx]\npxor xmm8,xmm0\npshufb xmm9,xmm10\nmovdqu xmm3,XMMWORD PTR [rdx+0x10]\npxor xmm8,xmm1\npxor xmm1,xmm9\npxor xmm4,xmm8\npshufb xmm3,xmm10\nmovdqa xmm8,xmm4\npsrldq xmm8,0x8\npslldq xmm4,0x8\npxor xmm1,xmm8\npxor xmm0,xmm4\nmovdqa xmm5,xmm3\nmovdqa xmm9,xmm0\nmovdqa xmm8,xmm0\npsllq xmm0,0x5\npxor xmm8,xmm0\npclmullqlqdq xmm3,xmm2\npsllq xmm0,0x1\npxor xmm0,xmm8\npsllq xmm0,0x39\nmovdqa xmm8,xmm0\npslldq xmm0,0x8\npsrldq xmm8,0x8\npxor xmm0,xmm9\npshufd xmm4,xmm5,0x4e\npxor xmm1,xmm8\npxor xmm4,xmm5\nmovdqa xmm9,xmm0\npsrlq xmm0,0x1\npclmulhqhqdq xmm5,xmm2\npxor xmm1,xmm9\npxor xmm9,xmm0\npsrlq xmm0,0x5\npxor xmm0,xmm9\nlea rdx,[rdx+0x20]\npsrlq xmm0,0x1\npclmullqlqdq xmm4,xmm7\npxor xmm0,xmm1\nsub rcx,0x20",
+    "saved": 1,
+    "why": "Compute the middle carry-less product directly in xmm8 while retaining the incoming accumulator in xmm4. Their later XOR yields the same value and eliminates the initial copy."
+  },
+  "3f9f482387": {
+    "rewrite": "movdqa xmm1,xmm0\npshufd xmm8,xmm0,0x4e\npxor xmm8,xmm0\npclmullqlqdq xmm0,xmm6\npclmulhqhqdq xmm1,xmm6\npclmullqhqdq xmm8,xmm7\npxor xmm0,xmm3\npxor xmm1,xmm5\npxor xmm8,xmm0\npxor xmm8,xmm1\npxor xmm4,xmm8\nmovdqa xmm8,xmm4\npsrldq xmm8,0x8\npslldq xmm4,0x8\npxor xmm1,xmm8\npxor xmm0,xmm4\nmovdqa xmm4,xmm0\nmovdqa xmm3,xmm0\npsllq xmm0,0x5\npxor xmm3,xmm0\npsllq xmm0,0x1\npxor xmm0,xmm3\npsllq xmm0,0x39\nmovdqa xmm3,xmm0\npslldq xmm0,0x8\npsrldq xmm3,0x8\npxor xmm0,xmm4\npxor xmm1,xmm3\nmovdqa xmm4,xmm0\npsrlq xmm0,0x1\npxor xmm1,xmm4\npxor xmm4,xmm0\npsrlq xmm0,0x5\npxor xmm0,xmm4\npsrlq xmm0,0x1\npxor xmm0,xmm1\ntest rcx,rcx",
+    "saved": 1,
+    "why": "Form the middle carry-less product in xmm8 and keep the incoming accumulator in xmm4 until their XOR. This removes one copy while preserving all subsequent vector values and flags."
+  }
+}

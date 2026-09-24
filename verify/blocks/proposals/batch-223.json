@@ -1,0 +1,87 @@
+{
+  "57c8f0ae6c": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rdi]\nmovdqa xmm0,xmm1\npunpcklbw xmm0,XMMWORD PTR [rdx]\npunpckhbw xmm1,XMMWORD PTR [rdx]\npmaddubsw xmm0,xmm3\npmaddubsw xmm1,xmm4\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npackuswb xmm0,xmm1\nmovdqa XMMWORD PTR [rdi],xmm0\nadd rdx,0x10\nadd rdi,rsi\ndec r8d",
+    "saved": 1,
+    "why": "Use memory operands for both unpacks, eliminating the separate load into xmm2 while reading only the original 16-byte source region."
+  },
+  "8f7b8a504e": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rdi]\nmovdqa xmm0,xmm1\npunpcklbw xmm0,XMMWORD PTR [rdx]\npunpckhbw xmm1,XMMWORD PTR [rdx]\npmaddubsw xmm0,xmm3\npmaddubsw xmm1,xmm4\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npackuswb xmm0,xmm1\nmovq xmm1,QWORD PTR [rdi+0x10]\npunpcklbw xmm1,XMMWORD PTR [rdx+0x10]\npmaddubsw xmm1,xmm6\npmulhrsw xmm1,xmm5\npackuswb xmm1,xmm1\nmovdqa XMMWORD PTR [rdi],xmm0\nmovq QWORD PTR [rdi+0x10],xmm1\nadd rdx,0x20\nadd rdi,rsi\ndec r8d",
+    "saved": 1,
+    "why": "Fold the first source load into both unpacks; xmm2 has no required final value and both accesses stay within the original load."
+  },
+  "f937abcd9a": {
+    "rewrite": null,
+    "why": "The narrow loads and two separate word stores cannot be folded into shorter SSSE3 forms, and the full xmm0 result must be retained."
+  },
+  "f228170117": {
+    "rewrite": null,
+    "why": "The two four-byte row loads require an explicit merge under SSSE3, and the shifts, stores, and final xmm0 value are all needed."
+  },
+  "06cc687399": {
+    "rewrite": "movd xmm4,DWORD PTR [r9+r8*2]\npunpcklwd xmm4,xmm4\npshufd xmm3,xmm4,0x0\npshufd xmm4,xmm4,0x55\nmovq xmm0,QWORD PTR [rdi]\nmovhps xmm1,QWORD PTR [rdi+rsi*1]\npunpcklbw xmm0,XMMWORD PTR [rdx]\npunpckhbw xmm1,XMMWORD PTR [rdx]\npmaddubsw xmm0,xmm3\npmaddubsw xmm1,xmm4\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npackuswb xmm0,xmm1\nmovq QWORD PTR [rdi],xmm0\nmovhps QWORD PTR [rdi+rsi*1],xmm0\nlea rdi,[rdi+rsi*2]\nadd rdx,0x10\nadd r8,0x2",
+    "saved": 2,
+    "why": "Load each destination row directly into the register half consumed by its unpack, removing the copy. Fold the source load into both unpacks to remove another instruction."
+  },
+  "b255c0998e": {
+    "rewrite": null,
+    "why": "Broadcasting the loaded word throughout xmm3 requires the load and both shuffles with the available inputs, and ecx must also be updated."
+  },
+  "3080c9cb6d": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rdi]\nmovdqa xmm0,xmm1\npunpcklbw xmm0,XMMWORD PTR [rdx]\npunpckhbw xmm1,XMMWORD PTR [rdx]\npmaddubsw xmm0,xmm3\npmaddubsw xmm1,xmm3\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npackuswb xmm0,xmm1\nmovdqa XMMWORD PTR [rdi],xmm0\nadd rdi,0x10\nadd rdx,0x10\nsub ecx,0x10",
+    "saved": 1,
+    "why": "Use memory operands for both unpacks to eliminate the separate source load into xmm2, whose final value is not required."
+  },
+  "d559a30761": {
+    "rewrite": null,
+    "why": "The vector load, store, index update, and comparison each produce a required memory, register, or flag result."
+  },
+  "2df1ce0730": {
+    "rewrite": null,
+    "why": "The pointer update, narrow load, arbitrary byte shuffle, and rcx zeroing all produce required values."
+  },
+  "5c29c30692": {
+    "rewrite": null,
+    "why": "The address calculation, narrow load, arbitrary byte shuffle, and rcx zeroing are independently required."
+  },
+  "c220846a13": {
+    "rewrite": null,
+    "why": "Both shifts are required, and SSSE3 has no instruction that fuses the signed word multiply-add with the dword accumulation."
+  },
+  "2d9233e3b3": {
+    "rewrite": "movq rbx,xmm3\nmovsxd r11,ebx\nsar rbx,0x20\npunpckhqdq xmm3,xmm3\nmovq r14,xmm3\nmovsxd rbp,r14d\nsar r14,0x20",
+    "saved": 4,
+    "why": "Each MOVQ extracts two dwords, with MOVSXD sign-extending the low lane and SAR sign-extending the high lane. This removes two vector shuffles and two extraction instructions; xmm3 and the flags have no required final values."
+  },
+  "2a894866ec": {
+    "rewrite": null,
+    "why": "Each arbitrary byte-shuffle mask needs its byte addition before the corresponding shuffle produces its required output."
+  },
+  "6e58f8edd3": {
+    "rewrite": null,
+    "why": "The multiply-adds, wrapping and saturating horizontal sums, scaling, packing, store, and loop updates all affect required results."
+  },
+  "ad4da2aeba": {
+    "rewrite": null,
+    "why": "The signed shifts, saturating packs, rounded scaling, constant register value, stores, and decrement are all required."
+  },
+  "ceca232d0b": {
+    "rewrite": null,
+    "why": "Required vector results include the shifted inputs, scaling constant, and scaled words as well as packed bytes, leaving no removable stage."
+  },
+  "0440363d1d": {
+    "rewrite": null,
+    "why": "Legacy SSE requires a copy before each destructive shift because both source vectors and both shifted results must be preserved."
+  },
+  "80e9f825ac": {
+    "rewrite": null,
+    "why": "SSE4.1 provides no fused replacement for these signed shifts, saturating packs, and rounded multiplies while retaining every required vector result."
+  },
+  "6bb6bd94cf": {
+    "rewrite": null,
+    "why": "The shifted inputs, averaged word vector, packed bytes, stores, and decrement are all required, with no known value for xmm11 to simplify the averages."
+  },
+  "9c67be25d7": {
+    "rewrite": null,
+    "why": "SSE4.1 still uses destructive packed shifts, so preserving both source vectors requires both copies."
+  }
+}

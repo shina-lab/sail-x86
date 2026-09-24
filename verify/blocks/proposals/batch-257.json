@@ -1,0 +1,83 @@
+{
+  "7b38ab9c83": {
+    "rewrite": "bsf rdx,rdx\nmovdqu XMMWORD PTR [rdi],xmm4\nmovdqu XMMWORD PTR [rdi+0x10],xmm5\nadd rdi,0x20",
+    "saved": 1,
+    "why": "rsi is not live on exit, so its increment can be removed while preserving both stores and all required register values."
+  },
+  "00e57a3d73": {
+    "rewrite": null,
+    "why": "The load, pointer increment and both arithmetic outputs are live, and replacing the copy and addition with LEA would lose the required carry flag."
+  },
+  "d3001b9aff": {
+    "rewrite": null,
+    "why": "The store, load and both pointer increments are required, while the live loaded value and addition carry prevent folding the copy and addition into LEA."
+  },
+  "db8892dfb1": {
+    "rewrite": null,
+    "why": "The vector comparison and mask extraction produce the required rdx value, and the r10 increment remains necessary for the final CF and ZF comparison."
+  },
+  "a236f97740": {
+    "rewrite": null,
+    "why": "The loaded ymm3 must remain intact, preventing load folding into the comparison, and the store, mask extraction and scalar updates are all required."
+  },
+  "6d4e27ed8b": {
+    "rewrite": null,
+    "why": "Both the store of incoming ymm2 and its final loaded value are required, as are the comparison mask, index update and flag-producing length subtraction."
+  },
+  "41c8f12065": {
+    "rewrite": null,
+    "why": "The loaded vector, comparison vector, scalar mask, index and remaining length are all live, and the store must also be preserved."
+  },
+  "8f6b32e24a": {
+    "rewrite": null,
+    "why": "Both loaded vectors are live, the byte comparison and mask extraction produce rdx, and the scalar comparison supplies the required CF and ZF."
+  },
+  "ba2f82e70b": {
+    "rewrite": null,
+    "why": "The store, byte comparison, mask extraction and scalar flag comparison each perform a required operation."
+  },
+  "58055c55e4": {
+    "rewrite": null,
+    "why": "The byte store, original-pointer result, incremented destination and decremented length with matching ZF each require their existing operation."
+  },
+  "0180b5ffbb": {
+    "rewrite": null,
+    "why": "All three arithmetic updates and the bit-scan result are live, and the final comparison is needed to produce CF."
+  },
+  "9815748107": {
+    "rewrite": null,
+    "why": "The pointer update and both adjustments of the bit-scan result remain live, and the final comparison must supply CF."
+  },
+  "4aa51751bc": {
+    "rewrite": null,
+    "why": "The zero-extended load, word store, two distinct pointer results and length subtraction producing ZF all remain required."
+  },
+  "ae01414ebd": {
+    "rewrite": null,
+    "why": "The word copy and separate zero-byte store cannot be widened without accessing extra bytes, and both pointer results and the length subtraction remain live."
+  },
+  "076edb94d0": {
+    "rewrite": null,
+    "why": "The loaded rdx value, dword store, two distinct pointer results and length subtraction producing ZF all remain required."
+  },
+  "909a95c119": {
+    "rewrite": null,
+    "why": "The unknown index prevents merging the two copies, and the two live pointer results plus the length decrement and its ZF leave no removable instruction."
+  },
+  "c9b0ca7079": {
+    "rewrite": null,
+    "why": "The two independently addressed qword copies and both pointer results are required, while the length must be reduced by rdx plus one with matching ZF."
+  },
+  "494ae52b0a": {
+    "rewrite": null,
+    "why": "The unknown index prevents merging the vector copies, and the remaining instructions produce the two required pointers and adjusted length with matching ZF."
+  },
+  "8b485510df": {
+    "rewrite": null,
+    "why": "The independently addressed vector copies cannot be combined under AVX2, and both pointer results and the length adjustment with matching ZF remain required."
+  },
+  "2eec1d8180": {
+    "rewrite": null,
+    "why": "The zero-extended byte load, store and return pointer are live, and vzeroupper is required to reproduce the upper half of ymm0."
+  }
+}

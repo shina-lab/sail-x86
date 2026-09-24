@@ -1,0 +1,86 @@
+{
+  "23a7a046bc": {
+    "rewrite": "movsx r10,WORD PTR [rdx]\nmovsx r11,WORD PTR [rdx+0x2]\nlea rbp,[r10+r10*4+0x4]\nlea rbp,[rbp+r11*4]\nmovsx r11,WORD PTR [rdx+0x4]\nsub rbp,r11\nshl r10,0x4\nsub r10,rbp\nadd r10,0x8\nsar rbp,0x3\nsar r10,0x3\nmovsx r11,WORD PTR [r8]\nsub rbp,r11\nadd r10,r11\nsar rbp,1\nsar r10,1\nmov WORD PTR [rdi],r10w\nmov WORD PTR [rdi+0x2],bp\nmov r11d,0x0",
+    "saved": 8,
+    "why": "Compute the second rounded numerator with LEA, then derive the first from their sum of 16*a+8. Reusing each input load removes repeated loads and arithmetic while preserving both shifted outputs."
+  },
+  "1944b009e7": {
+    "rewrite": "movq xmm0,QWORD PTR [rdi]\npshuflw xmm1,xmm0,0x55\npaddsw xmm1,xmm0\nmovd ebx,xmm1\nmov WORD PTR [rsi],bx\nmovabs rbx,0x40004fff50005\nmovq xmm1,rbx\npmaddwd xmm0,xmm1\npshufd xmm1,xmm0,0x55\npaddd xmm0,xmm1\nmovd ebx,xmm0\nmovsx r11d,WORD PTR [rdi+0x8]\nsub ebx,r11d\nmovsx r11d,WORD PTR [rdi+0xa]\nsub ebx,r11d\nadd ebx,0x4\nsar ebx,0x3\nmovd xmm0,ebx\npackssdw xmm0,xmm0\nmovd ebx,xmm0\nmov WORD PTR [rdx],bx\nmov r11d,0x2",
+    "saved": 9,
+    "why": "PADDsw computes the saturated first sum directly, and PMADDWD with coefficients [5,-11,4,4] combines the first four filter terms. All scalar intermediates fit signed 32 bits, and the wider initial load reads only the original input bytes."
+  },
+  "5e2e66b5bc": {
+    "rewrite": null,
+    "why": "Both pointer updates, both constant assignments, and the counter subtraction producing the required flags are live."
+  },
+  "838ab0e0d2": {
+    "rewrite": null,
+    "why": "Each instruction independently produces a required register value, and the subtraction also supplies the required flags."
+  },
+  "47f86f3c20": {
+    "rewrite": null,
+    "why": "The pointer advances, constant register assignments, and flag-producing counter update all require their existing instructions."
+  },
+  "480f27bcbc": {
+    "rewrite": null,
+    "why": "AVX does not combine these independent live general-purpose register updates into fewer instructions."
+  },
+  "d20a5f6d05": {
+    "rewrite": null,
+    "why": "The live address setup, shifted count, zeroed counter, constant vector, and shifted input vector require the existing operations under SSSE3."
+  },
+  "3e4cba9085": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [r9+rcx*2]\nmovdqa xmm0,XMMWORD PTR [rdi+rcx*2]\npalignr xmm1,xmm4,0xe\nmovdqu xmm4,XMMWORD PTR [r9+rcx*2]\npaddw xmm1,xmm4\npaddw xmm1,xmm7\npsraw xmm1,0x2\npsubw xmm0,xmm1\nmovdqa XMMWORD PTR [rsi+rcx*2],xmm0\nadd ecx,0x8\ncmp ecx,r8d",
+    "saved": 1,
+    "why": "Reloading the same input into the required final xmm4 replaces two register copies with one load. Both loads precede the store and retain unaligned-load semantics."
+  },
+  "696796ad63": {
+    "rewrite": null,
+    "why": "The two loads, three boundary stores, counter zeroing, index masking, and final comparison all contribute required effects."
+  },
+  "65fc1b6bb8": {
+    "rewrite": "movdqa xmm6,xmm0\npalignr xmm0,xmm7,0xe\nmovdqa xmm1,XMMWORD PTR [rsi+rcx*2+0x10]\nmovdqa xmm2,xmm1\npalignr xmm1,xmm6,0x2\npalignr xmm2,xmm6,0x4\npaddw xmm0,xmm2\npaddw xmm1,xmm6\npsubw xmm0,xmm3\nmovdqa xmm2,xmm1\npunpcklwd xmm1,xmm0\npunpckhwd xmm2,xmm0\npmaddwd xmm1,xmm4\npmaddwd xmm2,xmm4\nmovdqu xmm0,XMMWORD PTR [r9+rcx*2]\npsrad xmm1,0x4\npsrad xmm2,0x4\npackssdw xmm1,xmm2\npaddw xmm1,xmm0\nmovdqa xmm0,XMMWORD PTR [rsi+rcx*2+0x10]\nmovdqa xmm7,xmm6\npaddw xmm6,xmm5\npaddw xmm1,xmm5\npsraw xmm6,0x1\npsraw xmm1,0x1\nmovdqa xmm2,xmm6\npunpcklwd xmm6,xmm1\npunpckhwd xmm2,xmm1\nmovdqa XMMWORD PTR [rdi+rcx*4],xmm6\nmovdqa XMMWORD PTR [rdi+rcx*4+0x10],xmm2\nadd ecx,0x8\ncmp ecx,r8d",
+    "saved": 1,
+    "why": "Load the next input directly into xmm1 and reload it later into the required final xmm0. This eliminates one copy while preserving xmm7, both stores, and the comparison flags."
+  },
+  "3228e78398": {
+    "rewrite": null,
+    "why": "The half-width count requires a copy and shift, while the counter zeroing, address calculation, and live constant load are independent required results."
+  },
+  "b687c7729f": {
+    "rewrite": null,
+    "why": "SSE2 requires the two inputs, word sum, preserved copy for both interleaves, two stores, and live loop update."
+  },
+  "f717f452d3": {
+    "rewrite": null,
+    "why": "The arbitrary xmm3 addends, arithmetic shifts, and separate low/high interleaves leave no redundant operation in this SSE2 sequence."
+  },
+  "0b87c8b55c": {
+    "rewrite": null,
+    "why": "All four instructions write required registers, and the subtraction also produces the required flags."
+  },
+  "cc4a0390d8": {
+    "rewrite": null,
+    "why": "The three address updates, counter subtraction, and register copy all produce independently required final values."
+  },
+  "1bdb122d3d": {
+    "rewrite": null,
+    "why": "The byte expansion and weighted arithmetic are needed under SSE2, including the contributions from arbitrary xmm7 values before shifting and saturation."
+  },
+  "dc89b8bcbf": {
+    "rewrite": null,
+    "why": "Both unpacked halves are needed for each product, and the potentially unaligned destination loads cannot safely fold into legacy PADDW memory operands."
+  },
+  "7788939c88": {
+    "rewrite": null,
+    "why": "Both unpacked halves and all scalar updates are live, while folding the destination loads into legacy PADDW would impose an additional alignment requirement."
+  },
+  "a1230b6476": {
+    "rewrite": null,
+    "why": "The unpacked multiplication and unaligned destination load are necessary, and every pointer and counter update is live."
+  },
+  "7d7666124e": {
+    "rewrite": null,
+    "why": "The absolute value, multiply, bias, logical shift, and zero-aware sign restoration each affect the result, while the loaded xmm0 and scalar updates must remain live."
+  }
+}

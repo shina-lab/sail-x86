@@ -1,0 +1,86 @@
+{
+  "6401228346": {
+    "rewrite": null,
+    "why": "The broadcast, upper-half extraction, two carryless products, ternary XOR and ZF test all contribute to required results."
+  },
+  "93e2f3ee99": {
+    "rewrite": null,
+    "why": "VPTERNLOGQ already combines both carryless products with the memory input in one instruction, and the pointer update is live."
+  },
+  "d39ee9a148": {
+    "rewrite": null,
+    "why": "The loaded multiplier and low carryless product are preserved outputs, while the extraction, high product, ternary XOR and test are also required."
+  },
+  "3f0740528d": {
+    "rewrite": null,
+    "why": "Both carryless products are needed, the memory XOR is already folded into VPTERNLOGQ, and the pointer update is live."
+  },
+  "b22cb29d09": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle and blend masks require the existing byte operations, and the loaded mask, low product and final folded result are all live."
+  },
+  "1519c632b4": {
+    "rewrite": null,
+    "why": "Both carryless reduction stages and the scalar extraction are live, and VZEROUPPER must reproduce the required upper vector bits."
+  },
+  "7acc72c412": {
+    "rewrite": "xor r8,r8\nxor r9,r9\nlea ecx,[rax*8+0x0]\nsub eax,0x5",
+    "saved": 1,
+    "why": "LEA computes the same truncated 32-bit value as the move followed by SHL, and the unchanged final SUB supplies the required SF and OF."
+  },
+  "50d43cb154": {
+    "rewrite": null,
+    "why": "All twelve CRC32 memory updates contribute to live accumulators, and both scalar updates are required."
+  },
+  "22a5b53576": {
+    "rewrite": null,
+    "why": "Each of the three live CRC accumulators requires its update, followed by the live pointer increment and the decrement that produces ZF."
+  },
+  "7de7f5132a": {
+    "rewrite": null,
+    "why": "The high-qword initialization, input shuffle, preserved mask load, XOR and comparison each produce required data or flags."
+  },
+  "3181b3137b": {
+    "rewrite": "pclmullqhqdq xmm7,xmm0\npslldq xmm0,0x8\npxor xmm0,xmm7\nmovdqa xmm7,XMMWORD PTR [rcx+0x40]\nmovdqa xmm1,xmm0\npclmulhqhqdq xmm1,xmm7\npxor xmm1,xmm0\npclmulhqlqdq xmm1,xmm7\npxor xmm0,xmm1\nmovq rax,xmm0",
+    "saved": 1,
+    "why": "Carryless multiplication is commutative, so the first product can overwrite XMM7 with the qword selectors exchanged. XMM7 is reloaded before its next use, eliminating the initial copy into XMM1."
+  },
+  "59564510f9": {
+    "rewrite": null,
+    "why": "Constructing a vector with RDI in the high qword and zeros elsewhere needs both initialization instructions, while the broadcast and CF comparison are live."
+  },
+  "8348b7257a": {
+    "rewrite": null,
+    "why": "The dependent carryless reduction already uses three-operand instructions, and the scalar extraction and VZEROUPPER effects are required."
+  },
+  "9c1a9624c4": {
+    "rewrite": null,
+    "why": "The high-qword construction needs both initialization instructions, and the full ZMM broadcast and comparison producing CF are also live."
+  },
+  "62283d47d4": {
+    "rewrite": null,
+    "why": "Each XOR feeds a subsequent carryless product or the final result, and the scalar extraction and VZEROUPPER effects are live."
+  },
+  "9c597180c7": {
+    "rewrite": null,
+    "why": "MOVDQU permits unaligned input, so folding its load into legacy PXOR would require an alignment guarantee that is not provided."
+  },
+  "36824d8630": {
+    "rewrite": "pclmulhqlqdq xmm7,xmm0\npsrldq xmm0,0x8\npxor xmm0,xmm7\nmovdqa xmm7,XMMWORD PTR [rcx+0x40]\nmovdqa xmm1,xmm0\npclmullqlqdq xmm1,xmm7\npunpcklqdq xmm2,xmm1\npclmullqhqdq xmm1,xmm7\npxor xmm0,xmm2\npxor xmm0,xmm1\npextrq rax,xmm0,0x1",
+    "saved": 1,
+    "why": "Exchange the operands and qword selectors of the first carryless multiplication and use XMM7 as its destination. The later reload restores the required XMM7 value, so the initial copy into XMM1 is unnecessary."
+  },
+  "44b58df56e": {
+    "rewrite": null,
+    "why": "AVX2 cannot combine the two final XORs with VPTERNLOGQ, and all reduction outputs plus the VZEROUPPER effects are live."
+  },
+  "26fcbd0b48": {
+    "rewrite": null,
+    "why": "The final XOR already uses VPTERNLOGQ, and every reduction step, scalar extraction and upper-vector clearing effect is required."
+  },
+  "50d11b2e48": {
+    "rewrite": "movaps xmm2,xmm0\nmovaps xmm3,xmm0\nmovaps xmm4,xmm0\npclmullqlqdq xmm0,xmm1\npclmulhqhqdq xmm2,xmm1\npclmullqhqdq xmm3,xmm1\npclmulhqlqdq xmm4,xmm1\npxor xmm3,xmm4\nmovaps xmm4,xmm3\npslldq xmm4,0x8\npsrldq xmm3,0x8\npxor xmm0,xmm4\npxor xmm2,xmm3\nmovaps xmm4,xmm0\npsllq xmm4,0x1\npxor xmm4,xmm0\npsllq xmm4,0x5\npxor xmm4,xmm0\npsllq xmm4,0x39\npshufd xmm3,xmm4,0x40\npsrldq xmm4,0x8\npxor xmm0,xmm3\npxor xmm2,xmm4\nmovaps xmm3,xmm0\npsrlq xmm3,0x5\npxor xmm3,xmm0\npsrlq xmm3,0x1\npxor xmm3,xmm0\npsrlq xmm3,0x1\npxor xmm2,xmm3\npxor xmm0,xmm2",
+    "saved": 3,
+    "why": "Computing the two cross products directly removes two instructions from the Karatsuba setup. After PSLLQ by 57, each low dword is zero, so PSHUFD 0x40 replaces a copy and a byte shift while preserving all final temporaries."
+  }
+}

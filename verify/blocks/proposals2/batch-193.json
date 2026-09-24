@@ -1,0 +1,82 @@
+{
+  "16015c9476": {
+    "rewrite": null,
+    "why": "The memory-source XOR, store, replacement of ymm0 with ymm6, and comparison each produce a required result."
+  },
+  "d28c27505b": {
+    "rewrite": null,
+    "why": "The memory-source XOR, store, replacement of ymm0 with ymm14, and comparison each produce a required result."
+  },
+  "7e834e538f": {
+    "rewrite": null,
+    "why": "The memory-source XOR, store, replacement of ymm0 with ymm5, and comparison each produce a required result."
+  },
+  "2c0f59f6d0": {
+    "rewrite": null,
+    "why": "The memory-source XOR, store, replacement of ymm0 with ymm13, and comparison each produce a required result."
+  },
+  "8557094a47": {
+    "rewrite": null,
+    "why": "The memory-source XOR, store, replacement of ymm0 with ymm7, and comparison each produce a required result."
+  },
+  "755ae94e20": {
+    "rewrite": null,
+    "why": "The memory-source XOR, store, replacement of ymm0 with ymm15, and comparison each produce a required result."
+  },
+  "7af4d7e262": {
+    "rewrite": null,
+    "why": "The additions, XORs, rotations, and lane shuffles feed required results, and SSSE3 offers no shorter rotation sequence here while preserving the final xmm6 and xmm7 values."
+  },
+  "e6b1c31bd3": {
+    "rewrite": null,
+    "why": "The load must leave its value in xmm4, the XOR feeds the store, both xmm1 and xmm0 must receive the sum, and the comparison supplies required flags."
+  },
+  "9d3a0ac8af": {
+    "rewrite": null,
+    "why": "Preserving xmm1 requires a separate destination for the loaded XOR result, while the store, sum in both xmm2 and xmm0, and comparison remain necessary."
+  },
+  "a231e8f91f": {
+    "rewrite": null,
+    "why": "Preserving xmm2 requires a separate destination for the loaded XOR result, while the store, sum in both xmm3 and xmm0, and comparison remain necessary."
+  },
+  "2cf8a7446e": {
+    "rewrite": null,
+    "why": "The loaded value must remain in xmm1, the XOR feeds the required store, xmm0 must receive xmm4, and the comparison supplies required flags."
+  },
+  "1717c0ce6a": {
+    "rewrite": null,
+    "why": "The loaded value must remain in xmm1, the XOR feeds the required store, xmm0 must receive xmm8, and the comparison supplies required flags."
+  },
+  "2fca6c9be8": {
+    "rewrite": null,
+    "why": "The loaded value must remain in xmm1, the XOR feeds the required store, xmm0 must receive xmm12, and the comparison supplies required flags."
+  },
+  "40aa3d62e1": {
+    "rewrite": null,
+    "why": "The loaded value must remain in xmm1, the XOR feeds the required store, xmm0 must receive xmm6, and the comparison supplies required flags."
+  },
+  "9e7bdf8ef3": {
+    "rewrite": null,
+    "why": "The loaded value must remain in xmm1, the XOR feeds the required store, xmm0 must receive xmm10, and the comparison supplies required flags."
+  },
+  "5a8ff9051c": {
+    "rewrite": null,
+    "why": "The loaded value must remain in xmm1, the XOR feeds the required store, xmm0 must receive xmm14, and the comparison supplies required flags."
+  },
+  "61cc706a12": {
+    "rewrite": null,
+    "why": "The loaded value must remain in xmm1, the XOR feeds the required store, xmm0 must receive xmm5, and the comparison supplies required flags."
+  },
+  "088782fe2e": {
+    "rewrite": null,
+    "why": "The loaded value must remain in xmm1, the XOR feeds the required store, xmm0 must receive xmm9, and the comparison supplies required flags."
+  },
+  "f8eb9da5fd": {
+    "rewrite": null,
+    "why": "The loaded value must remain in xmm1, the XOR feeds the required store, xmm0 must receive xmm13, and the comparison supplies required flags."
+  },
+  "1125d64268": {
+    "rewrite": null,
+    "why": "The loaded value must remain in xmm1, the XOR feeds the required store, xmm0 must receive xmm7, and the comparison supplies required flags."
+  }
+}

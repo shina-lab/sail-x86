@@ -1,0 +1,88 @@
+{
+  "4a9c66e52c": {
+    "rewrite": "vmovdqu64 ZMMWORD PTR [rdi],zmm16\nmov r8,rdi\nor r8,0xffffffffffffffc0\nsub rsi,r8\nsub rdi,r8\nadd rdx,r8\nnot ecx\ntest ecx,0xe00",
+    "saved": 1,
+    "why": "OR with -64 produces the same value as masking to the low six bits and subtracting 64, removing one instruction."
+  },
+  "fa7731ad68": {
+    "rewrite": null,
+    "why": "All four loaded YMM values and their zeroed upper ZMM halves are live, so wider copies would need compensating instructions that eliminate the saving."
+  },
+  "221ad77452": {
+    "rewrite": null,
+    "why": "The four vector loads, aligned destination calculation, and two source-pointer adjustments all contribute to required final values."
+  },
+  "25b1d98b82": {
+    "rewrite": null,
+    "why": "The four loaded vector values, their zeroed upper halves, both pointer updates, and comparison flags must all be retained."
+  },
+  "b7836f7d4a": {
+    "rewrite": "vinserti64x4 zmm16,zmm16,YMMWORD PTR [rsi+0x20],0x1\nvmovdqu64 ZMMWORD PTR [rdi],zmm16\nmov r8,rdi\nor r8,0xffffffffffffffc0\nsub rsi,r8\nsub rdi,r8\nadd rdx,r8\nnot ecx\ntest ecx,0xf00",
+    "saved": 2,
+    "why": "Insert the loaded 32 bytes above the original low half of zmm16 and store the same 64 destination bytes together. OR with -64 also replaces the mask/subtract pair."
+  },
+  "dda1067a3e": {
+    "rewrite": "vmovdqu64 zmm16,ZMMWORD PTR [rsi]\nvmovdqu64 zmm17,ZMMWORD PTR [rsi+0x40]\nsub rsi,0xffffffffffffff80\nadd edx,0xffffff80\nvmovdqu64 ZMMWORD PTR [rdi],zmm16\nvmovdqu64 ZMMWORD PTR [rdi+0x40],zmm17\nsub rdi,0xffffffffffffff80\ncmp edx,0x80",
+    "saved": 4,
+    "why": "The vector temporaries are dead, allowing two 64-byte loads and stores to replace four 32-byte loads and stores over the same bytes. Unaligned stores avoid imposing a stronger alignment requirement."
+  },
+  "62efa52647": {
+    "rewrite": null,
+    "why": "The preserved sign-change bit in r8 and the zero test combining that bit with the masked rcx bits leave no removable instruction."
+  },
+  "16f0334a9f": {
+    "rewrite": null,
+    "why": "SSE2 requires the four vector loads and stores, and both pointer updates and the final comparison remain necessary."
+  },
+  "782c776bae": {
+    "rewrite": null,
+    "why": "All four vector loads and the four scalar instructions forming the aligned destination and adjusted source are required."
+  },
+  "f61e09215e": {
+    "rewrite": null,
+    "why": "The four live vector loads, four stores, two pointer decrements, and comparison cannot be combined within SSE2."
+  },
+  "f3f3739a55": {
+    "rewrite": "movups xmm1,XMMWORD PTR [rsi+0x10]\nmovups xmm2,XMMWORD PTR [rsi+0x20]\nmovups xmm3,XMMWORD PTR [rsi+0x30]\nmovups XMMWORD PTR [rdi],xmm0\nmovups XMMWORD PTR [rdi+0x10],xmm1\nmovups XMMWORD PTR [rdi+0x20],xmm2\nmovups XMMWORD PTR [rdi+0x30],xmm3\nmov r8,rdi\nor r8,0xffffffffffffffc0\nsub rsi,r8\nsub rdi,r8\nadd rdx,r8\nnot ecx\ntest ecx,0xf80",
+    "saved": 1,
+    "why": "OR with -64 computes the same negative alignment offset as the original AND and SUB, while the final TEST preserves ZF."
+  },
+  "186081252f": {
+    "rewrite": null,
+    "why": "SSE2 requires all eight memory-transfer instructions, and the live pointer and count updates plus comparison require the remaining four."
+  },
+  "7049d69236": {
+    "rewrite": null,
+    "why": "The signed table load, both pointer additions, and final address addition each produce required values, with the last addition also supplying the required flags."
+  },
+  "963c425545": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov r8,rdi\nmov rcx,rdi\nor rcx,0xfffffffffffffff0\nsub rdi,rcx\nadd rdx,rcx\nsub rsi,rcx",
+    "saved": 1,
+    "why": "Compute the negative alignment offset directly as rdi OR -16, then subtract it to align rdi upward. This retains the original pointer in r8 and the same source and count adjustments."
+  },
+  "b9a2ae7aae": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi+rdx*1-0x10]\nlea r8,[rdi+rdx*1-0x10]\nadd rdi,rdx\nmov rcx,rdi\nand rcx,0xf\nxor rdi,rcx\nsub rdx,rcx\nadd rsi,rdx",
+    "saved": 1,
+    "why": "Update rdx before adding it to rsi, folding the original source addition and alignment subtraction into one addition. The indexed load still uses the original source and count."
+  },
+  "d479078c90": {
+    "rewrite": null,
+    "why": "The load, two stores, three live scalar updates, and comparison supplying CF and ZF are all necessary."
+  },
+  "5f7c7a2001": {
+    "rewrite": null,
+    "why": "SSSE3 provides no wider vector transfers, leaving four required loads, four stores, and three independent live scalar updates."
+  },
+  "e39c29f564": {
+    "rewrite": null,
+    "why": "Each vector load feeds a required store, and the source, destination, and count updates are all live with no wider transfers available under SSSE3."
+  },
+  "e9a4fcc8ec": {
+    "rewrite": null,
+    "why": "The two live vector loads and two stores already use the maximum SSSE3 width, and all three scalar updates are required."
+  },
+  "471449ce4c": {
+    "rewrite": null,
+    "why": "The vector load, two stores, three live decrements, and final comparison supplying CF and ZF leave no removable instruction."
+  }
+}

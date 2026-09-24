@@ -1,0 +1,86 @@
+{
+  "ed9e250a57": {
+    "rewrite": null,
+    "why": "SSE2 requires separate stores for the two 128-bit values, and both the pointer update and comparison flags are required."
+  },
+  "5ae3fd9b56": {
+    "rewrite": null,
+    "why": "Preserving both zero-extended count copies, the computed rax, and all subtraction flags leaves no instruction to remove under the rsp restriction."
+  },
+  "bfb860b370": {
+    "rewrite": null,
+    "why": "The unaligned load cannot safely be folded into legacy pxor, and the XOR, store, counter update, and comparison all remain necessary."
+  },
+  "509d197c3e": {
+    "rewrite": null,
+    "why": "The unaligned load cannot safely be folded into legacy pxor, and the XOR, store, and comparison all contribute required results."
+  },
+  "81601c967d": {
+    "rewrite": null,
+    "why": "The unaligned load cannot safely be folded into legacy pxor, and the XOR, store, and comparison all contribute required results."
+  },
+  "d89578b416": {
+    "rewrite": null,
+    "why": "SSSE3 still requires separate stores for the two 128-bit values, and both the pointer update and comparison flags are required."
+  },
+  "1eb6998a7a": {
+    "rewrite": "mov edx,DWORD PTR [r15+0xf0]\nmov rbx,r14\nimul rcx,rdx,0x80\nsub rcx,0x60\nmov rax,rsp\nsub rax,rcx\nmov rcx,r15\nmov r10d,edx",
+    "saved": 1,
+    "why": "Loading directly into edx and using three-operand imul removes the separate count copy. Subtracting the identical offset from a copy of rsp produces the required rax and subtraction flags without modifying rsp."
+  },
+  "c08b40a6c5": {
+    "rewrite": null,
+    "why": "Every instruction produces a required register value or store, and the two equal address results still require separate destination writes under SSE2."
+  },
+  "71c6f20674": {
+    "rewrite": null,
+    "why": "Both zero-extended byte loads, both byte stores, both pointer increments, and the flag-producing decrement contribute required results."
+  },
+  "3e6da30844": {
+    "rewrite": null,
+    "why": "The preserved vector values require the separate unaligned load, XOR, and store, and each of the three address assignments is live."
+  },
+  "fea34c57f9": {
+    "rewrite": null,
+    "why": "Both zero-extended byte loads, both byte stores, both pointer increments, and the flag-producing decrement contribute required results."
+  },
+  "a53e72e298": {
+    "rewrite": null,
+    "why": "The preserved vector values require the separate unaligned load, XOR, and store, and each of the three address assignments is live."
+  },
+  "0823b9e315": {
+    "rewrite": "movdqa xmm4,xmm13\nmovdqa xmm0,xmm12\npshufb xmm4,xmm2\npshufb xmm0,xmm3\npxor xmm4,xmm5\nmovdqa xmm5,xmm15\npxor xmm0,xmm4\npshufb xmm5,xmm2\nmovdqa xmm2,xmm14\npshufb xmm2,xmm3\nmovdqa xmm3,xmm0\npxor xmm2,xmm5\npshufb xmm0,XMMWORD PTR [r11+r10*1-0x40]\nadd r9,0x10\npxor xmm0,xmm2\npshufb xmm3,XMMWORD PTR [r11+r10*1]\npxor xmm3,xmm0\npshufb xmm0,XMMWORD PTR [r11+r10*1-0x40]\nadd r11,0x10\nand r11,0x30\nsub rax,0x1\npxor xmm0,xmm3",
+    "saved": 2,
+    "why": "Fold both aligned shuffle-mask loads into their pshufb consumers, rereading the first mask at its original address. Delay the r11 update until all mask reads finish, preserving the addresses, live register results, and final ZF."
+  },
+  "4b8c898de9": {
+    "rewrite": null,
+    "why": "With arbitrary preserved table and mask registers, every copy, shuffle, mask operation, XOR, and key load feeds a required result."
+  },
+  "0a535ffd83": {
+    "rewrite": null,
+    "why": "Each table load supplies the data operand of a destructive pshufb and cannot be folded into it, while every XOR, shuffle, and scalar update is live."
+  },
+  "ab4e107643": {
+    "rewrite": null,
+    "why": "With arbitrary preserved table and mask registers, every copy, shuffle, mask operation, XOR, and key load feeds a required result."
+  },
+  "219183e56e": {
+    "rewrite": "movdqa xmm4,XMMWORD PTR [r10+0x60]\npshufb xmm4,xmm2\npxor xmm4,xmm0\nmovdqa xmm0,XMMWORD PTR [r10+0x70]\npshufb xmm0,xmm3\npxor xmm0,xmm4\npshufb xmm0,XMMWORD PTR [r11-0x160]",
+    "saved": 1,
+    "why": "Fold the aligned final shuffle-mask load into pshufb because xmm2's final value is not required."
+  },
+  "78dfeedb04": {
+    "rewrite": null,
+    "why": "The loaded mask in xmm1 is itself a required output, so folding its load would not remove an instruction, and the shuffle, store, and r8 update are necessary."
+  },
+  "36d46c2f6d": {
+    "rewrite": null,
+    "why": "Forming xmm6 with xmm0's upper half and a zero lower half requires two vector instructions, in addition to the live xmm4 zeroing and rsi assignment."
+  },
+  "d4e8bfa567": {
+    "rewrite": "movdqu XMMWORD PTR [rdx],xmm0\npxor xmm0,xmm0",
+    "saved": 7,
+    "why": "Only xmm0's final zero value is live; zeroing xmm1 through xmm7 can be deleted after the unchanged store."
+  }
+}

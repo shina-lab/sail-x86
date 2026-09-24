@@ -1,0 +1,91 @@
+{
+  "11f389f1d4": {
+    "rewrite": "vpbroadcastd ymm0,DWORD PTR [CONST_5]",
+    "saved": 35,
+    "why": "The final value of ymm0 is the broadcast of CONST_5; all other vector results and buffer loads are dead."
+  },
+  "82b8c859d7": {
+    "rewrite": null,
+    "why": "All four transformed vectors and both broadcast constants are live, and the permutation, modular multiplication, rounding, shift, and doubling have no shorter equivalent identified in AVX2."
+  },
+  "dfcbd16c5f": {
+    "rewrite": null,
+    "why": "The butterfly outputs and intermediate registers are all live, and AVX2 has no fused operation that removes these dword multiplications, additions, or arithmetic shifts."
+  },
+  "5d7c3b355d": {
+    "rewrite": "vpbroadcastd ymm5,DWORD PTR [CONST_1]\nvpaddd ymm0,ymm5,ymm4\nvpaddd ymm1,ymm5,ymm6\nvpaddd ymm2,ymm2,ymm5\nvpaddd ymm3,ymm3,ymm5\nvpsrad ymm0,ymm0,0xf\nvpsrad ymm1,ymm1,0xf\nvpsrad ymm2,ymm2,0xf\nvpsrad ymm3,ymm3,0xf\nvpbroadcastd ymm4,DWORD PTR [CONST_2]\nvpackssdw ymm0,ymm0,ymm1\nvpackssdw ymm2,ymm2,ymm3\nvpmulhrsw ymm0,ymm0,ymm4\nvpmulhrsw ymm1,ymm2,ymm4\nvpermq ymm0,ymm0,0xd8\nvpermq ymm1,ymm1,0xd8\nvpbroadcastd ymm5,DWORD PTR [CONST_3]",
+    "saved": 4,
+    "why": "Arithmetic right shifts by 12 and then 3 equal a single arithmetic right shift by 15 for every dword, eliminating four shifts."
+  },
+  "8aa5672156": {
+    "rewrite": "vshufps ymm4,ymm0,ymm1,0x88\nvshufps ymm5,ymm2,ymm3,0x88\nvperm2i128 ymm0,ymm4,ymm5,0x20",
+    "saved": 9,
+    "why": "Each VSHUFPS selects dwords 0 and 2 from two inputs, replacing their two shuffles and low-qword unpack. Only the final combination into ymm0 is live."
+  },
+  "e1e64e66f7": {
+    "rewrite": null,
+    "why": "The broadcast constant and all four independent sums are live, requiring the broadcast and four additions."
+  },
+  "40ee5f6dd7": {
+    "rewrite": null,
+    "why": "The clamps, dword products, additions of an arbitrary initial ymm7, shifts, packs, and final constants all contribute to preserved registers and have no shorter AVX2 sequence identified."
+  },
+  "cdb1f4a31f": {
+    "rewrite": null,
+    "why": "The store, scalar results, two successive rounded multiplications, saturating word addition, and broadcasts are all required by the preserved outputs."
+  },
+  "5f38cd1252": {
+    "rewrite": null,
+    "why": "Both row loads and stores, both distinct saturation operations, the pointer update, and the flag-producing counter subtraction are required."
+  },
+  "a4f91aff13": {
+    "rewrite": null,
+    "why": "All four permutations, both rounded multiplications, and the broadcast constant produce preserved register values."
+  },
+  "af825e1e45": {
+    "rewrite": "vmovdqa xmm8,XMMWORD PTR [rdi]\nvinserti128 ymm8,ymm8,XMMWORD PTR [rdi+rsi*1],0x1\nvmovdqa xmm9,XMMWORD PTR [rdi+rsi*2]\nvinserti128 ymm9,ymm9,XMMWORD PTR [rdi+rax*1],0x1\nvmovdqa YMMWORD PTR [rdx],ymm10\nvmovdqa YMMWORD PTR [rdx+0x20],ymm10\nvmovdqa YMMWORD PTR [rdx+0x40],ymm10\nvmovdqa YMMWORD PTR [rdx+0x60],ymm10\nsub    rdx,0xffffffffffffff80\nvpaddw ymm0,ymm8,ymm0\nvpaddw ymm1,ymm9,ymm1\nvpmaxsw ymm0,ymm10,ymm0\nvpmaxsw ymm1,ymm10,ymm1\nvpminsw ymm0,ymm11,ymm0\nvpminsw ymm1,ymm11,ymm1\nvmovdqa XMMWORD PTR [rdi],xmm0\nvextracti128 XMMWORD PTR [rdi+rsi*1],ymm0,0x1\nvmovdqa XMMWORD PTR [rdi+rsi*2],xmm1\nvextracti128 XMMWORD PTR [rdi+rax*1],ymm1,0x1",
+    "saved": 1,
+    "why": "The final rdi update is dead and occurs after every memory access, so it can be removed without changing any store or preserved register."
+  },
+  "a12929903c": {
+    "rewrite": "vpunpckhwd ymm4,ymm0,ymm1\nvpunpcklwd ymm0,ymm0,ymm1\nvpunpckhwd ymm1,ymm2,ymm3\nvpunpcklwd ymm2,ymm2,ymm3\nvpunpckldq ymm0,ymm0,ymm2\nvpunpckldq ymm4,ymm4,ymm1\nvinserti128 ymm0,ymm0,xmm4,0x1",
+    "saved": 5,
+    "why": "Only ymm0 is live, so the two high-dword unpacks and three lane combinations used exclusively by other transpose outputs can be omitted."
+  },
+  "2353c90e5e": {
+    "rewrite": null,
+    "why": "All eight results are live, and each requires a modular dword addition followed by an arithmetic right shift, with no fused AVX2 equivalent."
+  },
+  "0510006e7e": {
+    "rewrite": "vpcmpeqd ymm1,ymm1,ymm1\nvpsubd ymm0,ymm0,ymm1\nvpaddd ymm0,ymm9,ymm0\nvpsrad ymm0,ymm0,0x1",
+    "saved": 17,
+    "why": "Only the all-ones mask, increment of ymm0, addition of the original ymm9, and final shift contribute to the sole live vector output."
+  },
+  "0b2b960e9e": {
+    "rewrite": null,
+    "why": "All results are preserved, including the mixed-sign ymm12 constant whose upper half depends on the zeroing effect of the XMM broadcast."
+  },
+  "6fd3c272c6": {
+    "rewrite": "vpaddd ymm0,ymm8,ymm0\nvpsrad ymm0,ymm0,0x1",
+    "saved": 15,
+    "why": "Only the addition using the initial ymm8 and the arithmetic shift feed the preserved ymm0; all remaining vector results are dead."
+  },
+  "d006fd82a9": {
+    "rewrite": null,
+    "why": "The two broadcasts, mixed-sign constant subtraction, four permutations, and two rounded products all produce preserved register values."
+  },
+  "6cc959c0f1": {
+    "rewrite": "vpsubd ymm0,ymm8,ymm7\nvpsrad ymm0,ymm0,0x1",
+    "saved": 15,
+    "why": "The preserved ymm0 depends only on the initial ymm8 minus the initial ymm7, followed by an arithmetic right shift."
+  },
+  "f1df26596c": {
+    "rewrite": null,
+    "why": "All packed and transposed outputs, the intermediate ymm4, both constants, and the rounded products are live, leaving no removable instruction or shorter AVX2 transpose identified."
+  },
+  "1323cc50fd": {
+    "rewrite": "vmovdqa YMMWORD PTR [rdx],ymm6\nvmovdqa YMMWORD PTR [rdx+0x20],ymm6\nvmovdqa YMMWORD PTR [rdx+0x40],ymm6\nvmovdqa YMMWORD PTR [rdx+0x60],ymm6\nsub    rdx,0xffffffffffffff80\nvmovdqa xmm4,XMMWORD PTR [rdi]\nvinserti128 ymm4,ymm4,XMMWORD PTR [rdi+rsi*4],0x1\nvmovdqa xmm5,XMMWORD PTR [rdi+rsi*1]\nvinserti128 ymm5,ymm5,XMMWORD PTR [rdi+rax*1],0x1\nvpaddw ymm0,ymm0,ymm4\nvpaddw ymm1,ymm1,ymm5\nvpmaxsw ymm0,ymm0,ymm6\nvpmaxsw ymm1,ymm1,ymm6\nvpminsw ymm0,ymm0,ymm7\nvpminsw ymm1,ymm1,ymm7\nvmovdqa XMMWORD PTR [rdi],xmm0\nvmovdqa XMMWORD PTR [rdi+rsi*1],xmm1\nvextracti128 XMMWORD PTR [rdi+rsi*4],ymm0,0x1\nvextracti128 XMMWORD PTR [rdi+rax*1],ymm1,0x1",
+    "saved": 1,
+    "why": "The final rdi update is dead and follows all memory accesses, so removing it preserves every required store and register value."
+  }
+}

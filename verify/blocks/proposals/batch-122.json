@@ -1,0 +1,91 @@
+{
+  "9c597180c7": {
+    "rewrite": null,
+    "why": "The scalar-to-vector transfer and comparison are both live, and folding the unaligned buffer load into legacy PXOR would impose a new alignment requirement."
+  },
+  "36824d8630": {
+    "rewrite": "pclmulhqlqdq xmm7,xmm0\npsrldq xmm0,0x8\npxor xmm0,xmm7\nmovdqa xmm1,xmm0\npclmullqlqdq xmm1,XMMWORD PTR [rcx+0x40]\npunpcklqdq xmm2,xmm1\npclmullqhqdq xmm1,XMMWORD PTR [rcx+0x40]\npxor xmm0,xmm2\npxor xmm0,xmm1\npextrq rax,xmm0,0x1",
+    "saved": 2,
+    "why": "Commute the first carryless multiply into dead xmm7 to eliminate a copy, and use memory operands for the two later multiplies to eliminate the table load."
+  },
+  "44b58df56e": {
+    "rewrite": "vpclmullqhqdq xmm1,xmm0,xmm7\nvpsrldq xmm0,xmm0,0x8\nvpxor xmm0,xmm0,xmm1\nvpclmullqlqdq xmm1,xmm0,XMMWORD PTR [rcx+0x40]\nvpunpcklqdq xmm2,xmm2,xmm1\nvpclmullqhqdq xmm1,xmm1,XMMWORD PTR [rcx+0x40]\nvpxor xmm0,xmm0,xmm2\nvpxor xmm0,xmm0,xmm1\nvpextrq rax,xmm0,0x1",
+    "saved": 2,
+    "why": "Fold the table load into both later multiplies and remove VZEROUPPER because the only live vector result already has a zero upper half."
+  },
+  "26fcbd0b48": {
+    "rewrite": "vpclmullqhqdq xmm1,xmm0,xmm7\nvpsrldq xmm0,xmm0,0x8\nvpxor xmm0,xmm0,xmm1\nvpclmullqlqdq xmm1,xmm0,XMMWORD PTR [rcx+0x40]\nvpunpcklqdq xmm2,xmm2,xmm1\nvpclmullqhqdq xmm1,xmm1,XMMWORD PTR [rcx+0x40]\nvpternlogq xmm0,xmm1,xmm2,0x96\nvpextrq rax,xmm0,0x1",
+    "saved": 2,
+    "why": "Fold the table load into both later multiplies and remove VZEROUPPER because the 128-bit VPTERNLOGQ already clears all higher bits of the preserved zmm0."
+  },
+  "50d11b2e48": {
+    "rewrite": "movaps xmm2,xmm0\nmovaps xmm3,xmm0\nmovaps xmm4,xmm0\npclmullqlqdq xmm0,xmm1\npclmulhqhqdq xmm2,xmm1\npclmulhqlqdq xmm3,xmm1\npclmullqhqdq xmm4,xmm1\npxor xmm3,xmm4\nmovaps xmm4,xmm3\npslldq xmm4,0x8\npsrldq xmm3,0x8\npxor xmm0,xmm4\npxor xmm2,xmm3\nmovabs rcx,0xc200000000000000\nmovq xmm4,rcx\nmovaps xmm3,xmm0\npclmullqlqdq xmm3,xmm4\npshufd xmm3,xmm3,0x4e\npxor xmm0,xmm3\npclmullqhqdq xmm4,xmm0\npxor xmm0,xmm2\npxor xmm0,xmm4",
+    "saved": 12,
+    "why": "Four direct partial products shorten the multiplication by two instructions. Two carryless multiplies by 0xc200000000000000 reproduce the reduction's left- and right-shift polynomials, saving ten more instructions including constant construction."
+  },
+  "0db53f62b6": {
+    "rewrite": "vzeroall\nvmovdqu ymm4,YMMWORD PTR [rdi]\nvmovdqu ymm5,YMMWORD PTR [rdi+0x10]\nadd rdi,0x20\nsub rdx,0x40",
+    "saved": 3,
+    "why": "Zero the four accumulators together with VZEROALL before reloading ymm4 and ymm5; all other vector registers are dead."
+  },
+  "a374ad61e3": {
+    "rewrite": null,
+    "why": "All loaded key windows are reused or live, and each unsigned product requires both dword rearrangements before accumulation."
+  },
+  "d29bd32257": {
+    "rewrite": null,
+    "why": "The loaded keys must remain live, and the products, lane rearrangements, accumulator additions, and pointer/counter updates all contribute to required outputs."
+  },
+  "094f21dd13": {
+    "rewrite": "vmovdqu xmm11,XMMWORD PTR [rsi]\nvpaddd xmm8,xmm11,xmm4\nvpaddd xmm9,xmm11,xmm5\nvpaddd xmm10,xmm11,XMMWORD PTR [rdi]\nvpaddd xmm11,xmm11,XMMWORD PTR [rdi+0x10]\nvpshufd xmm12,xmm8,0x10\nvpshufd xmm8,xmm8,0x32\nvpshufd xmm13,xmm9,0x10\nvpshufd xmm9,xmm9,0x32\nvpshufd xmm14,xmm10,0x10\nvpshufd xmm10,xmm10,0x32\nvpshufd xmm15,xmm11,0x10\nvpshufd xmm11,xmm11,0x32\nvpmuludq xmm8,xmm8,xmm12\nvpmuludq xmm9,xmm9,xmm13\nvpmuludq xmm10,xmm10,xmm14\nvpmuludq xmm11,xmm11,xmm15\nvpaddq ymm0,ymm0,ymm8\nvpaddq ymm1,ymm1,ymm9\nvpaddq ymm2,ymm2,ymm10\nvpaddq ymm3,ymm3,ymm11",
+    "saved": 4,
+    "why": "Use 128-bit arithmetic to clear temporary upper halves without explicit self-moves, and fold the two dead key loads into VPADDD. Keep the final additions 256-bit to preserve the accumulators' upper halves."
+  },
+  "be6f5e838c": {
+    "rewrite": "vpunpcklqdq ymm8,ymm0,ymm1\nvpunpckhqdq ymm9,ymm0,ymm1\nvpunpcklqdq ymm10,ymm2,ymm3\nvpunpckhqdq ymm11,ymm2,ymm3\nvpaddq ymm8,ymm8,ymm9\nvpaddq ymm10,ymm10,ymm11\nvinserti128 ymm12,ymm8,xmm10,0x1\nvperm2i128 ymm8,ymm8,ymm10,0x31\nvpaddq ymm8,ymm8,ymm12\nvmovdqu YMMWORD PTR [rcx],ymm8\nvzeroupper",
+    "saved": 2,
+    "why": "Add the low/high qword interleavings before the 128-bit lane permutations, reducing four lane-combining instructions to two."
+  },
+  "33e6b2eb86": {
+    "rewrite": null,
+    "why": "Every load, vector zeroing, and pointer/counter update produces a required register value, and SUB must also produce the requested flags."
+  },
+  "677be22934": {
+    "rewrite": null,
+    "why": "The key registers remain live, so the message copies, two shuffles per product, accumulations, and required counter update cannot be eliminated."
+  },
+  "5332abbdee": {
+    "rewrite": null,
+    "why": "The key registers remain live, so the message copies, two shuffles per product, accumulations, and required counter update cannot be eliminated."
+  },
+  "8c12525cce": {
+    "rewrite": "movdqu xmm9,XMMWORD PTR [rsi+0x20]\nmovdqu xmm5,XMMWORD PTR [rdi+0x20]\npaddd xmm6,xmm9\npaddd xmm7,xmm9\npaddd xmm4,xmm9\npaddd xmm5,xmm9\npshufd xmm12,xmm6,0x10\npshufd xmm6,xmm6,0x32\npshufd xmm13,xmm7,0x10\npshufd xmm7,xmm7,0x32\npshufd xmm14,xmm4,0x10\npshufd xmm4,xmm4,0x32\npshufd xmm15,xmm5,0x10\npshufd xmm5,xmm5,0x32\npmuludq xmm6,xmm12\npmuludq xmm7,xmm13\npmuludq xmm4,xmm14\npmuludq xmm5,xmm15\npaddq xmm0,xmm6\npaddq xmm1,xmm7\npaddq xmm2,xmm4\npaddq xmm3,xmm5",
+    "saved": 2,
+    "why": "Use the dead key registers as sum and product destinations, eliminating the two message-register copies."
+  },
+  "c5e7748fff": {
+    "rewrite": null,
+    "why": "SSE2 needs both interleavings and an add for each pair of horizontal sums, with xmm0's high-qword interleaving also required as an output."
+  },
+  "532017ef28": {
+    "rewrite": "movups xmm0,XMMWORD PTR [rdi]\nmovups xmm1,XMMWORD PTR [rsi]\nvpclmulhqlqdq xmm14,xmm1,xmm0\nvpclmullqhqdq xmm2,xmm1,xmm0\nvpclmullqlqdq xmm12,xmm1,xmm0\nvpclmulhqhqdq xmm13,xmm1,xmm0\nvpxor xmm14,xmm14,xmm2\nvpslldq xmm8,xmm14,0x8\nvpsrldq xmm9,xmm14,0x8\npxor xmm8,xmm12\npxor xmm9,xmm13\nvpclmullqlqdq xmm11,xmm8,XMMWORD PTR [CONST_1]\npshufd xmm11,xmm11,0x4e\npxor xmm11,xmm8\npxor xmm9,xmm11\npclmulhqhqdq xmm11,XMMWORD PTR [CONST_1]\nvpxor xmm15,xmm9,xmm11\nmovups XMMWORD PTR [rdi],xmm15",
+    "saved": 1,
+    "why": "Fold the polynomial constant into the two carryless multiply memory operands, eliminating its register load while retaining the legacy load that preserves ymm0's upper half."
+  },
+  "2e1bcc17cb": {
+    "rewrite": null,
+    "why": "Both carryless multiplies, the qword swap, and all three XORs contribute to the required ymm15 result."
+  },
+  "6f8f998314": {
+    "rewrite": null,
+    "why": "All four partial products and their accumulator updates are required for each input block, and the final legacy load must preserve ymm0's upper half."
+  },
+  "c5a5ffc143": {
+    "rewrite": null,
+    "why": "All four partial products and their accumulator updates are required for each input block, and the final legacy load must preserve ymm0's upper half."
+  },
+  "d04953b9b6": {
+    "rewrite": null,
+    "why": "The preserved accumulators require all four carryless products and four XOR updates, while the legacy load supplies xmm0 without changing ymm0's upper half."
+  }
+}

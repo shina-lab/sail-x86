@@ -1,0 +1,92 @@
+{
+  "90d1f53cc2": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi+rdx*1]\npalignr xmm0,XMMWORD PTR [rdi+rdx*1-0x10],0x6\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm7,xmm0\nmovdqa xmm8,xmm5\nmovdqa xmm10,xmm5\npcmpgtb xmm7,xmm4\npcmpgtb xmm8,xmm0\npcmpgtb xmm1,xmm4\npcmpgtb xmm10,XMMWORD PTR [rsi+rdx*1]\npand xmm7,xmm8\npand xmm1,xmm10\npand xmm7,xmm6\npand xmm1,xmm6\npor xmm0,xmm7\npor xmm1,XMMWORD PTR [rsi+rdx*1]\npcmpistri xmm0,xmm1,0x1a",
+    "saved": 1,
+    "why": "Compute the second operand's lower-bound mask directly in xmm1 and reread its original address for the upper-bound comparison and final OR, eliminating one copy. The folded operands and final string-comparison results are unchanged."
+  },
+  "5e7f9da2cc": {
+    "rewrite": null,
+    "why": "The r10 update, loaded and shifted xmm0, string index in rcx, and final comparison flags all remain required."
+  },
+  "f0c89f1c08": {
+    "rewrite": null,
+    "why": "With arbitrary xmm4, xmm5, and xmm6, both range masks and folded byte vectors are needed before the equality mask, shifts, and subtraction produce rdx and ZF."
+  },
+  "26f49fb759": {
+    "rewrite": "mov ecx,0x10\nmov r9d,0x7\nlea r10,[rdi+0x7]\nor r10,0xfffffffffffff000\nmov edx,ecx",
+    "saved": 2,
+    "why": "Drop the unused xmm3 load and replace masking to 12 bits followed by subtracting 0x1000 with OR by 0xfffffffffffff000. Flags are unconstrained, and the 32-bit moves produce the same full rcx and rdx values."
+  },
+  "b1e6e7632f": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi+rdx*1]\npalignr xmm0,XMMWORD PTR [rdi+rdx*1-0x10],0x7\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm7,xmm0\nmovdqa xmm8,xmm5\nmovdqa xmm10,xmm5\npcmpgtb xmm7,xmm4\npcmpgtb xmm8,xmm0\npcmpgtb xmm1,xmm4\npcmpgtb xmm10,XMMWORD PTR [rsi+rdx*1]\npand xmm7,xmm8\npand xmm1,xmm10\npand xmm7,xmm6\npand xmm1,xmm6\npor xmm0,xmm7\npor xmm1,XMMWORD PTR [rsi+rdx*1]\npcmpistri xmm0,xmm1,0x1a",
+    "saved": 1,
+    "why": "Compute the second operand's lower-bound mask directly in xmm1 and reread its original address for the upper-bound comparison and final OR, eliminating one copy. The folded operands and final string-comparison results are unchanged."
+  },
+  "649287a9d5": {
+    "rewrite": null,
+    "why": "The r10 update, loaded and shifted xmm0, string index in rcx, and final comparison flags all remain required."
+  },
+  "8f145d2f91": {
+    "rewrite": null,
+    "why": "With arbitrary xmm4, xmm5, and xmm6, both range masks and folded byte vectors are needed before the equality mask, shifts, and subtraction produce rdx and ZF."
+  },
+  "c3a774e8ac": {
+    "rewrite": "mov ecx,0x10\nmov r9d,0x8\nlea r10,[rdi+0x8]\nor r10,0xfffffffffffff000\nmov edx,ecx",
+    "saved": 2,
+    "why": "Drop the unused xmm3 load and replace masking to 12 bits followed by subtracting 0x1000 with OR by 0xfffffffffffff000. Flags are unconstrained, and the 32-bit moves produce the same full rcx and rdx values."
+  },
+  "8c8a99cd56": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi+rdx*1]\npalignr xmm0,XMMWORD PTR [rdi+rdx*1-0x10],0x8\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm7,xmm0\nmovdqa xmm8,xmm5\nmovdqa xmm10,xmm5\npcmpgtb xmm7,xmm4\npcmpgtb xmm8,xmm0\npcmpgtb xmm1,xmm4\npcmpgtb xmm10,XMMWORD PTR [rsi+rdx*1]\npand xmm7,xmm8\npand xmm1,xmm10\npand xmm7,xmm6\npand xmm1,xmm6\npor xmm0,xmm7\npor xmm1,XMMWORD PTR [rsi+rdx*1]\npcmpistri xmm0,xmm1,0x1a",
+    "saved": 1,
+    "why": "Compute the second operand's lower-bound mask directly in xmm1 and reread its original address for the upper-bound comparison and final OR, eliminating one copy. The folded operands and final string-comparison results are unchanged."
+  },
+  "8a227c7c53": {
+    "rewrite": null,
+    "why": "The r10 update, loaded and shifted xmm0, string index in rcx, and final comparison flags all remain required."
+  },
+  "de4fb45419": {
+    "rewrite": null,
+    "why": "With arbitrary xmm4, xmm5, and xmm6, both range masks and folded byte vectors are needed before the equality mask, shifts, and subtraction produce rdx and ZF."
+  },
+  "bed3981f5d": {
+    "rewrite": "mov ecx,0x10\nmov r9d,0x9\nlea r10,[rdi+0x9]\nor r10,0xfffffffffffff000\nmov edx,ecx",
+    "saved": 2,
+    "why": "Drop the unused xmm3 load and replace masking to 12 bits followed by subtracting 0x1000 with OR by 0xfffffffffffff000. Flags are unconstrained, and the 32-bit moves produce the same full rcx and rdx values."
+  },
+  "5c27ee3927": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi+rdx*1]\npalignr xmm0,XMMWORD PTR [rdi+rdx*1-0x10],0x9\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm7,xmm0\nmovdqa xmm8,xmm5\nmovdqa xmm10,xmm5\npcmpgtb xmm7,xmm4\npcmpgtb xmm8,xmm0\npcmpgtb xmm1,xmm4\npcmpgtb xmm10,XMMWORD PTR [rsi+rdx*1]\npand xmm7,xmm8\npand xmm1,xmm10\npand xmm7,xmm6\npand xmm1,xmm6\npor xmm0,xmm7\npor xmm1,XMMWORD PTR [rsi+rdx*1]\npcmpistri xmm0,xmm1,0x1a",
+    "saved": 1,
+    "why": "Compute the second operand's lower-bound mask directly in xmm1 and reread its original address for the upper-bound comparison and final OR, eliminating one copy. The folded operands and final string-comparison results are unchanged."
+  },
+  "04bf7791da": {
+    "rewrite": null,
+    "why": "The r10 update, loaded and shifted xmm0, string index in rcx, and final comparison flags all remain required."
+  },
+  "59eff7d5f1": {
+    "rewrite": null,
+    "why": "With arbitrary xmm4, xmm5, and xmm6, both range masks and folded byte vectors are needed before the equality mask, shifts, and subtraction produce rdx and ZF."
+  },
+  "cc6a5e3b6c": {
+    "rewrite": "mov ecx,0x10\nmov r9d,0xa\nlea r10,[rdi+0xa]\nor r10,0xfffffffffffff000\nmov edx,ecx",
+    "saved": 2,
+    "why": "Drop the unused xmm3 load and replace masking to 12 bits followed by subtracting 0x1000 with OR by 0xfffffffffffff000. Flags are unconstrained, and the 32-bit moves produce the same full rcx and rdx values."
+  },
+  "a533f573d4": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi+rdx*1]\npalignr xmm0,XMMWORD PTR [rdi+rdx*1-0x10],0xa\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm7,xmm0\nmovdqa xmm8,xmm5\nmovdqa xmm10,xmm5\npcmpgtb xmm7,xmm4\npcmpgtb xmm8,xmm0\npcmpgtb xmm1,xmm4\npcmpgtb xmm10,XMMWORD PTR [rsi+rdx*1]\npand xmm7,xmm8\npand xmm1,xmm10\npand xmm7,xmm6\npand xmm1,xmm6\npor xmm0,xmm7\npor xmm1,XMMWORD PTR [rsi+rdx*1]\npcmpistri xmm0,xmm1,0x1a",
+    "saved": 1,
+    "why": "Compute the second operand's lower-bound mask directly in xmm1 and reread its original address for the upper-bound comparison and final OR, eliminating one copy. The folded operands and final string-comparison results are unchanged."
+  },
+  "91bef1d7b9": {
+    "rewrite": null,
+    "why": "The r10 update, loaded and shifted xmm0, string index in rcx, and final comparison flags all remain required."
+  },
+  "b3d710df05": {
+    "rewrite": null,
+    "why": "With arbitrary xmm4, xmm5, and xmm6, both range masks and folded byte vectors are needed before the equality mask, shifts, and subtraction produce rdx and ZF."
+  },
+  "d1dc4056d3": {
+    "rewrite": "mov ecx,0x10\nmov r9d,0xb\nlea r10,[rdi+0xb]\nor r10,0xfffffffffffff000\nmov edx,ecx",
+    "saved": 2,
+    "why": "Drop the unused xmm3 load and replace masking to 12 bits followed by subtracting 0x1000 with OR by 0xfffffffffffff000. Flags are unconstrained, and the 32-bit moves produce the same full rcx and rdx values."
+  }
+}

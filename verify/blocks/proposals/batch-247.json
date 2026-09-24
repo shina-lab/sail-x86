@@ -1,0 +1,89 @@
+{
+  "3c39167166": {
+    "rewrite": null,
+    "why": "The live rotation needs one instruction, and the arbitrary bitwise selection still needs three with the allowed ISA."
+  },
+  "52ce2ef6f2": {
+    "rewrite": "add DWORD PTR [r8],edx\nadd DWORD PTR [r8+0x4],esi\nadd DWORD PTR [r8+0x8],ebp\nadd DWORD PTR [r8+0xc],ebx\nadd DWORD PTR [r8+0x10],ecx\nmov eax,DWORD PTR [r8]\nmov ebp,DWORD PTR [r8+0x4]\nmov ecx,DWORD PTR [r8+0x8]\nmov edx,DWORD PTR [r8+0xc]\nmov esi,DWORD PTR [r8+0x10]\ncmp r9,r10",
+    "saved": 6,
+    "why": "Add directly into each memory destination, preserving the five stores, then reload the sums into their final registers from permitted addresses. This removes the register permutation and preserves ZF with the original comparison."
+  },
+  "8f45f2de65": {
+    "rewrite": "vmovdqu ymm4,YMMWORD PTR [rdi-0x40]\nvmovdqu ymm5,YMMWORD PTR [rdi-0x20]\nvperm2i128 ymm0,ymm4,YMMWORD PTR [r13+0x0],0x20\nvperm2i128 ymm1,ymm4,YMMWORD PTR [r13+0x0],0x31\nvperm2i128 ymm2,ymm5,YMMWORD PTR [r13+0x20],0x20\nvperm2i128 ymm3,ymm5,YMMWORD PTR [r13+0x20],0x31",
+    "saved": 2,
+    "why": "Load adjacent lower halves together and use memory-source lane permutations to assemble the four results. Every byte read belongs to the original load ranges, and ymm4 and ymm5 are unobserved."
+  },
+  "630213a602": {
+    "rewrite": "vzeroupper\nmov r14,QWORD PTR [r11-0x28]\nmov r13,QWORD PTR [r11-0x20]\nmov r12,QWORD PTR [r11-0x18]\nmov rbp,QWORD PTR [r11-0x10]\nmov rbx,QWORD PTR [r11-0x8]",
+    "saved": 1,
+    "why": "The rsp assignment is outside the required outputs and the note requires leaving rsp untouched; the upper-lane clearing and all five live register loads remain."
+  },
+  "d0aa406e4a": {
+    "rewrite": null,
+    "why": "Every operation contributes to a required output, and SSSE3 lacks a three-operand form to eliminate the copy into xmm4."
+  },
+  "6b16226dc0": {
+    "rewrite": null,
+    "why": "All computed values and the copy into xmm7 are live, and the independent destructive SSE operations require their existing input copies."
+  },
+  "cde2b15110": {
+    "rewrite": null,
+    "why": "Every instruction contributes to a preserved vector value, and the two XORs cannot be combined at the allowed ISA level."
+  },
+  "f5a416f0a2": {
+    "rewrite": null,
+    "why": "All intermediate vector operations feed the live sums, while the pointer update, load, and constant assignment are required outputs."
+  },
+  "41ba7688ee": {
+    "rewrite": null,
+    "why": "The SHA operations, distinct live sums, and required xmm0 setup leave no removable instruction under the SSSE3-plus-SHA limit."
+  },
+  "4199aea058": {
+    "rewrite": null,
+    "why": "Each SHA operation, xmm0 setup, live zero or constant assignment, and memory-derived output is required."
+  },
+  "67c2870b40": {
+    "rewrite": null,
+    "why": "The SHA operations and flag comparison are live, and folding the load into the add would require an equally costly register copy."
+  },
+  "a172b6a294": {
+    "rewrite": null,
+    "why": "All vector arithmetic feeds the live results, and AVX provides no packed rotate or ternary XOR to shorten these computations."
+  },
+  "a4222fded9": {
+    "rewrite": null,
+    "why": "Two XORs and two adds are needed for the arbitrary vector inputs, and the pointer update, load, and constant assignment are all live."
+  },
+  "59ddeec82d": {
+    "rewrite": "adc DWORD PTR [rdx],0xffffffbe\nand al,0x82",
+    "saved": 15,
+    "why": "The repeated tests have no surviving effects, and all AL masks combine to 0xbe AND 0xc3 = 0x82. Keeping ADC first preserves its incoming carry and store, while the final AND preserves SF and OF."
+  },
+  "ca109d195f": {
+    "rewrite": "movq mm0,rax\ncmp BYTE PTR [rcx],ah\nsbb eax,eax\nsub eax,DWORD PTR [rsi]\nlea ebp,[rbp+rax*8]\nmovq rax,mm0\nmov bh,0x27",
+    "saved": 21,
+    "why": "The eight identical comparisons and subtractions decrement ebp by eight times the sum of the memory dword and the fixed borrow bit. An unobserved MMX register saves rax while computing this result, and one mov supplies the final bh value."
+  },
+  "84d0edd7fe": {
+    "rewrite": "mov ebx,0xbb766a0a",
+    "saved": 6,
+    "why": "Only the constant assignment to ebx is live; the repeated ORs modify only unobserved rcx and flags."
+  },
+  "b6cca67eb7": {
+    "rewrite": null,
+    "why": "Each shift performs a required store, so collapsing the shifts would omit intermediate writes even though the final memory value is zero."
+  },
+  "631f5c559a": {
+    "rewrite": null,
+    "why": "Each OR performs a required store and the conditional branch depends on the OR result, so removing repetitions would violate the specified effects."
+  },
+  "5068f16e6f": {
+    "rewrite": "add al,bh",
+    "saved": 3,
+    "why": "Only add al,bh affects the required outputs and flags; the test flags are overwritten, while the stack-pointer and edx assignments are unobserved."
+  },
+  "79e175a320": {
+    "rewrite": null,
+    "why": "All three loaded register values and the test flags must survive, so none of the four instructions is redundant."
+  }
+}

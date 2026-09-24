@@ -1,0 +1,28 @@
+=== 968 test functions for 484 blocks -> /home/ruiu/sail-x86/verify/blocks/blocks_tests.sail
+=== Isla IR: 4 chunk(s), 4 in parallel
+    chunk3.ir: 8,555,365 bytes, 279s
+    chunk2.ir: 11,490,243 bytes, 280s
+    chunk0.ir: 13,478,529 bytes, 280s
+    chunk1.ir: 12,418,938 bytes, 288s
+=== Isla traces (60 parallel)
+    100/968 traces, 69s
+    200/968 traces, 119s
+    300/968 traces, 181s
+    400/968 traces, 218s
+    500/968 traces, 267s
+    600/968 traces, 311s
+    700/968 traces, 358s
+    800/968 traces, 402s
+    900/968 traces, 448s
+=== Z3 (60 parallel, 60s each)
+
+  glibc          timeout                      2
+  glibc          unsat                        337
+  gmp            timeout                      4
+  gmp            unsat                        18
+  openssl        original not executable      5
+  openssl        rewrite not executable       1
+  openssl        sat                          12
+  openssl        timeout                      11
+  openssl        unsat                        94
+wrote results/w6.json

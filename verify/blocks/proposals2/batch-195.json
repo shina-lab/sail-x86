@@ -1,0 +1,82 @@
+{
+  "5978d61c28": {
+    "rewrite": null,
+    "why": "The shuffled load, both carryless products, both XOR results, and pointer update are required, and AVX2 cannot fuse the XORs or load the data operand of VPSHUFB."
+  },
+  "8e709963cb": {
+    "rewrite": null,
+    "why": "The dependent reduction operations, loaded multiplier, extraction, and VZEROUPPER all contribute to required final register values."
+  },
+  "ca588f3293": {
+    "rewrite": null,
+    "why": "Moving EDI into a zeroed vector and shifting its low word into the highest word require separate instructions, while the broadcast and carry-producing comparison are also live."
+  },
+  "98c785f8a9": {
+    "rewrite": null,
+    "why": "VPSHUFB cannot take its data source from memory, so the load, shuffle, XOR, and required pointer update cannot be shortened."
+  },
+  "c225bc1565": {
+    "rewrite": null,
+    "why": "The data load cannot fold into VPSHUFB, and the shuffle, XOR, pointer update, and separate live multiplier load are all required."
+  },
+  "0f3b9d03ba": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle control requires a separate data load and shuffle before the XOR, and the comparison must produce the required CF and ZF."
+  },
+  "9b23cb1b98": {
+    "rewrite": null,
+    "why": "All three shuffled vectors and both scalar updates are live, and the final comparison produces CF and ZF that the length update alone does not reproduce."
+  },
+  "8ec28ea8ae": {
+    "rewrite": null,
+    "why": "Each independent fold needs two carryless products and its existing three-input XOR, while the broadcast result and final ZF are also required."
+  },
+  "0adc7c39ab": {
+    "rewrite": null,
+    "why": "Both folds already use ternary XOR, their data loads cannot fold into VPSHUFB, and the final high-product value and pointer update are live."
+  },
+  "c15f9ccd09": {
+    "rewrite": null,
+    "why": "The live broadcast, two independent carryless products, ternary XOR, and required ZF test each need their existing instruction."
+  },
+  "bc19ba1eb3": {
+    "rewrite": null,
+    "why": "The unmerged data load and shuffle, two carryless products, ternary XOR, and pointer update are all necessary for the required outputs."
+  },
+  "4fee0f9982": {
+    "rewrite": null,
+    "why": "The upper-half extraction supplies an independent ternary-XOR input, and the live broadcast, two products, and ZF test cannot be removed."
+  },
+  "ca9177943a": {
+    "rewrite": null,
+    "why": "The shuffled data requires a separate load, and the two products, existing ternary XOR, and pointer update already form a tight fold."
+  },
+  "67c19d7911": {
+    "rewrite": null,
+    "why": "The multiplier and high product are live, the extracted upper half is needed by the ternary XOR, and the final test must preserve ZF."
+  },
+  "8120980d7f": {
+    "rewrite": null,
+    "why": "The shuffled vector and high product are required outputs, and the low product, ternary XOR, and pointer update leave no removable instruction."
+  },
+  "b20c4579e5": {
+    "rewrite": null,
+    "why": "The XORs are separated by dependent carryless products, and the live vector results, extraction, multiplier load, and upper-register clearing prevent a shorter sequence."
+  },
+  "b185cc77f0": {
+    "rewrite": null,
+    "why": "Folding MOVDQU into legacy PXOR would impose an unguaranteed 16-byte alignment requirement, while the vector initialization and final comparison remain necessary."
+  },
+  "97cfdf2705": {
+    "rewrite": null,
+    "why": "All three loads and both scalar updates are live, and the length update cannot also produce the required comparison flags."
+  },
+  "d2d6c10c9a": {
+    "rewrite": null,
+    "why": "Each SSE fold needs a copy, two products, and two XORs, and folding the unaligned data loads into legacy PXOR would require an unstated alignment guarantee."
+  },
+  "eb41da60a8": {
+    "rewrite": null,
+    "why": "Destructive SSE carryless multiplication requires a copy for each pair of products, and both XORs per fold, the live multiplier load, and the ZF test are necessary."
+  }
+}

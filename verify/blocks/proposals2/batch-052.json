@@ -1,0 +1,82 @@
+{
+  "88b6b73e24": {
+    "rewrite": null,
+    "why": "Both unpacked arithmetic paths, the loaded ymm2 value, the packed store, and the pointer and counter updates are required outputs."
+  },
+  "aa9eb53d27": {
+    "rewrite": null,
+    "why": "The load, store, index update, and comparison each have a distinct required effect."
+  },
+  "8e11b0091a": {
+    "rewrite": null,
+    "why": "Each instruction produces a separate required vector value, and the addition must use ymm2 before it is zeroed."
+  },
+  "93bb284d14": {
+    "rewrite": null,
+    "why": "Both shuffles depend on their blended and incremented byte indices, and the final ymm0 index vector is also required."
+  },
+  "f03abce3e2": {
+    "rewrite": null,
+    "why": "The blends and extracted intermediate are live, and the wrapping horizontal sum, saturating sum, rounded multiplication, and packing perform distinct necessary operations."
+  },
+  "2406cf8690": {
+    "rewrite": null,
+    "why": "The four independently indexed stores, live upper-half extraction, and required comparison flags leave no removable instruction."
+  },
+  "f3dec523c5": {
+    "rewrite": null,
+    "why": "The extracted half and shuffled blend are required outputs, while the arithmetic, packing, store, and clearing of other live upper halves remain necessary."
+  },
+  "cb596eb5ee": {
+    "rewrite": null,
+    "why": "The modular word differences must be shifted before saturating packing, and the permutation, live ymm5 value, pointer update, and decrement flags must be preserved."
+  },
+  "799f7ffd08": {
+    "rewrite": null,
+    "why": "Even with dead temporaries, the stored bytes require both modular word subtractions and logical shifts before saturating packing and the arbitrary dword permutation."
+  },
+  "830d8449e2": {
+    "rewrite": null,
+    "why": "Both subtraction and shift paths feed the packed result, and the permutation, live intermediate, indexed store, pointer update, and flags remain required."
+  },
+  "8da0313349": {
+    "rewrite": null,
+    "why": "The packed xmm4 output is live, and subtraction, unsigned averaging, reordering, the store, and vzeroupper each have required effects."
+  },
+  "308d753787": {
+    "rewrite": null,
+    "why": "All five stores are required, as are the extracted ymm1 value and the final comparison flags."
+  },
+  "f55604b65a": {
+    "rewrite": null,
+    "why": "Both filtering paths use arbitrary masks and coefficients, and the rounded zmm17 value, packed store, pointer updates, and decrement flags are required."
+  },
+  "46d10d8a14": {
+    "rewrite": null,
+    "why": "The constant xmm4 value is live, and the permitted eight-byte load requires duplication and shuffling before the signed-coefficient multiply-add."
+  },
+  "c6ce5e06da": {
+    "rewrite": null,
+    "why": "The constant zmm20 output is live, and folding the broadcast into a full-width memory permutation would read beyond the permitted 32 bytes."
+  },
+  "da9988dd71": {
+    "rewrite": null,
+    "why": "The permutation already folds its data load, both constant-derived register outputs are required, and the saturated multiply-add remains necessary."
+  },
+  "e7c90a0923": {
+    "rewrite": null,
+    "why": "Each required result needs its load, arbitrary lane-local byte shuffle, and saturated multiply-add, with no directly equivalent fused operation."
+  },
+  "68e8872dc1": {
+    "rewrite": null,
+    "why": "All four filtered outputs are live, and their arbitrary lane-local shuffle masks prevent directly replacing each load and shuffle with a memory byte permutation."
+  },
+  "48129a6c46": {
+    "rewrite": null,
+    "why": "The two broadcasts, rcx constant, and k1 mask are separate required outputs, and loading k1 does not also establish rcx."
+  },
+  "cd37f687d5": {
+    "rewrite": null,
+    "why": "The broadcast shuffle constant is a required output, and the eight-byte input still needs broadcasting, byte selection, and a saturated multiply-add."
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "3685ca9bb2": {
+    "rewrite": null,
+    "why": "The four scalar loads and three lane-assembly operations are needed to preserve all four destination XMM values."
+  },
+  "b0781c3e22": {
+    "rewrite": "movaps xmm3,XMMWORD PTR [rsi]\nmovaps xmm4,xmm3\nunpcklps xmm4,XMMWORD PTR [rsi+rcx*1]\nunpckhps xmm3,XMMWORD PTR [rsi+rcx*1]\nmovaps xmm1,xmm4\nmovlhps xmm1,xmm3\nmovhlps xmm3,xmm4\nmovlps QWORD PTR [r8],xmm1\nmovlps QWORD PTR [r9],xmm3\nmovhps QWORD PTR [r8+rcx*1],xmm1\nmovhps QWORD PTR [r9+rcx*1],xmm3\nlea r8,[r8+rcx*2]\nlea r9,[r9+rcx*2]\nadd rsi,0x10\nsub eax,0x10",
+    "saved": 1,
+    "why": "Fold the second input load into both unpack instructions, preserving the final xmm1, xmm3, and xmm4 values and all stores."
+  },
+  "b32fe0a033": {
+    "rewrite": null,
+    "why": "SSE2 needs the shuffles to select the four scalar stores while preserving the final xmm1 and xmm3 values."
+  },
+  "be62eb4b07": {
+    "rewrite": "mov r8,rdi\nlea r9,[r8+0x2600]\nmov eax,ecx",
+    "saved": 1,
+    "why": "LEA combines the constant initialization and address addition because no flags are live."
+  },
+  "6882284ed5": {
+    "rewrite": "movaps xmm3,XMMWORD PTR [rsi]\nmovaps xmm4,xmm3\nunpcklps xmm4,XMMWORD PTR [rsi+rcx*1]\nunpckhps xmm3,XMMWORD PTR [rsi+rcx*1]\nmovaps xmm1,xmm4\nmovlhps xmm1,xmm3\nmovhlps xmm3,xmm4",
+    "saved": 1,
+    "why": "Reading the second input directly in each unpack removes its standalone load while preserving all three final vectors."
+  },
+  "777e904c4d": {
+    "rewrite": null,
+    "why": "Both stores and all four required pointer and counter updates are already single instructions."
+  },
+  "51ff0e6406": {
+    "rewrite": null,
+    "why": "The block already uses one input load, one instruction per scalar store, and one per required pointer or counter update."
+  },
+  "cabb510768": {
+    "rewrite": "movaps xmm0,XMMWORD PTR [CONST_1]\nlea rsi,[rsi+rdx*4]\nlea rdi,[rdi+rdx*4]\nimul rdx,rdx,0xfffffffffffffffc",
+    "saved": 1,
+    "why": "Use scaled LEAs for both pointer updates and one IMUL for the negative scaled offset; flags are not live."
+  },
+  "ffe4111f51": {
+    "rewrite": "vbroadcastf128 ymm0,XMMWORD PTR [CONST_1]\nlea rsi,[rsi+rdx*4]\nlea rdi,[rdi+rdx*4]\nimul rdx,rdx,0xfffffffffffffffc",
+    "saved": 1,
+    "why": "Use scaled LEAs for both pointer updates and one IMUL for the negative scaled offset; flags are not live."
+  },
+  "72f28650e5": {
+    "rewrite": null,
+    "why": "Each of the twelve source vectors must be read, and SSE2 already folds ten of those reads into the required word additions."
+  },
+  "ceec77a25f": {
+    "rewrite": null,
+    "why": "The vector setup and both pointer updates are required, including the offset's 32-bit shift and subsequent 64-bit negation."
+  },
+  "b45d864114": {
+    "rewrite": null,
+    "why": "All four loaded pointers require independent offset additions, and the 32-bit shift must precede the 64-bit negation."
+  },
+  "ce40b1e167": {
+    "rewrite": null,
+    "why": "Both pointer loads and additions are required, along with the vector initialization and the offset's 32-bit shift followed by 64-bit negation."
+  },
+  "a0954268f6": {
+    "rewrite": null,
+    "why": "AVX2 requires separate broadcasts, pairwise multiply-adds, and sums or differences for the four live outputs."
+  },
+  "fb3e5a2910": {
+    "rewrite": null,
+    "why": "The 32-bit doubling must wrap and zero-extend before both pointer updates and the 64-bit negation, and xmm2 must be zeroed."
+  },
+  "0034724f43": {
+    "rewrite": null,
+    "why": "Both multiply-add results are live, and SSE2 cannot fuse them with the accumulator additions or the required index update."
+  },
+  "1eaea5971b": {
+    "rewrite": null,
+    "why": "SSE2 cannot fuse the reduction shuffles with the additions, and both final vector values must be preserved."
+  },
+  "85a3a6d5b2": {
+    "rewrite": null,
+    "why": "The 32-bit doubling must wrap and zero-extend before both pointer updates and the 64-bit negation, and ymm1 must be zeroed."
+  },
+  "e811df3bed": {
+    "rewrite": null,
+    "why": "AVX2 needs a separate source load, multiply-add, accumulator addition, and flag-setting index update."
+  },
+  "05b7d1ad55": {
+    "rewrite": null,
+    "why": "Live intermediate lanes prevent replacing the reduction with horizontal adds, and vzeroupper must still clear the other affected YMM upper halves."
+  }
+}

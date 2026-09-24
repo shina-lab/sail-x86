@@ -1,0 +1,97 @@
+{
+  "7ce1635d49": {
+    "rewrite": null,
+    "why": "The two shifted row values need separate temporaries while xmm0 retains the twice-updated accumulator; both stores and both loop updates remain necessary."
+  },
+  "b6ee7c1ae9": {
+    "rewrite": null,
+    "why": "SSSE3 does not eliminate the separate shifts and temporaries needed for the two rows while preserving the twice-updated xmm0 accumulator."
+  },
+  "450fab6d63": {
+    "rewrite": null,
+    "why": "Each stored row requires its own zero-extending load and shuffle with the unknown mm2 mask, followed by the required pointer and counter updates."
+  },
+  "095c117310": {
+    "rewrite": null,
+    "why": "Both byte loads, scalar differences, full-width word broadcasts, row additions, and saturated stores are needed, along with the required pointer and counter updates."
+  },
+  "0e40361640": {
+    "rewrite": null,
+    "why": "Computing a shared xmm0-minus-xmm5 offset requires a copy because both registers must be preserved, so it does not reduce the four arithmetic instructions."
+  },
+  "444fb51e05": {
+    "rewrite": "test edx,edx",
+    "saved": 5,
+    "why": "All MMX results are unconstrained; only the final test is needed to preserve ZF."
+  },
+  "2acc7d0d16": {
+    "rewrite": "",
+    "saved": 5,
+    "why": "The block changes only unconstrained MMX registers and has no stores or required flag results."
+  },
+  "83840d0973": {
+    "rewrite": "",
+    "saved": 5,
+    "why": "Every result is confined to unconstrained MMX registers, with no stores or required flag results."
+  },
+  "b3cc01610e": {
+    "rewrite": "test esi,esi",
+    "saved": 26,
+    "why": "All MMX calculations and loads feed dead results; retaining the test preserves the only required flag."
+  },
+  "99fd521800": {
+    "rewrite": "test edx,edx",
+    "saved": 5,
+    "why": "The MMX operations do not affect the preserved XMM registers, so only the ZF-producing test remains live."
+  },
+  "e934322a18": {
+    "rewrite": "",
+    "saved": 5,
+    "why": "Only unconstrained MMX registers change; the preserved XMM registers are independent and remain untouched."
+  },
+  "e6c3700d63": {
+    "rewrite": "movq mm5,mm2\npavgb mm2,mm1\npxor mm1,mm5\npand mm1,QWORD PTR [CONST_1]\npsubusb mm2,mm1\npavgb mm3,mm2\nmovq2dq xmm3,mm3\ntest edx,edx",
+    "saved": 1,
+    "why": "Compute the final average directly in unconstrained mm3, removing its copy to mm4 while preserving the zero-extended xmm3 result and ZF."
+  },
+  "acb7a9eb69": {
+    "rewrite": "",
+    "saved": 18,
+    "why": "The loads and calculations produce only unconstrained MMX results, with no stores or required flag results."
+  },
+  "12b6c3c53e": {
+    "rewrite": "movq mm5,mm2\npavgb mm2,mm1\npxor mm1,mm5\npand mm1,QWORD PTR [CONST_1]\npsubusb mm2,mm1\npavgb mm3,mm2\nmovq2dq xmm3,mm3\ntest edx,edx",
+    "saved": 1,
+    "why": "The final average can overwrite unconstrained mm3, eliminating the copy to mm4 without changing xmm3 or ZF."
+  },
+  "95d1625378": {
+    "rewrite": "",
+    "saved": 14,
+    "why": "All loaded and computed values remain in unconstrained MMX registers, and there are no stores or required flag results."
+  },
+  "24fcd8917b": {
+    "rewrite": "",
+    "saved": 5,
+    "why": "All five instructions modify only unconstrained MMX registers, leaving the preserved XMM and general-purpose registers unchanged."
+  },
+  "a0b6ba91d9": {
+    "rewrite": "movq mm5,mm1\npxor mm5,mm4\npavgb mm1,mm4\npand mm5,QWORD PTR [CONST_1]\npsubusb mm1,mm5\npavgb mm1,mm3\nmovq2dq xmm3,mm1\nmovq mm5,mm3\npxor mm5,mm4\npavgb mm3,mm4\npand mm5,QWORD PTR [CONST_1]\npsubusb mm3,mm5\npavgb mm4,mm3\npsllq mm4,0x38\npsrlq mm4,0x38\npsllq mm1,0x8\npor mm1,mm4\nmovq2dq xmm1,mm1\ntest esi,esi",
+    "saved": 17,
+    "why": "Reuse dead MMX registers to compute the same two rounded averages and assemble the same xmm1 and xmm3 values with fewer copies. Drop the trailing loads and MMX calculations whose results are unconstrained, retaining the ZF-producing test."
+  },
+  "12464038f0": {
+    "rewrite": "movq mm5,mm1\npxor mm5,mm4\npavgb mm1,mm4\npand mm5,QWORD PTR [CONST_1]\npsubusb mm1,mm5\npavgb mm1,mm3\nmovq2dq xmm3,mm1\nmovq mm5,mm3\npxor mm5,mm4\npavgb mm3,mm4\npand mm5,QWORD PTR [CONST_1]\npsubusb mm3,mm5\npavgb mm4,mm3\npsllq mm4,0x38\npalignr mm1,mm4,0x7\nmovq2dq xmm1,mm1\ntest esi,esi",
+    "saved": 12,
+    "why": "Keep the two rounded averages and byte alignment while removing unnecessary MMX copies. The trailing loads and MMX calculations are dead; movq2dq preserves the required zero upper halves and the final test preserves ZF."
+  },
+  "d06b20dbeb": {
+    "rewrite": "movq mm5,mm1\npavgb mm1,mm4\npxor mm4,mm5\npand mm4,QWORD PTR [CONST_1]\npsubusb mm1,mm4\npavgb mm1,mm3\nmovq2dq xmm0,mm1\ntest esi,esi",
+    "saved": 13,
+    "why": "Compute the live rounded average directly in mm1 and transfer it to xmm0. Remove dead copies and the entire trailing load-and-shift calculation, retaining the final test for ZF."
+  },
+  "277eabd374": {
+    "rewrite": "movq mm5,mm1\npavgb mm1,mm4\npxor mm4,mm5\npand mm4,QWORD PTR [CONST_1]\npsubusb mm1,mm4\npavgb mm1,mm3\nmovq2dq xmm0,mm1\ntest esi,esi",
+    "saved": 9,
+    "why": "Compute the live rounded average directly in mm1 and transfer it to xmm0. Remove dead copies and the trailing loads and alignments, retaining the final test for ZF."
+  }
+}

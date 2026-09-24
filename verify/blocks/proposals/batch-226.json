@@ -1,0 +1,92 @@
+{
+  "16080b699c": {
+    "rewrite": "vpshufb xmm1,xmm0,xmm8\nvmovdqu XMMWORD PTR [rdi+rcx*1],xmm1\nvpsrlq xmm1,xmm1,0x8\nvmovd DWORD PTR [rdi+rcx*1+0x10],xmm1",
+    "saved": 1,
+    "why": "The final RCX increment and its flags are dead, so it can be removed after the stores."
+  },
+  "b50d0d8bb9": {
+    "rewrite": "vinserti128 ymm1,ymm0,xmm0,0x1\nvpshufb ymm1,ymm1,ymm8\nvmovdqu YMMWORD PTR [rdi+rcx*1],ymm1\nvpsrldq xmm1,xmm1,0x2\nvmovq QWORD PTR [rdi+rcx*1+0x20],xmm1",
+    "saved": 1,
+    "why": "The final RCX increment has no live register or flag result."
+  },
+  "f00176e094": {
+    "rewrite": "vinserti128 ymm1,ymm0,xmm0,0x1\nvpshufb ymm2,ymm1,ymm8\nvmovdqu YMMWORD PTR [rdi+rcx*1],ymm2\nvpshufb ymm1,ymm1,ymm9\nvmovdqu YMMWORD PTR [rdi+rcx*1+0x20],ymm1\nvshufps xmm2,xmm2,xmm1,0x49\nvmovdqu XMMWORD PTR [rdi+rcx*1+0x40],xmm2",
+    "saved": 1,
+    "why": "The trailing ADD changes only dead RCX and flags, while all three stores remain unchanged."
+  },
+  "9e21e661bd": {
+    "rewrite": null,
+    "why": "The shuffle and mask operations form a dependency chain whose final ZMM16, ZMM17, and ZMM18 values are all required, with no known constant operands enabling a reduction."
+  },
+  "b92d1b9aa1": {
+    "rewrite": "vpermb zmm17,zmm24,zmm16\nvmovdqu32 ZMMWORD PTR [rdi+rcx*1],zmm17\nvpshufb xmm16,xmm16,xmm25\nvmovdqu32 XMMWORD PTR [rdi+rcx*1+0x40],xmm16",
+    "saved": 1,
+    "why": "RCX and the arithmetic flags are dead after the two stores, making the final ADD unnecessary."
+  },
+  "b12cf2f612": {
+    "rewrite": null,
+    "why": "All four memory-source XOR results and the separately loaded, decremented R13 value are live, with no baseline instruction combining the load and decrement."
+  },
+  "75abbda6c8": {
+    "rewrite": "xor eax,DWORD PTR [r15]\nxor ebx,DWORD PTR [r15+0x4]\nxor edx,DWORD PTR [r15+0xc]",
+    "saved": 1,
+    "why": "The XOR into ECX has no live result or required flags and performs no store."
+  },
+  "a2b3c8bd00": {
+    "rewrite": null,
+    "why": "The three distinct register assignments are required, and a separate full-width test is needed to produce ZF from the incoming RDI value."
+  },
+  "f1b222c3e2": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rsi]\nmovdqu xmm2,XMMWORD PTR [rsi+0x10]\nmovdqu XMMWORD PTR [rdi],xmm1\nmovdqu XMMWORD PTR [rdi+0x10],xmm2\nmovq rax,xmm1\npsrldq xmm2,0xc\nmovd edx,xmm2\nxor ecx,ecx",
+    "saved": 2,
+    "why": "Two SSE2 loads and stores copy the same 32 bytes, while extracts retain the required first qword in RAX and final dword in zero-extended RDX. ECX is still cleared."
+  },
+  "856d6c6278": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rsi]\nmovdqu xmm2,XMMWORD PTR [rdi]\nmovdqu XMMWORD PTR [rdi],xmm1\nmovdqu XMMWORD PTR [rsi],xmm2\nlea rsi,[rsi+0x10]\nlea rdi,[rdi-0x10]\ncmp rdi,rsi",
+    "saved": 4,
+    "why": "The scalar load results are dead, so two SSE2 loads and stores can exchange the same 16-byte regions. The pointer updates and final comparison remain unchanged."
+  },
+  "f56c228d6d": {
+    "rewrite": null,
+    "why": "The wrapped difference, low-12-bit mask, constant adjustment, and subtraction all contribute to the required R15 result and have no shorter available combination."
+  },
+  "3359c3a3e9": {
+    "rewrite": null,
+    "why": "All four noncontiguous loads, the R14 update, and the ECX decrement producing the required ZF are live."
+  },
+  "21a802fa57": {
+    "rewrite": null,
+    "why": "Each load supplies a required register value, and the independent TEST supplies the required ZF."
+  },
+  "fb91fa3e20": {
+    "rewrite": null,
+    "why": "Both byte additions affect live RAX, and each memory addition stores a value derived from a different intermediate EAX."
+  },
+  "9fc38488da": {
+    "rewrite": "adc eax,0x152a3f15\nadc eax,0x404083f\nor al,0x8\nadd al,0x4\nor al,0x95",
+    "saved": 1,
+    "why": "The final immediate move writes only dead RDI; the carry-dependent arithmetic and byte operations still produce the required RAX."
+  },
+  "ebb50b41d8": {
+    "rewrite": null,
+    "why": "All four instructions update the required memory byte, and arbitrary BL and CH prevent cancellation of the alternating XOR and subtraction operations."
+  },
+  "76158bbeec": {
+    "rewrite": null,
+    "why": "Both memory updates are required, while the shift changes live RBP and the final byte subtraction changes live RAX."
+  },
+  "aa933fcd1c": {
+    "rewrite": null,
+    "why": "No shorter rewrite of the memory operations and REX/IRET tail is justified under the stated flag and no-stack constraints."
+  },
+  "88f4e0a010": {
+    "rewrite": "stc\nadc BYTE PTR [rdx+rax*1],al\nadd al,BYTE PTR [rsi]\nadd al,0x2\nadd al,BYTE PTR [rsi]",
+    "saved": 1,
+    "why": "Two consecutive STC instructions have the same effect as one, leaving the ADC input carry and every subsequent result unchanged."
+  },
+  "f2d47bb90a": {
+    "rewrite": "and eax,0x25ba9f9f\nlahf\nmov edx,0xe3a8a84b",
+    "saved": 3,
+    "why": "AND supersedes the comparison's flag results, the repeated LAHF writes the same AH value, and the final TEST only changes dead flags."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "2eb568a53e": {
+    "rewrite": null,
+    "why": "Both stored vectors require their shuffle, saturated multiply-add, accumulation and scaling chains for arbitrary coefficients, and the final temporaries and pointer updates must be preserved."
+  },
+  "e084ffed3b": {
+    "rewrite": null,
+    "why": "Each instruction produces a separate required register value, and the subtraction also supplies the required final flags."
+  },
+  "f1b0c4c1d1": {
+    "rewrite": null,
+    "why": "The independent loads and arbitrary filter operands require the existing arithmetic chain, with every temporary result and scalar update preserved."
+  },
+  "9b7ced9231": {
+    "rewrite": null,
+    "why": "Both output stores depend on complete filter evaluations, and arbitrary shuffle masks and saturated products prevent combining their arithmetic."
+  },
+  "ed20415506": {
+    "rewrite": null,
+    "why": "The overlapping loads feed distinct filter evaluations with arbitrary operands, while both stores, final vector temporaries and index updates remain required."
+  },
+  "7e62f7af71": {
+    "rewrite": null,
+    "why": "Zero-extending AL and transferring it to a cleared vector require separate instructions, and the load, decrement, unpack and addition each supply required results."
+  },
+  "dc49ba1dd8": {
+    "rewrite": null,
+    "why": "The arbitrary mask and shift must produce the preserved YMM8 value, and broadcasting, adding and extracting two scalar results offer no removable instruction."
+  },
+  "9412197d9b": {
+    "rewrite": null,
+    "why": "The coefficient broadcasts and multiply-add intermediates are preserved, and AVX2 requires separate shifting and two packing stages for the final saturated bytes."
+  },
+  "f9a0668343": {
+    "rewrite": null,
+    "why": "The preserved sliding-window vectors require the three source shuffles and the alignment, duplication and interleaving steps following the arbitrary filter."
+  },
+  "376603d4aa": {
+    "rewrite": null,
+    "why": "The copies establish required final vectors, while the alignment, dword rotation and two word interleaves produce distinct preserved results."
+  },
+  "9cac5c02b3": {
+    "rewrite": null,
+    "why": "The required zero-extended byte vector needs both MOVZX and VMOVD, and the decrement and packed multiply-add independently update preserved registers."
+  },
+  "17f472d263": {
+    "rewrite": null,
+    "why": "The preserved accumulated and masked vectors require their arithmetic, and the broadcast addition and four distinct scalar extractions contain no redundant operation."
+  },
+  "db11acd2ad": {
+    "rewrite": null,
+    "why": "All four instructions independently produce required vector values, including two loads from independently indexed addresses."
+  },
+  "128938e965": {
+    "rewrite": null,
+    "why": "All coefficient and product temporaries are preserved, and the signed dword shift followed by signed-word and unsigned-byte saturation cannot be shortened with AVX2."
+  },
+  "2d9ff94f08": {
+    "rewrite": null,
+    "why": "The indexed loads and blend construct distinct input lanes, and the coefficient broadcasts and final interleaves all contribute to required register values."
+  },
+  "cffca2c310": {
+    "rewrite": null,
+    "why": "The vector copies preserve required window state, while both filter stages, saturation steps and separately addressed stores remain necessary."
+  },
+  "184e396f70": {
+    "rewrite": null,
+    "why": "The masked and permuted YMM8 result is preserved independently of the four scalar sums, so its permutation and the broadcast, addition and extractions cannot be dropped."
+  },
+  "980c69b453": {
+    "rewrite": null,
+    "why": "The duplicated coefficient lanes, arbitrary masks and per-lane scaling require the existing preparation and filtering, and each final interleave supplies a preserved vector."
+  },
+  "940042912c": {
+    "rewrite": null,
+    "why": "The extracted upper dwords and all window copies are preserved, and the packing and final word shuffle are needed for the exact register value and both stores."
+  },
+  "e364ea5854": {
+    "rewrite": null,
+    "why": "The blends select independent source lanes, and the filter, coefficient broadcasts and cross-lane interleaves each contribute to required outputs."
+  }
+}

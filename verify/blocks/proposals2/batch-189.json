@@ -1,0 +1,83 @@
+{
+  "868c80f76c": {
+    "rewrite": null,
+    "why": "All three loads, byte reversals, and XOR results are live, and MOVBE is outside the allowed baseline ISA."
+  },
+  "a26e1689a8": {
+    "rewrite": null,
+    "why": "The FL updates require separate 32-bit rotations, high-half placement, and Boolean operations, and the final key load into r8 is live."
+  },
+  "deb4e0a44f": {
+    "rewrite": null,
+    "why": "Each per-dword byte reversal needs the half swap and BSWAP, while both stores and the final r12 copy are live."
+  },
+  "26e2d421cc": {
+    "rewrite": null,
+    "why": "The live register transformations require both half swaps and byte reversals, and the memory XORs already combine their loads and stores."
+  },
+  "265344757e": {
+    "rewrite": null,
+    "why": "Both independent FL transforms need their rotations, shifts, and Boolean operations, and the final key load and XOR produce required outputs."
+  },
+  "e6304be6e7": {
+    "rewrite": null,
+    "why": "All four transformed registers, their stores, and the r12 copy are live, and baseline x86-64 cannot fuse the half swaps with BSWAP."
+  },
+  "772d4f11bc": {
+    "rewrite": null,
+    "why": "The byte transformations and r12 copy are live, and each memory XOR already combines the required load, XOR, and store."
+  },
+  "cafdfaf42f": {
+    "rewrite": null,
+    "why": "The shifted 32-bit sum must be ORed with all 64 incoming bits of r8, and the independent byte extraction is also live."
+  },
+  "4e3fafd757": {
+    "rewrite": null,
+    "why": "The unconstrained upper 32 bits of r10 require the OR, and constructing xmm8 from two general-purpose registers still requires two transfers."
+  },
+  "a0387acb99": {
+    "rewrite": null,
+    "why": "The shifted 32-bit XOR result must be ORed with all 64 incoming bits of r8, and the independent byte extraction is also live."
+  },
+  "cb0e204a25": {
+    "rewrite": null,
+    "why": "The unconstrained upper 32 bits of r10 require the OR, and constructing xmm8 from two general-purpose registers still requires two transfers."
+  },
+  "11a27ab8e6": {
+    "rewrite": null,
+    "why": "The shifted 32-bit difference must be ORed with all 64 incoming bits of r8, and the independent byte extraction is also live."
+  },
+  "2a8d6b59ce": {
+    "rewrite": null,
+    "why": "The unconstrained upper 32 bits of r10 require the OR, and constructing xmm8 from two general-purpose registers still requires two transfers."
+  },
+  "1120197c98": {
+    "rewrite": null,
+    "why": "The scalar intermediates and both vector XOR results are live, and the byte load needs a separate flag-setting instruction to reproduce TEST's flags."
+  },
+  "b14ed37243": {
+    "rewrite": null,
+    "why": "The scalar operations must preserve r8, r10, and the OR flags, while forming the packed XOR operand requires both general-purpose-register transfers."
+  },
+  "c8fc598f1d": {
+    "rewrite": "vmovdqa xmm9,XMMWORD PTR [CONST_1]\nvpshufd xmm8,xmm9,0xd8\nvshufps xmm15,xmm1,xmm0,0x88\nvshufps xmm0,xmm1,xmm0,0xdd\nvpshufb xmm1,xmm15,xmm8\nvpshufb xmm0,xmm0,xmm8\nvshufps xmm15,xmm3,xmm2,0x88\nvshufps xmm2,xmm3,xmm2,0xdd\nvpshufb xmm3,xmm15,xmm8\nvpshufb xmm2,xmm2,xmm8\nvshufps xmm15,xmm5,xmm4,0x88\nvshufps xmm4,xmm5,xmm4,0xdd\nvpshufb xmm5,xmm15,xmm8\nvpshufb xmm4,xmm4,xmm8\nvpunpckldq xmm15,xmm7,xmm6\nvpunpckhdq xmm8,xmm7,xmm6\nvpunpcklqdq xmm7,xmm15,xmm8\nvpunpckhqdq xmm6,xmm15,xmm8\nvpshufb xmm7,xmm7,xmm9\nvpshufb xmm6,xmm6,xmm9",
+    "saved": 5,
+    "why": "For the first three pairs, two VSHUFPS instructions select even and odd dwords, and a reordered byte-swap mask folds the remaining interleave into VPSHUFB. Keeping the last pair unchanged preserves the required xmm8 and xmm15 temporaries, and all written YMM upper halves remain zero."
+  },
+  "84147f7636": {
+    "rewrite": null,
+    "why": "The scalar results, OR flags, vector XOR results, and constant in xmm9 are live, and the packed XOR operand still needs both general-purpose-register transfers."
+  },
+  "df2f1d0d98": {
+    "rewrite": null,
+    "why": "The arbitrary xmm9 mask and live final xmm8/xmm15 temporaries prevent folding the interleaving into the byte shuffles using a known replacement mask."
+  },
+  "ff2e43cd9c": {
+    "rewrite": null,
+    "why": "The initial load and shuffle form a zero low qword and the loaded high qword, and all eight vector XOR results and stores are live."
+  },
+  "04708eb83c": {
+    "rewrite": null,
+    "why": "The full 4-by-4 transposes need both unpack stages, and the byte swaps and final xmm8, xmm11, and xmm15 intermediates are all live."
+  }
+}

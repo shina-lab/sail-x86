@@ -1,0 +1,83 @@
+{
+  "5d586ebcb6": {
+    "rewrite": null,
+    "why": "The two independently shuffled products, preserved xmm0 result, four separately addressed stores and pointer updates leave no removable operation under SSSE3."
+  },
+  "f697292080": {
+    "rewrite": null,
+    "why": "Both shuffled products and their copies are needed with arbitrary masks and coefficients, and the packing, stores and pointer updates are already compact."
+  },
+  "e5c8f41a56": {
+    "rewrite": "movdqu xmm3,XMMWORD PTR [rdx+0x1]\nmovdqa xmm2,xmm3\npunpcklbw xmm2,xmm5\npunpckhbw xmm3,xmm5\nmovdqa xmm4,xmm2\npmaddubsw xmm4,xmm0\nmovdqa xmm5,xmm3\npmaddubsw xmm5,xmm0\npaddw xmm4,xmm2\npaddw xmm4,xmm1\npaddw xmm5,xmm3\npaddw xmm5,xmm1",
+    "saved": 1,
+    "why": "Reassociate the wrapping word additions directly into xmm4 and xmm5, eliminating the temporary copy of xmm1 into xmm0. The unpacked xmm2 and xmm3 values and both saturated multiply-add results remain unchanged."
+  },
+  "88ca17ecc5": {
+    "rewrite": null,
+    "why": "The word broadcast, two products with arbitrary coefficients, preserved xmm0 result and output store have no shorter SSSE3 sequence identified."
+  },
+  "35b21baa94": {
+    "rewrite": null,
+    "why": "Independent saturating products cannot be combined for arbitrary coefficients, and the additions, extraction steps and separately addressed stores are all needed."
+  },
+  "3dd4199adb": {
+    "rewrite": null,
+    "why": "Both unpacked halves require two independent saturating products and three word additions before the existing compact packing and stores."
+  },
+  "ede5178f06": {
+    "rewrite": null,
+    "why": "Both vector loads are live, and subtracting an arbitrary r8 plus one cannot be folded into a single LEA or subtraction without an established carry value."
+  },
+  "6345762fbc": {
+    "rewrite": null,
+    "why": "The broadcast feeds distinct halves of arbitrary xmm3 and distinct coefficients, so both arithmetic paths and the preserved xmm1 result must be retained."
+  },
+  "59cb8b05f6": {
+    "rewrite": null,
+    "why": "The copies preserve inputs for distinct saturating products, and all subsequent sums, broadcast, rounded multiplications and scalar results are live."
+  },
+  "123eb22f0f": {
+    "rewrite": null,
+    "why": "Preserving both the full doubled xmm6 and the mixed original-and-doubled xmm5 requires the copy, doubling and unpack in addition to the independent subtraction."
+  },
+  "2dbef2155b": {
+    "rewrite": null,
+    "why": "The two independently addressed stores, pointer advance and counter subtraction each provide a required result."
+  },
+  "3aa751943e": {
+    "rewrite": null,
+    "why": "The two live loads and three-instruction byte broadcast have no removable operation at the permitted ISA level."
+  },
+  "04abc7719a": {
+    "rewrite": null,
+    "why": "Four live products need their distinct shuffled inputs, while the mask minimum, doubled scalar value and xmm6 transfer are also required."
+  },
+  "f87fec4f58": {
+    "rewrite": null,
+    "why": "The live address calculation and multiply-add, rounded multiplication, saturation and store each perform a necessary operation."
+  },
+  "1d4291d9c5": {
+    "rewrite": null,
+    "why": "The two byte broadcasts already share one zero mask, and producing r9 requires both zero-extending eax and subtracting the arbitrary 64-bit rcx."
+  },
+  "5d2d28704c": {
+    "rewrite": null,
+    "why": "The live counter update and multiply-add, rounded multiplication, saturation and store have no removable instruction."
+  },
+  "0fe28b3e50": {
+    "rewrite": null,
+    "why": "Both halves of each overlapping input pair feed required products, and folding the unaligned loads into legacy SSE unpack operands would introduce alignment requirements."
+  },
+  "1a39e90df7": {
+    "rewrite": null,
+    "why": "All four products and accumulations are live, the unaligned source loads prevent direct unpack folding, and the final test supplies the required ZF."
+  },
+  "b074ed4e65": {
+    "rewrite": null,
+    "why": "Both halves of each load require byte duplication and independently saturated products before accumulation, with no known coefficient values to simplify the arithmetic."
+  },
+  "bdab6a7b80": {
+    "rewrite": null,
+    "why": "All four rounded word multiplications feed the two required packed stores, and the SSE instruction width prevents combining these operations."
+  }
+}

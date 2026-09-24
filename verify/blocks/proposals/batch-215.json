@@ -1,0 +1,82 @@
+{
+  "0e0e51af30": {
+    "rewrite": null,
+    "why": "The multiply and addition are both needed for the live rax value, both broadcasts produce live vectors, and the r8 addition supplies the required final flags."
+  },
+  "984d56cfab": {
+    "rewrite": null,
+    "why": "The shift, two broadcasts, and r8 addition each produce a distinct required result, with the addition also supplying the final flags."
+  },
+  "46d10d8a14": {
+    "rewrite": null,
+    "why": "The shuffle constant remains live, and duplicating the eight-byte input, shuffling it, and multiplying by arbitrary xmm21 coefficients contain no removable operation."
+  },
+  "c6ce5e06da": {
+    "rewrite": null,
+    "why": "The live permutation constant, 32-byte input broadcast, byte permutation, and saturated multiply-add are all needed; folding the input into a zmm memory permutation would read additional addresses."
+  },
+  "da9988dd71": {
+    "rewrite": null,
+    "why": "Both constant vectors are live, and the input load is already folded into the permutation before the required saturated multiply-add."
+  },
+  "e7c90a0923": {
+    "rewrite": null,
+    "why": "Each output needs its load, byte shuffle, and saturated multiply-add, and VPSHUFB's memory operand supplies shuffle control rather than input data."
+  },
+  "68e8872dc1": {
+    "rewrite": null,
+    "why": "All four live outputs require distinct input windows, lane-local byte shuffles, and saturated multiply-adds with arbitrary control and coefficient vectors."
+  },
+  "6fc35d0e9b": {
+    "rewrite": null,
+    "why": "The four independent indexed loads construct live zmm0, while widening, scaling, storing, and the three required scalar updates leave no removable instruction."
+  },
+  "514039b691": {
+    "rewrite": null,
+    "why": "The four strided row fragments require the existing loads and lane combination before widening and scaling, and zmm0, the store, and the scalar updates must be preserved."
+  },
+  "6166e7725b": {
+    "rewrite": null,
+    "why": "Four indexed row loads feed two separately widened and scaled vectors, and the live zmm0 value, two stores, and scalar updates leave no redundant instruction."
+  },
+  "778a18d1dd": {
+    "rewrite": null,
+    "why": "The row assembly, arbitrary byte shuffle, saturated multiply-add, store, and scalar updates are all needed while preserving the separately live zmm0 value."
+  },
+  "afad81fccf": {
+    "rewrite": null,
+    "why": "The four indexed loads already assemble the four lanes directly, followed by the required shuffle, saturated multiply-add, store, and scalar updates."
+  },
+  "34411186fd": {
+    "rewrite": null,
+    "why": "The two outputs require four strided loads and separate arbitrary permutations and saturated multiply-adds, followed by two stores and three required scalar updates."
+  },
+  "48129a6c46": {
+    "rewrite": null,
+    "why": "Both broadcasts produce live vectors, and setting k1 to 0x29 requires materializing that immediate and transferring it because KMOV has no immediate form."
+  },
+  "cd37f687d5": {
+    "rewrite": null,
+    "why": "The broadcast shuffle constant is live, and the eight-byte input broadcast, shuffle, and saturated multiply-add with arbitrary coefficients contain no redundant step."
+  },
+  "a00a8fec16": {
+    "rewrite": null,
+    "why": "The live control broadcast and the input broadcast, shuffle, and saturated multiply-add are required, and a full-width memory permutation would exceed the original 16-byte input access."
+  },
+  "f4e0684a1b": {
+    "rewrite": null,
+    "why": "The live permutation constant and the 32-byte broadcast, permutation, and saturated multiply-add are needed, while folding a full-width memory source would access additional bytes."
+  },
+  "b7e70206f0": {
+    "rewrite": null,
+    "why": "The permutation constant remains live, both input loads are already folded into their permutations, and each output still requires its saturated multiply-add."
+  },
+  "85a51e8d54": {
+    "rewrite": null,
+    "why": "The three broadcasts and rax addition produce required values, while copying and negating rcx are needed to preserve rcx and produce both r11 and the exact NEG flags."
+  },
+  "20883c98e0": {
+    "rewrite": null,
+    "why": "The two constant loads and vector zeroing produce three distinct live vectors, and the comparison independently supplies the required final flags."
+  }
+}

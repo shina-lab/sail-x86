@@ -1,0 +1,87 @@
+{
+  "e4025880b3": {
+    "rewrite": null,
+    "why": "The stores, input shuffles and unsigned products all contribute to the five live accumulators, and AVX does not provide packed integer multiply-add fusion for these operations."
+  },
+  "2d3f90c27f": {
+    "rewrite": "vpsrldq xmm9,xmm14,0x8\nvpsrldq xmm8,xmm13,0x8\nvpsrldq xmm6,xmm11,0x8\nvpsrldq xmm5,xmm10,0x8\nvpsrldq xmm7,xmm12,0x8\nvpaddq xmm13,xmm13,xmm8\nvpaddq xmm14,xmm14,xmm9\nvpaddq xmm10,xmm10,xmm5\nvpaddq xmm11,xmm11,xmm6\nvpaddq xmm12,xmm12,xmm7\nvpsrlq xmm3,xmm13,0x1a\nvpand xmm13,xmm13,xmm15\nvpaddq xmm14,xmm14,xmm3\nvpsrlq xmm0,xmm10,0x1a\nvpand xmm10,xmm10,xmm15\nvpaddq xmm11,xmm11,xmm0\nvpsrlq xmm4,xmm14,0x1a\nvpand xmm14,xmm14,xmm15\nvpsrlq xmm1,xmm11,0x1a\nvpand xmm11,xmm11,xmm15\nvpaddq xmm12,xmm12,xmm1\nvpaddq xmm10,xmm10,xmm4\nvpsllq xmm4,xmm4,0x2\nvpaddq xmm10,xmm10,xmm4\nvpsrlq xmm2,xmm12,0x1a\nvpand xmm12,xmm12,xmm15\nvpaddq xmm13,xmm13,xmm2\nvpsrlq xmm0,xmm10,0x1a\nvpand xmm10,xmm10,xmm15\nvpaddq xmm11,xmm11,xmm0\nvpsrlq xmm3,xmm13,0x1a\nvpand xmm13,xmm13,xmm15\nvpaddq xmm14,xmm14,xmm3\nvmovd DWORD PTR [rdi-0x70],xmm10\nvmovd DWORD PTR [rdi-0x6c],xmm11\nvmovd DWORD PTR [rdi-0x68],xmm12\nvmovd DWORD PTR [rdi-0x64],xmm13\nvmovd DWORD PTR [rdi-0x60],xmm14\nvzeroupper",
+    "saved": 1,
+    "why": "The final LEA only writes rsp, whose final value is not listed for preservation, and no later instruction uses its result. Removing it leaves rsp untouched and preserves all required registers, flags and stores."
+  },
+  "e082f0a9fa": {
+    "rewrite": "mov eax,DWORD PTR [rdi]\nmov ecx,DWORD PTR [rdi+0x4]\nmov r8d,DWORD PTR [rdi+0x8]\nmov r11d,DWORD PTR [rdi+0xc]\nmov r10d,DWORD PTR [rdi+0x10]\nshl rcx,0x1a\nmov r9,r8\nshl r8,0x34\nadd rax,rcx\nshr r9,0xc\nadd r8,rax\nadc r9,0x0\nshl r11,0xe\nmov rax,r10\nshr r10,0x18\nadd r9,r11\nshl rax,0x28\nadd r9,rax\nadc r10,0x0\nmov rax,r10\nand r10,0x3\nshr rax,0x2\nlea rax,[rax+rax*4]\nadd r8,rax\nadc r9,0x0\nadc r10,0x0\nmov rax,r8\nadd r8,0x5\nmov rcx,r9\nadc r9,0x0\nadc r10,0x0\nshr r10,0x2",
+    "saved": 2,
+    "why": "For q = r10 >> 2, the reduction adds q + (r10 & -4) = 5*q, which LEA computes directly. The removed rcx temporary is overwritten before its final use, and the carry chains and final ZF are unchanged."
+  },
+  "aec368216d": {
+    "rewrite": null,
+    "why": "Both carry-linked additions produce required register values and flags, and each required store already uses a single instruction."
+  },
+  "62aa636d67": {
+    "rewrite": "mov rax,r14\nmov rdx,r14\nshrd r14,rbx,0x34\nmov r11,rbx\nshr rdx,0x1a\nand rax,0x3ffffff\nshl r11,0xc\nand rdx,0x3ffffff\nshld rbp,rbx,0x18\nshr rbx,0xe\nand r14,0x3ffffff\nand rbx,0x3ffffff\ntest r15,r15",
+    "saved": 4,
+    "why": "SHRD forms (old r14 >> 52) | (old rbx << 12), and SHLD forms (old rbp << 24) | (old rbx >> 40). These replace the separate shifts, ORs and dead r12 copy while retaining r11 and the final TEST flags."
+  },
+  "1610877471": {
+    "rewrite": null,
+    "why": "The vector subtraction is live and the five required scalar stores already take one instruction each."
+  },
+  "d3acb19bf2": {
+    "rewrite": null,
+    "why": "No shorter equivalent for the live multiply-accumulate and carry chains is apparent within the explicitly allowed extensions, which do not include the original IFMA instructions."
+  },
+  "7d79e37829": {
+    "rewrite": null,
+    "why": "The arbitrary 64-bit inputs require the overlapping shifted additions and carry propagation, while the final registers retain both the original sum and its incremented form."
+  },
+  "fd48cbc07a": {
+    "rewrite": null,
+    "why": "Both pointer differences, the original count and the shifted count are live, so all four instructions are required."
+  },
+  "401c609e66": {
+    "rewrite": null,
+    "why": "Computing 16 minus an arbitrary r10 needs two baseline instructions, and the two independent live zero results each need one instruction."
+  },
+  "2f6f165c35": {
+    "rewrite": null,
+    "why": "The live shift and three-input XOR require three SSE2 operations, followed by the required store, pointer update and zero comparison."
+  },
+  "9c4a3561c4": {
+    "rewrite": null,
+    "why": "The two address updates, negated index and its copy, and four independent zero results all remain live."
+  },
+  "3eda1cf506": {
+    "rewrite": "rol rax,0x27\nrol rbx,0x29\nmov r13,rbp\nand rbp,rdx\nnot r13\nxor rbp,rcx\nmov QWORD PTR [rdi+0x5c],rbp\nmov r14,rax\nand rax,r13\nxor rax,rdx\nmov QWORD PTR [rdi+0x3c],rax\nor rdx,rcx\nxor rdx,rbx\nmov QWORD PTR [rdi+0x54],rdx\nand rcx,rbx\nxor rcx,r14\nmov QWORD PTR [rdi+0x4c],rcx\nor rbx,r14\nxor rbx,r13\nmov QWORD PTR [rdi+0x44],rbx\nmov r13,rdx\ntest r15,0xff",
+    "saved": 1,
+    "why": "Keep the complemented original rbp in r13 and compute rbp's final value directly in rbp. Computing the shared rdx/r13 result in rdx removes one final copy while preserving every store and the final TEST flags."
+  },
+  "479db61bfc": {
+    "rewrite": null,
+    "why": "The six memory complements and live pointer adjustment are already single instructions, and the final addition supplies required flags."
+  },
+  "57a259b581": {
+    "rewrite": null,
+    "why": "The live register copy and six memory complements are necessary, and the final addition supplies required flags."
+  },
+  "6779c1a727": {
+    "rewrite": null,
+    "why": "The load, store, two live pointer updates and flag-producing count subtraction each require their existing instruction."
+  },
+  "f5a13de71d": {
+    "rewrite": null,
+    "why": "Every vector result and the store are live, and SSSE3 cannot fuse the copied shift or the independent Boolean operations."
+  },
+  "aaceef1db0": {
+    "rewrite": "movq xmm5,QWORD PTR [rdi-0x40]\nmovhps xmm5,QWORD PTR [rdi-0x20]\nmovq xmm0,QWORD PTR [rdi]\nmovhps xmm0,QWORD PTR [rdi+0x20]\nmovaps xmm8,xmm0\nshufps xmm0,xmm5,0x22\nshufps xmm8,xmm5,0x77\nmovq xmm7,QWORD PTR [rdi+0x40]\npshufd xmm1,xmm7,0x3f\npshufd xmm9,xmm7,0x7f",
+    "saved": 4,
+    "why": "Pair the original 64-bit loads using MOVHPS, then select the reversed low and high dword columns with two SHUFPS instructions. This replaces the unpack and reversal network while preserving the exact load addresses and all live outputs."
+  },
+  "e94c348a7e": {
+    "rewrite": null,
+    "why": "The copies preserve pre-round inputs for live SHA1NEXTE results, all SHA outputs are live, and the comparison supplies required flags."
+  },
+  "c47326a58d": {
+    "rewrite": null,
+    "why": "Every three-operand AVX operation produces a distinct required vector result, and the store is mandatory."
+  }
+}

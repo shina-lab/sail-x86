@@ -1,0 +1,86 @@
+{
+  "18e09d5008": {
+    "rewrite": null,
+    "why": "All seven loads produce preserved vector values, and the scalar operations compute distinct required masks, negation, and r9 update."
+  },
+  "80deecfd31": {
+    "rewrite": null,
+    "why": "Both unpack and multiply-add pairs are needed, and the copy preserves xmm0 under destructive SSSE3 semantics."
+  },
+  "5403fc1333": {
+    "rewrite": null,
+    "why": "Both unpack and multiply-add pairs are needed, and the copy preserves xmm0 under destructive SSSE3 semantics."
+  },
+  "a8137c0ef3": {
+    "rewrite": null,
+    "why": "The modular multiply, high-bit extraction, 64-bit subtraction, and required rcx copy each contribute a distinct required operation."
+  },
+  "ab53ae9b46": {
+    "rewrite": "pshufb xmm0,xmm7\npshufb xmm1,xmm7\npcmpeqb xmm0,xmm3\npand xmm1,xmm0\npcmpgtb xmm1,xmm4\npmovmskb r9d,xmm1\ntest r9d,r9d",
+    "saved": 4,
+    "why": "The four instructions computing xmm6 have no preserved result or downstream consumer. Removing them leaves xmm0, r9, and ZF unchanged."
+  },
+  "93aa963e13": {
+    "rewrite": null,
+    "why": "Both masked comparisons are preserved, and extracting r9, copying rdx to rcx, and setting ZF require the remaining instructions."
+  },
+  "821b13e2f2": {
+    "rewrite": null,
+    "why": "The required r9 update and masked negation in rax need separate operations, with the final OR also supplying all required flags."
+  },
+  "420e4a857f": {
+    "rewrite": null,
+    "why": "Both multiply-add results and all three destinations of the doubled scalar value are preserved, so no instruction is redundant."
+  },
+  "84b9e2e374": {
+    "rewrite": "paddw xmm0,xmm1\npmulhrsw xmm0,xmm10\nshl ecx,0x2\nmov rdx,rsp\npackuswb xmm0,xmm0\npunpcklbw xmm0,xmm3\nmovdqa xmm6,xmm5\npaddw xmm6,xmm5\npunpcklqdq xmm5,xmm6",
+    "saved": 1,
+    "why": "The rsp subtraction feeds no preserved output or memory access. Removing it leaves rsp untouched while retaining the incoming rsp value copied to rdx."
+  },
+  "91eaadab14": {
+    "rewrite": null,
+    "why": "The shuffles and saturated multiply-adds use arbitrary inputs, while the copies retain values needed by multiple destructive operations."
+  },
+  "78e5d4ac68": {
+    "rewrite": "psubw xmm4,xmm0\nshl ecx,0x2\nmovdqa xmm6,xmm5\npaddw xmm6,xmm5\npunpcklqdq xmm5,xmm6",
+    "saved": 1,
+    "why": "The rsp subtraction has no preserved result or consumer. Deleting it leaves rsp untouched and preserves rcx and all required vector results."
+  },
+  "2032d18a34": {
+    "rewrite": null,
+    "why": "Both vector loads are required, and forming xmm1 from the masked scalar input requires the AND and MOVD."
+  },
+  "7e8cc0341e": {
+    "rewrite": null,
+    "why": "Both shuffle and multiply-add chains are required, and their source copies preserve xmm4 while the scalar update and final xmm2 copy are also live."
+  },
+  "bedbe3cb45": {
+    "rewrite": "packuswb xmm1,xmm2\nlea r9,[rax+0x3f]\nmovdqa xmm0,xmm1\npunpcklbw xmm0,xmm4\npunpckhbw xmm1,xmm4\nmovdqa XMMWORD PTR [rdx-0x10],xmm0\nmovdqa XMMWORD PTR [rdx],xmm1\nmovdqa xmm6,xmm5\npaddw xmm6,xmm5\npunpcklqdq xmm5,xmm6",
+    "saved": 1,
+    "why": "The rsp subtraction affects neither required registers nor the stores addressed through rdx. Removing it leaves rsp untouched and retains both stores exactly."
+  },
+  "1b379f939e": {
+    "rewrite": null,
+    "why": "The arithmetic shift and addition compute the required r9 value, while the rdx update and comparison independently produce required outputs."
+  },
+  "c9d8882746": {
+    "rewrite": null,
+    "why": "The equality mask, masking, signed comparison, mask extraction, and ZF test are distinct operations on unrestricted inputs."
+  },
+  "5dfb4e9044": {
+    "rewrite": null,
+    "why": "The required r8 calculation and store need all three preceding vector arithmetic and saturation operations under SSSE3."
+  },
+  "03299bd7ef": {
+    "rewrite": null,
+    "why": "Both unpack results require copies because xmm2 and xmm3 must remain unchanged, and the LEA supplies the required rdi update without altering flags."
+  },
+  "69b65034e1": {
+    "rewrite": null,
+    "why": "The r8 update is preserved, and the stored bytes require the multiply-add, rounded multiply, and unsigned saturation pack."
+  },
+  "bbcfeb9743": {
+    "rewrite": null,
+    "why": "An arbitrary bit mask needs the three logical selection operations, and the comparison needs a copy because xmm4 is preserved."
+  }
+}

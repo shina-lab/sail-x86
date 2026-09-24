@@ -1,0 +1,92 @@
+{
+  "e05744a97f": {
+    "rewrite": "mov eax,0xffffffff\nbzhi eax,eax,ecx\nkmovd k1,eax\nvmovdqu8 xmm0{k1}{z},XMMWORD PTR [rdx]\nvpshufb xmm0,xmm0,XMMWORD PTR [CONST_1]\nvpxor xmm5,xmm5,xmm0\nvpclmullqlqdq xmm0,xmm5,XMMWORD PTR [rdi+0x230]\nvpclmulhqlqdq xmm1,xmm5,XMMWORD PTR [rdi+0x230]\nvpclmullqhqdq xmm2,xmm5,XMMWORD PTR [rdi+0x230]\nvpxord xmm1,xmm1,xmm2\nvpclmullqhqdq xmm2,xmm0,XMMWORD PTR [CONST_2]\nvpshufd xmm0,xmm0,0x4e\nvpternlogd xmm1,xmm0,xmm2,0x96\nvpclmulhqhqdq xmm5,xmm5,XMMWORD PTR [rdi+0x230]\nvpclmullqhqdq xmm0,xmm1,XMMWORD PTR [CONST_2]\nvpshufd xmm1,xmm1,0x4e\nvpternlogd xmm5,xmm1,xmm0,0x96",
+    "saved": 3,
+    "why": "Fold the shuffle-mask, reduction-constant, and hash-key loads into their uses because their destination registers are not preserved. Commuting the reduction products allows CONST_2 to be the memory operand with the corresponding high/low selection swapped."
+  },
+  "2ebd709447": {
+    "rewrite": null,
+    "why": "Each broadcast supplies a distinct preserved zmm register, so all nine instructions are needed."
+  },
+  "ca36226d4f": {
+    "rewrite": null,
+    "why": "The four shuffled and XORed outputs, final counter value, and comparison flags are all live, with no removable intermediate operation."
+  },
+  "049319b40d": {
+    "rewrite": null,
+    "why": "The variable mask, shuffled and XORed output, updated counter, and final address are all preserved and have no redundant instructions."
+  },
+  "6290e643fe": {
+    "rewrite": null,
+    "why": "All four loaded vectors and all counter-derived outputs are preserved, and the final comparison is required for the live flags."
+  },
+  "3691798b48": {
+    "rewrite": null,
+    "why": "Each output needs two vector operations to combine memory with two preserved inputs, and the comparison supplies required flags."
+  },
+  "66df60a6d0": {
+    "rewrite": "vpxor xmm0,xmm15,XMMWORD PTR [rsi]\nvpxor xmm0,xmm0,xmm6\ncmp eax,0x18",
+    "saved": 1,
+    "why": "Fold the load into the first XOR while retaining the second XOR, upper-vector zeroing, and final comparison flags."
+  },
+  "848357aa42": {
+    "rewrite": "vpshufd xmm0,xmm6,0x13\nvpaddq xmm7,xmm6,xmm6\nvpsrad xmm0,xmm0,0x1f\nvpternlogd xmm7,xmm0,xmm14,0x78\nvpxor xmm0,xmm15,XMMWORD PTR [rsi]\nvpxor xmm0,xmm0,xmm7\ncmp eax,0x18",
+    "saved": 2,
+    "why": "VPTERNLOGD with immediate 0x78 combines the AND and XOR in the tweak calculation. Fold the data load into the first subsequent XOR, preserving both vector outputs and the comparison flags."
+  },
+  "3ba4a5c4e1": {
+    "rewrite": null,
+    "why": "Each live ymm result already uses two operations to combine memory and two preserved register inputs, with the comparison required for flags."
+  },
+  "5eb9f820d8": {
+    "rewrite": "vpxor ymm0,ymm15,YMMWORD PTR [rsi]\nvpxor ymm0,ymm0,ymm6\ncmp eax,0x18",
+    "saved": 1,
+    "why": "Fold the load into the first XOR, preserving the complete zmm0 result including its zeroed upper half and the final comparison flags."
+  },
+  "28e081b9fc": {
+    "rewrite": null,
+    "why": "Each output already uses one load and one ternary XOR, and the preserved source registers prevent eliminating the load with a destructive ternary operation."
+  },
+  "8364dd645e": {
+    "rewrite": null,
+    "why": "The tweak calculation already fuses its AND and XOR, and both vector outputs plus the comparison require the remaining operations."
+  },
+  "0597ff8629": {
+    "rewrite": "pshufd xmm1,xmm1,0xff\nshufps xmm4,xmm0,0x10\npxor xmm0,xmm4\nshufps xmm4,xmm0,0x8c\npxor xmm0,xmm4\npxor xmm0,xmm1\nmovaps XMMWORD PTR [r10],xmm0",
+    "saved": 1,
+    "why": "The trailing r10 increment and its flags are dead after the required store."
+  },
+  "c222f7ec8e": {
+    "rewrite": "pshufd xmm1,xmm1,0x55\nshufps xmm4,xmm0,0x10\npxor xmm0,xmm4\nshufps xmm4,xmm0,0x8c\npxor xmm0,xmm4\npxor xmm0,xmm1\nshufps xmm2,xmm0,0x44\nmovaps XMMWORD PTR [r10],xmm2\ninsertps xmm5,xmm2,0x37\npslldq xmm2,0x8\npshufd xmm3,xmm0,0xfe\npxor xmm2,xmm5\npxor xmm2,xmm3\nmovaps XMMWORD PTR [r10+0x10],xmm2",
+    "saved": 4,
+    "why": "Only the low two original xmm2 dwords contribute to the stores, so INSERTPS and a byte shift build the second stored vector without the original copies while preserving xmm0. The final pointer increment is also dead."
+  },
+  "358a2fa1cf": {
+    "rewrite": "pshufd xmm1,xmm1,0x55\nshufps xmm4,xmm0,0x10\npxor xmm0,xmm4\nshufps xmm4,xmm0,0x8c\npxor xmm0,xmm4\npxor xmm0,xmm1\nmovaps XMMWORD PTR [r10],xmm0",
+    "saved": 6,
+    "why": "The five instructions computing xmm2 and its temporaries are dead because only xmm0 is stored or preserved. The final r10 increment and its flags are also dead."
+  },
+  "a6f2771801": {
+    "rewrite": "pshufd xmm1,xmm1,0xaa\nshufps xmm4,xmm2,0x10\npxor xmm2,xmm4\nshufps xmm4,xmm2,0x8c\npxor xmm2,xmm4\npxor xmm2,xmm1\nmovaps XMMWORD PTR [r10],xmm2",
+    "saved": 1,
+    "why": "The final r10 increment and its flags are dead, while the preceding operations determine the required store."
+  },
+  "a9119b75a0": {
+    "rewrite": null,
+    "why": "The loaded key, stored value, key-generation result, updated pointer, and arithmetic flags are all required."
+  },
+  "1d1582f21c": {
+    "rewrite": null,
+    "why": "The raw loaded xmm0, transformed store, both updated pointers, and final carry flag all require separate operations."
+  },
+  "b929ec8094": {
+    "rewrite": "pxor xmm0,XMMWORD PTR [rdi]\nlea r10,[rdi+0x30]\ncmp r9d,0x18",
+    "saved": 2,
+    "why": "Fold the dead xmm2 load into PXOR and replace the pointer copy plus addition with LEA. The final comparison still supplies the required CF and ZF."
+  },
+  "55522c5645": {
+    "rewrite": "pxor xmm0,XMMWORD PTR [rdi]\npxor xmm4,XMMWORD PTR [rdi]\npxor xmm5,XMMWORD PTR [rdi]\npxor xmm6,XMMWORD PTR [rdi]\nlea r10,[rdi+0x30]\ncmp r9d,0x18",
+    "saved": 2,
+    "why": "Fold the unpreserved xmm2 load into the four XORs using the same original memory address, and combine the pointer copy and addition into LEA. The final comparison preserves CF and ZF."
+  }
+}

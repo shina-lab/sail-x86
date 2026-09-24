@@ -1,0 +1,88 @@
+{
+  "7676259fc5": {
+    "rewrite": "vpmovmskb eax,ymm3\nshl rcx,0x20\nor rax,rcx\ntzcnt rax,rax\nlea rax,[rdi+rax*1-0x3f]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the pointer subtraction and addition; the intermediate rdi value and arithmetic flags are dead."
+  },
+  "4642dbbc4e": {
+    "rewrite": "tzcnt eax,eax\nlea rax,[rdi+rax*1-0x7f]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the pointer subtraction and addition while preserving the zero-extended 32-bit TZCNT result."
+  },
+  "b8e40fee5e": {
+    "rewrite": "tzcnt eax,eax\nlea rax,[rdi+rax*1-0x5f]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the pointer subtraction and addition; neither rdi nor the resulting arithmetic flags must be preserved."
+  },
+  "5477ba4e6c": {
+    "rewrite": null,
+    "why": "The live comparison vectors, both scalar masks, pointer update, mask sum, and final ZF require the existing operations."
+  },
+  "6f9b637f94": {
+    "rewrite": null,
+    "why": "SSE2 needs the existing byte-broadcast sequence, and the masked rcx value and comparison flags also remain live."
+  },
+  "44c337f551": {
+    "rewrite": null,
+    "why": "Copying and masking rsi, producing both comparison flags, and zeroing the full ymm0 each require an instruction."
+  },
+  "b741105bbf": {
+    "rewrite": null,
+    "why": "The loaded ymm3 value is live, preventing load folding, and the store, comparison, scalar mask, index update, and ZF test are all required."
+  },
+  "1e4f8f577f": {
+    "rewrite": null,
+    "why": "The loaded ymm2 value is live, preventing load folding, and the store, comparison, scalar mask, index update, and ZF test are all required."
+  },
+  "b7301a8485": {
+    "rewrite": null,
+    "why": "Both loaded and compared vectors are live along with the scalar mask, updated index, store, and final ZF."
+  },
+  "3efa065b87": {
+    "rewrite": null,
+    "why": "The byte comparison, mask extraction, bit scan, three distinct stores, and two live pointer updates cannot be combined under AVX2."
+  },
+  "5df4ae11ad": {
+    "rewrite": null,
+    "why": "Both loaded vectors are live, and producing the equality mask in rdx and its zero flag needs the remaining three instructions."
+  },
+  "72785e74c8": {
+    "rewrite": null,
+    "why": "The store is required, and AVX2 needs separate instructions for byte equality, scalar mask extraction, and the zero test."
+  },
+  "b5c2bfba6c": {
+    "rewrite": null,
+    "why": "The bit scan and live rsi update are necessary, and LEA cannot combine the remaining constant addition with subtraction of an arbitrary ecx."
+  },
+  "5691e6b5c3": {
+    "rewrite": null,
+    "why": "The bit scan, vector store, and two independent live pointer updates each require an instruction."
+  },
+  "b7ec275327": {
+    "rewrite": null,
+    "why": "The bit scan, two distinct vector stores, and two independent live pointer updates each require an instruction."
+  },
+  "caad7edf9c": {
+    "rewrite": null,
+    "why": "The loaded word must remain in rdx, and the store, return-address calculation, and clearing of ymm0's upper half are also required."
+  },
+  "7f0c2c4373": {
+    "rewrite": "lea rax,[rdi+0x2]\nmov BYTE PTR [rdi+0x2],0x0\nmovs WORD PTR es:[rdi],WORD PTR ds:[rsi]\nvzeroupper",
+    "saved": 1,
+    "why": "Compute the return value and write the independent terminator before MOVS replaces the word load/store pair. Its updates to rsi and rdi are dead regardless of the direction flag."
+  },
+  "7530400831": {
+    "rewrite": null,
+    "why": "The loaded dword must remain in rdx, and the store, return-address calculation, and clearing of ymm0's upper half are also required."
+  },
+  "d54d603051": {
+    "rewrite": "mov ecx,DWORD PTR [rsi+rdx*1-0x3]\nmov DWORD PTR [rdi+rdx*1-0x3],ecx\nlea rax,[rdi+rdx*1]\nmovs DWORD PTR es:[rdi],DWORD PTR ds:[rsi]\nvzeroupper",
+    "saved": 1,
+    "why": "MOVS replaces the leading dword load/store pair after all other uses of rsi and rdi, making its pointer updates dead. Reordering the copies is safe because the buffers are disjoint and overlapping destination bytes receive identical values."
+  },
+  "757d53c771": {
+    "rewrite": "mov r9,QWORD PTR [rsi+rdx*1-0x7]\nmov QWORD PTR [rdi+rdx*1-0x7],r9\nlea rax,[rdi+rdx*1]\nmovs QWORD PTR es:[rdi],QWORD PTR ds:[rsi]\nvzeroupper",
+    "saved": 1,
+    "why": "MOVS replaces the leading qword load/store pair after all other uses of rsi and rdi, making its pointer updates dead. Reordering the copies is safe because the buffers are disjoint and overlapping destination bytes receive identical values."
+  }
+}

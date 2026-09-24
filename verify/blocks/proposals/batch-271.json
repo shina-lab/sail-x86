@@ -1,0 +1,88 @@
+{
+  "554e6be046": {
+    "rewrite": null,
+    "why": "Both comparison vectors and the first extracted mask must be preserved, and SSE2 still needs the second extraction and scalar OR to produce ZF."
+  },
+  "385442dbf9": {
+    "rewrite": null,
+    "why": "The SSE2 byte broadcast and the masked page-offset comparison have no shorter equivalent here that preserves the required vector and flags."
+  },
+  "8fdfe75ab5": {
+    "rewrite": null,
+    "why": "The unaligned load, two comparisons, mask union, extraction and flag test are needed while also leaving xmm3 zero."
+  },
+  "67fd99771a": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+0x10]\nmovdqa xmm4,xmm0\npcmpeqb xmm0,xmm1\npcmpeqb xmm4,xmm3\npor xmm0,xmm4\npmovmskb ecx,xmm0\nmovdqu xmm0,XMMWORD PTR [rdi+0x20]\nmovdqa xmm4,xmm0\npcmpeqb xmm0,xmm1\nshl rcx,0x10\npcmpeqb xmm4,xmm3\npor xmm0,xmm4\npmovmskb eax,xmm0\nmovdqu xmm0,XMMWORD PTR [rdi+0x30]\npcmpeqb xmm3,xmm0\nshl rax,0x20\npcmpeqb xmm0,xmm1\nor rax,rcx\npor xmm0,xmm3\npmovmskb ecx,xmm0\nshl rcx,0x30\nor rax,rcx",
+    "saved": 1,
+    "why": "The final OR already sets ZF from the completed rax value, so the following TEST is redundant."
+  },
+  "b8a63a266e": {
+    "rewrite": null,
+    "why": "The four independent byte masks require their comparisons, extractions and concatenation, while xmm0 must retain its separate comparison result."
+  },
+  "3147f98cf4": {
+    "rewrite": "vpcmpeqb ymm3,ymm9,ymm3\nvpmovmskb eax,ymm3\nshl rcx,0x20\nor rax,rcx\ntzcnt rax,rax\nlea rax,[rdi+rax*1-0x40]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the pointer subtraction and result addition because rdi is not required at exit. VZEROUPPER retains the required final upper half of ymm0."
+  },
+  "5a9a971a7e": {
+    "rewrite": "tzcnt eax,eax\nlea rax,[rdi+rax*1-0x80]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines both additions into one instruction; rdi and arithmetic flags are not required at exit."
+  },
+  "91daa373ec": {
+    "rewrite": "tzcnt eax,eax\nlea rax,[rdi+rax*1-0x60]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the subtraction and addition into one instruction; rdi and arithmetic flags are not required at exit."
+  },
+  "45300549ad": {
+    "rewrite": null,
+    "why": "The required zeroed ymm15, shifted union in rax and comparison flags each need the existing operations while preserving both inputs."
+  },
+  "21b52080c7": {
+    "rewrite": null,
+    "why": "With arbitrary ymm15, both comparisons and their AND-NOT are needed, followed by extraction and increment to produce rcx and ZF."
+  },
+  "b51dfbf543": {
+    "rewrite": null,
+    "why": "With arbitrary ymm15, both comparisons and their AND-NOT are needed, followed by extraction and increment to produce rcx and ZF."
+  },
+  "28dc5decaa": {
+    "rewrite": null,
+    "why": "With arbitrary ymm15, both comparisons and their AND-NOT are needed, followed by extraction and increment to produce rcx and ZF."
+  },
+  "cec49fc460": {
+    "rewrite": null,
+    "why": "With arbitrary ymm15, both comparisons and their AND-NOT are needed, followed by extraction and increment to produce rcx and ZF."
+  },
+  "1cc989055b": {
+    "rewrite": null,
+    "why": "The required intermediate vectors and unsigned minimum reduction prevent eliminating any comparisons or masking operations, and rdx and ZF require extraction and a test."
+  },
+  "9c322fd46a": {
+    "rewrite": null,
+    "why": "The preserved load and arbitrary ymm15 require both comparisons and their AND-NOT before extracting and incrementing the required rcx result."
+  },
+  "a87ef29dd0": {
+    "rewrite": null,
+    "why": "The indexed load must preserve ymm0, and the two comparisons, AND-NOT, extraction and increment are all needed for arbitrary inputs."
+  },
+  "878e912a75": {
+    "rewrite": null,
+    "why": "Both masked comparison results feed the minimum, with ymm5 also preserved, and the arbitrary ymm15 comparison still requires extraction and a flag test."
+  },
+  "774a5e7dbc": {
+    "rewrite": "mov edx,0xc\nbzhi eax,edi,edx\nbzhi ecx,esi,edx\nxor edx,edx\ncmp ecx,eax",
+    "saved": 1,
+    "why": "A shared count of 12 lets BMI2 BZHI replace both copy-and-mask pairs with three instructions. Clearing edx and retaining the final CMP preserves all required outputs and flags."
+  },
+  "add6580fdc": {
+    "rewrite": null,
+    "why": "The indexed load must preserve ymm0, and the two comparisons, AND-NOT, extraction and increment are all needed for arbitrary inputs."
+  },
+  "908a982026": {
+    "rewrite": "mov eax,ecx\nxchg rdi,rsi\nmov r8d,0xffffffff\nxor edx,edx\nsub eax,0x60",
+    "saved": 2,
+    "why": "Register XCHG replaces the three-move swap because the temporary rcx value is not required at exit. The final SUB still produces the required result and flags."
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "ed9e250a57": {
+    "rewrite": null,
+    "why": "The two stores, live pointer update, and comparison flags each require their existing instruction under SSE2."
+  },
+  "bfb860b370": {
+    "rewrite": null,
+    "why": "Both the loaded xmm7 and XOR result xmm15 are live, and the counter update, store, and comparison are also required."
+  },
+  "509d197c3e": {
+    "rewrite": null,
+    "why": "The loaded xmm9 must remain available alongside the XOR result, preventing load folding, while the store and comparison are required."
+  },
+  "81601c967d": {
+    "rewrite": null,
+    "why": "The loaded xmm11, XOR result xmm2, stored value, and comparison flags are all observable and require the existing four operations."
+  },
+  "d89578b416": {
+    "rewrite": null,
+    "why": "SSSE3 cannot combine the two vector stores, and the live pointer update and comparison flags require separate operations."
+  },
+  "0823b9e315": {
+    "rewrite": "movdqa xmm4,xmm13\nmovdqa xmm0,xmm12\npshufb xmm4,xmm2\npshufb xmm0,xmm3\npxor xmm4,xmm5\nmovdqa xmm5,xmm15\npxor xmm0,xmm4\npshufb xmm5,xmm2\nmovdqa xmm2,xmm14\npshufb xmm2,xmm3\nmovdqa xmm3,xmm0\npxor xmm2,xmm5\npshufb xmm0,XMMWORD PTR [r11+r10*1-0x40]\nadd r9,0x10\npxor xmm0,xmm2\npshufb xmm3,XMMWORD PTR [r11+r10*1]\npxor xmm3,xmm0\npshufb xmm0,XMMWORD PTR [r11+r10*1-0x40]\nadd r11,0x10\nand r11,0x30\nsub rax,0x1\npxor xmm0,xmm3",
+    "saved": 2,
+    "why": "Fold the two shuffle-mask loads into PSHUFB memory operands, delaying the r11 update until all shuffles have read the original addresses. The final SUB still produces the required flags."
+  },
+  "4b8c898de9": {
+    "rewrite": null,
+    "why": "The live results require both masked input paths and all table lookups, whose table copies are needed by destructive SSSE3 shuffles."
+  },
+  "0a535ffd83": {
+    "rewrite": null,
+    "why": "Every loaded table contributes through a shuffle and XOR, and the accumulator permutations, live xmm5 rotation, and counter updates are required."
+  },
+  "ab4e107643": {
+    "rewrite": null,
+    "why": "Both nonlinear lookup chains and the loaded xmm0 are required, and SSSE3's destructive shuffles need the existing table copies."
+  },
+  "219183e56e": {
+    "rewrite": null,
+    "why": "The combined lookup results and the loaded permutation mask remain live, so none of the loads or combining operations can be eliminated."
+  },
+  "d4e8bfa567": {
+    "rewrite": null,
+    "why": "The store and all eight zeroed vector registers are observable, and SSSE3 has no instruction that clears those registers together."
+  },
+  "425dcaf016": {
+    "rewrite": null,
+    "why": "Both differently shaped outputs and the zeroed xmm1 are live, requiring the shuffles, XORs, copy, and clearing of xmm6's low half."
+  },
+  "0e45a91f0e": {
+    "rewrite": null,
+    "why": "Both lookup paths and the masked, shifted xmm1 result are live, and SSSE3 requires separate table loads and destructive shuffles."
+  },
+  "75eeebfa4d": {
+    "rewrite": null,
+    "why": "The loaded xmm1 must be preserved, and the shuffled xmm3, store, masked pointer update, and final flags all remain observable."
+  },
+  "1210c673f2": {
+    "rewrite": null,
+    "why": "All stores and carry results are required, and baseline x86-64 provides no scalar ANDN to combine the complement and mask steps for arbitrary rcx."
+  },
+  "1726c8c772": {
+    "rewrite": null,
+    "why": "The full products, both carry contributions for each accumulated limb, final rdx value, and pointer and counter updates are all required."
+  },
+  "69786bca44": {
+    "rewrite": null,
+    "why": "Each product feeds two independent carry chains, and preserving their outputs and the displaced initial r8 value requires the existing operations."
+  },
+  "9d18b78efd": {
+    "rewrite": null,
+    "why": "The loaded rax, both pointer updates, and decrement flags are live, and a string load cannot assume the incoming direction flag is clear."
+  },
+  "db1578bd15": {
+    "rewrite": null,
+    "why": "Preserving all masks and masked vector results prevents eliminating their loads or copies, while the OR reduction and pointer and counter updates remain necessary."
+  },
+  "2972d5fdea": {
+    "rewrite": null,
+    "why": "The four live outputs depend on both AND/rotate/XOR and OR/XOR chains, with no combined operation in the allowed baseline ISA."
+  }
+}

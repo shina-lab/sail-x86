@@ -1,0 +1,94 @@
+{
+  "91bed698fe": {
+    "rewrite": "movdqa XMMWORD PTR [rdi],xmm6\nmovdqa XMMWORD PTR [rdi+0x10],xmm4\nmovdqa XMMWORD PTR [rdi+0x20],xmm2\nmovdqa XMMWORD PTR [rdi+0x30],xmm0\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm7\nmovdqa XMMWORD PTR [rdi+rsi*1+0x10],xmm5\nmovdqa XMMWORD PTR [rdi+rsi*1+0x20],xmm3\nmovdqa XMMWORD PTR [rdi+rsi*1+0x30],xmm1\nmovdqa XMMWORD PTR [rdi+rcx*1],xmm4\nmovdqa XMMWORD PTR [rdi+rcx*1+0x10],xmm2\nmovdqa XMMWORD PTR [rdi+rcx*1+0x20],xmm0\nmovdqa XMMWORD PTR [rdi+rcx*1+0x30],xmm9\nmovdqa XMMWORD PTR [rdi+r8*1],xmm5\nmovdqa XMMWORD PTR [rdi+r8*1+0x10],xmm3\nmovdqa XMMWORD PTR [rdi+r8*1+0x20],xmm1\nmovdqa XMMWORD PTR [rdi+r8*1+0x30],xmm9\nlea rdi,[rdi+rsi*2]\nmovdqa xmm8,xmm4\npalignr xmm4,xmm6,0x2\nmovdqa xmm6,xmm4\nmovdqa xmm4,xmm2\npalignr xmm4,xmm8,0x2\nmovdqa xmm8,xmm0\npalignr xmm8,xmm2,0x2\nmovdqa xmm2,xmm8\nmovdqa xmm8,xmm5\npalignr xmm5,xmm7,0x2\nmovdqa xmm7,xmm5\nmovdqa xmm5,xmm3\npalignr xmm5,xmm8,0x2\nmovdqa xmm8,xmm1\npalignr xmm8,xmm3,0x2\nmovdqa xmm3,xmm8\npshufb xmm1,xmm10\npshufb xmm0,xmm10\ndec edx",
+    "saved": 2,
+    "why": "Save the middle input of each alignment chain and compute two adjacent outputs with three copies instead of four. All stores, final vector values, and the decrement remain unchanged."
+  },
+  "afc37eb8a7": {
+    "rewrite": "vmovdqa xmm1,XMMWORD PTR [rcx+0x10]\nvpalignr xmm2,xmm1,XMMWORD PTR [rcx],0x2\nvpalignr xmm3,xmm1,XMMWORD PTR [rcx],0x4\nvpaddw xmm3,xmm3,XMMWORD PTR [rcx]\nvpsraw xmm3,xmm3,0x1\nvpavgw xmm3,xmm3,xmm2\nvpavgw xmm2,xmm2,XMMWORD PTR [rcx]\nvmovdqa xmm4,XMMWORD PTR [CONST_1]\nvpshufb xmm5,xmm1,xmm4\nvpshufb xmm0,xmm5,xmm4\nvpaddw xmm0,xmm0,xmm1\nvpsraw xmm0,xmm0,0x1\nvpavgw xmm0,xmm0,xmm5\nvpavgw xmm1,xmm1,xmm5\nmov edx,0x8",
+    "saved": 1,
+    "why": "Fold the initial load of xmm0 into its consumers as memory operands; xmm0 is subsequently overwritten. All preserved vector results still use VEX instructions that clear their upper halves."
+  },
+  "8fce2d93b9": {
+    "rewrite": null,
+    "why": "Each store, vector transformation, pointer update, and flag-producing decrement is required and already uses one instruction."
+  },
+  "08b39458ba": {
+    "rewrite": null,
+    "why": "The sixteen stores and all required register updates already use one instruction apiece."
+  },
+  "4d64046508": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rcx-0x2]\nmovdqu xmm2,XMMWORD PTR [rcx+0xe]\nmovdqa xmm3,XMMWORD PTR [rcx]\nmovdqa xmm5,XMMWORD PTR [rdx+0x10]\nmovdqa xmm0,xmm1\npextrw r9d,xmm5,0x7\npslldq xmm0,0x2\npinsrw xmm0,r9d,0x0\nmovdqu xmm6,XMMWORD PTR [rcx+0xc]\npaddw xmm6,XMMWORD PTR [rcx+0x10]\npsraw xmm6,0x1\npavgw xmm6,xmm2\npavgw xmm2,XMMWORD PTR [rcx+0x10]\npaddw xmm0,xmm3\npsraw xmm0,0x1\npavgw xmm0,xmm1\npavgw xmm3,xmm1\npslldq xmm1,0xe\npsrldq xmm5,0x2\npor xmm1,xmm5\nmovdqu xmm7,XMMWORD PTR [rdx+0xe]\npaddw xmm1,xmm7\npsraw xmm1,0x1\npavgw xmm1,XMMWORD PTR [rdx+0x10]\nmovdqu xmm5,XMMWORD PTR [rdx+0x2]\nmovdqa xmm4,xmm5\npslldq xmm4,0x2\nmovdqa xmm7,xmm5\npslldq xmm7,0x4\npaddw xmm5,xmm7\npsraw xmm5,0x1\npavgw xmm5,xmm4\nmovdqa xmm4,xmm1\npsrld xmm4,0x10\nmovdqa xmm7,xmm5\npsrld xmm7,0x10\npand xmm1,XMMWORD PTR [CONST_1]\npand xmm5,XMMWORD PTR [CONST_1]\npackssdw xmm7,xmm4\npackssdw xmm5,xmm1\nmov edx,0x8",
+    "saved": 3,
+    "why": "Extract and insert the boundary word to shorten the first alignment, and fold the aligned xmm4 load into its consumers. Shift xmm5 directly for the second alignment and reload its original value through the final average's memory operand."
+  },
+  "e4605a2354": {
+    "rewrite": "movdqa XMMWORD PTR [rdi],xmm3\nmovdqa XMMWORD PTR [rdi+0x10],xmm2\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm0\nmovdqa XMMWORD PTR [rdi+rsi*1+0x10],xmm6\nlea rdi,[rdi+rsi*2]\npextrw r9d,xmm3,0x7\npslldq xmm2,0x2\npinsrw xmm2,r9d,0x0\npextrw r9d,xmm7,0x7\npslldq xmm3,0x2\npinsrw xmm3,r9d,0x0\npslldq xmm7,0x2\npextrw r9d,xmm0,0x7\npslldq xmm6,0x2\npinsrw xmm6,r9d,0x0\npextrw r9d,xmm5,0x7\npslldq xmm0,0x2\npinsrw xmm0,r9d,0x0\npslldq xmm5,0x2\ndec edx",
+    "saved": 4,
+    "why": "Each boundary transfer needs only PEXTRW, PSLLDQ, and PINSRW instead of a copy, two shifts, and an OR. The unpreserved r9 register holds each extracted word."
+  },
+  "68e3f082b1": {
+    "rewrite": "movdqa XMMWORD PTR [rdi],xmm4\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\nmovdqa XMMWORD PTR [rdi+0x20],xmm2\nmovdqa XMMWORD PTR [rdi+0x30],xmm3\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm9\nmovdqa XMMWORD PTR [rdi+rsi*1+0x10],xmm7\nmovdqa XMMWORD PTR [rdi+rsi*1+0x20],xmm6\nmovdqa XMMWORD PTR [rdi+rsi*1+0x30],xmm5\nmovdqa XMMWORD PTR [rdi+rdx*1],xmm11\nmovdqa XMMWORD PTR [rdi+rdx*1+0x10],xmm4\nmovdqa XMMWORD PTR [rdi+rdx*1+0x20],xmm1\nmovdqa XMMWORD PTR [rdi+rdx*1+0x30],xmm2\nmovdqa XMMWORD PTR [rdi+r8*1],xmm8\nmovdqa XMMWORD PTR [rdi+r8*1+0x10],xmm9\nmovdqa XMMWORD PTR [rdi+r8*1+0x20],xmm7\nmovdqa XMMWORD PTR [rdi+r8*1+0x30],xmm6\nlea rdi,[rdi+rsi*2]\npextrw r9d,xmm2,0x7\npslldq xmm3,0x2\npinsrw xmm3,r9d,0x0\npextrw r9d,xmm1,0x7\npslldq xmm2,0x2\npinsrw xmm2,r9d,0x0\npextrw r9d,xmm4,0x7\npslldq xmm1,0x2\npinsrw xmm1,r9d,0x0\npextrw r9d,xmm11,0x7\npslldq xmm4,0x2\npinsrw xmm4,r9d,0x0\npextrw r9d,xmm10,0x7\npslldq xmm11,0x2\npinsrw xmm11,r9d,0x0\npslldq xmm10,0x2\npextrw r9d,xmm6,0x7\npslldq xmm5,0x2\npinsrw xmm5,r9d,0x0\npextrw r9d,xmm7,0x7\npslldq xmm6,0x2\npinsrw xmm6,r9d,0x0\npextrw r9d,xmm9,0x7\npslldq xmm7,0x2\npinsrw xmm7,r9d,0x0\npextrw r9d,xmm8,0x7\npslldq xmm9,0x2\npinsrw xmm9,r9d,0x0\npextrw r9d,xmm0,0x7\npslldq xmm8,0x2\npinsrw xmm8,r9d,0x0\npslldq xmm0,0x2\ndec ecx",
+    "saved": 10,
+    "why": "Replace each of the ten four-instruction boundary transfers with a word extraction, a byte shift, and a word insertion. Stores, source ordering, final vector values, and the decrement are preserved."
+  },
+  "16598ab392": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rcx-0x2]\nmovdqu xmm2,XMMWORD PTR [rcx+0xe]\nmovdqa xmm3,XMMWORD PTR [rcx]\nmovdqa xmm0,xmm1\npalignr xmm0,XMMWORD PTR [rdx+0x10],0xe\nmovdqu xmm6,XMMWORD PTR [rcx+0xc]\npaddw xmm6,XMMWORD PTR [rcx+0x10]\npsraw xmm6,0x1\npavgw xmm6,xmm2\npavgw xmm2,XMMWORD PTR [rcx+0x10]\npaddw xmm0,xmm3\npsraw xmm0,0x1\npavgw xmm0,xmm1\npavgw xmm3,xmm1\npalignr xmm1,XMMWORD PTR [rdx+0x10],0x2\nmovdqu xmm7,XMMWORD PTR [rdx+0xe]\npaddw xmm1,xmm7\npsraw xmm1,0x1\npavgw xmm1,XMMWORD PTR [rdx+0x10]\nmovdqu xmm5,XMMWORD PTR [rdx+0x2]\nmovdqa xmm4,xmm5\npslldq xmm4,0x2\nmovdqa xmm7,xmm5\npslldq xmm7,0x4\npaddw xmm5,xmm7\npsraw xmm5,0x1\npavgw xmm5,xmm4\nmovdqa xmm4,xmm1\npsrld xmm4,0x10\nmovdqa xmm7,xmm5\npsrld xmm7,0x10\npand xmm1,XMMWORD PTR [CONST_1]\npand xmm5,XMMWORD PTR [CONST_1]\npackssdw xmm7,xmm4\npackssdw xmm5,xmm1\nmov edx,0x8",
+    "saved": 2,
+    "why": "Fold the initial aligned loads of xmm4 and xmm5 into all their consumers. Both registers are overwritten later, and all accesses retain the original addresses and widths."
+  },
+  "5248d6e202": {
+    "rewrite": null,
+    "why": "The four stores, six required vector updates, pointer advance, and decrement already take one instruction each."
+  },
+  "0b06f17ad4": {
+    "rewrite": null,
+    "why": "PALIGNR already performs each boundary transfer in one instruction, and every store and remaining register update is required."
+  },
+  "fd65568165": {
+    "rewrite": "vmovdqu xmm1,XMMWORD PTR [rcx-0x2]\nvmovdqa xmm4,XMMWORD PTR [rcx+0x10]\nvpalignr xmm0,xmm1,XMMWORD PTR [rdx+0x10],0xe\nvpaddw xmm6,xmm4,XMMWORD PTR [rcx+0xc]\nvpsraw xmm6,xmm6,0x1\nvpavgw xmm6,xmm6,XMMWORD PTR [rcx+0xe]\nvpavgw xmm2,xmm4,XMMWORD PTR [rcx+0xe]\nvpaddw xmm0,xmm0,XMMWORD PTR [rcx]\nvpsraw xmm0,xmm0,0x1\nvpavgw xmm0,xmm0,xmm1\nvpavgw xmm3,xmm1,XMMWORD PTR [rcx]\nvpalignr xmm1,xmm1,XMMWORD PTR [rdx+0x10],0x2\nvpaddw xmm1,xmm1,XMMWORD PTR [rdx+0xe]\nvpsraw xmm1,xmm1,0x1\nvpavgw xmm1,xmm1,XMMWORD PTR [rdx+0x10]\nvmovdqu xmm5,XMMWORD PTR [rdx+0x2]\nvpslldq xmm4,xmm5,0x2\nvpslldq xmm7,xmm5,0x4\nvpaddw xmm5,xmm5,xmm7\nvpsraw xmm5,xmm5,0x1\nvpavgw xmm5,xmm5,xmm4\nvpsrld xmm4,xmm1,0x10\nvpsrld xmm7,xmm5,0x10\nvpand xmm1,xmm1,XMMWORD PTR [CONST_1]\nvpand xmm5,xmm5,XMMWORD PTR [CONST_1]\nvpackssdw xmm7,xmm7,xmm4\nvpackssdw xmm5,xmm5,xmm1\nmov edx,0x8",
+    "saved": 5,
+    "why": "Fold five temporary loads into VEX alignment and arithmetic memory operands, swapping commutative operands where necessary. The arithmetic and saturation remain exact for arbitrary word values, and all preserved YMM upper halves remain zero."
+  },
+  "ebcda0858b": {
+    "rewrite": null,
+    "why": "Every required vector result, store, pointer update, and decrement is already produced by a single instruction."
+  },
+  "e4001fea4b": {
+    "rewrite": null,
+    "why": "The block already uses one instruction for each required store, vector result, and scalar update."
+  },
+  "33048016bd": {
+    "rewrite": "movdqa XMMWORD PTR [rdi],xmm1\nmovdqa XMMWORD PTR [rdi+0x10],xmm0\nmovdqa XMMWORD PTR [rdi+rsi*4],xmm0\nmovdqa XMMWORD PTR [rdi+rsi*4+0x10],xmm3\nmovdqa XMMWORD PTR [rdi+rsi*8],xmm3\nmovdqa XMMWORD PTR [rdi+rsi*8+0x10],xmm5\nmovdqa XMMWORD PTR [rdi+rdx*4],xmm5\nmovdqa XMMWORD PTR [rdi+rdx*4+0x10],xmm2\nadd rdi,rsi\nmovss xmm1,xmm0\npshufd xmm1,xmm1,0x39\nmovss xmm0,xmm3\npshufd xmm0,xmm0,0x39\nmovss xmm3,xmm5\npshufd xmm3,xmm3,0x39\nmovss xmm5,xmm2\npshufd xmm5,xmm5,0x39\ndec ecx",
+    "saved": 16,
+    "why": "For each four-byte alignment, MOVSS replaces the discarded low dword with the next vector's low dword, then PSHUFD rotates it into the high lane. This replaces each six-instruction sequence with two SSE2-compatible instructions."
+  },
+  "3bbffb7736": {
+    "rewrite": "movdqa XMMWORD PTR [rdi],xmm1\nmovdqa XMMWORD PTR [rdi+0x10],xmm0\nmovdqa XMMWORD PTR [rdi+rsi*4],xmm0\nmovdqa XMMWORD PTR [rdi+rsi*4+0x10],xmm3\nmovdqa XMMWORD PTR [rdi+rsi*8],xmm3\nmovdqa XMMWORD PTR [rdi+rsi*8+0x10],xmm5\nmovdqa XMMWORD PTR [rdi+rdx*4],xmm5\nmovdqa XMMWORD PTR [rdi+rdx*4+0x10],xmm2\nadd rdi,rsi\nmovss xmm1,xmm0\npshufd xmm1,xmm1,0x39\nmovss xmm0,xmm3\npshufd xmm0,xmm0,0x39\nmovss xmm3,xmm5\npshufd xmm3,xmm3,0x39\nmovss xmm5,xmm2\npshufd xmm5,xmm5,0x39\ndec ecx",
+    "saved": 4,
+    "why": "MOVSS followed by a dword rotation implements each four-byte alignment directly in its final destination. Each copy/PALIGNR/copy triple becomes two instructions."
+  },
+  "2acdd62d7f": {
+    "rewrite": "movdqa XMMWORD PTR [rdi],xmm1\nmovdqa XMMWORD PTR [rdi+0x10],xmm2\nmovdqa XMMWORD PTR [rdi+0x20],xmm3\nmovdqa XMMWORD PTR [rdi+0x30],xmm4\nmovdqa XMMWORD PTR [rdi+r8*1],xmm2\nmovdqa XMMWORD PTR [rdi+r8*1+0x10],xmm3\nmovdqa XMMWORD PTR [rdi+r8*1+0x20],xmm4\nmovdqa XMMWORD PTR [rdi+r8*1+0x30],xmm5\nmovdqa XMMWORD PTR [rdi+r8*2],xmm3\nmovdqa XMMWORD PTR [rdi+r8*2+0x10],xmm4\nmovdqa XMMWORD PTR [rdi+r8*2+0x20],xmm5\nmovdqa XMMWORD PTR [rdi+r8*2+0x30],xmm6\nmovss xmm1,xmm2\npshufd xmm1,xmm1,0x39\nmovss xmm2,xmm3\npshufd xmm2,xmm2,0x39\nmovss xmm3,xmm4\npshufd xmm3,xmm3,0x39\nmovdqa XMMWORD PTR [rdi+rcx*4],xmm4\nmovdqa XMMWORD PTR [rdi+rcx*4+0x10],xmm5\nmovdqa XMMWORD PTR [rdi+rcx*4+0x20],xmm6\nmovdqa XMMWORD PTR [rdi+rcx*4+0x30],xmm7\nmovdqa XMMWORD PTR [rdi+r8*4],xmm5\nmovdqa XMMWORD PTR [rdi+r8*4+0x10],xmm6\nmovdqa XMMWORD PTR [rdi+r8*4+0x20],xmm7\nmovdqa XMMWORD PTR [rdi+r8*4+0x30],xmm9\nmovdqa XMMWORD PTR [rdi+r9*1],xmm6\nmovdqa XMMWORD PTR [rdi+r9*1+0x10],xmm7\nmovdqa XMMWORD PTR [rdi+r9*1+0x20],xmm9\nmovdqa XMMWORD PTR [rdi+r9*1+0x30],xmm8\nmovdqa XMMWORD PTR [rdi+rcx*8],xmm7\nmovdqa XMMWORD PTR [rdi+rcx*8+0x10],xmm9\nmovdqa XMMWORD PTR [rdi+rcx*8+0x20],xmm8\nmovdqa XMMWORD PTR [rdi+rcx*8+0x30],xmm8\nmovdqa XMMWORD PTR [rdi+rax*1],xmm9\nmovdqa XMMWORD PTR [rdi+rax*1+0x10],xmm8\nmovdqa XMMWORD PTR [rdi+rax*1+0x20],xmm8\nmovdqa XMMWORD PTR [rdi+rax*1+0x30],xmm8\nmovss xmm4,xmm5\npshufd xmm4,xmm4,0x39\nmovss xmm5,xmm6\npshufd xmm5,xmm5,0x39\nmovss xmm6,xmm7\npshufd xmm6,xmm6,0x39\nmovss xmm7,xmm9\npshufd xmm7,xmm7,0x39\nmovss xmm9,xmm8\npshufd xmm0,xmm9,0x39\nmovdqa xmm9,xmm0\nadd rdi,rsi\ndec edx",
+    "saved": 7,
+    "why": "Replace the alignment triples with MOVSS and PSHUFD pairs. The last alignment keeps a copy so both xmm0 and xmm9 retain their required identical final values."
+  },
+  "e4aaabc916": {
+    "rewrite": null,
+    "why": "Each of the eight stores, four VEX alignment results, and two scalar updates already requires only one instruction."
+  },
+  "d56098b9c2": {
+    "rewrite": null,
+    "why": "All thirty-two stores and eight alignment results are required, and the pointer and counter updates are already single instructions."
+  },
+  "1769ba7778": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdx]\nmovdqu xmm1,XMMWORD PTR [rcx-0x2]\nmovdqa xmm3,xmm2\nmovss xmm3,xmm1\npshufd xmm3,xmm3,0x39\npextrw r9d,xmm1,0x0\npsrldq xmm2,0x2\npinsrw xmm2,r9d,0x7\npaddw xmm3,XMMWORD PTR [rdx]\npsraw xmm3,0x1\npavgw xmm3,xmm2\npavgw xmm2,XMMWORD PTR [rdx]\nmovdqa xmm0,xmm2\npunpcklwd xmm2,xmm3\npunpckhwd xmm0,xmm3\nmovdqa xmm3,xmm1\npsrldq xmm3,0x2\nmovdqa xmm4,xmm1\npsrldq xmm4,0x4\npaddw xmm1,xmm4\npsraw xmm1,0x1\npavgw xmm1,xmm3\nlea rdi,[rdi+rsi*8]\nneg rsi\nmov edx,0x4",
+    "saved": 4,
+    "why": "Build the four-byte alignment with MOVSS and PSHUFD and the two-byte alignment with a shift and word extraction/insertion. Loading directly into xmm2 and folding later uses of the original aligned input into memory operands removes another copy."
+  },
+  "8a42808f0e": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rcx-0x2]\nmovdqa xmm2,xmm1\npalignr xmm2,XMMWORD PTR [rdx],0x2\nmovdqa xmm3,xmm1\npalignr xmm3,XMMWORD PTR [rdx],0x4\npaddw xmm3,XMMWORD PTR [rdx]\npsraw xmm3,0x1\npavgw xmm3,xmm2\npavgw xmm2,XMMWORD PTR [rdx]\nmovdqa xmm0,xmm2\npunpcklwd xmm2,xmm3\npunpckhwd xmm0,xmm3\nmovdqa xmm3,xmm1\npsrldq xmm3,0x2\nmovdqa xmm4,xmm1\npsrldq xmm4,0x4\npaddw xmm1,xmm4\npsraw xmm1,0x1\npavgw xmm1,xmm3\nlea rdi,[rdi+rsi*8]\nneg rsi\nmov edx,0x4",
+    "saved": 1,
+    "why": "Fold the initial aligned load of xmm0 into its alignment and arithmetic consumers. Its required final value is still defined by the later copy and high-word unpack."
+  }
+}

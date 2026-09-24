@@ -1,0 +1,82 @@
+{
+  "282e296267": {
+    "rewrite": null,
+    "why": "Aligning rdi while retaining the original relative offset in rsi and separately adjusting rdx requires all four operations."
+  },
+  "b8673bd4b2": {
+    "rewrite": null,
+    "why": "Both mask results and incremented rcx are live, and the concatenation, trailing-zero count with defined zero-input behavior, and final comparison remain necessary."
+  },
+  "19505001d0": {
+    "rewrite": null,
+    "why": "Both byte loads are needed, and arbitrary r8d together with the required final subtraction flags prevents shortening the arithmetic chain."
+  },
+  "7f5352c4d0": {
+    "rewrite": null,
+    "why": "The indexed byte loads and final rcx value must be preserved, while arbitrary r8d and the required subtraction flags prevent simplifying the arithmetic chain."
+  },
+  "57d297d70a": {
+    "rewrite": null,
+    "why": "All four instructions update independent live registers, with the final rdx subtraction also supplying the required CF and ZF."
+  },
+  "fd6931806a": {
+    "rewrite": null,
+    "why": "The live r11 copy, two independently copied and masked offsets, and comparison flags require all six instructions under SSE2."
+  },
+  "312ed69d46": {
+    "rewrite": null,
+    "why": "The live r11 copy, two independently copied and masked offsets, and comparison flags have no shorter implementation using the allowed SSE4.2 instruction set."
+  },
+  "8092661269": {
+    "rewrite": null,
+    "why": "Both loaded vectors, the byte-comparison vector, the extracted scalar mask, and the final comparison flags are live."
+  },
+  "2e2427fe17": {
+    "rewrite": null,
+    "why": "The store, live byte-comparison vector, live scalar mask, and final comparison flags each require their respective instruction."
+  },
+  "5c0adf1e87": {
+    "rewrite": null,
+    "why": "The zero-extended load result, word store, count subtraction with matching flags, and pointer increment are all required."
+  },
+  "e4e0abc6c0": {
+    "rewrite": null,
+    "why": "The live zero-extended word load, exact word and byte stores, and independent count and pointer updates leave no removable instruction."
+  },
+  "63678a50c9": {
+    "rewrite": null,
+    "why": "The live dword load result, dword store, count subtraction with matching flags, and pointer increment are all required."
+  },
+  "6bd0f5dd5d": {
+    "rewrite": null,
+    "why": "Both indexed copies and the pointer update are required, and combining the two count subtractions would not preserve the final subtraction's CF and OF for arbitrary inputs."
+  },
+  "bebc36c627": {
+    "rewrite": null,
+    "why": "Both qword loads and stores produce required results, while the pointer update and exact flags from the final decrement prevent shortening the remaining arithmetic."
+  },
+  "c71e874445": {
+    "rewrite": null,
+    "why": "Both vector loads and stores are required, and merging the count subtractions would lose the required final subtraction flags."
+  },
+  "008a9d70d1": {
+    "rewrite": null,
+    "why": "The two independently addressed vector copies and pointer update are required, and the final subtraction flags prevent fusing the count adjustments."
+  },
+  "69954d7431": {
+    "rewrite": null,
+    "why": "Both zero-extended word results and stores are live, and vzeroupper must clear the upper halves of the affected live YMM registers."
+  },
+  "a1fe321137": {
+    "rewrite": null,
+    "why": "Both dword load results and stores are required, and vzeroupper has an observable effect on the live YMM registers."
+  },
+  "5cb8ce9985": {
+    "rewrite": null,
+    "why": "Both qword load results and stores are required, and vzeroupper has an observable effect on the live YMM registers."
+  },
+  "3c0fd1cebb": {
+    "rewrite": null,
+    "why": "Both vector copies are required, and the VEX loads clear only their own upper halves, leaving vzeroupper necessary for the other affected live YMM registers."
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "3e8ad61d93": {
+    "rewrite": null,
+    "why": "Combining the two stores requires an extra instruction to duplicate xmm0 across a 256-bit vector, while the vector addition and both scalar updates are live."
+  },
+  "fcaaab9518": {
+    "rewrite": null,
+    "why": "The independent indexed loads, stores, accumulation and scalar updates are needed, and the arbitrary contents of ymm2 prevent replacing the unpacks with zero extension."
+  },
+  "ff061a5090": {
+    "rewrite": null,
+    "why": "AVX2 requires two stores for these 64 bytes, and the vector addition and both scalar updates produce required results."
+  },
+  "9f83acb692": {
+    "rewrite": null,
+    "why": "Both widened and shifted vectors are stored, and AVX2 cannot fuse the required word dot product with the dword accumulation."
+  },
+  "37120cb8a2": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask requires both broadcast-and-shuffle paths, and the shifted stores, accumulation and scalar updates are all needed."
+  },
+  "33a713a77b": {
+    "rewrite": null,
+    "why": "The two 256-bit stores, dword addition and two scalar updates each produce required effects and cannot be combined under AVX2."
+  },
+  "1debf1c3f0": {
+    "rewrite": null,
+    "why": "Both widened and shifted vectors and the dot-product result are live, and AVX2 provides no fused instruction for the remaining accumulation."
+  },
+  "29dd1fd3fd": {
+    "rewrite": null,
+    "why": "Every computed vector and scalar result is live, and the final carry flag also requires preserving the carry produced by the rdi addition."
+  },
+  "01a56f824c": {
+    "rewrite": null,
+    "why": "Both stores, the vector addition and the two scalar updates have independent required effects."
+  },
+  "94379c34b9": {
+    "rewrite": "vextracti128 xmm1,ymm4,0x1\ntzcnt esi,r10d\nvpaddd xmm0,xmm4,xmm1\nvmovd xmm2,esi\nvmovd xmm3,r10d\nvpsrad xmm3,xmm3,0x1\nvphaddd xmm0,xmm0,xmm0\nvphaddd xmm0,xmm0,xmm0\nvpaddd xmm0,xmm0,xmm3\nvpsrad xmm0,xmm0,xmm2\nvpbroadcastw ymm0,xmm0",
+    "saved": 2,
+    "why": "Two horizontal dword additions replace the four-instruction shuffle-and-add reduction because only the final low word is broadcast. Adding the rounding term after the reduction preserves the low dword modulo 2^32 and therefore the shifted broadcast result."
+  },
+  "0b95e732fc": {
+    "rewrite": null,
+    "why": "The load, shift, interleave and palette lookup are needed, as are the four independently indexed stores and three scalar updates."
+  },
+  "141fb5364a": {
+    "rewrite": null,
+    "why": "The two palette lookups and two byte interleaves supply all four independently indexed stores, leaving no dead operation to remove."
+  },
+  "111a5d9a88": {
+    "rewrite": null,
+    "why": "Both lane-wise palette lookups and interleaves are consumed by the four stores, and the full ymm0 result and scalar updates must be preserved."
+  },
+  "e5f0ded763": {
+    "rewrite": null,
+    "why": "The load is already folded into the permutation, and both lookup-and-interleave results are needed for the two stores."
+  },
+  "c556ea9cb8": {
+    "rewrite": null,
+    "why": "The memory permutation, two palette lookups, interleaves, stores and scalar updates all contribute required effects."
+  },
+  "6bdada186f": {
+    "rewrite": null,
+    "why": "The scalar trailing-zero result, vectorized sum and vectorized trailing-zero count require both counts, the addition and both scalar-to-vector transfers."
+  },
+  "4d0c46c541": {
+    "rewrite": null,
+    "why": "The four independently indexed stores cannot be merged without constructing new addresses, and both scalar updates are live."
+  },
+  "76deaabb04": {
+    "rewrite": null,
+    "why": "All four shifted dword results are live, so a horizontal-sum shortcut would change required lanes, while the qword load and dot product are necessary."
+  },
+  "d24dea7bf4": {
+    "rewrite": null,
+    "why": "The four independently indexed qword stores and the two required scalar updates cannot be combined while retaining the specified addresses."
+  },
+  "952210e4cb": {
+    "rewrite": null,
+    "why": "All four reduced dword lanes are live, and the loaded unsigned dot-product operand cannot be folded into the instruction's signed memory operand."
+  }
+}

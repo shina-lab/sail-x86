@@ -1,0 +1,90 @@
+{
+  "bc4eb78a12": {
+    "rewrite": "lea esi,[rcx+rdx]\nmov r8d,ecx\nand rdi,0xffffffffffffffe0\nsub esi,0x20",
+    "saved": 1,
+    "why": "LEA combines the copy and 32-bit addition while zero-extending ESI. The final SUB retains the required CF and ZF values."
+  },
+  "a147d23461": {
+    "rewrite": "vpcmpeqb ymm1,ymm0,YMMWORD PTR [rdi]\nvpmovmskb eax,ymm1\nsar eax,cl\nmov ecx,edx\nmov edx,0x1\nshl edx,cl\nsub edx,0x1\nand eax,edx",
+    "saved": 1,
+    "why": "AND already sets ZF from the final EAX value, so the following TEST is redundant."
+  },
+  "69f9f8dada": {
+    "rewrite": null,
+    "why": "The bit scan, two additions with the final addition's flags, and clearing of the vector upper halves are all observable and cannot be combined into fewer allowed instructions."
+  },
+  "6506b2ed37": {
+    "rewrite": "mov ecx,esi\nvpcmpeqb ymm1,ymm0,YMMWORD PTR [rdi+0x20]\nmov edx,0x1\nshl edx,cl\nsub edx,0x1\nvpmovmskb eax,ymm1\nand eax,edx",
+    "saved": 1,
+    "why": "The final AND produces the same ZF as TEST EAX,EAX, allowing TEST to be removed."
+  },
+  "eb77dc50dc": {
+    "rewrite": null,
+    "why": "All computed register values are required, and TEST must remain because SHR leaves ZF unchanged when the masked shift count is zero."
+  },
+  "b87ef53b02": {
+    "rewrite": null,
+    "why": "RDI requires both the increment and alignment mask, while RDX independently requires adding 0x20 and subtracting the preserved RCX."
+  },
+  "152eed7853": {
+    "rewrite": null,
+    "why": "RDI requires both the increment and alignment mask, while RDX independently requires adding 0x80 and subtracting the preserved RCX."
+  },
+  "83bf780b22": {
+    "rewrite": null,
+    "why": "All four comparison masks and both OR results must be preserved, and KORTEST is still needed to produce ZF."
+  },
+  "75104c0c78": {
+    "rewrite": "mov ecx,edx\nvpcmpeqb k1,ymm16,YMMWORD PTR [rdi]\nmov edx,0x1\nshl rdx,cl\nsub rdx,0x1\nkmovd eax,k1\nand eax,edx",
+    "saved": 1,
+    "why": "AND already supplies the required ZF, so TEST can be dropped while retaining the full 64-bit mask in RDX."
+  },
+  "83cf370d39": {
+    "rewrite": "lea esi,[rcx+rdx]\nmov r8d,ecx\nand rdi,0xffffffffffffffe0\nsub esi,0x20",
+    "saved": 1,
+    "why": "LEA replaces the copy and addition with the same zero-extended 32-bit sum. Keeping SUB last preserves CF and ZF."
+  },
+  "e5addc87a1": {
+    "rewrite": "vpcmpeqb k1,ymm16,YMMWORD PTR [rdi]\nkmovd eax,k1\nsar eax,cl\nmov ecx,edx\nmov edx,0x1\nshl edx,cl\nsub edx,0x1\nand eax,edx",
+    "saved": 1,
+    "why": "AND sets ZF according to the final EAX value, making the trailing TEST redundant."
+  },
+  "a812e20fde": {
+    "rewrite": "mov ecx,esi\nvpcmpeqb k1,ymm16,YMMWORD PTR [rdi+0x20]\nmov edx,0x1\nshl edx,cl\nsub edx,0x1\nkmovd eax,k1\nand eax,edx",
+    "saved": 1,
+    "why": "The final AND and the removed TEST produce identical ZF values."
+  },
+  "e4913c08bb": {
+    "rewrite": null,
+    "why": "The comparison mask, RCX, and shifted RAX are all required, and a zero masked shift count makes TEST necessary to set ZF."
+  },
+  "5359a5f85b": {
+    "rewrite": null,
+    "why": "The independent pointer alignment and length adjustment each require two operations for arbitrary initial register values."
+  },
+  "3d7742ecef": {
+    "rewrite": null,
+    "why": "SSE2 needs separate initialization and comparison while preserving XMM1, followed by mask extraction and TEST to produce the required RAX and flags."
+  },
+  "9b7c7eb5d4": {
+    "rewrite": null,
+    "why": "The pointer increment and alignment mask are both necessary, as are the independent addition and subtraction producing RDX."
+  },
+  "74dca56385": {
+    "rewrite": null,
+    "why": "The required vector results need all four SSE2 comparisons and three reductions, and mask extraction followed by TEST is needed to set ZF."
+  },
+  "1ce21a39e8": {
+    "rewrite": null,
+    "why": "Both comparison vectors must survive, and SSE2 still needs initialization of XMM2, the two comparisons, mask extraction, and TEST."
+  },
+  "9b53e35745": {
+    "rewrite": "mov cl,dl\npcmpeqb xmm1,XMMWORD PTR [rdi]\nmov edx,0x1\nshl edx,cl\nsub edx,0x1\npmovmskb eax,xmm1\nand eax,edx",
+    "saved": 1,
+    "why": "AND already sets the required ZF, so TEST is redundant; the partial CL write and all register results are retained."
+  },
+  "d19835b750": {
+    "rewrite": null,
+    "why": "Broadcasting an arbitrary low byte requires the three SSE2 vector operations, and the EDX update plus copying and masking EDI are independently required."
+  }
+}

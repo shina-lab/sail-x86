@@ -1,0 +1,93 @@
+{
+  "409799dd37": {
+    "rewrite": "shl edx,0x2\nshl ecx,0x2\nmovd xmm12,edx\nmovd xmm13,ecx\npshuflw xmm12,xmm12,0x0\npunpcklqdq xmm12,xmm12\npshuflw xmm13,xmm13,0x0\npunpcklqdq xmm13,xmm13\nlea rdx,[rsi+rsi*2]\nlea r9,[rdi+rdx*1]\nmov eax,0x2",
+    "saved": 3,
+    "why": "Two LEA instructions replace the five moves and additions computing 3*rsi and rdi+3*rsi; no flags must be preserved."
+  },
+  "4f66ed9f19": {
+    "rewrite": "shl edx,0x2\nshl ecx,0x2\nvmovd xmm12,edx\nvmovd xmm13,ecx\nvpshuflw xmm12,xmm12,0x0\nvpunpcklqdq xmm12,xmm12,xmm12\nvpshuflw xmm13,xmm13,0x0\nvpunpcklqdq xmm13,xmm13,xmm13\nmov rdx,rdi\nlea r9,[rsi+rsi*2]\nsub rdi,r9\nmov ecx,0x2",
+    "saved": 1,
+    "why": "Compute 3*rsi in the unpreserved r9 and subtract it once, replacing three subtractions with two instructions. The VEX broadcasts retain the required zeroed upper YMM halves."
+  },
+  "5a0f140b14": {
+    "rewrite": "shl edx,0x2\nshl ecx,0x2\nvmovd xmm12,edx\nvmovd xmm13,ecx\nvpshuflw xmm12,xmm12,0x0\nvpunpcklqdq xmm12,xmm12,xmm12\nvpshuflw xmm13,xmm13,0x0\nvpunpcklqdq xmm13,xmm13,xmm13\nlea rdx,[rsi+rsi*2]\nlea r9,[rdi+rdx*1]\nmov eax,0x2",
+    "saved": 3,
+    "why": "Two LEA instructions replace five scalar moves and additions, with flags unobserved. The vector instructions remain VEX encoded to preserve the full YMM results."
+  },
+  "25c130a700": {
+    "rewrite": "movsxd rcx,ecx\nmov r9,rdi\ncmp WORD PTR [r8+0xc],0x0",
+    "saved": 1,
+    "why": "The loaded rdi value is dead, so a direct word comparison produces the same required ZF with one fewer instruction."
+  },
+  "d8da11f649": {
+    "rewrite": "movsxd rcx,ecx\nadd rdx,0x200\nmov r10,rdi\ncmp WORD PTR [r8+0x34],0x0",
+    "saved": 1,
+    "why": "Replace the dead zero-extended load and register test with a word comparison at the same address, preserving ZF."
+  },
+  "bc850e3fc0": {
+    "rewrite": "add rdx,0x1c0\nadd r10,0x8\ncmp WORD PTR [r8+0x5c],0x0",
+    "saved": 1,
+    "why": "The loaded register is not preserved, so comparing the same memory word directly supplies the required ZF."
+  },
+  "3bb72ae50b": {
+    "rewrite": "movq xmm3,QWORD PTR [rsi+0x18]\nmovhps xmm3,QWORD PTR [rsi]\nmovq xmm4,QWORD PTR [rsi+0x10]\nmovhps xmm4,QWORD PTR [rsi+0x8]\nmovdqa xmm0,xmm3\npaddw xmm3,xmm4\npsubw xmm0,xmm4\npshufd xmm1,xmm3,0xee\npsubw xmm1,xmm3\npaddw xmm3,xmm3\npaddw xmm3,xmm1\npshufd xmm2,xmm0,0xee\npsubw xmm2,xmm0\npaddw xmm0,xmm0\npaddw xmm0,xmm2\npunpcklwd xmm3,xmm1\npunpcklwd xmm0,xmm2\nmovdqa xmm4,xmm3\npcmpeqw xmm5,xmm5\npunpckldq xmm3,xmm0\npunpckhdq xmm4,xmm0\nmovhlps xmm1,xmm3\nmovhlps xmm2,xmm4\nmovdqa xmm0,xmm2\npaddw xmm2,xmm4\npsubw xmm4,xmm0\nmovdqa xmm0,xmm1\npaddw xmm1,xmm3\npsubw xmm3,xmm0\nmovdqa xmm0,xmm2\npaddw xmm2,xmm1\npsubw xmm1,xmm0\nmovdqa xmm0,xmm4\npaddw xmm4,xmm3\npsubw xmm3,xmm0\npsrlw xmm5,0xf\ncmp edx,0x7fff",
+    "saved": 1,
+    "why": "Process the first pair of butterflies together in the two 64-bit halves of each vector. The shuffle/subtract steps leave xmm1 and xmm2 with zero upper halves before MOVHLPS, preserving all 128-bit outputs."
+  },
+  "ddae141b37": {
+    "rewrite": null,
+    "why": "The bit scan, independent rdx update, live rsi constant, and final comparison each provide a required result."
+  },
+  "91a8e5b582": {
+    "rewrite": null,
+    "why": "The sign extension, pointer copy and load, rdx adjustment, and memory comparison all produce required register or flag values."
+  },
+  "19f00f44c7": {
+    "rewrite": null,
+    "why": "The sign extension, pointer copy and load, rdx adjustment, and memory comparison all produce required register or flag values."
+  },
+  "e6d83868ba": {
+    "rewrite": "movsxd rcx,ecx\nmov r9,rdi\nmov rax,rsi\nmov rsi,rdx\nmov edx,ecx\ncmp BYTE PTR [r8+0xc],0x0",
+    "saved": 1,
+    "why": "Remove the stack adjustment, which affects no required final register or flag, leaving rsp untouched as required."
+  },
+  "fb94ec0d01": {
+    "rewrite": "movsxd rcx,ecx\nmov r9,rdi\nmov rax,rsi\nmov rsi,rdx\nmov edx,ecx\ncmp BYTE PTR [r8+0xc],0x0",
+    "saved": 1,
+    "why": "Remove the stack adjustment, which affects no required final register or flag, leaving rsp untouched as required."
+  },
+  "74cc1ac1c1": {
+    "rewrite": null,
+    "why": "Each SSE2 byte broadcast needs its load and three unpack/shuffle operations, and both stores and scalar updates are live."
+  },
+  "e84f28f6ec": {
+    "rewrite": null,
+    "why": "Both loads and arbitrary-mask shuffles feed required stores, and the pointer and counter updates are also live."
+  },
+  "efd871eeb3": {
+    "rewrite": null,
+    "why": "SSE2 requires word broadcasts and separate additions for both halves before saturation, while the source vectors and rdx result must be preserved."
+  },
+  "84b6bb03b8": {
+    "rewrite": null,
+    "why": "The byte loads cannot be widened, and the lane-local packs need the permutations to place each row in its required 128-bit store."
+  },
+  "c5ead5890c": {
+    "rewrite": null,
+    "why": "Both rows require copies, arithmetic shifts, packing, and stores while xmm0 and xmm2 must retain their twice-advanced values."
+  },
+  "f223c31519": {
+    "rewrite": "sar esi,0x4\nmovd xmm0,esi\nadd esi,r9d\nimul esi,esi,0x7\nsub ecx,esi\nmovd xmm1,r9d\nmovd xmm3,ecx\npshuflw xmm0,xmm0,0x0\npunpcklqdq xmm0,xmm0\npshuflw xmm1,xmm1,0x0\npunpcklqdq xmm1,xmm1\npshuflw xmm3,xmm3,0x0\npunpcklqdq xmm3,xmm3\nmovdqa xmm2,xmm1\npmullw xmm1,XMMWORD PTR [CONST_1]\npsllw xmm2,0x3\npaddw xmm1,xmm3\npaddw xmm2,xmm1\nmov r8d,0x8",
+    "saved": 1,
+    "why": "Replace ecx += esi followed by ecx -= 8*esi with multiplication by seven and one subtraction; both compute the same result modulo 2^32."
+  },
+  "f748311d2e": {
+    "rewrite": null,
+    "why": "Both rows require copies, arithmetic shifts, packing, and stores while xmm0 and xmm2 must retain their twice-advanced values."
+  },
+  "84adc1948c": {
+    "rewrite": "sar esi,0x4\nmovd xmm0,esi\nadd esi,r9d\nimul esi,esi,0x7\nsub ecx,esi\nmovd xmm1,r9d\nmovd xmm3,ecx\npshufd xmm4,XMMWORD PTR [CONST_1],0x0\npacksswb xmm4,xmm4\npshufb xmm0,xmm4\npshufb xmm1,xmm4\npshufb xmm3,xmm4\nmovdqa xmm2,xmm1\npmullw xmm1,XMMWORD PTR [CONST_1]\npsllw xmm2,0x3\npaddw xmm1,xmm3\npaddw xmm2,xmm1\nmov r8d,0x8",
+    "saved": 2,
+    "why": "Multiplication by seven shortens the scalar offset calculation. A two-instruction mask built from CONST_1's first two words lets three PSHUFB instructions replace six word-broadcast shuffles."
+  }
+}

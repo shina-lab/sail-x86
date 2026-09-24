@@ -1,0 +1,89 @@
+{
+  "5a0f140b14": {
+    "rewrite": "shl edx,0x2\nshl ecx,0x2\nvmovd xmm12,edx\nvmovd xmm13,ecx\nvpshuflw xmm12,xmm12,0x0\nvpunpcklqdq xmm12,xmm12,xmm12\nvpshuflw xmm13,xmm13,0x0\nvpunpcklqdq xmm13,xmm13,xmm13\nlea rdx,[rsi+rsi*2]\nlea r9,[rdi+rdx*1]\nmov eax,0x2",
+    "saved": 3,
+    "why": "Two LEA instructions replace the five instructions computing three times rsi and adding rdi; no flags need to match."
+  },
+  "3bb72ae50b": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi+0x10]\nmovdqu xmm0,XMMWORD PTR [rsi]\nmovdqa xmm4,xmm2\npaddw xmm2,xmm0\npsubw xmm0,xmm4\npshufd xmm4,xmm2,0x4e\nmovdqa xmm3,xmm2\npaddw xmm3,xmm4\npsubw xmm2,xmm4\npshufd xmm4,xmm0,0x4e\nmovdqa xmm1,xmm0\npaddw xmm1,xmm4\npsubw xmm0,xmm4\npunpcklwd xmm3,xmm1\npunpcklwd xmm0,xmm2\nmovdqa xmm4,xmm3\npcmpeqw xmm5,xmm5\npunpckldq xmm3,xmm0\npunpckhdq xmm4,xmm0\nmovdqa xmm2,xmm4\npaddw xmm2,xmm3\npsubw xmm3,xmm4\npxor xmm0,xmm0\nmovhlps xmm0,xmm2\nmovdqa xmm4,xmm2\npaddw xmm2,xmm0\npsubw xmm4,xmm0\nmovhlps xmm0,xmm3\nmovdqa xmm1,xmm3\npaddw xmm1,xmm0\npsubw xmm3,xmm0\npsrlw xmm5,0xf\ncmp edx,0x7fff",
+    "saved": 5,
+    "why": "Process two rows per vector in the first butterfly, then combine the transposed column pairs before extracting their high halves. This preserves all output lanes, including the upper halves produced by the original MOVHLPS sequence."
+  },
+  "ddae141b37": {
+    "rewrite": null,
+    "why": "The bit scan, edx adjustment, live constant in esi, and comparison flags each require a separate instruction."
+  },
+  "e6d83868ba": {
+    "rewrite": "movsxd rcx,ecx\nmov r9,rdi\nmov rax,rsi\nmov rsi,rdx\nmov edx,ecx\ncmp BYTE PTR [r8+0xc],0x0",
+    "saved": 1,
+    "why": "The stack adjustment has no listed register output and its flags are overwritten by CMP, so it can be omitted while leaving rsp untouched."
+  },
+  "fb94ec0d01": {
+    "rewrite": "movsxd rcx,ecx\nmov r9,rdi\nmov rax,rsi\nmov rsi,rdx\nmov edx,ecx\ncmp BYTE PTR [r8+0xc],0x0",
+    "saved": 1,
+    "why": "The stack adjustment has no listed register output and its flags are overwritten by CMP, so it can be omitted while leaving rsp untouched."
+  },
+  "c5ead5890c": {
+    "rewrite": null,
+    "why": "Both stored rows, the shifted temporaries, and both accumulator updates are live, and SSE2 provides no combined copy-and-shift operation."
+  },
+  "f223c31519": {
+    "rewrite": null,
+    "why": "The three SSE2 word broadcasts, ramp construction, and scalar updates are required, including the carry from the final subtraction."
+  },
+  "f748311d2e": {
+    "rewrite": null,
+    "why": "SSSE3 does not combine the required word shifts and saturated packing, and all row outputs and accumulator updates remain live."
+  },
+  "84adc1948c": {
+    "rewrite": "sar esi,0x4\nmovd xmm0,esi\nadd esi,r9d\nadd ecx,esi\nshl esi,0x3\nsub ecx,esi\nmovd xmm1,r9d\nmovd xmm3,ecx\npshufd xmm4,XMMWORD PTR [CONST_1],0x0\npackuswb xmm4,xmm4\npshufb xmm0,xmm4\npshufb xmm1,xmm4\npshufb xmm3,xmm4\nmovdqa xmm2,xmm1\npmullw xmm1,XMMWORD PTR [CONST_1]\npsllw xmm2,0x3\npaddw xmm1,xmm3\npaddw xmm2,xmm1\nmov r8d,0x8",
+    "saved": 1,
+    "why": "Build a shared alternating 0,1 byte-shuffle mask from CONST_1 and use PSHUFB for all three word broadcasts, replacing six shuffle/unpack instructions with five."
+  },
+  "7ce1635d49": {
+    "rewrite": null,
+    "why": "The two row values, both stores, final shifted temporary, accumulator, pointer, and decrement flags are all required."
+  },
+  "b6ee7c1ae9": {
+    "rewrite": null,
+    "why": "SSSE3 offers no shorter shift-and-pack sequence that also preserves the live midpoint temporary, final accumulator, and both stores."
+  },
+  "095c117310": {
+    "rewrite": null,
+    "why": "The scalar differences and both vector results are live, and each SSE2 word broadcast needs the existing two shuffle steps after MOVD."
+  },
+  "0e40361640": {
+    "rewrite": null,
+    "why": "Both shuffled predictions and the shared source registers must be preserved, so sharing the subtraction and addition would require compensating instructions."
+  },
+  "99b166dd13": {
+    "rewrite": null,
+    "why": "The two signed saturating additions cannot generally be reassociated, and the clamp, store, accumulator update, and scalar flag-producing updates are all required."
+  },
+  "4225dadf8c": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rdi+0x10]\nmovdqa xmm5,xmm1\npsrldq xmm5,0x2\npslldq xmm1,0x2\npsrldq xmm3,0xe\npor xmm1,xmm3\npshufhw xmm5,xmm5,0xa4\npaddw xmm1,xmm5\npsrlw xmm1,0x1\npavgw xmm1,XMMWORD PTR [rdi+0x10]",
+    "saved": 1,
+    "why": "Use xmm1 for the neighbor sum and fold a reload of its original value into the final PAVGW memory operand, eliminating the copy to xmm2."
+  },
+  "95d4f206cb": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rdi+0x10]\npalignr xmm5,xmm1,0x2\npalignr xmm1,xmm3,0xe\npshufhw xmm5,xmm5,0xa4\npaddw xmm1,xmm5\npsrlw xmm1,0x1\npavgw xmm1,XMMWORD PTR [rdi+0x10]",
+    "saved": 2,
+    "why": "PALIGNR forms the right-shifted words without initializing xmm5 because the following shuffle discards its unspecified last word. Computing the neighbor sum in xmm1 and using a memory operand for PAVGW also removes the copy to xmm2."
+  },
+  "1cf37027b7": {
+    "rewrite": null,
+    "why": "The AVX sequence already avoids copies, and the wrapped 16-bit neighbor sum must be shifted before the unsigned rounded average."
+  },
+  "88590826d2": {
+    "rewrite": null,
+    "why": "Four 128-bit stores are required at SSE2 width, followed by the independently required pointer update and flag-producing decrement."
+  },
+  "bab69873aa": {
+    "rewrite": null,
+    "why": "The four stores use the widest SSE2 store width, and the live pointer and counter each require their own update."
+  },
+  "8400acf574": {
+    "rewrite": null,
+    "why": "The four stores use the widest SSE2 store width, and neither the pointer update nor the flag-producing decrement is redundant."
+  }
+}

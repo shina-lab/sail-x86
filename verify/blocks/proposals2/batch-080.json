@@ -1,0 +1,82 @@
+{
+  "7dbb73e3c8": {
+    "rewrite": null,
+    "why": "Both loads produce required XMM values, both stores are necessary for the 11-byte copy, and the two pointer updates and ZF-producing decrement are independent."
+  },
+  "b65b44b51e": {
+    "rewrite": null,
+    "why": "The 8-byte and 4-byte stores use independent XMM sources, and the required pointer update and ZF-producing counter decrement cannot be combined."
+  },
+  "4a9d28dc54": {
+    "rewrite": null,
+    "why": "The 12-byte copy requires both loads and stores with their specified widths, while both pointers, both loaded XMM values, the counter, and ZF must be preserved."
+  },
+  "c0ad110d70": {
+    "rewrite": null,
+    "why": "Both overlapping 8-byte stores contribute required bytes from independent XMM sources, and the pointer update and ZF-producing decrement each require an instruction."
+  },
+  "35b7adf746": {
+    "rewrite": null,
+    "why": "Both loads produce required XMM values and both stores contribute bytes to the 13-byte copy, leaving no redundant instruction among the memory operations or three register updates."
+  },
+  "302784d9ee": {
+    "rewrite": null,
+    "why": "The two overlapping stores are necessary for the 14-byte output, and neither the required pointer update nor the ZF-producing counter decrement can be eliminated or fused."
+  },
+  "70a5e2cd01": {
+    "rewrite": null,
+    "why": "Both loaded XMM values must survive, both stores contribute required bytes to the 14-byte copy, and the two pointer updates and counter decrement are independently necessary."
+  },
+  "29eea5f0a7": {
+    "rewrite": null,
+    "why": "Both 8-byte stores contribute required bytes to the 15-byte output, and the independent pointer update and ZF-producing counter decrement cannot be combined."
+  },
+  "aafd777abc": {
+    "rewrite": null,
+    "why": "The overlapping loads and stores each contribute required results for the 15-byte copy, and all three updated general registers and both loaded XMM values must be preserved."
+  },
+  "c36070b1a2": {
+    "rewrite": null,
+    "why": "The 16-byte copy already uses one load and one store, with three additional instructions needed for the independent pointer and counter updates and final ZF."
+  },
+  "0ddca71e67": {
+    "rewrite": null,
+    "why": "The 16-byte and overlapping 4-byte stores are both necessary for the 17-byte output, and the required pointer update and ZF-producing decrement cannot be fused."
+  },
+  "2eed5fb07b": {
+    "rewrite": null,
+    "why": "Both loads produce required XMM values, both stores are necessary for the 17-byte copy, and the two pointer updates and counter decrement cannot be reduced."
+  },
+  "60d69286c7": {
+    "rewrite": null,
+    "why": "Both stores contribute required bytes to the 18-byte output, while the pointer update and counter decrement independently produce required register values and final ZF."
+  },
+  "1886d16b50": {
+    "rewrite": null,
+    "why": "The 18-byte copy needs both specified loads and stores, and preserving both loaded XMM values, both updated pointers, the counter, and ZF leaves no redundant instruction."
+  },
+  "605d50bbf8": {
+    "rewrite": null,
+    "why": "The 16-byte and overlapping 4-byte stores are both necessary for the 19-byte output, and neither independent register update can be removed or fused."
+  },
+  "93e5baa562": {
+    "rewrite": null,
+    "why": "Both loads and stores contribute required results for the 19-byte copy, and the independent pointer updates and ZF-producing counter decrement are already single instructions."
+  },
+  "9d0277a174": {
+    "rewrite": null,
+    "why": "The 20-byte output requires both stores from independent XMM sources, plus separate instructions for the required pointer update and ZF-producing counter decrement."
+  },
+  "cadc21c49e": {
+    "rewrite": null,
+    "why": "The 20-byte copy already uses the necessary two loads and two stores, and both loaded XMM values and all three independently updated general registers must be preserved."
+  },
+  "80c93333f2": {
+    "rewrite": null,
+    "why": "Both overlapping stores contribute required bytes to the 21-byte output, and the independent pointer update and ZF-producing counter decrement cannot be combined."
+  },
+  "25919efa34": {
+    "rewrite": null,
+    "why": "The 21-byte copy requires both loads and stores with their specified addresses and widths, while the loaded XMM values, both updated pointers, the counter, and final ZF must match."
+  }
+}

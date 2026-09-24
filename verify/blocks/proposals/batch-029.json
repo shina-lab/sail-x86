@@ -1,0 +1,84 @@
+{
+  "166c7e1974": {
+    "rewrite": null,
+    "why": "The three independent shuffle and multiply paths, saturation, rounding, packing, and live pointer updates require the existing instructions under SSSE3."
+  },
+  "f17f1025e3": {
+    "rewrite": null,
+    "why": "All three constant vectors and the shifted scalar register are required final values, each already produced by one instruction."
+  },
+  "784751bc37": {
+    "rewrite": null,
+    "why": "Both arbitrary shuffle and coefficient paths are needed, and the copy preserves the shared input for destructive SSSE3 operations."
+  },
+  "978ceea4fd": {
+    "rewrite": null,
+    "why": "The copies preserve the interleaved input and sliding row state while the two destructive multiply paths produce the stored result."
+  },
+  "3b30b56d63": {
+    "rewrite": "movq xmm5,QWORD PTR [rdx+rcx*1]\npmaddubsw xmm0,XMMWORD PTR [rax-0x30]\npunpcklbw xmm2,xmm5\nmovdqa xmm6,xmm1\npmaddubsw xmm6,XMMWORD PTR [rax-0x20]\nadd rdx,rcx\npaddw xmm6,xmm0\nmovdqa xmm0,xmm1\nmovdqa xmm1,xmm2\npmaddubsw xmm2,XMMWORD PTR [rax-0x10]\npaddsw xmm6,xmm2\nmovdqa xmm2,xmm3\npmulhrsw xmm6,XMMWORD PTR [CONST_1]\nmovdqa xmm3,xmm4\npackuswb xmm6,xmm6\nmovdqa xmm4,xmm5\nmovq QWORD PTR [rdi],xmm6\nadd rdi,rsi\ndec r8d",
+    "saved": 1,
+    "why": "Copy the interleaved value into its required final xmm1 before multiplying xmm2 destructively, eliminating the temporary copy to xmm7."
+  },
+  "5f83c7dbf6": {
+    "rewrite": null,
+    "why": "The four independent products require their loads and unpacks, and arbitrary input registers prevent assuming zero extension or simplifying the saturation and rounding."
+  },
+  "ffd82df431": {
+    "rewrite": null,
+    "why": "All six arbitrary coefficient products contribute to the result, and SSE2 offers no shorter replacement for their unpacking, wrapped sums, saturation, and packing."
+  },
+  "4000531ad6": {
+    "rewrite": null,
+    "why": "The destructive products and required sliding row values need the existing copies, while the wrapped additions and final saturated addition must retain their distinct semantics."
+  },
+  "4ed607d1b9": {
+    "rewrite": "movdqa xmm6,xmm4\npmullw xmm6,XMMWORD PTR [rax+0x40]\nmovq xmm5,QWORD PTR [rdx+rcx*1]\npunpcklbw xmm5,xmm7\npmullw xmm0,XMMWORD PTR [rax]\npaddw xmm6,XMMWORD PTR [CONST_1]\npaddw xmm6,xmm0\nmovdqa xmm0,xmm1\npmullw xmm1,XMMWORD PTR [rax+0x10]\npaddw xmm6,xmm1\nmovdqa xmm1,xmm2\npmullw xmm2,XMMWORD PTR [rax+0x20]\npaddw xmm6,xmm2\nmovdqa xmm2,xmm3\npmullw xmm3,XMMWORD PTR [rax+0x30]\nadd rdx,rcx\npaddsw xmm6,xmm3\nmovdqa xmm3,xmm4\nmovdqa xmm4,xmm5\npmullw xmm5,XMMWORD PTR [rax+0x50]\npaddsw xmm6,xmm5\npsraw xmm6,0x7\npackuswb xmm6,xmm7\nmovq QWORD PTR [rdi],xmm6\nadd rdi,rsi\ndec r8d",
+    "saved": 1,
+    "why": "Preserve the original xmm1 in its required final xmm0 before multiplying xmm1 destructively, eliminating its initial copy to xmm5. Reordering only the wrapping word additions preserves the accumulator before both saturated additions."
+  },
+  "7bb8326114": {
+    "rewrite": null,
+    "why": "Both output rows need independent products and rounding, and the arbitrary coefficient and averaging registers prevent replacing the arithmetic with a byte average."
+  },
+  "4a3759a6ca": {
+    "rewrite": null,
+    "why": "The four loads and products feed two independently rounded rows, with no known coefficient or zero-register values that allow a shorter SSE2 sequence."
+  },
+  "d434675196": {
+    "rewrite": null,
+    "why": "Each MMX row needs its shuffle, product, rounding, packing, and store, and combining the packs would require an additional extraction instruction."
+  },
+  "25ebd3b70d": {
+    "rewrite": null,
+    "why": "Both row computations and stores are required, and the final copy restores the required xmm0 row value after its destructive arithmetic."
+  },
+  "dc8cb8c3e1": {
+    "rewrite": null,
+    "why": "The two loads, two stores, two pointer updates, and counter update are all required, with rax also retaining the second loaded value."
+  },
+  "ffff88b20e": {
+    "rewrite": null,
+    "why": "The block already uses one instruction per required vector load, store, pointer update, and counter update."
+  },
+  "acec298906": {
+    "rewrite": null,
+    "why": "Four independently addressed 16-byte stores and the required pointer and counter updates already use the minimum direct SSE2 sequence."
+  },
+  "f432c5cfc5": {
+    "rewrite": null,
+    "why": "SSE2 requires all eight 16-byte stores at the specified addresses, followed by the required pointer and counter updates."
+  },
+  "a3b7379519": {
+    "rewrite": null,
+    "why": "SSSE3 cannot combine the four independently addressed 16-byte stores or the separate pointer and counter updates."
+  },
+  "b2987eca26": {
+    "rewrite": null,
+    "why": "SSSE3 provides no wider store to replace the eight specified 16-byte stores, and both scalar updates are required."
+  },
+  "2c53b863af": {
+    "rewrite": null,
+    "why": "All eight stores of the two independent vectors are required at their specified addresses, along with the pointer and counter updates."
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "9af62f9c4c": {
+    "rewrite": null,
+    "why": "All filter intermediates feed required outputs, and the wrapping word sums followed by arithmetic shifts cannot be replaced by ordinary packed averages."
+  },
+  "0ba3f39a3c": {
+    "rewrite": "vinsertf128 ymm1,ymm1,xmm2,0x1\nvinsertf128 ymm2,ymm2,xmm3,0x1\nvinsertf128 ymm3,ymm3,xmm4,0x1\nvinsertf128 ymm4,ymm4,xmm5,0x1\nvinsertf128 ymm5,ymm5,xmm6,0x1\nvinsertf128 ymm6,ymm6,xmm7,0x1\nvinsertf128 ymm7,ymm7,xmm8,0x1\nvinsertf128 ymm8,ymm8,xmm0,0x1\nvinsertf128 ymm0,ymm0,xmm9,0x1\nvinsertf128 ymm9,ymm9,xmm10,0x1\nvmovups YMMWORD PTR [rdi+rax*1],ymm1\nvmovups YMMWORD PTR [rdi+rax*1+0x20],ymm3\nvmovups YMMWORD PTR [rdi+rcx*8],ymm2\nvmovups YMMWORD PTR [rdi+rcx*8+0x20],ymm4\nvmovups YMMWORD PTR [rdi+r9*1],ymm3\nvmovups YMMWORD PTR [rdi+r9*1+0x20],ymm5\nvmovups YMMWORD PTR [rdi+r8*4],ymm4\nvmovups YMMWORD PTR [rdi+r8*4+0x20],ymm6\nvmovups YMMWORD PTR [rdi+rcx*4],ymm5\nvmovups YMMWORD PTR [rdi+rcx*4+0x20],ymm7\nvmovups YMMWORD PTR [rdi+rsi*8],ymm6\nvmovups YMMWORD PTR [rdi+rsi*8+0x20],ymm8\nvmovups YMMWORD PTR [rdi+rsi*4],ymm7\nvmovups YMMWORD PTR [rdi+rsi*4+0x20],ymm0\nvmovups YMMWORD PTR [rdi],ymm8\nvmovups YMMWORD PTR [rdi+0x20],ymm9\nsub rdi,rsi\nvpalignr xmm1,xmm2,xmm1,0x4\nvpalignr xmm2,xmm3,xmm2,0x4\nvpalignr xmm3,xmm4,xmm3,0x4\nvpalignr xmm4,xmm5,xmm4,0x4\nvpalignr xmm5,xmm6,xmm5,0x4\nvpalignr xmm6,xmm7,xmm6,0x4\nvpalignr xmm7,xmm8,xmm7,0x4\nvpalignr xmm8,xmm0,xmm8,0x4\nvpalignr xmm0,xmm9,xmm0,0x4\nvpalignr xmm9,xmm10,xmm9,0x4\nvpalignr xmm10,xmm11,xmm10,0x4\nvpsrldq xmm11,xmm11,0x4\ndec edx",
+    "saved": 6,
+    "why": "Ten AVX inserts build reusable pairs for sixteen 256-bit stores, replacing thirty-two 128-bit stores while preserving the order of all written bytes. The unchanged VEX shifts produce the required final vector values and clear every modified upper half."
+  },
+  "04f476ad12": {
+    "rewrite": null,
+    "why": "Each instruction performs a separate required register update, with no dead result or combinable operation."
+  },
+  "91905d3888": {
+    "rewrite": "movdqa XMMWORD PTR [rdx],xmm9\nmovdqa XMMWORD PTR [rdx+0x20],xmm9\nmovdqa XMMWORD PTR [rdx+0x40],xmm9\nmovdqa XMMWORD PTR [rdx+0x60],xmm9\nmovdqa XMMWORD PTR [rdx+0x80],xmm9\nmovdqa XMMWORD PTR [rdx+0xa0],xmm9\nmovdqa XMMWORD PTR [rdx+0xc0],xmm9\nmovdqa XMMWORD PTR [rdx+0xe0],xmm9",
+    "saved": 1,
+    "why": "Retain every store and omit the stack adjustment, whose register and flag results are not required and which would violate the explicit rule that rsp must not be touched."
+  },
+  "6c9a7ccbf7": {
+    "rewrite": null,
+    "why": "All four instructions update distinct required registers, and SSSE3 provides no way to combine these scalar assignments."
+  },
+  "251c0f0d83": {
+    "rewrite": null,
+    "why": "The two rounded multiplications, SSE2 word broadcast, required zero vector, memory clear, and counter assignment leave no removable instruction."
+  },
+  "db66cf1ab1": {
+    "rewrite": null,
+    "why": "Both vectors require wrapping addition and separate signed lower and upper clamps with arbitrary input bounds, followed by their stores and the required scalar updates."
+  },
+  "7eb2f395f0": {
+    "rewrite": null,
+    "why": "The byte load, subtraction from two, stack-pointer copy, and three constant loads all produce required values without a shorter SSE2 combination."
+  },
+  "1d36d3e556": {
+    "rewrite": null,
+    "why": "SSE2 needs all four 128-bit stores, and both the pointer increment and flag-producing counter decrement are required."
+  },
+  "b47b761614": {
+    "rewrite": "movdqa XMMWORD PTR [rdx-0x20],xmm1\nmovdqa XMMWORD PTR [rdx-0x10],xmm1\nmovdqa XMMWORD PTR [rdx],xmm1\nmovdqa XMMWORD PTR [rdx+0x10],xmm1\nmovdqa XMMWORD PTR [rdx+0x20],xmm1\nmovdqa XMMWORD PTR [rdx+0x30],xmm1\nmovdqa XMMWORD PTR [rdx+0x40],xmm1\nmovdqa XMMWORD PTR [rdx+0x50],xmm1\nmovdqa XMMWORD PTR [rdx+0x60],xmm1\nmovdqa XMMWORD PTR [rdx+0x70],xmm1\nmovdqa XMMWORD PTR [rdx+0x80],xmm1\nmovdqa XMMWORD PTR [rdx+0x90],xmm1\nmovdqa XMMWORD PTR [rdx+0xa0],xmm1\nmovdqa XMMWORD PTR [rdx+0xb0],xmm1\nmovdqa XMMWORD PTR [rdx+0xc0],xmm1\nmovdqa XMMWORD PTR [rdx+0xd0],xmm1",
+    "saved": 1,
+    "why": "All sixteen stores remain unchanged; the stack adjustment has no required register or flag result and is removed to leave rsp untouched as instructed."
+  },
+  "0662461bbd": {
+    "rewrite": null,
+    "why": "Arbitrary signed 32-bit inputs require the wide rounded products, while SSE2 still needs the three-instruction word broadcast and the remaining required assignments."
+  },
+  "8a651a2a66": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [CONST_1]\nmov rax,rdi\nmovsxd rcx,ecx",
+    "saved": 1,
+    "why": "The stack allocation has no required register, flag, or memory effect in this block, so omitting it preserves all listed outputs and leaves rsp untouched."
+  },
+  "db5773f63b": {
+    "rewrite": null,
+    "why": "Every instruction contributes to a required output, and subtracting the loaded byte from two still needs both initialization and subtraction."
+  },
+  "18f5b3310b": {
+    "rewrite": null,
+    "why": "Both rounded multiplication stages and the full SSE2 word broadcast are needed, and the zero vector, memory clear, and counter value are required outputs."
+  },
+  "418337645f": {
+    "rewrite": null,
+    "why": "SSE2 processes these four vectors separately, and their arbitrary inputs require both signed clamps as well as the wrapping adds, stores, and scalar updates."
+  },
+  "cab1a0a1d8": {
+    "rewrite": null,
+    "why": "The loaded byte and stack-pointer copy are required, and x86 has no single instruction that assigns four minus an arbitrary register to another register."
+  },
+  "cfdcd89be7": {
+    "rewrite": null,
+    "why": "All eight stores are necessary at SSE2 width, and the pointer advance and counter decrement both have required results."
+  },
+  "e006a36730": {
+    "rewrite": null,
+    "why": "The wide rounded products cannot be collapsed for arbitrary signed inputs, and the remaining instructions produce the required broadcast, zero vector, memory clear, and counter."
+  },
+  "1f54edf433": {
+    "rewrite": null,
+    "why": "The intermediate rounding and 32-bit wrapping multiplication must be retained, and SSE2 provides no shorter word broadcast or combined memory-clear and counter assignment."
+  },
+  "8e8f65f1ac": {
+    "rewrite": null,
+    "why": "Each of the four vectors needs a wrapping add, two signed clamps, and a store, with no known bounds permitting a saturated-arithmetic shortcut under SSE2."
+  }
+}

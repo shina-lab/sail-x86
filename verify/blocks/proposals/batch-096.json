@@ -1,0 +1,86 @@
+{
+  "746d5d81f7": {
+    "rewrite": null,
+    "why": "All four stores, three preserved counter and pointer updates, and the final comparison are required."
+  },
+  "a266f2203e": {
+    "rewrite": null,
+    "why": "The store, three preserved register updates, and final comparison have distinct required effects."
+  },
+  "a70b5940e7": {
+    "rewrite": null,
+    "why": "Both loads, the rdi update, and the comparison produce required outputs."
+  },
+  "b52b2d259f": {
+    "rewrite": null,
+    "why": "All four XOR results and stores, the xmm3 copy, the counter and pointer updates, and the comparison remain necessary."
+  },
+  "096e1d66fb": {
+    "rewrite": null,
+    "why": "The XOR, store, xmm3 replacement, three register updates, and comparison all produce required effects."
+  },
+  "a40480af54": {
+    "rewrite": "",
+    "saved": 6,
+    "why": "All six instructions write only unpreserved registers, and the sole memory access is a removable constant load."
+  },
+  "4e5f8f3e19": {
+    "rewrite": null,
+    "why": "The four live XORs and stores cannot be combined under SSE4.1, and the register updates and comparison are required."
+  },
+  "6aea4bc355": {
+    "rewrite": null,
+    "why": "The live XOR, store, three preserved register updates, and final comparison are each needed."
+  },
+  "7d67eaca3d": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdx]\npxor xmm0,xmm3\nmovdqu XMMWORD PTR [rsi],xmm3\npshufd xmm2,xmm3,0x13\npaddq xmm3,xmm3\npsrad xmm2,0x1f\npand xmm2,xmm7\npxor xmm3,xmm2\nmovdqu xmm4,XMMWORD PTR [rdx+0x10]\npxor xmm4,xmm3\nmovdqu XMMWORD PTR [rsi+0x10],xmm3\npshufd xmm2,xmm3,0x13\npaddq xmm3,xmm3\npsrad xmm2,0x1f\npand xmm2,xmm7\npxor xmm3,xmm2\nmovdqu xmm5,XMMWORD PTR [rdx+0x20]\npxor xmm5,xmm3\nmovdqu XMMWORD PTR [rsi+0x20],xmm3\npshufd xmm2,xmm3,0x13\npaddq xmm3,xmm3\npsrad xmm2,0x1f\npand xmm2,xmm7\npxor xmm3,xmm2\nmovdqa xmm6,xmm3\nmovdqu xmm1,XMMWORD PTR [rdx+0x30]\npxor xmm6,xmm1\nmovdqu XMMWORD PTR [rsi+0x30],xmm3",
+    "saved": 3,
+    "why": "Load the first three input blocks directly into xmm0, xmm4, and xmm5, then XOR with xmm3, eliminating three copies. The final xmm1 load, unaligned access support, tweak updates, and stores are preserved."
+  },
+  "289184557f": {
+    "rewrite": null,
+    "why": "The unaligned loads cannot safely be folded into legacy PXOR, and the stores, live tweak outputs, pointer updates, and ZF test remain necessary."
+  },
+  "3b3109c335": {
+    "rewrite": null,
+    "why": "With xmm7 unconstrained and xmm2 preserved, the tweak update needs its shuffle, sign extraction, mask, doubling, and XOR, alongside the output XOR and ZF test."
+  },
+  "84636fb6f3": {
+    "rewrite": null,
+    "why": "The three loads, rdi update, and ZF-producing test each have required results."
+  },
+  "8ac85eb790": {
+    "rewrite": null,
+    "why": "The original tweak saved in xmm6, masked sign bits in xmm2, updated xmm3, and XOR result in xmm0 all remain live."
+  },
+  "357bb5c3c5": {
+    "rewrite": "vbroadcasti128 ymm6,XMMWORD PTR [CONST_1]\nvpcmpeqd ymm0,ymm0,ymm0\nvpsrldq ymm0,ymm0,0x8\nvpaddq ymm5,ymm0,ymm0\nvmovdqu xmm3,XMMWORD PTR [r8]\nvpshufb xmm3,xmm3,xmm6\nvmovq r11,xmm3\nvpcmpeqq xmm4,xmm3,xmm0\nvpsubq xmm7,xmm3,xmm0\nvpslldq xmm4,xmm4,0x8\nvpsubq xmm7,xmm7,xmm4\nvinserti128 ymm3,ymm3,xmm7,0x1\nvpshufb ymm8,ymm3,ymm6\ncmp r11,0xffffffffffffffdf",
+    "saved": 2,
+    "why": "Load and shuffle directly into xmm3 to remove its copy, and extract the already byte-reversed low qword into r11 instead of separately loading and swapping it. The counter pair, preserved ymm values, and comparison flags are unchanged."
+  },
+  "d66ff9ab58": {
+    "rewrite": null,
+    "why": "All sixteen additions produce distinct preserved zmm results, requiring one vector destination write each."
+  },
+  "7f92923e1d": {
+    "rewrite": "add r11,0x40\nadc r10,0x0\nbswap r11\nbswap r10\nvpshufb zmm0,zmm0,zmm19\nmov QWORD PTR [r8+0x8],r11\nmov QWORD PTR [r8],r10",
+    "saved": 15,
+    "why": "The shuffles of zmm1 through zmm15 have dead results and can be removed. Retain the zmm0 shuffle and the counter increment, byte swaps, and stores."
+  },
+  "738fb083b4": {
+    "rewrite": null,
+    "why": "Every copy, constant load, counter addition, and XOR contributes to a preserved vector result, with no three-operand vector form available under SSSE3."
+  },
+  "f5a95ffb4c": {
+    "rewrite": null,
+    "why": "SSSE3 needs two XORs for each three-input result, plus separate preserved pointer and counter updates."
+  },
+  "104c730650": {
+    "rewrite": null,
+    "why": "Each instruction writes a distinct required register result or pointer, and the VEX writes must retain their upper-bit zeroing."
+  },
+  "786b549253": {
+    "rewrite": null,
+    "why": "The three stores are required, and vzeroupper is needed to reproduce the preserved zmm0 upper bits."
+  }
+}

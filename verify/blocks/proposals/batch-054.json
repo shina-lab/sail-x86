@@ -1,0 +1,86 @@
+{
+  "a0db2411ef": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required pointer, index, or constant-register value."
+  },
+  "1e1bc5b0a5": {
+    "rewrite": null,
+    "why": "The three pointer adjustments, index negation, and required constant load each need a separate instruction."
+  },
+  "97bfecd838": {
+    "rewrite": "lea rsi,[rsi+rdx*8]\nlea rdi,[rdi+rdx*4]\nlea rcx,[rcx+rdx*4]\nneg rdx\nmovdqa xmm4,XMMWORD PTR [CONST_1]",
+    "saved": 1,
+    "why": "The load into xmm6 is dead because xmm6 is neither used in the block nor required at its exit."
+  },
+  "9a4d5b07a0": {
+    "rewrite": null,
+    "why": "All loaded pointers, their differences, the saved count, and the scale register are required, with no shorter SSE2 combination."
+  },
+  "3bb7871280": {
+    "rewrite": "cvtdq2ps xmm0,XMMWORD PTR [rsi]\ncvtdq2ps xmm1,XMMWORD PTR [rsi+rdx*1]\ncvtdq2ps xmm2,XMMWORD PTR [rsi+rcx*1]\ncvtdq2ps xmm3,XMMWORD PTR [rsi+r8*1]\ncvtdq2ps xmm4,XMMWORD PTR [rsi+r9*1]\ncvtdq2ps xmm5,XMMWORD PTR [rsi+rax*1]\nmovaps xmm6,xmm0\nunpcklps xmm6,xmm1\nunpckhps xmm0,xmm1\nmovaps xmm1,xmm2\nunpcklps xmm1,xmm3\nunpckhps xmm2,xmm3\nmovaps xmm3,xmm4\nunpcklps xmm3,xmm5\nunpckhps xmm4,xmm5\nmovaps xmm5,xmm3\nshufps xmm3,xmm6,0xe4\nmovlhps xmm6,xmm1\nmovhlps xmm5,xmm1\nmovaps xmm1,xmm4\nshufps xmm4,xmm0,0xe4\nmovlhps xmm0,xmm2\nmovhlps xmm1,xmm2\nmulps xmm6,xmm7\nmulps xmm3,xmm7\nmulps xmm5,xmm7\nmulps xmm0,xmm7\nmulps xmm4,xmm7\nmulps xmm1,xmm7\nmovaps XMMWORD PTR [rdi],xmm6\nmovaps XMMWORD PTR [rdi+0x10],xmm3\nmovaps XMMWORD PTR [rdi+0x20],xmm5\nmovaps XMMWORD PTR [rdi+0x30],xmm0\nmovaps XMMWORD PTR [rdi+0x40],xmm4\nmovaps XMMWORD PTR [rdi+0x50],xmm1\nadd rsi,0x10\nadd rdi,0x60\nsub r10d,0x4",
+    "saved": 6,
+    "why": "Lane-wise integer-to-float conversion commutes with the transpose, allowing all six aligned loads to fold into memory-source cvtdq2ps instructions. Multiplications remain after the transpose so arbitrary xmm7 lane values retain their original roles."
+  },
+  "8978886666": {
+    "rewrite": null,
+    "why": "Every pointer load, difference, count copy, and scale load contributes a required final value."
+  },
+  "8cb5135660": {
+    "rewrite": null,
+    "why": "The five independent required differences and required vector constant already use one instruction apiece."
+  },
+  "7742ca208b": {
+    "rewrite": null,
+    "why": "All nine loaded pointers and seven computed differences are required, and SSE2 vectorizing them would add extraction instructions."
+  },
+  "9f7feb1615": {
+    "rewrite": null,
+    "why": "The unaligned loads cannot fold into legacy SSE2 unpack memory operands, and the transpose copies preserve halves needed by the required stores."
+  },
+  "57f47aff2d": {
+    "rewrite": null,
+    "why": "All pointer loads, pointer differences, and the vector scale load are live and have no shorter SSE2 combination."
+  },
+  "cc7b9e37f7": {
+    "rewrite": null,
+    "why": "Each of the seven required pointer differences and the required vector constant already takes one instruction."
+  },
+  "df47b73bc1": {
+    "rewrite": "cvtdq2ps xmm0,XMMWORD PTR [rsi]\ncvtdq2ps xmm1,XMMWORD PTR [rsi+rcx*1]\ncvtdq2ps xmm2,XMMWORD PTR [rsi+r8*1]\ncvtdq2ps xmm3,XMMWORD PTR [rsi+r9*1]\ncvtdq2ps xmm4,XMMWORD PTR [rsi+rax*1]\ncvtdq2ps xmm5,XMMWORD PTR [rsi+r10*1]\ncvtdq2ps xmm6,XMMWORD PTR [rsi+r11*1]\ncvtdq2ps xmm7,XMMWORD PTR [rsi+rbx*1]\nmovdqa xmm8,xmm0\npunpckldq xmm0,xmm1\npunpckhdq xmm8,xmm1\nmovdqa xmm1,xmm2\npunpckldq xmm2,xmm3\npunpckhdq xmm1,xmm3\nmovdqa xmm3,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm3,xmm5\nmovdqa xmm5,xmm6\npunpckldq xmm6,xmm7\npunpckhdq xmm5,xmm7\nmovdqa xmm7,xmm0\npunpcklqdq xmm0,xmm2\npunpckhqdq xmm7,xmm2\nmovdqa xmm2,xmm8\npunpcklqdq xmm8,xmm1\npunpckhqdq xmm2,xmm1\nmovdqa xmm1,xmm4\npunpcklqdq xmm4,xmm6\npunpckhqdq xmm1,xmm6\nmovdqa xmm6,xmm3\npunpcklqdq xmm3,xmm5\npunpckhqdq xmm6,xmm5\nmulps xmm0,xmm9\nmulps xmm4,xmm9\nmulps xmm7,xmm9\nmulps xmm1,xmm9\nmulps xmm8,xmm9\nmulps xmm3,xmm9\nmulps xmm2,xmm9\nmulps xmm6,xmm9\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm4\nmovdqa XMMWORD PTR [rdi+0x20],xmm7\nmovdqa XMMWORD PTR [rdi+0x30],xmm1\nmovdqa XMMWORD PTR [rdi+0x40],xmm8\nmovdqa XMMWORD PTR [rdi+0x50],xmm3\nmovdqa XMMWORD PTR [rdi+0x60],xmm2\nmovdqa XMMWORD PTR [rdi+0x70],xmm6\nadd rsi,0x10\nsub rdi,0xffffffffffffff80\nsub edx,0x4",
+    "saved": 8,
+    "why": "Convert each aligned input vector while loading it, since lane-wise cvtdq2ps commutes with the bitwise transpose. Keeping multiplication after the transpose preserves the effects of arbitrary xmm9 lane values and removes eight standalone instructions."
+  },
+  "dd7a4dba2d": {
+    "rewrite": null,
+    "why": "Every loaded pointer, computed pointer difference, and vector scale value is required at exit."
+  },
+  "794a4162df": {
+    "rewrite": null,
+    "why": "The seven distinct pointer differences and required constant register already use one instruction each."
+  },
+  "ec07e3eeba": {
+    "rewrite": null,
+    "why": "Both arbitrary-mask byte shuffles and both output halves are needed, so the copy and qword unpacks cannot be dropped."
+  },
+  "fae78631fe": {
+    "rewrite": null,
+    "why": "The three pointer results and alignment-test flags are all required and need the existing four instructions."
+  },
+  "702e798050": {
+    "rewrite": null,
+    "why": "All three adjusted pointers, the negated index, and the shuffle mask are required independent results."
+  },
+  "79897e0380": {
+    "rewrite": null,
+    "why": "The runtime shuffle mask requires both pshufb operations, and the two output vectors require retaining both shuffled halves."
+  },
+  "48483d401e": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi+rdx*4]\nmovdqu xmm2,XMMWORD PTR [rsi+rdx*4+0x10]\npshufb xmm0,xmm6\npshufb xmm2,xmm6\npxor xmm4,xmm4\npxor xmm1,xmm1\npunpcklwd xmm4,xmm0\npunpckhwd xmm1,xmm0\npxor xmm3,xmm3\npxor xmm5,xmm5\npunpckhwd xmm3,xmm2\npunpcklwd xmm5,xmm2\npunpcklqdq xmm0,xmm2\nmovdqu XMMWORD PTR [rdi+rdx*4],xmm4\nmovdqu XMMWORD PTR [rcx+rdx*4],xmm1\nmovdqu XMMWORD PTR [rdi+rdx*4+0x10],xmm5\nmovdqu XMMWORD PTR [rcx+rdx*4+0x10],xmm3\nadd rdx,0x8",
+    "saved": 2,
+    "why": "Expand each shuffled input's low and high halves directly, avoiding the copied vector and high-qword concatenation. Retain the low-qword concatenation for required xmm0 and preserve the required xmm3 and xmm4 results."
+  },
+  "4946ebc68a": {
+    "rewrite": null,
+    "why": "Each pointer adjustment, the index negation, and the mask load produces a required value, while xmm3 and xmm4 remain untouched."
+  }
+}

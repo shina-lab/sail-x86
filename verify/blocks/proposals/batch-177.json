@@ -1,0 +1,86 @@
+{
+  "35774f0655": {
+    "rewrite": null,
+    "why": "The shared broadcast and four required rounded products already fold each source load into its consuming instruction."
+  },
+  "815ae36bbf": {
+    "rewrite": null,
+    "why": "Both lane constructions and both stages of shuffling are needed, with the constructed ymm3 and broadcast mask also live."
+  },
+  "aaf18a3b35": {
+    "rewrite": null,
+    "why": "Arbitrary coefficients and rounding addends prevent simplifying the multiply-add, shift, saturation, and butterfly stages, whose results feed live vectors."
+  },
+  "a35de7e315": {
+    "rewrite": null,
+    "why": "The four live rounded products require the shared coefficient broadcast and the two independent source permutations."
+  },
+  "826f914cca": {
+    "rewrite": null,
+    "why": "The lane assembly and word interleaves produce live results, and saturating negation cannot be replaced by wrapping negation for arbitrary words."
+  },
+  "9e24f59e1e": {
+    "rewrite": "vpunpcklwd ymm2,ymm1,ymm0\nvpunpckhwd ymm3,ymm1,ymm0\nvpbroadcastd ymm0,DWORD PTR [rax-0x70]\nvpbroadcastd ymm4,DWORD PTR [rax-0x6c]\nvpmaddwd ymm0,ymm0,ymm2\nvpmaddwd ymm2,ymm2,ymm4\nvpbroadcastd ymm4,DWORD PTR [rax-0x68]\nvpbroadcastd ymm5,DWORD PTR [rax-0x60]\nvpmaddwd ymm4,ymm4,ymm3\nvpmaddwd ymm5,ymm5,ymm3\nvpaddd ymm4,ymm4,ymm0\nvpbroadcastd ymm0,DWORD PTR [rax-0x34]\nvpaddd ymm2,ymm2,ymm0\nvpaddd ymm0,ymm0,ymm4\nvpaddd ymm5,ymm5,ymm2\nvpsrad ymm0,ymm0,0xc\nvpsrad ymm5,ymm5,0xc\nvpackssdw ymm0,ymm0,ymm5",
+    "saved": 13,
+    "why": "Keep only the two rounded sums packed into the live ymm0; computations and coefficient loads used solely by the other output are dead."
+  },
+  "1689a6f4dd": {
+    "rewrite": null,
+    "why": "The word transpose and saturating negation are required for arbitrary inputs, and the constructed ymm2 and ymm3 are also live."
+  },
+  "8d4627d3bf": {
+    "rewrite": "vmovdqu ymm2,YMMWORD PTR [rdx]\nvperm2i128 ymm0,ymm2,YMMWORD PTR [rdx+0x20],0x31\nvperm2i128 ymm2,ymm2,YMMWORD PTR [rdx+0x20],0x20\nvpbroadcastd ymm3,DWORD PTR [rax-0x38]\nvpunpcklwd ymm1,ymm2,ymm0\nvpunpckhwd ymm2,ymm2,ymm0\nvpmulhrsw ymm1,ymm1,ymm3\nvpmulhrsw ymm2,ymm2,ymm3\nvpunpcklwd ymm0,ymm1,ymm2\nvpunpckhwd ymm1,ymm1,ymm2\nvpaddsw ymm0,ymm0,ymm0\nvpaddsw ymm1,ymm1,ymm1",
+    "saved": 1,
+    "why": "A 256-bit load and two memory-source lane permutations build the same input vectors in three instructions instead of four. All reads stay within the original 64-byte region."
+  },
+  "794506532a": {
+    "rewrite": null,
+    "why": "Both rounded products must be preserved separately from the saturated sums, so all five instructions contribute required results."
+  },
+  "a25a1f440e": {
+    "rewrite": null,
+    "why": "Unknown row indices require separate loads and stores, while arbitrary residual words require the widening, wrapping additions, saturation, and lane extraction."
+  },
+  "7f0ee2f865": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask and coefficients require separate permutation and multiplication stages, and ymm4 and ymm5 remain live alongside the four assembled outputs."
+  },
+  "42df589446": {
+    "rewrite": null,
+    "why": "Each instruction independently produces one of the five required vector-register values."
+  },
+  "ad6ee84154": {
+    "rewrite": null,
+    "why": "No shuffle or multiply result is dead, and the arbitrary coefficients prevent simplifying the signed rounding and coefficient negation."
+  },
+  "879be1b976": {
+    "rewrite": null,
+    "why": "The live transpose results depend on both signs of an arbitrary coefficient, so the coefficient negation, products, and interleaves all remain necessary."
+  },
+  "47c378f7ee": {
+    "rewrite": null,
+    "why": "Both coefficient loads, the lane-dependent subtraction, four distinct permutations, and two rounded products contribute to live outputs."
+  },
+  "b3a82e75a7": {
+    "rewrite": "vmovdqu ymm3,YMMWORD PTR [rdx]\nvperm2i128 ymm2,ymm3,YMMWORD PTR [rdx+0x40],0x31\nvperm2i128 ymm3,ymm3,YMMWORD PTR [rdx+0x40],0x20\nvmovdqu ymm4,YMMWORD PTR [rdx+0x20]\nvperm2i128 ymm0,ymm4,YMMWORD PTR [rdx+0x60],0x31\nvperm2i128 ymm4,ymm4,YMMWORD PTR [rdx+0x60],0x20\nvpunpcklwd ymm1,ymm3,ymm2\nvpunpckhwd ymm3,ymm3,ymm2\nvpunpcklwd ymm2,ymm4,ymm0\nvpunpckhwd ymm4,ymm4,ymm0\nvpunpckldq ymm0,ymm1,ymm2\nvpunpckhdq ymm1,ymm1,ymm2\nvpunpckldq ymm2,ymm3,ymm4\nvpunpckhdq ymm3,ymm3,ymm4",
+    "saved": 2,
+    "why": "Two 256-bit loads and four memory-source lane permutations replace the eight original load/insert instructions. The transpose is unchanged and all reads stay within the original 128-byte region."
+  },
+  "3b8efbdccc": {
+    "rewrite": null,
+    "why": "The rounded multiplications cannot be combined for arbitrary coefficients, and both coefficient registers, the store, and the ecx flag-producing update are live."
+  },
+  "6bb606dce7": {
+    "rewrite": null,
+    "why": "All lane rearrangements and rounded products feed live transpose outputs, while ymm8, ymm9, and ymm10 also retain required intermediate values."
+  },
+  "1b63b880f9": {
+    "rewrite": null,
+    "why": "The eight live permutations and coefficient construction are required, including the subtraction's dependence on the zero upper half of the xmm8 broadcast."
+  },
+  "6f8a13aed5": {
+    "rewrite": "nop",
+    "saved": 32,
+    "why": "Every written vector register is dead and there are no stores, so a nop preserves every required register value."
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "4ad40c6eff": {
+    "rewrite": null,
+    "why": "The unaligned input loads, source copy, two interleaves, two stores, and index update are all needed for this SSE2 sequence."
+  },
+  "923d2de422": {
+    "rewrite": null,
+    "why": "All three pointer loads produce required register values, and TEST is needed to produce the required flags."
+  },
+  "cef859c015": {
+    "rewrite": null,
+    "why": "Each LEA and NEG computes a distinct required register value."
+  },
+  "e13c936868": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+rdx*2]\nmovdqa xmm1,xmm0\npunpcklwd xmm0,XMMWORD PTR [rcx+rdx*2]\npunpckhwd xmm1,XMMWORD PTR [rcx+rdx*2]\nmovdqa XMMWORD PTR [rdi+rdx*4],xmm0\nmovdqa XMMWORD PTR [rdi+rdx*4+0x10],xmm1\nadd rdx,0x8",
+    "saved": 1,
+    "why": "Fold the aligned second-channel load into both unpack instructions, eliminating its separate load while preserving xmm0 and both stores."
+  },
+  "ed2719cc79": {
+    "rewrite": null,
+    "why": "The unaligned input loads, source copy, two interleaves, two stores, and index update are all needed for this SSE2 sequence."
+  },
+  "1be1cc5525": {
+    "rewrite": null,
+    "why": "Each LEA and NEG computes a distinct required register value."
+  },
+  "3b46b738fa": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+rdx*4]\nmovdqa xmm1,xmm0\npunpckldq xmm0,XMMWORD PTR [rcx+rdx*4]\npunpckhdq xmm1,XMMWORD PTR [rcx+rdx*4]\nmovdqa XMMWORD PTR [rdi+rdx*8],xmm0\nmovdqa XMMWORD PTR [rdi+rdx*8+0x10],xmm1\nadd rdx,0x4",
+    "saved": 1,
+    "why": "Fold the aligned second-channel load into both unpack instructions, eliminating its separate load while preserving xmm0 and both stores."
+  },
+  "a57298531d": {
+    "rewrite": null,
+    "why": "With unaligned inputs and the interleaved xmm0 result live, the four separate zero-inserting widens and their stores offer no shorter SSE2 sequence."
+  },
+  "677543ba14": {
+    "rewrite": null,
+    "why": "Each LEA and NEG computes a distinct required register value, while the required vector registers are already untouched."
+  },
+  "b8079b0598": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+rdx*2]\nmovdqa xmm1,xmm0\npunpcklwd xmm0,XMMWORD PTR [rcx+rdx*2]\npunpckhwd xmm1,XMMWORD PTR [rcx+rdx*2]\npxor xmm2,xmm2\npxor xmm3,xmm3\npunpcklwd xmm2,xmm1\npunpckhwd xmm3,xmm1\npxor xmm4,xmm4\npxor xmm1,xmm1\npunpcklwd xmm4,xmm0\npunpckhwd xmm1,xmm0\nmovdqa XMMWORD PTR [rdi+rdx*8],xmm4\nmovdqa XMMWORD PTR [rdi+rdx*8+0x10],xmm1\nmovdqa XMMWORD PTR [rdi+rdx*8+0x20],xmm2\nmovdqa XMMWORD PTR [rdi+rdx*8+0x30],xmm3\nadd rdx,0x8",
+    "saved": 1,
+    "why": "Fold the aligned second-channel load into the two initial unpacks; the remaining widening operations preserve xmm0, xmm3, xmm4, and every stored value."
+  },
+  "3151f38e53": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi+rdx*4]\nmovdqu xmm2,XMMWORD PTR [rcx+rdx*4]\npsrld xmm0,0x10\npsrld xmm2,0x10\npslld xmm2,0x10\npor xmm0,xmm2\nmovdqu xmm1,XMMWORD PTR [rsi+rdx*4+0x10]\nmovdqu xmm3,XMMWORD PTR [rcx+rdx*4+0x10]\npsrld xmm1,0x10\npsrld xmm3,0x10\npslld xmm3,0x10\npor xmm1,xmm3\nmovdqu XMMWORD PTR [rdi+rdx*4],xmm0\nmovdqu XMMWORD PTR [rdi+rdx*4+0x10],xmm1\nadd rdx,0x8",
+    "saved": 1,
+    "why": "The original arithmetic shifts make PACKSSDW an exact extraction of each high word. Shift the first channel's high words down and clear the second channel's low words, then OR them into the same interleaved outputs."
+  },
+  "69515a4b63": {
+    "rewrite": null,
+    "why": "Each LEA and NEG computes a distinct required register value."
+  },
+  "8f56286467": {
+    "rewrite": "pcmpeqd xmm2,xmm2\npslld xmm2,0x10\nmovdqa xmm3,xmm2\npand xmm2,XMMWORD PTR [rcx+rdx*4]\npand xmm3,XMMWORD PTR [rcx+rdx*4+0x10]\nmovdqa xmm0,XMMWORD PTR [rsi+rdx*4]\npsrld xmm0,0x10\npor xmm0,xmm2\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*4+0x10]\npsrld xmm1,0x10\npor xmm1,xmm3\nmovdqa XMMWORD PTR [rdi+rdx*4],xmm0\nmovdqa XMMWORD PTR [rdi+rdx*4+0x10],xmm1\nadd rdx,0x8",
+    "saved": 2,
+    "why": "Build a 0xffff0000 mask in each dword and fold the aligned second-channel loads into ANDs. OR these high words with the shifted first-channel words to reproduce the exact, nonsaturating extraction and interleave."
+  },
+  "c8669889d6": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi+rdx*4]\nmovdqu xmm2,XMMWORD PTR [rsi+rdx*4+0x10]\npshuflw xmm0,xmm0,0xd8\npshufhw xmm0,xmm0,0xd8\npshuflw xmm2,xmm2,0xd8\npshufhw xmm2,xmm2,0xd8\nmovdqa xmm1,xmm0\nshufps xmm0,xmm2,0x88\nshufps xmm1,xmm2,0xdd\nmovdqu XMMWORD PTR [rdi+rdx*2],xmm0\nmovdqu XMMWORD PTR [rcx+rdx*2],xmm1\nadd rdx,0x8",
+    "saved": 2,
+    "why": "The word shuffles group adjacent samples of each channel into dwords, so two SHUFPS instructions finish the deinterleave. This replaces the three unpack stages while preserving xmm0 and both stores."
+  },
+  "78d09c2ae8": {
+    "rewrite": null,
+    "why": "All three pointer loads produce required register values, and TEST is needed to produce the required flags."
+  },
+  "d83cac4201": {
+    "rewrite": "lea rsi,[rsi+rdx*4]\nlea rdi,[rdi+rdx*2]\nlea rcx,[rcx+rdx*2]\nneg rdx",
+    "saved": 1,
+    "why": "The constant load writes only xmm6, whose final value is not required and is never used within this block."
+  },
+  "4cf4478edb": {
+    "rewrite": "pshuflw xmm0,XMMWORD PTR [rsi+rdx*4],0xd8\npshuflw xmm2,XMMWORD PTR [rsi+rdx*4+0x10],0xd8\npshufhw xmm0,xmm0,0xd8\npshufhw xmm2,xmm2,0xd8\nmovdqa xmm1,xmm0\nshufps xmm0,xmm2,0x88\nshufps xmm1,xmm2,0xdd\nmovdqa XMMWORD PTR [rdi+rdx*2],xmm0\nmovdqa XMMWORD PTR [rcx+rdx*2],xmm1\nadd rdx,0x8",
+    "saved": 4,
+    "why": "Group adjacent samples of each channel into dwords using word shuffles, folding both aligned loads into PSHUFLW. Two SHUFPS instructions then produce the same channel vectors as the original three unpack stages."
+  },
+  "b9c7627da7": {
+    "rewrite": null,
+    "why": "The two unaligned loads, copy needed by destructive SHUFPS, two shuffles, two stores, and index update are already tight under SSE2."
+  },
+  "90dbcfc46e": {
+    "rewrite": "lea rsi,[rsi+rdx*8]\nlea rdi,[rdi+rdx*4]\nlea rcx,[rcx+rdx*4]\nneg rdx",
+    "saved": 1,
+    "why": "The constant load writes only xmm6, whose final value is not required and is never used within this block."
+  },
+  "7f6adf9046": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+rdx*8]\nmovdqa xmm1,xmm0\nshufps xmm0,XMMWORD PTR [rsi+rdx*8+0x10],0x88\nshufps xmm1,XMMWORD PTR [rsi+rdx*8+0x10],0xdd\nmovdqa XMMWORD PTR [rdi+rdx*4],xmm0\nmovdqa XMMWORD PTR [rcx+rdx*4],xmm1\nadd rdx,0x4",
+    "saved": 1,
+    "why": "Fold the second aligned input load into both SHUFPS instructions, eliminating its separate load while preserving xmm0 and both channel stores."
+  }
+}

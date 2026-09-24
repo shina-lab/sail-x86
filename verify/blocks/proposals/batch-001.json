@@ -1,0 +1,84 @@
+{
+  "51ff0e6406": {
+    "rewrite": null,
+    "why": "The four independently addressed stores, source load, and four required scalar updates each need their own instruction at SSE4.1."
+  },
+  "cabb510768": {
+    "rewrite": "movaps xmm0,XMMWORD PTR [CONST_1]\nimul rdx,rdx,0xfffffffffffffffc\nsub rsi,rdx\nsub rdi,rdx",
+    "saved": 1,
+    "why": "Multiplication by -4 combines the shift and negation, and subtracting that result advances both pointers by the original scaled value. All arithmetic agrees modulo 2^64, and no flags are preserved."
+  },
+  "72f28650e5": {
+    "rewrite": null,
+    "why": "The two live accumulators already fold every addition after their initial loads into an SSE2 memory operand."
+  },
+  "97f115d344": {
+    "rewrite": null,
+    "why": "Each channel needs both the original difference and its multiplied, shifted value, so the copies support required results and all four stores remain necessary."
+  },
+  "ce40b1e167": {
+    "rewrite": null,
+    "why": "Both pointer loads and additions are necessary, and the 32-bit shift must truncate and zero-extend before the separate 64-bit negation."
+  },
+  "a0954268f6": {
+    "rewrite": null,
+    "why": "The four distinct broadcasts feed four necessary multiply-adds, whose four sum and difference results are all preserved."
+  },
+  "0034724f43": {
+    "rewrite": null,
+    "why": "Both packed products and accumulator additions are required, the first product must remain in xmm0, and the index update supplies required flags."
+  },
+  "1eaea5971b": {
+    "rewrite": null,
+    "why": "The SSE2 reduction must also reproduce the complete final xmm0 value, including its dependence on the upper lanes retained by movhlps."
+  },
+  "85a3a6d5b2": {
+    "rewrite": null,
+    "why": "The doubling must wrap at 32 bits before zero-extension and 64-bit negation, while both pointer adjustments and the vector zero are required."
+  },
+  "05b7d1ad55": {
+    "rewrite": "vextracti128 xmm0,ymm1,0x1\nvpaddd xmm1,xmm1,xmm0\nvmovhlps xmm0,xmm0,xmm1\nvpaddd xmm1,xmm1,xmm0\nvpshuflw xmm0,xmm1,0xe\nvpaddd xmm1,xmm1,xmm0\nvmovd eax,xmm1",
+    "saved": 1,
+    "why": "The VEX-encoded vpshuflw already zeros the upper 128 bits of ymm0, the only preserved vector register. The final vzeroupper therefore changes only dead register state."
+  },
+  "9215ea8605": {
+    "rewrite": null,
+    "why": "SSE2 requires eight 128-bit stores at the specified addresses plus one instruction to establish the required zero vector."
+  },
+  "0fdf22ed19": {
+    "rewrite": null,
+    "why": "All eight stores use the maximum SSE2 vector width, and the final index update and its sign flag must be preserved."
+  },
+  "f98183fa9e": {
+    "rewrite": null,
+    "why": "The unknown indices require four separate stores, followed by independent pointer and counter updates with preserved flags."
+  },
+  "61b458fd6e": {
+    "rewrite": null,
+    "why": "The unknown row indices prevent combining the four stores, and both scalar updates and their required flags remain necessary."
+  },
+  "820e72ce94": {
+    "rewrite": null,
+    "why": "SSE2 needs the separate word shuffles and byte shifts, while folding the unaligned loads into legacy shuffle memory operands would introduce an alignment requirement."
+  },
+  "ac4ddf232b": {
+    "rewrite": null,
+    "why": "The scalar load, byte swap, store, two pointer updates, and flag-producing counter decrement are all required at this ISA level."
+  },
+  "f3ab063b81": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask requires the load, shuffle, and store, and both updated pointers are preserved."
+  },
+  "fce4fb7517": {
+    "rewrite": null,
+    "why": "Each vector requires its own load, shuffle, and store, while the two pointer updates and counter decrement produce preserved results."
+  },
+  "8be6380d33": {
+    "rewrite": null,
+    "why": "The zero-extending qword load, arbitrary byte shuffle, store, and two pointer updates are all needed to preserve the full xmm0 result and memory."
+  },
+  "b1ada119cb": {
+    "rewrite": null,
+    "why": "The qword load, arbitrary byte shuffle, store, and two pointer updates are already minimal, and the VEX instructions establish the required zero upper half of ymm0."
+  }
+}

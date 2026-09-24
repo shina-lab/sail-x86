@@ -1,0 +1,84 @@
+{
+  "03aa1dba86": {
+    "rewrite": null,
+    "why": "Both products and the stored sum are live, and SSSE3 has no fused operation that eliminates the copy or either multiplication."
+  },
+  "afa8101923": {
+    "rewrite": null,
+    "why": "SSE2 requires the conditional negations and unpacking steps, while the separate denoised values and accumulated values must all be preserved."
+  },
+  "694d91af8d": {
+    "rewrite": null,
+    "why": "The four independent SAD calculations and their live partial sums require the existing loads and arithmetic under SSE2."
+  },
+  "fb79e8a568": {
+    "rewrite": null,
+    "why": "The low and high byte expansions, squared sums, and intermediate vector results are all needed, with no shorter SSE2 fused operation."
+  },
+  "bb39a2f06f": {
+    "rewrite": null,
+    "why": "Each of the five instructions produces a distinct required vector result, including the zeroed upper YMM halves."
+  },
+  "9cdbaee99d": {
+    "rewrite": null,
+    "why": "SSE2 needs separate byte expansion and subtraction instructions, and the expanded subtrahends must also remain in xmm2 and xmm3."
+  },
+  "b520db780a": {
+    "rewrite": null,
+    "why": "Both vectors already use memory-source additions, and the index update and final comparison are separately required."
+  },
+  "34c9a93ea2": {
+    "rewrite": null,
+    "why": "Both loaded vectors are needed, and folding a QWORD load into an SSE2 packed-byte addition would read beyond the allowed memory."
+  },
+  "91c93f7bc7": {
+    "rewrite": null,
+    "why": "The byte load, memory-source addition, store, and index increment each perform a required operation."
+  },
+  "35db6636c7": {
+    "rewrite": null,
+    "why": "The arbitrary unpack operand and coefficients require the separate SSE2 expansions and products, whose intermediate results are also live."
+  },
+  "850e2ca9da": {
+    "rewrite": null,
+    "why": "The arbitrary coefficients require the existing SSE2 filter arithmetic, and averaging needs the separate eight-byte destination load."
+  },
+  "97056bc051": {
+    "rewrite": null,
+    "why": "The sliding-window register values and expanded load must all survive, while SSE2 requires separate rounding, shifting, and packing operations."
+  },
+  "253f509102": {
+    "rewrite": null,
+    "why": "The sliding-window outputs, SSE2 filter arithmetic, and loaded destination vector are all required for the preserved results."
+  },
+  "ae5aaede55": {
+    "rewrite": null,
+    "why": "The three saturated pair products and sliding-window outputs require their current operands and copies, with rounding already handled by pmulhrsw."
+  },
+  "c240220c96": {
+    "rewrite": null,
+    "why": "Three arbitrary shuffle masks require independent copies of the loaded bytes, and the resulting products, rounding, and packing are all needed."
+  },
+  "af505780ec": {
+    "rewrite": null,
+    "why": "The saturated filter products, sliding-window outputs, and eight-byte destination load leave no removable instruction under SSSE3."
+  },
+  "a9fca24fc9": {
+    "rewrite": null,
+    "why": "The three arbitrary shuffles and saturated products are required, and the final average cannot fold its eight-byte load into a 128-bit memory operand."
+  },
+  "0b23f1dfd6": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [CONST_1]\npxor xmm0,xmm0\nimul rax,r9,0xfffffffffffffff8\nsub rdi,rax\nsub rsi,rax\nsub rdx,rax\nmovd xmm2,ecx\nmovd xmm3,r8d\npshuflw xmm2,xmm2,0x0\npunpcklqdq xmm2,xmm2\npshuflw xmm3,xmm3,0x0\npunpcklqdq xmm3,xmm3",
+    "saved": 2,
+    "why": "Compute the final negative eightfold offset directly with imul and subtract it from each pointer. This preserves all register values modulo 64 bits, and no flags need to match."
+  },
+  "a4d3e9d7c4": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [CONST_1]\npxor xmm0,xmm0\nimul rax,r9,0xfffffffffffffff0\nsub rdi,rax\nsub rsi,rax\nsub rdx,rax\nmovd xmm2,ecx\nmovd xmm3,r8d\npshuflw xmm2,xmm2,0x0\npunpcklqdq xmm2,xmm2\npshuflw xmm3,xmm3,0x0\npunpcklqdq xmm3,xmm3",
+    "saved": 2,
+    "why": "Compute the final negative sixteenfold offset directly with imul and subtract it from each pointer. This preserves all register values modulo 64 bits, and no flags need to match."
+  },
+  "338ffc0d5b": {
+    "rewrite": null,
+    "why": "The arbitrary unpack operand and multipliers prevent simpler widening arithmetic, and all four product paths have required final vector results."
+  }
+}

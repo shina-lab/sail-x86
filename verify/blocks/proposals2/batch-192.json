@@ -1,0 +1,86 @@
+{
+  "6a96660d89": {
+    "rewrite": "vzeroupper\nvbroadcasti128 ymm0,XMMWORD PTR [rdi]\nvbroadcasti128 ymm1,XMMWORD PTR [rdi+0x10]\nvbroadcasti128 ymm2,XMMWORD PTR [rdi+0x20]\nvbroadcasti128 ymm3,XMMWORD PTR [rdi+0x30]\nvmovdqa ymm4,ymm0\nvmovdqa ymm5,ymm1\nvmovdqa ymm6,ymm2\nvpaddd ymm7,ymm3,YMMWORD PTR [CONST_2]\nvpaddd ymm3,ymm3,YMMWORD PTR [CONST_1]\nvmovdqa ymm11,ymm0\nvmovdqa ymm12,ymm1\nvmovdqa ymm13,ymm2\nvmovdqa ymm14,ymm3\nvmovdqa ymm15,ymm7",
+    "saved": 1,
+    "why": "Compute ymm7 directly from the unmodified ymm3 before updating ymm3, eliminating the copy into ymm7. Retain vzeroupper for the preserved registers that are not subsequently overwritten."
+  },
+  "0690bd5037": {
+    "rewrite": null,
+    "why": "The XOR result, store, independent vector sum, and comparison flags each require their existing instruction."
+  },
+  "833a52c47a": {
+    "rewrite": null,
+    "why": "The XOR, store, upper-lane extraction, vector sum, and comparison all produce required outputs without a removable temporary."
+  },
+  "fe07a509d7": {
+    "rewrite": null,
+    "why": "The stored XOR, extracted xmm5, new ymm10, and comparison flags are all required, leaving no redundant instruction."
+  },
+  "1f56a7918b": {
+    "rewrite": null,
+    "why": "The stored XOR, extracted xmm6, new ymm10, and comparison flags are all required, leaving no redundant instruction."
+  },
+  "f0abc80e7f": {
+    "rewrite": null,
+    "why": "The extraction and copy produce separate preserved register values, while the XOR, store, and comparison are also necessary."
+  },
+  "e7ead0d705": {
+    "rewrite": null,
+    "why": "The XOR and store are necessary, and both the final xmm10 copy with upper-bit clearing and the comparison flags must be preserved."
+  },
+  "b66d05fd09": {
+    "rewrite": null,
+    "why": "The XOR and store are necessary, and both the final xmm10 copy with upper-bit clearing and the comparison flags must be preserved."
+  },
+  "e1d17a777a": {
+    "rewrite": null,
+    "why": "Each instruction supplies a required XOR result, store, register copy, or set of comparison flags."
+  },
+  "1645a42bca": {
+    "rewrite": "vpbroadcastd ymm0,DWORD PTR [rdi]\nvpbroadcastd ymm1,DWORD PTR [rdi+0x4]\nvpbroadcastd ymm2,DWORD PTR [rdi+0x8]\nvpbroadcastd ymm3,DWORD PTR [rdi+0xc]\nvpbroadcastd ymm4,DWORD PTR [rdi+0x10]\nvpbroadcastd ymm5,DWORD PTR [rdi+0x14]\nvpbroadcastd ymm6,DWORD PTR [rdi+0x18]\nvpbroadcastd ymm7,DWORD PTR [rdi+0x1c]\nvpbroadcastd ymm8,DWORD PTR [rdi+0x20]\nvpbroadcastd ymm9,DWORD PTR [rdi+0x24]\nvpbroadcastd ymm10,DWORD PTR [rdi+0x28]\nvpbroadcastd ymm11,DWORD PTR [rdi+0x2c]\nvpbroadcastd ymm12,DWORD PTR [rdi+0x30]\nvpbroadcastd ymm13,DWORD PTR [rdi+0x34]\nvpbroadcastd ymm14,DWORD PTR [rdi+0x38]\nvpbroadcastd ymm15,DWORD PTR [rdi+0x3c]\nvpaddd ymm12,ymm12,YMMWORD PTR [CONST_1]\nvmovdqa64 ymm16,ymm0\nvmovdqa64 ymm17,ymm1\nvmovdqa64 ymm18,ymm2\nvmovdqa64 ymm19,ymm3\nvmovdqa64 ymm20,ymm4\nvmovdqa64 ymm21,ymm5\nvmovdqa64 ymm22,ymm6\nvmovdqa64 ymm23,ymm7\nvmovdqa64 ymm24,ymm8\nvmovdqa64 ymm25,ymm9\nvmovdqa64 ymm26,ymm10\nvmovdqa64 ymm27,ymm11\nvmovdqa64 ymm28,ymm12\nvmovdqa64 ymm29,ymm13\nvmovdqa64 ymm30,ymm14\nvmovdqa64 ymm31,ymm15",
+    "saved": 1,
+    "why": "Every vector register is subsequently overwritten by a VEX or EVEX instruction that also clears its upper bits, making the initial vzeroupper redundant."
+  },
+  "536730f2eb": {
+    "rewrite": "vpaddd ymm0,ymm0,ymm16\nvpaddd ymm1,ymm1,ymm17\nvpaddd ymm2,ymm2,ymm18\nvpaddd ymm3,ymm3,ymm19\nvpaddd ymm4,ymm4,ymm20\nvpaddd ymm5,ymm5,ymm21\nvpaddd ymm6,ymm6,ymm22\nvpaddd ymm7,ymm7,ymm23\nvpaddd ymm8,ymm8,ymm24\nvpaddd ymm9,ymm9,ymm25\nvpaddd ymm10,ymm10,ymm26\nvpaddd ymm11,ymm11,ymm27\nvpaddd ymm12,ymm12,ymm28\nvpaddd ymm13,ymm13,ymm29\nvpaddd ymm14,ymm14,ymm30\nvpaddd ymm15,ymm15,ymm31\nvpunpckldq ymm16,ymm0,ymm1\nvpunpckhdq ymm17,ymm0,ymm1\nvpunpckldq ymm18,ymm2,ymm3\nvpunpckhdq ymm19,ymm2,ymm3\nvpunpckldq ymm20,ymm4,ymm5\nvpunpckhdq ymm21,ymm4,ymm5\nvpunpckldq ymm22,ymm6,ymm7\nvpunpckhdq ymm23,ymm6,ymm7\nvpunpckldq ymm24,ymm8,ymm9\nvpunpckhdq ymm25,ymm8,ymm9\nvpunpckldq ymm26,ymm10,ymm11\nvpunpckhdq ymm27,ymm10,ymm11\nvpunpckldq ymm28,ymm12,ymm13\nvpunpckhdq ymm29,ymm12,ymm13\nvpunpckldq ymm30,ymm14,ymm15\nvpunpckhdq ymm31,ymm14,ymm15\nvpunpckhqdq ymm2,ymm16,ymm18\nvpunpcklqdq ymm16,ymm16,ymm18\nvpunpcklqdq ymm1,ymm17,ymm19\nvpunpckhqdq ymm3,ymm17,ymm19\nvpunpcklqdq ymm4,ymm20,ymm22\nvpunpcklqdq ymm5,ymm21,ymm23\nvpunpckhqdq ymm6,ymm20,ymm22\nvpunpckhqdq ymm7,ymm21,ymm23\nvpunpcklqdq ymm8,ymm24,ymm26\nvpunpcklqdq ymm9,ymm25,ymm27\nvpunpckhqdq ymm10,ymm24,ymm26\nvpunpckhqdq ymm11,ymm25,ymm27\nvpunpcklqdq ymm12,ymm28,ymm30\nvpunpcklqdq ymm13,ymm29,ymm31\nvpunpckhqdq ymm14,ymm28,ymm30\nvpunpckhqdq ymm15,ymm29,ymm31\nvshufi32x4 ymm0,ymm16,ymm4,0x0\ncmp rcx,0x20",
+    "saved": 1,
+    "why": "After computing ymm2, write the low-qword unpack directly into its final destination ymm16, eliminating the copy. VSHUFI32X4 selects the low 128-bit lanes of ymm16 and ymm4 for the final ymm0."
+  },
+  "4f3bf75940": {
+    "rewrite": "vpxord ymm0,ymm0,YMMWORD PTR [rdx]\nvmovdqu64 YMMWORD PTR [rsi],ymm0\nvshufi32x4 ymm4,ymm16,ymm4,0x3\nvperm2i128 ymm0,ymm8,ymm12,0x20\ncmp rcx,0x40",
+    "saved": 1,
+    "why": "VSHUFI32X4 can read ymm16 directly and combine the high 128-bit lanes of ymm16 and ymm4, eliminating the temporary copy into ymm0."
+  },
+  "34a18b0dfe": {
+    "rewrite": null,
+    "why": "The XOR and store, two permutations producing distinct preserved registers, and comparison each require an instruction."
+  },
+  "751e99ac5b": {
+    "rewrite": null,
+    "why": "The XOR and store, two permutations producing distinct preserved registers, and comparison each require an instruction."
+  },
+  "cd89bfdcfe": {
+    "rewrite": null,
+    "why": "The XOR and store, two permutations producing distinct preserved registers, and comparison each require an instruction."
+  },
+  "af48924e61": {
+    "rewrite": null,
+    "why": "The XOR and store, two permutations producing distinct preserved registers, and comparison each require an instruction."
+  },
+  "58124a12f6": {
+    "rewrite": null,
+    "why": "The XOR and store, two permutations producing distinct preserved registers, and comparison each require an instruction."
+  },
+  "2c027d872d": {
+    "rewrite": null,
+    "why": "The XOR and store, two permutations producing distinct preserved registers, and comparison each require an instruction."
+  },
+  "0098253f2a": {
+    "rewrite": null,
+    "why": "The store needs the XOR, while the permutation, final ymm0 copy, and comparison separately produce required outputs."
+  },
+  "0827449f49": {
+    "rewrite": null,
+    "why": "The XOR, store, final ymm0 copy with upper-bit clearing, and comparison are all necessary."
+  }
+}

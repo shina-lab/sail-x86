@@ -1,0 +1,86 @@
+{
+  "a361cc4f36": {
+    "rewrite": "vpcmpeqd k0,ymm17,YMMWORD PTR [rdi+0x80]\nvpcmpeqd k1,ymm16,YMMWORD PTR [rdi+0x80]\nkortestd k1,k0",
+    "saved": 1,
+    "why": "Fold the unpreserved ymm18 load into both comparisons, preserving both mask registers and the final ZF."
+  },
+  "200dabc63e": {
+    "rewrite": "vpxorq ymm22,ymm17,YMMWORD PTR [rdi+0x80]\nvpcmpneqd k2,ymm17,YMMWORD PTR [rdi+0xa0]\nvpxorq ymm24,ymm17,YMMWORD PTR [rdi+0xc0]\nvpcmpneqd k4,ymm17,YMMWORD PTR [rdi+0xe0]\nvpminud ymm18,ymm22,YMMWORD PTR [rdi+0x80]\nvpminud ymm20,ymm24,YMMWORD PTR [rdi+0xc0]\nvpminud ymm19{k2}{z},ymm18,YMMWORD PTR [rdi+0xa0]\nvpminud ymm21,ymm20,YMMWORD PTR [rdi+0xe0]\nvpminud ymm21{k4}{z},ymm21,ymm19\nvpcmpeqd k1,ymm21,ymm16\nkmovd ecx,k1\nsub rdi,0xffffffffffffff80\ntest ecx,ecx",
+    "saved": 4,
+    "why": "Fold all four initial loads into their consumers using the same memory addresses. The masked minima, preserved vector values including zeroed upper bits, rcx, rdi, and ZF remain identical."
+  },
+  "06bfd48fb9": {
+    "rewrite": "movq xmm1,rsi\npxor xmm2,xmm2\nmov rcx,rdi\npshufd xmm1,xmm1,0x0\nand rcx,0x3f\ncmp rcx,0x30",
+    "saved": 1,
+    "why": "A single pshufd broadcasts the low dword exactly as the two self-unpacks do, leaving the scalar computation and flags unchanged."
+  },
+  "35b531462a": {
+    "rewrite": null,
+    "why": "Both comparison vectors and eax are live, and SSE2 needs the second mask extraction and scalar OR to compute ZF without destroying either vector."
+  },
+  "16c5a0f91b": {
+    "rewrite": null,
+    "why": "Both comparison vectors and eax are live, and SSE2 needs the second mask extraction and scalar OR to compute ZF without destroying either vector."
+  },
+  "9e8c9be18a": {
+    "rewrite": null,
+    "why": "The live loaded vector and exact rcx result require both comparisons, their mask combination, mask extraction, and increment."
+  },
+  "0770cf9c0e": {
+    "rewrite": null,
+    "why": "The live loaded vector and exact rcx result require both comparisons, their mask combination, mask extraction, and increment."
+  },
+  "e9b5544d21": {
+    "rewrite": null,
+    "why": "The live loaded vector and exact rcx result require both comparisons, their mask combination, mask extraction, and increment."
+  },
+  "a2cdbbd4ca": {
+    "rewrite": null,
+    "why": "The live loaded vector and exact rcx result require both comparisons, their mask combination, mask extraction, and increment."
+  },
+  "f19d315143": {
+    "rewrite": null,
+    "why": "The preserved masked vectors, unsigned-minimum reduction, and exact rdx result require the existing comparisons, masking, extraction, and flag update."
+  },
+  "b6964b4f9d": {
+    "rewrite": null,
+    "why": "The live loaded vector and exact rcx result require both comparisons, their mask combination, mask extraction, and increment."
+  },
+  "418852e949": {
+    "rewrite": null,
+    "why": "The indexed load produces a live vector, and both comparisons, mask combination, extraction, and increment are needed for the exact rcx result."
+  },
+  "2dd9e46835": {
+    "rewrite": null,
+    "why": "The live masked ymm5 value and exact rdx mask require both masked inputs, their unsigned minimum, the comparison against arbitrary ymm15, and the final flag update."
+  },
+  "7ab3a05f10": {
+    "rewrite": null,
+    "why": "The indexed load produces a live vector, and both comparisons, mask combination, extraction, and increment are needed for the exact rcx result."
+  },
+  "e72e83c2b7": {
+    "rewrite": "mov eax,ecx\nxchg rdi,rsi\nmov r8d,0xfffffffc\nxor edx,edx\nsub eax,0x60",
+    "saved": 2,
+    "why": "Replace the three moves that swap rdi and rsi with one xchg because the temporary rcx value is dead. Keeping the final subtraction preserves ZF, SF, and OF."
+  },
+  "62a40e8bbb": {
+    "rewrite": null,
+    "why": "The VEX load must zero the upper half of live ymm0, and the comparisons, mask combination, extraction, and 16-bit increment are needed for rcx and ZF."
+  },
+  "6cb5218385": {
+    "rewrite": null,
+    "why": "The indexed VEX load must zero the upper half of live ymm0, and the comparisons, mask combination, extraction, and 16-bit increment are needed for rcx and ZF."
+  },
+  "249951abe4": {
+    "rewrite": null,
+    "why": "Both qword loads must retain their zero extension, while folding either into an XMM memory comparison would read beyond the original eight-byte accesses."
+  },
+  "bd19ff8133": {
+    "rewrite": null,
+    "why": "Both the negated edx value and its XOR with r8d are live, so the byte condition write, negation, copy, and XOR are all needed."
+  },
+  "5a7dcff536": {
+    "rewrite": null,
+    "why": "The load, nonzero test, masked equality comparison, mask transfer, and subtraction are all needed to preserve k1, rcx, and ZF."
+  }
+}

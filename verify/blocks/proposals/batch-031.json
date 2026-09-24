@@ -1,0 +1,84 @@
+{
+  "cccbc05607": {
+    "rewrite": null,
+    "why": "The broadcast, two overlapping stores, pointer update, and flag-producing counter decrement each perform required work."
+  },
+  "45dd6c7cd8": {
+    "rewrite": "movd mm1,DWORD PTR [rdx+rcx*1]\npunpcklbw mm0,mm1\npunpcklbw mm1,DWORD PTR [rdx+rcx*2]\npmaddubsw mm0,mm3\npmaddubsw mm1,mm3\nlea rdx,[rdx+rcx*2]\npsraw mm0,0x2\npsraw mm1,0x2\npavgw mm0,mm4\npavgw mm1,mm4\npackuswb mm0,mm0\npackuswb mm1,mm1\nmovd DWORD PTR [rdi],mm0\nmovd DWORD PTR [rdi+rsi*1],mm1\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 2,
+    "why": "The final move into mm0 is dead because no MMX register is required on exit. Fold the second four-byte load into the MMX punpcklbw memory operand, which consumes the same four bytes."
+  },
+  "64cb300f9b": {
+    "rewrite": null,
+    "why": "Both shuffled products reach the stores, and the arbitrary xmm4 averaging operand prevents replacing the shift-and-average pairs with a fixed rounding operation."
+  },
+  "0c8145bdd1": {
+    "rewrite": null,
+    "why": "All four stores use required addresses, and the pointer update and flag-producing decrement are independently required."
+  },
+  "678e6f046a": {
+    "rewrite": null,
+    "why": "The two arbitrary shuffle masks require separate results and a source copy under SSSE3, followed by four required stores and both scalar updates."
+  },
+  "c25a3bf367": {
+    "rewrite": null,
+    "why": "Four arbitrary byte shuffles require three source copies with destructive SSSE3 instructions, and every shuffled result is stored."
+  },
+  "9b63bf07e5": {
+    "rewrite": null,
+    "why": "The four arbitrary shuffles need their source copies, and SSSE3 cannot combine each pair of 128-bit stores into a wider store."
+  },
+  "b1aa35d76b": {
+    "rewrite": null,
+    "why": "The VEX shuffles already avoid source copies, leaving one input load, four shuffles, four required stores, and two scalar updates."
+  },
+  "20f6b57fb8": {
+    "rewrite": null,
+    "why": "Both arbitrary MMX shuffles feed distinct additions and saturated stores, and combining the packs would require another instruction to extract the second result."
+  },
+  "f6bcdf05c1": {
+    "rewrite": null,
+    "why": "SSE2 needs the zero register, byte widening, and word broadcast sequence, and all three resulting vector registers must be preserved."
+  },
+  "35292a3db1": {
+    "rewrite": null,
+    "why": "The unpack and shuffles form two distinct broadcasts using arbitrary xmm1 bytes, and both sums plus the final xmm2 value are required."
+  },
+  "ce614951c6": {
+    "rewrite": null,
+    "why": "Both broadcasts feed two independent word sums, and SSE2 source copies are needed while preserving the input vectors and final xmm7."
+  },
+  "03a0fe6f48": {
+    "rewrite": null,
+    "why": "Both byte broadcasts feed four independent word sums, and all packed stores and both final broadcast-plus-input registers remain required."
+  },
+  "854b969b8e": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks require two separate results, and both additions, the combined pack, both stores, and final xmm2 are required."
+  },
+  "37ae8be9ec": {
+    "rewrite": null,
+    "why": "SSSE3 requires separate widening of both byte halves and a corner-byte broadcast, while both loaded shuffle masks must remain in their specified registers."
+  },
+  "51064ed919": {
+    "rewrite": null,
+    "why": "The arbitrary shuffled vectors feed eight word sums, whose copies and packs are needed to produce all four stores while preserving the inputs and final xmm11."
+  },
+  "9ff5547f9e": {
+    "rewrite": "vpmovzxbw xmm0,QWORD PTR [rcx]\nvpinsrw xmm2,xmm2,WORD PTR [rcx-0x1],0x0\nvmovdqa xmm3,XMMWORD PTR [CONST_1]\nvmovdqa xmm1,XMMWORD PTR [CONST_2]\nvpshufb xmm2,xmm2,xmm3\nvpsubw xmm0,xmm0,xmm2\nmov ecx,0x3",
+    "saved": 2,
+    "why": "VEX-encoded pmovzxbw combines the eight-byte load and zero extension, eliminating the initial zeroing and unpack. The later constant load supplies the required final ymm1, and all written vector registers retain the original zeroed upper halves."
+  },
+  "a5a657bf1d": {
+    "rewrite": null,
+    "why": "With the original load address retained, widening both halves needs the existing zero-and-unpack operations or an equally long shift-and-widen sequence."
+  },
+  "169c0def44": {
+    "rewrite": null,
+    "why": "The VEX forms already eliminate copies, and both shuffles, four sums, two packs, two stores, and scalar updates are required."
+  },
+  "ea2c5b1f3b": {
+    "rewrite": null,
+    "why": "The copy-free VEX sequence requires every sum and pack for its four stores, and 256-bit integer arithmetic is unavailable at the specified AVX level."
+  }
+}

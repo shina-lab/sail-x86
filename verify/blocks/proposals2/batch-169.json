@@ -1,0 +1,82 @@
+{
+  "abcf796aea": {
+    "rewrite": null,
+    "why": "The endpoint and pointer difference each need an instruction, and aligning then advancing RDI needs two more."
+  },
+  "95f8e0a807": {
+    "rewrite": null,
+    "why": "The loaded vector, comparison mask, EAX value, and ZF are all live and require separate instructions."
+  },
+  "bd4f69971c": {
+    "rewrite": null,
+    "why": "The vector load, mismatch mask, mask transfer, and TEST flag values are all required."
+  },
+  "d512cac993": {
+    "rewrite": null,
+    "why": "The register copy, sum, carry mask, store, and index increment all have required effects."
+  },
+  "1c57eae833": {
+    "rewrite": null,
+    "why": "The register copy, difference, borrow mask, store, and index increment all have required effects."
+  },
+  "af91e2ba49": {
+    "rewrite": null,
+    "why": "The three pointer updates are live, and extracting two low bits into R10 while preserving R9 requires the copy and mask at this ISA level."
+  },
+  "3c1cc526a1": {
+    "rewrite": null,
+    "why": "Both additions must propagate their carries into RBP, while the AL update and R9 increment with its flags are also required."
+  },
+  "02aa5c9abd": {
+    "rewrite": null,
+    "why": "The two independently zeroed registers, updated R8, and negated R9 each require an instruction."
+  },
+  "26b02640ed": {
+    "rewrite": null,
+    "why": "Saving the incoming carry, updating RBX and RBP, and incrementing R9 with the required flags each need an instruction."
+  },
+  "f2b6b4562a": {
+    "rewrite": null,
+    "why": "The three MOV loads, R13 initialization, AL shift, and memory ADC all contribute required register values or carry."
+  },
+  "00ec3de6b8": {
+    "rewrite": null,
+    "why": "The live loads and zero initialization cannot be removed, and the AL shift supplies the borrow consumed by SBB."
+  },
+  "9b1923a3f6": {
+    "rewrite": null,
+    "why": "Each of the four additions must propagate its carry into RBP, and the stores, pointer updates, and saved input carry are all live."
+  },
+  "4d0f24a2a5": {
+    "rewrite": null,
+    "why": "All four zero initializations, the subtraction, the three pointer updates, and the low-bit ZF test are required."
+  },
+  "f7c906626e": {
+    "rewrite": null,
+    "why": "Four distinct scalar values must be stored, and AND is required for both RAX and the final flags."
+  },
+  "5decf70222": {
+    "rewrite": null,
+    "why": "Both carry-dependent sums and stores are required, as is the final ADC that updates EAX and the flags."
+  },
+  "5fc21f8ae0": {
+    "rewrite": null,
+    "why": "Both borrow-dependent differences and stores are required, as is the final ADC that incorporates the borrow into EAX and updates the flags."
+  },
+  "d0479288e7": {
+    "rewrite": null,
+    "why": "The three sums, three stores, separate R10 load, and carry extraction are all required."
+  },
+  "2e7ac64433": {
+    "rewrite": null,
+    "why": "The three differences, three stores, separate R10 load, and borrow extraction are all required."
+  },
+  "db51d5f63f": {
+    "rewrite": null,
+    "why": "The carry chain, stores, and pointer updates are live, and INC/DEC must zero-extend EAX and set ZF while preserving the final carry."
+  },
+  "e149e99437": {
+    "rewrite": null,
+    "why": "The borrow chain, stores, and pointer updates are live, and INC/DEC must zero-extend EAX and set ZF while preserving the final borrow."
+  }
+}

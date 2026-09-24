@@ -1,0 +1,92 @@
+{
+  "a1a32bde48": {
+    "rewrite": "movaps xmm2,XMMWORD PTR [rcx+0xc]\nmovaps xmm3,XMMWORD PTR [rcx+0x1c]\nmovaps xmm6,xmm3\nmovaps xmm4,XMMWORD PTR [rcx+0x2c]\nmovaps xmm5,XMMWORD PTR [rcx+0x3c]\npminub xmm6,xmm2\npminub xmm6,xmm4\npminub xmm6,xmm5\npcmpeqd xmm6,xmm0\npmovmskb eax,xmm6\nmovaps xmm7,xmm5\npalignr xmm5,xmm4,0x4\ntest rax,rax\npalignr xmm4,xmm3,0x4",
+    "saved": 1,
+    "why": "Associativity of unsigned byte minimum allows all three minima to accumulate in scratch xmm6, eliminating the copy of xmm4 to xmm7. The comparison, ZF, and required vector results remain identical."
+  },
+  "91f32ede59": {
+    "rewrite": null,
+    "why": "The four stores, two alignments, two required pointer updates, and final xmm1 copy each require an instruction."
+  },
+  "feb30ce557": {
+    "rewrite": null,
+    "why": "The aligned store, load, comparison, required xmm1 copy, pointer updates, and mask extraction with a ZF test have no removable instruction under SSSE3."
+  },
+  "7d3bed02d3": {
+    "rewrite": null,
+    "why": "The aligned store, required loaded xmm2, comparison, pointer updates, and mask extraction with a ZF test each require the existing instructions."
+  },
+  "5aa2baacc8": {
+    "rewrite": "movaps xmm2,XMMWORD PTR [rcx+0x8]\nmovaps xmm3,XMMWORD PTR [rcx+0x18]\nmovaps xmm6,xmm3\nmovaps xmm4,XMMWORD PTR [rcx+0x28]\nmovaps xmm5,XMMWORD PTR [rcx+0x38]\npminub xmm6,xmm2\npminub xmm6,xmm4\npminub xmm6,xmm5\npcmpeqd xmm6,xmm0\npmovmskb eax,xmm6\nmovaps xmm7,xmm5\npalignr xmm5,xmm4,0x8\ntest rax,rax\npalignr xmm4,xmm3,0x8",
+    "saved": 1,
+    "why": "Associativity of unsigned byte minimum allows all three minima to accumulate in scratch xmm6, eliminating the copy of xmm4 to xmm7. The comparison, ZF, and required vector results remain identical."
+  },
+  "5d647866cf": {
+    "rewrite": null,
+    "why": "The four stores, two alignments, two required pointer updates, and final xmm1 copy each require an instruction."
+  },
+  "1010dab5b5": {
+    "rewrite": null,
+    "why": "The aligned store, load, comparison, required xmm1 copy, pointer updates, and mask extraction with a ZF test have no removable instruction under SSSE3."
+  },
+  "da16aff8a9": {
+    "rewrite": null,
+    "why": "The aligned store, required loaded xmm2, comparison, pointer updates, and mask extraction with a ZF test each require the existing instructions."
+  },
+  "4c25ff22b5": {
+    "rewrite": "movaps xmm2,XMMWORD PTR [rcx+0x4]\nmovaps xmm3,XMMWORD PTR [rcx+0x14]\nmovaps xmm6,xmm3\nmovaps xmm4,XMMWORD PTR [rcx+0x24]\nmovaps xmm5,XMMWORD PTR [rcx+0x34]\npminub xmm6,xmm2\npminub xmm6,xmm4\npminub xmm6,xmm5\npcmpeqd xmm6,xmm0\npmovmskb eax,xmm6\nmovaps xmm7,xmm5\npalignr xmm5,xmm4,0xc\ntest rax,rax\npalignr xmm4,xmm3,0xc",
+    "saved": 1,
+    "why": "Associativity of unsigned byte minimum allows all three minima to accumulate in scratch xmm6, eliminating the copy of xmm4 to xmm7. The comparison, ZF, and required vector results remain identical."
+  },
+  "80d8bb6d7d": {
+    "rewrite": null,
+    "why": "The four stores, two alignments, two required pointer updates, and final xmm1 copy each require an instruction."
+  },
+  "776fa037ac": {
+    "rewrite": "tzcnt eax,eax\nsub edi,edx\nlea eax,[rdi+rax*1+0x1]\nshr eax,0x2\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the increment and addition with the same 32-bit wraparound; rdi and arithmetic flags are not required. VZEROUPPER retains the required upper-half clearing of ymm0."
+  },
+  "2c4f9a010b": {
+    "rewrite": "tzcnt eax,eax\nsub edi,edx\nlea eax,[rdi+rax*1+0x21]\nshr eax,0x2\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the constant addition and register addition with the same 32-bit wraparound; rdi and arithmetic flags are not required. VZEROUPPER retains the required upper-half clearing of ymm0."
+  },
+  "8d423d83a5": {
+    "rewrite": "tzcnt eax,eax\nsub edi,edx\nlea eax,[rdi+rax*1+0x41]\nshr eax,0x2\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the constant addition and register addition with the same 32-bit wraparound; rdi and arithmetic flags are not required. VZEROUPPER retains the required upper-half clearing of ymm0."
+  },
+  "d4212a5107": {
+    "rewrite": "tzcnt eax,eax\nsub edi,edx\nlea eax,[rdi+rax*1+0x61]\nshr eax,0x2\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the constant addition and register addition with the same 32-bit wraparound; rdi and arithmetic flags are not required. VZEROUPPER retains the required upper-half clearing of ymm0."
+  },
+  "f173a57925": {
+    "rewrite": null,
+    "why": "The required loaded vectors and intermediate minimum prevent removing loads or minima, while the comparison, rcx mask, rdi update, and final ZF each require their existing instruction."
+  },
+  "fd9dff7cb0": {
+    "rewrite": null,
+    "why": "The vector comparison, required rax mask, required rdi subtraction, and mask-based ZF test cannot be combined under AVX2."
+  },
+  "f884a55c48": {
+    "rewrite": "vpcmpeqd ymm3,ymm0,ymm3\nvpmovmskb eax,ymm3\nshl rcx,0x20\nor rax,rcx\ntzcnt rax,rax\nlea rax,[rdi+rax*1-0x3f]\nshr rax,0x2\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the subtraction from dead rdi and addition to rax with identical 64-bit wraparound. The mask calculation and required upper-half clearing of ymm0 remain unchanged."
+  },
+  "2a3066e029": {
+    "rewrite": "tzcnt eax,eax\nlea rax,[rdi+rax*1-0x7f]\nshr rax,0x2\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the subtraction from dead rdi and addition to rax with identical 64-bit wraparound. The 32-bit TZCNT and required upper-half clearing of ymm0 remain unchanged."
+  },
+  "3f52ce0ac0": {
+    "rewrite": "tzcnt eax,eax\nlea rax,[rdi+rax*1-0x5f]\nshr rax,0x2\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the subtraction from dead rdi and addition to rax with identical 64-bit wraparound. The 32-bit TZCNT and required upper-half clearing of ymm0 remain unchanged."
+  },
+  "23f6b61b9e": {
+    "rewrite": null,
+    "why": "The required loaded vectors, two independently required comparison masks, pointer update, and combined mask test leave no removable instruction."
+  }
+}

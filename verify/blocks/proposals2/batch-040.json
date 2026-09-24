@@ -1,0 +1,82 @@
+{
+  "8f44030d82": {
+    "rewrite": null,
+    "why": "The four distinct lane-local broadcasts and the comparison each produce a required result."
+  },
+  "0b536a1219": {
+    "rewrite": null,
+    "why": "The row filtering, packing, history copies, and two stores all contribute to required final values, with no redundant temporary result."
+  },
+  "88f8c9424f": {
+    "rewrite": null,
+    "why": "The cross-lane packing, history copies, extracted upper half, and both row stores are required, and no arbitrary-input AVX2 operation combines these steps."
+  },
+  "3bf861278a": {
+    "rewrite": null,
+    "why": "Each of the three distinct shuffles produces a live vector, and the comparison supplies required flags."
+  },
+  "c4bad9e16c": {
+    "rewrite": null,
+    "why": "The two-row loads, arbitrary byte shuffles, and six-tap arithmetic all feed the stored result or preserved intermediate registers."
+  },
+  "f9fe9cf60c": {
+    "rewrite": null,
+    "why": "The overlapping loads feed arbitrary byte shuffles, and the six-tap arithmetic and final intermediate values provide no removable operation."
+  },
+  "f6107ae269": {
+    "rewrite": null,
+    "why": "Four distinct shuffle outputs and a vector assembled from two independently addressed loads already require six instructions."
+  },
+  "7a992f51be": {
+    "rewrite": null,
+    "why": "The broadcasts, blends, and unpack form two different row pairs, while the copied history, arithmetic results, and extracted upper half must also be preserved."
+  },
+  "df7b184290": {
+    "rewrite": null,
+    "why": "The four distinct shuffles and the comparison each produce a required vector or flag result."
+  },
+  "f6fd8d190d": {
+    "rewrite": null,
+    "why": "The row assembly, arbitrary byte shuffles, and eight-tap sums all contribute to the output or live intermediate registers, leaving no redundant instruction."
+  },
+  "36893175d5": {
+    "rewrite": null,
+    "why": "The three overlapping input vectors feed distinct shuffle paths, and all accumulations, packing steps, and final intermediate values remain required."
+  },
+  "bea66c092b": {
+    "rewrite": null,
+    "why": "The packed cross-row history, shifted horizontal result, and extracted upper half are all live alongside the stored output, so their preparation cannot be dropped."
+  },
+  "fa2668661a": {
+    "rewrite": null,
+    "why": "The byte extension and vector transfer jointly establish the required zeroed vector, while the load, decrement, unpack, and addition each supply another required value."
+  },
+  "70c0fbf6d5": {
+    "rewrite": null,
+    "why": "The masked and shifted vector is live, and the broadcast addition and two scalar extractions are all required."
+  },
+  "a7ecd2b6b0": {
+    "rewrite": null,
+    "why": "Isolating AL and transferring it into an otherwise zero vector requires two instructions, in addition to the live decrement and multiply-add."
+  },
+  "3f06e56f49": {
+    "rewrite": null,
+    "why": "The full-width sum and masked shifts are live, and the four scalar results require the broadcast addition and individual extractions."
+  },
+  "ff3c48760c": {
+    "rewrite": null,
+    "why": "The two independently addressed scalar loads and four independent vector shuffles each produce a required final register."
+  },
+  "fa83669588": {
+    "rewrite": null,
+    "why": "Each arbitrary low-word merge needs its shift and blend, and the signed coefficient broadcasts require the transfer, duplication, extension, and four distinct shuffles."
+  },
+  "6da3b4c5fc": {
+    "rewrite": null,
+    "why": "The coefficient preparation, products, and partial sums all feed live values, and the pointer addition must also supply the carry flag preserved by the decrement."
+  },
+  "44521db1d4": {
+    "rewrite": null,
+    "why": "Both scalar loads and all four vector shuffles produce distinct required final registers."
+  }
+}

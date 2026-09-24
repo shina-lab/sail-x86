@@ -1,0 +1,83 @@
+{
+  "1c90b4053a": {
+    "rewrite": null,
+    "why": "Both rows require their arbitrary-coefficient word products, correction, shift, and stores, and all pointer and counter updates are live."
+  },
+  "0ead3ec7fe": {
+    "rewrite": null,
+    "why": "The two independent weighted sums and their stores are necessary, and the live pointer and index updates leave no removable instructions."
+  },
+  "8313ec0d16": {
+    "rewrite": null,
+    "why": "Both duplicated loads feed distinct arbitrary-coefficient products, followed by the required correction, addition, and arithmetic shift."
+  },
+  "33ad8971c2": {
+    "rewrite": null,
+    "why": "Each load and arithmetic operation contributes to the live result, and preserving both coefficient registers prevents eliminating a load through a destructive memory-source multiply."
+  },
+  "5c61b314b5": {
+    "rewrite": null,
+    "why": "The filtering, signed packing, clamping, and final shuffle are needed for the two stores and live xmm0 value, with no shorter SSSE3 combination apparent."
+  },
+  "71c979ee6e": {
+    "rewrite": null,
+    "why": "Each row needs a copy for its two arbitrary byte shuffles, and the remaining arithmetic, clamping, stores, and updates all contribute to required outputs."
+  },
+  "9450a06308": {
+    "rewrite": null,
+    "why": "SSSE3 requires the unpack and arithmetic shift for signed byte widening, and all three broadcasts and scalar updates are live."
+  },
+  "16eba52cfd": {
+    "rewrite": null,
+    "why": "The shared shuffled inputs require copies for their distinct products, and all weighted terms, packing, clamping, and the index update are necessary."
+  },
+  "5a57b49aca": {
+    "rewrite": "psraw xmm2,0x8\nimul rax,rcx,0xffffffffffffffff\npshufd xmm8,xmm2,0x0\ncmp r8d,0x4",
+    "saved": 1,
+    "why": "Multiplication by -1 produces the same low 64 bits as copying rcx and negating rax, including the signed minimum case. The final cmp supplies all required flags."
+  },
+  "db5b3bb445": {
+    "rewrite": null,
+    "why": "The four instructions produce separate required register updates, and the final subtraction also supplies the required flags."
+  },
+  "8dba8e4600": {
+    "rewrite": null,
+    "why": "Every filtered sum contributes to the live vectors, and the final permutation and copy support two distinct destructive word interleaves."
+  },
+  "484370f837": {
+    "rewrite": null,
+    "why": "Both coefficient broadcasts are live, each input requires two arbitrary shuffles, and the final copies preserve packed sources needed by multiple output interleaves."
+  },
+  "2ba4a48f07": {
+    "rewrite": null,
+    "why": "Both advanced pointers and their copies are required, as are the extracted byte and the counter subtraction with its final flags."
+  },
+  "9c774cf36a": {
+    "rewrite": null,
+    "why": "The shuffled inputs feed distinct arbitrary-coefficient products that require their copies, and all subsequent sums, clamping, and output updates remain live."
+  },
+  "8a03e1afb6": {
+    "rewrite": null,
+    "why": "The shared shuffled data must survive multiple distinct products, leaving no removable copies or arithmetic before the required packed result and store."
+  },
+  "892019b49a": {
+    "rewrite": null,
+    "why": "Both incremented source pointers and their destination copies are live, along with the extracted byte, updated counter, and subtraction flags."
+  },
+  "03c411acb5": {
+    "rewrite": null,
+    "why": "Each row needs both arbitrary shuffles and products, so its copy is necessary under destructive SSSE3 instructions and all remaining operations feed live outputs."
+  },
+  "816f3cd895": {
+    "rewrite": null,
+    "why": "Four distinct required register broadcasts already use one instruction per destination."
+  },
+  "74e1d96194": {
+    "rewrite": null,
+    "why": "The three loaded vectors and shared shuffled intermediates feed distinct required products, with no dead copy or arithmetic operation in the SSSE3 sequence."
+  },
+  "0b3f16707e": {
+    "rewrite": null,
+    "why": "The full masked-and-shifted xmm8 result and both scalar sums are live, requiring the preserved-source copy, broadcast, addition, and lane extraction steps."
+  }
+}

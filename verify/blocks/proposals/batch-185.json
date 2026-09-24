@@ -1,0 +1,83 @@
+{
+  "9cf24e0e9a": {
+    "rewrite": null,
+    "why": "The rounded products, saturating butterflies, initialized dot products, and final copies all contribute to required outputs."
+  },
+  "cd99f6f581": {
+    "rewrite": null,
+    "why": "The rounded products, final coefficient broadcasts, and duplicated product are all live, and VPMULHRSW cannot fold a dword memory broadcast."
+  },
+  "2cb162f9f5": {
+    "rewrite": null,
+    "why": "Each required rounded word product needs its coefficient broadcast because VPMULHRSW has no dword-broadcast memory form."
+  },
+  "80f8a325f0": {
+    "rewrite": null,
+    "why": "All eight instructions produce distinct required saturating sums or differences."
+  },
+  "0ffa9ae888": {
+    "rewrite": null,
+    "why": "The two shuffle stages combine four independent source registers per final output, and the remaining intermediate in zmm29 is also live."
+  },
+  "792761a2ad": {
+    "rewrite": null,
+    "why": "Each shuffle produces a distinct required register value, with no dead destination or redundant permutation."
+  },
+  "2b6999b88e": {
+    "rewrite": null,
+    "why": "All eight rounded products and their eight duplicate destinations are required, and their coefficient broadcasts cannot be folded into VPMULHRSW."
+  },
+  "dec5a1a1df": {
+    "rewrite": null,
+    "why": "All sixteen rounded products are required and use independent coefficients whose broadcasts cannot be folded into VPMULHRSW."
+  },
+  "0abb67dda9": {
+    "rewrite": null,
+    "why": "Every instruction computes a required saturating sum or difference in a separate destination."
+  },
+  "4875ab20d7": {
+    "rewrite": null,
+    "why": "The four full-width stores and the independent pointer and counter updates are all required, including the counter's final flags."
+  },
+  "23c70d7660": {
+    "rewrite": null,
+    "why": "The variable shuffles, rounded products, transposition intermediates, and final word expansions all feed live outputs, and the final zero-filled unpack requires an explicit zero source."
+  },
+  "8629798e51": {
+    "rewrite": null,
+    "why": "The signed load, original-value store, ecx update, multiplication, bias addition, and flag-producing arithmetic shift each have a required effect."
+  },
+  "42143eb29f": {
+    "rewrite": null,
+    "why": "Every rounded product is required in two destinations, and VPMULHRSW cannot incorporate the separate dword coefficient broadcasts."
+  },
+  "e17de28521": {
+    "rewrite": null,
+    "why": "Each broadcast feeds a required rounded product, and each subsequent saturating butterfly produces required output values."
+  },
+  "2bd97de740": {
+    "rewrite": null,
+    "why": "Both biased arithmetic-shift stages affect the result independently, while the memory store, ecx update, zero vector, and broadcast are also required."
+  },
+  "5e708ab9ee": {
+    "rewrite": null,
+    "why": "Arbitrary incoming zmm18 and zmm19 require both byte interleaves and wrapping word additions before saturation, followed by the required store and scalar updates."
+  },
+  "285c04873f": {
+    "rewrite": null,
+    "why": "All sixteen shuffles produce distinct live register values and already use one instruction per output."
+  },
+  "09441ac5c7": {
+    "rewrite": "mov rbx,rsp\nvpbroadcastd zmm7,DWORD PTR [r9-0x8c]\ncmp ecx,0x88",
+    "saved": 2,
+    "why": "The alignment and subtraction only change rsp, which is not a required final output and must remain untouched by the rewrite; cmp overwrites their relevant flags. The retained instructions preserve the incoming rsp in rbx, the broadcast result, and all required comparison flags."
+  },
+  "444206336f": {
+    "rewrite": null,
+    "why": "Each of the four independent shuffles writes a required output, so none can be removed or combined."
+  },
+  "79f23a760f": {
+    "rewrite": null,
+    "why": "All sixteen shuffle outputs and the copy of rsp into the live r8 register are required."
+  }
+}

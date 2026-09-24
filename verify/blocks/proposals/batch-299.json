@@ -1,0 +1,88 @@
+{
+  "5f2330cc99": {
+    "rewrite": "mul r9\nadd rdx,r11\nmov r13,rdx\nimul rdx,rbp\ncmp rdx,rax\nlea rax,[r8+rdx*1]",
+    "saved": 2,
+    "why": "Compare against the low limb while it is still in rax, then use flag-preserving lea for the final sum. This removes the r11 copy and folds the move/add pair."
+  },
+  "f305a3fdc2": {
+    "rewrite": null,
+    "why": "The four loads, zeroing of live r15, and final comparison all produce required results."
+  },
+  "23084ee33a": {
+    "rewrite": null,
+    "why": "Both byte results and ZF are live, requiring the incoming-carry capture, comparison, condition materialization, and OR."
+  },
+  "6b896b1be7": {
+    "rewrite": "mov r9,r11\nmov rdi,rax\nimul r9,rax\nmul r8\nxor ecx,ecx\nadd r9,r8\nadc rcx,0xffffffffffffffff\nadd r9,rdx\nadc rcx,0x0",
+    "saved": 1,
+    "why": "Form the low product directly in r9, eliminating the copy through rdx while retaining both carry accumulations and the final SF."
+  },
+  "fec71e0db8": {
+    "rewrite": null,
+    "why": "Both borrow chains are live, and the two required zero outputs and final carry comparison cannot be dropped."
+  },
+  "8e39cdefc4": {
+    "rewrite": "movzx ecx,WORD PTR [r8+rax*2]\nmov rsi,rdi\nimul eax,ecx,0x800\nimul ecx,ecx\nshr rsi,0x18\ninc rsi\nimul rcx,rsi\nshr rcx,0x28\ndec eax\nsub eax,ecx\nmovabs rcx,0x1000000000000000\nimul rsi,rax\nsub rcx,rsi\nimul rcx,rax\nshl rax,0xd\nshr rcx,0x2f\nadd rcx,rax\nmov rax,rdi\nmul rcx\nshrd rax,rdx,0x1\nadc rax,0x0\nneg rax\nmul rcx\nshl rcx,0x1f\nshr rdx,1\nadd rcx,rdx\nmov rax,rdi\nmul rcx\nadd rax,rdi\nmov rax,rcx\nadc rdx,rdi\nsub rax,rdx",
+    "saved": 4,
+    "why": "Use immediate imul to combine the initial copy and shift, and replace the rounding sequence by a full product followed by shrd, adc, and neg. The replacement computes the same -ceil(rdi*rcx/2) modulo 2^64."
+  },
+  "0d185e6a19": {
+    "rewrite": null,
+    "why": "The load, three pointer updates, count negation, and masked copy all supply required live values."
+  },
+  "8f28caa1fb": {
+    "rewrite": null,
+    "why": "The complemented load, three pointer updates, count negation, and masked copy all supply required live values."
+  },
+  "5f6e076137": {
+    "rewrite": "movq mm0,QWORD PTR [rdx+rcx*8+0x8]\nand r8,QWORD PTR [rsi+rcx*8]\npandn mm0,QWORD PTR [rsi+rcx*8+0x8]\nmov QWORD PTR [rdi+rcx*8],r8\nmovq QWORD PTR [rdi+rcx*8+0x8],mm0",
+    "saved": 1,
+    "why": "MMX pandn combines the second word's complement and AND, preserving the original 64-bit load and store addresses."
+  },
+  "04d51c32a6": {
+    "rewrite": null,
+    "why": "Complementing the second source, combining both words, and storing both results already use the required baseline operations."
+  },
+  "e6f5b65513": {
+    "rewrite": null,
+    "why": "Both result words and the carry-producing index update are live, with source loads already folded into the AND operations."
+  },
+  "378ae453d3": {
+    "rewrite": null,
+    "why": "Both result words and the carry-producing index update are live, with source loads already folded into the OR operations."
+  },
+  "968638c227": {
+    "rewrite": "movq mm0,QWORD PTR [rdx+rcx*8+0x18]\nand r8,QWORD PTR [rsi+rcx*8+0x10]\npandn mm0,QWORD PTR [rsi+rcx*8+0x18]\nmov QWORD PTR [rdi+rcx*8+0x10],r8\nmovq QWORD PTR [rdi+rcx*8+0x18],mm0\nadd rcx,0x4",
+    "saved": 1,
+    "why": "Using MMX pandn removes the separate complement while retaining the same loads and stores; the original index addition still supplies CF."
+  },
+  "3ec477c3ab": {
+    "rewrite": null,
+    "why": "The two live register copies, required load, and final carry comparison are independent required operations."
+  },
+  "824dd40fda": {
+    "rewrite": null,
+    "why": "Both sum limbs, the saved multiplier, the carry mask, and the updated index and its carry flag must be retained."
+  },
+  "29224627a5": {
+    "rewrite": null,
+    "why": "The masked sum and its carry, independent address calculation, full product, and replacement load are all required."
+  },
+  "509c788099": {
+    "rewrite": null,
+    "why": "Both sum outputs, the carry mask, and the decrement's carry flag are required, leaving no removable copy."
+  },
+  "cc1cb4022f": {
+    "rewrite": "mul QWORD PTR [r8+0x10]\nadd rbp,rax\nmov rax,rdx\nadc rax,0x0\nshld rax,rbp,cl\nshl rbp,cl",
+    "saved": 1,
+    "why": "Accumulate the carry directly into a copy of the product's high limb, eliminating the zeroed r9 temporary."
+  },
+  "30d2e78b5d": {
+    "rewrite": null,
+    "why": "All three copies, the count transformation, and the variable shift have live results, including the shift flags."
+  },
+  "6b0fa15445": {
+    "rewrite": null,
+    "why": "The negated value, product, three stores, zero-extended copy, and zero flag are all required."
+  }
+}

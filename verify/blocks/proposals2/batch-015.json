@@ -1,0 +1,85 @@
+{
+  "a90f4ef3c3": {
+    "rewrite": "dec rdx\nvmovdqu ymm4,YMMWORD PTR [r9-0x3e0]\nvperm2i128 ymm5,ymm4,YMMWORD PTR [r9-0x3c0],0x31\nvperm2i128 ymm4,ymm4,YMMWORD PTR [r9-0x3c0],0x20",
+    "saved": 1,
+    "why": "A contiguous load and two memory-source lane permutations assemble both outputs in three vector instructions. The wider loads read only bytes covered by the original four loads."
+  },
+  "17e709a149": {
+    "rewrite": null,
+    "why": "The broadcasts, independent saturated products, additions, shifts, packing, store, and scalar updates all contribute to required final values or flags."
+  },
+  "c0f41e66d3": {
+    "rewrite": null,
+    "why": "Both stored vectors require their separate saturated products and narrowing operations, and every final vector register and arithmetic flag is preserved."
+  },
+  "60c92447b5": {
+    "rewrite": null,
+    "why": "With arbitrary input coefficients, the saturated products and rounded averages cannot be merged, and the extraction and four stores serve distinct required outputs."
+  },
+  "abc16ce9be": {
+    "rewrite": "dec rdx\nvpmaddubsw ymm9,ymm7,ymm5\nvpmaddubsw ymm10,ymm8,ymm5\nvmovdqu ymm5,YMMWORD PTR [rax-0x3b8]\nvperm2i128 ymm6,ymm5,YMMWORD PTR [rax-0x398],0x31\nvperm2i128 ymm5,ymm5,YMMWORD PTR [rax-0x398],0x20\nvpaddw ymm0,ymm7,ymm3\nvpaddw ymm3,ymm8,ymm3\nvpaddw ymm9,ymm9,ymm0\nvpaddw ymm10,ymm10,ymm3",
+    "saved": 1,
+    "why": "Replace four half-vector loads and inserts with one contiguous load and two memory-source lane permutations. The products still use the incoming ymm5, and all loaded bytes belong to the original accesses."
+  },
+  "11c6805242": {
+    "rewrite": null,
+    "why": "The three independently weighted shuffles require their broadcasts, saturated products, and summation, while the scalar assignments and comparison remain live."
+  },
+  "203152fc05": {
+    "rewrite": "vmovd xmm6,eax\nvpbroadcastq ymm0,QWORD PTR [CONST_1]\nvpbroadcastb ymm7,BYTE PTR [rdx+r10*1]\nshl r10d,0x6\nvpbroadcastw ymm6,xmm6\nmov ecx,eax\nvmovd xmm9,r10d\nvpbroadcastw ymm9,xmm9\nvbroadcasti128 ymm8,XMMWORD PTR [CONST_2]\nvpsrlw ymm7,ymm7,0x8\nvpaddw ymm10,ymm6,ymm6\nvpsubw ymm9,ymm9,ymm0\nvpblendd ymm6,ymm6,ymm10,0xcc\npaddw xmm6,xmm10\nvpaddw ymm10,ymm10,ymm10",
+    "saved": 1,
+    "why": "A legacy paddw updates the low 128 bits of ymm6 while preserving its upper half, exactly matching addition of the zero-extended xmm10 copy. This removes the copy into dead ymm0."
+  },
+  "9b1361b93e": {
+    "rewrite": null,
+    "why": "The distinct half-vector loads and clamped masks feed required vectors and two separately saturated products, leaving no removable intermediate."
+  },
+  "a1b3615bc3": {
+    "rewrite": null,
+    "why": "The vector multiplication, signed shift, addition, stack-pointer copy, and independent sign-flag comparison each produce required state."
+  },
+  "2aa7197dfd": {
+    "rewrite": null,
+    "why": "AVX2 requires extraction and packing to saturate the two halves in the requested order, followed by the two distinct stores."
+  },
+  "bf9e3a4eb6": {
+    "rewrite": null,
+    "why": "The broadcasts, byte-to-word conversion, index subtraction, doubling, and lane blend all produce live outputs, and the short constants cannot be folded into full-width memory operands."
+  },
+  "dc8e3be1c4": {
+    "rewrite": null,
+    "why": "Two stores at independently indexed addresses and two required scalar updates already require four instructions."
+  },
+  "82986968c4": {
+    "rewrite": null,
+    "why": "Both vector products and all scalar updates are live, and the comparison must independently produce the required sign flag."
+  },
+  "fc46f83f5d": {
+    "rewrite": null,
+    "why": "Saturating packing and cross-lane reordering require separate AVX2 instructions, and both stores must remain."
+  },
+  "5eae811516": {
+    "rewrite": null,
+    "why": "The broadcasts, two distinct subtractions, doubling, and lane blend all feed required final registers, with no redundant copy or operation."
+  },
+  "d05519024a": {
+    "rewrite": null,
+    "why": "Each of the two stored vectors requires its own saturating pack and store under AVX2."
+  },
+  "55afdb3371": {
+    "rewrite": null,
+    "why": "The duplicated broadcast is required in both ymm6 and ymm11, and the remaining broadcasts, subtractions, and scalar updates all have live results."
+  },
+  "04c0a3ddb0": {
+    "rewrite": null,
+    "why": "The independent broadcasts and constant loads are live, and forming the scalar difference requires both its displacement adjustment and subtraction before broadcasting."
+  },
+  "a972dd9cd5": {
+    "rewrite": null,
+    "why": "With arbitrary input masks and thresholds, the broadcast, byte subtraction, masking, signed comparison, and movemask are all needed."
+  },
+  "2e7b3c0b65": {
+    "rewrite": null,
+    "why": "The live vector arithmetic, packing, extraction, four independently addressed stores, and scalar updates leave no removable instruction."
+  }
+}

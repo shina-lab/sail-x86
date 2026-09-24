@@ -1,0 +1,82 @@
+{
+  "41aa0e3578": {
+    "rewrite": null,
+    "why": "All four rounded products are live, and AVX2 VPMULHRSW cannot fold the required scalar broadcasts into its memory operands."
+  },
+  "119b748ebe": {
+    "rewrite": null,
+    "why": "The three sequential rounded multiplications cannot be reassociated, and the loaded coefficient, zero vector, broadcast result, store, and counter update are all required."
+  },
+  "ef076b7d90": {
+    "rewrite": null,
+    "why": "The unpack operand ymm18 is unconstrained, both arithmetic results must be preserved, and the packing, stores, and scalar updates remain necessary."
+  },
+  "fb19cb178e": {
+    "rewrite": null,
+    "why": "Each broadcast feeds a required rounded product, and AVX-512 VPMULHRSW does not support embedded scalar broadcasts."
+  },
+  "8fec1ae111": {
+    "rewrite": null,
+    "why": "Each destructive dot-product accumulator requires initialization from the arbitrary bias vector, while the independent products, masked multishifts, and saturating packs cannot be combined."
+  },
+  "e42789eb12": {
+    "rewrite": null,
+    "why": "All eight output vectors require independent biased dot products, and the arbitrary bias, shift controls, and merge mask prevent removing accumulator copies or combining the result operations."
+  },
+  "632c12d4dc": {
+    "rewrite": null,
+    "why": "The sequential rounded products and broadcast are required, and both the preserved zero vector and zero store must remain alongside the carry-producing counter update."
+  },
+  "3583e55274": {
+    "rewrite": null,
+    "why": "The arbitrary unpack and add operands require both word-processing paths, with both vector results, both stores, and both scalar updates preserved."
+  },
+  "90e608284c": {
+    "rewrite": null,
+    "why": "The rounded products require separate broadcasts, and the final copy is necessary because both zmm16 and zmm20 must contain the last product."
+  },
+  "20d780fd0c": {
+    "rewrite": null,
+    "why": "Every rounded product is live, and the word multiplication instruction cannot absorb any of the scalar broadcasts."
+  },
+  "207be587e7": {
+    "rewrite": null,
+    "why": "Every instruction establishes a distinct required vector value, with the zero and constant vectors already produced in one instruction each."
+  },
+  "f7b1f1680b": {
+    "rewrite": null,
+    "why": "The unpack operand and coefficients are arbitrary, the arithmetic intermediates are live, and SSE2 has no suitable fused instruction for the required unpack, multiply, and accumulation steps."
+  },
+  "06fc5ebf68": {
+    "rewrite": null,
+    "why": "The SSE2 filter requires its unpack and arithmetic stages, while the destination-pixel load must also remain to preserve xmm1 and supply the final average."
+  },
+  "ca02114d11": {
+    "rewrite": null,
+    "why": "All four loads are live, and constructing the required repeated 0xffc0 words still needs both the comparison and shift under SSSE3."
+  },
+  "6c77655829": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and coefficients require both filtering paths, and the preserved xmm1 result prevents eliminating the high-half move before the saturating addition."
+  },
+  "ccb566873d": {
+    "rewrite": null,
+    "why": "Both filtering paths and their live intermediates are required, including the high-half move and the destination-pixel load that establishes the preserved xmm7 value."
+  },
+  "c4a18fc463": {
+    "rewrite": null,
+    "why": "The pairwise multiply-adds already fuse the filter arithmetic, while the required unpacking, live temporary values, saturation, and rounding leave no removable instruction."
+  },
+  "972fcff618": {
+    "rewrite": null,
+    "why": "The filter already uses fused pairwise multiply-adds, and its live intermediates plus the preserved destination-pixel vector prevent dropping loads or arithmetic stages."
+  },
+  "4d7660ca41": {
+    "rewrite": null,
+    "why": "Both unpack halves and the filter intermediates are live, and folding the unaligned loads into legacy SSE unpack memory operands would introduce alignment requirements."
+  },
+  "d0e3a62d24": {
+    "rewrite": null,
+    "why": "Both unpack halves and filter intermediates remain necessary, the average load is already folded into PAVGB, and legacy SSE unpack memory operands cannot safely replace the unaligned input loads."
+  }
+}

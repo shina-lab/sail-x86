@@ -1,0 +1,82 @@
+{
+  "81bdc5c8ee": {
+    "rewrite": null,
+    "why": "Both blend paths use arbitrary coefficients, and their live vector results, separate stores and required scalar updates leave no removable instruction."
+  },
+  "af35a98da0": {
+    "rewrite": null,
+    "why": "The two row loads, lane assembly and separate blend stages are required, and the intermediate vector results and scalar updates must also be preserved."
+  },
+  "4ea9762a0f": {
+    "rewrite": null,
+    "why": "Both halves of the assembled source need separate unpack and arithmetic stages with arbitrary coefficients, while all resulting vectors, stores and scalar updates remain live."
+  },
+  "b4d1b9b771": {
+    "rewrite": null,
+    "why": "The broadcast weight and loaded source vector remain live, and each half requires its unpack, multiply-add and rounded multiply before packing."
+  },
+  "d9546fc56b": {
+    "rewrite": null,
+    "why": "The accumulator copy preserves zmm18, and arbitrary multiplier and permutation vectors prevent collapsing the dot products, saturation packs, rounded multiply and permutation."
+  },
+  "f2d42bdee3": {
+    "rewrite": null,
+    "why": "The independently addressed word transfers need two loads and two stores, and both address updates and the flag-setting subtraction are live."
+  },
+  "aad1562d54": {
+    "rewrite": null,
+    "why": "The allowed SSSE3 vector width requires eight loads and eight stores for these 128 bytes, and the pointer and counter updates must be preserved."
+  },
+  "c7f454ef78": {
+    "rewrite": null,
+    "why": "The live scalar and vector results require the row merge, filtering and packing, and SSSE3 cannot fold the two word stores into vector extraction instructions."
+  },
+  "5a4cc17b50": {
+    "rewrite": null,
+    "why": "The shuffle and arithmetic stages use arbitrary inputs, and the shift is required for both the second store and the final value of xmm4."
+  },
+  "5387f3fc51": {
+    "rewrite": null,
+    "why": "Each row needs its own load, shuffle and two arithmetic stages, with both filtered xmm1 and packed xmm0 live alongside the stores and scalar updates."
+  },
+  "bf8ef08a61": {
+    "rewrite": null,
+    "why": "Arbitrary shuffle and coefficient vectors require both filter paths, and the live vector results, output store and flag-producing scalar updates leave no redundant instruction."
+  },
+  "27b766cf91": {
+    "rewrite": null,
+    "why": "All four input windows require filtering to form the two stored vectors, and the final values of xmm0, xmm1, xmm2 and the updated scalar registers are observable."
+  },
+  "c961b8bef6": {
+    "rewrite": null,
+    "why": "The dword duplication is necessary before the arbitrary byte shuffle, and wider memory loads would access bytes outside the four permitted source bytes."
+  },
+  "ee9d02cba4": {
+    "rewrite": null,
+    "why": "The constant load is required for final xmm4, and the eight-byte load, byte rearrangement and multiply-add each perform distinct required work."
+  },
+  "dc2d72384a": {
+    "rewrite": null,
+    "why": "Each input window requires its own load, arbitrary byte shuffle and multiply-add under SSSE3."
+  },
+  "942a6ce9f6": {
+    "rewrite": null,
+    "why": "Both incremented values and their copies are live, as are the byte extraction and flag-setting subtraction."
+  },
+  "c7ebaa4f11": {
+    "rewrite": null,
+    "why": "The four row loads, paired dword merges, unpacks with arbitrary xmm4 and word shifts are required for the live vector results and two stores."
+  },
+  "51d2a94155": {
+    "rewrite": null,
+    "why": "Each of the four live output vectors needs a separate load, unpack with arbitrary xmm4, shift and store, followed by the required scalar updates."
+  },
+  "6e85bcbdbe": {
+    "rewrite": null,
+    "why": "The copies preserve each row for both destructive SSE unpacks, and arbitrary xmm4 prevents substituting zero-extension for the unpack and shift stages."
+  },
+  "839b9cc380": {
+    "rewrite": null,
+    "why": "The copies retain each row for its low and high unpacks, and every unpack, shift, store and scalar update contributes to a required final result."
+  }
+}

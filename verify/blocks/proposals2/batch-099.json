@@ -1,0 +1,87 @@
+{
+  "dbb792dde4": {
+    "rewrite": null,
+    "why": "The four required register results need separate writes, and the comparison is needed to reproduce SF and OF."
+  },
+  "785c02c371": {
+    "rewrite": "lea rdi,[rdi+rdx*8]\nlea rsi,[rsi+rdx*8]\nimul rdx,rdx,0xfffffffffffffff8\nxorpd xmm0,xmm0\nxorpd xmm1,xmm1\nmovapd xmm2,xmm0\nmovapd xmm3,xmm1",
+    "saved": 1,
+    "why": "Scaled LEAs compute both pointer updates directly, and multiplication by -8 combines the shift and negation modulo 64 bits. No final flags are required."
+  },
+  "6e94dbe0ec": {
+    "rewrite": "lea rdi,[rdi+rdx*8]\nlea rsi,[rsi+rdx*8]\nimul rdx,rdx,0xfffffffffffffff8\nvxorpd ymm0,ymm0,ymm0\nvxorpd ymm1,ymm1,ymm1\nvmovapd ymm2,ymm0\nvmovapd ymm3,ymm1",
+    "saved": 1,
+    "why": "Scaled LEAs compute both pointer updates directly, and multiplication by -8 combines the shift and negation modulo 64 bits. The four full-width vector results are unchanged, and no final flags are required."
+  },
+  "a2b3eed1ee": {
+    "rewrite": null,
+    "why": "Four live 128-bit loads, four corresponding stores and the index update already require nine instructions at SSE4.1."
+  },
+  "38151d5cb7": {
+    "rewrite": null,
+    "why": "Both vector results and the scalar result must survive, while VZEROUPPER is also required to clear the upper halves of the other live YMM registers."
+  },
+  "85ff36d3b2": {
+    "rewrite": null,
+    "why": "Each of the four instructions produces a distinct required register result, with the final multiplication also supplying the required flags."
+  },
+  "9c888a2de8": {
+    "rewrite": null,
+    "why": "The saved length, seven loaded pointers and five pointer differences are all live, with no redundant copy or arithmetic operation."
+  },
+  "dd92417fb0": {
+    "rewrite": null,
+    "why": "The required SSE2 interleave results need the copies and shuffles, and folding the unaligned loads into unpack operands would require stronger alignment."
+  },
+  "c7ebf5dfeb": {
+    "rewrite": null,
+    "why": "All five independent pointer differences remain live and already take one scalar subtraction each."
+  },
+  "c6278da049": {
+    "rewrite": "movaps xmm0,XMMWORD PTR [rsi]\nmovaps xmm2,XMMWORD PTR [rsi+rcx*1]\nmovaps xmm4,XMMWORD PTR [rsi+r9*1]\nmovaps xmm6,xmm0\nunpcklps xmm6,XMMWORD PTR [rsi+rdx*1]\nunpckhps xmm0,XMMWORD PTR [rsi+rdx*1]\nmovaps xmm1,xmm2\nunpcklps xmm1,XMMWORD PTR [rsi+r8*1]\nunpckhps xmm2,XMMWORD PTR [rsi+r8*1]\nmovaps xmm3,xmm4\nunpcklps xmm3,XMMWORD PTR [rsi+rax*1]\nunpckhps xmm4,XMMWORD PTR [rsi+rax*1]\nmovaps xmm5,xmm3\nshufps xmm3,xmm6,0xe4\nmovlhps xmm6,xmm1\nmovhlps xmm5,xmm1\nmovaps xmm1,xmm4\nshufps xmm4,xmm0,0xe4\nmovlhps xmm0,xmm2\nmovhlps xmm1,xmm2\nmovaps XMMWORD PTR [rdi],xmm6\nmovaps XMMWORD PTR [rdi+0x10],xmm3\nmovaps XMMWORD PTR [rdi+0x20],xmm5\nmovaps XMMWORD PTR [rdi+0x30],xmm0\nmovaps XMMWORD PTR [rdi+0x40],xmm4\nmovaps XMMWORD PTR [rdi+0x50],xmm1\nadd rsi,0x10\nadd rdi,0x60\nsub r10d,0x4",
+    "saved": 3,
+    "why": "Fold the three aligned loads whose initial register values are later overwritten into both of their unpack consumers. All final vector values, stores and loop-update flags are preserved."
+  },
+  "4c2cfe327a": {
+    "rewrite": null,
+    "why": "The two-stage SSE2 deinterleave needs both halves of every source pair, and unaligned inputs prevent folding their loads into memory-source unpack instructions."
+  },
+  "3003e11875": {
+    "rewrite": "movaps xmm0,XMMWORD PTR [rsi]\nmovaps xmm1,XMMWORD PTR [rsi+0x10]\nmovaps xmm2,XMMWORD PTR [rsi+0x20]\nmovaps xmm6,xmm0\nunpcklps xmm6,XMMWORD PTR [rsi+0x30]\nunpckhps xmm0,XMMWORD PTR [rsi+0x30]\nmovaps xmm3,xmm1\nunpcklps xmm3,XMMWORD PTR [rsi+0x40]\nunpckhps xmm1,XMMWORD PTR [rsi+0x40]\nmovaps xmm4,xmm2\nunpcklps xmm4,XMMWORD PTR [rsi+0x50]\nunpckhps xmm2,XMMWORD PTR [rsi+0x50]\nmovaps xmm5,xmm6\nunpcklps xmm5,xmm1\nunpckhps xmm6,xmm1\nmovaps xmm1,xmm0\nunpcklps xmm1,xmm4\nunpckhps xmm0,xmm4\nmovaps xmm4,xmm3\nunpcklps xmm4,xmm2\nunpckhps xmm3,xmm2\nmovaps XMMWORD PTR [rdi],xmm5\nmovaps XMMWORD PTR [rdi+rdx*1],xmm6\nmovaps XMMWORD PTR [rdi+rcx*1],xmm1\nmovaps XMMWORD PTR [rdi+r8*1],xmm0\nmovaps XMMWORD PTR [rdi+r9*1],xmm4\nmovaps XMMWORD PTR [rdi+rax*1],xmm3\nadd rsi,0x60\nadd rdi,0x10\nsub r10d,0x4",
+    "saved": 3,
+    "why": "Fold the last three aligned input loads into their low and high unpack consumers at the same addresses. The second shuffle stage, all stores and the flag-setting loop updates remain unchanged."
+  },
+  "9cc509f5c8": {
+    "rewrite": null,
+    "why": "All four widened vectors and the original first input vector are live, and the unaligned second load cannot be folded into SSE2 unpack operands."
+  },
+  "0a8aff974c": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+rdx*2]\npxor xmm2,xmm2\npxor xmm3,xmm3\npunpcklwd xmm2,XMMWORD PTR [rsi+rdx*2+0x10]\npunpckhwd xmm3,XMMWORD PTR [rsi+rdx*2+0x10]\npxor xmm4,xmm4\npxor xmm1,xmm1\npunpcklwd xmm4,xmm0\npunpckhwd xmm1,xmm0\nmovdqa XMMWORD PTR [rdi+rdx*4],xmm4\nmovdqa XMMWORD PTR [rdi+rdx*4+0x10],xmm1\nmovdqa XMMWORD PTR [rdi+rdx*4+0x20],xmm2\nmovdqa XMMWORD PTR [rdi+rdx*4+0x30],xmm3\nadd rdx,0x10",
+    "saved": 1,
+    "why": "Fold the second aligned input load into both word-unpack instructions, since its temporary value in xmm1 is overwritten. The original xmm0 value, four widened results, stores and final flags are preserved."
+  },
+  "3e1a6005e2": {
+    "rewrite": null,
+    "why": "SSE2 needs the four loads and arithmetic shifts before the two packs, and the shifted xmm1 and xmm3 values must also remain intact."
+  },
+  "2a50aa4e93": {
+    "rewrite": null,
+    "why": "SSE2 has no immediate arithmetic shift that also loads its data operand, and both packed outputs and the shifted xmm1 and xmm3 values are required."
+  },
+  "4ad40c6eff": {
+    "rewrite": null,
+    "why": "Both interleaved halves and the unchanged second input vector are required, so the two loads, copy, unpacks, stores and index update are all needed."
+  },
+  "cef859c015": {
+    "rewrite": null,
+    "why": "The three scaled pointer updates and negated index are four independent live results, each already computed with one instruction."
+  },
+  "e13c936868": {
+    "rewrite": null,
+    "why": "The second loaded vector must remain in xmm2, and forming both interleaved halves still needs the first-input copy and two unpacks."
+  },
+  "ed2719cc79": {
+    "rewrite": null,
+    "why": "Both dword-interleaved outputs and the original xmm2 input must survive, leaving no removable load, copy, unpack, store or index update."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "a45489b4d9": {
+    "rewrite": null,
+    "why": "The two stores, destination-pointer update, and counter subtraction each produce a required effect."
+  },
+  "09ec7a9769": {
+    "rewrite": null,
+    "why": "The addition, mask, OR, and comparison all contribute to the required CF and ZF for arbitrary inputs."
+  },
+  "13a53f801d": {
+    "rewrite": null,
+    "why": "The sums and signed correction require their intermediates, while folding the unaligned load at [rdx+0x4] into legacy SSE arithmetic would introduce an unsupported alignment requirement."
+  },
+  "69ee1dc300": {
+    "rewrite": null,
+    "why": "Both the unmasked sum in xmm1 and the masked, bit-set result in rcx are required, along with the independent test's ZF."
+  },
+  "01882dc6ba": {
+    "rewrite": null,
+    "why": "The shift, equality mask, masking, signed comparison, mask extraction, and scalar test are all needed for the required r9 and ZF."
+  },
+  "ba107cd730": {
+    "rewrite": null,
+    "why": "The independent shuffles and word arithmetic feed preserved outputs, and the scalar subtraction requires the zero-extended eax and shifted ecx values."
+  },
+  "1b923806aa": {
+    "rewrite": null,
+    "why": "Both selections and their intermediate mask results are preserved, so SSSE3 requires the existing sign-mask construction and Boolean operations."
+  },
+  "8bea305b0c": {
+    "rewrite": null,
+    "why": "Two 128-bit stores and the separate pointer and counter updates are all required."
+  },
+  "9bdf2cd80d": {
+    "rewrite": null,
+    "why": "The masked stores and two rounded interpolations are necessary, and replacing their movdqu loads with legacy arithmetic memory operands would require unguaranteed alignment."
+  },
+  "42600938a0": {
+    "rewrite": null,
+    "why": "Both comparison masks, both selected vectors, the word addition, the stores, and the counter result must all be preserved."
+  },
+  "6df63a8a12": {
+    "rewrite": null,
+    "why": "SSSE3 needs all four 128-bit stores, followed by the required pointer and counter updates."
+  },
+  "6b7249d348": {
+    "rewrite": null,
+    "why": "Selecting arbitrary word values using a signed comparison requires the comparison and three Boolean operations without SSE4.1 blend instructions."
+  },
+  "a5ab1c7310": {
+    "rewrite": null,
+    "why": "The selection and two rounded interpolations have no removable operations, and arithmetic memory operands cannot safely replace loads whose alignment is unspecified."
+  },
+  "282e0b41ec": {
+    "rewrite": null,
+    "why": "Both stored vectors and both interpolation results are required, while folding the movdqu loads into legacy arithmetic would add an unsupported alignment assumption."
+  },
+  "49661c55b6": {
+    "rewrite": null,
+    "why": "The two comparisons and Boolean selections produce preserved register values and stores, and the word addition and counter decrement are independently required."
+  },
+  "22aadd032f": {
+    "rewrite": null,
+    "why": "All loaded vectors and arithmetic intermediates are preserved, and arbitrary coefficients prevent combining the products and wrapping sums into fewer SSSE3 instructions."
+  },
+  "0957d9c55a": {
+    "rewrite": null,
+    "why": "The loaded vectors, wrapping sums, rounded unsigned average, shifted result, index update, and final comparison all have required outputs."
+  },
+  "2a3686b73f": {
+    "rewrite": null,
+    "why": "For arbitrary lane values, the signed shift, shuffle, wrapping addition, signed clamps, and unsigned rounded average each affect the preserved result."
+  },
+  "e2f3e99901": {
+    "rewrite": null,
+    "why": "Every shuffled and compared vector is preserved, and pmovmskb must be followed by the test to produce the required flags."
+  },
+  "0d48a3f404": {
+    "rewrite": null,
+    "why": "Each pair of low and high interleaves needs a source copy with destructive SSE operands, and all four stores and both remaining register assignments are required."
+  }
+}

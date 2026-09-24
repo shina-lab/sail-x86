@@ -1,0 +1,84 @@
+{
+  "e215afcc27": {
+    "rewrite": null,
+    "why": "Both byte comparisons and their mask combination are needed for arbitrary xmm15, while the loaded vector, rcx and ZF must be preserved."
+  },
+  "54b5363580": {
+    "rewrite": null,
+    "why": "The indexed load, two independent byte comparisons, mask combination, extraction and increment all contribute to required outputs."
+  },
+  "faec6f0571": {
+    "rewrite": null,
+    "why": "The separate 64-bit loads respect the permitted memory footprint, and both comparisons, the mask combination, extraction and byte increment contribute to rcx or ZF."
+  },
+  "c3af89646b": {
+    "rewrite": null,
+    "why": "The separate 32-bit loads respect the permitted memory footprint, and arbitrary xmm15 makes every stage of the mask calculation relevant to rcx and ZF."
+  },
+  "0bd2c2634a": {
+    "rewrite": null,
+    "why": "The copy, OR and shift produce the required rax without changing either input, and the comparison supplies the required CF and ZF."
+  },
+  "6500958993": {
+    "rewrite": null,
+    "why": "The load, nonzero test, masked equality, mask transfer and increment each contribute to the required k1, rcx or ZF."
+  },
+  "e915c5b6d5": {
+    "rewrite": null,
+    "why": "The load, nonzero test, masked equality, mask transfer and increment each contribute to the required k1, rcx or ZF."
+  },
+  "69cad84a5f": {
+    "rewrite": null,
+    "why": "The load, nonzero test, masked equality, mask transfer and increment each contribute to the required k1, rcx or ZF."
+  },
+  "9717b9c0e4": {
+    "rewrite": null,
+    "why": "The load, nonzero test, masked equality, mask transfer and increment each contribute to the required k1, rcx or ZF."
+  },
+  "4971f1ab4a": {
+    "rewrite": null,
+    "why": "The constant subtraction and 12-bit mask produce the required rax, while the vector zeroing independently produces the required zmm16."
+  },
+  "5a471475f6": {
+    "rewrite": null,
+    "why": "The loaded vectors and XOR results are live, and the minimum reduction, ternary-logic reduction and final mask conversion each contribute to required outputs."
+  },
+  "0858abf9ea": {
+    "rewrite": null,
+    "why": "The independent nonzero and equality conditions are both needed for k0, followed by the transfer and increment needed for rcx and ZF."
+  },
+  "eee9d3f1da": {
+    "rewrite": null,
+    "why": "The load, nonzero test, masked equality, mask transfer and increment each contribute to the required k1, rcx or ZF."
+  },
+  "ca41f855bc": {
+    "rewrite": null,
+    "why": "The load, nonzero test, masked equality, mask transfer and increment each contribute to the required k1, rcx or ZF."
+  },
+  "c93030ffda": {
+    "rewrite": null,
+    "why": "The indexed load and both byte conditions are needed to compute the mask whose transfer and increment produce the required rcx and ZF."
+  },
+  "8f0ee347a3": {
+    "rewrite": null,
+    "why": "The live loaded vector and XOR result, both nonzero conditions, ternary-logic combination and comparison against arbitrary ymm16 all contribute to required outputs."
+  },
+  "7600ae20ba": {
+    "rewrite": "mov edx,0xc\nbzhi eax,edi,edx\nbzhi ecx,esi,edx\nxor edx,edx\ncmp ecx,eax",
+    "saved": 1,
+    "why": "Sharing a BZHI count of 12 replaces the two copy-and-mask pairs with three instructions. Clearing edx and retaining the final comparison preserves all required registers and flags."
+  },
+  "3efa615d16": {
+    "rewrite": null,
+    "why": "The indexed load, nonzero test, masked equality, mask transfer and increment each contribute to the required k1, rcx or ZF."
+  },
+  "6c3c9fef37": {
+    "rewrite": "mov eax,ecx\nxchg rdi,rsi\nmov r8d,0xffffffff\nxor edx,edx\nsub eax,0x60",
+    "saved": 2,
+    "why": "A register XCHG replaces the three moves that swap rdi and rsi because the final rcx is dead. The remaining instructions preserve rax, rdx, r8 and the subtraction flags."
+  },
+  "802ba417c0": {
+    "rewrite": null,
+    "why": "The live loaded vector, nonzero test, masked equality, mask transfer and 16-bit increment all contribute to the required zmm0, k1, rcx or ZF."
+  }
+}

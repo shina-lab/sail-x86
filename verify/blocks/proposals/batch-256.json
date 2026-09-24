@@ -1,0 +1,82 @@
+{
+  "0ca5de6d10": {
+    "rewrite": null,
+    "why": "Both loads and stores and the returned pointer calculation are required, and vzeroupper must clear the preserved ymm0 upper half."
+  },
+  "ea8dd312ba": {
+    "rewrite": null,
+    "why": "Both loads and stores and the returned pointer calculation are required, and vzeroupper must clear the preserved ymm0 upper half."
+  },
+  "e366fe2a5c": {
+    "rewrite": null,
+    "why": "The copy and mask produce the preserved rcx without changing rsi, while the vector zeroing and comparison independently produce required register and flag values."
+  },
+  "6721b26c56": {
+    "rewrite": null,
+    "why": "The store, preserved vector load, comparison, mask transfer, index update, and ZF test each supply a required effect."
+  },
+  "55fac73560": {
+    "rewrite": null,
+    "why": "The old ymm18 must be stored before its preserved replacement is loaded, and the comparison, mask transfer, index update, and ZF test are all required."
+  },
+  "d2abb3fcb8": {
+    "rewrite": null,
+    "why": "The store, preserved vector load, comparison, mask transfer, index update, and ZF test each supply a required effect."
+  },
+  "3dac6e8861": {
+    "rewrite": null,
+    "why": "Obtaining the first matching byte requires the comparison, mask transfer, and bit scan, in addition to three stores and two preserved pointer updates."
+  },
+  "0fb742f5ec": {
+    "rewrite": null,
+    "why": "Both loaded vectors are preserved, and producing the scalar comparison mask and its zero flag requires the remaining three instructions."
+  },
+  "0cb1c6c7fd": {
+    "rewrite": null,
+    "why": "The store is required, and the byte comparison, scalar mask transfer, and ZF test cannot be combined into fewer allowed instructions."
+  },
+  "c6f160fe5d": {
+    "rewrite": null,
+    "why": "The bit scan and source-pointer update are required, and the biased subtraction needs two operations because LEA cannot subtract a register."
+  },
+  "46b7757fe9": {
+    "rewrite": null,
+    "why": "The bit scan, vector store, and two independent preserved pointer updates each require an instruction."
+  },
+  "4f2883490c": {
+    "rewrite": null,
+    "why": "The bit scan and pointer updates are required, and combining the two stores would require an additional instruction to assemble their independent vector values."
+  },
+  "cdfb4e467e": {
+    "rewrite": null,
+    "why": "Both the loaded vector and comparison vector are preserved, and the store, scalar mask, index update, and final ZF each require their existing instruction."
+  },
+  "ad310b4aea": {
+    "rewrite": null,
+    "why": "The zero initialization, two preserved comparison vectors, two scalar masks, and final ZF test are all required under SSE2."
+  },
+  "168d345281": {
+    "rewrite": null,
+    "why": "Both scalar masks require their byte comparisons and mask extractions, and the preserved ZF requires a separate test under SSE2."
+  },
+  "3022577b24": {
+    "rewrite": null,
+    "why": "The bit scan, three independent SSE2 vector stores, and two preserved pointer updates each require an instruction."
+  },
+  "8178c089a0": {
+    "rewrite": null,
+    "why": "Both loaded vectors and the zero-byte comparison vector are preserved, while SSE2 also requires zero initialization, scalar mask extraction, and a separate ZF test."
+  },
+  "45c8fa885f": {
+    "rewrite": null,
+    "why": "The preserved byte comparison, required store, scalar mask extraction, and ZF test are four distinct necessary operations under SSE2."
+  },
+  "a656421d79": {
+    "rewrite": null,
+    "why": "The bit scan and source-pointer update are required, and the biased subtraction needs two operations because LEA cannot subtract a register."
+  },
+  "634aceb04d": {
+    "rewrite": null,
+    "why": "The bit scan, vector store, and two independent preserved pointer updates each require an instruction."
+  }
+}

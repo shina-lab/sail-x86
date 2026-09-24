@@ -1,0 +1,87 @@
+{
+  "f211d43330": {
+    "rewrite": "vpunpckldq ymm8,ymm0,ymm1\nvpunpckldq ymm9,ymm2,ymm3\nvpunpckldq ymm10,ymm4,ymm5\nvpunpckldq ymm11,ymm6,ymm7\nvpunpcklqdq ymm1,ymm8,ymm9\nvpunpcklqdq ymm5,ymm10,ymm11\nvperm2i128 ymm0,ymm1,ymm5,0x20",
+    "saved": 17,
+    "why": "Only ymm0 is a live vector output, so retain just the seven instructions that construct its transpose result."
+  },
+  "6021b1c698": {
+    "rewrite": "vpbroadcastd ymm1,DWORD PTR [CONST_1]\nvpaddd ymm0,ymm0,ymm1\nvpaddd ymm0,ymm9,ymm0\nvpsrad ymm0,ymm0,0x4",
+    "saved": 17,
+    "why": "Only the bias addition, addition of ymm9, and arithmetic shift contribute to the required ymm0 result; all other vector outputs are dead."
+  },
+  "ddaa0afaee": {
+    "rewrite": null,
+    "why": "Both live outputs require signed saturation followed by a cross-lane qword permutation, which AVX2 cannot combine."
+  },
+  "08ac623abe": {
+    "rewrite": null,
+    "why": "Each of the two live outputs needs its own saturating pack and qword permutation."
+  },
+  "c5d3ba7538": {
+    "rewrite": "vpslld ymm9,ymm8,0x3\nvpaddd ymm0,ymm9,ymm0\nvpsrad ymm0,ymm0,0x4",
+    "saved": 16,
+    "why": "Only the shifted initial ymm8, its addition to ymm0, and the final arithmetic shift affect the required vector output."
+  },
+  "273d98811a": {
+    "rewrite": null,
+    "why": "All three packed results and both permuted results must be preserved, requiring the existing five instructions."
+  },
+  "4d7720f758": {
+    "rewrite": null,
+    "why": "The two multiplies, rounding addition and shift, store, ecx update, and live broadcast each perform a required operation."
+  },
+  "4d3ed631b0": {
+    "rewrite": null,
+    "why": "All four distinct broadcast destinations and the comparison flags are live."
+  },
+  "27e01091dd": {
+    "rewrite": null,
+    "why": "Eight separate registers must become zero while all other vector registers retain their initial values."
+  },
+  "5b6a733b5c": {
+    "rewrite": null,
+    "why": "All eight permutations, both rounded products, and the broadcast register are live, with no AVX2 instruction combining these operations."
+  },
+  "c7d12be9db": {
+    "rewrite": null,
+    "why": "Each of the eight required vector outputs is already produced by a single saturating pack."
+  },
+  "5f73b1d1ee": {
+    "rewrite": "vpunpcklwd ymm0,ymm0,ymm1\nvpunpcklwd ymm2,ymm2,ymm3\nvpunpcklwd ymm3,ymm4,ymm5\nvpunpcklwd ymm6,ymm6,ymm7\nvpunpckldq ymm3,ymm3,ymm6\nvpunpckldq ymm0,ymm0,ymm2\nvinserti128 ymm0,ymm0,xmm3,0x1",
+    "saved": 17,
+    "why": "The required ymm0 result depends only on four low-word unpacks, two low-dword unpacks, and the final lane insertion."
+  },
+  "1eb92d5968": {
+    "rewrite": "vpaddd ymm0,ymm9,ymm0\nvpmaxsd ymm0,ymm12,ymm0\nvpminsd ymm0,ymm13,ymm0",
+    "saved": 21,
+    "why": "Only the sum producing ymm0 and its signed lower and upper clamps are live."
+  },
+  "7a3a310c50": {
+    "rewrite": null,
+    "why": "All eight products are live, and their four-byte constants require separate broadcasts before AVX2 vector multiplication."
+  },
+  "8ee4a505da": {
+    "rewrite": null,
+    "why": "All rounded inputs and rotation outputs are live, and the shifted inputs can exceed signed 16-bit range, preventing replacement with narrow multiply-add instructions."
+  },
+  "b77e2af438": {
+    "rewrite": null,
+    "why": "All eight permutations and both constant outputs are live, including the different upper and lower halves of ymm12 created by the subtraction."
+  },
+  "304a7b15a6": {
+    "rewrite": null,
+    "why": "The four copied originals, eight permuted results, and both constant results are all required final register values."
+  },
+  "66b48d2b04": {
+    "rewrite": null,
+    "why": "The packs, rounded products, saturating additions, and final constants all contribute to preserved values, and AVX2 has no fused operation for this rounded saturating scale."
+  },
+  "6da4033c75": {
+    "rewrite": null,
+    "why": "The complete transpose, its remaining intermediate register values, and both rounded products are live."
+  },
+  "2d5204f059": {
+    "rewrite": null,
+    "why": "The scalar rounding and multiplication chain, memory store, ecx update, and vector broadcast are all required."
+  }
+}

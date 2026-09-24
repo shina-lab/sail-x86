@@ -1,0 +1,83 @@
+{
+  "3859b139b5": {
+    "rewrite": "lea eax,[r8*4+0x0]\nadd rdx,rax\nneg rax\nmov r10,rdi\npxor xmm2,xmm2\nmovdqa xmm3,XMMWORD PTR [CONST_1]\nmovdqa xmm4,XMMWORD PTR [CONST_2]",
+    "saved": 1,
+    "why": "A 32-bit LEA computes the same wrapped, zero-extended scaling directly in eax, eliminating the copy from r8 to rax. The final value of r8 is not required."
+  },
+  "8a0b896f43": {
+    "rewrite": null,
+    "why": "Both loaded sums, the saturating pack, both clamps with arbitrary register operands, the store, and the pointer updates contribute to required outputs."
+  },
+  "1aaa686ad1": {
+    "rewrite": null,
+    "why": "All four updated registers are live, and computing the negated logical half of rdx still requires the separate shift and negation."
+  },
+  "6a4fa9ac10": {
+    "rewrite": null,
+    "why": "SSE2 needs the copy to form both byte interleavings while preserving the loaded xmm1, and both stores and the flag-producing index update are required."
+  },
+  "90d9f8b0e8": {
+    "rewrite": null,
+    "why": "The pointer results and negated logical half of rdx are all live, with no redundant scalar operation to remove."
+  },
+  "04bc5baed5": {
+    "rewrite": null,
+    "why": "Both loaded vectors, both interleavings, the final lane permutation, all stores, and the index update are required, and merging the smaller stores would need an extra permutation."
+  },
+  "55ea17f348": {
+    "rewrite": null,
+    "why": "Each instruction establishes a separate required result in one of the three vector registers or two general-purpose registers."
+  },
+  "0fc0b8a452": {
+    "rewrite": null,
+    "why": "The byte prefix sums require the SSE copies, shifts, and additions, and both intermediate vectors remain live alongside the stored and shuffled accumulator."
+  },
+  "30c79ce2ed": {
+    "rewrite": null,
+    "why": "All three vector initializations and both scalar updates are required, including the zeroed upper halves of the vector registers."
+  },
+  "933bb295e1": {
+    "rewrite": null,
+    "why": "The load is already folded into XOR and the prefix scan already uses three-operand instructions, while both intermediate vectors and the accumulator results remain live."
+  },
+  "e12ef4b9dc": {
+    "rewrite": null,
+    "why": "The three required vector values have distinct destinations and upper-half requirements, and both scalar updates are also live."
+  },
+  "d3a6c0a934": {
+    "rewrite": null,
+    "why": "The lane-local prefix scan, extracted upper lane, two stores, and successive accumulator shuffles all contribute to required results with no removable copy."
+  },
+  "3ed914ebe5": {
+    "rewrite": null,
+    "why": "All three vector zeroes, the scalar zero, and the register copy are required, and SSE4.1 has no instruction combining these independent writes."
+  },
+  "498611eb5f": {
+    "rewrite": null,
+    "why": "SSE4.1 requires separate full-width products and accumulator additions, and broadcasting the coefficient cannot use a wider memory operand than the original four-byte load."
+  },
+  "06fdaaa96e": {
+    "rewrite": null,
+    "why": "Both signed products and accumulator additions are needed, and the two four-byte loads must also establish the required final vector values."
+  },
+  "54907085ff": {
+    "rewrite": null,
+    "why": "The 32-bit scaling, pointer addition, 64-bit negation, and vector initialization each perform necessary work for live outputs."
+  },
+  "89de5a3723": {
+    "rewrite": null,
+    "why": "The three loaded pointers each need the scaled offset added, while the negated offset and vector shift count are also required outputs."
+  },
+  "10bce63229": {
+    "rewrite": null,
+    "why": "All three pointer loads, the pointer difference, and the vector shift-count initialization are required, with no disposable loaded result to fold away."
+  },
+  "3fdaa19bd7": {
+    "rewrite": null,
+    "why": "Both vector initializations, all three pointer loads and additions, and the scaled negative offset are required live results."
+  },
+  "040d11fa20": {
+    "rewrite": null,
+    "why": "All three loaded pointers contribute to live outputs, and the subtraction and vector shift-count initialization cannot be eliminated."
+  }
+}

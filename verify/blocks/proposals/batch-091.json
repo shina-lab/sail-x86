@@ -1,0 +1,90 @@
+{
+  "cc3f06c239": {
+    "rewrite": null,
+    "why": "All eight word broadcasts are required by the preserved registers or stores, and the shared unpack operations already avoid expanding each broadcast separately."
+  },
+  "54c17fff40": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [r11+0x10]\nvpor ymm0,ymm0,YMMWORD PTR [r11+0x30]\nvpor ymm0,ymm0,YMMWORD PTR [r11+0x50]\nvpor ymm0,ymm0,YMMWORD PTR [r11+0x60]\nvptest ymm0,ymm0",
+    "saved": 7,
+    "why": "The four overlapping 32-byte reads cover only bytes read by the original and preserve whether any bit is nonzero. VPTEST directly produces the ZF obtained by the original packing and scalar test."
+  },
+  "4fc6e92f55": {
+    "rewrite": "movdqa xmm5,XMMWORD PTR [r11]\nvpmullw xmm5,xmm5,XMMWORD PTR [r10]\nvpsllw xmm5,xmm5,0x2\nvpermq ymm4,ymm5,0x50\nvpunpcklwd ymm4,ymm4,ymm4\nvpshufd ymm0,ymm4,0x0\nvpshufd ymm1,ymm4,0x55\nvpshufd ymm2,ymm4,0xaa\nvpshufd ymm3,ymm4,0xff",
+    "saved": 1,
+    "why": "VPERMQ places the two input quadwords in the low quadword of each 128-bit lane, allowing one lane-local unpack to replace two unpacks and an insertion."
+  },
+  "2683620a85": {
+    "rewrite": null,
+    "why": "All eight broadcasts feed preserved registers or required stores, and SSE2 needs the copy and separate low/high unpacks to share their word expansion."
+  },
+  "1990e21b9b": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+0x10]\npor xmm0,XMMWORD PTR [rsi+0x20]\npor xmm0,XMMWORD PTR [rsi+0x30]\npor xmm0,XMMWORD PTR [rsi+0x50]\npor xmm0,XMMWORD PTR [rsi+0x60]\npor xmm0,XMMWORD PTR [rsi+0x70]\npacksswb xmm0,xmm0\npacksswb xmm0,xmm0\nmovd eax,xmm0\ntest rax,rax",
+    "saved": 1,
+    "why": "Accumulate all six memory operands in one register to eliminate the instruction merging two partial OR reductions."
+  },
+  "814dc3cfc4": {
+    "rewrite": null,
+    "why": "The multiplication, scaling, and four required word-group broadcasts already share the low/high expansion efficiently with SSE2."
+  },
+  "191251409a": {
+    "rewrite": null,
+    "why": "SSE2 needs the mask construction and all four scalar assignments to produce the required final values."
+  },
+  "bc25078614": {
+    "rewrite": null,
+    "why": "Both vector constants and all four scalar assignments are required, with no redundant initialization."
+  },
+  "3d2e5fd61a": {
+    "rewrite": null,
+    "why": "All five independent vector loads, the saved original ECX value, and the flag-producing subtraction are required."
+  },
+  "631c6d5f40": {
+    "rewrite": "movq xmm5,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+rcx*1]\nimul ecx,ecx,0xfffffff8\nshr rax,cl\npinsrq xmm5,rax,0x1",
+    "saved": 1,
+    "why": "Multiplication by -8 gives the same 32-bit result as negation followed by a three-bit left shift, and no flags must be preserved."
+  },
+  "8c91cffdb2": {
+    "rewrite": "movdqa xmm6,xmm2\npand xmm6,xmm3\npxor xmm6,xmm5\npxor xmm6,xmm1\npxor xmm6,xmm4\nmov ecx,r9d\nsub ecx,0x8",
+    "saved": 1,
+    "why": "Build the AND term directly in the output accumulator and XOR the other three inputs into it, removing one copy while retaining the scalar subtraction and flags."
+  },
+  "eabeff7699": {
+    "rewrite": null,
+    "why": "The Boolean expression already uses one necessary temporary copy, and the scalar copy and subtraction are needed for RCX and the required flags."
+  },
+  "5dceab0684": {
+    "rewrite": null,
+    "why": "Every load, store, pointer update, and initialization contributes a required final value or memory effect."
+  },
+  "00f4b5d8a4": {
+    "rewrite": null,
+    "why": "The preserved AES inputs require the shuffle copy, and the destructive SSE2 shifts require both copies in the prefix-XOR calculation."
+  },
+  "52870a926f": {
+    "rewrite": null,
+    "why": "The AES transform, SSE2 prefix-XOR calculation, store, pointer update, and round-constant update all contribute required results."
+  },
+  "c9f8f02a21": {
+    "rewrite": null,
+    "why": "Both unaligned loads and the scalar updates are needed; folding a load into legacy PXOR would impose an alignment requirement absent from MOVDQU."
+  },
+  "2b0f9a774a": {
+    "rewrite": "aesenc xmm0,XMMWORD PTR [rdi]\nadd rdi,0x10\ndec esi",
+    "saved": 1,
+    "why": "AESENC can read the round key directly from memory, eliminating the dead temporary load while retaining the pointer, counter, and ZF updates."
+  },
+  "d06a4fb4fb": {
+    "rewrite": "aesdec xmm0,XMMWORD PTR [rdi]\nadd rdi,0x10\ndec esi",
+    "saved": 1,
+    "why": "AESDEC can read the round key directly from memory, eliminating the dead temporary load while retaining the pointer, counter, and ZF updates."
+  },
+  "e55336e62e": {
+    "rewrite": "vpaddq xmm14,xmm9,xmm11\nvinserti32x4 zmm15,zmm9,xmm14,0x1\nvpaddq xmm14,xmm14,xmm11\nvinserti32x4 zmm15,zmm15,xmm14,0x2\nvpaddq xmm14,xmm14,xmm11\nvinserti32x4 zmm15,zmm15,xmm14,0x3\nvpaddq xmm9,xmm14,xmm11\nvshufi32x4 zmm14,zmm10,zmm10,0x0\nvpaddq zmm14,zmm15,zmm14\nvshufi32x4 zmm16,zmm8,zmm8,0x0\nvshufi32x4 zmm17,zmm12,zmm12,0x0\nvpshufb zmm15,zmm15,zmm16\nvpxord zmm15,zmm15,zmm17\nvpshufb zmm14,zmm14,zmm16\nvpxord zmm14,zmm14,zmm17\nvextracti32x4 xmm0,zmm15,0x0\nvextracti32x4 xmm1,zmm14,0x0\nvextracti32x4 xmm2,zmm15,0x1\nvextracti32x4 xmm3,zmm14,0x1\nvextracti32x4 xmm4,zmm15,0x2\nvextracti32x4 xmm5,zmm14,0x2\nvextracti32x4 xmm6,zmm15,0x3\nvextracti32x4 xmm7,zmm14,0x3\nmov rax,rdi",
+    "saved": 1,
+    "why": "Pack the four even counters into one ZMM register and form their odd partners with one packed add, then shuffle and XOR each group together. The extracts zero every output above bit 127, and the fourth counter increment is preserved."
+  },
+  "232062d5bb": {
+    "rewrite": null,
+    "why": "Each counter output needs its addition, shuffle, and XOR, and batching only four outputs adds more packing and extraction instructions than it removes."
+  }
+}

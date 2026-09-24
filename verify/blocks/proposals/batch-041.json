@@ -1,0 +1,84 @@
+{
+  "4abd26513c": {
+    "rewrite": null,
+    "why": "The eight qword loads, unpacks, and arbitrary word products all contribute to the live result, and SSE2 cannot combine the required modular and saturating arithmetic."
+  },
+  "083a8559c5": {
+    "rewrite": null,
+    "why": "The SSE2 filter arithmetic is required, and the separate qword destination load preserves both the permitted access width and the upper bytes of the live xmm0 result."
+  },
+  "5a2765210f": {
+    "rewrite": null,
+    "why": "The block already uses paired saturating byte products and rounded multiplication, with every qword load and unpack contributing to the live packed result."
+  },
+  "696176e79d": {
+    "rewrite": null,
+    "why": "The SSSE3 filter is already compact, and averaging requires the separate qword destination load to preserve the access width and the full xmm0 result."
+  },
+  "8c61a2b734": {
+    "rewrite": null,
+    "why": "Both halves require the two-operand unpack copies, and folding the unaligned source loads into legacy SSSE3 memory operands would introduce an unsupported alignment requirement."
+  },
+  "9e07fb49dc": {
+    "rewrite": null,
+    "why": "The two-operand unpacks need their copies, the unaligned input loads cannot safely become legacy SSSE3 arithmetic memory operands, and the destination load is already folded into pavgb."
+  },
+  "a2848ded3e": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdx]\nvmovdqu ymm2,YMMWORD PTR [rdx+rcx*2]\nvmovdqu ymm4,YMMWORD PTR [rax]\nvmovdqu ymm6,YMMWORD PTR [rax+rcx*2]\nvpunpckhbw ymm12,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpcklbw ymm0,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpckhbw ymm1,ymm2,YMMWORD PTR [rdx+r10*1]\nvpunpcklbw ymm2,ymm2,YMMWORD PTR [rdx+r10*1]\nvpunpckhbw ymm3,ymm4,YMMWORD PTR [rax+rcx*1]\nvpunpcklbw ymm4,ymm4,YMMWORD PTR [rax+rcx*1]\nvpunpckhbw ymm5,ymm6,YMMWORD PTR [rax+r10*1]\nvpunpcklbw ymm6,ymm6,YMMWORD PTR [rax+r10*1]\nadd rdx,rcx\nadd rax,rcx\nvpmaddubsw ymm0,ymm0,ymm8\nvpmaddubsw ymm12,ymm12,ymm8\nvpmaddubsw ymm2,ymm2,ymm9\nvpmaddubsw ymm1,ymm1,ymm9\nvpmaddubsw ymm4,ymm4,ymm10\nvpmaddubsw ymm3,ymm3,ymm10\nvpmaddubsw ymm6,ymm6,ymm11\nvpmaddubsw ymm5,ymm5,ymm11\nvpaddw ymm0,ymm0,ymm4\nvpaddw ymm12,ymm12,ymm3\nvpaddw ymm2,ymm2,ymm6\nvpaddw ymm1,ymm1,ymm5\nvpaddsw ymm0,ymm0,ymm2\nvpaddsw ymm12,ymm12,ymm1\nvpmulhrsw ymm0,ymm13,ymm0\nvpmulhrsw ymm12,ymm12,ymm13\nvpackuswb ymm0,ymm0,ymm12\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 4,
+    "why": "Fold four vector loads into the high and low AVX2 unpacks, which permit unaligned memory operands and reread only the original source bytes. Delay the source pointer increments until those reads finish, preserving all arithmetic, stores, live registers, and final flags."
+  },
+  "2bae78dd5f": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdx]\nvmovdqu ymm2,YMMWORD PTR [rdx+rcx*2]\nvmovdqu ymm4,YMMWORD PTR [rax]\nvmovdqu ymm6,YMMWORD PTR [rax+rcx*2]\nvpunpckhbw ymm12,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpcklbw ymm0,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpckhbw ymm1,ymm2,YMMWORD PTR [rdx+r10*1]\nvpunpcklbw ymm2,ymm2,YMMWORD PTR [rdx+r10*1]\nvpunpckhbw ymm3,ymm4,YMMWORD PTR [rax+rcx*1]\nvpunpcklbw ymm4,ymm4,YMMWORD PTR [rax+rcx*1]\nvpunpckhbw ymm5,ymm6,YMMWORD PTR [rax+r10*1]\nvpunpcklbw ymm6,ymm6,YMMWORD PTR [rax+r10*1]\nadd rdx,rcx\nadd rax,rcx\nvpmaddubsw ymm0,ymm0,ymm8\nvpmaddubsw ymm12,ymm12,ymm8\nvpmaddubsw ymm2,ymm2,ymm9\nvpmaddubsw ymm1,ymm1,ymm9\nvpmaddubsw ymm4,ymm4,ymm10\nvpmaddubsw ymm3,ymm3,ymm10\nvpmaddubsw ymm6,ymm6,ymm11\nvpmaddubsw ymm5,ymm5,ymm11\nvpaddw ymm0,ymm0,ymm4\nvpaddw ymm12,ymm12,ymm3\nvpaddw ymm2,ymm2,ymm6\nvpaddw ymm1,ymm1,ymm5\nvpaddsw ymm0,ymm0,ymm2\nvpaddsw ymm12,ymm12,ymm1\nvpmulhrsw ymm0,ymm13,ymm0\nvpmulhrsw ymm12,ymm12,ymm13\nvpackuswb ymm0,ymm0,ymm12\nvpavgb ymm0,ymm0,YMMWORD PTR [rdi]\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 4,
+    "why": "Replace four explicit vector loads with memory operands on both AVX2 unpacks of each source pair. The pointer increments follow the source reads, while filtering, averaging, the store, and final flags remain equivalent."
+  },
+  "d0e32d0104": {
+    "rewrite": null,
+    "why": "Each independent row already uses one maximum-width SSE load and store, and both pointer advances and the counter update are live."
+  },
+  "d22f50418e": {
+    "rewrite": null,
+    "why": "SSE2 requires all four 16-byte load/store pairs, and the two pointer updates and counter subtraction must be preserved."
+  },
+  "d5f1ec231b": {
+    "rewrite": null,
+    "why": "The 64-byte copy already uses the minimum four maximum-width SSE load/store pairs plus the required pointer and counter updates."
+  },
+  "188e456d10": {
+    "rewrite": null,
+    "why": "The 128-byte copy uses eight maximum-width SSE load/store pairs, with no dead data movement or removable pointer or counter update."
+  },
+  "0dfefa5c96": {
+    "rewrite": null,
+    "why": "Each row already uses one source load, one pavgb with a folded destination load, and one store, followed by necessary pointer and counter updates."
+  },
+  "6c7f4bf723": {
+    "rewrite": null,
+    "why": "All four SSE vectors require their source load, memory-operand average, and store, while both pointer advances and the counter result remain live."
+  },
+  "222e8b66ee": {
+    "rewrite": null,
+    "why": "The four 16-byte averages already fold destination loads into pavgb and need every source load, store, and scalar update."
+  },
+  "c6301ef078": {
+    "rewrite": null,
+    "why": "The four independent rows already use maximum-width AVX loads and stores, and the pointer advances and counter subtraction are required."
+  },
+  "c231eda372": {
+    "rewrite": null,
+    "why": "AVX needs all four 32-byte load/store pairs for these two rows, with no removable pointer or counter update."
+  },
+  "ade3a90dd6": {
+    "rewrite": null,
+    "why": "The copy already uses four maximum-width AVX load/store pairs and the necessary source pointer, destination pointer, and counter updates."
+  },
+  "d38f19cfe5": {
+    "rewrite": null,
+    "why": "Each row already uses one AVX2 source load, one average with a folded destination load, and one store, and all scalar updates are live."
+  },
+  "38e4b62bdb": {
+    "rewrite": null,
+    "why": "All four maximum-width AVX2 averages already fold destination loads into vpavgb and retain only necessary loads, stores, and scalar updates."
+  }
+}

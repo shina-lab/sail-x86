@@ -1,0 +1,90 @@
+{
+  "28606b5c17": {
+    "rewrite": null,
+    "why": "The two rounding stages, memory store, ECX update, and final shift flags are all required."
+  },
+  "6174bd5c17": {
+    "rewrite": null,
+    "why": "Both rounded products and accumulated rotations are live, including their duplicate destinations, so the arithmetic and copies remain necessary."
+  },
+  "2e3d6fa3df": {
+    "rewrite": null,
+    "why": "All four rounded products and their copies are required, and VPMULHRSW has no scalar memory-broadcast form."
+  },
+  "437bab2cf7": {
+    "rewrite": null,
+    "why": "Every broadcast feeds a required rounded multiply, and every saturated sum or difference contributes to a preserved register."
+  },
+  "b47311ae48": {
+    "rewrite": "vpunpcklwd zmm20,zmm24,zmm17\nvpunpckhwd zmm24,zmm24,zmm17\nvmovdqa32 zmm17,zmm26\nvpdpwssd zmm17,zmm20,DWORD BCST [r9+0x148]\nvmovdqa32 zmm25,zmm26\nvpdpwssd zmm25,zmm24,DWORD BCST [r9+0x148]\nvpsrad zmm17,zmm17,0xc\nvpsrad zmm25,zmm25,0xc\nvpackssdw zmm17,zmm17,zmm25\nvmovdqa32 zmm25,zmm26\nvpdpwssd zmm25,zmm24,DWORD BCST [r9+0x144]\nvmovdqa32 zmm24,zmm26\nvpdpwssd zmm24,zmm20,DWORD BCST [r9+0x144]\nvpsrad zmm25,zmm25,0xc\nvpsrad zmm24,zmm24,0xc\nvpackssdw zmm24,zmm24,zmm25\nvpunpcklwd zmm20,zmm22,zmm18\nvpunpckhwd zmm22,zmm22,zmm18\nvmovdqa32 zmm18,zmm26\nvpdpwssd zmm18,zmm20,DWORD BCST [r9+0x14c]\nvmovdqa32 zmm25,zmm26\nvpdpwssd zmm25,zmm22,DWORD BCST [r9+0x14c]\nvpsrad zmm18,zmm18,0xc\nvpsrad zmm25,zmm25,0xc\nvpackssdw zmm18,zmm18,zmm25\nvmovdqa32 zmm25,zmm26\nvpdpwssd zmm25,zmm22,DWORD BCST [r9+0x148]\nvmovdqa32 zmm22,zmm26\nvpdpwssd zmm22,zmm20,DWORD BCST [r9+0x148]\nvpsrad zmm25,zmm25,0xc\nvpsrad zmm22,zmm22,0xc\nvpackssdw zmm22,zmm22,zmm25\nvpsubsw zmm20,zmm16,zmm19\nvpaddsw zmm16,zmm16,zmm19\nvpsubsw zmm19,zmm23,zmm21\nvpaddsw zmm23,zmm23,zmm21\nvpsubsw zmm21,zmm17,zmm18\nvpaddsw zmm17,zmm17,zmm18\nvpsubsw zmm18,zmm24,zmm22\nvpaddsw zmm22,zmm22,zmm24",
+    "saved": 3,
+    "why": "Fold the three coefficient broadcasts into the VPDPWSSD memory operands; zmm27 and zmm28 are not required outputs."
+  },
+  "2806b4319f": {
+    "rewrite": "vpbroadcastd zmm27,DWORD PTR [r9-0x108]\nvpbroadcastd zmm28,DWORD PTR [r9-0x104]\nlea rax,[r8+0x1c0]\nvpbroadcastd zmm1,DWORD PTR [r9-0x100]\nvpbroadcastd zmm2,DWORD PTR [r9-0x110]\nvpbroadcastd zmm3,DWORD PTR [r9-0x10c]",
+    "saved": 1,
+    "why": "The final R9 adjustment and its flags are dead after all required loads."
+  },
+  "8f0e2d1684": {
+    "rewrite": null,
+    "why": "All eight instructions produce distinct required full-width shuffle results."
+  },
+  "59f242f250": {
+    "rewrite": null,
+    "why": "All eight instructions produce distinct required full-width shuffle results."
+  },
+  "e71e2b79c6": {
+    "rewrite": null,
+    "why": "The two rounding stages, memory store, ECX update, and final shift flags are all required."
+  },
+  "87136a4c43": {
+    "rewrite": "vpunpcklwd zmm2,zmm2,zmm3\nvpunpcklwd zmm30,zmm30,zmm31\nvpunpcklwd zmm4,zmm4,zmm5\nvpunpcklwd zmm0,zmm0,zmm1\nvpunpckhdq zmm1,zmm30,zmm0\nvpunpckhdq zmm2,zmm2,zmm4\nvpunpcklqdq zmm0,zmm1,zmm2",
+    "saved": 41,
+    "why": "Only zmm0 is a required vector output, and these seven interleaves are its complete dependency chain."
+  },
+  "816c85e92e": {
+    "rewrite": null,
+    "why": "Each of the sixteen shuffles defines a distinct required final vector value."
+  },
+  "f933cad344": {
+    "rewrite": "mov r10,rsp\ncmp ecx,0x88",
+    "saved": 2,
+    "why": "The stack adjustments do not contribute to any listed output, so omit them and leave RSP untouched while preserving the saved pointer and comparison flags."
+  },
+  "07360d4a39": {
+    "rewrite": null,
+    "why": "All twelve instructions define distinct required vector outputs, including the intermediate insert and shuffle results."
+  },
+  "d1785d335b": {
+    "rewrite": null,
+    "why": "Each of the sixteen shuffles defines a distinct required final vector value."
+  },
+  "588e182148": {
+    "rewrite": "pshuflw xmm0,XMMWORD PTR [rdx],0x0\npunpcklqdq xmm0,xmm0\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\nmov DWORD PTR [rdx],ecx\nmovdqa xmm1,xmm0",
+    "saved": 1,
+    "why": "Use memory operands for both rounded multiplies and remove the separate constant load, keeping both constant reads before the store."
+  },
+  "ab04fb607c": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm2,xmm0\npunpckhwd xmm2,XMMWORD PTR [rdx+0x10]\npunpcklwd xmm0,XMMWORD PTR [rdx+0x10]\nmovdqa xmm1,XMMWORD PTR [CONST_2]\npmaddwd xmm1,xmm2\npmaddwd xmm2,XMMWORD PTR [CONST_3]\npaddd xmm1,XMMWORD PTR [CONST_1]\npaddd xmm2,XMMWORD PTR [CONST_1]\npsrad xmm1,0xc\npsrad xmm2,0xc\npackssdw xmm2,xmm1\nmovdqa xmm1,XMMWORD PTR [CONST_4]\npmaddwd xmm1,xmm0\npmaddwd xmm0,XMMWORD PTR [CONST_5]\npaddd xmm1,XMMWORD PTR [CONST_1]\npaddd xmm0,XMMWORD PTR [CONST_1]\npsrad xmm1,0xc\npsrad xmm0,0xc\npackssdw xmm0,xmm1\nmovdqa xmm1,xmm0\npsubsw xmm1,xmm2\npaddsw xmm0,xmm2\nmovdqa xmm2,XMMWORD PTR [CONST_6]\nmovaps xmm3,xmm0\nshufps xmm3,xmm1,0x7d\nshufps xmm0,xmm1,0x28\npshufb xmm0,xmm2\nmovdqa xmm1,xmm3\npshufb xmm1,xmm2",
+    "saved": 2,
+    "why": "Fold the second input load into both unpacks and the rounding-constant load into the four additions, preserving every final vector value."
+  },
+  "b93ab2d4bc": {
+    "rewrite": null,
+    "why": "Both interleave stages and their copies are needed to preserve all three output vectors with two-operand SSSE3 instructions."
+  },
+  "954a0f123f": {
+    "rewrite": "movdqa xmm2,xmm0\npunpcklwd xmm2,xmm1\npunpckhwd xmm0,xmm1\nmovdqa xmm1,xmm2\npmaddwd xmm1,XMMWORD PTR [CONST_3]\npmaddwd xmm2,XMMWORD PTR [CONST_4]\nmovdqa xmm3,xmm0\npmaddwd xmm3,XMMWORD PTR [CONST_6]\npmaddwd xmm0,XMMWORD PTR [CONST_5]\npaddd xmm0,xmm1\npaddd xmm3,xmm2\npaddd xmm0,XMMWORD PTR [CONST_8]\npaddd xmm3,XMMWORD PTR [CONST_8]\npsrad xmm0,0xc\npsrad xmm3,0xc\npackssdw xmm0,xmm3",
+    "saved": 14,
+    "why": "Keep only the two rounded dot-product sums packed into xmm0, eliminating the other output calculations and folding coefficient and rounding loads into arithmetic."
+  },
+  "8382998107": {
+    "rewrite": null,
+    "why": "Both interleave stages and their copies are needed to preserve all three output vectors with two-operand SSSE3 instructions."
+  },
+  "96866d558a": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [CONST_1]\npmulhrsw xmm0,XMMWORD PTR [rdx]\npaddsw xmm0,XMMWORD PTR [rdx]\nmovdqa xmm3,XMMWORD PTR [CONST_1]\npmulhrsw xmm3,XMMWORD PTR [rdx+0x10]\nmovdqa xmm1,xmm3\npaddsw xmm1,XMMWORD PTR [rdx+0x10]\nmovdqa xmm2,xmm0\npunpckhwd xmm2,xmm1\npunpcklwd xmm0,xmm1\nmovdqa xmm1,xmm0\npunpckhwd xmm1,xmm2\npunpcklwd xmm0,xmm2",
+    "saved": 1,
+    "why": "Use the input vectors directly from memory in the rounded multiplies and saturated additions, avoiding one instruction while retaining the required correction in xmm3."
+  }
+}

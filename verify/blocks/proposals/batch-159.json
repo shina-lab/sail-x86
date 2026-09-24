@@ -1,0 +1,88 @@
+{
+  "0f658f4b69": {
+    "rewrite": null,
+    "why": "The saved stack pointer, final arithmetic flags, and two live constant vectors prevent a shorter sequence under the rsp restriction."
+  },
+  "3233d336f8": {
+    "rewrite": null,
+    "why": "The broadcast and eight additions each produce a distinct required YMM value."
+  },
+  "fa48c9d0c0": {
+    "rewrite": null,
+    "why": "The shifted high registers and packed outputs are live, and moving shifts after signed saturation would change results for unrestricted dword inputs."
+  },
+  "262840033d": {
+    "rewrite": null,
+    "why": "Each instruction independently shifts a required YMM register."
+  },
+  "82eb200cea": {
+    "rewrite": "",
+    "saved": 4,
+    "why": "All four instructions write only unpreserved vector registers and perform no stores."
+  },
+  "45a637050f": {
+    "rewrite": null,
+    "why": "Each pack and broadcast produces a distinct required YMM value."
+  },
+  "8f0d18e78a": {
+    "rewrite": null,
+    "why": "The scalar multiplies, rounding operations, store, ecx update, and saturated broadcast all contribute required effects."
+  },
+  "2af46909bb": {
+    "rewrite": null,
+    "why": "Both saturation stages are needed for unrestricted inputs, and both stores, the address update, and the flag-producing counter decrement remain observable."
+  },
+  "585c0b4f4d": {
+    "rewrite": null,
+    "why": "Each interleaved vector needs two separate 128-bit loads and a shuffle, and the final broadcast in ymm4 is also live."
+  },
+  "1f6d0c7ce6": {
+    "rewrite": null,
+    "why": "The all-ones vector and each of the four independently incremented vectors are live."
+  },
+  "e24effab3b": {
+    "rewrite": "vpaddd ymm0,ymm0,ymm4",
+    "saved": 3,
+    "why": "Only the sum in ymm0 is live; the three other arithmetic results are unpreserved."
+  },
+  "e6ac62ce33": {
+    "rewrite": "vpaddd ymm0,ymm11,ymm0",
+    "saved": 16,
+    "why": "Only the addition into ymm0 affects a required final register; the other sixteen instructions compute unpreserved results."
+  },
+  "7903c8f47d": {
+    "rewrite": "vshufps xmm0,xmm0,xmm1,0x88\nvshufps xmm2,xmm2,xmm3,0x88\nvshufps xmm4,xmm4,xmm5,0x88\nvshufps xmm6,xmm6,xmm7,0x88\nvpackssdw xmm0,xmm0,xmm2\nvpackssdw xmm4,xmm4,xmm6\nvinserti128 ymm0,ymm0,xmm4,0x1",
+    "saved": 10,
+    "why": "Only even-indexed dwords from the low 128-bit input lanes contribute to the final ymm0. Select those dwords before signed saturation, then pack and join the two halves."
+  },
+  "93e5e59ede": {
+    "rewrite": null,
+    "why": "Every bias addition, permutation, and arithmetic shift contributes to a live result, with no AVX2 instruction combining these dword operations."
+  },
+  "06ccd41a36": {
+    "rewrite": "",
+    "saved": 14,
+    "why": "Every result is in an unpreserved register, while ymm0 and all required GPRs remain unchanged."
+  },
+  "e590d169cd": {
+    "rewrite": null,
+    "why": "The shifted bias and all eight vector sums are independently required."
+  },
+  "696dbb9397": {
+    "rewrite": null,
+    "why": "The two broadcasts, four rounded products, and two memory additions are needed to reproduce the live vectors."
+  },
+  "5beb64411b": {
+    "rewrite": null,
+    "why": "Both the four rounded products and the four saturated sums are live, and they share a necessary coefficient broadcast."
+  },
+  "3469e69bad": {
+    "rewrite": "vpbroadcastd ymm12,DWORD PTR [CONST_1]\nvpbroadcastd ymm13,DWORD PTR [CONST_2]\nvpmaxsd ymm0,ymm12,ymm0\nvpmaxsd ymm1,ymm12,ymm1\nvpmaxsd ymm2,ymm12,ymm2\nvpmaxsd ymm3,ymm12,ymm3\nvpmaxsd ymm4,ymm12,ymm4\nvpmaxsd ymm5,ymm12,ymm5\nvpmaxsd ymm6,ymm12,ymm6\nvpmaxsd ymm7,ymm12,ymm7\nvpminsd ymm0,ymm13,ymm0\nvpminsd ymm1,ymm13,ymm1\nvpminsd ymm2,ymm13,ymm2\nvpminsd ymm3,ymm13,ymm3\nvpminsd ymm4,ymm13,ymm4\nvpminsd ymm5,ymm13,ymm5\nvpminsd ymm6,ymm13,ymm6\nvpminsd ymm7,ymm13,ymm7\nvshufps ymm8,ymm0,ymm1,0x88\nvshufps ymm0,ymm0,ymm1,0xdd\nvshufps ymm9,ymm2,ymm3,0x88\nvshufps ymm2,ymm2,ymm3,0xdd\nvshufps ymm10,ymm4,ymm5,0x88\nvshufps ymm4,ymm4,ymm5,0xdd\nvshufps ymm11,ymm6,ymm7,0x88\nvshufps ymm6,ymm6,ymm7,0xdd\nvperm2i128 ymm3,ymm0,ymm2,0x31\nvperm2i128 ymm1,ymm0,ymm2,0x20\nvperm2i128 ymm7,ymm4,ymm6,0x31\nvperm2i128 ymm5,ymm4,ymm6,0x20\nvperm2i128 ymm13,ymm10,ymm11,0x31\nvperm2i128 ymm12,ymm10,ymm11,0x20\nvperm2i128 ymm11,ymm8,ymm9,0x31\nvperm2i128 ymm10,ymm8,ymm9,0x20",
+    "saved": 8,
+    "why": "For each register pair, two VSHUFPS instructions directly form the even and odd dword groups produced by two VPSHUFD instructions and two unpacks. All clamping, final permutations, and required intermediate register values are preserved."
+  },
+  "4506c04d29": {
+    "rewrite": null,
+    "why": "The four products and the broadcast each define a distinct required vector."
+  }
+}

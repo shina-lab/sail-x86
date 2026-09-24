@@ -1,0 +1,96 @@
+{
+  "44de059629": {
+    "rewrite": "inc BYTE PTR [rax]\nadd DWORD PTR [rcx],eax\nadd bh,cl",
+    "saved": 1,
+    "why": "The EDI result is not preserved or used, and its flags are overwritten by the final ADD."
+  },
+  "829059e9e7": {
+    "rewrite": null,
+    "why": "All four memory writes must be retained under the same-stores requirement, and RCL produces the required ECX result."
+  },
+  "b3c08b3f28": {
+    "rewrite": "or al,0xc\nadd BYTE PTR [rdi+0x419797],dl\nadd BYTE PTR [r12+rdx*2+0x54],dl",
+    "saved": 1,
+    "why": "The standalone REX.B prefix is redundant because the following ADD already encodes the required R12 base."
+  },
+  "5f9e60160e": {
+    "rewrite": null,
+    "why": "The SBB instructions form a borrow chain, and the remaining instructions produce required stores, AL, and ZF."
+  },
+  "a946463ecb": {
+    "rewrite": null,
+    "why": "The two memory updates, BH update, and division each produce required outputs and cannot be combined into fewer baseline instructions."
+  },
+  "76edd1e1b8": {
+    "rewrite": "or DWORD PTR [rcx],ecx\nor DWORD PTR [rcx],eax\nadd BYTE PTR [rcx],al\nadd DWORD PTR [rax],eax",
+    "saved": 1,
+    "why": "CMP only sets flags that the following OR overwrites without reading."
+  },
+  "efaa458506": {
+    "rewrite": "add BYTE PTR [rbp-0x4343ff6b],dl\nadd BYTE PTR [rsi+0xd28e8e],cl\nrcl dl,cl\nadd BYTE PTR [rcx],ch\nsub DWORD PTR [rcx],ebp",
+    "saved": 1,
+    "why": "The ESP write has no users in the block; removing it preserves every listed output and leaves RSP untouched."
+  },
+  "4cd5157098": {
+    "rewrite": "add ch,dh\nadd BYTE PTR [rax+0x48],cl\nadd cl,bh\nmov dh,0xb6",
+    "saved": 5,
+    "why": "Both CMCs, both STCs, and TEST only affect flags that are overwritten or unobserved. TEST's load can also be omitted."
+  },
+  "4488684b49": {
+    "rewrite": "cwde\nadd al,BYTE PTR [rax]\nadd al,BYTE PTR [rdx]\nadd BYTE PTR [rsi],al",
+    "saved": 1,
+    "why": "CWDE leaves AX unchanged, so repeating it produces exactly the same RAX value and is redundant."
+  },
+  "1ec800291b": {
+    "rewrite": "add BYTE PTR [rdx+0x4ba2a2],ah\nadd BYTE PTR [r13+0xbe8d8d],cl\nmov esi,0xfafa00be",
+    "saved": 1,
+    "why": "The standalone REX prefix duplicates the following instruction's prefix, and the ordinary byte ADD preserves the same operands and all required flags."
+  },
+  "9b2c242302": {
+    "rewrite": "mov es,WORD PTR [rax]\nmov cs,WORD PTR [rsi-0x7070800]\nadd ch,dh\nadd dh,ch",
+    "saved": 2,
+    "why": "Neither ADD reads CF, so both CMC instructions are dead; the segment-register loads and byte arithmetic are retained."
+  },
+  "5d53b34d51": {
+    "rewrite": null,
+    "why": "The three distinct memory updates and the required CH result cannot be combined into fewer baseline instructions."
+  },
+  "ce3185cd28": {
+    "rewrite": "add BYTE PTR [rdx],cl\nor al,BYTE PTR [rax]\nmov ebx,0x49bbbb",
+    "saved": 1,
+    "why": "The standalone trailing REX prefix contributes no register, flag, or memory update within the block."
+  },
+  "b19f22ba56": {
+    "rewrite": "add dh,dh\nsub al,0x1c\nsbb al,0x0",
+    "saved": 1,
+    "why": "TEST supplies a cleared CF to the first SBB, so SUB can replace that SBB while eliminating TEST and its load. The final SBB still consumes the subtraction's borrow."
+  },
+  "4823007244": {
+    "rewrite": "mov dl,0x25\nand eax,0x49490025\nadd BYTE PTR [rcx+0x7b],cl",
+    "saved": 1,
+    "why": "The first MOV to DL is overwritten immediately without being used, and removing it leaves the final ADD's flags unchanged."
+  },
+  "e8eb688f0d": {
+    "rewrite": null,
+    "why": "Every instruction produces a required store or register value, and DIV still needs the incoming EDX even though its remainder is not preserved."
+  },
+  "9b4513f04e": {
+    "rewrite": "add ch,bh\ncdq\nadd BYTE PTR [rsi+0x66],ah\nadd BYTE PTR [rsi+0x61],ah",
+    "saved": 2,
+    "why": "All three CDQs derive the same EDX value from unchanged EAX, so only one is needed."
+  },
+  "7b798b09f3": {
+    "rewrite": "add BYTE PTR [rdx],bh\nand al,0x0\nor DWORD PTR [rcx],ecx\nadd BYTE PTR [rcx],cl",
+    "saved": 1,
+    "why": "AND AL,0 discards the preceding mask's result while preserving the rest of RAX, so AND AL,0x24 is dead."
+  },
+  "fe44287d14": {
+    "rewrite": "add bh,ch\ncwde\nadd BYTE PTR [rsi],ah",
+    "saved": 2,
+    "why": "CWDE leaves AX unchanged, so the second and third CWDE repeat the first one's result."
+  },
+  "8caf524160": {
+    "rewrite": null,
+    "why": "Both stores and both register updates are required, and their distinct operands prevent combining them into fewer baseline instructions."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "3192a74606": {
+    "rewrite": null,
+    "why": "The byte comparison, store, mask extraction, and scalar comparison each produce a required register, memory, or flag result."
+  },
+  "d46d7a58f3": {
+    "rewrite": null,
+    "why": "All three additions update live registers, while the bit scan and final comparison are needed for rdx and CF."
+  },
+  "c6102868bb": {
+    "rewrite": null,
+    "why": "The live rsi update, bit scan, two adjustments to rdx, and final CF comparison are required, and LEA cannot directly combine subtraction of rcx with the constant addition."
+  },
+  "0e21f5ca45": {
+    "rewrite": null,
+    "why": "The byte store, original destination in rax, incremented rdi, and decremented r8 with matching ZF each require an instruction."
+  },
+  "6bd240b854": {
+    "rewrite": null,
+    "why": "The word load must produce the live partial-register update to rdx, and the store, two pointer results, and count/ZF update are all required."
+  },
+  "ed4b9887b8": {
+    "rewrite": null,
+    "why": "Copying the word and storing dh require the three memory instructions, while both pointer results and the count/ZF update remain live."
+  },
+  "a60ab38217": {
+    "rewrite": null,
+    "why": "The dword load supplies both the store and live zero-extended rdx, and the two pointer calculations and count/ZF update cannot be removed."
+  },
+  "7f259b1a9e": {
+    "rewrite": null,
+    "why": "The dword copy and separate dh store require three memory instructions, followed by three required pointer and count/ZF updates."
+  },
+  "bfedbf18f7": {
+    "rewrite": null,
+    "why": "The dword and word copies require their separate loads and stores, including the live partial rdx result, and all three pointer and count updates are required."
+  },
+  "bbf3c927b2": {
+    "rewrite": null,
+    "why": "The overlapping dword copies and live rdx result require the four memory instructions, while a wider copy would access an extra byte and the remaining updates are live."
+  },
+  "757ea78378": {
+    "rewrite": null,
+    "why": "The qword load and store are needed for memory and live rdx, and both destination pointer results plus the count/ZF update are required."
+  },
+  "e883e58663": {
+    "rewrite": null,
+    "why": "The qword copy and separate dh store require three memory instructions, and the two pointer results and count/ZF update require the other three."
+  },
+  "eaf67572b0": {
+    "rewrite": null,
+    "why": "The qword and word copies require separate loads and stores, the word load must preserve the upper bits of rdx, and both pointer results and r8/ZF remain live."
+  },
+  "c0b55410a3": {
+    "rewrite": null,
+    "why": "The overlapping qword and dword copies preserve the exact access range and live rdx result, and the pointer calculations and count/ZF update are all required."
+  },
+  "e9511864cb": {
+    "rewrite": null,
+    "why": "The qword and dword copies need four memory instructions under SSE2 without widening the accesses, and the two pointer results and count/ZF update remain live."
+  },
+  "f87dbf2caa": {
+    "rewrite": null,
+    "why": "The overlapping qword copies and live rdx result require their loads and stores, a vector copy would access extra bytes, and all three remaining updates are required."
+  },
+  "a485cd7a14": {
+    "rewrite": null,
+    "why": "The overlapping qword copies preserve the required access range and live rdx result, while a vector copy would overread and the pointer and count/ZF updates remain necessary."
+  },
+  "8b792b8914": {
+    "rewrite": null,
+    "why": "The two qword loads and stores are needed for the exact accesses and live rdx result, and neither a wider copy nor removing a pointer or count update is valid."
+  },
+  "202f0f0fdf": {
+    "rewrite": null,
+    "why": "The vector load and store produce the required xmm0 and memory results, and both pointer calculations and the count/ZF update are live."
+  },
+  "c8e9524e42": {
+    "rewrite": null,
+    "why": "The vector load, vector store, and separate dh store are required, as are the two pointer results and the count/ZF update."
+  }
+}

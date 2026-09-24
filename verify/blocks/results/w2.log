@@ -1,0 +1,20 @@
+=== 382 test functions for 191 blocks -> /home/ruiu/sail-x86/verify/blocks/blocks_tests.sail
+=== Isla IR: 2 chunk(s), 4 in parallel
+    chunk1.ir: 9,320,730 bytes, 209s
+    chunk0.ir: 14,110,648 bytes, 241s
+=== Isla traces (60 parallel)
+    100/382 traces, 103s
+    200/382 traces, 194s
+    300/382 traces, 194s
+=== Z3 (60 parallel, 60s each)
+
+  dav1d          original not executable      10
+  dav1d          sat                          4
+  dav1d          unsat                        24
+  ffmpeg         unsat                        59
+  libjpeg-turbo  unsat                        31
+  linux          original not executable      7
+  linux          sat                          1
+  linux          timeout                      5
+  linux          unsat                        50
+wrote results/w2.json

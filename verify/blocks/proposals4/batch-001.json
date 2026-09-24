@@ -1,0 +1,65 @@
+{
+  "d43bb3bcc1": {
+    "rewrite": null,
+    "why": "Both copies produce required final temporaries, and the plaintext operations, five AES rounds, state XOR, store, and flag-setting subtraction are all needed."
+  },
+  "24be094c6b": {
+    "rewrite": null,
+    "why": "All vector results, including the copied state and AND temporary, are live, leaving no removable operation within the permitted SSE/AES-NI instruction set."
+  },
+  "314ef3a966": {
+    "rewrite": null,
+    "why": "The two copies preserve distinct required values, and each remaining instruction contributes to the plaintext, AES state, memory store, or required scalar result and flags."
+  },
+  "bd972ebe36": {
+    "rewrite": null,
+    "why": "The plaintext and updated AES state are both live, as are both temporaries, so none of the copies or arithmetic operations can be removed."
+  },
+  "9e6b9e23f1": {
+    "rewrite": "vaesenc xmm0,xmm0,XMMWORD PTR [rax]\nvaesenc xmm1,xmm1,XMMWORD PTR [rax]\nvaesenc xmm2,xmm2,XMMWORD PTR [rax]\nvaesenc xmm3,xmm3,XMMWORD PTR [rax]\nvaesenc xmm4,xmm4,XMMWORD PTR [rax]\nvaesenc xmm5,xmm5,XMMWORD PTR [rax]\nvaesenc xmm6,xmm6,XMMWORD PTR [rax]\nvaesenc xmm7,xmm7,XMMWORD PTR [rax]\nadd rax,0x10\ncmp r10,rax",
+    "saved": 1,
+    "why": "The final value of zmm14 is unconstrained, so the explicit key load can be folded into each VAESENC using the same 16-byte memory operand. VEX encodings retain upper-bit zeroing, and the pointer update and comparison are unchanged."
+  },
+  "1dcf50a0e4": {
+    "rewrite": null,
+    "why": "Each of the eight live ciphertext results needs its data/key XOR, AES last round, and store, while the final zmm14 value and all three scalar updates are also required."
+  },
+  "45d0508bfd": {
+    "rewrite": null,
+    "why": "The four stored ciphertexts and four replacement states require separate AES computations, and the live final key temporary, scalar updates, and comparison leave no removable instruction."
+  },
+  "e061e55e94": {
+    "rewrite": null,
+    "why": "The 128-bit key needs broadcasting for the four 256-bit AES rounds, whose memory operands cannot supply that broadcast, and the pointer update and ZF comparison are required."
+  },
+  "266096959d": {
+    "rewrite": null,
+    "why": "The two ciphertext stores, two replacement AES states, final zmm14 value, and three scalar updates require all of the existing instructions."
+  },
+  "43a831385f": {
+    "rewrite": null,
+    "why": "The broadcast result in zmm14, both AES outputs, and the updated pointer are live, and the final comparison is needed to produce the required ZF."
+  },
+  "f9f769843c": {
+    "rewrite": null,
+    "why": "The full-width broadcast result and both AES outputs must be preserved, together with the pointer increment and comparison result, so all five instructions are needed."
+  },
+  "2d16e189f2": {
+    "rewrite": "aesenc xmm8,XMMWORD PTR [rsi]\naesenc xmm9,XMMWORD PTR [rsi]\naesenc xmm10,XMMWORD PTR [rsi]\naesenc xmm11,XMMWORD PTR [rsi]\naesenc xmm12,XMMWORD PTR [rsi]\naesenc xmm13,XMMWORD PTR [rsi]\naesenc xmm14,XMMWORD PTR [rsi]\naesenc xmm15,XMMWORD PTR [rsi]\nadd rsi,0x10\ncmp r11,rsi",
+    "saved": 1,
+    "why": "The loaded key in xmm0 is not live, so its load can be folded into each AESENC using the original [rsi] address. The pointer update and ZF comparison are preserved."
+  },
+  "6347b111d4": {
+    "rewrite": "aesenc xmm8,XMMWORD PTR [rsi]\naesenc xmm9,XMMWORD PTR [rsi]\naesenc xmm10,XMMWORD PTR [rsi]\naesenc xmm11,XMMWORD PTR [rsi]\naesenc xmm12,XMMWORD PTR [rsi]\naesenc xmm13,XMMWORD PTR [rsi]\naesenc xmm14,XMMWORD PTR [rsi]\naesenc xmm15,XMMWORD PTR [rsi]\nadd rsi,0x10\ncmp r11,rsi",
+    "saved": 1,
+    "why": "The final xmm0 value is unconstrained, so memory-source AESENC instructions eliminate its explicit load. Moving the pointer increment after the rounds keeps every memory operand at the original [rsi] address and preserves the final pointer and flags."
+  },
+  "cdf8649bdb": {
+    "rewrite": null,
+    "why": "The loaded key and all eight AES results are live, including their unchanged upper YMM halves, and both scalar instructions are required for the final pointer and ZF."
+  },
+  "c34c605a8c": {
+    "rewrite": null,
+    "why": "Every vector register is live, so the key load and eight legacy AES rounds must remain, along with the pointer increment and comparison."
+  }
+}

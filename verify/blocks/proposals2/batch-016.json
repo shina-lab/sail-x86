@@ -1,0 +1,82 @@
+{
+  "bf72992bea": {
+    "rewrite": null,
+    "why": "The broadcast, byte subtraction, mask, comparison, and mask extraction all contribute to the required ymm0 and rcx results."
+  },
+  "7cedeebe1e": {
+    "rewrite": null,
+    "why": "All three independent broadcasts are live, and the comparison is required to produce ZF."
+  },
+  "20b2c09da9": {
+    "rewrite": null,
+    "why": "The arithmetic, packing, extraction, four separately addressed stores, and scalar updates all produce required state."
+  },
+  "d7150d49a1": {
+    "rewrite": null,
+    "why": "Every vector operation contributes to the required rcx mask, and mask extraction does not set the required ZF."
+  },
+  "de612ff063": {
+    "rewrite": null,
+    "why": "An arbitrary signed dword requires both saturation stages to become replicated signed bytes under AVX2, and the comparison flags are live."
+  },
+  "c35d9e1f88": {
+    "rewrite": null,
+    "why": "The overlapping loads and three independently shuffled, saturated multiply-add results all contribute to the final rounded result."
+  },
+  "2ca75c0a06": {
+    "rewrite": null,
+    "why": "Both rounded products, the live word sum, packing and lane permutation, two stores, and both scalar updates are required."
+  },
+  "347a1ce12f": {
+    "rewrite": null,
+    "why": "The four stores use independent addresses, and the pointer update and counter subtraction both have required results."
+  },
+  "b2e5beaf3b": {
+    "rewrite": null,
+    "why": "The saturated subtraction and wrapping increment, independently loaded shuffle controls and coefficients, and scalar updates all feed required results."
+  },
+  "9aa103e3fa": {
+    "rewrite": null,
+    "why": "The constant and overlapping loads are live, and forming 21 minus ecx while preserving ecx and the required SF needs both initialization and subtraction."
+  },
+  "4f3eded148": {
+    "rewrite": null,
+    "why": "Both independently packed vectors must be stored, and AVX2 provides no saturating pack directly to memory."
+  },
+  "1df26ee1b8": {
+    "rewrite": null,
+    "why": "The byte replication, blend, and insertion construct distinct required portions of ymm11, while the constant load, scalar results, and comparison are also live."
+  },
+  "c1eb8cabe8": {
+    "rewrite": null,
+    "why": "All four independently saturated filter terms, their word sums, final shift and pack, separate stores, and counter update are required."
+  },
+  "de8f970c7a": {
+    "rewrite": null,
+    "why": "Interleaving the low dwords of xmm6 with the high dwords of xmm7 needs both data-rearrangement instructions, and the stores and scalar updates are live."
+  },
+  "a026a41910": {
+    "rewrite": null,
+    "why": "The blends preserve independently selected input dwords for the filter and final variable permutation, while all filter terms, packed output lanes, stores, and scalar updates remain necessary."
+  },
+  "2c46ce4cb5": {
+    "rewrite": null,
+    "why": "The initial blend and shuffle select dwords from different sources, and the arbitrary filter coefficients and required final registers prevent removing the accumulation or output rearrangement instructions."
+  },
+  "10b6725494": {
+    "rewrite": null,
+    "why": "The filter and output rearrangements remain necessary, and vzeroupper must clear the live upper halves of registers that the preceding XMM instructions do not write."
+  },
+  "3e25c0f0a9": {
+    "rewrite": null,
+    "why": "All four filter terms and final conversion steps are needed, including the lane swap whose uncompressed result must remain in ymm9."
+  },
+  "f5b1f94e07": {
+    "rewrite": null,
+    "why": "The absolute-value, rounded-multiply, and sign-control operations preserve behavior for arbitrary signed words, including -32768, and all final vectors, stores, and scalar updates are live."
+  },
+  "b110d812c9": {
+    "rewrite": null,
+    "why": "The sign and rounding stages are required for arbitrary inputs, and the live pointer updates must also preserve the carry from add r9,0x40 through dec r8d."
+  }
+}

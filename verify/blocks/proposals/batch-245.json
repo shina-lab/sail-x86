@@ -1,0 +1,88 @@
+{
+  "62aa636d67": {
+    "rewrite": "mov rax,r14\nmov rdx,r14\nshr rdx,0x1a\nand rax,0x3ffffff\nand rdx,0x3ffffff\nshrd r14,rbx,0x34\nand r14,0x3ffffff\nshld rbp,rbx,0x18\nshr rbx,0xe\nand rbx,0x3ffffff\ntest r15,r15",
+    "saved": 6,
+    "why": "SHRD and SHLD each replace a copy, two shifts, and an OR whose scratch register is dead. The final TEST preserves ZF."
+  },
+  "6353a635d6": {
+    "rewrite": null,
+    "why": "Every load, copy, arithmetic step, and final test contributes to a required register value or ZF."
+  },
+  "02e7d20962": {
+    "rewrite": "mov rax,r14\nmov rdx,r14\nshrd r14,rbx,0x34\nimul r8,rbx,0x1000\nmov r9,rbx\nshr rdx,0x1a\nand rax,0x3ffffff\nand rdx,0x3ffffff\nshr rbx,0xe\nshl rbp,0x18\nand r14,0x3ffffff\nshr r9,0x28\nand rbx,0x3ffffff\nor rbp,r9\nvmovd xmm0,eax\nvmovd xmm1,edx\nvmovd xmm2,r14d\nvmovd xmm3,ebx\nvmovd xmm4,ebp\nmov DWORD PTR [rdi+0x14],0x1",
+    "saved": 2,
+    "why": "SHRD combines the cross-register shift and OR, and three-operand IMUL forms the required shifted r8 without a copy. The final OR is retained to reproduce all required flags."
+  },
+  "1610877471": {
+    "rewrite": null,
+    "why": "The five required scalar stores and the subtraction feeding the third store leave no instruction to remove."
+  },
+  "25c4481302": {
+    "rewrite": null,
+    "why": "The shift, load, two constant assignments, and comparison each supply a distinct required result."
+  },
+  "fed6a88d52": {
+    "rewrite": null,
+    "why": "Fusing the Boolean setup would still leave VPMADD52 instructions requiring the unlisted IFMA extension, and no shorter equivalent within the declared ISA was identified."
+  },
+  "0eecc6800f": {
+    "rewrite": null,
+    "why": "The three loads create separate required zero-extended vector values, and the test independently supplies ZF."
+  },
+  "fef88dcbb3": {
+    "rewrite": null,
+    "why": "Each of the four independent broadcasts produces a required vector from a different memory address."
+  },
+  "a5e2f28f61": {
+    "rewrite": null,
+    "why": "Multiplication by 20 needs both shifts and the addition without a supplied constant, and the final test supplies the required flags."
+  },
+  "ce6cc717cd": {
+    "rewrite": "vmovdqu64 ymm26,YMMWORD PTR [rsi]\nvpunpcklqdq ymm25,ymm26,YMMWORD PTR [rsi+0x20]\nvpunpckhqdq ymm27,ymm26,YMMWORD PTR [rsi+0x20]\nlea rsi,[rsi+0x40]\nvpsrlq ymm26,ymm27,0x18\nvporq ymm26,ymm26,ymm31\nvpaddq ymm2,ymm2,ymm26\nvpandq ymm24,ymm25,ymm28\nvpsrlq ymm25,ymm25,0x2c\nvpsllq ymm27,ymm27,0x14\nvpternlogq ymm25,ymm27,ymm28,0xa8\nsub rdx,0x4",
+    "saved": 2,
+    "why": "Fold the second load into the unpack operands and replace OR then AND with VPTERNLOGQ, preserving the shifted high temporary and final ZF."
+  },
+  "87895e020c": {
+    "rewrite": null,
+    "why": "The accumulator and carry results are live, and retaining VPMADD52 in a rewrite would require the unlisted IFMA extension."
+  },
+  "c90aafcd36": {
+    "rewrite": "vpunpcklqdq ymm4,ymm1,ymm4\nvpbroadcastq xmm1,xmm1\nvpunpcklqdq ymm5,ymm2,ymm5\nvpbroadcastq xmm2,xmm2\nvpunpcklqdq ymm3,ymm0,ymm3\nvpbroadcastq xmm0,xmm0\nvpternlogq ymm30,ymm30,ymm30,0xff\nvpsrlq ymm30,ymm30,0x14\nvplzcntq ymm30,ymm30\nvpmullq ymm16,ymm4,ymm30\nvpmullq ymm17,ymm5,ymm30",
+    "saved": 1,
+    "why": "Create a shared vector of 20 in dead ymm30 by counting the leading zeros of all-ones qwords shifted right by 20. Two VPMULLQ instructions then replace the six instructions computing both products modulo 2^64."
+  },
+  "172803b678": {
+    "rewrite": null,
+    "why": "The three insert-and-permute pairs interleave arbitrary inputs, while the scaling, scalar loads, and test all remain live."
+  },
+  "8224e03a51": {
+    "rewrite": null,
+    "why": "Each register needs both its original-value store and a broadcast, with no dead destination or combined store-and-broadcast instruction."
+  },
+  "ea8243a448": {
+    "rewrite": null,
+    "why": "Each required store precedes a distinct lane shift whose result remains live."
+  },
+  "849557f9fb": {
+    "rewrite": "vpslldq ymm25,YMMWORD PTR [rsi],0x8\nvpsrldq ymm25,ymm25,0x8\nvpsrldq ymm27,YMMWORD PTR [rsi],0x8\nlea rsi,[rsi+0x20]\nvpsrlq ymm26,ymm27,0x18\nvporq ymm26,ymm26,ymm31\nvpaddq ymm2,ymm2,ymm26\nvpandq ymm24,ymm25,ymm28\nvpsrlq ymm25,ymm25,0x2c\nvpsllq ymm27,ymm27,0x14\nvpternlogq ymm25,ymm27,ymm28,0xa8",
+    "saved": 2,
+    "why": "Lane-local byte shifts with memory operands produce the zero-filled low and high qword pairs in three instructions instead of four. VPTERNLOGQ replaces the final OR and AND without changing the live shifted high vector."
+  },
+  "315d7756a0": {
+    "rewrite": null,
+    "why": "The live multiply-accumulate chain uses IFMA outside the declared extensions, and no shorter equivalent using only the listed subsets was identified."
+  },
+  "d3acb19bf2": {
+    "rewrite": null,
+    "why": "The live products and carries depend on IFMA outside the declared extensions, and no shorter equivalent using only the listed subsets was identified."
+  },
+  "7d79e37829": {
+    "rewrite": "mov r8,QWORD PTR [rdi]\nmov r9,QWORD PTR [rdi+0x8]\nmov r10,QWORD PTR [rdi+0x10]\nmov rax,r9\nshr r9,0x14\nshl rax,0x2c\nimul rcx,r10,0x1000000\nshr r10,0x28\nadd r8,rax\nadc r9,rcx\nadc r10,0x0\nmov rax,r8\nadd r8,0x5\nmov rcx,r9\nadc r9,0x0\nadc r10,0x0\nshr r10,0x2",
+    "saved": 1,
+    "why": "Replace the copy and 24-bit shift with a three-operand IMUL by 0x1000000. The following ADD establishes the carry chain, so final registers and ZF are unchanged."
+  },
+  "e64e4978cb": {
+    "rewrite": null,
+    "why": "Each read-modify-write instruction performs a required store, and merging the additions would change those store values."
+  }
+}

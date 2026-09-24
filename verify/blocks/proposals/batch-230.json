@@ -1,0 +1,83 @@
+{
+  "97e0617b89": {
+    "rewrite": null,
+    "why": "The load, byte comparison, mask extraction, and increment are all needed to produce the preserved RAX value and ZF."
+  },
+  "4dbd959900": {
+    "rewrite": null,
+    "why": "The load, byte comparison, mask extraction, and increment are all needed to produce the preserved RAX value and ZF."
+  },
+  "d7888acc61": {
+    "rewrite": null,
+    "why": "The load, byte comparison, mask extraction, and increment are all needed to produce the preserved RCX value and ZF."
+  },
+  "51125c59f0": {
+    "rewrite": null,
+    "why": "The preserved end pointer and buffer difference each need an instruction, while aligning RDI and adding 128 require two more."
+  },
+  "a7f7d05833": {
+    "rewrite": null,
+    "why": "The indexed loads feed an equality mask whose extraction and increment are both necessary for the preserved RAX value and ZF."
+  },
+  "bacf54419f": {
+    "rewrite": null,
+    "why": "The indexed loads feed an equality mask whose extraction and increment are both necessary for the preserved RAX value and ZF."
+  },
+  "87c2be9f78": {
+    "rewrite": null,
+    "why": "Preserving both input registers requires a scratch copy, and the OR, low-12-bit mask, and comparison are needed to reproduce ZF, SF, and OF."
+  },
+  "38f05b9750": {
+    "rewrite": null,
+    "why": "Both bounded eight-byte loads are needed before comparison, mask extraction, and subtraction produce the preserved RAX value and ZF."
+  },
+  "e646db811a": {
+    "rewrite": null,
+    "why": "The unknown index prevents merging the head and tail loads, and both 64-bit operands must be assembled for the subtraction to preserve RAX, CF, and ZF."
+  },
+  "d7abcafe26": {
+    "rewrite": null,
+    "why": "The dynamic access mask is needed for the masked memory operands, and the mismatch mask must be transferred to RAX and tested for ZF."
+  },
+  "6fe26a9b97": {
+    "rewrite": null,
+    "why": "The load and comparison produce a mask that must be transferred to RAX and separately tested because KMOVD does not set ZF."
+  },
+  "511b7753d4": {
+    "rewrite": null,
+    "why": "The load and comparison produce a mask that must be transferred to RAX and separately tested because KMOVD does not set ZF."
+  },
+  "12ec2b27b1": {
+    "rewrite": null,
+    "why": "The load and comparison produce a mask that must be transferred to RAX and separately tested because KMOVD does not set ZF."
+  },
+  "cb8aeaf2d1": {
+    "rewrite": null,
+    "why": "The load and comparison produce a mask that must be transferred to RCX and separately tested because KMOVD does not set ZF."
+  },
+  "c238ea6f2b": {
+    "rewrite": null,
+    "why": "The preserved end pointer and buffer difference each need an instruction, while aligning RDI and adding 128 require two more."
+  },
+  "e9ebbaebe3": {
+    "rewrite": null,
+    "why": "The indexed load and comparison produce a mask that must be transferred to RAX and separately tested to reproduce ZF."
+  },
+  "35e5d17714": {
+    "rewrite": null,
+    "why": "The indexed load and comparison produce a mask that must be transferred to RAX and separately tested to reproduce ZF."
+  },
+  "000e0e7143": {
+    "rewrite": null,
+    "why": "Preserving the loaded XMM0 prevents a destructive comparison from saving a load, and RAX zeroing, mask extraction, and subtraction remain necessary."
+  },
+  "1d38151990": {
+    "rewrite": "lea r11,[rdx+rdi*1]\nmov r8,rdi\nand r8,0xf",
+    "saved": 1,
+    "why": "LEA computes the same 64-bit sum as the move and add in one instruction, while the unchanged AND preserves R8 and the required ZF."
+  },
+  "5e792fe157": {
+    "rewrite": null,
+    "why": "Preserving the loaded XMM0 requires a separate comparison destination, leaving both loads, the comparison, mask extraction, and subtraction necessary."
+  }
+}

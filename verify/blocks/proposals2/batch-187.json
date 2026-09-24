@@ -1,0 +1,85 @@
+{
+  "a0b55c4e93": {
+    "rewrite": null,
+    "why": "The carryless products, reductions, and final intermediate registers are required, and AVX2 cannot fuse the XOR pairs."
+  },
+  "12033f163f": {
+    "rewrite": null,
+    "why": "All four shuffled and XORed counter values, the final counter increment, and the comparison flags are required."
+  },
+  "a0cf611945": {
+    "rewrite": null,
+    "why": "Both counter outputs, both increments, the broadcast increment constant, and the final address calculation are needed."
+  },
+  "c87a6cc4cf": {
+    "rewrite": null,
+    "why": "Each counter output needs its shuffle and XOR, while all four increments and the final address calculation remain live."
+  },
+  "be469ae320": {
+    "rewrite": null,
+    "why": "Folding the copy and subtraction into LEA would lose the required subtraction flags, while the load and saved RCX value are also live."
+  },
+  "346ee0b26e": {
+    "rewrite": null,
+    "why": "All four carryless partial products contribute to live accumulators, and AVX2 provides no fused carryless multiply and XOR."
+  },
+  "ab49a09da6": {
+    "rewrite": null,
+    "why": "Both reduction stages and the final XOR of the two 128-bit lanes are required, with every intermediate register also preserved."
+  },
+  "d3ad67f6ea": {
+    "rewrite": null,
+    "why": "The ciphertext serves both decryption and authentication, and the remaining products, accumulations, register moves, pointer updates, and comparison flags are live."
+  },
+  "f2350d0f7c": {
+    "rewrite": null,
+    "why": "The shuffled vector and VPTEST flags must survive, and producing a full-width Boolean in RAX requires both clearing its upper bits and setting AL."
+  },
+  "e05744a97f": {
+    "rewrite": null,
+    "why": "The mask, constants, flags, and reduction intermediates are all live, and the reduction already uses ternary XOR instructions."
+  },
+  "2ebd709447": {
+    "rewrite": null,
+    "why": "Each of the nine instructions directly produces a distinct required broadcast register from a different memory operand."
+  },
+  "ca36226d4f": {
+    "rewrite": null,
+    "why": "All four independently shuffled and XORed counters, the updated counter, and the comparison flags are required."
+  },
+  "049319b40d": {
+    "rewrite": null,
+    "why": "The variable-length mask needs initialization, BZHI, and transfer to K1, while the counter result, counter update, and final RAX value remain live."
+  },
+  "6290e643fe": {
+    "rewrite": null,
+    "why": "All four loaded vectors and all four counter outputs are live, as are the counter increments and comparison flags."
+  },
+  "3691798b48": {
+    "rewrite": null,
+    "why": "Each output already takes two instructions, and using destructive ternary XOR would require an initial copy because the tweak and key registers must be preserved."
+  },
+  "66df60a6d0": {
+    "rewrite": "vpxor xmm0,xmm15,XMMWORD PTR [rsi]\nvpxor xmm0,xmm0,xmm6\ncmp eax,0x18",
+    "saved": 1,
+    "why": "Fold the load into the first XOR while retaining the tweak XOR and comparison. The VEX instructions preserve the original zeroing above bit 127."
+  },
+  "848357aa42": {
+    "rewrite": "vpshufd xmm0,xmm6,0x13\nvpaddq xmm7,xmm6,xmm6\nvpsrad xmm0,xmm0,0x1f\nvpternlogd xmm7,xmm0,xmm14,0x78\nvpxor xmm0,xmm15,XMMWORD PTR [rsi]\nvpxor xmm0,xmm0,xmm7\ncmp eax,0x18",
+    "saved": 2,
+    "why": "VPTERNLOGD with immediate 0x78 computes the old destination XOR the AND of its two sources, replacing the mask AND and tweak XOR. Folding the load into the key XOR removes another instruction while preserving the final tweak, vector upper bits, and comparison flags."
+  },
+  "3ba4a5c4e1": {
+    "rewrite": null,
+    "why": "Each output already uses two instructions, and destructive ternary XOR needs a copy or load because all input tweak and key registers remain live."
+  },
+  "5eb9f820d8": {
+    "rewrite": "vpxor ymm0,ymm15,YMMWORD PTR [rsi]\nvpxor ymm0,ymm0,ymm6\ncmp eax,0x18",
+    "saved": 1,
+    "why": "Fold the load into the first XOR while retaining the tweak XOR and comparison. The VEX instructions preserve the original zeroing above bit 255."
+  },
+  "28e081b9fc": {
+    "rewrite": null,
+    "why": "Each output already uses one load and one ternary XOR, with all source tweak and key registers and the final comparison flags required."
+  }
+}

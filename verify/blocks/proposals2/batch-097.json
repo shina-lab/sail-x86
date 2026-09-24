@@ -1,0 +1,84 @@
+{
+  "77afe4a0f8": {
+    "rewrite": null,
+    "why": "The load, two independent clamp operations, store, and flag-producing index update are all required."
+  },
+  "0a204fa486": {
+    "rewrite": null,
+    "why": "The unsigned-word clamp needs both extrema operations, and the load, store, and index update each produce required effects."
+  },
+  "84b26820a9": {
+    "rewrite": null,
+    "why": "Each instruction updates a different required register, and the final subtraction must also reproduce all arithmetic flags."
+  },
+  "8aa435d8d4": {
+    "rewrite": null,
+    "why": "Zeroing rax, sign-extending r8, extracting its low three bits into r9, and producing the comparison flags require the existing operations."
+  },
+  "7123ebb34e": {
+    "rewrite": null,
+    "why": "The subtraction and three constant loads each establish a distinct required register value."
+  },
+  "79a5f0aac9": {
+    "rewrite": null,
+    "why": "All intermediate vector results are required, and the incoming multiplier, mask, and rounding registers have arbitrary values."
+  },
+  "d5be305887": {
+    "rewrite": null,
+    "why": "The sign extension and 64-bit decrement cannot be combined without changing the signed 32-bit boundary case, and the other required outputs need the remaining instructions."
+  },
+  "b0afc3cf6d": {
+    "rewrite": null,
+    "why": "The arbitrary mask and live intermediate registers prevent shortening the two rounded averages and subsequent blend with the allowed SSE instructions."
+  },
+  "98e1b6876d": {
+    "rewrite": "lea rsi,[rcx+r9*1]\nxor rax,rax\nmovsxd r8,r8d\nsub r8,0x1\nmov r9,r8\nand r9,0x7\ncmp r8,0x8",
+    "saved": 1,
+    "why": "LEA combines the copy and addition that compute rsi; their flags are overwritten by the final comparison."
+  },
+  "69f4883d84": {
+    "rewrite": null,
+    "why": "Each of the five instructions establishes a required register value, and the identical constants still need separate destination writes."
+  },
+  "71cf06b30b": {
+    "rewrite": null,
+    "why": "The live directional differences and widened square results require the existing operations, and folding the unaligned loads into legacy SSE arithmetic would introduce alignment requirements."
+  },
+  "faefd7e3e7": {
+    "rewrite": null,
+    "why": "SSE2 needs the existing shuffle-and-add reduction, its full vector results are live, and TEST is needed to produce the required flags."
+  },
+  "9e0d2e5387": {
+    "rewrite": null,
+    "why": "Both zero-extended loads, the squared difference, the accumulator update, and the decrement produce required outputs, including the carry retained by DEC."
+  },
+  "3c8365d227": {
+    "rewrite": null,
+    "why": "The live vector results require the arithmetic and unpack operations, while replacing MOVDQU loads with PSUBW memory operands would require unguaranteed alignment."
+  },
+  "b76b28d7bb": {
+    "rewrite": null,
+    "why": "The counter update, required vector reduction results, scalar extraction, and final logical flags each need the existing instructions."
+  },
+  "096a8c3c5d": {
+    "rewrite": null,
+    "why": "The two loads and every arithmetic result are live, including the accumulator carry that the final decrement preserves."
+  },
+  "ead99081ec": {
+    "rewrite": null,
+    "why": "The two eight-byte loads, SAD result, word accumulator, pointer updates, and decrement are all required."
+  },
+  "b09f65250c": {
+    "rewrite": "movq xmm4,QWORD PTR [rdi]\nmovq xmm3,QWORD PTR [rsi]\nadd rdi,rdx\nadd rsi,rdx\npunpcklbw xmm4,xmm6\npunpcklbw xmm3,xmm6\npaddw xmm4,xmm0\npaddw xmm0,xmm0\npaddw xmm1,xmm3\npsubw xmm0,xmm1\npabsw xmm0,xmm0\npaddw xmm5,xmm0\nmovdqa xmm1,xmm3\npaddw xmm3,xmm3\npsubw xmm3,xmm4\npabsw xmm3,xmm3\npaddw xmm5,xmm3\nmovdqa xmm2,xmm0\ndec rcx",
+    "saved": 1,
+    "why": "Load and unpack the first row directly in xmm4, then add the original xmm0 before doubling it. This removes the copy into xmm4 while preserving the final xmm2 copy and every other required result."
+  },
+  "ba6d3a45ef": {
+    "rewrite": null,
+    "why": "The zeroed high half from MOVQ and the arbitrary xmm6 lanes affect the full live vector results, preventing a shorter ordinary horizontal reduction."
+  },
+  "736ca4cef5": {
+    "rewrite": null,
+    "why": "Both extrema must include every neighbor, and the unaligned neighbor loads cannot be folded into legacy PMINUB or PMAXUB memory operands without introducing alignment faults."
+  }
+}

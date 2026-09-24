@@ -1,0 +1,82 @@
+{
+  "1151f9c5e6": {
+    "rewrite": null,
+    "why": "Both loads, both independent vector zeroings, and the counter assignment produce required final values."
+  },
+  "f06f57c70d": {
+    "rewrite": null,
+    "why": "The unconstrained mask and rounding registers prevent a byte-sum or averaging shortcut, while the live intermediate vectors, store, pointer updates, and final CF must be preserved."
+  },
+  "f8619ad042": {
+    "rewrite": null,
+    "why": "SSE2 needs the scalar seed and broadcast for xmm7, the compare and shift for xmm6, and both pointer copies, with the scalar seed itself also live."
+  },
+  "db79b0a07e": {
+    "rewrite": null,
+    "why": "Arbitrary xmm6 and xmm7 values require the separate masking, shifting, and addition operations, and the packed result, live xmm1, pointer updates, and final CF remain necessary."
+  },
+  "640def9dcf": {
+    "rewrite": null,
+    "why": "The alternating word constant needs its seed and broadcast in SSE2, and the mask construction and two pointer copies have no redundant instructions."
+  },
+  "351501aa94": {
+    "rewrite": null,
+    "why": "Each of the three loads supplies a distinct required register, and the comparison supplies the required CF."
+  },
+  "9ad23a12a6": {
+    "rewrite": null,
+    "why": "The two independent loads, two vector zeroings, and counter assignment all produce required outputs."
+  },
+  "85cb1cbe67": {
+    "rewrite": null,
+    "why": "The arbitrary mask and rounding values prevent an averaging substitution, and SSE2 requires the copies to retain both masked and shifted contributions before the live results and store are formed."
+  },
+  "d68955d388": {
+    "rewrite": null,
+    "why": "Both full-width stores, the required ymm0 replacement, and the independent rdi and rcx updates are necessary."
+  },
+  "f165ac45bd": {
+    "rewrite": null,
+    "why": "The store, pointer advance, required ymm0 replacement, and counter decrement each perform a distinct required operation."
+  },
+  "8c0ddfa6f0": {
+    "rewrite": null,
+    "why": "The low-half store and full ymm0 lane swap are both required, along with independent pointer and counter updates."
+  },
+  "f55e153bfd": {
+    "rewrite": null,
+    "why": "The qword store, two scalar updates, and VEX shift that advances xmm0 and clears the upper ymm0 half are all required."
+  },
+  "2144b0231c": {
+    "rewrite": null,
+    "why": "The dword store, pointer and counter updates, and VEX byte shift each contribute a required effect."
+  },
+  "98e0c8d426": {
+    "rewrite": null,
+    "why": "The word store and three register updates are required, and replacing the store and pointer advance with stosw would require an unstated clear direction flag."
+  },
+  "fb69d49a80": {
+    "rewrite": null,
+    "why": "Both stores, both live vector replacements, and the pointer and counter updates are independently required."
+  },
+  "1c6a9456e2": {
+    "rewrite": null,
+    "why": "The full-width store, live ymm0 replacement, pointer advance, and counter decrement contain no redundant operation."
+  },
+  "151b299038": {
+    "rewrite": null,
+    "why": "The low-half store, complete ymm0 lane swap, pointer advance, and counter decrement are all observable requirements."
+  },
+  "e0b54b5932": {
+    "rewrite": null,
+    "why": "The qword store, pointer and counter updates, and VEX shift with upper-half zeroing all produce required effects."
+  },
+  "55bd17a2d6": {
+    "rewrite": null,
+    "why": "SSE2 requires both 16-byte stores, while the xmm0 replacement and separate pointer and counter updates are also live."
+  },
+  "bc2660a757": {
+    "rewrite": null,
+    "why": "The store, required xmm0 copy, pointer advance, and counter decrement each supply a distinct required effect."
+  }
+}

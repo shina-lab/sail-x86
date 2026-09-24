@@ -1,0 +1,82 @@
+{
+  "5565a598b2": {
+    "rewrite": null,
+    "why": "The 16-byte and 2-byte transfers each require a load and store, and the three scalar updates preserve live results and ZF."
+  },
+  "49dbf1680a": {
+    "rewrite": null,
+    "why": "The overlapping 16-byte and 4-byte transfers are both needed, as are the two live pointer results and the r8 subtraction setting ZF."
+  },
+  "711fa0b221": {
+    "rewrite": null,
+    "why": "The 16-byte and 4-byte transfers each require a load and store, and all three scalar updates produce required results."
+  },
+  "442a458efc": {
+    "rewrite": null,
+    "why": "Both copied chunks, the separate dh byte store, and the three scalar updates are necessary to preserve memory, live registers, and ZF."
+  },
+  "8b988c41b1": {
+    "rewrite": null,
+    "why": "Both overlapping transfers are necessary with the specified addresses and SSE2 limit, and the three scalar updates are live."
+  },
+  "4cef998dcc": {
+    "rewrite": null,
+    "why": "The overlapping vector and qword transfers cover distinct required bytes, while both pointer updates and the ZF-producing subtraction must remain."
+  },
+  "c6f0008dbb": {
+    "rewrite": null,
+    "why": "Copying the vector and qword needs four instructions, followed by three independent updates to required scalar results."
+  },
+  "1a0d172150": {
+    "rewrite": null,
+    "why": "The vector copy, qword copy, and dh byte store are all required, together with the live pointer results and r8 subtraction."
+  },
+  "7c517bed7a": {
+    "rewrite": null,
+    "why": "The three transfers cannot be combined at the permitted addresses without overreading, and the loaded rdx, pointer results, and ZF are live."
+  },
+  "2a6bb0b9fc": {
+    "rewrite": null,
+    "why": "Each of the three transfers supplies required bytes, and the live rdx value and fixed addressing prevent eliminating the qword transfer."
+  },
+  "40e68db098": {
+    "rewrite": null,
+    "why": "The 16-byte, 8-byte, and 4-byte transfers require separate loads and stores at the specified addresses, followed by three live scalar updates."
+  },
+  "070f9d6e36": {
+    "rewrite": null,
+    "why": "Both overlapping vector transfers are necessary under SSE2, and the two pointer results plus the r8 subtraction setting ZF are required."
+  },
+  "c52bb0693d": {
+    "rewrite": null,
+    "why": "The two vector loads and stores cover required bytes that one SSE2 transfer cannot cover, and all three scalar updates are live."
+  },
+  "6e2654ea9d": {
+    "rewrite": null,
+    "why": "Both overlapping vector transfers and all three scalar updates are needed to preserve memory, live registers, and ZF."
+  },
+  "5715e72813": {
+    "rewrite": null,
+    "why": "SSE2 requires both 16-byte transfers, and the two pointer results and ZF-producing r8 update cannot be omitted."
+  },
+  "95543fd205": {
+    "rewrite": null,
+    "why": "The alignment calculation must preserve both rsi and rdi, and folding the r8 addition and subtraction into LEA would lose the required subtraction carry flag."
+  },
+  "9651ed0975": {
+    "rewrite": null,
+    "why": "Storing four copies of an arbitrary 128-bit value requires four SSE2 stores, and both scalar updates are live with CF required from the subtraction."
+  },
+  "b3b8a65b8f": {
+    "rewrite": null,
+    "why": "Both 16-byte stores and both scalar updates are required, including the subtraction that supplies SF and OF."
+  },
+  "d593a7e096": {
+    "rewrite": null,
+    "why": "The zeroed rcx, byte comparison vector, extracted mask, and r8 addition with its flags are all distinct required results."
+  },
+  "75925a925f": {
+    "rewrite": null,
+    "why": "The comparison, mask extraction, vector store, and two scalar updates each produce required effects, with CF and ZF coming from the subtraction."
+  }
+}

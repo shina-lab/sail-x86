@@ -1,0 +1,82 @@
+{
+  "9f5c58785a": {
+    "rewrite": null,
+    "why": "The absolute differences, signed minimum, tie-sensitive selection, and second masked selection are all needed, and SSSE3 has no blend instruction to shorten the selections."
+  },
+  "8865a38043": {
+    "rewrite": null,
+    "why": "The shuffles construct two distinct vectors for arbitrary weights and offsets, and all four indexed stores and both pointer updates are required."
+  },
+  "7c2ba05bd9": {
+    "rewrite": null,
+    "why": "Every scalar assignment is live, and the vector subtraction needs a separate load because xmm5 must retain its value."
+  },
+  "7715a8aaa5": {
+    "rewrite": null,
+    "why": "The subtraction and shuffles preserve arbitrary lane-dependent offsets before multiplication, and the four stores and scalar updates are required."
+  },
+  "ffe536fc6f": {
+    "rewrite": null,
+    "why": "All four instructions independently produce required final register values."
+  },
+  "180223dcf4": {
+    "rewrite": null,
+    "why": "Both loads are live, the unpack uses the unknown initial xmm6 value, and the final zeroing of xmm6 is separately required."
+  },
+  "4661ab320a": {
+    "rewrite": null,
+    "why": "The two address calculations, negation, two copies, and vector duplication each produce a required final value."
+  },
+  "f21d32d08f": {
+    "rewrite": null,
+    "why": "Both unpacked halves and all loaded vectors are live, so the destructive SSE unpack operations need the source copy."
+  },
+  "d9b691b501": {
+    "rewrite": null,
+    "why": "Both byte broadcasts need their input transfers and the shared zero shuffle mask, while the scalar addition and r9 update remain necessary."
+  },
+  "34362b51de": {
+    "rewrite": null,
+    "why": "The arbitrary byte shuffles and scalar subtraction are required, and the doubled vector must be retained alongside the original low half."
+  },
+  "a45489b4d9": {
+    "rewrite": null,
+    "why": "The two independently indexed stores, destination advance, and flag-producing counter subtraction are all required."
+  },
+  "09ec7a9769": {
+    "rewrite": null,
+    "why": "The adjusted address bits and arbitrary r8d bits both affect CF and ZF, requiring the mask, combination, and final comparison."
+  },
+  "13a53f801d": {
+    "rewrite": null,
+    "why": "The correction needs both the original sum and its shifted difference, while the final loaded vectors, doubled eax, and comparison flag are all live."
+  },
+  "69ee1dc300": {
+    "rewrite": null,
+    "why": "The full adjusted value must reach xmm1 before ecx is masked and given its fixed high bit, and the independent test supplies the required ZF."
+  },
+  "e81ffdca29": {
+    "rewrite": null,
+    "why": "The two byte broadcasts require the shared zero mask, and r9 must be copied before its required right shift."
+  },
+  "01882dc6ba": {
+    "rewrite": null,
+    "why": "The shift, equality mask, masking, and signed comparison each affect the live r9 result, and mask extraction requires a separate test to set ZF."
+  },
+  "ba107cd730": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask prevents folding word arithmetic across the shuffles, and the scalar difference and three vector results are live."
+  },
+  "2f885b65b1": {
+    "rewrite": null,
+    "why": "The unmasked adjusted value in xmm1 and the masked value with a forced bit in ecx are both live, along with the independent test flag."
+  },
+  "74c728915c": {
+    "rewrite": null,
+    "why": "The mask operation and signed comparison determine r9, and pmovmskb does not set the required ZF, so the final test is necessary."
+  },
+  "1b923806aa": {
+    "rewrite": null,
+    "why": "The two selections need distinct masks, the sign-mask copy preserves xmm4 for its live update, and SSSE3 provides no shorter blend operation."
+  }
+}

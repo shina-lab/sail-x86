@@ -1,0 +1,82 @@
+{
+  "93cb69dd2b": {
+    "rewrite": null,
+    "why": "The sign extension, product and accumulation are required, and the live counter update cannot absorb the comparison that supplies SF and OF."
+  },
+  "08ada9ea6b": {
+    "rewrite": null,
+    "why": "Both products and accumulators are live, and SSE4.1 cannot combine their arithmetic or the counter update and required comparison flags."
+  },
+  "4c2292f093": {
+    "rewrite": null,
+    "why": "Each of the three live vector destinations requires its copy, and the independent live counter requires zeroing."
+  },
+  "6a6a9b0a65": {
+    "rewrite": null,
+    "why": "The three live vector destinations and the live scalar counter each need initialization, so replacing the duplicate constant load with a copy saves no instructions."
+  },
+  "cb00417786": {
+    "rewrite": null,
+    "why": "All three full-width vector copies and the independent counter zeroing produce required final values."
+  },
+  "01aabc5f50": {
+    "rewrite": null,
+    "why": "SSE2 requires a transfer and shuffle for each scalar broadcast, while vector zeroing and the scalar scaling, pointer addition and negation are all required."
+  },
+  "4e2e810691": {
+    "rewrite": null,
+    "why": "Arbitrary multiplier, offset and unpack operands plus the live xmm1 result require both arithmetic paths, and SSE2 offers no shorter fused equivalent."
+  },
+  "ce33a67bcd": {
+    "rewrite": null,
+    "why": "Both SSE2 broadcasts require two instructions, and the vector zero, two pointer updates and scaled negative index are all live."
+  },
+  "13c7f852dc": {
+    "rewrite": null,
+    "why": "Both buffers require separate conversion paths with arbitrary coefficients and unpack operands, and the live xmm1 and xmm3 results prevent eliminating their intermediate computations."
+  },
+  "c5a48bd303": {
+    "rewrite": null,
+    "why": "Both GPR broadcasts require a transfer and duplication under SSE4.1, and the constant load, 32-bit scaling, pointer update and 64-bit negation remain necessary."
+  },
+  "a7ae17eb5d": {
+    "rewrite": null,
+    "why": "The full-width products, additions and shifts are necessary for arbitrary inputs, and the live shuffled xmm1 result prevents shortening the final lane assembly."
+  },
+  "c1edd62314": {
+    "rewrite": null,
+    "why": "The two broadcasts, constant initialization, two pointer updates and scaled negative index each require the existing operations under SSE4.1."
+  },
+  "a4443d15f9": {
+    "rewrite": null,
+    "why": "Both conversions need their full-width arithmetic and clamps, while the live shuffled xmm1 and xmm3 values prevent dropping the intermediate rearrangements."
+  },
+  "9f99573094": {
+    "rewrite": null,
+    "why": "Each SSE4.1 broadcast needs two instructions, and the three scalar operations preserve the required 32-bit shift truncation, pointer addition and 64-bit negation."
+  },
+  "2d119906c5": {
+    "rewrite": null,
+    "why": "Arbitrary inputs require both full-width multiply-add-shift paths, and the required shuffled xmm1 value prevents eliminating a final permutation."
+  },
+  "eb8d3d2f07": {
+    "rewrite": null,
+    "why": "The two broadcasts need separate transfers and duplications, and scaling, both pointer additions and the final 64-bit negation are required."
+  },
+  "1fe78711ff": {
+    "rewrite": null,
+    "why": "Both buffers and the live shuffled xmm1 and xmm3 results require all arithmetic paths and lane rearrangements under SSE4.1."
+  },
+  "e39122d333": {
+    "rewrite": null,
+    "why": "AVX2 cannot broadcast directly from these GPRs in one instruction, and the vector zeroing, 32-bit scaling, pointer update and 64-bit negation remain necessary."
+  },
+  "5f42eb2fee": {
+    "rewrite": null,
+    "why": "The arbitrary unpack, multiplier and offset operands and live full-width ymm1 result require both conversion paths, which already use three-operand AVX2 forms."
+  },
+  "ae1da20fe5": {
+    "rewrite": null,
+    "why": "Both AVX2 GPR broadcasts require a transfer and broadcast, and the constant load plus the scalar scaling, pointer addition and negation are all required."
+  }
+}

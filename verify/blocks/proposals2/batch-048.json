@@ -1,0 +1,85 @@
+{
+  "762b4fbcc1": {
+    "rewrite": null,
+    "why": "Each of the four independent byte shuffles produces a required final register value."
+  },
+  "4ed433176c": {
+    "rewrite": null,
+    "why": "All four extracted dwords are live, and SSSE3 lacks indexed dword extraction that could eliminate the lane-selection instructions."
+  },
+  "296fcc3a42": {
+    "rewrite": null,
+    "why": "Both signed byte-to-word expansions and the zeroed xmm9 are live, and direct packed sign extension requires SSE4.1."
+  },
+  "ae53e7edfb": {
+    "rewrite": null,
+    "why": "Both independent loads and stores, both pointer updates, and the flag-setting counter update are required."
+  },
+  "7c2ab62850": {
+    "rewrite": null,
+    "why": "The two independently addressed loads and stores are necessary, and the shuffle, saturated arithmetic, packing, and scalar updates all have live results."
+  },
+  "894fbe2007": {
+    "rewrite": null,
+    "why": "The two independently addressed loads and stores are necessary, and each filtering, packing, and scalar-update instruction contributes to a required result."
+  },
+  "23b8568d56": {
+    "rewrite": null,
+    "why": "Both filtered vectors are live, and combining their arithmetic would require additional coefficient replication and extraction instructions."
+  },
+  "50c78223ea": {
+    "rewrite": null,
+    "why": "The unknown row stride requires separate loads for both halves of each vector, and all subsequent filtering, packing, stores, and scalar updates are needed."
+  },
+  "19fe5f6cb6": {
+    "rewrite": null,
+    "why": "Both filtered vectors are live, and AVX2 cannot fold a data load into the first source operand of vpshufb."
+  },
+  "92014cdfca": {
+    "rewrite": null,
+    "why": "Every filtering chain contributes to a required packed result or final vector, and the data loads cannot fold into vpshufb."
+  },
+  "094be4e77f": {
+    "rewrite": null,
+    "why": "The shuffle constant is itself live, while the duplicated data load, byte shuffle, and multiply-add each perform a necessary operation."
+  },
+  "b00c5575af": {
+    "rewrite": "vpermq ymm0,YMMWORD PTR [rdx],0x94\nvpshufb ymm0,ymm0,ymm4\nvpmaddubsw ymm0,ymm0,ymm5",
+    "saved": 1,
+    "why": "vpermq selects qwords [0,1,1,2] from the original 32-byte load, reproducing the overlapping 128-bit halves without a separate insertion."
+  },
+  "b2c618dcd9": {
+    "rewrite": null,
+    "why": "Each live output requires its own load, arbitrary byte shuffle, and saturated multiply-add, with no AVX2 instruction combining these operations."
+  },
+  "65886b342c": {
+    "rewrite": null,
+    "why": "Both updated values and their copies are live, as are the byte extraction and the subtraction result and flags."
+  },
+  "7df89edef5": {
+    "rewrite": null,
+    "why": "AVX2 cannot combine byte-to-word widening with the required four-bit scaling, and all four vectors, stores, and scalar updates are live."
+  },
+  "b854aa84fc": {
+    "rewrite": null,
+    "why": "All four widened and scaled vectors must be retained and stored, while the pointer and counter updates also determine required register values and flags."
+  },
+  "221bf92006": {
+    "rewrite": "vpermq ymm0,YMMWORD PTR [rsi],0x94\nvpermq ymm1,YMMWORD PTR [rsi+0x8],0xe9\nvpermq ymm2,YMMWORD PTR [rsi+rdx*1],0x94\nvpermq ymm3,YMMWORD PTR [rsi+rdx*1+0x8],0xe9\nlea rsi,[rsi+rdx*2]\nvpshufb ymm0,ymm0,ymm4\nvpshufb ymm1,ymm1,ymm4\nvpshufb ymm2,ymm2,ymm4\nvpshufb ymm3,ymm3,ymm4\nvpmaddubsw ymm0,ymm0,ymm5\nvpmaddubsw ymm1,ymm1,ymm5\nvpmaddubsw ymm2,ymm2,ymm5\nvpmaddubsw ymm3,ymm3,ymm5\nvmovdqa YMMWORD PTR [rdi],ymm0\nvmovdqa YMMWORD PTR [rdi+0x20],ymm1\nvmovdqa YMMWORD PTR [rdi+0x40],ymm2\nvmovdqa YMMWORD PTR [rdi+0x60],ymm3\nsub rdi,0xffffffffffffff80\nsub r8d,0x2",
+    "saved": 4,
+    "why": "Each vpermq replaces a load and insertion by selecting qwords [0,1,1,2] or [1,2,2,3]. The wider loads use existing address expressions and read only bytes already loaded within each row's 40-byte span."
+  },
+  "84265b7ffd": {
+    "rewrite": "vpermq ymm0,YMMWORD PTR [rsi],0x94\nvpermq ymm1,YMMWORD PTR [rsi+0x8],0xe9\nvpermq ymm2,YMMWORD PTR [rsi+0x20],0x94\nvpermq ymm3,YMMWORD PTR [rsi+0x28],0xe9\nadd rsi,rdx\nvpshufb ymm0,ymm0,ymm4\nvpshufb ymm1,ymm1,ymm4\nvpshufb ymm2,ymm2,ymm4\nvpshufb ymm3,ymm3,ymm4\nvpmaddubsw ymm0,ymm0,ymm5\nvpmaddubsw ymm1,ymm1,ymm5\nvpmaddubsw ymm2,ymm2,ymm5\nvpmaddubsw ymm3,ymm3,ymm5\nvmovdqa YMMWORD PTR [rdi],ymm0\nvmovdqa YMMWORD PTR [rdi+0x20],ymm1\nvmovdqa YMMWORD PTR [rdi+0x40],ymm2\nvmovdqa YMMWORD PTR [rdi+0x60],ymm3\nsub rdi,0xffffffffffffff80\ndec r8d",
+    "saved": 4,
+    "why": "Four memory-source vpermq instructions reproduce all overlapping 128-bit halves using qword selections [0,1,1,2] and [1,2,2,3]. Their existing address expressions cover only bytes 0 through 71, all of which the original loads."
+  },
+  "7d088d3ce0": {
+    "rewrite": null,
+    "why": "Both updated pointers and their copies, the extracted byte, and the subtraction result and flags are all required."
+  },
+  "4b60e610b7": {
+    "rewrite": null,
+    "why": "The broadcast shuffle constant is live, and the data broadcast, shuffle, and multiply-add each perform a distinct required operation."
+  }
+}

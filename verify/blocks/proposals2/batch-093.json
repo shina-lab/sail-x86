@@ -1,0 +1,87 @@
+{
+  "61f70437d0": {
+    "rewrite": null,
+    "why": "The two memory inputs require a load and PSADBW, followed by the required accumulator and index updates."
+  },
+  "173ec769c8": {
+    "rewrite": null,
+    "why": "Both pointer additions, the offset negation, and the vector zeroing produce independently required final values."
+  },
+  "cb5d297b7e": {
+    "rewrite": null,
+    "why": "The two memory inputs require a load and VPSADBW, followed by the required accumulator and index updates."
+  },
+  "7485783fdc": {
+    "rewrite": null,
+    "why": "The preserved ymm2 extraction and required signed pair sums, cross-half addition, and zero-extension leave no removable instruction in this reduction."
+  },
+  "ad65ef43f3": {
+    "rewrite": null,
+    "why": "All four instructions update distinct required outputs."
+  },
+  "3bbcfb45b5": {
+    "rewrite": null,
+    "why": "The two memory inputs require a load and VPSADBW, followed by the required accumulator and index updates."
+  },
+  "2fb12f8ca9": {
+    "rewrite": null,
+    "why": "The preserved zmm18 extraction and required signed pair sums, cross-half addition, and zero-extension leave no removable instruction in this reduction."
+  },
+  "1a4923daca": {
+    "rewrite": null,
+    "why": "AVX2 needs a scalar-to-vector move before the byte broadcast, and every scalar instruction produces a required final value."
+  },
+  "0b01d92753": {
+    "rewrite": "vpmaxub ymm0,ymm1,YMMWORD PTR [rdi+r9*1]\nvpcmpeqb ymm0,ymm0,ymm1\nvpmovmskb eax,ymm0\nadd r9,0x20",
+    "saved": 1,
+    "why": "Unsigned maximum is commutative, so the load can be folded into VPMAXUB while preserving the comparison mask, extracted bits, and final flags."
+  },
+  "473fe08657": {
+    "rewrite": null,
+    "why": "The count addition, pointer addition, index reset, and decrement are all live, including the carry from the pointer addition."
+  },
+  "697d928d2a": {
+    "rewrite": "vmovd xmm1,r8d\nvpbroadcastw ymm1,xmm1\nlea rdi,[rdi+rdx*2]\nimul rdx,rdx,0xfffffffffffffffe\nxor r8d,r8d\nmov r9,rdx",
+    "saved": 1,
+    "why": "LEA adds twice the original offset to rdi, while multiplication by -2 combines the shift and negation with identical 64-bit wraparound."
+  },
+  "8c0065c19f": {
+    "rewrite": "vpmaxuw ymm0,ymm1,YMMWORD PTR [rdi+r9*1]\nvpcmpeqw ymm0,ymm0,ymm1\nvpmovmskb eax,ymm0\nadd r9,0x20",
+    "saved": 1,
+    "why": "Unsigned maximum is commutative, so the load can be folded into VPMAXUW while preserving the comparison mask, extracted bits, and final flags."
+  },
+  "1d9dda0b38": {
+    "rewrite": null,
+    "why": "Each scalar threshold needs a move and a byte broadcast under AVX2, and the pointer addition and offset negation are both live."
+  },
+  "87ccd98ccb": {
+    "rewrite": null,
+    "why": "The loaded ymm4 value, minimum, maximum, and updated index must all be preserved."
+  },
+  "ab45346c48": {
+    "rewrite": null,
+    "why": "Both XOR results feed the required OR result, ymm3 remains live, and VPTEST must produce the specified flags."
+  },
+  "fcf888de82": {
+    "rewrite": null,
+    "why": "Each scalar threshold needs a move and a word broadcast under AVX2, and the pointer addition and offset negation are both live."
+  },
+  "e87cb03060": {
+    "rewrite": null,
+    "why": "The loaded ymm4 value, minimum, maximum, and updated index must all be preserved."
+  },
+  "1eb8cf5b7e": {
+    "rewrite": "vmovdqu ymm2,YMMWORD PTR [rdx+r10*1]\nvpand ymm6,ymm6,ymm2\nvpmaxub ymm1,ymm2,YMMWORD PTR [rdi+r10*1]\nvpxor ymm1,ymm1,ymm2\nvpor ymm0,ymm0,ymm1\nadd r10,0x20",
+    "saved": 1,
+    "why": "Commutativity of VPMAXUB lets it read the first buffer directly, eliminating the load into ymm1 while preserving the live second-buffer value and all later results."
+  },
+  "a4980b5c82": {
+    "rewrite": null,
+    "why": "The test, boolean byte, OR result, pointer updates, and decrement are all required, with DEC preserving carry from the rdx addition."
+  },
+  "1675cc95c6": {
+    "rewrite": "vmovdqu ymm2,YMMWORD PTR [rdx+r10*1]\nvpand ymm6,ymm6,ymm2\nvpmaxuw ymm1,ymm2,YMMWORD PTR [rdi+r10*1]\nvpxor ymm1,ymm1,ymm2\nvpor ymm0,ymm0,ymm1\nadd r10,0x20",
+    "saved": 1,
+    "why": "Commutativity of VPMAXUW lets it read the first buffer directly, eliminating the load into ymm1 while preserving the live second-buffer value and all later results."
+  }
+}

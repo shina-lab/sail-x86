@@ -1,0 +1,83 @@
+{
+  "e151a22ef1": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required register value, and the multiplication and decrement supply the required final flags."
+  },
+  "c4845fa2a1": {
+    "rewrite": null,
+    "why": "The independent loads, counter updates, two scaled offsets, and pointer adjustments all produce required values without a shorter combination."
+  },
+  "8e73f19997": {
+    "rewrite": null,
+    "why": "The load, arbitrary byte shuffle, store, and two required index updates cannot be combined into fewer instructions at this ISA level."
+  },
+  "0acbf5cbfd": {
+    "rewrite": null,
+    "why": "All five instructions produce distinct required register values, with the last multiplication and decrement also determining required flags."
+  },
+  "a5a5322ac3": {
+    "rewrite": null,
+    "why": "Every load and arithmetic operation contributes a required result, and the scaled offset is already shared by both pointer adjustments."
+  },
+  "b18e3c28ca": {
+    "rewrite": null,
+    "why": "The shuffle cannot take its data operand from memory, so the load, shuffle, store, and index update remain necessary."
+  },
+  "35f3d0eca5": {
+    "rewrite": null,
+    "why": "The four instructions update four independently required registers and establish the required multiplication and decrement flags."
+  },
+  "80b815b62d": {
+    "rewrite": null,
+    "why": "The vector broadcast already combines loading and replication, while all scalar loads and arithmetic results must be retained."
+  },
+  "49f4d0f48d": {
+    "rewrite": null,
+    "why": "VPSHUFB permits memory only for its shuffle-control operand, so the data load cannot be folded into the required shuffle."
+  },
+  "aadf610aa0": {
+    "rewrite": null,
+    "why": "Each instruction updates an independently required scalar register, and the final multiplication and decrement flags must also match."
+  },
+  "38dbe45dd8": {
+    "rewrite": null,
+    "why": "The mask load is already a single broadcast, and all independent scalar loads, counter updates, and offset calculations produce required results."
+  },
+  "9844009083": {
+    "rewrite": null,
+    "why": "The allowed VPSHUFB form cannot fold the data load, leaving the load, shuffle, store, and index update necessary."
+  },
+  "6848adee61": {
+    "rewrite": null,
+    "why": "The four independent scalar results and the required final flags leave no redundant instruction."
+  },
+  "2c367e2dcf": {
+    "rewrite": "pshufd xmm0,xmm9,0x44\npslldq xmm9,0xd\npsrldq xmm0,0x3\npor xmm9,xmm0",
+    "saved": 1,
+    "why": "PSHUFD duplicates the low qword directly into xmm0, combining the original duplication and copy. The left shift retains only the original low three bytes, so xmm9 needs no prior duplication."
+  },
+  "a373c8f521": {
+    "rewrite": null,
+    "why": "Both widened and shifted outputs are required, and arbitrary xmm6 contents prevent treating the unpacks as zero extensions."
+  },
+  "072029a056": {
+    "rewrite": null,
+    "why": "Both arithmetic shifts, the two saturation stages, the store, and the independently required counter updates are necessary under SSE2."
+  },
+  "39936d8d5f": {
+    "rewrite": null,
+    "why": "The required shifted xmm1, packed output, clamp against arbitrary xmm6 and 511, store, and counter updates leave no removable instruction."
+  },
+  "c177b3a6e8": {
+    "rewrite": null,
+    "why": "The required shifted xmm1, packed output, clamp against arbitrary xmm6 and 511, unaligned store, and counter updates leave no removable instruction."
+  },
+  "ed3076d711": {
+    "rewrite": null,
+    "why": "The shifts, packing, clamp against arbitrary xmm6 and 1023, store, and counter updates all contribute required results without a shorter SSE2 combination."
+  },
+  "b2064f3e72": {
+    "rewrite": null,
+    "why": "The shifts, packing, clamp against arbitrary xmm6 and 1023, unaligned store, and counter updates all contribute required results without a shorter SSE2 combination."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "09da3a972c": {
+    "rewrite": null,
+    "why": "The eight disjoint stores each require an SSE store, and the zeroed vector, pointer updates, shifted counter, and final ZF are all required."
+  },
+  "9f62dcbf2d": {
+    "rewrite": null,
+    "why": "Each instruction independently updates a required register, with the final subtraction also producing the required flags."
+  },
+  "2dc7033b9f": {
+    "rewrite": null,
+    "why": "The vector shift, indexed pointer update, scalar shift, and subtraction each produce a distinct required result."
+  },
+  "18fa37c83b": {
+    "rewrite": null,
+    "why": "All five instructions produce independent required register updates, and the subtraction supplies the final flags."
+  },
+  "e1a327c3b5": {
+    "rewrite": null,
+    "why": "The scalar shift, vector shift, indexed pointer update, and flag-producing subtraction cannot be combined into fewer allowed instructions."
+  },
+  "bb95974696": {
+    "rewrite": null,
+    "why": "Each shift and pointer update has a required destination, and the subtraction is needed for both eax and the final flags."
+  },
+  "1b3f3a66f6": {
+    "rewrite": null,
+    "why": "The four instructions separately compute required vector, pointer, scalar-shift, and subtraction results."
+  },
+  "ed8d9cab0a": {
+    "rewrite": null,
+    "why": "All four independent scalar updates must be preserved, including the flags produced by the final subtraction."
+  },
+  "3231dd69f5": {
+    "rewrite": null,
+    "why": "Each instruction updates a different required scalar register, and there is no redundant computation to remove."
+  },
+  "031af1b28b": {
+    "rewrite": null,
+    "why": "Both indexed address calculations and both counter updates are independently required, along with the subtraction flags."
+  },
+  "0158afe3e4": {
+    "rewrite": null,
+    "why": "The two shifts, two pointer increments, and final subtraction all produce distinct required outputs."
+  },
+  "e0cc1132aa": {
+    "rewrite": null,
+    "why": "Each instruction produces a required result, and no allowed instruction combines these independent scalar and vector operations."
+  },
+  "9f56212c17": {
+    "rewrite": null,
+    "why": "The arbitrary input byte requires all three modular subtractions and unsigned clamps, and the broadcast, ramp, final mask, and shuffled vectors are all live."
+  },
+  "dfc60e8382": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and coefficients require the separate arithmetic stages, while the live intermediates and saturation before the final word shift prevent folding them."
+  },
+  "43daf2b692": {
+    "rewrite": "mov r13,r12\nxchg r12,r15\nxchg r15,r14\nxchg r14,rbx\nxchg rbx,r10\nxchg r10,r11\nadd rdi,rsi",
+    "saved": 1,
+    "why": "Five exchanges implement the six-register rotation, while the initial move preserves the required duplicate in r13. The unchanged final add produces the same flags."
+  },
+  "e5c3b44e3c": {
+    "rewrite": null,
+    "why": "This open copy chain must retain r10 and all five copied destinations, so exchanges do not reduce its instruction count."
+  },
+  "4bb52099e2": {
+    "rewrite": null,
+    "why": "Both masks require modular subtraction and unsigned clamping for arbitrary ebp, and the two masks, ramp, and shuffled vectors must all remain available."
+  },
+  "dcc2686dd6": {
+    "rewrite": null,
+    "why": "The shuffle and multiply results remain live, and moving the final word shift before signed packing would change saturation for unrestricted inputs."
+  },
+  "3ca3018eac": {
+    "rewrite": "mov r15,r14\nxchg r14,rbx\nxchg rbx,r10\nxchg r10,r11\nadd rdi,rsi",
+    "saved": 1,
+    "why": "Three exchanges implement the four-register rotation, while the initial move retains the required duplicate in r15. The final add preserves the original flag results."
+  },
+  "113beaf035": {
+    "rewrite": null,
+    "why": "All three loaded vectors and both blended results are required, and AVX2 variable byte blends require register masks."
+  }
+}

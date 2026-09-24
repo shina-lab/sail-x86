@@ -1,0 +1,86 @@
+{
+  "0b7c906663": {
+    "rewrite": null,
+    "why": "The multiply-adds, saturated packing, permutation, accumulation, store, and scalar updates all produce required results."
+  },
+  "a90597988c": {
+    "rewrite": null,
+    "why": "Both stores, the vector accumulation, and both scalar updates are required and cannot be combined under AVX2."
+  },
+  "f536727118": {
+    "rewrite": null,
+    "why": "The loaded value is the minuend, so the load cannot be folded into VPSUBW's memory source, and the store and index update are required."
+  },
+  "15221f2112": {
+    "rewrite": null,
+    "why": "The palette shuffles and byte interleaves feed required stores and final vector values, with no removable intermediate or fused AVX2 operation."
+  },
+  "2ae95d786e": {
+    "rewrite": null,
+    "why": "The palette shuffles, interleaves, four stores, and scalar updates all contribute required results, including the carry flag from the pointer addition."
+  },
+  "7e3054b15e": {
+    "rewrite": null,
+    "why": "Each of the four instructions produces a distinct required final vector value."
+  },
+  "96c2a28dd4": {
+    "rewrite": null,
+    "why": "All six destination vectors are preserved, so neither the loads nor the subtraction and absolute-value intermediates can be eliminated."
+  },
+  "853d1cfa24": {
+    "rewrite": null,
+    "why": "Both required results subtract zmm22 from memory, whereas VPSUBW permits a memory operand only as the subtrahend."
+  },
+  "c4598d3e3d": {
+    "rewrite": null,
+    "why": "The broadcasts, rounded word products, additions, stores, and scalar updates are required, and the permitted ISA has no fused rounded word multiply-add."
+  },
+  "cb97821800": {
+    "rewrite": null,
+    "why": "Each instruction already combines a load with widening into a distinct required destination vector."
+  },
+  "e4a27687eb": {
+    "rewrite": null,
+    "why": "The byte broadcast, masked-and-offset scalar result, word broadcast, minimum, permutation, and final zero flag are all independently required."
+  },
+  "ecff8d7cad": {
+    "rewrite": "valignd zmm19,zmm22,zmm21,0x1\nvpbroadcastd zmm23,DWORD PTR [r10+r9*4+0x114]\nvalignd zmm17,zmm21,zmm17,0xf\nvpbroadcastd zmm24,DWORD PTR [r10+r9*4+0x120]\nvpshrdd zmm18,zmm21,zmm19,0x10\nvpbroadcastd zmm25,DWORD PTR [r10+r9*4+0x12c]\nvpshrdd zmm16,zmm17,zmm21,0x10\nvpmullw zmm23,zmm23,zmm21\nvpaddw zmm16,zmm16,zmm18\nvpmullw zmm16,zmm16,zmm24\nvpaddw zmm21,zmm17,zmm19\nvpmullw zmm21,zmm21,zmm25\nvpxord zmm17,zmm17,zmm17\nvpaddw zmm16,zmm16,zmm23\nvpaddw zmm21,zmm21,zmm16\nvpsrlw zmm21,zmm21,0x3\nvpavgw zmm21,zmm21,zmm17",
+    "saved": 2,
+    "why": "VALIGND constructs each two-word offset, and VPSHRDD derives the corresponding one-word offset. Using the left-offset temporary directly in VPADDW reduces six shuffle instructions to four while preserving every required result."
+  },
+  "2e556d5b33": {
+    "rewrite": null,
+    "why": "The two stores use independently indexed addresses, and the destination pointer and counter updates are both required."
+  },
+  "8b29509c2d": {
+    "rewrite": "vpbroadcastd zmm21,DWORD PTR [r10-0x70]\nmov r9d,0xfffffffe\nvmovdqu32 zmm19,ZMMWORD PTR [rdx-0x2]\nkmovd k1,r9d\nvalignd zmm18,zmm24,zmm23,0xf\nvpaddw zmm23,zmm23,zmm19\nvmovdqu16 zmm19{k1},ZMMWORD PTR [rdx-0x4]\nvalignd zmm20,zmm25,zmm24,0x1\nvpaddw zmm19,zmm19,zmm21\nvpaddw zmm23,zmm23,ZMMWORD PTR [rdx+0x2]\nvpshrdd zmm17,zmm18,zmm24,0x10\nvpavgw zmm19,zmm19,ZMMWORD PTR [rdx+0x4]\nvpaddw zmm23,zmm23,zmm19\nvpshrdd zmm19,zmm24,zmm20,0x10\nvpsrlw zmm23,zmm23,0x2\nvpaddw zmm24,zmm24,zmm17\nvpaddw zmm18,zmm18,zmm21\nvpaddw zmm24,zmm24,zmm19\nvpavgw zmm18,zmm18,zmm20\nvpaddw zmm24,zmm24,zmm18\nvpsrlw zmm24,zmm24,0x2\ncmp r8d,0x40",
+    "saved": 2,
+    "why": "Each pair of neighboring word shifts uses VALIGND and VPSHRDD instead of VALIGNQ and two VPALIGNR instructions. The loads, mask construction, arithmetic, and final comparison retain their original semantics."
+  },
+  "d6777c62aa": {
+    "rewrite": null,
+    "why": "Both independently addressed stores and both required scalar updates already take one instruction each."
+  },
+  "1cb5f59c23": {
+    "rewrite": "vpbroadcastd zmm20,DWORD PTR [r10-0x70]\nmov r9d,0xfffffffe\nvmovdqu32 zmm16,ZMMWORD PTR [rdx-0x2]\nkmovd k1,r9d\nvpaddw zmm23,zmm23,zmm16\nvmovdqu16 zmm16{k1},ZMMWORD PTR [rdx-0x4]\nvpaddw zmm16,zmm16,zmm20\nvpaddw zmm23,zmm23,ZMMWORD PTR [rdx+0x2]\nvpavgw zmm16,zmm16,ZMMWORD PTR [rdx+0x4]\nvalignd zmm17,zmm25,zmm24,0xf\nvpaddw zmm24,zmm24,ZMMWORD PTR [rdx+0x3e]\nvpaddw zmm18,zmm20,ZMMWORD PTR [rdx+0x3c]\nvalignd zmm19,zmm26,zmm25,0x1\nvpaddw zmm24,zmm24,ZMMWORD PTR [rdx+0x42]\nvpavgw zmm18,zmm18,ZMMWORD PTR [rdx+0x44]\nvpaddw zmm23,zmm23,zmm16\nvpshrdd zmm16,zmm17,zmm25,0x10\nvpaddw zmm24,zmm24,zmm18\nvpsrlw zmm23,zmm23,0x2\nvpshrdd zmm18,zmm25,zmm19,0x10\nvpsrlw zmm24,zmm24,0x2\nvpaddw zmm16,zmm16,zmm25\nvpaddw zmm17,zmm17,zmm20\nvpaddw zmm16,zmm16,zmm18\nvpavgw zmm17,zmm17,zmm19\nvpaddw zmm16,zmm16,zmm17",
+    "saved": 2,
+    "why": "VALIGND forms the two-word offsets directly, and VPSHRDD derives the adjacent one-word offsets. This replaces six shuffle instructions with four while preserving all final vector values and the original memory accesses."
+  },
+  "74c8df4a48": {
+    "rewrite": null,
+    "why": "The shared shift feeds two distinct permutations, and the copy is necessary because both zmm26 and zmm27 must contain the second permutation."
+  },
+  "82d58fce65": {
+    "rewrite": "valignd zmm17,zmm26,zmm25,0xf\nvalignd zmm19,zmm27,zmm26,0x1\nvpbroadcastd zmm27,DWORD PTR [r10+0x158]\nvpsrlw zmm25,zmm16,0x2\nvpshrdd zmm16,zmm17,zmm26,0x10\nvpshrdd zmm18,zmm26,zmm19,0x10\nvpaddw zmm26,zmm26,zmm16\nvpaddw zmm17,zmm17,zmm20\nvpaddw zmm26,zmm26,zmm18\nvpavgw zmm17,zmm17,zmm19\nvpaddw zmm26,zmm26,zmm17\nvpsrlw zmm26,zmm26,0x2\nvpermw zmm27,zmm27,zmm26",
+    "saved": 2,
+    "why": "For each direction, VALIGND forms the two-word shift and VPSHRDD constructs the one-word shift from it. This replaces six shuffles with four while preserving the required output vectors."
+  },
+  "ac29307f3f": {
+    "rewrite": null,
+    "why": "The two full-width stores and both scalar updates are required, including the carry flag retained from the pointer addition."
+  },
+  "623442a564": {
+    "rewrite": null,
+    "why": "The masked lookups, masked weights, rounded interpolation, four separate stores, and required extraction result leave no removable instruction."
+  }
+}

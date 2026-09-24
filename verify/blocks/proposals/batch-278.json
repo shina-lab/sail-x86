@@ -1,0 +1,92 @@
+{
+  "6c8dbd3825": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x3\nlea r10,[rdi+0x3]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. No final flags are required, so OR replaces AND and SUB."
+  },
+  "2848411443": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 requires the load and shift at the original address, while the remaining instructions produce the required r10, rcx, and CF values."
+  },
+  "20181439e3": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x4\nlea r10,[rdi+0x4]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. No final flags are required, so OR replaces AND and SUB."
+  },
+  "1ebfbd9667": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 requires the load and shift at the original address, while the remaining instructions produce the required r10, rcx, and CF values."
+  },
+  "d2c19227c4": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x5\nlea r10,[rdi+0x5]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. No final flags are required, so OR replaces AND and SUB."
+  },
+  "ccc3aeee01": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 requires the load and shift at the original address, while the remaining instructions produce the required r10, rcx, and CF values."
+  },
+  "4a282836cb": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x6\nlea r10,[rdi+0x6]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. No final flags are required, so OR replaces AND and SUB."
+  },
+  "c65d02c2f0": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 requires the load and shift at the original address, while the remaining instructions produce the required r10, rcx, and CF values."
+  },
+  "0bb46abb78": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x7\nlea r10,[rdi+0x7]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. No final flags are required, so OR replaces AND and SUB."
+  },
+  "77912183e2": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 requires the load and shift at the original address, while the remaining instructions produce the required r10, rcx, and CF values."
+  },
+  "f993effc65": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x8\nlea r10,[rdi+0x8]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. No final flags are required, so OR replaces AND and SUB."
+  },
+  "f88fcc44ab": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 requires the load and shift with the original address expression; the remaining instructions produce the required r10, rcx, and CF values."
+  },
+  "57f7ecb58d": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x9\nlea r10,[rdi+0x9]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. No final flags are required, so OR replaces AND and SUB."
+  },
+  "b566f86106": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 requires the load and shift at the original address, while the remaining instructions produce the required r10, rcx, and CF values."
+  },
+  "b08b61d392": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0xa\nlea r10,[rdi+0xa]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. No final flags are required, so OR replaces AND and SUB."
+  },
+  "976eb2ccec": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 requires the load and shift at the original address, while the remaining instructions produce the required r10, rcx, and CF values."
+  },
+  "daf669a6a4": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0xb\nlea r10,[rdi+0xb]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. No final flags are required, so OR replaces AND and SUB."
+  },
+  "da1760ae53": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 requires the load and shift at the original address, while the remaining instructions produce the required r10, rcx, and CF values."
+  },
+  "fab76482b6": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0xc\nlea r10,[rdi+0xc]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. No final flags are required, so OR replaces AND and SUB."
+  },
+  "249015902b": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 requires the load and shift with the original address expression; the remaining instructions produce the required r10, rcx, and CF values."
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "f9eb198cf2": {
+    "rewrite": null,
+    "why": "The byte calculation must preserve the final subtraction's CF and ZF while also producing the required RSI and aligned RDI values."
+  },
+  "8b86b63bc1": {
+    "rewrite": "pcmpeqb xmm1,XMMWORD PTR [rdi]\npmovmskb eax,xmm1\nsar eax,cl\nmov cl,dl\nmov edx,0x1\nshl edx,cl\nsub edx,0x1\nand eax,edx",
+    "saved": 1,
+    "why": "AND already sets ZF from the final EAX value, so the following TEST is redundant."
+  },
+  "1002cdb66c": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdi+0x10]\npcmpeqb xmm2,xmm1\npmovmskb eax,xmm2\nmov cl,dh\nmov edx,0x1\nshl edx,cl\nsub edx,0x1\nand eax,edx",
+    "saved": 1,
+    "why": "AND and the following TEST produce identical CF, PF, ZF, SF, and OF values, so TEST can be removed."
+  },
+  "4d439432d6": {
+    "rewrite": null,
+    "why": "TEST is necessary because a zero effective shift count leaves ZF unchanged, and all preceding register results must be preserved."
+  },
+  "9bb70bf6cc": {
+    "rewrite": null,
+    "why": "Both AVX2 stores, the final RDI update, and the independent comparison flags are required."
+  },
+  "486cf16a65": {
+    "rewrite": null,
+    "why": "Both AVX2 stores, the RDI subtraction, and the flags from comparing RDX with 0x100 are required."
+  },
+  "2087cc59bf": {
+    "rewrite": null,
+    "why": "The four stores already use the maximum AVX2 width, and the RDX update and comparison each have required results."
+  },
+  "18028301ae": {
+    "rewrite": null,
+    "why": "Four AVX2 stores are needed for the 128 bytes, and VZEROUPPER changes upper halves of preserved YMM registers."
+  },
+  "528b09a11f": {
+    "rewrite": "vmovd xmm1,esi\nlea rsi,[rdi+rdx*1]\nmov rax,rdi\nvpbroadcastb xmm0,xmm1\ncmp rdx,0x10",
+    "saved": 1,
+    "why": "VPBROADCASTB replaces zeroing XMM0 and shuffling the low byte of XMM1, with the same zeroed upper vector bits. VMOVD remains to preserve the required ZMM1 value."
+  },
+  "c5b316cefb": {
+    "rewrite": null,
+    "why": "Advancing RDI to the next 64-byte boundary needs both alignment operations, in addition to the required RSI update and store."
+  },
+  "04bcc4fcdc": {
+    "rewrite": null,
+    "why": "The four stores already use 512-bit vectors, and the final RDI value and comparison flags require the remaining instructions."
+  },
+  "9809e27b86": {
+    "rewrite": null,
+    "why": "The two alignment operations, two full-width stores, and independent RSI update all contribute required results."
+  },
+  "e17f5ecb4e": {
+    "rewrite": null,
+    "why": "LEA produces the required RCX value, both 512-bit stores are needed, and CMP supplies the required flags."
+  },
+  "8c6866be1c": {
+    "rewrite": null,
+    "why": "Four 512-bit stores are needed, and neither the required RDI update nor its subsequent comparison can be removed."
+  },
+  "47ad781dc2": {
+    "rewrite": null,
+    "why": "The scalar results and comparison flags are live, and combining the two stores would require duplicating YMM16 while preserving every ZMM register."
+  },
+  "a8ffaa29d3": {
+    "rewrite": null,
+    "why": "Wider stores would require duplicating YMM16 while preserving every ZMM register, and the pointer update and comparison remain necessary."
+  },
+  "40bf1a9a9d": {
+    "rewrite": null,
+    "why": "Both maximum-width SSE2 stores, the RDI update, and the independent comparison flags are required."
+  },
+  "9d15be17f5": {
+    "rewrite": null,
+    "why": "Both SSE2 stores, the final RDI adjustment, and the flags from comparing RDX with 0x80 are required."
+  },
+  "5afbb1b3e2": {
+    "rewrite": null,
+    "why": "Four SSE2 stores are needed for the 64 bytes, followed by the required RDX update and comparison."
+  },
+  "7cbfa9ccc4": {
+    "rewrite": null,
+    "why": "The comparison vectors, OR results, movemask, and updated pointer are all live, and TEST is needed to set ZF from the movemask."
+  }
+}

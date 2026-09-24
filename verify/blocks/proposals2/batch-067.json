@@ -1,0 +1,89 @@
+{
+  "482d4e59f6": {
+    "rewrite": null,
+    "why": "The two weighted paths, packed stores, and required temporary-register results leave no removable instruction under SSSE3."
+  },
+  "13fc3907b7": {
+    "rewrite": null,
+    "why": "Both coefficient products and the saved interleaved row are required, so the destructive SSE arithmetic still needs the existing copies."
+  },
+  "3604126cb1": {
+    "rewrite": null,
+    "why": "Arbitrary coefficient and rounding vectors require the multiply-add, add, shift, pack, and average stages, while the temporary-register results must also be preserved."
+  },
+  "299a9c3c83": {
+    "rewrite": null,
+    "why": "The copied row feeds two distinct weighted results while its original register must also retain the loaded row, and the remaining operations are required."
+  },
+  "fe8b6dcc92": {
+    "rewrite": null,
+    "why": "The weighted interpolation and two destination averages have required register results that prevent removing their loads, packing, shuffling, or copies."
+  },
+  "9e7601b00d": {
+    "rewrite": null,
+    "why": "Each of the four independently addressed rows requires a load and store, followed by the two required pointer updates and flag-producing counter update."
+  },
+  "aff73c7e5c": {
+    "rewrite": null,
+    "why": "SSE2 needs the existing word-broadcast sequence, and the OR result, both constant-derived vectors, and broadcast vector must all be preserved."
+  },
+  "c7c16d219e": {
+    "rewrite": null,
+    "why": "SSE2 cannot fold these loads into multiplication without replacement copies because both coefficient registers must remain unchanged."
+  },
+  "d6e74e3337": {
+    "rewrite": "movd xmm4,r8d\npinsrw xmm4,r9d,0x1\npunpcklwd xmm4,xmm4\npshufd xmm6,xmm4,0x55\npshufd xmm4,xmm4,0x0\nmovdqa xmm5,xmm4\npsllw xmm5,0x3\npmullw xmm4,xmm6\npsllw xmm6,0x3\nmovdqa xmm7,xmm4\npaddw xmm4,XMMWORD PTR [CONST_1]\npsubw xmm4,xmm5\npsubw xmm4,xmm6\npsubw xmm5,xmm7\npsubw xmm6,xmm7\nmovdqu xmm0,XMMWORD PTR [rsi]\nmovdqu xmm1,XMMWORD PTR [rsi+0x2]",
+    "saved": 2,
+    "why": "Pack both input words and share an unpack to form the two broadcasts. Subtract the two shifted operands directly from the biased product, eliminating the temporary sum and its copy."
+  },
+  "d0b0992cbb": {
+    "rewrite": null,
+    "why": "The independently indexed rows cannot be merged into wider accesses, leaving four necessary load/store pairs and three required scalar updates."
+  },
+  "ddadc2dc94": {
+    "rewrite": null,
+    "why": "AVX lacks a register word-broadcast instruction, and the existing broadcast, constant loads, subtraction, and preserved scalar OR result are all required."
+  },
+  "90a862a424": {
+    "rewrite": "vpmullw xmm0,xmm4,XMMWORD PTR [rsi]\nvpmullw xmm2,xmm5,XMMWORD PTR [rsi+rax*1]\nvpaddw xmm0,xmm0,xmm6\nvpaddw xmm0,xmm0,xmm2\nvpsrlw xmm0,xmm0,0x3\nvmovdqa XMMWORD PTR [rdi],xmm0\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 2,
+    "why": "Fold both unaligned loads into the memory operands of the commutative VEX multiplications, preserving coefficient registers and zeroed upper YMM halves."
+  },
+  "fd050bf7c9": {
+    "rewrite": "vmovd xmm4,r8d\nvpinsrw xmm4,xmm4,r9d,0x1\nvpunpcklwd xmm4,xmm4,xmm4\nvpshufd xmm6,xmm4,0x55\nvpshufd xmm4,xmm4,0x0\nvpsllw xmm5,xmm4,0x3\nvpmullw xmm7,xmm4,xmm6\nvpsllw xmm6,xmm6,0x3\nvpaddw xmm1,xmm5,xmm6\nvpsubw xmm5,xmm5,xmm7\nvpsubw xmm6,xmm6,xmm7\nvpaddw xmm4,xmm7,XMMWORD PTR [CONST_1]\nvpsubw xmm4,xmm4,xmm1\nvmovdqu xmm0,XMMWORD PTR [rsi]\nvmovdqu xmm1,XMMWORD PTR [rsi+0x2]",
+    "saved": 2,
+    "why": "Share one unpack between the two word broadcasts and compute the product directly in xmm7, eliminating its copy. All changed vector destinations retain VEX upper-half zeroing."
+  },
+  "ce72fa6d81": {
+    "rewrite": null,
+    "why": "Each independently addressed row already uses one source load, one memory-operand average, and one store, with all scalar updates required."
+  },
+  "52d5387214": {
+    "rewrite": null,
+    "why": "Preserving the SSE2 coefficient registers prevents profitable load folding, and the weighted sum, shift, memory average, store, and scalar updates are all required."
+  },
+  "bf723cf264": {
+    "rewrite": null,
+    "why": "Each row already folds its destination load into the average, and unknown row indices prevent wider accesses from combining the remaining loads and stores."
+  },
+  "e9c02c8ede": {
+    "rewrite": "vpmullw xmm0,xmm4,XMMWORD PTR [rsi]\nvpmullw xmm2,xmm5,XMMWORD PTR [rsi+rax*1]\nvpaddw xmm0,xmm0,xmm6\nvpaddw xmm0,xmm0,xmm2\nvpsrlw xmm0,xmm0,0x3\nvpavgw xmm0,xmm0,XMMWORD PTR [rdi]\nvmovdqa XMMWORD PTR [rdi],xmm0\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 2,
+    "why": "Fold both source loads into the VEX multiplications while retaining the average, exact memory addresses, vector results, and final flag-producing scalar operations."
+  },
+  "7e2fd4fdcd": {
+    "rewrite": "movd xmm12,edx\npinsrw xmm12,ecx,0x1\npsllw xmm12,0x2\npunpcklwd xmm12,xmm12\npshufd xmm13,xmm12,0x55\npshufd xmm12,xmm12,0x0\nmov rdx,rdi\nlea rcx,[rsi+rsi*2]\nsub rdi,rcx\nmov ecx,0x2",
+    "saved": 3,
+    "why": "Pack the two input words, shift them together, and derive both broadcasts from one unpack. Use rcx before its final overwrite to replace three subtractions with lea and sub."
+  },
+  "409799dd37": {
+    "rewrite": "movd xmm12,edx\npinsrw xmm12,ecx,0x1\npsllw xmm12,0x2\npunpcklwd xmm12,xmm12\npshufd xmm13,xmm12,0x55\npshufd xmm12,xmm12,0x0\nshl ecx,0x2\nlea rdx,[rsi+rsi*2]\nlea r9,[rdi+rdx*1]\nmov eax,0x2",
+    "saved": 4,
+    "why": "Share the packed-word shift and unpack used to broadcast both thresholds, retaining the required scalar ecx shift. Two lea instructions replace the five address-building moves and adds."
+  },
+  "4f66ed9f19": {
+    "rewrite": "vmovd xmm12,edx\nvpinsrw xmm12,xmm12,ecx,0x1\nvpsllw xmm12,xmm12,0x2\nvpunpcklwd xmm12,xmm12,xmm12\nvpshufd xmm13,xmm12,0x55\nvpshufd xmm12,xmm12,0x0\nmov rdx,rdi\nlea rcx,[rsi+rsi*2]\nsub rdi,rcx\nmov ecx,0x2",
+    "saved": 3,
+    "why": "Share the word shift and unpack between both broadcasts, preserving VEX upper-half zeroing. Use rcx before its final overwrite to replace the three subtractions with lea and sub."
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "76eb252d60": {
+    "rewrite": null,
+    "why": "All eight add/shift pairs and four rotations feed live outputs, and the shifted values can exceed signed 16-bit range."
+  },
+  "79c2e0ef52": {
+    "rewrite": null,
+    "why": "The two broadcasts, vector zeroing, scalar copy, and byte addition each produce a required result, including the addition's flags."
+  },
+  "5a8a2f07d0": {
+    "rewrite": null,
+    "why": "The memory multiply, store, broadcast, ECX update, bias addition, and arithmetic shift all have required effects."
+  },
+  "7bc7e19e8f": {
+    "rewrite": null,
+    "why": "Both scalar multiply/bias/shift stages feed the required RAX result, and the saturating word addition, broadcast, and remaining side effects are also live."
+  },
+  "b0ec764dc5": {
+    "rewrite": null,
+    "why": "Each stored vector needs both distinct saturation operations, and the pointer update and flag-producing counter decrement are live."
+  },
+  "4b227d64f6": {
+    "rewrite": null,
+    "why": "Each of the four live YMM results already uses one rounded high-word multiply."
+  },
+  "24653ba1c5": {
+    "rewrite": null,
+    "why": "Both broadcasts, the zero vector, the original ECX copy, and the CL update with its carry flag require their existing instructions."
+  },
+  "3a18b04265": {
+    "rewrite": null,
+    "why": "The multiply, broadcast, store, and flag-producing ECX update each supply an independent required effect."
+  },
+  "9a8c0300a1": {
+    "rewrite": null,
+    "why": "All four lane rearrangements, four vector initializations, and four stores are required, and bulk vector zeroing would destroy live register values."
+  },
+  "d4ef790bb3": {
+    "rewrite": null,
+    "why": "The intermediate biased arithmetic shift prevents collapsing the two multiplies, and the broadcast, store, and ECX update are required."
+  },
+  "cf28789f42": {
+    "rewrite": null,
+    "why": "The eight half-vector stores already include upper-lane extraction, while combining stores would require additional lane rearrangements."
+  },
+  "c48efeec3a": {
+    "rewrite": null,
+    "why": "Each of the eight instructions directly produces a distinct required YMM result."
+  },
+  "bf0eaa3f7e": {
+    "rewrite": null,
+    "why": "The eight half-vector stores already include upper-lane extraction, while combining stores would require additional lane rearrangements."
+  },
+  "eaf3658b1f": {
+    "rewrite": null,
+    "why": "The four rearranged vectors, four zero vectors, and four stores are all required, and bulk vector zeroing would destroy needed data."
+  },
+  "79106f9737": {
+    "rewrite": null,
+    "why": "Each of the four lane rearrangements and four loads produces a distinct required YMM result in one instruction."
+  },
+  "2e5d4d4471": {
+    "rewrite": "add rdx,0x20\nvpunpcklwd ymm5,ymm3,ymm2\nvpunpckhwd ymm3,ymm3,ymm2\nvpunpcklwd ymm2,ymm4,ymm1\nvpunpckhwd ymm4,ymm4,ymm1\nvpunpckhwd ymm1,ymm0,ymm8\nvpunpcklwd ymm0,ymm0,ymm8\nvpunpckhwd ymm8,ymm6,ymm7\nvpunpcklwd ymm6,ymm6,ymm7\nvpunpcklqdq ymm7,ymm1,ymm4\nvpunpcklqdq ymm8,ymm8,ymm3\nvpunpcklqdq ymm6,ymm6,ymm5\nvpunpcklqdq ymm5,ymm0,ymm2\nvpunpckhqdq ymm0,ymm0,ymm2\nvmovdqa XMMWORD PTR [rax],xmm5\nvmovdqa XMMWORD PTR [rax+0x10],xmm6\nvmovdqa XMMWORD PTR [rax+0x20],xmm7\nvmovdqa XMMWORD PTR [rax+0x30],xmm8\nvextracti128 XMMWORD PTR [rax+0x40],ymm5,0x1\nvextracti128 XMMWORD PTR [rax+0x50],ymm6,0x1\nvextracti128 XMMWORD PTR [rax+0x60],ymm7,0x1\nvextracti128 XMMWORD PTR [rax+0x70],ymm8,0x1\nadd rax,0xffffffffffffff80",
+    "saved": 3,
+    "why": "The high-qword unpack results in ymm1, ymm4, and ymm3 are dead. Removing them leaves all stores and required final register values unchanged."
+  },
+  "074baa2419": {
+    "rewrite": null,
+    "why": "The two multiply/bias/shift stages have distinct intermediate truncation, and all scalar, vector, memory, and final flag effects are required."
+  },
+  "d41fd01f09": {
+    "rewrite": null,
+    "why": "Eight full-width AVX2 stores and the required flag-producing RDX update leave no removable instruction."
+  },
+  "235da832a2": {
+    "rewrite": null,
+    "why": "Eight distinct live YMM loads and the required flag-producing R8 update already take one instruction each."
+  },
+  "e562e2abb3": {
+    "rewrite": null,
+    "why": "The four separated full-width stores and the required 32-bit index subtraction with its flags cannot be combined."
+  }
+}

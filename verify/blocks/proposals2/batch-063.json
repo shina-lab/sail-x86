@@ -1,0 +1,89 @@
+{
+  "f0ce7e813e": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask requires a separate load and shuffle, and the store plus both pointer updates produce required outputs."
+  },
+  "8be6380d33": {
+    "rewrite": null,
+    "why": "The zero-extending qword load, arbitrary byte shuffle, qword store, and two required pointer updates cannot be combined at SSSE3."
+  },
+  "049c285539": {
+    "rewrite": null,
+    "why": "VPSHUFB cannot fold a load of its data operand, and both shuffled vectors, both stores, both pointer updates, and the counter with its ZF result are required."
+  },
+  "393dfa7626": {
+    "rewrite": null,
+    "why": "VPSHUFB requires its data operand in a register, leaving the load, shuffle, store, and two required pointer updates necessary."
+  },
+  "cec6337e31": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle requires a separate data load, while the store, pointer updates, and zeroed upper half of YMM0 must all be preserved."
+  },
+  "b1ada119cb": {
+    "rewrite": null,
+    "why": "The qword load establishes required zero bits before the arbitrary shuffle, and the store and both pointer updates remain necessary."
+  },
+  "7c89d5461b": {
+    "rewrite": null,
+    "why": "The required SIMD results and flags, together with unconstrained coefficient and unpack registers, prevent reducing the filter and averaging stages at SSE2."
+  },
+  "bf27c59cb8": {
+    "rewrite": null,
+    "why": "The filter intermediates have required final values, and arbitrary coefficient and unpack registers prevent replacing the widening arithmetic with a shorter SSE2 operation."
+  },
+  "39ccfeeb08": {
+    "rewrite": "movaps xmm0,XMMWORD PTR [CONST_1]\nimul r8d,ecx,0xfffffffc\nshl ecx,0x2\nand r8d,0xf",
+    "saved": 2,
+    "why": "Compute R8D directly as (-4 times the original ECX) masked to four bits while retaining the shifted ECX. The stack adjustment has no required output or stack memory access and is omitted, leaving RSP untouched."
+  },
+  "977a10561c": {
+    "rewrite": "movaps xmm0,XMMWORD PTR [CONST_1]\nimul r8d,ecx,0xfffffffc\nshl ecx,0x2\nand r8d,0xf",
+    "saved": 2,
+    "why": "Compute R8D directly as (-4 times the original ECX) masked to four bits while retaining the shifted ECX. The stack adjustment has no required output or stack memory access and is omitted, leaving RSP untouched."
+  },
+  "1068e3708e": {
+    "rewrite": "vmovaps xmm0,XMMWORD PTR [CONST_1]\nimul r8d,ecx,0xfffffffc\nshl ecx,0x2\nand r8d,0xf",
+    "saved": 2,
+    "why": "Compute the alignment residue directly with IMUL and omit the stack adjustment, whose result is not required and which has no stack memory access. Keeping VMOVAPS preserves the required zero upper half of YMM0."
+  },
+  "23a7a046bc": {
+    "rewrite": "movsx rbp,WORD PTR [rdx]\nimul rbp,rbp,0xb\nmovsx r11,WORD PTR [rdx+0x2]\nimul r11,r11,0xfffffffffffffffc\nlea rbp,[rbp+r11*1+0x4]\nmovsx r11,WORD PTR [rdx+0x4]\nadd rbp,r11\nmovsx r11,WORD PTR [r8]\nlea rbp,[rbp+r11*8]\nlea r11,[rbp+0x7]\nsar rbp,0x4\nmov WORD PTR [rdi],bp\nsar r11,0x4\nmovsx rbp,WORD PTR [rdx]\nsub rbp,r11\nmov WORD PTR [rdi+0x2],bp\nmov r11d,0x0",
+    "saved": 10,
+    "why": "For signed input words a, b, c, d, let R = 11*a - 4*b + c + 8*d + 4; the outputs are R arithmetic-shifted by four and a - ((R + 7) arithmetic-shifted by four). Sharing this bounded numerator removes the repeated filter computation while preserving both word stores and final R11."
+  },
+  "90ef6d362c": {
+    "rewrite": null,
+    "why": "The unpacked products, rounded intermediates, and packed results are required outputs, and arbitrary coefficient registers prevent combining these SSE2 stages."
+  },
+  "5266c6a0b9": {
+    "rewrite": "shl ecx,1\nmovdqa xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,XMMWORD PTR [CONST_2]\nmovdqa xmm10,XMMWORD PTR [CONST_3]\nmovsx r9,WORD PTR [rsi]\nimul r9,r9,0xb\nmovsx r8,WORD PTR [rsi+0x2]\nimul r8,r8,0xfffffffffffffffc\nlea r9,[r9+r8*1+0x4]\nmovsx r8,WORD PTR [rsi+0x4]\nadd r9,r8\nmovsx r8,WORD PTR [rdx]\nlea r9,[r9+r8*8]\nlea r8,[r9+0x7]\nsar r9,0x4\nmovd xmm0,r9d\nsar r8,0x4\nmovsx r9,WORD PTR [rsi]\nsub r9,r8\npinsrw xmm0,r9d,0x1\npmaxsw xmm0,XMMWORD PTR [CONST_4]\npminsw xmm0,XMMWORD PTR [CONST_5]\npextrw r9d,xmm0,0x0\nmov WORD PTR [rdi],r9w\npextrw r9d,xmm0,0x1\nmov WORD PTR [rdi+0x2],r9w\nmov r8d,0x0",
+    "saved": 12,
+    "why": "With R = 11*a - 4*b + c + 8*d + 4 for the signed input words, the two unclipped results are R arithmetic-shifted by four and a - ((R + 7) arithmetic-shifted by four). Insert their low words into separate lanes and clip them together, preserving the original signed-word interpretation, both stores, and required register outputs."
+  },
+  "c6b9e7f8fe": {
+    "rewrite": null,
+    "why": "The live intermediate vectors and arbitrary coefficient registers require the existing SSE2 arithmetic, and each stored vector still needs both clipping bounds."
+  },
+  "df8f543823": {
+    "rewrite": "shl ecx,1\nmovdqa xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,XMMWORD PTR [CONST_2]\nmovdqa xmm10,XMMWORD PTR [CONST_3]\nmovsx r9,WORD PTR [rsi]\nimul r9,r9,0xb\nmovsx r8,WORD PTR [rsi+0x2]\nimul r8,r8,0xfffffffffffffffc\nlea r9,[r9+r8*1+0x4]\nmovsx r8,WORD PTR [rsi+0x4]\nadd r9,r8\nmovsx r8,WORD PTR [rdx]\nlea r9,[r9+r8*8]\nlea r8,[r9+0x7]\nsar r9,0x4\nmovd xmm0,r9d\nsar r8,0x4\nmovsx r9,WORD PTR [rsi]\nsub r9,r8\npinsrw xmm0,r9d,0x1\npmaxsw xmm0,XMMWORD PTR [CONST_4]\npminsw xmm0,XMMWORD PTR [CONST_5]\npextrw r9d,xmm0,0x0\nmov WORD PTR [rdi],r9w\npextrw r9d,xmm0,0x1\nmov WORD PTR [rdi+0x2],r9w\nmov r8d,0x0",
+    "saved": 12,
+    "why": "With R = 11*a - 4*b + c + 8*d + 4 for the signed input words, the two unclipped results are R arithmetic-shifted by four and a - ((R + 7) arithmetic-shifted by four). Clip their low words together in separate lanes, retaining the original signed-word wrapping before the 12-bit clamp and all required outputs."
+  },
+  "289fe51935": {
+    "rewrite": null,
+    "why": "The live intermediate vectors and arbitrary coefficient registers require the existing SSE2 arithmetic, and each stored vector still needs both clipping bounds."
+  },
+  "1944b009e7": {
+    "rewrite": "movsx rbx,WORD PTR [rdi]\nmovsx r11,WORD PTR [rdi+0x2]\nadd rbx,r11\nmovd xmm0,ebx\npackssdw xmm0,xmm0\npextrw r11d,xmm0,0x0\nmov WORD PTR [rsi],r11w\nimul rbx,rbx,0x5\nmovsx r11,WORD PTR [rdi+0x2]\nshl r11,0x4\nsub rbx,r11\nmovsx r11,WORD PTR [rdi+0x4]\nlea rbx,[rbx+r11*4+0x4]\nmovsx r11,WORD PTR [rdi+0x6]\nlea rbx,[rbx+r11*4]\nmovsx r11,WORD PTR [rdi+0x8]\nsub rbx,r11\nmovsx r11,WORD PTR [rdi+0xa]\nsub rbx,r11\nsar rbx,0x3\nmovd xmm0,ebx\npackssdw xmm0,xmm0\nmovd ebx,xmm0\nmov WORD PTR [rdx],bx\nmov r11d,0x2",
+    "saved": 6,
+    "why": "Retain the unsaturated first sum so that 5*a - 11*b becomes 5*(a + b) - 16*b. Scaled LEAs absorb the positive factors and rounding constant, while direct subtraction eliminates the two negating multiplies."
+  },
+  "c93a45efaf": {
+    "rewrite": null,
+    "why": "The independent coefficient vectors require separate SSE2 products, and the required intermediate results and two stored outputs prevent eliminating either computation."
+  },
+  "5e2e66b5bc": {
+    "rewrite": null,
+    "why": "All five instructions produce required register values, and the final SUB also supplies all five required flags."
+  }
+}

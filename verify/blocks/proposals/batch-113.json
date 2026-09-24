@@ -1,0 +1,83 @@
+{
+  "ff7e3bc0cd": {
+    "rewrite": null,
+    "why": "The constant setup, live vector updates, two packed shift/OR computations, and scalar extractions have no removable step within AVX."
+  },
+  "78d4c61dc9": {
+    "rewrite": null,
+    "why": "Both XOR updates and the shifted xmm10 are live, and the unconstrained shift counts prevent replacing either shift/OR computation with a rotation."
+  },
+  "39c2b8ac42": {
+    "rewrite": null,
+    "why": "The live XOR updates, broadcast subtractions, shift-count construction, and scalar results leave no evident instruction reduction within AVX."
+  },
+  "3553dcd7b9": {
+    "rewrite": null,
+    "why": "Both vector updates and the shifted xmm10 must be preserved, while each packed addition and pair of variable shifts contributes to a required scalar result."
+  },
+  "60c1587a9f": {
+    "rewrite": null,
+    "why": "The scalar packing, live vector updates, and two packed add/shift/OR computations contain no redundant instruction under the stated input constraints."
+  },
+  "14aa8e0872": {
+    "rewrite": null,
+    "why": "Both XOR updates and the shifted xmm10 are live, and the arbitrary shift counts require retaining the separate shifts and ORs."
+  },
+  "d0e0ef3381": {
+    "rewrite": null,
+    "why": "All vector updates and scalar extractions are required, and AVX provides no shorter equivalent for these packed subtractions followed by arbitrary shifts and ORs."
+  },
+  "cb04774bbe": {
+    "rewrite": null,
+    "why": "The live vector updates, shifted xmm10, and both packed add/shift/OR results leave no evident instruction reduction within AVX."
+  },
+  "24c43e7b1f": {
+    "rewrite": null,
+    "why": "The xmm3 and xmm7 updates remain required outputs even though the subsequent arithmetic uses xmm0 and xmm4, and the remaining computations have no redundant step."
+  },
+  "1b76f69e3e": {
+    "rewrite": null,
+    "why": "The xmm3 and xmm7 updates and shifted xmm10 are live, while both subtraction/shift/OR paths are needed for the four scalar outputs."
+  },
+  "e679a627f5": {
+    "rewrite": null,
+    "why": "The xmm0 and xmm4 updates are required independently of the later XOR paths, whose arbitrary shift counts prevent a shorter rotation-based replacement."
+  },
+  "69385c5a80": {
+    "rewrite": null,
+    "why": "The xmm1 and xmm5 updates remain live despite being separate from the later additions, and the shifted xmm10 and both scalar-result paths must also be retained."
+  },
+  "3934c3a89c": {
+    "rewrite": null,
+    "why": "The xmm2 and xmm6 updates, shifted xmm10, and both packed add/shift/OR paths produce required outputs with no evident removable instruction."
+  },
+  "9eec85c160": {
+    "rewrite": null,
+    "why": "The xmm3 and xmm7 updates are live independently of the subsequent subtraction paths, and the shift counts are unconstrained rather than known complementary rotation counts."
+  },
+  "137a3f923d": {
+    "rewrite": null,
+    "why": "The xmm0 and xmm4 updates and shifted xmm10 must be preserved, and each later XOR/shift/OR path is needed for its scalar outputs."
+  },
+  "a22c5b3258": {
+    "rewrite": "xor r8d,DWORD PTR [rdi+rsi*4]\nshl r8,0x20\nor r10,r8\nvmovq xmm15,r9\nvpinsrq xmm15,xmm15,r10,0x1\nvpxor xmm1,xmm8,xmm1\nvpxor xmm5,xmm15,xmm5\nvbroadcastss xmm9,DWORD PTR [r15+0x40]\nvpand xmm11,xmm10,xmm14\nvpsubq xmm12,xmm13,xmm11\nvpaddd xmm8,xmm9,xmm3\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rdx,xmm8\nvpextrq rcx,xmm8,0x1\nvpaddd xmm8,xmm9,xmm7\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rax,xmm8\nvpextrq rbx,xmm8,0x1\nmovzx edi,dh",
+    "saved": 1,
+    "why": "Remove vpsrldq xmm10,xmm10,0x1 because xmm10 has no subsequent use and ymm10 is not a required final output."
+  },
+  "3547d76553": {
+    "rewrite": null,
+    "why": "The xmm2 and xmm6 updates remain required outputs, and the live xmm10 shift plus both packed addition/shift/OR paths leave no redundant instruction."
+  },
+  "e89214aba6": {
+    "rewrite": null,
+    "why": "Both vector XOR updates, the shifted xmm10, and the two subtraction/shift/OR paths are required, with no shorter equivalent apparent within AVX."
+  },
+  "41766559d4": {
+    "rewrite": null,
+    "why": "The xmm0 and xmm4 updates and shifted xmm10 are live, while the unconstrained counts require retaining the separate shifts and ORs in both XOR paths."
+  },
+  "125a1ccd1b": {
+    "rewrite": null,
+    "why": "The byte-shifted xmm10, both vector XOR updates, and all scalar results are live, leaving no evident removable instruction."
+  }
+}

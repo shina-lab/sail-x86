@@ -1,0 +1,86 @@
+{
+  "2580041b78": {
+    "rewrite": null,
+    "why": "The 32-bit shift must truncate and zero-extend before three independent pointer additions and the required 64-bit negation."
+  },
+  "6feef9cfda": {
+    "rewrite": "shl rdx,0x2\nsub rdi,rdx\nsub rsi,rdx\nxor r8d,r8d\nlea rdx,[rdx+rdx*1+0x4]\nmov rcx,rdx\nand rcx,0xf\nxorps xmm0,xmm0\ncmp rdx,0x10",
+    "saved": 4,
+    "why": "Shift rdx directly and subtract it from both pointers, eliminating the temporary copy and negation. LEA computes the remaining doubled value plus four, and the unchanged final comparison preserves SF and OF."
+  },
+  "debbd58d6d": {
+    "rewrite": null,
+    "why": "With arbitrary xmm0 and xmm1, both unpacked halves require their own multiply-add and arithmetic shift before signed saturation."
+  },
+  "0f0e7adaa6": {
+    "rewrite": "pabsd xmm3,XMMWORD PTR [rsi+rdx*1]\npshufd xmm0,xmm3,0x10\npshufd xmm1,xmm3,0x32\npmuludq xmm0,xmm4\npmuludq xmm1,xmm4\npaddq xmm0,xmm5\npaddq xmm1,xmm5\npsrlq xmm0,0x7\npsrlq xmm1,0x7\nmovaps xmm2,xmm0\nshufps xmm2,xmm1,0xdd\nshufps xmm0,xmm1,0x88\npcmpgtd xmm2,xmm6\npor xmm0,xmm2\npsrld xmm0,0x1\npsignd xmm0,XMMWORD PTR [rsi+rdx*1]\nmovdqa XMMWORD PTR [rdi+rdx*1],xmm0\nsub rdx,0x10",
+    "saved": 1,
+    "why": "Fold the input load into PABSD and read the same unchanged input through PSIGND's memory operand. The otherwise unnecessary xmm7 load disappears."
+  },
+  "5e8b24c219": {
+    "rewrite": null,
+    "why": "SSE2 needs a separate instruction for each of the eight required zeroed XMM registers, in addition to both live scalar loads and their comparison."
+  },
+  "c2548885c1": {
+    "rewrite": null,
+    "why": "SSE3 offers no instruction to zero these eight XMM registers together, and both scalar loads and the comparison remain necessary."
+  },
+  "e39bc41b0c": {
+    "rewrite": "mov r9d,DWORD PTR [rdx+0xc]\nvzeroall\nmov ebx,DWORD PTR [rdx+0x1c]\ncmp ebx,r9d",
+    "saved": 7,
+    "why": "VZEROALL replaces all eight vector initialization instructions and zeros the full width of every required YMM output. All other vector registers are dead."
+  },
+  "b220590a34": {
+    "rewrite": null,
+    "why": "Each of the six pointer updates and the decrement produces a distinct required register value, with the decrement also supplying the required flags."
+  },
+  "970c9952a6": {
+    "rewrite": null,
+    "why": "All six independent pointer updates and the counter decrement are required, and the scaled additions already use single LEA instructions."
+  },
+  "52eb8dabb2": {
+    "rewrite": "movdqa xmm6,XMMWORD PTR [rdi+rax*2]\nmovdqa xmm8,XMMWORD PTR [r9+rax*2]\nmovdqa xmm9,xmm6\npunpcklwd xmm6,XMMWORD PTR [r8+rax*2]\npunpckhwd xmm9,XMMWORD PTR [r8+rax*2]\nmovdqa xmm7,xmm8\npunpckhwd xmm7,XMMWORD PTR [CONST_1]\npunpcklwd xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm10,xmm6\npmaddwd xmm10,xmm0\nmovdqa xmm11,xmm9\npmaddwd xmm11,xmm0\nmovdqa xmm12,xmm8\npmaddwd xmm12,xmm1\nmovdqa xmm13,xmm7\npmaddwd xmm13,xmm1\npaddd xmm10,xmm12\npaddd xmm11,xmm13\npsrad xmm10,0xe\npsrad xmm11,0xe\nmovdqa xmm12,xmm6\npmaddwd xmm12,xmm2\nmovdqa xmm13,xmm9\npmaddwd xmm13,xmm2\nmovdqa xmm14,xmm8\npmaddwd xmm14,xmm3\nmovdqa xmm15,xmm7\npmaddwd xmm15,xmm3\npaddd xmm12,xmm14\npaddd xmm13,xmm15\npsrad xmm12,0xe\npsrad xmm13,0xe\npmaddwd xmm6,xmm4\npmaddwd xmm9,xmm4\npmaddwd xmm8,xmm5\npmaddwd xmm7,xmm5\npaddd xmm6,xmm8\npaddd xmm9,xmm7\npsrad xmm6,0xe\npsrad xmm9,0xe\npackssdw xmm10,xmm11\npackssdw xmm12,xmm13\npackssdw xmm6,xmm9\nmovdqa XMMWORD PTR [rdi+rax*2],xmm10\nmovdqa XMMWORD PTR [r8+rax*2],xmm12\nmovdqa XMMWORD PTR [r9+rax*2],xmm6\nadd eax,0x8\ncmp eax,edx",
+    "saved": 1,
+    "why": "Fold the second input load into both word-unpack instructions, which read the same unchanged buffer before any stores. The initial load into xmm7 is then unnecessary."
+  },
+  "c3acd43076": {
+    "rewrite": null,
+    "why": "The three independent pointer additions and the counter decrement each produce a required final value."
+  },
+  "19413d5537": {
+    "rewrite": null,
+    "why": "Both pointer additions, the index negation, and the XMM accumulator zeroing are independently required."
+  },
+  "61f70437d0": {
+    "rewrite": null,
+    "why": "The second input load is already folded into PSADBW, and the SAD result, accumulated sum, and flagged index update must all be preserved."
+  },
+  "173ec769c8": {
+    "rewrite": null,
+    "why": "The two pointer additions, index negation, and full-width YMM zeroing already take one instruction each."
+  },
+  "cb5d297b7e": {
+    "rewrite": null,
+    "why": "The memory operand already folds one input load into VPSADBW, while the SAD result, accumulation, and flagged index update remain necessary."
+  },
+  "7485783fdc": {
+    "rewrite": null,
+    "why": "The wrapping word differences and signed multiply-add require the existing cross-half dword reduction before zero extension and accumulation."
+  },
+  "ad65ef43f3": {
+    "rewrite": null,
+    "why": "Each pointer addition, the index negation, and zeroing zmm17 produces a separate required output."
+  },
+  "3bbcfb45b5": {
+    "rewrite": null,
+    "why": "The block already folds one load into VPSADBW, and the allowed ISA cannot fuse that SAD with the required accumulation or index update."
+  },
+  "2fb12f8ca9": {
+    "rewrite": null,
+    "why": "The allowed AVX-512 instructions do not fuse word absolute differences with accumulation, and the cross-half dword sum must precede zero extension."
+  },
+  "1a4923daca": {
+    "rewrite": null,
+    "why": "AVX2 requires a GPR-to-XMM transfer before the byte broadcast, and all four scalar updates produce required final values."
+  }
+}

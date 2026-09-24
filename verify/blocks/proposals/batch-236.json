@@ -1,0 +1,89 @@
+{
+  "e70a03c653": {
+    "rewrite": "",
+    "saved": 7,
+    "why": "All seven clears target registers whose final values are unconstrained."
+  },
+  "2b63084e8e": {
+    "rewrite": "xorps xmm0,xmm0\nmov rbp,QWORD PTR [r11-0x8]",
+    "saved": 2,
+    "why": "Only the xmm0 clear and rbp load contribute to required results; omit the dead xmm1 clear and leave rsp untouched as required."
+  },
+  "d5a9c2559c": {
+    "rewrite": "aesimc xmm0,XMMWORD PTR [rdx]\nmovups XMMWORD PTR [rdi],xmm0\npxor xmm0,xmm0",
+    "saved": 2,
+    "why": "AESIMC can read its source directly from memory without an alignment requirement, and the xmm1 clear is dead."
+  },
+  "598a75cd16": {
+    "rewrite": null,
+    "why": "The vector load, two scalar assignments, and comparison independently produce required register values or flags."
+  },
+  "d3641e4d07": {
+    "rewrite": null,
+    "why": "The intermediate three-term prefix XOR in xmm3 is live alongside the full prefix in xmm0, so a shorter scan that discards that intermediate is insufficient."
+  },
+  "b59cd50382": {
+    "rewrite": "pshufd xmm2,xmm0,0xff\npxor xmm3,xmm3\nshufps xmm3,xmm1,0x10\nxorps xmm1,xmm3\nshufps xmm3,xmm1,0x8c\nxorps xmm1,xmm3\naesenclast xmm2,xmm1\nmovdqu XMMWORD PTR [rax+0x10],xmm2\nlea rax,[rax+0x20]\nmovdqa xmm1,xmm2",
+    "saved": 4,
+    "why": "Use the zeroed xmm3 in a four-instruction shuffle/XOR prefix scan, then fold the final XOR into AESENCLAST's round-key operand. Both required result registers receive the same final key."
+  },
+  "e307ec586f": {
+    "rewrite": "pxor xmm0,xmm0",
+    "saved": 6,
+    "why": "Only xmm0 has a required cleared value; omit the other clears and leave rsp untouched as required."
+  },
+  "db5835740d": {
+    "rewrite": null,
+    "why": "Both shuffle/XOR stages depend on arbitrary input values, and the final broadcast and XOR are needed for the required xmm0 result."
+  },
+  "6dc83d841c": {
+    "rewrite": "shufps xmm4,xmm0,0x10\nxorps xmm0,xmm4\nshufps xmm4,xmm0,0x8c\nxorps xmm0,xmm4\npshufd xmm1,xmm1,0x55\npxor xmm0,xmm1",
+    "saved": 5,
+    "why": "The five instructions computing xmm2 and xmm3 have no effect on the only required vector result, xmm0."
+  },
+  "7065a27af1": {
+    "rewrite": null,
+    "why": "Both stores require cross-register shuffles, and preserving xmm0 and xmm2 requires the temporary copy."
+  },
+  "12e23a8a10": {
+    "rewrite": "movups XMMWORD PTR [rax],xmm0\nlea rax,[rax+0x10]",
+    "saved": 6,
+    "why": "The six trailing vector instructions only change unconstrained registers and do not affect the store or required rax update."
+  },
+  "78b807336c": {
+    "rewrite": null,
+    "why": "All eight live vectors need their individual memory XORs and byte shuffles, followed by the required rax update."
+  },
+  "216aa4db43": {
+    "rewrite": null,
+    "why": "The shuffle/XOR network contributes to required bitsliced outputs, and the two copies resolve output-register permutations before the required xmm7 load."
+  },
+  "ec158fb68c": {
+    "rewrite": null,
+    "why": "The load, two register assignments, and comparison each establish a separately required result."
+  },
+  "2cb1b72b77": {
+    "rewrite": null,
+    "why": "The stores and live xmm14 load are necessary, and folding the unaligned MOVDQU loads into legacy PXOR would impose an unproven alignment requirement."
+  },
+  "02b2248528": {
+    "rewrite": null,
+    "why": "The stores and live xmm14 load are necessary, and folding the unaligned MOVDQU loads into legacy PXOR would impose an unproven alignment requirement."
+  },
+  "ba97d802cd": {
+    "rewrite": null,
+    "why": "The stores and live xmm14 load are necessary, and folding the unaligned MOVDQU loads into legacy PXOR would impose an unproven alignment requirement."
+  },
+  "e1b880e980": {
+    "rewrite": null,
+    "why": "The stores and live xmm14 load are necessary, and folding the unaligned MOVDQU loads into legacy PXOR would impose an unproven alignment requirement."
+  },
+  "36399ff262": {
+    "rewrite": null,
+    "why": "The stores and live xmm14 load are necessary, and folding the unaligned MOVDQU loads into legacy PXOR would impose an unproven alignment requirement."
+  },
+  "d1bba2a4b1": {
+    "rewrite": null,
+    "why": "The two stores and live xmm14 load are necessary, and the unaligned load feeding xmm0 cannot safely be folded into legacy PXOR."
+  }
+}

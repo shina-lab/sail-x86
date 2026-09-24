@@ -1,0 +1,86 @@
+{
+  "f70c393ef1": {
+    "rewrite": null,
+    "why": "Computing the preserved offset, adjusted length, and aligned pointer requires the existing copy, mask, addition, and alignment operation."
+  },
+  "025a4945c2": {
+    "rewrite": null,
+    "why": "Both minimum vectors, the loaded vector, both comparison masks, the advanced pointer, and ZF are live, so the existing operations are needed."
+  },
+  "71adf68fea": {
+    "rewrite": null,
+    "why": "The masked RSI, comparison mask, scalar mask in RAX, and ZF each require their existing operation."
+  },
+  "950ef7ea73": {
+    "rewrite": null,
+    "why": "The comparison mask, its scalar transfer, the trailing-zero count, and the full comparison flags all require separate operations."
+  },
+  "8d7f44db97": {
+    "rewrite": null,
+    "why": "Preserving RCX and every comparison flag requires computing the masked offset and the exact 32-minus-offset comparison operand."
+  },
+  "b386eb520a": {
+    "rewrite": "lea r11,[rsi+rdi]\nmov r10,r11\nand r10,0xffffffffffffffc0\npxor xmm0,xmm0\npxor xmm1,xmm1\npxor xmm2,xmm2\npxor xmm3,xmm3\nmov rax,rdi\nmov rcx,rdi\nand rcx,0xfff\ncmp rcx,0xfcf",
+    "saved": 1,
+    "why": "RSI is not preserved, so LEA can compute the sum directly in R11 and eliminate one copy. R10 and the final comparison flags remain unchanged."
+  },
+  "036d73be69": {
+    "rewrite": null,
+    "why": "The four-input byte minimum, equality vector, extracted mask, and ZF are all required under SSE2."
+  },
+  "ff9a6a630a": {
+    "rewrite": null,
+    "why": "All four equality vectors and the scalar mask results are preserved, including the intermediate masks, so the SSE2 extraction and concatenation operations remain necessary."
+  },
+  "c1fd385422": {
+    "rewrite": null,
+    "why": "BTS must insert the guaranteed bit before BSF, and both address arithmetic steps are needed to preserve RAX and the final subtraction flags."
+  },
+  "cfb014d8d9": {
+    "rewrite": null,
+    "why": "AVX2 needs separate scalar transfer and byte broadcast instructions, while the zero vector, masked RCX, and comparison flags are also live."
+  },
+  "5f210b8e1b": {
+    "rewrite": null,
+    "why": "The loaded vector, both comparison vectors, both extracted masks, pointer increment, and ZF are all live."
+  },
+  "33663627cb": {
+    "rewrite": null,
+    "why": "The loaded vector, two equality vectors, RAX mask, combined RCX mask, pointer increment, and ZF require the existing operations."
+  },
+  "ac55b2b401": {
+    "rewrite": "lea r8d,[rcx-0x1]\nxor r8d,ecx\nand eax,r8d",
+    "saved": 2,
+    "why": "LEA computes the zero-extended 32-bit decrement directly in R8, replacing MOV and SUB. AND already produces the same CF, PF, ZF, SF, and OF as the following TEST."
+  },
+  "df05a0041e": {
+    "rewrite": null,
+    "why": "The broadcast and zeroing are already single instructions, and producing preserved RCX plus CF and ZF still requires the copy, mask, and comparison."
+  },
+  "b5c5a3b758": {
+    "rewrite": null,
+    "why": "The loaded vector, both predicate masks, both scalar masks, advanced pointer, and ZF are all required."
+  },
+  "274f1c170c": {
+    "rewrite": null,
+    "why": "Both predicate masks and scalar results are preserved, so combining the masks cannot eliminate a transfer or the final flag-setting OR."
+  },
+  "04345f8eb0": {
+    "rewrite": "lea r8d,[rcx-0x1]\nxor r8d,ecx\nand eax,r8d",
+    "saved": 2,
+    "why": "LEA replaces the copy and 32-bit decrement while preserving the zero-extended result. The final TEST is redundant because AND sets every required flag identically."
+  },
+  "27a73ce6e6": {
+    "rewrite": null,
+    "why": "SSE2 needs the existing byte-broadcast sequence, and the masked page-offset comparison is required to preserve CF and ZF."
+  },
+  "4c453d2f10": {
+    "rewrite": null,
+    "why": "The loaded data must feed two preserved comparison vectors while XMM2 is zeroed, and both scalar masks and ZF are required."
+  },
+  "caf4fd5c1c": {
+    "rewrite": "movdqu xmm4,XMMWORD PTR [rdi+0x10]\nmovdqa xmm5,xmm4\nmovdqu xmm3,XMMWORD PTR [rdi+0x20]\npcmpeqb xmm4,xmm1\npcmpeqb xmm5,xmm2\nmovdqu xmm0,XMMWORD PTR [rdi+0x30]\npmovmskb edx,xmm5\nmovdqa xmm5,xmm3\npcmpeqb xmm3,xmm1\npcmpeqb xmm5,xmm2\npcmpeqb xmm2,xmm0\nshl rdx,0x10\npmovmskb r8d,xmm3\npmovmskb eax,xmm5\nshl r8,0x20\nshl rax,0x20\npcmpeqb xmm0,xmm1\nor rax,rdx\npmovmskb edx,xmm2\npmovmskb esi,xmm4\nshl rdx,0x30\nshl rsi,0x10\nor rsi,r8\nor rsi,rcx\npmovmskb ecx,xmm0\nshl rcx,0x30\nor rsi,rcx\nor rax,rdx",
+    "saved": 1,
+    "why": "Delay extracting the XMM2 mask until RDX's earlier mask has been consumed, then extract directly into EDX. This removes the temporary RSI-to-RDX copy while preserving all outputs and the final OR's ZF."
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "8f44030d82": {
+    "rewrite": null,
+    "why": "Each of the four preserved broadcast results needs its own shuffle, and the comparison supplies the required ZF."
+  },
+  "0b536a1219": {
+    "rewrite": null,
+    "why": "The filtering operations, state copies, packing, and stores all contribute to required results, with no removable instruction for arbitrary inputs."
+  },
+  "88f8c9424f": {
+    "rewrite": null,
+    "why": "The full-width filter state and both stored rows require the existing arithmetic, lane rearrangements, and state copies."
+  },
+  "c9abafe7de": {
+    "rewrite": null,
+    "why": "Both independent filter results use every lane, and the unknown masks and coefficients prevent combining their shuffle and arithmetic operations."
+  },
+  "3bf861278a": {
+    "rewrite": null,
+    "why": "The three distinct preserved shuffle results and the required comparison flags each need an instruction."
+  },
+  "c4bad9e16c": {
+    "rewrite": null,
+    "why": "All six multiply-add results feed the preserved packed output, and the arbitrary masks and coefficients provide no further simplification."
+  },
+  "f9fe9cf60c": {
+    "rewrite": null,
+    "why": "Every arithmetic result contributes to the output, and reconstructing the overlapping middle load would merely replace it with another instruction."
+  },
+  "f6107ae269": {
+    "rewrite": null,
+    "why": "Four preserved shuffle results and two independently addressed input halves already require six instructions."
+  },
+  "7a992f51be": {
+    "rewrite": null,
+    "why": "The preserved rolling state requires the copies and lane construction, while all four multiply-add terms contribute to the stored result."
+  },
+  "eef47107b1": {
+    "rewrite": null,
+    "why": "Both full-width accumulators and all preserved state registers require the existing copies, arithmetic, and lane rearrangements."
+  },
+  "df7b184290": {
+    "rewrite": null,
+    "why": "The four distinct preserved shuffle results and required comparison flags already use one instruction each."
+  },
+  "f6fd8d190d": {
+    "rewrite": null,
+    "why": "Every filter term and output lane is needed, and arbitrary shuffle masks and coefficients prevent a shorter arithmetic sequence."
+  },
+  "36893175d5": {
+    "rewrite": null,
+    "why": "All filter terms contribute to the preserved output, and replacing an overlapping load with a shuffle would not reduce the instruction count."
+  },
+  "bea66c092b": {
+    "rewrite": null,
+    "why": "The preserved full-width rolling state requires the copies and saturation rearrangement, and the remaining arithmetic produces the stored output."
+  },
+  "fa2668661a": {
+    "rewrite": null,
+    "why": "The load, pointer update, byte zero-extension and vector transfer, interleave, and addition each contribute to a required result."
+  },
+  "70c0fbf6d5": {
+    "rewrite": null,
+    "why": "The preserved masked-and-shifted vector and two scalar sums require the masking, shift, broadcast, addition, and two extractions."
+  },
+  "09074df1e9": {
+    "rewrite": "vmovq xmm14,rax\nvpmovsxbw xmm14,xmm14\nvpunpckldq xmm5,xmm3,xmm0\nvpshufd xmm8,xmm14,0x44\nvpmaddwd xmm5,xmm8,xmm5\nvpunpckldq xmm6,xmm2,xmm4\nvpshufd xmm8,xmm14,0xee\nvpmaddwd xmm6,xmm8,xmm6\nvpaddd xmm5,xmm5,xmm6\nvphaddd xmm5,xmm5,xmm5\nvpsrldq xmm9,xmm7,0x8\nvpaddd xmm5,xmm13,xmm5\nvpsrad xmm5,xmm5,xmm9\nvpackusdw xmm5,xmm5,xmm5\nvpminsw xmm5,xmm11,xmm5\nvmovd DWORD PTR [rdi],xmm5\nadd rdi,rsi\ndec r9d",
+    "saved": 3,
+    "why": "Only the first two dword results reach the store. Interleaving their inputs reduces the four coefficient shuffles and four multiply-adds to two each, with a horizontal add combining the partial sums."
+  },
+  "3f0a6a24bb": {
+    "rewrite": null,
+    "why": "The preserved shifted state and duplicated history require the existing rearrangements, while arbitrary bias lanes prevent simplifying the filter result."
+  },
+  "cc22889647": {
+    "rewrite": null,
+    "why": "Both filter inputs and all preserved history outputs need the existing load, copies, arithmetic, alignment, and unpack operations."
+  },
+  "a7ecd2b6b0": {
+    "rewrite": null,
+    "why": "Zero-extending the byte and transferring it to the vector needs two instructions, alongside the required pointer update and multiply-add."
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "cb97821800": {
+    "rewrite": null,
+    "why": "Each of the four required destination registers already uses a single widening load."
+  },
+  "8924d2a42c": {
+    "rewrite": null,
+    "why": "The interpolation requires both arbitrary lookup tables and the masked weight, while the four separate stores, lane extraction, and counter update remain necessary."
+  },
+  "a55da71494": {
+    "rewrite": null,
+    "why": "Both vector loads are required, and the comparison depends on both the upper bytes of the computed address and the replacement low byte."
+  },
+  "00d1e78848": {
+    "rewrite": null,
+    "why": "The broadcast must use the scalar value before doubling, and the doubled scalar, addition flags, bounded indices, and permuted vector are all required."
+  },
+  "e4a27687eb": {
+    "rewrite": null,
+    "why": "The byte broadcast needs the original sum, the word broadcast needs its separately masked and adjusted value, and all resulting registers and the final test result are required."
+  },
+  "623a946873": {
+    "rewrite": null,
+    "why": "The interpolation feeds all four required stores, which already incorporate the necessary lane extractions, and the counter update supplies the required ZF."
+  },
+  "90cd8c93f9": {
+    "rewrite": null,
+    "why": "Four stores at independently indexed addresses and the two required scalar updates already take one instruction each."
+  },
+  "ecff8d7cad": {
+    "rewrite": "",
+    "saved": 19,
+    "why": "Every destination is outside the preservation set, and the block has no stores or required flag results. Its loads and the entire dead computation can be removed."
+  },
+  "2e556d5b33": {
+    "rewrite": null,
+    "why": "The two separately addressed stores, pointer update, and counter update with required flags each need an instruction."
+  },
+  "8b29509c2d": {
+    "rewrite": "vpbroadcastd zmm21,DWORD PTR [r10-0x70]\nmov r9d,0xfffffffe\nvmovdqu32 zmm19,ZMMWORD PTR [rdx-0x2]\nkmovd k1,r9d\nvalignd zmm18,zmm24,zmm23,0xf\nvpaddw zmm23,zmm23,zmm19\nvmovdqu16 zmm19{k1},ZMMWORD PTR [rdx-0x4]\nvalignd zmm20,zmm25,zmm24,0x1\nvpaddw zmm19,zmm19,zmm21\nvpaddw zmm23,zmm23,ZMMWORD PTR [rdx+0x2]\nvpshrdd zmm17,zmm18,zmm24,0x10\nvpavgw zmm19,zmm19,ZMMWORD PTR [rdx+0x4]\nvpaddw zmm23,zmm23,zmm19\nvpshrdd zmm19,zmm24,zmm20,0x10\nvpsrlw zmm23,zmm23,0x2\nvpaddw zmm24,zmm24,zmm17\nvpaddw zmm18,zmm18,zmm21\nvpaddw zmm24,zmm24,zmm19\nvpavgw zmm18,zmm18,zmm20\nvpaddw zmm24,zmm24,zmm18\nvpsrlw zmm24,zmm24,0x2\ncmp r8d,0x40",
+    "saved": 2,
+    "why": "For each direction, VALIGND directly forms the two-word offset and VPSHRDD combines it with the original vector to form the one-word offset. This replaces each VALIGNQ plus two VPALIGNR instructions with two instructions, preserving the masked load, arithmetic, and final comparison."
+  },
+  "d6777c62aa": {
+    "rewrite": null,
+    "why": "The two full-width stores and the required pointer and counter updates already use one instruction each."
+  },
+  "1cb5f59c23": {
+    "rewrite": "",
+    "saved": 28,
+    "why": "All vector results, r9, and k1 are dead, and there are no stores or required flag results. Removing the entire sequence preserves every listed register."
+  },
+  "7a7b67a36f": {
+    "rewrite": null,
+    "why": "Each instruction produces a required scalar value, vector value, or final test flags, with no redundant intermediate copy."
+  },
+  "74c8df4a48": {
+    "rewrite": null,
+    "why": "The shift feeds two independently indexed permutations, and the duplicate output in zmm27 is also required."
+  },
+  "82d58fce65": {
+    "rewrite": "valignd zmm17,zmm26,zmm25,0xf\nvalignd zmm19,zmm27,zmm26,0x1\nvpbroadcastd zmm27,DWORD PTR [r10+0x158]\nvpsrlw zmm25,zmm16,0x2\nvpshrdd zmm16,zmm17,zmm26,0x10\nvpshrdd zmm18,zmm26,zmm19,0x10\nvpaddw zmm26,zmm26,zmm16\nvpaddw zmm17,zmm17,zmm20\nvpaddw zmm26,zmm26,zmm18\nvpavgw zmm17,zmm17,zmm19\nvpaddw zmm26,zmm26,zmm17\nvpsrlw zmm26,zmm26,0x2\nvpermw zmm27,zmm27,zmm26",
+    "saved": 2,
+    "why": "VALIGND forms each two-word neighbor vector directly, and VPSHRDD derives the corresponding one-word neighbor from it and the original zmm26. Four instructions therefore replace the six original alignment instructions without changing the filter or its outputs."
+  },
+  "ac29307f3f": {
+    "rewrite": null,
+    "why": "The 128-byte output needs two maximum-width stores, followed by the required pointer and counter updates."
+  },
+  "a85e48c104": {
+    "rewrite": null,
+    "why": "The required ZF depends on the shifted sum and the updated r9d, so the scalar construction, update, shift, and test all remain necessary."
+  },
+  "a6832c7e04": {
+    "rewrite": null,
+    "why": "The scalar construction and shift produce required rcx, while the r9 update, vector alignment, and final test each produce independent required results."
+  },
+  "623442a564": {
+    "rewrite": null,
+    "why": "The sign mask selects independent lookup results and interpolation weights, and the full interpolated vector, four separately addressed stores, and counter flags are required."
+  },
+  "e3975e39f5": {
+    "rewrite": "",
+    "saved": 9,
+    "why": "The scalar temporary and every vector destination are dead, and the block has no stores or required flag results. The entire sequence can be removed."
+  }
+}

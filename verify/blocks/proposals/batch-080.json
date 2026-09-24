@@ -1,0 +1,85 @@
+{
+  "b3985c4c90": {
+    "rewrite": null,
+    "why": "The arbitrary clamp and shuffle controls require both vector pipelines, and the stores, pointer updates, and final comparison are all needed."
+  },
+  "6010e9456b": {
+    "rewrite": null,
+    "why": "All three vector destinations and the cleared r12 are live, requiring four instructions even though two constants are identical."
+  },
+  "ea421ad00a": {
+    "rewrite": null,
+    "why": "SSE2 needs the word load with sign extension, transfer, and broadcast, plus the independent pointer load."
+  },
+  "576b48a7bf": {
+    "rewrite": "punpcklwd xmm1,xmm1\npsrad xmm1,0x10\npshufd xmm7,xmm1,0xb1\npshufd xmm8,xmm0,0xb1\npmuludq xmm7,xmm8\npmuludq xmm1,xmm0\nshufps xmm1,xmm7,0x88\npshufd xmm1,xmm1,0xd8\npaddd xmm4,xmm1\ninc r12d\ncmp r12d,ecx",
+    "saved": 1,
+    "why": "SHUFPS gathers the low dwords of both pairs of products, and PSHUFD restores their order, replacing two shuffles and an unpack with two instructions."
+  },
+  "64e8d516d7": {
+    "rewrite": "punpcklwd xmm2,xmm2\npsrad xmm2,0x10\npshufd xmm7,xmm1,0xb1\npshufd xmm8,xmm0,0xb1\npmuludq xmm7,xmm8\npmuludq xmm1,xmm0\nshufps xmm1,xmm7,0x88\npshufd xmm1,xmm1,0xd8\npshufd xmm7,xmm2,0xb1\npmuludq xmm7,xmm8\npmuludq xmm2,xmm0\nshufps xmm2,xmm7,0x88\npshufd xmm2,xmm2,0xd8\npaddd xmm5,xmm1\npaddd xmm6,xmm2\ninc r12d\ncmp r12d,r10d",
+    "saved": 3,
+    "why": "Reuse the unchanged shuffled multiplier in xmm8 for both products. Each product also uses SHUFPS and PSHUFD to replace the original three-instruction assembly of its low dwords."
+  },
+  "c595ca8dc3": {
+    "rewrite": null,
+    "why": "The three live vector copies and the independent clearing of r12 each require an instruction."
+  },
+  "84487c36ed": {
+    "rewrite": null,
+    "why": "All three vector destinations and the cleared r12 are live, so replacing a duplicate constant load with a copy would not reduce the count."
+  },
+  "70873510f9": {
+    "rewrite": null,
+    "why": "The scalar sign extension, vector transfer, broadcast, and pointer load are needed because SSE4.1 packed word sign-extension loads would read beyond the original two-byte load."
+  },
+  "93cb69dd2b": {
+    "rewrite": null,
+    "why": "The widening, multiplication, accumulation, index increment, and comparison each produce required results and cannot be combined within SSE4.1."
+  },
+  "08ada9ea6b": {
+    "rewrite": null,
+    "why": "The widening, two products, two accumulations, index increment, and comparison are all needed for the live results."
+  },
+  "4c2292f093": {
+    "rewrite": null,
+    "why": "Each of the three live vector destinations needs its copy, and r12 needs a separate clearing instruction."
+  },
+  "6a6a9b0a65": {
+    "rewrite": null,
+    "why": "The three full-width vector results and cleared r12 require four instructions despite the duplicate constant."
+  },
+  "cb00417786": {
+    "rewrite": null,
+    "why": "Three independent live ymm copies and the clearing of r12 leave no removable instruction."
+  },
+  "01aabc5f50": {
+    "rewrite": null,
+    "why": "The two scalar broadcasts, vector zero, and pointer/index calculations are necessary, including the 32-bit truncation before the 64-bit negation."
+  },
+  "4e2e810691": {
+    "rewrite": null,
+    "why": "Arbitrary unpack operands, coefficients, and biases require both multiply-add paths, their shifts and saturating pack, followed by the store and flag-producing increment."
+  },
+  "ce33a67bcd": {
+    "rewrite": null,
+    "why": "Both broadcasts, the vector zero, and both pointer updates are live, and the index must retain the original 32-bit shift followed by 64-bit negation."
+  },
+  "13c7f852dc": {
+    "rewrite": null,
+    "why": "Both buffers require independent unpack, multiply-add, bias, shift, and pack operations for arbitrary vector inputs, with both stores and the final index update preserved."
+  },
+  "c5a48bd303": {
+    "rewrite": null,
+    "why": "The dword and qword broadcasts, constant load, and pointer/index calculations each require their existing instructions."
+  },
+  "a7ae17eb5d": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+rsi*1]\npshufd xmm1,xmm0,0xb1\npmuldq xmm0,xmm2\npmuldq xmm1,xmm2\npaddq xmm0,xmm3\npaddq xmm1,xmm3\npsrlq xmm0,0x12\npsllq xmm1,0xe\npblendw xmm0,xmm1,0xcc\npminsd xmm0,xmm4\nmovdqu XMMWORD PTR [rdi+rsi*1],xmm0\nadd rsi,0x10",
+    "saved": 2,
+    "why": "Shifting the odd qword results left by 14 places their original bits 18 through 49 in the high dwords. PBLENDW then interleaves these with the right-shifted even results, replacing both shuffles and the unpack with one blend."
+  },
+  "c1edd62314": {
+    "rewrite": null,
+    "why": "Both broadcasts, the constant load, both pointer updates, and the truncated shift followed by 64-bit negation are required for the live outputs."
+  }
+}

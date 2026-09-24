@@ -1,0 +1,95 @@
+{
+  "aa9e20a4fd": {
+    "rewrite": "imul r9d,eax,0x10\nmovdqa xmm5,XMMWORD PTR [CONST_1]\nmovdqa xmm4,XMMWORD PTR [CONST_2]",
+    "saved": 1,
+    "why": "A three-operand 32-bit imul computes the same truncated left shift and zero-extends r9, replacing the copy and shift because flags are dead."
+  },
+  "22a80e8262": {
+    "rewrite": null,
+    "why": "The arbitrary dword arithmetic, live packed intermediates, transpose outputs, and required test flags leave no removable instructions within SSE4.1."
+  },
+  "2dbf5cd445": {
+    "rewrite": "movdqa XMMWORD PTR [rdx+0x40],xmm0\nmovdqa XMMWORD PTR [rdx+0x50],xmm1\nmovdqa XMMWORD PTR [rdx+0x60],xmm2\nmovdqa XMMWORD PTR [rdx+0x70],xmm7\nmovdqa xmm0,xmm4\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npaddsw xmm4,xmm4\npaddsw xmm4,xmm0\npmulhrsw xmm4,XMMWORD PTR [CONST_2]\nmovdqa XMMWORD PTR [rdx],xmm4\nmovdqa xmm0,xmm5\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npaddsw xmm5,xmm5\npaddsw xmm5,xmm0\npmulhrsw xmm5,XMMWORD PTR [CONST_2]\nmovdqa XMMWORD PTR [rdx+0x10],xmm5\nmovdqa xmm0,xmm6\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npaddsw xmm6,xmm6\npaddsw xmm6,xmm0\npmulhrsw xmm6,XMMWORD PTR [CONST_2]\nmovdqa XMMWORD PTR [rdx+0x20],xmm6\nmovdqa xmm0,xmm7\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npaddsw xmm7,xmm7\npaddsw xmm7,xmm0\npmulhrsw xmm7,XMMWORD PTR [CONST_2]\nmovdqa XMMWORD PTR [rdx+0x30],xmm7\nmovdqa xmm7,XMMWORD PTR [CONST_2]\nmovdqa xmm5,xmm2\npmulhrsw xmm5,XMMWORD PTR [CONST_1]\npaddsw xmm2,xmm2\npaddsw xmm2,xmm5\npmulhrsw xmm2,xmm7\nmovdqa xmm0,xmm3\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npaddsw xmm3,xmm3\npaddsw xmm3,xmm0\npmulhrsw xmm3,xmm7\nmovdqa xmm6,xmm1\npmulhrsw xmm6,XMMWORD PTR [CONST_1]\npaddsw xmm1,xmm1\npaddsw xmm1,xmm6\npmulhrsw xmm1,xmm7\nmovdqa xmm4,XMMWORD PTR [rdx+0x40]\nmovdqa xmm0,xmm4\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npaddsw xmm4,xmm4\npaddsw xmm0,xmm4\npmulhrsw xmm0,xmm7",
+    "saved": 3,
+    "why": "Use xmm0 as the temporary for the first four results and read coefficients directly, retaining the original xmm1, xmm2, and xmm7 until consumed. This removes three reloads while preserving all eight stores and every final register value."
+  },
+  "5b84746564": {
+    "rewrite": "shufps xmm0,xmm2,0x88\nshufps xmm4,xmm6,0x88\npslld xmm0,0x10\npsrad xmm0,0x10\npslld xmm4,0x10\npsrad xmm4,0x10\npackssdw xmm0,xmm4",
+    "saved": 11,
+    "why": "Only xmm0 is live; select dwords 0 and 2 from each input, sign-extend their low words, and pack them to obtain the same eight output words."
+  },
+  "ee1275ffe4": {
+    "rewrite": "packssdw xmm0,xmm1",
+    "saved": 3,
+    "why": "Only the pack into xmm0 affects a preserved value."
+  },
+  "c2d4487e32": {
+    "rewrite": "pmulld xmm0,xmm14\npaddd xmm0,xmm11\npsrad xmm0,0xc",
+    "saved": 21,
+    "why": "Only the multiply, add, and shift producing xmm0 are live."
+  },
+  "1b06c8afe2": {
+    "rewrite": null,
+    "why": "Every product is live and requires its multiplication plus any destination initialization, and xmm4 must also be zeroed."
+  },
+  "f9b0a8f270": {
+    "rewrite": "movdqa xmm8,xmm3\nmovdqa xmm9,xmm5\npmulld xmm8,XMMWORD PTR [CONST_1]\npmulld xmm9,XMMWORD PTR [CONST_1]\npmulld xmm5,XMMWORD PTR [CONST_2]\npmulld xmm3,XMMWORD PTR [CONST_2]\npaddd xmm3,xmm9\npsubd xmm5,xmm8\nmovdqa xmm8,xmm7\nmovdqa xmm9,xmm1\npmulld xmm8,XMMWORD PTR [CONST_3]\npmulld xmm9,XMMWORD PTR [CONST_3]\npmulld xmm1,XMMWORD PTR [CONST_4]\npmulld xmm7,XMMWORD PTR [CONST_4]\npaddd xmm7,xmm9\npsubd xmm1,xmm8\nmovdqa xmm8,xmm6\nmovdqa xmm9,xmm2\npmulld xmm8,XMMWORD PTR [CONST_5]\npmulld xmm9,XMMWORD PTR [CONST_5]\npmulld xmm2,XMMWORD PTR [CONST_6]\npmulld xmm6,XMMWORD PTR [CONST_6]\npaddd xmm6,xmm9\npsubd xmm2,xmm8\npmulld xmm0,xmm14\npmulld xmm4,xmm14",
+    "saved": 3,
+    "why": "Read coefficients directly through pmulld memory operands. Each rotation then needs two input copies instead of two constant loads and one input copy."
+  },
+  "07bdc7bbd4": {
+    "rewrite": "paddd xmm6,xmm11\npsrad xmm6,0xc\npaddd xmm0,xmm11\npaddd xmm0,xmm4\npsrad xmm0,0xc\npaddd xmm0,xmm6\npmaxsd xmm0,xmm12\npminsd xmm0,xmm13",
+    "saved": 46,
+    "why": "Only the shifted xmm6 contribution and the add, shift, and clamp chain ending in xmm0 affect a preserved value."
+  },
+  "fb03598792": {
+    "rewrite": "paddd xmm0,xmm9",
+    "saved": 11,
+    "why": "The addition into xmm0 is the only instruction affecting a preserved result."
+  },
+  "905a573be1": {
+    "rewrite": "pxor xmm6,xmm6\npmulhrsw xmm0,XMMWORD PTR [CONST_2]\npmulhrsw xmm1,XMMWORD PTR [CONST_2]\npmulhrsw xmm2,XMMWORD PTR [CONST_2]\npmulhrsw xmm3,XMMWORD PTR [CONST_2]\npaddw xmm0,XMMWORD PTR [rdi]\npaddw xmm1,XMMWORD PTR [rdi+rsi*1]\npaddw xmm2,XMMWORD PTR [rdi+rsi*2]\npaddw xmm3,XMMWORD PTR [rdi+rcx*1]\npminsw xmm0,XMMWORD PTR [CONST_1]\npminsw xmm1,XMMWORD PTR [CONST_1]\npminsw xmm2,XMMWORD PTR [CONST_1]\npminsw xmm3,XMMWORD PTR [CONST_1]\npmaxsw xmm0,xmm6\npmaxsw xmm1,xmm6\npmaxsw xmm2,xmm6\npmaxsw xmm3,xmm6\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm1\nmovdqa XMMWORD PTR [rdi+rsi*2],xmm2\nmovdqa XMMWORD PTR [rdi+rcx*1],xmm3",
+    "saved": 2,
+    "why": "Fold both constant loads into pmulhrsw and pminsw memory operands, preserving all pixel arithmetic, memory accesses, and stores."
+  },
+  "5a5cc8bab1": {
+    "rewrite": "",
+    "saved": 15,
+    "why": "Every instruction writes only unpreserved registers, with no memory stores or required flag changes."
+  },
+  "c229bbbe0e": {
+    "rewrite": "movdqa xmm0,xmm7\npackssdw xmm0,xmm6",
+    "saved": 6,
+    "why": "The preserved xmm0 depends only on packing the original xmm7 and xmm6; all other packs and copies are dead."
+  },
+  "8171d5008b": {
+    "rewrite": "paddd xmm0,xmm0\npaddd xmm1,xmm1\npackssdw xmm0,xmm1",
+    "saved": 9,
+    "why": "Only the doubled inputs xmm0 and xmm1 contribute to the preserved packed result."
+  },
+  "ab39fd24c2": {
+    "rewrite": null,
+    "why": "All four rounded products and saturated sums are live, and the destructive SSE operands require initialization of each product destination."
+  },
+  "fbc88793c1": {
+    "rewrite": null,
+    "why": "Each stored vector needs a load, addition, and both clamps, while the pointer update and decrement are also live."
+  },
+  "8ffb1ddac1": {
+    "rewrite": null,
+    "why": "All four stores, the r9 update, and the resulting flags are required."
+  },
+  "45b2369364": {
+    "rewrite": null,
+    "why": "The live all-ones mask and four independent dword increments already require five instructions."
+  },
+  "552208c23b": {
+    "rewrite": null,
+    "why": "The eight dword shifts and four saturating packs are needed, including the shifted odd-numbered registers that remain live."
+  },
+  "6ea1684494": {
+    "rewrite": "pcmpeqd xmm8,xmm8\npsubd xmm0,xmm8\npsrad xmm0,0x1",
+    "saved": 19,
+    "why": "Only xmm0's wrapping increment and arithmetic right shift affect a preserved result."
+  }
+}

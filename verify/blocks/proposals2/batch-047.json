@@ -1,0 +1,85 @@
+{
+  "1349bb0d5e": {
+    "rewrite": null,
+    "why": "Both blend outputs, both correction vectors, and both weight vectors must survive, so the copies and separate SSSE3 arithmetic operations are needed."
+  },
+  "7292f9bc79": {
+    "rewrite": null,
+    "why": "All blend intermediates are required final values, and the pointer addition must also supply the carry flag preserved by the final decrement."
+  },
+  "a471e1ec0a": {
+    "rewrite": "movdqa xmm5,XMMWORD PTR [r9]\nmovdqa xmm0,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rdi+0x10]\npsubw xmm0,XMMWORD PTR [rdx]\npsubw xmm1,XMMWORD PTR [rdx+0x10]\nmovdqa xmm4,xmm5\npunpcklbw xmm4,xmm6\npunpckhbw xmm5,xmm6\npmullw xmm4,xmm7\npmullw xmm5,xmm7\npmulhrsw xmm0,xmm4\npmulhrsw xmm1,xmm5\npaddw xmm0,XMMWORD PTR [rdi]\npaddw xmm1,XMMWORD PTR [rdi+0x10]\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\nmovdqa xmm5,XMMWORD PTR [r9+0x10]\nmovdqa xmm0,XMMWORD PTR [rdi+0x20]\nmovdqa xmm1,XMMWORD PTR [rdi+0x30]\nmovdqa xmm2,xmm0\npsubw xmm2,XMMWORD PTR [rdx+0x20]\nmovdqa xmm3,xmm1\npsubw xmm3,XMMWORD PTR [rdx+0x30]\nadd r9,0x20\nadd rdx,0x40\nmovdqa xmm4,xmm5\npunpcklbw xmm4,xmm6\npunpckhbw xmm5,xmm6\npmullw xmm4,xmm7\npmullw xmm5,xmm7\npmulhrsw xmm2,xmm4\npmulhrsw xmm3,xmm5\npaddw xmm0,xmm2\npaddw xmm1,xmm3\nmovdqa XMMWORD PTR [rdi+0x20],xmm0\nmovdqa XMMWORD PTR [rdi+0x30],xmm1\nadd rdi,rsi\ndec r8d",
+    "saved": 2,
+    "why": "Compute the first pair of corrections directly in xmm0/xmm1 and reload the original destination values through PADDW memory operands, eliminating two copies. The subsequent pair overwrites xmm2/xmm3 before their final values are observed."
+  },
+  "887e31ec0f": {
+    "rewrite": null,
+    "why": "Both zero-extended row results and both rounded correction vectors are required, so combining the rows would require extra packing and extraction instructions."
+  },
+  "814c97b138": {
+    "rewrite": null,
+    "why": "The two independently addressed rows already share one vector blend, and its correction vector, split stores, and pointer updates all remain required."
+  },
+  "b5b001a66e": {
+    "rewrite": null,
+    "why": "Both input pairs feed required blend outputs and correction vectors, leaving no removable load or arithmetic operation under SSSE3."
+  },
+  "da2d86312d": {
+    "rewrite": null,
+    "why": "The two blends use independent arbitrary weights and must retain both outputs and corrections, while the scalar updates provide required register values and flags."
+  },
+  "45eb3742ae": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\npsubw xmm0,XMMWORD PTR [rdi]\npsubw xmm1,XMMWORD PTR [rdi+0x10]\npmulhrsw xmm0,xmm4\npmulhrsw xmm1,xmm5\npaddw xmm0,XMMWORD PTR [rdi]\nmovdqa xmm2,XMMWORD PTR [rdi+0x20]\npaddw xmm1,XMMWORD PTR [rdi+0x10]\nmovdqa xmm3,XMMWORD PTR [rdx+0x20]\nadd rdx,0x40\npsubw xmm3,xmm2\npmulhrsw xmm3,xmm6\npaddw xmm2,xmm3\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\nmovdqa XMMWORD PTR [rdi+0x20],xmm2\nadd rdi,rsi\ndec r8d",
+    "saved": 2,
+    "why": "The third blend overwrites the first two correction vectors, so compute the first two blends directly in xmm0/xmm1. Folding their destination loads into PSUBW and PADDW memory operands removes two instructions."
+  },
+  "ba12c133c5": {
+    "rewrite": null,
+    "why": "The original second-row value, expanded weights, correction vector, and shifted final result are all live, so the packing and extraction steps cannot be dropped."
+  },
+  "ea8886b371": {
+    "rewrite": null,
+    "why": "The block already blends both rows together, and the arbitrary shuffle mask, live correction vector, and separate row addresses require the remaining operations."
+  },
+  "9e36306bea": {
+    "rewrite": null,
+    "why": "Two arbitrary shuffle masks produce independently required weight vectors, and both blend outputs and corrections must also survive."
+  },
+  "0e996a24fd": {
+    "rewrite": null,
+    "why": "The shuffled weights are already shared between the blends, and all four result and correction registers remain live."
+  },
+  "8b2125da30": {
+    "rewrite": "movd xmm5,DWORD PTR [r9+r8*2]\npshufb xmm5,xmm4\nmovdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\npsubw xmm0,XMMWORD PTR [rdi]\npsubw xmm1,XMMWORD PTR [rdi+0x10]\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npaddw xmm0,XMMWORD PTR [rdi]\npaddw xmm1,XMMWORD PTR [rdi+0x10]\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\nmovdqa xmm0,XMMWORD PTR [rdi+0x20]\nmovdqa xmm2,XMMWORD PTR [rdx+0x20]\nmovdqa xmm1,XMMWORD PTR [rdi+0x30]\nmovdqa xmm3,XMMWORD PTR [rdx+0x30]\nadd rdx,0x40\npsubw xmm2,xmm0\npsubw xmm3,xmm1\npmulhrsw xmm2,xmm5\npmulhrsw xmm3,xmm5\npaddw xmm0,xmm2\npaddw xmm1,xmm3\nmovdqa XMMWORD PTR [rdi+0x20],xmm0\nmovdqa XMMWORD PTR [rdi+0x30],xmm1\nadd rdi,rsi\ninc r8",
+    "saved": 2,
+    "why": "The second pair overwrites the first pair's correction registers, allowing the first blends to use xmm0/xmm1 directly. Memory operands for the original destination values eliminate two standalone loads while preserving every store and final register value."
+  },
+  "139d239737": {
+    "rewrite": null,
+    "why": "The arbitrary integer product and accumulation require separate instructions, while the final rbp value and comparison sign flag require the LEA and CMP."
+  },
+  "47118f469c": {
+    "rewrite": null,
+    "why": "The vector load and store, live index increment, and comparison supplying the required sign and overflow flags are all necessary."
+  },
+  "9180fd31dd": {
+    "rewrite": null,
+    "why": "SSSE3 needs the narrow load and two shuffles to broadcast this word without reading additional bytes, and rcx must separately be zeroed."
+  },
+  "df56cd2497": {
+    "rewrite": null,
+    "why": "The address update and rcx zeroing are live, and the word broadcast requires its narrow load and two shuffles under SSSE3."
+  },
+  "5885f10057": {
+    "rewrite": null,
+    "why": "The required address calculation and rcx zeroing cannot replace any of the narrow load and two shuffle instructions needed for the word broadcast."
+  },
+  "006521d828": {
+    "rewrite": null,
+    "why": "Both shifts and the zero result are live, and SSSE3 has no fused instruction for the signed word multiply-add followed by accumulation into xmm6."
+  },
+  "fb6b716a03": {
+    "rewrite": null,
+    "why": "All four signed word results are required, and each extracted low word needs sign extension while three shifts expose the remaining words."
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "74afa6f392": {
+    "rewrite": null,
+    "why": "Each input requires widening and byte duplication, and the broadcast mask in ymm8 is itself a required final value."
+  },
+  "9c0a8c60a1": {
+    "rewrite": null,
+    "why": "The three independent expansions each require two AVX2 operations, and the mask, load result, pointer update and flags must all be preserved."
+  },
+  "a2acadb2dd": {
+    "rewrite": null,
+    "why": "Each of the four inputs needs two operations to expand and duplicate its low sixteen bytes, while the broadcast mask remains live."
+  },
+  "dd314102a5": {
+    "rewrite": null,
+    "why": "Both the extracted high half and saturated packed result are live, and vzeroupper also clears upper halves of other preserved registers."
+  },
+  "578cb40cf6": {
+    "rewrite": null,
+    "why": "Both extracted halves and both packed results must remain, and vzeroupper has required effects on other live vector registers."
+  },
+  "34aa7aa483": {
+    "rewrite": null,
+    "why": "The three extracted halves and three saturated pack results are all required, along with the upper-half clearing performed by vzeroupper."
+  },
+  "18277b8fe2": {
+    "rewrite": null,
+    "why": "All four extracted halves and packed outputs are live, and removing vzeroupper would leave other preserved upper halves uncleared."
+  },
+  "26c3a63033": {
+    "rewrite": null,
+    "why": "The loaded count in ymm8, shifted vector, scalar load and pointer update with matching flags are all required final results."
+  },
+  "238e9fdc49": {
+    "rewrite": null,
+    "why": "The live count load is already shared by both necessary shifts, and the scalar load and flag-setting pointer update cannot be dropped."
+  },
+  "7642319e9f": {
+    "rewrite": null,
+    "why": "Each of the three vectors requires its own shift, while the shared count, scalar load result and pointer update are also live."
+  },
+  "f7619c774a": {
+    "rewrite": null,
+    "why": "Four independent vector shifts already share one required count load, and the scalar load and pointer update must be retained."
+  },
+  "8c4c524bb9": {
+    "rewrite": null,
+    "why": "The three independent logical shifts share a live count register, and both loads and the flag-setting pointer update are necessary."
+  },
+  "ef08b9e217": {
+    "rewrite": null,
+    "why": "Both equality masks require comparisons, and the constant vector in ymm8 is a required final value that prevents folding away its load."
+  },
+  "373c02db35": {
+    "rewrite": null,
+    "why": "Arbitrary input bits require both shifts and both OR operations per output, and AVX2 has no ternary OR to combine the merges."
+  },
+  "97fd3960ab": {
+    "rewrite": null,
+    "why": "The shifts isolate the required fields, and constructing a shared low-nibble mask would cost as many instructions as it saves."
+  },
+  "01dd41f445": {
+    "rewrite": null,
+    "why": "The shifts extract all required fields, and synthesizing a shared five-bit mask does not reduce the instruction count."
+  },
+  "1780bdbf24": {
+    "rewrite": null,
+    "why": "Each input needs its high field and two bounded lower fields, and constructing masks for the five-bit and six-bit fields cannot shorten this sequence."
+  },
+  "c3d2e4e372": {
+    "rewrite": null,
+    "why": "AVX2 needs the high-half extraction and two widening operations to produce both required vectors from the full input."
+  },
+  "5fd76963c2": {
+    "rewrite": null,
+    "why": "Each input requires a high-half extraction and two widening operations, with all four widened outputs preserved."
+  },
+  "1b7ead8850": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nvpermq ymm0,ymm0,0xd8\nvpunpckhbw ymm4,ymm0,ymm0\nvpunpcklbw ymm0,ymm0,ymm0\nvpermq ymm1,ymm1,0xd8\nvpunpckhbw ymm5,ymm1,ymm1\nvpunpcklbw ymm1,ymm1,ymm1\nvpermq ymm2,ymm2,0xd8\nvpunpckhbw ymm6,ymm2,ymm2\nvpunpcklbw ymm2,ymm2,ymm2\nvpermq ymm3,ymm3,0xd8\nvpunpckhbw ymm7,ymm3,ymm3\nvpunpcklbw ymm3,ymm3,ymm3\nvbroadcasti128 ymm8,XMMWORD PTR [CONST_1]\nadd rsi,0x20",
+    "saved": 8,
+    "why": "Permuting qwords into order 0,2,1,3 lets self-unpacks directly duplicate every byte into the correct low-half and high-half output vectors, replacing five operations with three per input. The broadcast remains to preserve ymm8, and the scalar load and flag-setting pointer update are unchanged."
+  }
+}

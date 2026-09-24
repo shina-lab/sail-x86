@@ -1,0 +1,86 @@
+{
+  "4ea9762a0f": {
+    "rewrite": "vmovdqa32 ymm17,YMMWORD PTR [rdi]\nvinserti32x8 zmm17,zmm17,YMMWORD PTR [rdi+rsi*1],0x1\nvpunpcklbw zmm16,zmm17,ZMMWORD PTR [rdx]\nvpunpckhbw zmm17,zmm17,ZMMWORD PTR [rdx]\nadd rdx,0x40\nvpmaddubsw zmm16,zmm16,zmm19\nvpmaddubsw zmm17,zmm17,zmm20\nvpmulhrsw zmm16,zmm16,zmm21\nvpmulhrsw zmm17,zmm17,zmm21\nvpackuswb zmm16,zmm16,zmm17\nvmovdqa32 YMMWORD PTR [rdi],ymm16\nvextracti32x8 YMMWORD PTR [rdi+rsi*1],zmm16,0x1\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Fold the dead zmm18 load into both unpack instructions, reading the same original 64-byte range before advancing rdx. The stores, preserved registers, and final subtraction flags remain unchanged."
+  },
+  "c8be68af11": {
+    "rewrite": null,
+    "why": "The narrow loads, coefficient duplication, saturating blend, and pointer updates have no removable operation without changing the required packed zmm0 value."
+  },
+  "12c3d20116": {
+    "rewrite": null,
+    "why": "The arbitrary coefficient shuffle and live packed zmm0 require the existing blend operations, and folding the narrow pixel load into an unpack would read additional bytes."
+  },
+  "c69dc251e3": {
+    "rewrite": null,
+    "why": "The two-row vector layout and required packed zmm0 value need the existing loads, shuffles, arithmetic, and extraction."
+  },
+  "086e2dac46": {
+    "rewrite": "vmovdqa32 xmm17,XMMWORD PTR [rdi]\nvinserti32x4 ymm17,ymm17,XMMWORD PTR [rdi+rsi*1],0x1\nvpbroadcastd ymm19,DWORD PTR [r9+r8*2]\nvpshufb ymm19,ymm19,ymm20\nvpunpcklbw ymm16,ymm17,YMMWORD PTR [rdx]\nvpunpckhbw ymm17,ymm17,YMMWORD PTR [rdx]\nadd rdx,0x20\nvpmaddubsw ymm16,ymm16,ymm19\nvpmaddubsw ymm17,ymm17,ymm19\nvpmulhrsw ymm16,ymm16,ymm21\nvpmulhrsw ymm17,ymm17,ymm21\nvpackuswb ymm16,ymm16,ymm17\nvmovdqa32 XMMWORD PTR [rdi],xmm16\nvextracti32x4 XMMWORD PTR [rdi+rsi*1],zmm16,0x1\nlea rdi,[rdi+rsi*2]\nadd r8,0x2",
+    "saved": 1,
+    "why": "Use the original 32-byte source range directly in both unpack instructions and remove the temporary ymm18 load. Advance rdx after those reads while retaining the original stores and final flag-producing add."
+  },
+  "04bb78e9b2": {
+    "rewrite": "vmovdqa32 ymm17,YMMWORD PTR [rdi]\nvinserti32x8 zmm17,zmm17,YMMWORD PTR [rdi+rsi*1],0x1\nvpbroadcastd zmm19,DWORD PTR [r9+r8*2]\nvpshufb zmm19,zmm19,zmm20\nvpunpcklbw zmm16,zmm17,ZMMWORD PTR [rdx]\nvpunpckhbw zmm17,zmm17,ZMMWORD PTR [rdx]\nadd rdx,0x40\nvpmaddubsw zmm16,zmm16,zmm19\nvpmaddubsw zmm17,zmm17,zmm19\nvpmulhrsw zmm16,zmm16,zmm21\nvpmulhrsw zmm17,zmm17,zmm21\nvpackuswb zmm16,zmm16,zmm17\nvmovdqa32 YMMWORD PTR [rdi],ymm16\nvextracti32x8 YMMWORD PTR [rdi+rsi*1],zmm16,0x1\nlea rdi,[rdi+rsi*2]\nadd r8,0x2",
+    "saved": 1,
+    "why": "Fold the temporary zmm18 load into both unpack instructions using the same original source address. Delaying the rdx increment until after those reads preserves all stores, live registers, and required flags."
+  },
+  "b4d1b9b771": {
+    "rewrite": "vpbroadcastw zmm19,WORD PTR [r9+r8*2]\nvmovdqa32 zmm17,ZMMWORD PTR [rdi]\nvpunpcklbw zmm16,zmm17,ZMMWORD PTR [rdx]\nvpunpckhbw zmm17,zmm17,ZMMWORD PTR [rdx]\nadd rdx,0x40\nvpmaddubsw zmm16,zmm16,zmm19\nvpmaddubsw zmm17,zmm17,zmm19\nvpmulhrsw zmm16,zmm16,zmm21\nvpmulhrsw zmm17,zmm17,zmm21\nvpackuswb zmm16,zmm16,zmm17\nvmovdqa32 ZMMWORD PTR [rdi],zmm16\nadd rdi,rsi\ninc r8",
+    "saved": 1,
+    "why": "Replace both uses of the temporary zmm18 with the original memory operand and remove its standalone load. Both reads precede the rdx update and destination store, with the original final increment preserving the required flags."
+  },
+  "d9546fc56b": {
+    "rewrite": null,
+    "why": "Both dot products require the copied accumulator, and the saturation, rounding, permutation, updates, and final comparison all affect required outputs."
+  },
+  "f2d42bdee3": {
+    "rewrite": null,
+    "why": "Two distinct word loads and stores plus both pointer updates and the live counter require all seven instructions."
+  },
+  "aad1562d54": {
+    "rewrite": null,
+    "why": "The eight 128-bit load/store pairs already use the widest allowed vector width, and all three pointer/counter updates are live."
+  },
+  "c7f454ef78": {
+    "rewrite": null,
+    "why": "The narrow loads, arbitrary shuffle, saturating arithmetic, and separate word stores all contribute to required outputs, including the final rax value."
+  },
+  "5a4cc17b50": {
+    "rewrite": null,
+    "why": "SSSE3 has no direct dword extraction to memory, so splitting the packed result into the two required dword stores still needs a shift or shuffle."
+  },
+  "5387f3fc51": {
+    "rewrite": null,
+    "why": "Both rows require independent shuffles and saturating arithmetic before packing, and both stores and pointer/counter updates are live."
+  },
+  "bf8ef08a61": {
+    "rewrite": null,
+    "why": "The two overlapping loads feed independently shuffled and rounded results, and packing, storing, and the three updates are all required."
+  },
+  "27b766cf91": {
+    "rewrite": null,
+    "why": "All four independently shuffled sample vectors contribute to the two stores, while the first packed result and all pointer/counter updates remain live."
+  },
+  "3a35fa8940": {
+    "rewrite": null,
+    "why": "The scalar multiply/add, constant load, SSE dword broadcast, and flag-producing r8 update all produce required outputs."
+  },
+  "fbf6d3a541": {
+    "rewrite": null,
+    "why": "The word broadcast needs both shuffle/unpack steps with the available values, and the scalar result, constant, doubled bytes, and addition flags are all live."
+  },
+  "c961b8bef6": {
+    "rewrite": null,
+    "why": "The arbitrary byte shuffle can select either copy of the loaded dword or its zero padding, so the duplication cannot be omitted before the multiply-add."
+  },
+  "ee9d02cba4": {
+    "rewrite": null,
+    "why": "The constant mask must remain in xmm4, and duplicating the source, forming adjacent-byte pairs, and multiplying each pair all contribute to live outputs."
+  },
+  "dc2d72384a": {
+    "rewrite": null,
+    "why": "Both loaded vectors have independently observable results after the arbitrary byte shuffle and multiply-add, leaving no dead instruction."
+  }
+}

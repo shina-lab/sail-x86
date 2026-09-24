@@ -1,0 +1,88 @@
+{
+  "f65bae526f": {
+    "rewrite": "vmovdqu ymm4,YMMWORD PTR [rcx-0x60]\nvperm2i128 ymm6,ymm4,YMMWORD PTR [rcx+0x20],0x31\nvperm2i128 ymm4,ymm4,YMMWORD PTR [rcx+0x20],0x20\nvmovdqu ymm5,YMMWORD PTR [rcx-0x20]\nvperm2i128 ymm7,ymm5,YMMWORD PTR [rcx+0x60],0x31\nvperm2i128 ymm5,ymm5,YMMWORD PTR [rcx+0x60],0x20",
+    "saved": 2,
+    "why": "Load adjacent lower halves together and construct each pair of outputs with two memory-source lane permutations. The wider loads read only bytes loaded by the original."
+  },
+  "32077eb79b": {
+    "rewrite": "add rax,0x8\nadd r8,0x100\nsub r9,0x100\nvmovdqu ymm7,YMMWORD PTR [rdx-0x60]\nvperm2i128 ymm3,ymm7,YMMWORD PTR [rdx+0x20],0x31\nvperm2i128 ymm7,ymm7,YMMWORD PTR [rdx+0x20],0x20\nvmovdqu ymm0,YMMWORD PTR [rdx-0x40]\nvperm2i128 ymm4,ymm0,YMMWORD PTR [rdx+0x40],0x31\nvperm2i128 ymm0,ymm0,YMMWORD PTR [rdx+0x40],0x20\nvpxor ymm1,ymm1,ymm1\nvmovdqa ymm2,ymm1\nvmovdqa ymm5,ymm1\nvmovdqa ymm6,ymm1\ntest r10d,r10d",
+    "saved": 2,
+    "why": "Each adjacent pair of lower halves can share a 256-bit load and feed two memory-source lane permutations, reducing the eight vector-loading instructions to six. All scalar updates, zero outputs, and final flags are retained."
+  },
+  "7f78e8e8f8": {
+    "rewrite": "vmovdqu ymm5,YMMWORD PTR [rcx-0x60]\nvperm2i128 ymm1,ymm5,YMMWORD PTR [rcx+0x20],0x31\nvperm2i128 ymm5,ymm5,YMMWORD PTR [rcx+0x20],0x20\nvmovdqu ymm2,YMMWORD PTR [rcx-0x40]\nvperm2i128 ymm6,ymm2,YMMWORD PTR [rcx+0x40],0x31\nvperm2i128 ymm2,ymm2,YMMWORD PTR [rcx+0x40],0x20",
+    "saved": 2,
+    "why": "Pair adjacent lower halves in 256-bit loads and select the corresponding upper halves with memory-source lane permutations. All loaded bytes belong to the original accesses, and flags remain unchanged."
+  },
+  "0983839bde": {
+    "rewrite": null,
+    "why": "The dependent rounded multiplications cannot be contracted, and folding the narrow coefficient loads into AVX2 multiply operands would read additional bytes."
+  },
+  "3dc7183e7b": {
+    "rewrite": null,
+    "why": "With arbitrary incoming ymm0 and ymm1, the word unpacks, wrapping additions, and saturating packs are necessary, along with both stores and the live scalar updates."
+  },
+  "34d50d5b20": {
+    "rewrite": null,
+    "why": "Both rounded multiplications, the store, and the flag-setting update are required, and the otherwise unused xmm2 load also has a preserved final value."
+  },
+  "84cace8104": {
+    "rewrite": null,
+    "why": "The eight distinct 256-bit stores already use the maximum allowed vector width, and all three scalar updates, including the final carry result, are required."
+  },
+  "678e609bdb": {
+    "rewrite": null,
+    "why": "The three scalar updates, four full-width loads, four separately required zero vectors, and final flag-setting test leave no redundant instruction."
+  },
+  "c0b3d6d97c": {
+    "rewrite": null,
+    "why": "The rdi subtraction and constant addition cannot be combined into a single LEA with a negative index, and the remaining updates and decrement flags are required."
+  },
+  "ff2da0698f": {
+    "rewrite": null,
+    "why": "All eight stores and both scalar updates are required, with the addition supplying CF and the decrement supplying the other preserved flags."
+  },
+  "16a83266cb": {
+    "rewrite": null,
+    "why": "Every scalar update, vector load, zero-vector assignment, and the final bit test contributes a required register value or flag result."
+  },
+  "745ad824cf": {
+    "rewrite": null,
+    "why": "The two input broadcasts, two dependent rounded multiplications, store, and final copy are all needed to produce the two preserved result registers."
+  },
+  "9e5548b82d": {
+    "rewrite": "vmovdqa xmm1,XMMWORD PTR [rdx+0x10]\nvpbroadcastd xmm4,DWORD PTR [r9-0x88]\nvpunpckhwd xmm2,xmm1,XMMWORD PTR [rdx]\nvpunpcklwd xmm1,xmm1,XMMWORD PTR [rdx]\nvmovdqa xmm0,xmm4\nvpdpwssd xmm0,xmm2,DWORD BCST [r9-0x34]\nvmovdqa xmm3,xmm4\nvpdpwssd xmm3,xmm2,DWORD BCST [r9-0x38]\nvpsrad xmm0,xmm0,0xc\nvpsrad xmm3,xmm3,0xc\nvpackssdw xmm2,xmm3,xmm0\nvmovdqa xmm0,xmm4\nvpdpwssd xmm0,xmm1,DWORD BCST [r9-0x3c]\nvmovdqa xmm3,xmm4\nvpdpwssd xmm3,xmm1,DWORD BCST [r9-0x40]\nvpsrad xmm0,xmm0,0xc\nvpsrad xmm3,xmm3,0xc\nvpackssdw xmm1,xmm3,xmm0\nvpaddsw xmm0,xmm1,xmm2\nvpsubsw xmm1,xmm1,xmm2\nvmovdqa xmm2,XMMWORD PTR [r9-0xc0]\nvshufps xmm3,xmm0,xmm1,0x7d\nvshufps xmm0,xmm0,xmm1,0x28\nvpshufb xmm0,xmm0,xmm2\nvpshufb xmm1,xmm3,xmm2",
+    "saved": 1,
+    "why": "Fold the initial xmm0 load into both word unpacks; xmm0 is overwritten by accumulator initialization before any other use."
+  },
+  "44b58de00f": {
+    "rewrite": null,
+    "why": "The two word-interleave stages produce three preserved vector results, and collapsing them would require an additional permutation control that is not supplied."
+  },
+  "d409de76a9": {
+    "rewrite": null,
+    "why": "Both stages of word interleaving are needed to produce the required xmm0 and xmm1 permutations while retaining the intermediate xmm2 result."
+  },
+  "4c2e2b5be9": {
+    "rewrite": "vpbroadcastd xmm3,DWORD PTR [r9-0x90]\nvpmulhrsw xmm2,xmm3,XMMWORD PTR [rdx]\nvpmulhrsw xmm3,xmm3,XMMWORD PTR [rdx+0x10]\nvpaddsw xmm0,xmm2,XMMWORD PTR [rdx]\nvpaddsw xmm1,xmm3,XMMWORD PTR [rdx+0x10]\nvpunpckhwd xmm2,xmm0,xmm1\nvpunpcklwd xmm0,xmm0,xmm1\nvpunpckhwd xmm1,xmm0,xmm2\nvpunpcklwd xmm0,xmm0,xmm2",
+    "saved": 2,
+    "why": "Fold both input loads into the rounded multiplications and commutative saturating additions, retaining the transpose and all required final temporary values."
+  },
+  "0080cc536b": {
+    "rewrite": null,
+    "why": "The coefficient broadcast, two rounded products, and two saturating sums are required, including the preserved product values in xmm2 and xmm3."
+  },
+  "716f5854d3": {
+    "rewrite": null,
+    "why": "Each coefficient load, dependent rounded multiplication, and broadcast or copy contributes to a preserved final register value."
+  },
+  "3056d05d06": {
+    "rewrite": "vpermq zmm16,ZMMWORD PTR [rdx],0xd8\nvpbroadcastd zmm18,DWORD PTR [r9-0x8c]\nvpmulhrsw zmm16,zmm16,zmm18\nvextracti64x4 ymm17,zmm16,0x1\nvpbroadcastd ymm20,DWORD PTR [r9-0x88]\nvpunpckhwd ymm18,ymm17,ymm16\nvpunpcklwd ymm17,ymm17,ymm16\nvmovdqa32 ymm16,ymm20\nvpdpwssd ymm16,ymm18,DWORD BCST [r9-0x34]\nvmovdqa32 ymm19,ymm20\nvpdpwssd ymm19,ymm18,DWORD BCST [r9-0x38]\nvpsrad ymm16,ymm16,0xc\nvpsrad ymm19,ymm19,0xc\nvpackssdw ymm18,ymm19,ymm16\nvmovdqa32 ymm16,ymm20\nvpdpwssd ymm16,ymm17,DWORD BCST [r9-0x3c]\nvmovdqa32 ymm19,ymm20\nvpdpwssd ymm19,ymm17,DWORD BCST [r9-0x40]\nvpsrad ymm16,ymm16,0xc\nvpsrad ymm19,ymm19,0xc\nvpackssdw ymm17,ymm19,ymm16\nvpaddsw ymm16,ymm17,ymm18\nvpsubsw ymm17,ymm17,ymm18\nvbroadcasti32x4 ymm18,XMMWORD PTR [r9-0xc0]\nvshufps ymm19,ymm16,ymm17,0x7d\nvshufps ymm16,ymm16,ymm17,0x28\nvpshufb ymm16,ymm16,ymm18\nvpshufb ymm17,ymm19,ymm18",
+    "saved": 1,
+    "why": "Process both 32-byte input vectors with one 512-bit permutation and rounded multiply, then extract the upper 256 bits. The wider load covers only originally read bytes, and later writes restore the required zero upper halves."
+  },
+  "27e1d02bc0": {
+    "rewrite": null,
+    "why": "Both lane insertions and the dword shuffle are needed, and the broadcast writes a separately preserved register."
+  }
+}

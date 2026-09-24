@@ -1,0 +1,84 @@
+{
+  "b6a891628b": {
+    "rewrite": null,
+    "why": "All eight stores and four load/pack/rounded-multiply sequences are required, with the second load of each pair already folded into PACKSSDW."
+  },
+  "53ce313615": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required register value, and the final subtraction also supplies the required flags."
+  },
+  "0a04cc68ef": {
+    "rewrite": null,
+    "why": "All four additions are required, and xmm1 must retain the loaded constant, so folding its load into memory operands would not remove an instruction."
+  },
+  "4682d30c85": {
+    "rewrite": null,
+    "why": "All eight shifted results feed required outputs, and moving the shifts after signed saturation would change results for unrestricted inputs."
+  },
+  "aea6de228b": {
+    "rewrite": null,
+    "why": "The memory multiply, store, count initialization, rounding add and shift, and final flag calculation have distinct required effects."
+  },
+  "c67fd3dfff": {
+    "rewrite": null,
+    "why": "Both multiplications and the intermediate rounding are necessary alongside the store, count initialization, and final flag calculation."
+  },
+  "d5851724fd": {
+    "rewrite": null,
+    "why": "The signed comparison, full-register Boolean initialization, condition extraction, and doubling are needed to produce both r9 and the required final flags."
+  },
+  "d80ef48572": {
+    "rewrite": null,
+    "why": "The four distinct stores are required, as is the subtraction that updates r9 and the final flags."
+  },
+  "10a8f41a17": {
+    "rewrite": null,
+    "why": "Each input must produce two distinct live products, requiring two destructive SSE multiplications and one instruction to initialize the second destination."
+  },
+  "7912d29ca7": {
+    "rewrite": "movdqa xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,xmm0\npmulld xmm9,xmm8\npmulld xmm8,xmm7\npmulld xmm0,XMMWORD PTR [CONST_2]\npmulld xmm7,XMMWORD PTR [CONST_2]\npaddd xmm7,xmm9\npsubd xmm0,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_3]\nmovdqa xmm9,xmm6\npmulld xmm9,xmm8\npmulld xmm8,xmm1\npmulld xmm6,XMMWORD PTR [CONST_4]\npmulld xmm1,XMMWORD PTR [CONST_4]\npaddd xmm1,xmm9\npsubd xmm6,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_5]\nmovdqa xmm9,xmm2\npmulld xmm9,xmm8\npmulld xmm8,xmm5\npmulld xmm2,XMMWORD PTR [CONST_6]\npmulld xmm5,XMMWORD PTR [CONST_6]\npaddd xmm5,xmm9\npsubd xmm2,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_7]\nmovdqa xmm9,xmm4\npmulld xmm9,xmm8\npmulld xmm8,xmm3\npmulld xmm4,XMMWORD PTR [CONST_8]\npmulld xmm3,XMMWORD PTR [CONST_8]\npaddd xmm3,xmm9\npsubd xmm4,xmm8",
+    "saved": 4,
+    "why": "Use memory operands for the two multiplications that consume each even-numbered constant, eliminating four loads into xmm10. Its final value is not required."
+  },
+  "9aa12ec45f": {
+    "rewrite": null,
+    "why": "All eight products are live, and each pair already uses two multiplications plus the one initialization required by destructive SSE operands."
+  },
+  "74330944ba": {
+    "rewrite": "movdqa xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,xmm7\npmulld xmm9,xmm8\npmulld xmm8,xmm0\npmulld xmm7,XMMWORD PTR [CONST_2]\npmulld xmm0,XMMWORD PTR [CONST_2]\npaddd xmm0,xmm9\npsubd xmm7,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_3]\nmovdqa xmm9,xmm1\npmulld xmm9,xmm8\npmulld xmm8,xmm6\npmulld xmm1,XMMWORD PTR [CONST_4]\npmulld xmm6,XMMWORD PTR [CONST_4]\npaddd xmm6,xmm9\npsubd xmm1,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_5]\nmovdqa xmm9,xmm5\npmulld xmm9,xmm8\npmulld xmm8,xmm2\npmulld xmm5,XMMWORD PTR [CONST_6]\npmulld xmm2,XMMWORD PTR [CONST_6]\npaddd xmm2,xmm9\npsubd xmm5,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_7]\nmovdqa xmm9,xmm3\npmulld xmm9,xmm8\npmulld xmm8,xmm4\npmulld xmm3,XMMWORD PTR [CONST_8]\npmulld xmm4,XMMWORD PTR [CONST_8]\npaddd xmm4,xmm9\npsubd xmm3,xmm8",
+    "saved": 4,
+    "why": "Fold each even-numbered constant into its two PMULLD consumers, removing four explicit constant loads. xmm10 is not a required final output."
+  },
+  "314ee87078": {
+    "rewrite": null,
+    "why": "The two arithmetic stages, high-word broadcast, required store, count initialization, clamp constant, and zero vector contain no removable operation under SSE4.1."
+  },
+  "30dbdef700": {
+    "rewrite": null,
+    "why": "Each vector requires a load, wrapping addition, two signed bounds operations, and a store, while the pointer and counter updates are also live."
+  },
+  "a11b1c02f8": {
+    "rewrite": null,
+    "why": "The intermediate rounding prevents combining the two multiplications, and the remaining instructions supply the required store, count, result, and flags."
+  },
+  "833961a2af": {
+    "rewrite": null,
+    "why": "Extracting both bytes from each word needs the loads and separate extractions with the fixed address displacements, and the final shift must also preserve its flags."
+  },
+  "3d6e3754be": {
+    "rewrite": null,
+    "why": "The multiply, store, count initialization, rounding add and shift, and final flag calculation each contribute required behavior."
+  },
+  "15ff383c3b": {
+    "rewrite": null,
+    "why": "Both multiply-and-round stages are needed for unrestricted inputs, together with the required store, count initialization, and final flag calculation."
+  },
+  "4a0ef4dfc3": {
+    "rewrite": null,
+    "why": "SSE4.1 cannot fold these immediate arithmetic shifts into the loads, and packing before shifting would change signed saturation behavior."
+  },
+  "726503cffc": {
+    "rewrite": null,
+    "why": "All four stores, both independent pointer updates, and the final comparison flags are required."
+  }
+}

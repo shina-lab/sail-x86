@@ -1,0 +1,84 @@
+{
+  "6dfd97d18d": {
+    "rewrite": null,
+    "why": "The four separately addressed stores, upper-half extraction that determines the final YMM0 value, and flag-setting comparison are all required."
+  },
+  "1e439e544a": {
+    "rewrite": "vmovdqa ymm0,YMMWORD PTR [rdx]\nvmovdqa ymm2,YMMWORD PTR [rcx]\nvpunpcklwd ymm8,ymm2,ymm0\nvpunpckhwd ymm9,ymm2,ymm0\nvpsubsw ymm0,ymm0,ymm2\nvpabsw ymm0,ymm0\nvpsubusw ymm7,ymm10,ymm0\nvpsrlw ymm7,ymm7,0xa\nvpsubw ymm2,ymm4,ymm7\nvpunpcklwd ymm0,ymm7,ymm2\nvpunpckhwd ymm7,ymm7,ymm2\nvpmaddwd ymm0,ymm8,ymm0\nvpmaddwd ymm7,ymm9,ymm7\nvpsrad ymm0,ymm0,0x5\nvpsrad ymm7,ymm7,0x5\nvpackssdw ymm0,ymm0,ymm7\nvpmaxsw ymm0,ymm0,ymm5\nvpsubsw ymm0,ymm0,ymm5\nvpmulhw ymm0,ymm0,ymm6\nvmovdqa ymm1,YMMWORD PTR [rdx+0x20]\nvpsubsw ymm1,ymm1,YMMWORD PTR [rcx+0x20]\nvpabsw ymm1,ymm1\nvpsubusw ymm7,ymm10,ymm1\nvpsrlw ymm7,ymm7,0xa\nvpsubw ymm3,ymm4,ymm7\nvpackuswb ymm2,ymm2,ymm3\nvpermq ymm2,ymm2,0xd8\nadd rdx,0x40\nvmovdqa YMMWORD PTR [rax],ymm2\nadd rax,0x20",
+    "saved": 14,
+    "why": "Only the second mask weights are needed, so remove the unused second blended result and fold its source load into the subtraction. The final RCX increment is also dead."
+  },
+  "824d6e91bc": {
+    "rewrite": "vpmovzxbw ymm3,XMMWORD PTR [r9]\nvmovq xmm0,QWORD PTR [rdi]\nvmovhps xmm0,xmm0,QWORD PTR [rdi+rsi*1]\nvmovq xmm1,QWORD PTR [rdi+rsi*2]\nvmovhps xmm1,xmm1,QWORD PTR [rdi+rax*1]\nvinserti128 ymm0,ymm0,xmm1,0x1\nvpsubw ymm1,ymm0,YMMWORD PTR [rdx]\nadd r9,0x10\nadd rdx,0x20\nvpmullw ymm3,ymm3,ymm6\nvpmulhrsw ymm1,ymm1,ymm3\nvpaddw ymm0,ymm0,ymm1\nvextracti128 xmm1,ymm0,0x1\nvmovq QWORD PTR [rdi],xmm0\nvmovhps QWORD PTR [rdi+rsi*1],xmm0\nvmovq QWORD PTR [rdi+rsi*2],xmm1\nvmovhps QWORD PTR [rdi+rax*1],xmm1\nlea rdi,[rdi+rsi*4]\nsub r8d,0x4",
+    "saved": 1,
+    "why": "Assemble the upper two qwords with VMOVQ and VMOVHPS, then insert that half once, replacing two broadcasts and two blends with three instructions."
+  },
+  "8277cb48a5": {
+    "rewrite": null,
+    "why": "Both blend results feed required stores, and the separate row loads, weight operations, pointer updates, and counter flags leave no removable instruction."
+  },
+  "af1e76c597": {
+    "rewrite": null,
+    "why": "Both stored vectors require their widened weights and subtract-multiply-add operations, with source loads already folded into subtraction."
+  },
+  "df458b0adc": {
+    "rewrite": null,
+    "why": "Both stored blend results and all pointer and counter updates are live, and the arithmetic already uses folded memory operands."
+  },
+  "0d3b8e4a4d": {
+    "rewrite": null,
+    "why": "The separate destination accesses and blend operations are required, and folding the qword source load into VPSUBW would read additional bytes."
+  },
+  "413a4c350f": {
+    "rewrite": null,
+    "why": "The two qword loads and stores, three blend operations, and preserved pointer and counter updates are already compact."
+  },
+  "199f6a2db3": {
+    "rewrite": null,
+    "why": "The two separately addressed rows require the load-and-insert assembly and split stores, while every arithmetic and scalar update is live."
+  },
+  "9dacb1bc4b": {
+    "rewrite": null,
+    "why": "Each required vector store needs its own load and subtract-multiply-add chain, and all three scalar updates must be retained."
+  },
+  "c5c4530de3": {
+    "rewrite": null,
+    "why": "All three blend results feed stores, and the two separated tail regions require the existing half-vector assembly without widening the source accesses."
+  },
+  "1588b8fa81": {
+    "rewrite": null,
+    "why": "Duplicating the two loaded weight words and performing the blend are necessary, and folding the qword source load would introduce an overread."
+  },
+  "31b084346b": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask requires the weight load and shuffle, and the row accesses, blend arithmetic, and scalar updates are all live."
+  },
+  "6bcf48efba": {
+    "rewrite": null,
+    "why": "The broadcast and arbitrary byte shuffle are both needed for the weights, while the split rows and live blend result require the remaining instructions."
+  },
+  "ea2a62ccd0": {
+    "rewrite": null,
+    "why": "The two rows use distinct broadcast weights and each requires its complete blend and store, alongside the preserved scalar updates."
+  },
+  "1b8380286d": {
+    "rewrite": null,
+    "why": "The multiply and addition produce live R11, the LEA produces live RBP, and the comparison supplies the required sign flag."
+  },
+  "1884627630": {
+    "rewrite": null,
+    "why": "The vector load and store, live index increment, and comparison supplying SF and OF are all required."
+  },
+  "46b3c1b287": {
+    "rewrite": null,
+    "why": "All four sign-extended scalar results and the final YMM1 extraction are live, and vector sign extension would need enough extractions to match the existing instruction count."
+  },
+  "2901f6b30d": {
+    "rewrite": null,
+    "why": "Extracting four signed dwords into full-width scalar registers already takes six instructions, even using vector sign extension followed by lane extraction."
+  },
+  "677a508478": {
+    "rewrite": null,
+    "why": "Each of the four independent arbitrary byte shuffles produces a required full-width YMM result."
+  }
+}

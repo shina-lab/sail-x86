@@ -1,0 +1,87 @@
+{
+  "20c1440574": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and coefficients require both conversion paths, and all final vector values are preserved."
+  },
+  "447d8c888c": {
+    "rewrite": "vbroadcasti128 ymm8,XMMWORD PTR [r9+0x60]\nvbroadcasti128 ymm9,XMMWORD PTR [r9+0x70]\nvmovdqa ymm7,YMMWORD PTR [CONST_1]\nvmovdqa ymm10,YMMWORD PTR [CONST_2]\nmovsxd r8,r8d\nlea rdi,[rdi+r8*2]\nimul r8,r8,0xfffffffffffffffe\nvbroadcasti128 ymm4,XMMWORD PTR [CONST_3]",
+    "saved": 1,
+    "why": "After sign extension, LEA adds twice r8 to rdi and IMUL produces the required negative doubled r8, replacing three arithmetic instructions with two while flags are unconstrained."
+  },
+  "3715862f38": {
+    "rewrite": "vmovdqu ymm2,YMMWORD PTR [rsi+0x8]\nvperm2i128 ymm0,ymm2,YMMWORD PTR [rsi],0x12\nvinserti128 ymm2,ymm2,XMMWORD PTR [rsi+0x20],0x1\nvpsrldq ymm2,ymm2,0x4\nvpshufb ymm1,ymm0,ymm10\nvpshufb ymm0,ymm0,ymm7\nvpshufb ymm3,ymm2,ymm10\nvpshufb ymm2,ymm2,ymm7\nadd rsi,0x30\nvpmaddwd ymm0,ymm8,ymm0\nvpmaddwd ymm1,ymm9,ymm1\nvpmaddwd ymm2,ymm8,ymm2\nvpmaddwd ymm3,ymm9,ymm3\nvpaddd ymm0,ymm0,ymm1\nvpaddd ymm2,ymm2,ymm3\nvpaddd ymm0,ymm0,ymm4\nvpaddd ymm2,ymm2,ymm4\nvpsrad ymm0,ymm0,0x9\nvpsrad ymm2,ymm2,0x9\nvpackssdw ymm0,ymm0,ymm2\nvmovdqa YMMWORD PTR [rdi+r8*1],ymm0\nadd r8,0x20",
+    "saved": 1,
+    "why": "Loading bytes 8..39 supplies the low half of ymm2 and high half of ymm0, so a lane permutation and one insert complete both vectors in three instructions instead of four. All loads use original displacements and stay within the original byte ranges."
+  },
+  "555f9eef0d": {
+    "rewrite": "vmovdqu ymm4,YMMWORD PTR [rcx+0x8]\nvperm2i128 ymm0,ymm4,YMMWORD PTR [rcx],0x12\nvinserti128 ymm4,ymm4,XMMWORD PTR [rcx+0x20],0x1\nvpsrldq ymm4,ymm4,0x4\nvpshufb ymm1,ymm0,ymm12\nvpshufb ymm0,ymm0,ymm7\nvpmaddwd ymm2,ymm10,ymm0\nvpmaddwd ymm3,ymm11,ymm1\nvpmaddwd ymm0,ymm8,ymm0\nvpmaddwd ymm1,ymm9,ymm1\nvpaddd ymm0,ymm0,ymm1\nvpaddd ymm2,ymm2,ymm3\nvpshufb ymm5,ymm4,ymm12\nvpshufb ymm4,ymm4,ymm7\nadd rcx,0x30\nvpmaddwd ymm1,ymm8,ymm4\nvpmaddwd ymm3,ymm9,ymm5\nvpmaddwd ymm4,ymm10,ymm4\nvpmaddwd ymm5,ymm11,ymm5\nvpaddd ymm1,ymm1,ymm3\nvpaddd ymm4,ymm4,ymm5\nvpaddd ymm0,ymm0,ymm6\nvpaddd ymm2,ymm2,ymm6\nvpaddd ymm1,ymm1,ymm6\nvpaddd ymm4,ymm4,ymm6\nvpsrad ymm0,ymm0,0x9\nvpsrad ymm2,ymm2,0x9\nvpsrad ymm1,ymm1,0x9\nvpsrad ymm4,ymm4,0x9\nvpackssdw ymm0,ymm0,ymm1\nvpackssdw ymm2,ymm2,ymm4\nvmovdqu YMMWORD PTR [rdi+r9*1],ymm0\nvmovdqu YMMWORD PTR [rsi+r9*1],ymm2\nadd r9,0x20",
+    "saved": 1,
+    "why": "Loading bytes 8..39 supplies the low half of ymm4 and high half of ymm0, so a lane permutation and one insert replace the original four load/insert instructions with three. All loaded bytes and address displacements are already used by the original."
+  },
+  "b5f6a549d9": {
+    "rewrite": null,
+    "why": "SSE2 requires the copies to retain both masked and shifted inputs, and the arbitrary coefficients and live intermediate results prevent eliminating arithmetic."
+  },
+  "a40923960d": {
+    "rewrite": null,
+    "why": "The xmm2 shift and xmm3 mask are required final values, while the remaining SSE2 operations are needed for the conversion and its preserved intermediates."
+  },
+  "f470f9b2b0": {
+    "rewrite": null,
+    "why": "The two independent coefficient pairs require the SSE2 operand copies, and every arithmetic result is consumed or preserved."
+  },
+  "e368502105": {
+    "rewrite": null,
+    "why": "The residual xmm4 and xmm5 updates must be preserved, and the two conversion paths require their copies, arithmetic, and packing under SSE2."
+  },
+  "5cddba3e10": {
+    "rewrite": null,
+    "why": "The block already uses three-operand AVX arithmetic, and the arbitrary masks and coefficients leave no removable operations with all vector results live."
+  },
+  "242b7500e6": {
+    "rewrite": null,
+    "why": "Both the residual xmm2/xmm3 values and the conversion intermediates are preserved, leaving no removable operations in this AVX sequence."
+  },
+  "32b9057c03": {
+    "rewrite": null,
+    "why": "The independent conversion paths already use three-operand AVX instructions, and their arbitrary coefficients and live results prevent further instruction removal."
+  },
+  "2fd9cba509": {
+    "rewrite": null,
+    "why": "The xmm4/xmm5 updates are required final values, and both conversion paths need their independent arithmetic and packing."
+  },
+  "7bba40c8c3": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rsi+r8*2]\nvperm2i128 ymm2,ymm0,YMMWORD PTR [rsi+r8*2+0x20],0x31\nvperm2i128 ymm0,ymm0,YMMWORD PTR [rsi+r8*2+0x20],0x20\nvpand ymm3,ymm7,ymm2\nvpand ymm1,ymm7,ymm0\nvpsrlw ymm0,ymm0,0x8\nvpsrlw ymm2,ymm2,0x8\nvpmaddwd ymm1,ymm1,ymm5\nvpmaddwd ymm0,ymm0,ymm6\nvpmaddwd ymm3,ymm3,ymm5\nvpmaddwd ymm2,ymm2,ymm6\nvpaddd ymm0,ymm0,ymm4\nvpaddd ymm2,ymm2,ymm4\nvpaddd ymm0,ymm0,ymm1\nvpaddd ymm2,ymm2,ymm3\nvpsrad ymm0,ymm0,0x9\nvpsrad ymm2,ymm2,0x9\nvpackssdw ymm0,ymm0,ymm2\nvmovdqa YMMWORD PTR [rdi+r8*1],ymm0\nadd r8,0x20",
+    "saved": 1,
+    "why": "One 256-bit load and two memory-source lane permutations construct the same two interleaved vectors in three instructions instead of four. The wider loads use the same base, index, and original displacements and read only original input bytes."
+  },
+  "2dcb3316c4": {
+    "rewrite": null,
+    "why": "The narrow load, arbitrary masks and coefficients, and required final values of all vector temporaries leave no shorter AVX2 sequence apparent."
+  },
+  "347fc553de": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rcx+r9*2]\nvperm2i128 ymm4,ymm0,YMMWORD PTR [rcx+r9*2+0x20],0x31\nvperm2i128 ymm0,ymm0,YMMWORD PTR [rcx+r9*2+0x20],0x20\nvpand ymm5,ymm7,ymm4\nvpand ymm1,ymm7,ymm0\nvpsrlw ymm0,ymm0,0x8\nvpsrlw ymm4,ymm4,0x8\nvpmaddwd ymm3,ymm10,ymm1\nvpmaddwd ymm2,ymm11,ymm0\nvpmaddwd ymm1,ymm8,ymm1\nvpmaddwd ymm0,ymm9,ymm0\nvpaddd ymm3,ymm3,ymm6\nvpaddd ymm1,ymm1,ymm6\nvpaddd ymm2,ymm2,ymm3\nvpaddd ymm0,ymm0,ymm1\nvpmaddwd ymm3,ymm10,ymm5\nvpmaddwd ymm1,ymm11,ymm4\nvpmaddwd ymm5,ymm8,ymm5\nvpmaddwd ymm4,ymm9,ymm4\nvpaddd ymm3,ymm3,ymm6\nvpaddd ymm5,ymm5,ymm6\nvpsrad ymm0,ymm0,0x9\nvpaddd ymm1,ymm1,ymm3\nvpaddd ymm4,ymm4,ymm5\nvpsrad ymm2,ymm2,0x9\nvpsrad ymm4,ymm4,0x9\nvpsrad ymm1,ymm1,0x9\nvpackssdw ymm0,ymm0,ymm4\nvpackssdw ymm2,ymm2,ymm1\nvmovdqu YMMWORD PTR [rdi+r9*1],ymm0\nvmovdqu YMMWORD PTR [rsi+r9*1],ymm2\nadd r9,0x20",
+    "saved": 1,
+    "why": "One 256-bit load and two memory-source lane permutations replace four load/insert instructions while constructing identical ymm0 and ymm4 inputs. The wider loads preserve the original address expressions and remain within the original input bytes."
+  },
+  "7e2151aa7d": {
+    "rewrite": null,
+    "why": "Both conversion paths and the residual xmm4/xmm5 updates remain live, and the arbitrary coefficients prevent replacing their arithmetic with narrower operations."
+  },
+  "4a0d2feca1": {
+    "rewrite": null,
+    "why": "SSE2 needs both loads and masks before unsigned packing, with xmm1 and the arbitrary xmm2 mask preserved."
+  },
+  "bed95cbf9a": {
+    "rewrite": null,
+    "why": "The two unaligned loads, independent masks, and unsigned pack are all required under SSE2 while preserving xmm1 and xmm2."
+  },
+  "317987045a": {
+    "rewrite": null,
+    "why": "SSE2 needs a separate word shift for each loaded vector before packing their high bytes, and the shifted xmm1 must remain available."
+  },
+  "9ae934e443": {
+    "rewrite": null,
+    "why": "The unaligned loads and separate word shifts are necessary for SSE2 high-byte extraction, with both the packed result and shifted xmm1 preserved."
+  }
+}

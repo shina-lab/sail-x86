@@ -1,0 +1,93 @@
+{
+  "0b01d92753": {
+    "rewrite": "vpmaxub ymm0,ymm1,YMMWORD PTR [rdi+r9*1]\nvpcmpeqb ymm0,ymm0,ymm1\nvpmovmskb eax,ymm0\nadd r9,0x20",
+    "saved": 1,
+    "why": "Fold the load into the commutative unsigned maximum, preserving the comparison mask, scalar mask, index, and final flags."
+  },
+  "473fe08657": {
+    "rewrite": null,
+    "why": "The four instructions produce four independently required register results, and the final decrement supplies the required flags."
+  },
+  "697d928d2a": {
+    "rewrite": "vmovd xmm1,r8d\nvpbroadcastw ymm1,xmm1\nlea rdi,[rdi+rdx*2]\nimul rdx,rdx,0xfffffffffffffffe\nxor r8d,r8d\nmov r9,rdx",
+    "saved": 1,
+    "why": "LEA computes the adjusted pointer from the original index, while multiplication by -2 combines the shift and negation modulo 64 bits. No flags need to match."
+  },
+  "8c0065c19f": {
+    "rewrite": "vpmaxuw ymm0,ymm1,YMMWORD PTR [rdi+r9*1]\nvpcmpeqw ymm0,ymm0,ymm1\nvpmovmskb eax,ymm0\nadd r9,0x20",
+    "saved": 1,
+    "why": "Fold the load into the commutative unsigned maximum while retaining the exact word mask and final index-update flags."
+  },
+  "1d9dda0b38": {
+    "rewrite": null,
+    "why": "Each independent AVX2 byte broadcast needs a GPR-to-XMM move and a broadcast, and both scalar updates are required."
+  },
+  "87ccd98ccb": {
+    "rewrite": "vpminub ymm2,ymm2,YMMWORD PTR [rdi+rax*1]\nvpmaxub ymm3,ymm3,YMMWORD PTR [rdi+rax*1]\nadd rax,0x20",
+    "saved": 1,
+    "why": "Both operations can read the original memory range directly, eliminating the load into dead ymm4. The final ADD preserves the required flags."
+  },
+  "ab45346c48": {
+    "rewrite": null,
+    "why": "The AVX2 zero test requires both independent XOR differences, their OR reduction, and a flag-producing test."
+  },
+  "fcf888de82": {
+    "rewrite": null,
+    "why": "Each independent AVX2 word broadcast needs a GPR-to-XMM move and a broadcast, and both scalar updates are required."
+  },
+  "e87cb03060": {
+    "rewrite": "vpminuw ymm2,ymm2,YMMWORD PTR [rdi+rax*1]\nvpmaxuw ymm3,ymm3,YMMWORD PTR [rdi+rax*1]\nadd rax,0x20",
+    "saved": 1,
+    "why": "Use memory operands for both unsigned word extrema, removing the load into dead ymm4 while accessing only the original range. The final ADD is unchanged."
+  },
+  "1eb8cf5b7e": {
+    "rewrite": "vmovdqu ymm2,YMMWORD PTR [rdx+r10*1]\nvpand ymm6,ymm6,ymm2\nvpmaxub ymm1,ymm2,YMMWORD PTR [rdi+r10*1]\nvpxor ymm1,ymm1,ymm2\nvpor ymm0,ymm0,ymm1\nadd r10,0x20",
+    "saved": 1,
+    "why": "Fold the first buffer load into the commutative maximum, retaining the second buffer value for all its uses and preserving both live accumulators."
+  },
+  "a4980b5c82": {
+    "rewrite": null,
+    "why": "The conditional low-bit OR requires the vector test, predicate materialization, and OR for arbitrary initial AL, while all three scalar updates are live."
+  },
+  "1675cc95c6": {
+    "rewrite": "vmovdqu ymm2,YMMWORD PTR [rdx+r10*1]\nvpand ymm6,ymm6,ymm2\nvpmaxuw ymm1,ymm2,YMMWORD PTR [rdi+r10*1]\nvpxor ymm1,ymm1,ymm2\nvpor ymm0,ymm0,ymm1\nadd r10,0x20",
+    "saved": 1,
+    "why": "Fold the first buffer load into the unsigned word maximum, preserving the exact XOR/OR result, AND accumulator, and index-update flags."
+  },
+  "131d2a7c58": {
+    "rewrite": null,
+    "why": "Both widened loads and products feed required results, and AVX2 cannot fuse the maximum/XOR/OR accumulation for arbitrary input vectors."
+  },
+  "c12bc92a77": {
+    "rewrite": null,
+    "why": "All arithmetic feeds required accumulators, and AVX2 has no packed unsigned saturating dword subtraction to replace the maximum/subtraction pair."
+  },
+  "acf3858ccf": {
+    "rewrite": null,
+    "why": "Each broadcast and each independently required scalar update already takes one instruction."
+  },
+  "fa9c009c54": {
+    "rewrite": "vpminub zmm18,zmm18,ZMMWORD PTR [rdi+rax*1]\nvpmaxub zmm19,zmm19,ZMMWORD PTR [rdi+rax*1]\nadd rax,0x40",
+    "saved": 1,
+    "why": "Read the original memory range directly in both extrema operations, eliminating the dead temporary load and preserving the final ADD flags."
+  },
+  "5649e6a02b": {
+    "rewrite": "vpcmpneqq k1,zmm18,zmm16\nvpcmpneqq k2,zmm19,zmm17\nkortestb k1,k2",
+    "saved": 1,
+    "why": "The original ZF is set exactly when both vector pairs are equal. Two qword inequality masks followed by KORTESTB test the same condition without materializing the XOR/OR vector."
+  },
+  "4d89ce7e78": {
+    "rewrite": null,
+    "why": "Both word broadcasts and both independent scalar results already require only one instruction each."
+  },
+  "d0a0a5887f": {
+    "rewrite": "vpminuw zmm18,zmm18,ZMMWORD PTR [rdi+rax*1]\nvpmaxuw zmm19,zmm19,ZMMWORD PTR [rdi+rax*1]\nadd rax,0x40",
+    "saved": 1,
+    "why": "Fold the dead temporary load into both unsigned word extrema using the same address, leaving the index update and its flags unchanged."
+  },
+  "d5138904e6": {
+    "rewrite": "vmovdqu32 zmm18,ZMMWORD PTR [rdx+r10*1]\nvpandd zmm22,zmm22,zmm18\nvpmaxub zmm17,zmm18,ZMMWORD PTR [rdi+r10*1]\nvpternlogq zmm16,zmm17,zmm18,0xf6\nadd r10,0x40",
+    "saved": 1,
+    "why": "Fold the first buffer load into the commutative byte maximum while retaining the second buffer value for the AND and ternary-logic accumulators."
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "4c73f10c9e": {
+    "rewrite": null,
+    "why": "All three pointer additions and the counter decrement produce required register values, and the decrement supplies the required flags."
+  },
+  "2bff566dd5": {
+    "rewrite": "vmovdqa ymm1,YMMWORD PTR [rsi+r11*1]\nvpsubb ymm1,ymm1,ymm3\nvpaddb ymm0,ymm1,YMMWORD PTR [rdi+r11*1]\nvpaddb ymm2,ymm1,YMMWORD PTR [rdx+r11*1]\nvmovdqa YMMWORD PTR [rdi+r11*1],ymm0\nvmovdqa YMMWORD PTR [rdx+r11*1],ymm2\nadd r11,0x20",
+    "saved": 2,
+    "why": "Fold the red and blue plane loads into the memory operands of VPADDB, retaining the adjusted green vector for both additions."
+  },
+  "80173fd598": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+r11*1]\npsubw xmm0,xmm3\nmovdqa xmm2,xmm0\npaddw xmm0,XMMWORD PTR [rdi+r11*1]\npaddw xmm2,XMMWORD PTR [rdx+r11*1]\npand xmm0,xmm4\npand xmm2,xmm4\nmovdqa XMMWORD PTR [rdi+r11*1],xmm0\nmovdqa XMMWORD PTR [rdx+r11*1],xmm2\nadd r11,0x10",
+    "saved": 1,
+    "why": "Copy the adjusted green vector once and fold both other plane loads into PADDW, replacing three separate loads with one load and one register copy."
+  },
+  "46a2e75b72": {
+    "rewrite": "vmovdqa ymm1,YMMWORD PTR [rsi+r11*1]\nvpsubw ymm1,ymm1,ymm3\nvpaddw ymm0,ymm1,YMMWORD PTR [rdi+r11*1]\nvpaddw ymm2,ymm1,YMMWORD PTR [rdx+r11*1]\nvpand ymm0,ymm0,ymm4\nvpand ymm2,ymm2,ymm4\nvmovdqa YMMWORD PTR [rdi+r11*1],ymm0\nvmovdqa YMMWORD PTR [rdx+r11*1],ymm2\nadd r11,0x20",
+    "saved": 2,
+    "why": "Fold the red and blue plane loads into VPADDW while retaining both masks, both stores, and the final index update."
+  },
+  "2d9aca8c4a": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required pointer, index, or vector constant, with no redundant intermediate."
+  },
+  "7ea88d0078": {
+    "rewrite": null,
+    "why": "The four scalar updates and two vector constant loads each directly produce required final values."
+  },
+  "5bf50571ce": {
+    "rewrite": null,
+    "why": "The pointer updates need both the original and halved index, and the negation, two constant loads, and zeroing each supply required final values."
+  },
+  "2485baa421": {
+    "rewrite": null,
+    "why": "The scalar index processing is needed for the required pointers, and each VEX vector instruction produces a required value including its zeroed upper half."
+  },
+  "19ea1dc8a2": {
+    "rewrite": null,
+    "why": "The scalar updates are necessary, and all six required vector constants are already initialized with one instruction each."
+  },
+  "a9d8ad1faa": {
+    "rewrite": null,
+    "why": "The scalar updates are necessary, and each required vector constant is initialized in one instruction with the required upper bits cleared."
+  },
+  "b9c1b51500": {
+    "rewrite": null,
+    "why": "All scalar updates contribute to required final values, and the five required full-width vector constants each take one instruction already."
+  },
+  "92e944cfbc": {
+    "rewrite": null,
+    "why": "The copy needs a load and store, while the required index update and the comparison's SF and OF cannot be supplied by the same addition for arbitrary inputs."
+  },
+  "b5aa8884c4": {
+    "rewrite": null,
+    "why": "The load, store, pointer update, and counter decrement each perform a required operation, with the decrement also supplying ZF."
+  },
+  "bf81d4b767": {
+    "rewrite": null,
+    "why": "The required vector value and store need the load/store pair, and both pointer updates and the counter decrement remain necessary."
+  },
+  "d9b36349a0": {
+    "rewrite": null,
+    "why": "SSE2 needs the scalar byte load, replication, vector transfer, and shuffle to broadcast without overreading, and the final r9 assignment is also required."
+  },
+  "411be2462b": {
+    "rewrite": null,
+    "why": "The byte load and store preserve the required partial rax update, while both pointer additions and the decrement producing ZF are necessary."
+  },
+  "70808307cb": {
+    "rewrite": null,
+    "why": "The word load and store preserve the required partial rax update, while both pointer additions and the decrement producing ZF are necessary."
+  },
+  "0e6c619875": {
+    "rewrite": null,
+    "why": "The rotations expose the third byte and restore eax while clearing the upper half of rax, and both stores, the pointer update, and the decrement are required."
+  },
+  "38b2e41d76": {
+    "rewrite": null,
+    "why": "The rotations retain the original AH in the required final rax while assembling the loaded bytes, and the exact-width loads, stores, and scalar updates remain necessary."
+  },
+  "294ca278bf": {
+    "rewrite": null,
+    "why": "The MOVD pair supplies the required xmm0 value and store, and the two pointer additions and counter decrement each produce required results."
+  }
+}

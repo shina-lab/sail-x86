@@ -1,0 +1,93 @@
+{
+  "463e27d782": {
+    "rewrite": null,
+    "why": "Both vector transformations, both stores at independently indexed addresses, and the subtraction result and flags are required."
+  },
+  "d02e0b73fa": {
+    "rewrite": null,
+    "why": "The shift, unsigned-byte saturation, byte permutation, two stores, and subtraction all contribute to required outputs."
+  },
+  "2074f78b38": {
+    "rewrite": null,
+    "why": "Both the shifted zmm18 value and the combined zmm17 result are live, leaving no removable intermediate among the shifts, addition, and funnel shift."
+  },
+  "ef3dfba37b": {
+    "rewrite": "vinserti64x4 zmm20,zmm20,ymm20,0x1\nvmovdqu32 zmm16,ZMMWORD PTR [rdx]\nvpaddw zmm16,zmm16,ZMMWORD PTR [rcx]\nvpmulhrsw zmm16,zmm16,zmm20\nvextracti64x4 ymm17,zmm16,0x1\nvpackuswb ymm16,ymm16,ymm17\nvextracti32x4 xmm17,ymm16,0x1\nvmovd DWORD PTR [rdi],xmm16\nvpextrd DWORD PTR [rdi+rsi*1],xmm16,0x1\nvmovd DWORD PTR [rdi+rsi*2],xmm17\nvpextrd DWORD PTR [rdi+rax*1],xmm17,0x1",
+    "saved": 1,
+    "why": "Duplicate the low 256-bit coefficient vector and process both adjacent input chunks with 512-bit arithmetic. Extracting the upper result before the original pack preserves lane order and the required zeroed upper register bits."
+  },
+  "b55e5c70e0": {
+    "rewrite": "vinserti64x4 zmm20,zmm20,ymm20,0x1\nvmovdqu32 zmm16,ZMMWORD PTR [rdx]\nvpaddw zmm16,zmm16,ZMMWORD PTR [rcx]\nvpmulhrsw zmm16,zmm16,zmm20\nvextracti64x4 ymm17,zmm16,0x1\nvpackuswb ymm16,ymm16,ymm17\nvextracti32x4 xmm17,ymm16,0x1\nvmovq QWORD PTR [rdi],xmm16\nvmovq QWORD PTR [rdi+rsi*1],xmm17\nvmovhps QWORD PTR [rdi+rsi*2],xmm16\nvmovhps QWORD PTR [rdi+rax*1],xmm17",
+    "saved": 1,
+    "why": "Duplicate the low 256-bit coefficient vector to combine both input chunks into one 512-bit load, addition, and rounded multiply. Extracting the upper half before packing retains the original store values and order."
+  },
+  "bc43d8f0af": {
+    "rewrite": "xchg rcx,rdx\nvpxord zmm16,zmm16,zmm16\nvpsubw zmm20,zmm16,zmm20",
+    "saved": 2,
+    "why": "The three scalar moves only swap rcx and rdx, and their temporary rax value is dead, so one flag-preserving XCHG replaces them."
+  },
+  "897632b0a8": {
+    "rewrite": "vinserti64x4 zmm20,zmm20,ymm20,0x1\nvinserti64x4 zmm21,zmm21,ymm21,0x1\nvmovdqu32 zmm16,ZMMWORD PTR [rdx]\nvpsubw zmm18,zmm16,ZMMWORD PTR [rcx]\nvpmulhw zmm18,zmm18,zmm20\nvpaddw zmm16,zmm16,zmm18\nvpmulhrsw zmm16,zmm16,zmm21\nvextracti64x4 ymm17,zmm16,0x1\nvpackuswb ymm16,ymm16,ymm17\nvextracti32x4 xmm17,ymm16,0x1\nvmovd DWORD PTR [rdi],xmm16\nvpextrd DWORD PTR [rdi+rsi*1],xmm16,0x1\nvmovd DWORD PTR [rdi+rsi*2],xmm17\nvpextrd DWORD PTR [rdi+rax*1],xmm17,0x1",
+    "saved": 2,
+    "why": "Duplicate both low 256-bit coefficient vectors and combine the two arithmetic chains into one 512-bit chain. The extraction and original packing sequence preserve zmm16, zmm17, and all stored values."
+  },
+  "b329ddeecd": {
+    "rewrite": "vinserti64x4 zmm20,zmm20,ymm20,0x1\nvinserti64x4 zmm21,zmm21,ymm21,0x1\nvmovdqu32 zmm16,ZMMWORD PTR [rdx]\nvpsubw zmm18,zmm16,ZMMWORD PTR [rcx]\nvpmulhw zmm18,zmm18,zmm20\nvpaddw zmm16,zmm16,zmm18\nvpmulhrsw zmm16,zmm16,zmm21\nvextracti64x4 ymm17,zmm16,0x1\nvpackuswb ymm16,ymm16,ymm17\nvextracti32x4 xmm17,ymm16,0x1\nvmovq QWORD PTR [rdi],xmm16\nvmovq QWORD PTR [rdi+rsi*1],xmm17\nvmovhps QWORD PTR [rdi+rsi*2],xmm16\nvmovhps QWORD PTR [rdi+rax*1],xmm17",
+    "saved": 2,
+    "why": "Duplicate both low 256-bit coefficient vectors and process the two adjacent input chunks with one 512-bit arithmetic chain. Extracting the upper half before the original packing sequence preserves every store."
+  },
+  "64787f08c4": {
+    "rewrite": null,
+    "why": "Each of the four instructions updates a distinct required scalar register, with no redundant calculation to remove."
+  },
+  "33000c156c": {
+    "rewrite": null,
+    "why": "All four independent scalar updates produce required final register values and already use one instruction each."
+  },
+  "39489d729f": {
+    "rewrite": null,
+    "why": "The three constant increments and the indexed pointer update each produce a distinct required register value."
+  },
+  "bb602de121": {
+    "rewrite": null,
+    "why": "Each instruction performs a necessary update to a different live scalar register."
+  },
+  "d127cb0627": {
+    "rewrite": "vmovd xmm0,DWORD PTR [rdi]\nvpinsrd xmm0,xmm0,DWORD PTR [rdi+rsi*1],0x1\nvpbroadcastd xmm1,DWORD PTR [rdi+rsi*2]\nvpinsrd xmm1,xmm1,DWORD PTR [rdi+rax*1],0x3\nvpsubb xmm3,xmm22,XMMWORD PTR [r9]\nvpunpcklbw xmm0,xmm0,XMMWORD PTR [r9+rdx*1]\nvpunpcklbw xmm2,xmm3,XMMWORD PTR [r9]\nvpunpckhbw xmm1,xmm1,XMMWORD PTR [r9+rdx*1]\nvpunpckhbw xmm3,xmm3,XMMWORD PTR [r9]\nadd r9,0x10\nvpmaddubsw xmm0,xmm0,xmm2\nvpmaddubsw xmm1,xmm1,xmm3\nvpmulhrsw xmm0,xmm0,xmm23\nvpmulhrsw xmm1,xmm1,xmm23\nvpackuswb xmm0,xmm0,xmm1\nvmovd DWORD PTR [rdi],xmm0\nvpextrd DWORD PTR [rdi+rsi*1],xmm0,0x1\nvpextrd DWORD PTR [rdi+rsi*2],xmm0,0x2\nvpextrd DWORD PTR [rdi+rax*1],xmm0,0x3\nlea rdi,[rdi+rsi*4]\nsub r8d,0x4",
+    "saved": 2,
+    "why": "Use memory operands for the mask subtraction and both pairs of unpacks, eliminating the two explicit vector loads. Delay the r9 increment until all reads through its original value are complete."
+  },
+  "24e179a10c": {
+    "rewrite": "vmovq xmm0,QWORD PTR [rdi]\nvmovhps xmm0,xmm0,QWORD PTR [rdi+rsi*1]\nvmovq xmm1,QWORD PTR [rdi+rsi*2]\nvmovhps xmm1,xmm1,QWORD PTR [rdi+rax*1]\nvinserti128 ymm0,ymm0,xmm1,0x1\nvpsubb ymm3,ymm22,YMMWORD PTR [r9]\nvpunpckhbw ymm1,ymm0,YMMWORD PTR [r9+rdx*1]\nvpunpcklbw ymm0,ymm0,YMMWORD PTR [r9+rdx*1]\nvpunpcklbw ymm2,ymm3,YMMWORD PTR [r9]\nvpunpckhbw ymm3,ymm3,YMMWORD PTR [r9]\nadd r9,0x20\nvpmaddubsw ymm0,ymm0,ymm2\nvpmaddubsw ymm1,ymm1,ymm3\nvpmulhrsw ymm0,ymm0,ymm23\nvpmulhrsw ymm1,ymm1,ymm23\nvpackuswb ymm0,ymm0,ymm1\nvextracti128 xmm1,ymm0,0x1\nvmovq QWORD PTR [rdi],xmm0\nvmovhps QWORD PTR [rdi+rsi*1],xmm0\nvmovq QWORD PTR [rdi+rsi*2],xmm1\nvmovhps QWORD PTR [rdi+rax*1],xmm1\nlea rdi,[rdi+rsi*4]\nsub r8d,0x4",
+    "saved": 3,
+    "why": "Assemble the four qwords using two VMOVQ/VMOVHPS pairs and one insertion, saving one instruction. Folding the two other vector loads into arithmetic saves two more, with the pointer increment delayed until those reads finish."
+  },
+  "4c593d0ed2": {
+    "rewrite": "vmovdqa32 xmm17,XMMWORD PTR [rdi]\nvinserti32x4 ymm17,ymm17,XMMWORD PTR [rdi+rsi*1],0x1\nvinserti32x4 zmm17,zmm17,XMMWORD PTR [rdi+rsi*2],0x2\nvinserti32x4 zmm17,zmm17,XMMWORD PTR [rdi+rax*1],0x3\nvpsubb zmm19,zmm22,ZMMWORD PTR [r9]\nvpunpcklbw zmm16,zmm17,ZMMWORD PTR [r9+rdx*1]\nvpunpcklbw zmm18,zmm19,ZMMWORD PTR [r9]\nvpunpckhbw zmm17,zmm17,ZMMWORD PTR [r9+rdx*1]\nvpunpckhbw zmm19,zmm19,ZMMWORD PTR [r9]\nadd r9,0x40\nvpmaddubsw zmm16,zmm16,zmm18\nvpmaddubsw zmm17,zmm17,zmm19\nvpmulhrsw zmm16,zmm16,zmm23\nvpmulhrsw zmm17,zmm17,zmm23\nvpackuswb zmm16,zmm16,zmm17\nvmovdqa32 XMMWORD PTR [rdi],xmm16\nvextracti32x4 XMMWORD PTR [rdi+rsi*1],ymm16,0x1\nvextracti32x4 XMMWORD PTR [rdi+rsi*2],zmm16,0x2\nvextracti32x4 XMMWORD PTR [rdi+rax*1],zmm16,0x3\nlea rdi,[rdi+rsi*4]\nsub r8d,0x4",
+    "saved": 2,
+    "why": "The mask and source registers are dead outputs, so their loads can be folded into the subtraction and unpack instructions. Moving the r9 increment after those reads preserves all addresses and store values."
+  },
+  "23f91c8770": {
+    "rewrite": "vmovdqa32 ymm17,YMMWORD PTR [rdi]\nvinserti32x8 zmm17,zmm17,YMMWORD PTR [rdi+rsi*1],0x1\nvpsubb zmm19,zmm22,ZMMWORD PTR [r9]\nvpunpcklbw zmm16,zmm17,ZMMWORD PTR [r9+rdx*1]\nvpunpcklbw zmm18,zmm19,ZMMWORD PTR [r9]\nvpunpckhbw zmm17,zmm17,ZMMWORD PTR [r9+rdx*1]\nvpunpckhbw zmm19,zmm19,ZMMWORD PTR [r9]\nadd r9,0x40\nvpmaddubsw zmm16,zmm16,zmm18\nvpmaddubsw zmm17,zmm17,zmm19\nvpmulhrsw zmm16,zmm16,zmm23\nvpmulhrsw zmm17,zmm17,zmm23\nvpackuswb zmm16,zmm16,zmm17\nvmovdqa32 YMMWORD PTR [rdi],ymm16\nvextracti32x8 YMMWORD PTR [rdi+rsi*1],zmm16,0x1\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 2,
+    "why": "Fold the mask and source loads into the subtraction and unpack instructions because their loaded registers need not be preserved. Delay the r9 increment until all reads using its original value have completed."
+  },
+  "bb203c26bf": {
+    "rewrite": null,
+    "why": "The narrow loads cannot be folded into full-width unpack operands without reading extra bytes, and the arithmetic, stores, scalar updates, and final vector value are all required."
+  },
+  "6879deb94c": {
+    "rewrite": null,
+    "why": "The eight-byte source load cannot be folded into the sixteen-byte unpack operand, and every remaining instruction contributes to required outputs."
+  },
+  "81bdc5c8ee": {
+    "rewrite": "vmovq xmm0,QWORD PTR [rdi]\nvpbroadcastq xmm1,QWORD PTR [rdi+rsi*1]\nvpunpcklbw xmm0,xmm0,XMMWORD PTR [rdx]\nvpunpckhbw xmm1,xmm1,XMMWORD PTR [rdx]\nadd rdx,0x10\nvpmaddubsw xmm0,xmm0,xmm3\nvpmaddubsw xmm1,xmm1,xmm3\nvpmulhrsw xmm0,xmm0,xmm21\nvpmulhrsw xmm1,xmm1,xmm21\nvpackuswb xmm0,xmm0,xmm1\nvmovq QWORD PTR [rdi],xmm0\nvmovhps QWORD PTR [rdi+rsi*1],xmm0\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Fold the source load into both unpack instructions and perform the rdx increment after those reads."
+  },
+  "af35a98da0": {
+    "rewrite": "vmovdqa32 xmm17,XMMWORD PTR [rdi]\nvinserti32x4 ymm17,ymm17,XMMWORD PTR [rdi+rsi*1],0x1\nvpunpcklbw ymm16,ymm17,YMMWORD PTR [rdx]\nvpunpckhbw ymm17,ymm17,YMMWORD PTR [rdx]\nadd rdx,0x20\nvpmaddubsw ymm16,ymm16,ymm19\nvpmaddubsw ymm17,ymm17,ymm20\nvpmulhrsw ymm16,ymm16,ymm21\nvpmulhrsw ymm17,ymm17,ymm21\nvpackuswb ymm16,ymm16,ymm17\nvmovdqa32 XMMWORD PTR [rdi],xmm16\nvextracti32x4 XMMWORD PTR [rdi+rsi*1],zmm16,0x1\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Fold the source load into both unpack instructions because zmm18 is dead, delaying the rdx increment until both reads complete."
+  }
+}

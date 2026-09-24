@@ -1,0 +1,87 @@
+{
+  "238a7175c4": {
+    "rewrite": null,
+    "why": "The three vector loads, two live pointer/count updates, and separate comparison for CF and ZF each remain necessary."
+  },
+  "9121581630": {
+    "rewrite": null,
+    "why": "Both folds already combine their two carry-less products and input with one ternary XOR each, while the broadcast result and final ZF are live."
+  },
+  "a8b53c832c": {
+    "rewrite": null,
+    "why": "Each fold already uses two carry-less multiplies and a ternary XOR with a folded load, and the pointer update is live."
+  },
+  "33c4493d64": {
+    "rewrite": null,
+    "why": "The live broadcast, two distinct carry-less products, ternary XOR, and required bit test have no redundant instructions."
+  },
+  "ed98858383": {
+    "rewrite": null,
+    "why": "The fold already uses the minimum direct sequence of two carry-less products and a ternary XOR with a memory operand, followed by the live pointer update."
+  },
+  "6401228346": {
+    "rewrite": null,
+    "why": "The upper-half extraction supplies a distinct input to the folded result, and the live broadcast and ZF test prevent dropping the remaining setup."
+  },
+  "93e2f3ee99": {
+    "rewrite": null,
+    "why": "Both carry-less products feed the memory-folded ternary XOR, and the pointer update must also be preserved."
+  },
+  "d39ee9a148": {
+    "rewrite": null,
+    "why": "The live multiplier load, upper-half extraction, two products, ternary XOR, and ZF test all contribute required results."
+  },
+  "3f0740528d": {
+    "rewrite": null,
+    "why": "The two products and loaded input are already combined by one ternary XOR, leaving only the required pointer update."
+  },
+  "b22cb29d09": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle controls also drive the byte blend, and the subsequent fold already combines its three inputs in one ternary XOR."
+  },
+  "1519c632b4": {
+    "rewrite": "vpclmullqhqdq xmm1,xmm0,xmm7\nvpsrldq xmm0,xmm0,0x8\nvpxor xmm0,xmm0,xmm1\nvpclmullqlqdq xmm1,xmm0,XMMWORD PTR [rcx+0x40]\nvpclmullqhqdq xmm1,xmm1,XMMWORD PTR [rcx+0x40]\nvpxor xmm0,xmm0,xmm1\nvpextrd eax,xmm0,0x2",
+    "saved": 2,
+    "why": "Fold the dead xmm7 reload into both carry-less multiply memory operands at the original address. Remove vzeroupper because the VEX writes already clear the upper bits of the only live vector register, zmm0."
+  },
+  "7acc72c412": {
+    "rewrite": "xor r8d,r8d\nxor r9d,r9d\nlea ecx,[rax*8+0x0]\nsub eax,0x5",
+    "saved": 1,
+    "why": "A 32-bit LEA computes the same zero-extended low 32 bits as the copy and left shift. The final subtraction preserves the required SF and OF."
+  },
+  "50d43cb154": {
+    "rewrite": null,
+    "why": "All twelve CRC32 operations update live accumulators from distinct input operands, and both scalar updates are required."
+  },
+  "22a5b53576": {
+    "rewrite": null,
+    "why": "Each CRC32 updates a separate live accumulator, and the pointer increment and counter decrement with its ZF result are required."
+  },
+  "7de7f5132a": {
+    "rewrite": null,
+    "why": "Placing rdi in the high vector qword takes two instructions, and the live shuffle-mask load, data shuffle, XOR, and comparison remain necessary."
+  },
+  "3181b3137b": {
+    "rewrite": "movdqa xmm1,xmm0\npclmulhqlqdq xmm1,xmm7\npslldq xmm0,0x8\npxor xmm0,xmm1\nmovdqa xmm1,xmm0\npclmulhqhqdq xmm1,XMMWORD PTR [rcx+0x40]\npxor xmm1,xmm0\npclmulhqlqdq xmm1,XMMWORD PTR [rcx+0x40]\npxor xmm0,xmm1\nmovq rax,xmm0",
+    "saved": 1,
+    "why": "The reloaded xmm7 is not live, so both subsequent carry-less multiplies can read their multiplier directly from the original memory address."
+  },
+  "59564510f9": {
+    "rewrite": null,
+    "why": "The scalar transfer and byte shift are both needed to form the zero-padded high qword, while the broadcast and comparison produce live results."
+  },
+  "8348b7257a": {
+    "rewrite": "vpclmulhqlqdq xmm1,xmm0,xmm7\nvpslldq xmm0,xmm0,0x8\nvpxor xmm0,xmm0,xmm1\nvpclmulhqhqdq xmm1,xmm0,XMMWORD PTR [rcx+0x40]\nvpxor xmm1,xmm1,xmm0\nvpclmulhqlqdq xmm1,xmm1,XMMWORD PTR [rcx+0x40]\nvpxor xmm0,xmm0,xmm1\nvmovq rax,xmm0",
+    "saved": 2,
+    "why": "Fold the dead xmm7 reload into its two multiply users. The VEX writes already zero the upper half of live ymm0, making vzeroupper redundant for all preserved state."
+  },
+  "9c1a9624c4": {
+    "rewrite": null,
+    "why": "The scalar transfer and shift construct the required zero-padded zmm0 value, and the broadcast and CF-producing comparison are independently necessary."
+  },
+  "62283d47d4": {
+    "rewrite": "vpclmulhqlqdq xmm1,xmm0,xmm7\nvpslldq xmm0,xmm0,0x8\nvpxor xmm0,xmm0,xmm1\nvpclmulhqhqdq xmm1,xmm0,XMMWORD PTR [rcx+0x40]\nvpxor xmm1,xmm1,xmm0\nvpclmulhqlqdq xmm1,xmm1,XMMWORD PTR [rcx+0x40]\nvpxor xmm0,xmm0,xmm1\nvmovq rax,xmm0",
+    "saved": 2,
+    "why": "Fold the dead xmm7 reload into its two multiply users at the same address. The VEX writes already clear zmm0 above bit 127, so vzeroupper adds no required state change."
+  }
+}

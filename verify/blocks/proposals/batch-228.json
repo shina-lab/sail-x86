@@ -1,0 +1,89 @@
+{
+  "f0c647d874": {
+    "rewrite": null,
+    "why": "The independent row loads, arbitrary byte permutations, biased dot products, and required pointer and counter updates leave no removable instruction."
+  },
+  "1f6678e53f": {
+    "rewrite": null,
+    "why": "Both index copies are needed because vpermi2d overwrites its index register, while both original indices and both shuffled tables must survive."
+  },
+  "ae9c318b01": {
+    "rewrite": null,
+    "why": "The loaded state, masked product, shifted and unshifted threshold values, and final subtraction flags are all required."
+  },
+  "242b1bfa55": {
+    "rewrite": null,
+    "why": "The load supplies the unsigned first input of vpmaddubsw, whereas its memory operand is the signed second input, and the packing, store, and pointer and counter updates remain necessary."
+  },
+  "5743c02f3d": {
+    "rewrite": null,
+    "why": "The required final rax value also supplies the mask setup, and the broadcast, masked dword addition, and byte minimum are all needed for arbitrary inputs."
+  },
+  "1c39fdd7c4": {
+    "rewrite": null,
+    "why": "AVX2 requires a vector transfer before broadcasting a general-purpose register byte, and preserving rdi while producing CF and ZF requires the copy, mask, and comparison."
+  },
+  "ac61abe8a3": {
+    "rewrite": "tzcnt eax,eax\nlea rax,[rdi+rax*1+0x1]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the pointer increment and result addition because the final rdi value and arithmetic flags are not required. VZEROUPPER preserves the required clearing of the upper half of ymm0."
+  },
+  "bc91030833": {
+    "rewrite": "tzcnt eax,eax\nlea rax,[rdi+rax*1+0x21]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines both additions because the final rdi value and arithmetic flags are not required. VZEROUPPER preserves the required clearing of the upper half of ymm0."
+  },
+  "bf87cb56dc": {
+    "rewrite": "tzcnt eax,eax\nlea rax,[rdi+rax*1+0x41]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines both additions because the final rdi value and arithmetic flags are not required. VZEROUPPER preserves the required clearing of the upper half of ymm0."
+  },
+  "0d40b03f85": {
+    "rewrite": "tzcnt eax,eax\nlea rax,[rdi+rax*1+0x61]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines both additions because the final rdi value and arithmetic flags are not required. VZEROUPPER preserves the required clearing of the upper half of ymm0."
+  },
+  "99a67a9079": {
+    "rewrite": null,
+    "why": "The updated pointer and the incremented pointer's low seven bits are both needed, so the increment, copy, two masks, and length addition each remain necessary."
+  },
+  "f7f426615e": {
+    "rewrite": null,
+    "why": "The four independent byte comparisons require three binary combines under AVX2, followed by scalar mask extraction and an explicit ZF-setting operation."
+  },
+  "cce4f5b49b": {
+    "rewrite": null,
+    "why": "The byte comparison, movemask, trailing-zero count including its zero-input result, and final CF/ZF comparison each contribute required behavior."
+  },
+  "c0639d5933": {
+    "rewrite": "vpmovmskb eax,ymm3\nshl rcx,0x20\nor rax,rcx\ntzcnt rax,rax\nlea rax,[rdi+rax*1+0x41]\nvzeroupper",
+    "saved": 1,
+    "why": "Subtracting negative 0x41 and then adding the pointer is equivalent to one LEA because rdi and arithmetic flags are not live. The 64-bit mask construction, trailing-zero count, and VZEROUPPER are preserved."
+  },
+  "f8bb98534f": {
+    "rewrite": "tzcnt eax,eax\nlea rax,[rdi+rax*1+0x21]\nvzeroupper",
+    "saved": 1,
+    "why": "Subtracting negative 0x21 and then adding the pointer is equivalent to one LEA because rdi and arithmetic flags are not live. VZEROUPPER preserves the required clearing of the upper half of ymm0."
+  },
+  "e2726bd41b": {
+    "rewrite": null,
+    "why": "The byte comparison, scalar mask extraction, required pointer adjustment, and ZF update each remain necessary."
+  },
+  "1542c87adc": {
+    "rewrite": null,
+    "why": "The full 64-bit mask in rcx is a required output, so applying bzhi directly to the movemask would not eliminate the mask's separate construction."
+  },
+  "f164f8664c": {
+    "rewrite": null,
+    "why": "The upper half of the arbitrary incoming rcx must be extracted before masking the required byte-comparison result and producing ZF."
+  },
+  "2f72c8b71e": {
+    "rewrite": "tzcnt eax,eax\nlea rax,[rdi+rax*1+0x41]\nvzeroupper",
+    "saved": 1,
+    "why": "Subtracting negative 0x41 and then adding the pointer is equivalent to one LEA because rdi and arithmetic flags are not live. VZEROUPPER preserves the required clearing of the upper half of ymm0."
+  },
+  "b2ff910218": {
+    "rewrite": null,
+    "why": "The broadcast is already a single instruction, while preserving rdi and returning the masked offset in rax requires the copy and mask before the required CF/ZF comparison."
+  }
+}

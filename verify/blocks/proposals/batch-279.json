@@ -1,0 +1,88 @@
+{
+  "4c181b81ec": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0xd\nlea r10,[rdi+0xd]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to OR with -0x1000, and no flags are live."
+  },
+  "3836161d1c": {
+    "rewrite": null,
+    "why": "The live r10 update, load and shift into xmm0, string index in rcx, and final CF require the existing operations."
+  },
+  "df6d81cfbf": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0xe\nlea r10,[rdi+0xe]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to OR with -0x1000, and no flags are live."
+  },
+  "58a2bacff3": {
+    "rewrite": null,
+    "why": "The live r10 update, load and shift into xmm0, string index in rcx, and final CF require the existing operations."
+  },
+  "8ca286092e": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0xf\nlea r10,[rdi+0xf]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to OR with -0x1000, and no flags are live."
+  },
+  "f398c96eec": {
+    "rewrite": null,
+    "why": "The live r10 update, load and shift into xmm0, string index in rcx, and final CF require the existing operations."
+  },
+  "85e6b4a096": {
+    "rewrite": null,
+    "why": "The register copies, masked rcx computation, scalar and vector zeroing, and final CF/ZF comparison are all needed."
+  },
+  "cb19573849": {
+    "rewrite": null,
+    "why": "All three register assignments are live, and the test independently supplies the required ZF."
+  },
+  "2e889d2d1c": {
+    "rewrite": "movzx edx,BYTE PTR [rsi]\nmov WORD PTR [rdi],dx\nvzeroupper",
+    "saved": 1,
+    "why": "The byte load zero-extends into edx, so a word store of dx writes the copied byte followed by the terminating zero."
+  },
+  "29f968cd59": {
+    "rewrite": null,
+    "why": "With an unknown r8, both word copies and the terminator store are necessary, while vzeroupper is required for ymm0."
+  },
+  "bc90da8a06": {
+    "rewrite": null,
+    "why": "With an unknown r8, both dword copies and the terminator store are necessary, while vzeroupper is required for ymm0."
+  },
+  "346ff0ac3e": {
+    "rewrite": null,
+    "why": "With an unknown r8, both qword copies and the terminator store are necessary, while vzeroupper is required for ymm0."
+  },
+  "f34761965a": {
+    "rewrite": null,
+    "why": "The two 16-byte copies, terminator store, and clearing of the live ymm0 upper half require the existing operations."
+  },
+  "a6770b4752": {
+    "rewrite": null,
+    "why": "The two 32-byte copies, terminator store, and clearing of the live ymm0 upper half require the existing operations."
+  },
+  "12fabaa623": {
+    "rewrite": "vmovdqu ymm2,YMMWORD PTR [rsi]\nvmovdqu ymm3,YMMWORD PTR [rsi+0x20]\nmovzx ecx,BYTE PTR [rsi+0x40]\nvmovdqu YMMWORD PTR [rdi],ymm2\nvmovdqu YMMWORD PTR [rdi+0x20],ymm3\nmov WORD PTR [rdi+0x40],cx\nvzeroupper",
+    "saved": 1,
+    "why": "Zero-extending the final byte into ecx allows one word store to write that byte together with its terminating zero."
+  },
+  "32bc888666": {
+    "rewrite": null,
+    "why": "The register copies, masked rcx computation, scalar and vector zeroing, and final CF/ZF comparison are all needed."
+  },
+  "92c92a869d": {
+    "rewrite": null,
+    "why": "All three register assignments are live, and the test independently supplies the required ZF."
+  },
+  "a290df3107": {
+    "rewrite": null,
+    "why": "The register copies, masked rcx computation, scalar and vector zeroing, and final CF/ZF comparison are all needed."
+  },
+  "d3bace47f3": {
+    "rewrite": null,
+    "why": "All three register assignments are live, and the test independently supplies the required ZF."
+  },
+  "172a760a1d": {
+    "rewrite": "mov dl,BYTE PTR [rsi]\nmov BYTE PTR [rdi],dl\nmov BYTE PTR [rdi+0x1],0x0",
+    "saved": 1,
+    "why": "Since rcx and flags are dead, writing the terminating zero directly removes the clearing of ch while preserving the partial update to rdx."
+  }
+}

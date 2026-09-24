@@ -1,0 +1,86 @@
+{
+  "b20c4579e5": {
+    "rewrite": "vpclmulhqlqdq xmm1,xmm0,xmm7\nvpslldq xmm0,xmm0,0x8\nvpxor xmm0,xmm0,xmm1\nvpclmulhqhqdq xmm1,xmm0,XMMWORD PTR [rcx+0x40]\nvpxor xmm1,xmm1,xmm0\nvpclmulhqlqdq xmm1,xmm1,XMMWORD PTR [rcx+0x40]\nvpxor xmm0,xmm0,xmm1\nvpextrw eax,xmm0,0x3",
+    "saved": 2,
+    "why": "Fold the reduction-constant load into its two carry-less multiplications because xmm7 is dead. The final VEX write to xmm0 already clears the upper bits of the only live vector register, so vzeroupper is redundant."
+  },
+  "b185cc77f0": {
+    "rewrite": null,
+    "why": "The CRC initialization, unaligned load, XOR, and flag-setting comparison are all needed; folding the load into legacy PXOR would require alignment that is not given."
+  },
+  "97cfdf2705": {
+    "rewrite": null,
+    "why": "All three loaded vectors, both updated scalar registers, and the final comparison flags are live."
+  },
+  "d2d6c10c9a": {
+    "rewrite": null,
+    "why": "Each fold needs its unaligned load, a copy for the destructive carry-less multiplications, and two XORs, while the scalar updates and comparison remain live."
+  },
+  "eb41da60a8": {
+    "rewrite": null,
+    "why": "Both folds need two carry-less products, a copy, and two XORs, and the loaded xmm7 and final test result must also be preserved."
+  },
+  "12d0c67dab": {
+    "rewrite": null,
+    "why": "Both live folds require explicit unaligned loads and copies for the destructive carry-less products, followed by the required pointer update."
+  },
+  "c2cd1156e0": {
+    "rewrite": null,
+    "why": "The constant load remains live in xmm7, and the copy, two carry-less products, two XORs, and flag-setting test are needed."
+  },
+  "70cc757b44": {
+    "rewrite": null,
+    "why": "The unaligned load cannot safely be folded into legacy PXOR, and the two products, source copy, two XORs, and pointer update are needed."
+  },
+  "4c1873cbe9": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi+rdx*1-0x10]\nmovdqa xmm1,xmm0\nmovdqa xmm4,xmm0\nmovdqu xmm0,XMMWORD PTR [rcx+rdx*1+0x20]\npshufb xmm1,xmm0\nmovdqu xmm3,XMMWORD PTR [rcx+rdx*1+0x10]\npshufb xmm4,xmm3\npblendvb xmm1,xmm2,xmm0\nmovdqa xmm0,xmm4\npclmullqlqdq xmm4,xmm7\npclmulhqhqdq xmm0,xmm7\npxor xmm4,xmm1\npxor xmm0,xmm4",
+    "saved": 2,
+    "why": "Copy the input into its two shuffle destinations and load the blend mask directly into xmm0. This removes the mask copy and the redundant copy after restoring xmm0 while retaining all unaligned loads."
+  },
+  "738e52451e": {
+    "rewrite": "pclmulhqlqdq xmm7,xmm0\npsrldq xmm0,0x8\npxor xmm0,xmm7\nmovdqa xmm1,xmm0\npclmullqlqdq xmm1,XMMWORD PTR [rcx+0x40]\npclmullqhqdq xmm1,XMMWORD PTR [rcx+0x40]\npxor xmm0,xmm1\npextrd eax,xmm0,0x2",
+    "saved": 2,
+    "why": "Commute the first carry-less multiplication into dead xmm7 to eliminate its input copy. Fold the later aligned constant load into both reduction multiplications."
+  },
+  "709873051f": {
+    "rewrite": null,
+    "why": "All three YMM loads, both scalar updates, and the final comparison contribute to required outputs."
+  },
+  "86dfb9f08c": {
+    "rewrite": null,
+    "why": "Each fold already uses two three-operand carry-less products and two XORs with its load folded, and the scalar updates and comparison are live."
+  },
+  "2dfb8f325f": {
+    "rewrite": null,
+    "why": "The broadcast result and test flag are live, and AVX2 has no ternary XOR to shorten either pair of carry-less products and XORs."
+  },
+  "41688b55dd": {
+    "rewrite": null,
+    "why": "Both folds already use three-operand multiplications and folded memory operands, and the pointer update is required."
+  },
+  "6d47f3d11a": {
+    "rewrite": null,
+    "why": "The live broadcast constant, two carry-less products, two XORs, and test result leave no removable instruction under AVX2."
+  },
+  "6f13c2bc58": {
+    "rewrite": null,
+    "why": "The fold already uses two carry-less products and two XORs with a folded load, followed by the required pointer update."
+  },
+  "231d4b2580": {
+    "rewrite": null,
+    "why": "The upper-lane extraction, two products, two XORs, live constant load, and flag-setting test are all needed."
+  },
+  "e653af48fe": {
+    "rewrite": null,
+    "why": "The memory operand is already folded, and both carry-less products, both XORs, and the pointer update contribute to live outputs."
+  },
+  "1bb62e362a": {
+    "rewrite": null,
+    "why": "The mask load serves both the shuffle and blend, the other loads are already folded, and the two-product reduction has no redundant copy or XOR."
+  },
+  "9b5356d2b2": {
+    "rewrite": "vpclmullqhqdq xmm1,xmm0,xmm7\nvpsrldq xmm0,xmm0,0x8\nvpxor xmm0,xmm0,xmm1\nvpclmullqlqdq xmm1,xmm0,XMMWORD PTR [rcx+0x40]\nvpclmullqhqdq xmm1,xmm1,XMMWORD PTR [rcx+0x40]\nvpxor xmm0,xmm0,xmm1\nvpextrd eax,xmm0,0x2",
+    "saved": 2,
+    "why": "Fold the dead xmm7 constant load into both reduction multiplications. The final VEX write already zeroes the upper half of live ymm0, making vzeroupper unnecessary."
+  }
+}

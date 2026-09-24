@@ -1,0 +1,83 @@
+{
+  "344e2b69bf": {
+    "rewrite": null,
+    "why": "The multiply, constant broadcast, store, and OR each produce a required result or required flags."
+  },
+  "34ca09d931": {
+    "rewrite": null,
+    "why": "Eight maximum-width AVX2 stores are required, followed by the required pointer update and comparison."
+  },
+  "4a58211c82": {
+    "rewrite": null,
+    "why": "The multiply, bias, and shift implement distinct steps of wrapped integer rounding, and the store, broadcast, and RCX update are also required."
+  },
+  "add1f3801b": {
+    "rewrite": "add rdx,0x20\nvpsrld ymm15,ymm11,0xa\nvpaddd ymm0,ymm15,ymm0\nvpaddd ymm1,ymm15,ymm1\nvpaddd ymm2,ymm15,ymm2\nvpaddd ymm3,ymm15,ymm3\nvpaddd ymm4,ymm15,ymm4\nvpaddd ymm5,ymm15,ymm5\nvpaddd ymm6,ymm15,ymm6\nvpaddd ymm7,ymm15,ymm7\nvpsubd ymm10,ymm0,YMMWORD PTR [rax-0x80]\nvpaddd ymm0,ymm0,YMMWORD PTR [rax-0x80]\nvpsubd ymm15,ymm7,YMMWORD PTR [rax+0x60]\nvpaddd ymm7,ymm7,YMMWORD PTR [rax+0x60]\nvpsrad ymm0,ymm0,0x2\nvpsrad ymm15,ymm15,0x2\nvpsrad ymm10,ymm10,0x2\nvpsrad ymm7,ymm7,0x2\nvpackssdw ymm0,ymm0,ymm15\nvpackssdw ymm7,ymm7,ymm10\nvpsubd ymm10,ymm1,YMMWORD PTR [rax-0x60]\nvpaddd ymm1,ymm1,YMMWORD PTR [rax-0x60]\nvpsubd ymm15,ymm6,YMMWORD PTR [rax+0x40]\nvpaddd ymm6,ymm6,YMMWORD PTR [rax+0x40]\nvpsrad ymm1,ymm1,0x2\nvpsrad ymm15,ymm15,0x2\nvpsrad ymm10,ymm10,0x2\nvpsrad ymm6,ymm6,0x2\nvpackssdw ymm1,ymm1,ymm15\nvpackssdw ymm6,ymm6,ymm10\nvpsubd ymm10,ymm2,YMMWORD PTR [rax-0x40]\nvpaddd ymm2,ymm2,YMMWORD PTR [rax-0x40]\nvmovdqa ymm8,YMMWORD PTR [rax-0x20]\nvpsubd ymm15,ymm5,YMMWORD PTR [rax+0x20]\nvpaddd ymm5,ymm5,YMMWORD PTR [rax+0x20]\nvmovdqa ymm9,YMMWORD PTR [rax]\nvpsrad ymm2,ymm2,0x2\nvpsrad ymm15,ymm15,0x2\nvpsrad ymm10,ymm10,0x2\nvpsrad ymm5,ymm5,0x2\nvpackssdw ymm2,ymm2,ymm15\nvpackssdw ymm5,ymm5,ymm10\nvpsubd ymm10,ymm3,ymm8\nvpaddd ymm3,ymm8,ymm3\nvpsubd ymm15,ymm4,ymm9\nvpaddd ymm4,ymm9,ymm4\nvpsrad ymm3,ymm3,0x2\nvpsrad ymm15,ymm15,0x2\nvpsrad ymm10,ymm10,0x2\nvpsrad ymm4,ymm4,0x2\nvpackssdw ymm3,ymm3,ymm15\nvpackssdw ymm4,ymm4,ymm10",
+    "saved": 6,
+    "why": "Fold six temporary loads into memory operands of their addition and subtraction users, reading only the original addresses. Retain the last two loads to preserve the required final values of YMM8 and YMM9."
+  },
+  "80f6297525": {
+    "rewrite": null,
+    "why": "Each of the eight distinct vectors requires its own maximum-width AVX2 store, and the final RAX increment is required."
+  },
+  "92613d1350": {
+    "rewrite": null,
+    "why": "The two address results and two distinct broadcast constants each require their existing instruction."
+  },
+  "932c153d95": {
+    "rewrite": null,
+    "why": "The two multiply-and-round stages require their intermediate rounding and wrapping behavior, while the store, broadcast, and RCX update remain live."
+  },
+  "08bbe6c195": {
+    "rewrite": null,
+    "why": "All pointer results and comparison flags are required, and subtracting an unknown preserved register plus adding an offset cannot be combined in one LEA."
+  },
+  "4b8a1264ea": {
+    "rewrite": null,
+    "why": "The scalar rounding stages and final EAX value are required, and AVX2 needs separate scalar transfer, signed saturation, and word broadcast operations."
+  },
+  "bdeafdda40": {
+    "rewrite": null,
+    "why": "Each vector requires both distinct saturation operations and a store, with loads already folded into arithmetic and both scalar updates required."
+  },
+  "33fdd827cb": {
+    "rewrite": null,
+    "why": "The eight maximum-width stores, pointer increment, and counter decrement producing the required flags are all necessary."
+  },
+  "92a3f04aed": {
+    "rewrite": null,
+    "why": "Four independently preserved vector registers must be zeroed, alongside the required shift result and flag-setting RDX update."
+  },
+  "91d357b2a6": {
+    "rewrite": null,
+    "why": "Both multiply-and-round stages are needed for exact intermediate rounding, and the store, RCX update, final EAX value, and final flags are required."
+  },
+  "490aa9f09e": {
+    "rewrite": null,
+    "why": "RDI needs both subtraction and offset addition because LEA cannot subtract an unknown register, while the RDX address calculation and final comparison are required."
+  },
+  "980b66d2d6": {
+    "rewrite": null,
+    "why": "All five vector results are required, and AVX2 has no fused packed-dword addition and arithmetic-right-shift instruction."
+  },
+  "80371e3a35": {
+    "rewrite": null,
+    "why": "All three pointer results and comparison flags are required, and the RDI subtraction and constant addition cannot be fused while preserving R11."
+  },
+  "5ab843ccbc": {
+    "rewrite": null,
+    "why": "The two scalar rounding stages, both vector results, store, and RCX update are required, with the scalar-to-vector broadcast already performed directly."
+  },
+  "2e6eeb73d5": {
+    "rewrite": null,
+    "why": "The two separately addressed rows require their loads and stores, the arbitrary vector operands require both saturation operations, and both scalar updates remain live."
+  },
+  "65f0d214c8": {
+    "rewrite": null,
+    "why": "Each permutation produces a distinct required vector result from arbitrary input indices and data."
+  },
+  "8f0e378c51": {
+    "rewrite": null,
+    "why": "The unknown memory-supplied permutation indices prevent simplifying the rearrangements, and both packed outputs plus the intermediate ZMM18 and ZMM20 values are required."
+  }
+}

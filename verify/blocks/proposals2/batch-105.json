@@ -1,0 +1,90 @@
+{
+  "de84dcd0bd": {
+    "rewrite": null,
+    "why": "With xmm2 unconstrained and both vector results preserved, the SSE2 shifts, masks, packs, stores and flag-setting index update have no removable step."
+  },
+  "3e77406622": {
+    "rewrite": null,
+    "why": "The unaligned loads and subsequent SSE2 operations are needed to preserve both vector results, both stores and the index update with its flags."
+  },
+  "c575fcf922": {
+    "rewrite": null,
+    "why": "The arbitrary xmm2 mask prevents simplifying either saturation stage, and SSE2 needs the copy to produce both preserved vector results."
+  },
+  "f5b47f58a1": {
+    "rewrite": null,
+    "why": "The arbitrary xmm2 mask and preserved vector results leave no redundant instruction in this unaligned SSE2 masking and packing sequence."
+  },
+  "01be86aad5": {
+    "rewrite": null,
+    "why": "Both packed outputs and the shifted and masked second input must survive, so the SSE2 copies and arithmetic all contribute to required results."
+  },
+  "e159475641": {
+    "rewrite": null,
+    "why": "The unaligned loads, two SSE2 extraction paths and their intermediate results are all required by the preserved registers and stores."
+  },
+  "363d9f0fca": {
+    "rewrite": null,
+    "why": "The VEX sequence already avoids copies, while both packing stages and the arbitrary mask are needed for the preserved results."
+  },
+  "0d1ba9c69f": {
+    "rewrite": null,
+    "why": "The unaligned VEX sequence has no redundant copy or operation, and both final vectors and the flag-setting index update must match."
+  },
+  "cce4463c87": {
+    "rewrite": null,
+    "why": "The loads are already folded into the masks, and the arbitrary mask and preserved vector results require the remaining packing and shifting operations."
+  },
+  "e3df92d136": {
+    "rewrite": null,
+    "why": "The three-operand VEX operations already avoid copies, and the packed outputs plus the shifted and masked second input are all preserved."
+  },
+  "4c62cc009c": {
+    "rewrite": null,
+    "why": "Both extraction paths need the unaligned inputs, and all four resulting vectors are preserved, leaving no redundant VEX operation."
+  },
+  "c715fc2f53": {
+    "rewrite": "movq xmm10,QWORD PTR [rcx]\npshufd xmm11,xmm10,0x55\npshufd xmm10,xmm10,0x0\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm8,XMMWORD PTR [CONST_1]\nmov r10d,0x8004000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One eight-byte load supplies the first two coefficients, which PSHUFD broadcasts separately, replacing four instructions with three without reading any additional bytes."
+  },
+  "c5cfe38e02": {
+    "rewrite": "movups xmm10,XMMWORD PTR [r8+0xc]\npshufd xmm11,xmm10,0x55\npshufd xmm12,xmm10,0xaa\npshufd xmm13,xmm10,0xff\npshufd xmm10,xmm10,0x0\nmovq xmm14,QWORD PTR [r8+0x1c]\npshufd xmm15,xmm14,0x55\npshufd xmm14,xmm14,0x0\npxor xmm9,xmm9\nmov r11d,0x400100\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Load the six adjacent coefficients with one unaligned 16-byte load and one eight-byte load, then broadcast their dwords with PSHUFD, preserving all outputs and reading exactly the original bytes."
+  },
+  "71b768612e": {
+    "rewrite": "movups xmm10,XMMWORD PTR [r8+0xc]\npshufd xmm11,xmm10,0x55\npshufd xmm12,xmm10,0xaa\npshufd xmm13,xmm10,0xff\npshufd xmm10,xmm10,0x0\nmovq xmm14,QWORD PTR [r8+0x1c]\npshufd xmm15,xmm14,0x55\npshufd xmm14,xmm14,0x0\npxor xmm9,xmm9\nmov r11d,0x800200\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two loads cover the same 24 coefficient bytes as the six scalar loads, and six PSHUFD broadcasts reproduce the required vectors in eight instructions instead of twelve."
+  },
+  "688c37cc40": {
+    "rewrite": "movups xmm10,XMMWORD PTR [r8+0xc]\npshufd xmm11,xmm10,0x55\npshufd xmm12,xmm10,0xaa\npshufd xmm13,xmm10,0xff\npshufd xmm10,xmm10,0x0\nmovq xmm14,QWORD PTR [r8+0x1c]\npshufd xmm15,xmm14,0x55\npshufd xmm14,xmm14,0x0\npxor xmm9,xmm9\nmov r11d,0x1000400\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Combining the adjacent coefficient loads reduces six loads to two while PSHUFD produces identical broadcasts and no additional memory bytes are accessed."
+  },
+  "783079e8af": {
+    "rewrite": "movups xmm10,XMMWORD PTR [r8+0xc]\npshufd xmm11,xmm10,0x55\npshufd xmm12,xmm10,0xaa\npshufd xmm13,xmm10,0xff\npshufd xmm10,xmm10,0x0\nmovq xmm14,QWORD PTR [r8+0x1c]\npshufd xmm15,xmm14,0x55\npshufd xmm14,xmm14,0x0\npxor xmm9,xmm9\nmov r11d,0x4001000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "One unaligned 16-byte load and one eight-byte load replace the six scalar coefficient loads, with PSHUFD preserving each broadcast using only the original memory bytes."
+  },
+  "6f88abf91f": {
+    "rewrite": "movups xmm10,XMMWORD PTR [r8+0xc]\npshufd xmm11,xmm10,0x55\npshufd xmm12,xmm10,0xaa\npshufd xmm13,xmm10,0xff\npshufd xmm10,xmm10,0x0\nmovq xmm14,QWORD PTR [r8+0x1c]\npshufd xmm15,xmm14,0x55\npshufd xmm14,xmm14,0x0\npxor xmm9,xmm9\nmov r11d,0x10004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Load the same 24 coefficient bytes in two groups and broadcast each dword with PSHUFD, removing four loads while preserving all required values."
+  },
+  "53009b77ec": {
+    "rewrite": "movups xmm10,XMMWORD PTR [r8+0xc]\npshufd xmm11,xmm10,0x55\npshufd xmm12,xmm10,0xaa\npshufd xmm13,xmm10,0xff\npshufd xmm10,xmm10,0x0\nmovq xmm14,QWORD PTR [r8+0x1c]\npshufd xmm15,xmm14,0x55\npshufd xmm14,xmm14,0x0\npxor xmm9,xmm9\nmov r11d,0x40004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Combining the six scalar coefficient loads into two loads and broadcasting with PSHUFD saves four instructions without changing the loaded byte set or required outputs."
+  },
+  "c40506f084": {
+    "rewrite": "movups xmm10,XMMWORD PTR [r8+0xc]\npshufd xmm11,xmm10,0x55\npshufd xmm12,xmm10,0xaa\npshufd xmm13,xmm10,0xff\npshufd xmm10,xmm10,0x0\nmovq xmm14,QWORD PTR [r8+0x1c]\npshufd xmm15,xmm14,0x55\npshufd xmm14,xmm14,0x0\npxor xmm9,xmm9\nmovdqu xmm8,XMMWORD PTR [CONST_1]\nmov r11d,0x40004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two loads cover exactly the six original coefficient dwords, and PSHUFD reproduces their broadcasts with four fewer instructions."
+  },
+  "9c38a5644a": {
+    "rewrite": null,
+    "why": "The unpack and shift depend on arbitrary xmm9, and the store, preserved index update and final comparison each supply a required effect."
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "420e4a857f": {
+    "rewrite": null,
+    "why": "Both dot products are live, and doubling eax and copying it to r9d and xmm5 require the remaining three instructions."
+  },
+  "84b9e2e374": {
+    "rewrite": "paddw xmm0,xmm1\npmulhrsw xmm0,xmm10\nshl ecx,0x2\nmov rdx,rsp\npackuswb xmm0,xmm0\npunpcklbw xmm0,xmm3\nmovdqa xmm6,xmm5\npaddw xmm6,xmm5\npunpcklqdq xmm5,xmm6",
+    "saved": 1,
+    "why": "The stack adjustment has no effect on any listed output or memory access and can be omitted, leaving rsp untouched."
+  },
+  "91eaadab14": {
+    "rewrite": null,
+    "why": "The independently saturated dot products and their two rounded sums require the existing shuffles, copies, and arithmetic under SSSE3."
+  },
+  "78e5d4ac68": {
+    "rewrite": "psubw xmm4,xmm0\nshl ecx,0x2\nmovdqa xmm6,xmm5\npaddw xmm6,xmm5\npunpcklqdq xmm5,xmm6",
+    "saved": 1,
+    "why": "The stack adjustment affects no listed output or memory access, so removing it preserves the required results and leaves rsp untouched."
+  },
+  "69b65034e1": {
+    "rewrite": null,
+    "why": "The live counter update, dot product, rounded scaling, saturated byte packing, and store cannot be combined under SSSE3."
+  },
+  "bbcfeb9743": {
+    "rewrite": null,
+    "why": "The arbitrary bitwise selection needs three Boolean operations, and preserving xmm4 requires a separate copy for the comparison."
+  },
+  "2047927200": {
+    "rewrite": null,
+    "why": "Nibble expansion and palette lookup feed four separately addressed stores, and both final vector values and the loop updates must be preserved."
+  },
+  "8b28b70cc3": {
+    "rewrite": null,
+    "why": "Both palette lookups and interleaves are live, and SSSE3 provides no three-operand byte shuffle to eliminate their required copies."
+  },
+  "d90c660c3a": {
+    "rewrite": null,
+    "why": "The preserved lookup results require the existing copies and interleaves, followed by two distinct stores and live loop updates."
+  },
+  "fb4de7288a": {
+    "rewrite": null,
+    "why": "Both interleaved lookup vectors and xmm2 must survive, and the stores, pointer updates, and final flags are all required."
+  },
+  "249dbde550": {
+    "rewrite": null,
+    "why": "Both input vectors require separate palette lookups and interleaves, and the four stores and final vector results leave no removable copy."
+  },
+  "faabc5fb24": {
+    "rewrite": "pshufd xmm1,xmm0,0xee\npaddw xmm0,xmm1\npshuflw xmm1,xmm0,0x4e\npaddw xmm0,xmm1\npsrlw xmm0,0x2\nmov eax,0x5556\nmov edx,0x3334\ntest r8d,0x8",
+    "saved": 1,
+    "why": "PSHUFD with immediate 0xee duplicates the high qword directly, replacing the copy followed by PUNPCKHQDQ."
+  },
+  "3f28011c00": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [r9]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x10]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovd DWORD PTR [rdi],xmm4\npshuflw xmm4,xmm4,0x4e\nmovd DWORD PTR [rdi+rsi*1],xmm4\npunpckhqdq xmm4,xmm4\nmovd DWORD PTR [rdi+rsi*2],xmm4\npsrlq xmm4,0x20\nmovd DWORD PTR [rdi+rax*1],xmm4\nlea rdi,[rdi+rsi*4]\nadd r9,0x20\nsub r8d,0x4",
+    "saved": 2,
+    "why": "Load each input into xmm3 and use PABSW with a distinct destination before applying PSIGNW to xmm3. This removes two copies while preserving the exact signed rounding, final vectors, and stores."
+  },
+  "231680debe": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [r9]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x10]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovq QWORD PTR [rdi],xmm4\nmovhps QWORD PTR [rdi+rsi*1],xmm4\nmovdqa xmm3,XMMWORD PTR [r9+0x20]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x30]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovq QWORD PTR [rdi+rsi*2],xmm4\nmovhps QWORD PTR [rdi+rax*1],xmm4\nlea rdi,[rdi+rsi*4]\nadd r9,0x40\nsub r8d,0x4",
+    "saved": 4,
+    "why": "Load each input into xmm3 and take its absolute value into the destination before changing xmm3 with PSIGNW. This eliminates one copy per input while preserving all arithmetic results, stores, and final flags."
+  },
+  "0bd3505d68": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [r9]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x10]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovdqa XMMWORD PTR [rdi],xmm4\nmovdqa xmm3,XMMWORD PTR [r9+0x20]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x30]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm4\nlea rdi,[rdi+rsi*2]\nadd r9,0x40\nsub r8d,0x2",
+    "saved": 4,
+    "why": "PABSW can read xmm3 and write the result directly to xmm4 or xmm5 before xmm3 is signed. Loading into xmm3 therefore removes four copies without changing any required result."
+  },
+  "83d0430e23": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [r9]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x10]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovdqa XMMWORD PTR [rdi],xmm4\nmovdqa xmm3,XMMWORD PTR [r9+0x20]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x30]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovdqa XMMWORD PTR [rdi+0x10],xmm4\nadd rdi,rsi\nadd r9,0x40\ndec r8d",
+    "saved": 4,
+    "why": "Loading each input into xmm3 lets PABSW produce the magnitude in its final working register without a copy. The four removed copies do not affect signed rounding, stores, or the carry flag retained by DEC."
+  },
+  "0fcfedd78f": {
+    "rewrite": null,
+    "why": "Unknown row strides require the four separate loads, and both saturated dot products, their sum, the store, and loop state are required."
+  },
+  "d7ab92d999": {
+    "rewrite": null,
+    "why": "The store, accumulator addition, destination advance, and flag-producing counter subtraction each have an independently required effect."
+  },
+  "608ed36c4b": {
+    "rewrite": null,
+    "why": "Unsigned input bytes and signed coefficients prevent folding these loads into swapped PMADDUBSW operands, while both stores and the accumulated sum are live."
+  },
+  "5e1f7b003f": {
+    "rewrite": null,
+    "why": "The duplicated loads, dot products with arbitrary signed coefficients, high-word replication, store, and accumulator and loop updates are all required."
+  }
+}

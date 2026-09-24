@@ -1,0 +1,85 @@
+{
+  "3836161d1c": {
+    "rewrite": null,
+    "why": "The load and byte shift produce live xmm0, while the subtraction, string scan, and comparison each produce a separate required result."
+  },
+  "df6d81cfbf": {
+    "rewrite": "mov r11,r9\nmov ecx,0x10\nmov r9d,0xe\nlea r10,[rdi+0xe]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to setting all bits above bit 11 with OR. The final flags are not required."
+  },
+  "58a2bacff3": {
+    "rewrite": null,
+    "why": "The load and byte shift produce live xmm0, while the subtraction, string scan, and comparison each produce a separate required result."
+  },
+  "8ca286092e": {
+    "rewrite": "mov r11,r9\nmov ecx,0x10\nmov r9d,0xf\nlea r10,[rdi+0xf]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to setting all bits above bit 11 with OR. The final flags are not required."
+  },
+  "f398c96eec": {
+    "rewrite": null,
+    "why": "The load and byte shift produce live xmm0, while the subtraction, string scan, and comparison each produce a separate required result."
+  },
+  "85e6b4a096": {
+    "rewrite": null,
+    "why": "The register copies, masked offset, scalar and vector zeros, and comparison flags are all required, with no removable intermediate."
+  },
+  "cb19573849": {
+    "rewrite": null,
+    "why": "The address sum, two live register copies, and flags from testing r8 each require their own instruction."
+  },
+  "2e889d2d1c": {
+    "rewrite": "movzx edx,BYTE PTR [rsi]\nmov WORD PTR [rdi],dx\nvzeroupper",
+    "saved": 1,
+    "why": "MOVZX makes dh zero, so one word store writes both the copied byte and its zero terminator. The register values, flags, and vector upper-half clearing are preserved."
+  },
+  "29f968cd59": {
+    "rewrite": null,
+    "why": "Both loaded values remain live, and merging the trailing word with its terminator would require a three-byte store unavailable in this ISA."
+  },
+  "bc90da8a06": {
+    "rewrite": null,
+    "why": "Both loaded values remain live, and widening a data store to include the terminator would also overwrite bytes outside the original stores."
+  },
+  "346ff0ac3e": {
+    "rewrite": null,
+    "why": "The two live qword loads, their stores, the separate terminator, and the required vector upper-half clearing leave no redundant instruction."
+  },
+  "f34761965a": {
+    "rewrite": null,
+    "why": "The two vector copies and terminator store are required, and vzeroupper also clears upper halves of untouched live ymm registers."
+  },
+  "a6770b4752": {
+    "rewrite": null,
+    "why": "Both full-width vector copies and the terminator store are required, and vzeroupper must clear the live upper halves after the stores."
+  },
+  "12fabaa623": {
+    "rewrite": null,
+    "why": "The byte load must preserve the other bits of rcx, so cx cannot provide a zero-terminated word store, and all vector transfers and vzeroupper are required."
+  },
+  "32bc888666": {
+    "rewrite": null,
+    "why": "The register copies, masked offset, scalar and vector zeros, and comparison flags are all required, with no removable intermediate."
+  },
+  "92c92a869d": {
+    "rewrite": null,
+    "why": "The address sum, two live register copies, and flags from testing r8 each require their own instruction."
+  },
+  "a290df3107": {
+    "rewrite": null,
+    "why": "The register copies, masked offset, scalar and vector zeros, and comparison flags are all required, with no removable intermediate."
+  },
+  "d3bace47f3": {
+    "rewrite": null,
+    "why": "The address sum, two live register copies, and flags from testing r8 each require their own instruction."
+  },
+  "172a760a1d": {
+    "rewrite": null,
+    "why": "The dl load, ch clearing with its flags, and both byte stores are live, while unconstrained dh prevents combining the stores using dx."
+  },
+  "a4308b2746": {
+    "rewrite": null,
+    "why": "The word load must preserve the rest of rdx, while clearing ch establishes live rcx bits and flags, leaving no redundant instruction."
+  }
+}

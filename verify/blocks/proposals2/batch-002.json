@@ -1,0 +1,86 @@
+{
+  "d22a93fdd3": {
+    "rewrite": null,
+    "why": "The sign mask, corrected product, clamped and shifted vector, two stores, and scalar updates all contribute to required final state."
+  },
+  "d2096d7204": {
+    "rewrite": null,
+    "why": "Two noncontiguous loads and two independent register initializations are required, with all their destinations preserved."
+  },
+  "925bba741f": {
+    "rewrite": null,
+    "why": "The sign mask and corrected product are live, and the packed result, shift, two stores, and scalar updates are all required."
+  },
+  "241716ae73": {
+    "rewrite": null,
+    "why": "The final shifted vector and both arithmetic results require the load, shifts, interleaving, multiply-adds, and addition."
+  },
+  "8f6dc26776": {
+    "rewrite": null,
+    "why": "The shifted vector, sign-extended load, scalar result, and comparison flags are all live, leaving no redundant operation."
+  },
+  "45bc0a0cf7": {
+    "rewrite": null,
+    "why": "The seed calculation requires its multiply, add, rotation, truncation, and XOR, while all three address-register updates are live."
+  },
+  "788960247e": {
+    "rewrite": "vmovdqu xmm0,XMMWORD PTR [rdi+r11*2-0xa6]\nvmovdqu xmm2,XMMWORD PTR [rsi+r11*4]\nvpaddw xmm2,xmm2,XMMWORD PTR [rsi+r11*4+0xa4]\nvphaddw xmm2,xmm2,xmm2\nvpmulhrsw xmm2,xmm2,xmm6\nvpsrldq xmm1,xmm0,0x4\nvpunpcklwd xmm1,xmm1,xmm2\nvpsrldq xmm2,xmm0,0x2\nvpunpcklwd xmm0,xmm0,xmm2\nvpmaddwd xmm1,xmm1,xmm5\nvpmaddwd xmm0,xmm0,xmm4\nvpaddd xmm1,xmm1,xmm3\nvpaddd xmm0,xmm0,xmm1",
+    "saved": 1,
+    "why": "Add the two rows before horizontal addition to obtain the same low four word sums modulo 65536, eliminating the high-half extraction. The differing high words are discarded before xmm2 is overwritten."
+  },
+  "bcccc85ed2": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rsi]\nvphaddw ymm0,ymm0,YMMWORD PTR [rsi+0x20]\nvpermq ymm0,ymm0,0xd8\nvmovdqu ymm1,YMMWORD PTR [rsi+0x40]\nvperm2i128 ymm2,ymm1,YMMWORD PTR [rsi+0x60],0x31\nvphaddw ymm1,ymm1,YMMWORD PTR [rsi+0x60]\nvpermq ymm1,ymm1,0xd8\nvpmulhrsw ymm0,ymm0,ymm5\nvpmulhrsw ymm1,ymm1,ymm5\nvpaddw ymm0,ymm0,ymm0\nvpaddw ymm1,ymm1,ymm1\nvpmulhrsw ymm0,ymm0,ymm4\nvpmulhrsw ymm1,ymm1,ymm4\nvpaddw ymm0,ymm0,YMMWORD PTR [rdi]\nvpaddw ymm1,ymm1,YMMWORD PTR [rdi+0x20]\nvpminsw ymm0,ymm0,ymm6\nvpminsw ymm1,ymm1,ymm6\nvpmaxsw ymm0,ymm0,ymm7\nvpmaxsw ymm1,ymm1,ymm7\nvmovdqu YMMWORD PTR [rdi],ymm0\nvmovdqu YMMWORD PTR [rdi+0x20],ymm1\nvmovdqu xmm0,XMMWORD PTR [rsi+0x80]\nvphaddw xmm0,xmm0,XMMWORD PTR [rsi+0x90]\nvmovdqu xmm1,XMMWORD PTR [rdi+0x40]\nvpmulhrsw xmm0,xmm0,xmm5\nvpaddw xmm0,xmm0,xmm0\nvpmulhrsw xmm0,xmm0,xmm4\nvpaddw xmm0,xmm0,xmm1\nvpminsw xmm0,xmm0,xmm6\nvpmaxsw xmm0,xmm0,xmm7\nvpblendd xmm0,xmm0,xmm1,0x8\nvmovdqu XMMWORD PTR [rdi+0x40],xmm0\nadd rdi,0xa4\nadd rsi,0xa4\ndec edx",
+    "saved": 4,
+    "why": "Use contiguous 256-bit loads and qword permutations for the horizontal sums, with VPERM2I128 preserving the required final ymm2. Fold the overwritten tail load into VPHADDW; every loaded byte was already read by the original."
+  },
+  "b721e5fecb": {
+    "rewrite": null,
+    "why": "The horizontal sum and rounded multiply supply required interleaved words, while the shifted vector and both multiply-add results remain live."
+  },
+  "d888b80342": {
+    "rewrite": null,
+    "why": "Both source vectors require loading and doubling before arbitrary rounded multiplication and signed clamping, with both stores and the counter and flag updates required."
+  },
+  "23427afce0": {
+    "rewrite": null,
+    "why": "The destination load is needed for blending and the final ymm1 value, while source scaling, clamping, the store, and scalar updates remain necessary."
+  },
+  "0f13e25ad7": {
+    "rewrite": null,
+    "why": "The eight-byte chroma load cannot be folded into a 128-bit unpack without reading additional addresses, and the remaining shifts and arithmetic feed required results."
+  },
+  "df580a60bc": {
+    "rewrite": null,
+    "why": "Each dot product needs its independent accumulator, and the arithmetic shifts and saturating packs cannot be merged for arbitrary inputs."
+  },
+  "11db6ce16e": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+r10*2-0xa6]\nmovdqa xmm2,xmm0\npsrldq xmm2,0x2\npshufd xmm1,xmm0,0x39\npunpcklwd xmm0,xmm2\npunpcklwd xmm1,xmm3\npmaddwd xmm0,xmm4\npmaddwd xmm1,xmm5\npaddd xmm0,xmm1",
+    "saved": 1,
+    "why": "PSHUFD places source dwords 1 and 2 in xmm1's low half, replacing its copy and byte shift. PUNPCKLWD discards the differing high half."
+  },
+  "358f865ff9": {
+    "rewrite": null,
+    "why": "The shifted vector, extracted term, sign-extended load, scalar arithmetic, and final comparison all contribute to preserved results or flags."
+  },
+  "bb80cd4b77": {
+    "rewrite": null,
+    "why": "Unknown alignment prevents folding MOVDQU loads into legacy SSE arithmetic, and the remaining unpack, multiply, shift, and pack stages operate on arbitrary inputs."
+  },
+  "c9711048d5": {
+    "rewrite": null,
+    "why": "Both masked intermediates and the blended result must be preserved, so SSSE3 still needs the copies and logical operations alongside the store and scalar updates."
+  },
+  "46cb46b863": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+r11*2-0xa6]\nmovdqu xmm7,XMMWORD PTR [rsi+r11*4]\nmovdqu xmm14,XMMWORD PTR [rsi+r11*4+0xa4]\nphaddw xmm7,xmm14\npalignr xmm12,xmm0,0x2\npshufd xmm14,xmm0,0x39\npunpcklwd xmm0,xmm12\npshufd xmm12,xmm7,0xee\npaddw xmm7,xmm12\npmulhrsw xmm7,xmm6\npunpcklwd xmm14,xmm7\npmaddwd xmm0,xmm4\npmaddwd xmm14,xmm5\npaddd xmm0,xmm14\npaddd xmm0,xmm3",
+    "saved": 2,
+    "why": "Replace the two copy-and-shift pairs with PALIGNR and PSHUFD, which supply the same low words consumed by PUNPCKLWD. PALIGNR's high bytes are irrelevant, and xmm12 is subsequently overwritten with its required final value."
+  },
+  "fbe20bb13e": {
+    "rewrite": null,
+    "why": "Folding the row load into legacy PHADDW would require an unprovided alignment guarantee, and the remaining arithmetic and final xmm14 load are required."
+  },
+  "dc02ffbdfe": {
+    "rewrite": null,
+    "why": "The two masked intermediates, blended vector, store, pointer updates, and decrement flags are all required, with no shorter SSSE3 blend that preserves every result."
+  }
+}

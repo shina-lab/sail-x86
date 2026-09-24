@@ -1,0 +1,82 @@
+{
+  "c917a16154": {
+    "rewrite": null,
+    "why": "Both vector stores and all three live scalar updates are required, including the decrement that produces the final flags."
+  },
+  "f3c030ef89": {
+    "rewrite": null,
+    "why": "SSSE3 requires four 16-byte stores here, and both the pointer advance and flag-producing counter subtraction must remain."
+  },
+  "9990abdda5": {
+    "rewrite": null,
+    "why": "The load, masked index calculation, byte broadcast, zeroed xmm0, and minimum all contribute required final values, with no shorter SSSE3 combination."
+  },
+  "242b1bfa55": {
+    "rewrite": null,
+    "why": "The unsigned input load cannot fold into VPMADDUBSW's signed memory-source operand, and the pack, store, and three live scalar updates are required."
+  },
+  "b19cc50588": {
+    "rewrite": null,
+    "why": "Both multiply-add results are needed, and packing, the store, and all three live scalar updates already use one instruction apiece."
+  },
+  "b9433a3392": {
+    "rewrite": null,
+    "why": "AVX2 cannot broadcast directly from a GPR or fold a 128-bit memory broadcast into the 256-bit byte minimum."
+  },
+  "e71fe97f42": {
+    "rewrite": null,
+    "why": "Both multiply-adds, the pack, and the lane permutation contribute required vector values, while the store and scalar updates are also required."
+  },
+  "1793ee47d7": {
+    "rewrite": null,
+    "why": "The packed ymm0 and reordered ymm1 are both live, leaving no redundant vector operation, store, or scalar update."
+  },
+  "6f4976ce16": {
+    "rewrite": null,
+    "why": "Two 32-byte stores are required at AVX2 width, followed by the live pointer update and flag-producing counter subtraction."
+  },
+  "ea4ecb81c0": {
+    "rewrite": null,
+    "why": "The masked rax, broadcast ymm4, and minimum ymm3 are all live, and AVX2 cannot combine the GPR transfer with the byte broadcast."
+  },
+  "b93fc52929": {
+    "rewrite": null,
+    "why": "The multiply-add output in ymm1 and packed, permuted output in ymm0 are live, and the store and all scalar updates are required."
+  },
+  "f7191c72ad": {
+    "rewrite": null,
+    "why": "The 128-byte output requires four AVX2 stores, and the pointer and flag-producing counter updates are both live."
+  },
+  "ebdbc10e3a": {
+    "rewrite": null,
+    "why": "Folding the load into VPMADDUBSW would exchange its unsigned and signed inputs, while the pack, store, and all scalar updates remain required."
+  },
+  "1d29a0e7f3": {
+    "rewrite": null,
+    "why": "The two multiply-adds and pack are required for the live zmm0 and zmm1 results, and the store and scalar updates cannot be removed."
+  },
+  "38a682864e": {
+    "rewrite": null,
+    "why": "A memory-destination VPMOVWB would not produce the required narrowed zmm16 value, so narrowing and storing must remain separate alongside the live scalar updates."
+  },
+  "5743c02f3d": {
+    "rewrite": null,
+    "why": "The final rax and k1 constants are live, and computing the broadcast, masked dword addition, and byte minimum requires the three vector operations."
+  },
+  "f160382318": {
+    "rewrite": null,
+    "why": "Each permutation produces a separate required zmm result, so none of the four instructions can be removed or combined."
+  },
+  "e70d7191ba": {
+    "rewrite": null,
+    "why": "All four full-width vector loads are live, and CMP is needed to produce the required SF and OF."
+  },
+  "4831cc4452": {
+    "rewrite": null,
+    "why": "The 128-byte output needs both 64-byte stores, and the live pointer update and counter subtraction with matching flags must remain."
+  },
+  "bcffe45962": {
+    "rewrite": null,
+    "why": "The two overlapping stores are required to write the five-byte region, and both the shifted xmm0 and flag-producing rcx increment are live."
+  }
+}

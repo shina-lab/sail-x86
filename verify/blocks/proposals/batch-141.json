@@ -1,0 +1,91 @@
+{
+  "b2e5beaf3b": {
+    "rewrite": null,
+    "why": "The broadcasts, saturated subtraction, mask construction, and two filtered contributions all feed required outputs, with no redundant instruction."
+  },
+  "fa60428856": {
+    "rewrite": "vmovd DWORD PTR [rdi],xmm1\nvpextrd DWORD PTR [rdi+rsi*1],xmm1,0x1\nvpextrd DWORD PTR [rdi+rsi*2],xmm1,0x2\nvpextrd DWORD PTR [rdi+rdx*1],xmm1,0x3\nvmovd DWORD PTR [rax],xmm2\nvpextrd DWORD PTR [rax+rsi*1],xmm2,0x1\nvpextrd DWORD PTR [rax+rsi*2],xmm2,0x2\nvpextrd DWORD PTR [rax+rdx*1],xmm2,0x3",
+    "saved": 1,
+    "why": "The stack adjustment contributes no required register, flag, or memory result under the stated contract. Omitting it leaves rsp untouched and preserves all eight stores."
+  },
+  "9aa103e3fa": {
+    "rewrite": null,
+    "why": "Both overlapping vector loads and both immediate register assignments are required, and computing 0x15 minus ecx still needs the subtraction that supplies SF."
+  },
+  "4f3eded148": {
+    "rewrite": null,
+    "why": "Each of the two required stores needs its own saturated pack, and AVX2 cannot combine packing with a memory destination."
+  },
+  "1df26ee1b8": {
+    "rewrite": null,
+    "why": "The three vector construction steps select distinct required bytes, while the constant load, scalar results, and final comparison are independently required."
+  },
+  "c1eb8cabe8": {
+    "rewrite": "vpshufb xmm0,xmm0,xmm8\nvpermq ymm9,ymm0,0x50\nvinserti128 ymm7,ymm2,xmm4,0x1\nvpshufd ymm6,ymm9,0x0\nvpmaddubsw ymm6,ymm6,ymm7\nvinserti128 ymm7,ymm3,xmm5,0x1\nvpshufd ymm9,ymm9,0x55\nvpmaddubsw ymm7,ymm9,ymm7\nvpaddw ymm6,ymm6,ymm7\nvextracti128 xmm7,ymm6,0x1\nvpaddw xmm6,xmm6,xmm7\nvpaddw xmm6,xmm6,xmm1\nvpsraw xmm6,xmm6,0x4\nvpackuswb xmm6,xmm6,xmm6\nvmovd DWORD PTR [rdi],xmm6\nvpextrd DWORD PTR [rdi+rsi*1],xmm6,0x1\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Pair the four 128-bit multiply-add terms into two 256-bit operations, then sum their halves and add the bias. Each term retains its signed saturation, and reassociating the wrapping word additions preserves the result."
+  },
+  "ec74a07621": {
+    "rewrite": "vmovdqa ymm8,YMMWORD PTR [rax-0x168]\nvpshufb xmm0,xmm0,XMMWORD PTR [rax-0x148]\nvpermq ymm0,ymm0,0x50\nvinserti128 ymm6,ymm2,xmm4,0x1\nvpshufd ymm7,ymm0,0x0\nvpmaddubsw ymm7,ymm7,ymm6\nvinserti128 ymm6,ymm3,xmm5,0x1\nvpshufd ymm0,ymm0,0x55\nvpmaddubsw ymm6,ymm0,ymm6\nvpaddw ymm7,ymm7,ymm6\nvextracti128 xmm6,ymm7,0x1\nvpaddw xmm7,xmm7,xmm6\nvpaddw xmm7,xmm7,xmm1\nvpsraw xmm7,xmm7,0x4\nvpackuswb xmm7,xmm7,xmm7\nvpbroadcastd ymm0,DWORD PTR [rdx+0x4]\nvpbroadcastd ymm6,DWORD PTR [rdx+0x5]\nsub rdx,0x4\nsub rdx,r8\nvpbroadcastq ymm7,xmm7\nvpblendd ymm7,ymm7,ymm6,0x20",
+    "saved": 1,
+    "why": "Compute the four independently saturated terms using two 256-bit multiply-adds, then combine the halves with wrapping word additions. The original loads, final vector construction, and flag-producing subtractions are retained."
+  },
+  "3f9aba4b27": {
+    "rewrite": null,
+    "why": "The broadcast, lane alignment, blend, and final VEX copy each contribute distinct required data or upper-lane zeroing."
+  },
+  "de8f970c7a": {
+    "rewrite": null,
+    "why": "Interleaving the low dwords of xmm6 with the high dwords of xmm7 needs both data-selection steps, followed by two separate stores and the required scalar updates."
+  },
+  "8c2fcacf8b": {
+    "rewrite": "vpshufb xmm0,xmm0,XMMWORD PTR [rax-0x148]\nvpermq ymm0,ymm0,0x50\nvinserti128 ymm7,ymm2,xmm4,0x1\nvpshufd ymm12,ymm0,0x0\nvpmaddubsw ymm12,ymm12,ymm7\nvinserti128 ymm7,ymm3,xmm5,0x1\nvpshufd ymm0,ymm0,0x55\nvpmaddubsw ymm7,ymm0,ymm7\nvpaddw ymm12,ymm12,ymm7\nvextracti128 xmm7,ymm12,0x1\nvpaddw xmm12,xmm12,xmm7\nvpaddw xmm12,xmm12,xmm1\nvpsraw xmm12,xmm12,0x4\nvpackuswb xmm12,xmm12,xmm12\nvpbroadcastd ymm0,DWORD PTR [rdx+0x5]\nvpblendd ymm0,ymm0,YMMWORD PTR [rdx-0xc],0x14\nvmovdqa ymm8,YMMWORD PTR [rax-0x168]\nvpbroadcastq ymm7,xmm12\nvpblendd ymm0,ymm0,ymm7,0xc2",
+    "saved": 1,
+    "why": "Two 256-bit multiply-adds compute the four original 128-bit terms with identical per-term saturation. Combining the halves modulo 16 bits preserves the packed result and all subsequent blends."
+  },
+  "f00970f301": {
+    "rewrite": "vmovlps xmm9,xmm7,QWORD PTR [rdx+0x5]\nvinserti128 ymm14,ymm8,XMMWORD PTR [rax-0x138],0x0\nvpblendd xmm12,xmm12,xmm7,0xc\nvpshufb xmm9,xmm9,xmm14\nvpermq ymm9,ymm9,0x50\nvinserti128 ymm10,ymm2,xmm4,0x1\nvpshufd ymm6,ymm9,0x0\nvpmaddubsw ymm6,ymm6,ymm10\nvinserti128 ymm10,ymm3,xmm5,0x1\nvpshufd ymm9,ymm9,0x55\nvpmaddubsw ymm10,ymm9,ymm10\nvpaddw ymm6,ymm6,ymm10\nvextracti128 xmm10,ymm6,0x1\nvpaddw xmm6,xmm6,xmm10\nvpaddw xmm6,xmm6,xmm1\nvpsraw xmm6,xmm6,0x4\nvpackuswb xmm6,xmm6,xmm6\nvpbroadcastq ymm6,xmm6\nvpbroadcastd ymm9,DWORD PTR [rdx+0xd]\nvpbroadcastd ymm10,DWORD PTR [rdx+0xc]\nvpsrld ymm11,ymm8,0x4\nvpblendd ymm6,ymm6,ymm9,0x20\nsub rdx,0x6\nsub rdx,r8",
+    "saved": 1,
+    "why": "Evaluate pairs of filter terms in the two AVX2 lanes, preserving each saturated multiply-add before combining their wrapping sums. This shortens the filter while retaining every required final vector and scalar result."
+  },
+  "af10acc450": {
+    "rewrite": null,
+    "why": "Both the aligned intermediate and blended output are required, as is the separate copy with a zero upper half, so none of the four instructions is redundant."
+  },
+  "a026a41910": {
+    "rewrite": null,
+    "why": "The filter already uses full AVX2 width, and its input blends, lane rearrangement, output permutation, stores, and scalar updates all supply required results."
+  },
+  "2c46ce4cb5": {
+    "rewrite": "vpblendd xmm7,xmm6,xmm10,0x4\nvpshufd xmm7,xmm7,0x4e\nvpshufb xmm7,xmm7,XMMWORD PTR [rax-0x158]\nvpermq ymm7,ymm7,0x50\nvinserti128 ymm9,ymm2,xmm4,0x1\nvpshufd ymm0,ymm7,0x0\nvpmaddubsw ymm0,ymm0,ymm9\nvinserti128 ymm9,ymm3,xmm5,0x1\nvpshufd ymm7,ymm7,0x55\nvpmaddubsw ymm9,ymm7,ymm9\nvpaddw ymm0,ymm0,ymm9\nvextracti128 xmm9,ymm0,0x1\nvpaddw xmm0,xmm0,xmm9\nvpaddw xmm0,xmm0,xmm1\nvpsraw xmm0,xmm0,0x4\nvpackuswb xmm0,xmm0,xmm0\nvpblendd xmm6,xmm6,xmm0,0xc\nvshufps xmm0,xmm12,xmm6,0x88\nvshufps xmm6,xmm12,xmm6,0xdd\nvmovdqa XMMWORD PTR [rdi],xmm0\nvmovdqa XMMWORD PTR [rdi+rsi*1],xmm6",
+    "saved": 1,
+    "why": "Pair the four filter terms into two 256-bit multiply-adds and combine their halves modulo 16 bits. The saturation, final xmm0 value with zero upper half, and both stores remain identical."
+  },
+  "3806ea1559": {
+    "rewrite": "add rcx,0x2\nlea r8,[r8+rsi*2]\nvmovlps xmm9,xmm7,QWORD PTR [rdx+0x1d]\nvpblendd xmm12,xmm12,xmm7,0xc\nvpshufb xmm9,xmm9,xmm14\nvpermq ymm9,ymm9,0x50\nvinserti128 ymm10,ymm2,xmm4,0x1\nvpshufd ymm6,ymm9,0x0\nvpmaddubsw ymm6,ymm6,ymm10\nvinserti128 ymm10,ymm3,xmm5,0x1\nvpshufd ymm9,ymm9,0x55\nvpmaddubsw ymm10,ymm9,ymm10\nvpaddw ymm6,ymm6,ymm10\nvextracti128 xmm10,ymm6,0x1\nvpaddw xmm6,xmm6,xmm10\nvpaddw xmm6,xmm6,xmm1\nvpsraw xmm6,xmm6,0x4\nvpackuswb xmm6,xmm6,xmm6\nvpbroadcastq ymm6,xmm6\nvpbroadcastd ymm9,DWORD PTR [rdx+0x25]\nvpbroadcastd ymm10,DWORD PTR [rdx+0x24]\nvpblendd ymm6,ymm6,ymm9,0x20",
+    "saved": 1,
+    "why": "Process pairs of independently saturated filter terms in AVX2 lanes, then add their halves and the bias modulo 16 bits. All required vectors, scalar updates, and flags retain their original values."
+  },
+  "10b6725494": {
+    "rewrite": "vpblendd xmm7,xmm6,xmm10,0x4\nvpshufd xmm7,xmm7,0x4e\nvpshufb xmm7,xmm7,XMMWORD PTR [rax-0x158]\nvpermq ymm7,ymm7,0x50\nvinserti128 ymm9,ymm2,xmm4,0x1\nvpshufd ymm0,ymm7,0x0\nvpmaddubsw ymm0,ymm0,ymm9\nvinserti128 ymm9,ymm3,xmm5,0x1\nvpshufd ymm7,ymm7,0x55\nvpmaddubsw ymm9,ymm7,ymm9\nvpaddw ymm0,ymm0,ymm9\nvextracti128 xmm9,ymm0,0x1\nvpaddw xmm0,xmm0,xmm9\nvpaddw xmm0,xmm0,xmm1\nvpsraw xmm0,xmm0,0x4\nvpackuswb xmm0,xmm0,xmm0\nvpblendd xmm6,xmm6,xmm0,0xc\nvshufps xmm0,xmm12,xmm6,0x88\nvshufps xmm6,xmm12,xmm6,0xdd\nvmovdqa XMMWORD PTR [rdi],xmm0\nvmovdqa XMMWORD PTR [rdi+rsi*1],xmm6",
+    "saved": 2,
+    "why": "Pairing filter terms into two 256-bit multiply-adds saves one instruction without changing saturation or wrapping sums. The final vzeroupper is also unnecessary because ymm0 is the only preserved vector and its upper half is already zero."
+  },
+  "3e25c0f0a9": {
+    "rewrite": "vpshufb ymm0,ymm0,ymm8",
+    "saved": 15,
+    "why": "Only the initial shuffle contributes to a required final register; the remaining instructions compute dead ymm7 and ymm9 values and perform no stores."
+  },
+  "3054d7cc39": {
+    "rewrite": null,
+    "why": "The reduction must also reproduce the intermediate value left in ymm1, and the arbitrary multiplier registers prevent replacing the arithmetic with a simpler horizontal sum."
+  },
+  "8754e23b58": {
+    "rewrite": null,
+    "why": "The absolute-value, rounded multiply, and sign steps have distinct effects for arbitrary inputs, while the scattered stores require packing and upper-lane extraction."
+  },
+  "c2f862401e": {
+    "rewrite": null,
+    "why": "Both independent input vectors require the full sign and rounded-multiply calculation, followed by packing, upper-lane extraction, four stores, and the required pointer and counter updates."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "12d0c67dab": {
+    "rewrite": null,
+    "why": "Both folds need their products and XORs, and folding the unaligned MOVDQU loads into legacy PXOR would introduce an alignment requirement."
+  },
+  "c2cd1156e0": {
+    "rewrite": null,
+    "why": "The loaded xmm7, both products, both XORs, and the ZF-producing test are required, while the copy preserves the input for the destructive multiplies."
+  },
+  "70cc757b44": {
+    "rewrite": null,
+    "why": "The loaded xmm4 and intermediate xmm5 are required outputs, and both products, both XORs, the input copy, and the pointer update are necessary."
+  },
+  "4c1873cbe9": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi+rdx*1-0x10]\nmovdqu xmm3,XMMWORD PTR [rcx+rdx*1+0x20]\nmovdqa xmm1,xmm0\npshufb xmm1,xmm3\nmovdqu xmm4,XMMWORD PTR [rcx+rdx*1+0x10]\npshufb xmm0,xmm4\nmovdqa xmm4,xmm0\nmovdqa xmm0,xmm3\npblendvb xmm1,xmm2,xmm0\nmovdqa xmm0,xmm4\npclmullqlqdq xmm4,xmm7\npclmulhqhqdq xmm0,xmm7\npxor xmm4,xmm1\npxor xmm0,xmm4",
+    "saved": 1,
+    "why": "After restoring xmm0 from xmm4, copying xmm0 straight back into xmm4 is redundant."
+  },
+  "738e52451e": {
+    "rewrite": "pclmulhqlqdq xmm7,xmm0\npsrldq xmm0,0x8\npxor xmm0,xmm7\nmovdqa xmm7,XMMWORD PTR [rcx+0x40]\nmovdqa xmm1,xmm0\npclmullqlqdq xmm1,xmm7\npclmullqhqdq xmm1,xmm7\npxor xmm0,xmm1\npextrd eax,xmm0,0x2",
+    "saved": 1,
+    "why": "Carry-less multiplication is commutative, so the first product can overwrite xmm7 using reversed lane selectors and eliminate the initial copy. The subsequent load restores the required final xmm7."
+  },
+  "709873051f": {
+    "rewrite": null,
+    "why": "The three vector loads and both scalar updates are required, and the final comparison supplies CF and ZF that the counter update alone cannot reproduce."
+  },
+  "86dfb9f08c": {
+    "rewrite": null,
+    "why": "Each fold already uses two three-operand multiplies and two XORs with a folded load, while both scalar updates and the final CF/ZF comparison remain necessary."
+  },
+  "2dfb8f325f": {
+    "rewrite": null,
+    "why": "The required broadcast, two products and two XORs per fold, and ZF-producing test cannot be shortened with the allowed AVX2 instructions."
+  },
+  "41688b55dd": {
+    "rewrite": null,
+    "why": "Both folds already use three-operand multiplies and folded memory XORs, and the required pointer update cannot be removed."
+  },
+  "6d47f3d11a": {
+    "rewrite": null,
+    "why": "The broadcast result, both products, two XORs, and the independent ZF-producing test are all required under the AVX2 limit."
+  },
+  "6f13c2bc58": {
+    "rewrite": null,
+    "why": "The fold needs two products and two XORs, its load is already folded into an XOR, and rsi must still be advanced."
+  },
+  "231d4b2580": {
+    "rewrite": null,
+    "why": "The upper-lane extraction, multiplier load, both products, both XORs, and ZF-producing test are needed to preserve the required full ymm outputs."
+  },
+  "e653af48fe": {
+    "rewrite": null,
+    "why": "Both products and XORs are required for ymm0 and ymm4, the load is already folded, and the pointer update is observable."
+  },
+  "1bb62e362a": {
+    "rewrite": null,
+    "why": "Both shuffles, the variable blend, both products, and both XORs are necessary, with the available memory operands already folded."
+  },
+  "9b5356d2b2": {
+    "rewrite": null,
+    "why": "The reduction and extraction already use three-operand instructions, and VZEROUPPER is required to clear the preserved upper halves of otherwise untouched ymm registers."
+  },
+  "238a7175c4": {
+    "rewrite": null,
+    "why": "All three vector loads and both scalar updates are required, and the final comparison is necessary to reproduce CF and ZF."
+  },
+  "9121581630": {
+    "rewrite": null,
+    "why": "Each fold already combines both products and its incoming vector with one ternary XOR, while the broadcast and ZF-producing test are required."
+  },
+  "a8b53c832c": {
+    "rewrite": null,
+    "why": "Each fold already uses two products and one ternary XOR with a folded load, and the pointer update is required."
+  },
+  "33c4493d64": {
+    "rewrite": null,
+    "why": "The required broadcast, two products, single ternary XOR, and independent ZF-producing test leave no removable instruction."
+  },
+  "ed98858383": {
+    "rewrite": null,
+    "why": "Two products and one ternary XOR with a folded load already implement the fold minimally, and the pointer update is required."
+  }
+}

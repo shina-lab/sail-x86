@@ -1,0 +1,89 @@
+{
+  "d1b5e21c0e": {
+    "rewrite": "mov rbp,rsp\nmov r9,rdi\nmov r10,rsi\nshl rdx,0x6\nlea r11,[rdx+rsi]",
+    "saved": 3,
+    "why": "Omit the unobserved stack adjustments, leaving rsp untouched, and combine the addition and final copy into LEA."
+  },
+  "5c8e91489b": {
+    "rewrite": "mov rbp,rsp\nmov r9,rdi\nmov r10,rsi\nshl rdx,0x6\nlea r11,[rdx+rsi]",
+    "saved": 3,
+    "why": "Omit the unobserved stack adjustments, leaving rsp untouched, and combine the addition and final copy into LEA."
+  },
+  "d0f5b2e5d1": {
+    "rewrite": null,
+    "why": "The four loads, arbitrary byte shuffles, and four lane combinations are all needed; folding loads into lane permutations requires additional mask permutations."
+  },
+  "97ecd9a9e6": {
+    "rewrite": null,
+    "why": "Each output needs a load and an arbitrary byte shuffle, and wider processing adds extraction and upper-half clearing instructions."
+  },
+  "a3ed81cc07": {
+    "rewrite": "shl rdx,0x6\nadd rdx,rsi\nmovdqu xmm7,XMMWORD PTR [rdi]\nmovdqu xmm2,XMMWORD PTR [rdi+0x10]\nmovdqa xmm1,xmm2\nshufps xmm1,xmm7,0x11\nshufps xmm2,xmm7,0xbb\nmovdqa xmm8,XMMWORD PTR [CONST_1]",
+    "saved": 2,
+    "why": "Two SHUFPS instructions directly select and reverse the required dword pairs, replacing both unpack-and-shuffle pairs while retaining unaligned loads."
+  },
+  "4e5f24cd46": {
+    "rewrite": "movdqa xmm7,xmm1\nshufps xmm1,xmm2,0x11\nmovhlps xmm2,xmm7\npshufd xmm2,xmm2,0xb1\nmovdqu XMMWORD PTR [rdi],xmm2\nmovdqu XMMWORD PTR [rdi+0x10],xmm1",
+    "saved": 1,
+    "why": "SHUFPS combines the low-qword unpack and dword swap, while MOVHLPS followed by PSHUFD constructs the other output and preserves the required xmm7 copy."
+  },
+  "eb9b127fb6": {
+    "rewrite": "mov rbp,rsp\nmovdqa xmm15,XMMWORD PTR [CONST_1]",
+    "saved": 2,
+    "why": "Only the saved original stack pointer and constant vector are required, so the stack allocation and alignment can be omitted while leaving rsp untouched."
+  },
+  "a5a08d23bd": {
+    "rewrite": null,
+    "why": "All eight independent vector loads and both pointer increments produce required final values."
+  },
+  "9489312ba4": {
+    "rewrite": null,
+    "why": "Each of the eight required vectors needs its own arbitrary byte shuffle at the permitted SSE instruction width."
+  },
+  "6614502db3": {
+    "rewrite": null,
+    "why": "All zeroed vectors, copies, scalar results, and the two-step construction of the high-qword value are required."
+  },
+  "d50a4334a3": {
+    "rewrite": "movdqa xmm5,xmm1\nmovdqa xmm6,xmm3\nshufps xmm1,xmm2,0x11\nshufps xmm3,xmm4,0x11\nmovhlps xmm2,xmm5\nmovhlps xmm4,xmm6\npshufd xmm2,xmm2,0xb1\npshufd xmm4,xmm4,0xb1\npshufb xmm1,xmm15\npshufb xmm3,xmm15\npshufb xmm2,xmm15\npshufb xmm4,xmm15\nmovdqu XMMWORD PTR [r8+0x10],xmm1\nmovdqu XMMWORD PTR [r9+0x10],xmm3\nmovdqu XMMWORD PTR [r8],xmm2\nmovdqu XMMWORD PTR [r9],xmm4",
+    "saved": 3,
+    "why": "Each pair of outputs uses four rearrangement instructions instead of five, preserving the saved vectors and all stores. Omit the unobserved stack-pointer assignment to leave rsp untouched."
+  },
+  "b8e26f5941": {
+    "rewrite": null,
+    "why": "The four required vector results each need a write, and CMP is needed to produce the required CF and ZF."
+  },
+  "0969457a71": {
+    "rewrite": null,
+    "why": "The transpose, byte reversals, store, and comparison are required, and the live mask and intermediate registers prevent removing their definitions."
+  },
+  "22cbadcc03": {
+    "rewrite": "vpshufb xmm8,xmm8,XMMWORD PTR [CONST_1]\nvpshufb xmm9,xmm9,XMMWORD PTR [CONST_1]\nvpshufb xmm10,xmm10,XMMWORD PTR [CONST_1]\nvpshufb xmm11,xmm11,XMMWORD PTR [CONST_1]\nvpshufb xmm12,xmm12,XMMWORD PTR [CONST_1]\nvpshufb xmm13,xmm13,XMMWORD PTR [CONST_1]\nvpshufb xmm14,xmm14,XMMWORD PTR [CONST_1]\nvpshufb xmm15,xmm15,XMMWORD PTR [CONST_1]\nvbroadcastss xmm2,DWORD PTR [CONST_2]\nvpunpckhdq xmm4,xmm8,xmm9\nvpunpckldq xmm8,xmm8,xmm9\nvpunpckldq xmm3,xmm10,xmm11\nvpunpckhdq xmm10,xmm10,xmm11\nvpunpckhqdq xmm9,xmm8,xmm3\nvpunpcklqdq xmm8,xmm8,xmm3\nvpunpckhqdq xmm11,xmm4,xmm10\nvpunpcklqdq xmm10,xmm4,xmm10\nvpunpckhdq xmm4,xmm12,xmm13\nvpunpckldq xmm12,xmm12,xmm13\nvpunpckldq xmm3,xmm14,xmm15\nvpunpckhdq xmm14,xmm14,xmm15\nvpunpckhqdq xmm13,xmm12,xmm3\nvpunpcklqdq xmm12,xmm12,xmm3\nvpunpckhqdq xmm15,xmm4,xmm14\nvpunpcklqdq xmm14,xmm4,xmm14\nlea rax,[rdi+0x80]",
+    "saved": 1,
+    "why": "The mask register is not required, so folding the same constant address into each VPSHUFB removes its separate load."
+  },
+  "34c7b32a7e": {
+    "rewrite": null,
+    "why": "Both transposes and all byte reversals are needed, and the constant mask and final intermediate vectors are also required outputs."
+  },
+  "733da71775": {
+    "rewrite": null,
+    "why": "The five independent stores and the comparison producing the required flags are all necessary."
+  },
+  "5e32bed10e": {
+    "rewrite": null,
+    "why": "Each required vector result already combines its load and XOR in one instruction, followed by its necessary store."
+  },
+  "126b7ad798": {
+    "rewrite": null,
+    "why": "The byte shuffles and transposes are needed, and AVX2 cannot fold the 16-byte mask broadcast into a 256-bit VPSHUFB without reading additional bytes."
+  },
+  "4f716ea2c2": {
+    "rewrite": null,
+    "why": "The two transposes, byte reversals, and broadcast mask all contribute to required vector values, including the final intermediate registers."
+  },
+  "4f1240eb6f": {
+    "rewrite": null,
+    "why": "Both transposes and all eight XOR results are required, and AVX provides no instruction that combines the required shuffles with XOR."
+  }
+}

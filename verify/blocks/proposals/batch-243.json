@@ -1,0 +1,90 @@
+{
+  "d20db27ad3": {
+    "rewrite": null,
+    "why": "The live pointer, counter, and constant updates are necessary, and VPSHUFB cannot fold its data load into its mask-only memory operand."
+  },
+  "392bd2204f": {
+    "rewrite": null,
+    "why": "The live loads and carryless-product groups need their existing operations, and combining the two rcx subtractions would change the required final CF."
+  },
+  "2290c177fd": {
+    "rewrite": "pclmullqlqdq xmm0,xmm15\npclmulhqhqdq xmm1,xmm15\npclmullqhqdq xmm8,xmm7\nxorps xmm4,xmm12\nxorps xmm0,xmm3\nxorps xmm1,xmm5\npxor xmm8,xmm4\npxor xmm8,xmm0\npxor xmm8,xmm1\nmovabs r8,0xc200000000000000\nmovq xmm12,r8\npshufd xmm3,xmm0,0x4e\npclmullqlqdq xmm0,xmm12\npxor xmm0,xmm3\npxor xmm0,xmm8\npshufd xmm3,xmm0,0x4e\npclmullqlqdq xmm0,xmm12\npxor xmm0,xmm3\npxor xmm0,xmm1\nadd rcx,0x40",
+    "saved": 16,
+    "why": "Replace the shift-based reduction and middle-product splitting with two carryless folds using 0xc200000000000000, XORing the unsplit middle product between them. Accumulating directly into xmm8 also avoids temporarily modifying and restoring xmm1."
+  },
+  "360c42e9f3": {
+    "rewrite": null,
+    "why": "Both shuffled inputs and all three live carryless products need the existing loads, copies, and lane mixing under the permitted ISA."
+  },
+  "ba2c2a562f": {
+    "rewrite": "movdqa xmm1,xmm0\npshufd xmm8,xmm0,0x4e\npxor xmm8,xmm0\npclmullqlqdq xmm0,xmm6\npclmulhqhqdq xmm1,xmm6\npclmullqhqdq xmm8,xmm7\npxor xmm0,xmm3\npxor xmm1,xmm5\nmovdqu xmm9,XMMWORD PTR [rdx]\npxor xmm8,xmm0\npshufb xmm9,xmm10\nmovdqu xmm3,XMMWORD PTR [rdx+0x10]\npxor xmm8,xmm1\npxor xmm1,xmm9\npxor xmm8,xmm4\npshufb xmm3,xmm10\nmovdqa xmm5,xmm3\npclmullqlqdq xmm3,xmm2\npshufd xmm4,xmm5,0x4e\npxor xmm4,xmm5\npclmulhqhqdq xmm5,xmm2\npclmullqlqdq xmm4,xmm7\nmovabs r8,0xc200000000000000\nmovq xmm12,r8\npshufd xmm11,xmm0,0x4e\npclmullqlqdq xmm0,xmm12\npxor xmm0,xmm11\npxor xmm0,xmm8\npshufd xmm11,xmm0,0x4e\npclmullqlqdq xmm0,xmm12\npxor xmm0,xmm11\npxor xmm0,xmm1\nlea rdx,[rdx+0x20]\nsub rcx,0x20",
+    "saved": 16,
+    "why": "Fuse middle-product recombination with two carryless reduction folds using 0xc200000000000000. Computing the initial cross product in xmm8 also removes a copy while preserving the live xmm3, xmm4, and xmm5 products."
+  },
+  "3f9f482387": {
+    "rewrite": "movdqa xmm1,xmm0\npshufd xmm8,xmm0,0x4e\npxor xmm8,xmm0\npclmullqlqdq xmm0,xmm6\npclmulhqhqdq xmm1,xmm6\npclmullqhqdq xmm8,xmm7\npxor xmm0,xmm3\npxor xmm1,xmm5\npxor xmm8,xmm4\npxor xmm8,xmm0\npxor xmm8,xmm1\nmovabs r8,0xc200000000000000\nmovq xmm12,r8\npshufd xmm3,xmm0,0x4e\npclmullqlqdq xmm0,xmm12\npxor xmm0,xmm3\npxor xmm0,xmm8\npshufd xmm3,xmm0,0x4e\npclmullqlqdq xmm0,xmm12\npxor xmm0,xmm3\npxor xmm0,xmm1\ntest rcx,rcx",
+    "saved": 16,
+    "why": "Use two carryless reduction folds with 0xc200000000000000 and insert the unsplit middle product between them. Computing the cross product directly in xmm8 eliminates the initial copy of xmm4."
+  },
+  "f162768a82": {
+    "rewrite": "movdqu xmm8,XMMWORD PTR [rdx]\npshufb xmm8,xmm10\npxor xmm0,xmm8\nmovdqa xmm1,xmm0\npshufd xmm3,xmm0,0x4e\npxor xmm3,xmm0\npclmullqlqdq xmm0,xmm2\npclmulhqhqdq xmm1,xmm2\npclmullqlqdq xmm3,xmm7\npxor xmm3,xmm0\npxor xmm3,xmm1\nmovabs r8,0xc200000000000000\nmovq xmm12,r8\npshufd xmm4,xmm0,0x4e\npclmullqlqdq xmm0,xmm12\npxor xmm0,xmm4\npxor xmm0,xmm3\npshufd xmm4,xmm0,0x4e\npclmullqlqdq xmm0,xmm12\npxor xmm0,xmm4\npxor xmm0,xmm1",
+    "saved": 15,
+    "why": "Two carryless folds using 0xc200000000000000 replace the shift-based reduction, and inserting the unsplit middle product between folds eliminates its separate splitting and recombination."
+  },
+  "e9c4299ef6": {
+    "rewrite": "vpalignr xmm5,xmm4,xmm3,0x8\nvmovdqu XMMWORD PTR [rdi-0x10],xmm5\nvpunpckhqdq xmm3,xmm0,xmm0\nvpxor xmm3,xmm3,xmm0\nvpclmulhqhqdq xmm1,xmm0,xmm2\nvpclmullqlqdq xmm0,xmm0,xmm2\nvpclmullqlqdq xmm3,xmm3,xmm6\nvpxor xmm4,xmm1,xmm0\nvpxor xmm3,xmm3,xmm4\nmovabs r8,0xc200000000000000\nvmovq xmm12,r8\nvpshufd xmm4,xmm0,0x4e\nvpclmullqlqdq xmm0,xmm0,xmm12\nvpxor xmm0,xmm0,xmm4\nvpxor xmm0,xmm0,xmm3\nvpshufd xmm4,xmm0,0x4e\nvpclmullqlqdq xmm0,xmm0,xmm12\nvpxor xmm0,xmm0,xmm4\nvpxor xmm0,xmm0,xmm1",
+    "saved": 10,
+    "why": "Replace the shift-based reduction and middle-product recombination with two carryless folds using 0xc200000000000000. The original store is retained, and VEX operations preserve the required zero upper half of ymm0."
+  },
+  "609fe4b139": {
+    "rewrite": "vmovdqu XMMWORD PTR [rdi],xmm0\nvpshufd xmm3,xmm0,0x4e\nvpxor xmm3,xmm3,xmm0\nvpclmulhqhqdq xmm1,xmm0,xmm2\nvpclmullqlqdq xmm0,xmm0,xmm2\nvpclmullqlqdq xmm8,xmm3,xmm6\nvpxor xmm4,xmm1,xmm0\nvpxor xmm8,xmm8,xmm4\nmovabs r8,0xc200000000000000\nvmovq xmm12,r8\nvpshufd xmm4,xmm0,0x4e\nvpclmullqlqdq xmm0,xmm0,xmm12\nvpxor xmm0,xmm0,xmm4\nvpxor xmm0,xmm0,xmm8\nvpshufd xmm4,xmm0,0x4e\nvpclmullqlqdq xmm0,xmm0,xmm12\nvpxor xmm0,xmm0,xmm4\nvpxor xmm0,xmm0,xmm1\nvpshufd xmm4,xmm0,0x4e\nvpxor xmm4,xmm4,xmm0\nvmovdqu XMMWORD PTR [rdi+0x10],xmm0\nlea rdi,[rdi+0x30]\nsub r10,0x1",
+    "saved": 13,
+    "why": "Store the initial xmm0 directly and retain its half-XOR in xmm3, eliminating the saved copy and repeated half-XOR computation. Two carryless folds using 0xc200000000000000 also replace the shift-based reduction and middle-product recombination."
+  },
+  "9f29c0448f": {
+    "rewrite": null,
+    "why": "The live vector copies, key loads, pointer and counter updates, and separate data load required by VPSHUFB leave no removable instruction."
+  },
+  "2c9904ec31": {
+    "rewrite": null,
+    "why": "The three products, accumulator updates, shuffled input, key load, and live xmm7 shift and counter update all require their existing operations."
+  },
+  "06e9d38729": {
+    "rewrite": null,
+    "why": "The three products and accumulator updates are live, and the shuffled input, two key loads, and counter update contain no removable operation."
+  },
+  "a1e1274aad": {
+    "rewrite": null,
+    "why": "The three products, accumulator updates, shuffled input, key load, and live xmm7 shift and counter update all require their existing operations."
+  },
+  "9058cddb11": {
+    "rewrite": null,
+    "why": "The three products and accumulator updates are live, and the shuffled input, two key loads, and counter update contain no removable operation."
+  },
+  "d547750734": {
+    "rewrite": null,
+    "why": "The three products, accumulator updates, shuffled input, key load, and live xmm7 shift and counter update all require their existing operations."
+  },
+  "93a30387ea": {
+    "rewrite": null,
+    "why": "All product and accumulator outputs, both key loads, the shuffled input, and the counter result are live even though the final flags are not required."
+  },
+  "0cdd7ad6ac": {
+    "rewrite": "vpunpckhqdq xmm8,xmm15,xmm15\nvpxor xmm3,xmm3,xmm0\nvpclmullqlqdq xmm0,xmm15,xmm6\nvpxor xmm8,xmm8,xmm15\nvpxor xmm4,xmm4,xmm1\nvpclmulhqhqdq xmm1,xmm15,xmm6\nvpxor xmm5,xmm5,xmm2\nvpclmullqlqdq xmm2,xmm8,xmm7\nvpxor xmm10,xmm3,xmm0\nvpxor xmm11,xmm4,xmm1\nvpxor xmm5,xmm5,xmm2\nvpxor xmm5,xmm5,xmm10\nvpxor xmm5,xmm5,xmm11\nvpclmullqhqdq xmm9,xmm10,XMMWORD PTR [r10]\nvpalignr xmm10,xmm10,xmm10,0x8\nvpxor xmm10,xmm10,xmm9\nvpxor xmm10,xmm10,xmm5\nvpclmullqhqdq xmm9,xmm10,XMMWORD PTR [r10]\nvpalignr xmm10,xmm10,xmm10,0x8\nvpxor xmm10,xmm10,xmm11\nvpxor xmm10,xmm10,xmm9\ncmp rcx,0x0",
+    "saved": 4,
+    "why": "XOR the unsplit middle product between the two carryless folds, replacing four split/recombine instructions with one XOR. Fold the load from r10 into both carryless-multiply memory operands."
+  },
+  "5c151fe90f": {
+    "rewrite": null,
+    "why": "Each of the nine byte additions performs a required store with its own intermediate value, and both rcx byte updates are live."
+  },
+  "365e7430af": {
+    "rewrite": "mov cl,0xae\nmov al,0xf0\nmov ebx,0xb874ba32\nmov dh,0xb9\nclc\nmov esi,0x414847be",
+    "saved": 1,
+    "why": "Drop the esp assignment because it is outside the required final values, leaving rsp untouched as required while preserving all listed registers and flags."
+  },
+  "2d23c9f18f": {
+    "rewrite": null,
+    "why": "The three distinct stores, zeroing the live rax result, and setting ZF from rsi each require an instruction with the available registers."
+  }
+}

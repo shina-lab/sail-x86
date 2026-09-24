@@ -1,0 +1,86 @@
+{
+  "242bea42d9": {
+    "rewrite": null,
+    "why": "The transform branches, separate rounding stages, and final shuffles all contribute to preserved vector values."
+  },
+  "5b6c658c11": {
+    "rewrite": null,
+    "why": "The broadcast and both insertions are required, and AVX2 cannot combine the insertion and within-lane shuffle into one instruction."
+  },
+  "26fb9d7bf8": {
+    "rewrite": "vpbroadcastd xmm6,DWORD PTR [rax-0x34]\nvpunpckhwd xmm5,xmm3,xmm0\nvpunpckhwd xmm4,xmm1,xmm2\nvpunpcklwd xmm3,xmm3,xmm1\nvpunpcklwd xmm2,xmm2,xmm0\nvpbroadcastd xmm0,DWORD PTR [rax+0x48]\nvpbroadcastd xmm1,DWORD PTR [rax+0x4c]\nvpmaddwd xmm0,xmm0,xmm5\nvpmaddwd xmm5,xmm5,xmm1\nvpaddd xmm0,xmm0,xmm6\nvpaddd xmm5,xmm5,xmm6\nvpslld xmm0,xmm0,0x4\nvpsrld xmm5,xmm5,0xc\nvpblendw xmm5,xmm5,xmm0,0xaa\nvpbroadcastd xmm0,DWORD PTR [rax+0x50]\nvpbroadcastd xmm1,DWORD PTR [rax+0x54]\nvpmaddwd xmm0,xmm0,xmm4\nvpmaddwd xmm4,xmm4,xmm1\nvpaddd xmm0,xmm0,xmm6\nvpaddd xmm4,xmm4,xmm6\nvpslld xmm0,xmm0,0x4\nvpsrld xmm4,xmm4,0xc\nvpblendw xmm4,xmm4,xmm0,0xaa\nvpbroadcastd xmm0,DWORD PTR [rax-0x24]\nvpbroadcastd xmm1,DWORD PTR [rax-0x28]\nvpmaddwd xmm0,xmm0,xmm3\nvpmaddwd xmm3,xmm3,xmm1\nvpaddd xmm0,xmm0,xmm6\nvpaddd xmm3,xmm3,xmm6\nvpsrad xmm0,xmm0,0xc\nvpsrad xmm3,xmm3,0xc\nvpackssdw xmm3,xmm3,xmm0\nvpsubsw xmm0,xmm5,xmm4\nvpaddsw xmm4,xmm4,xmm5\nvpbroadcastd xmm1,DWORD PTR [rax-0x2c]\nvpbroadcastd xmm5,DWORD PTR [rax-0x30]\nvpmaddwd xmm1,xmm1,xmm2\nvpmaddwd xmm2,xmm2,xmm5\nvpaddd xmm1,xmm1,xmm6\nvpaddd xmm2,xmm2,xmm6\nvpsrad xmm1,xmm1,0xc\nvpsrad xmm2,xmm2,0xc\nvpackssdw xmm2,xmm2,xmm1\nvpmaddwd xmm0,xmm0,xmm5\nvpaddd xmm0,xmm0,xmm6\nvpsrad xmm0,xmm0,0xc\nvpackssdw xmm0,xmm0,xmm0\nvpshufb xmm4,xmm4,XMMWORD PTR [rax-0x80]\nvpaddsw xmm3,xmm3,xmm2\nvshufps xmm2,xmm4,xmm0,0x4e\nvpaddsw xmm0,xmm3,xmm2",
+    "saved": 9,
+    "why": "Remove five instructions producing dead final outputs and four instructions producing the unused high half of a packed intermediate. The final shuffle reads only that intermediate's low 64 bits, and the final VEX instruction still clears the upper half of ymm0."
+  },
+  "509faa1960": {
+    "rewrite": null,
+    "why": "Both permuted loads and rounded products are required, and the shared broadcast is itself a preserved result."
+  },
+  "223fb454ba": {
+    "rewrite": null,
+    "why": "Both levels of word interleaving are needed to produce ymm0 and ymm1 while preserving the intermediate in ymm3."
+  },
+  "e7822b79ff": {
+    "rewrite": null,
+    "why": "Each of the four instructions produces a distinct required vector result with its upper 128 bits cleared."
+  },
+  "4e09548edf": {
+    "rewrite": null,
+    "why": "The two stages of word interleaving produce distinct required outputs, including the first-stage value retained in ymm3."
+  },
+  "c0f5fe4145": {
+    "rewrite": null,
+    "why": "Every assembled or shuffled vector is preserved, and negating the arbitrary broadcast words requires both zeroing and subtraction."
+  },
+  "c9023b8cd7": {
+    "rewrite": null,
+    "why": "The interleaving stages and separately rounded products all feed required outputs, and arbitrary loaded factors prevent combining the arithmetic stages."
+  },
+  "7c1fce49d1": {
+    "rewrite": null,
+    "why": "The successive rounded multiplications and four broadcast results are required, and folding the scalar factor loads into vector memory operands would read additional addresses."
+  },
+  "1f2dc69d03": {
+    "rewrite": null,
+    "why": "The four scaled intermediates and both transpose stages are required, including the scaled intermediate retained in ymm4."
+  },
+  "045ec5d4c1": {
+    "rewrite": null,
+    "why": "Four independent preserved extraction results require four vector destination writes."
+  },
+  "14ad35603e": {
+    "rewrite": null,
+    "why": "All four insertions, the preserved broadcast, and the two independent within-lane shuffles are required."
+  },
+  "a91add37ef": {
+    "rewrite": null,
+    "why": "All four rounded products and both transpose stages contribute to preserved results, including ymm4 and the broadcast in ymm5."
+  },
+  "60caac438d": {
+    "rewrite": "",
+    "saved": 18,
+    "why": "The block writes no memory and changes only unpreserved vector registers; all required registers, including ymm0, already retain their input values."
+  },
+  "a8ac183c83": {
+    "rewrite": null,
+    "why": "The reversed interleaving, four rounded products, and final transpose all feed preserved outputs, including the intermediate in ymm4."
+  },
+  "f452096913": {
+    "rewrite": "vpbroadcastd ymm5,DWORD PTR [rax-0x38]\nvpaddsw ymm1,ymm2,ymm4\nvpsubsw ymm2,ymm2,ymm4\nvpmulhrsw ymm1,ymm1,ymm5\nvpmulhrsw ymm2,ymm2,ymm5\nvpbroadcastd ymm6,DWORD PTR [rax-0x50]\nvpblendd ymm4,ymm0,ymm2,0x33\nvpunpcklqdq ymm0,ymm0,ymm1\nvpunpckhqdq ymm1,ymm1,ymm3\nvpblendd ymm2,ymm2,ymm3,0x33\nvpermq ymm0,ymm0,0xd8\nvpermq ymm1,ymm1,0x27\nvpermq ymm2,ymm2,0x8d\nvpermq ymm3,ymm4,0x72\nvpsubw ymm5,ymm7,ymm6",
+    "saved": 1,
+    "why": "Low- and high-qword unpacks directly produce the two blends that previously consumed the shuffled ymm1. This removes the shuffle while preserving every final vector value."
+  },
+  "a42285bb7b": {
+    "rewrite": "vmovdqa ymm3,YMMWORD PTR [rdx]\nvmovdqa ymm4,YMMWORD PTR [rdx+0x40]\nvpbroadcastd ymm8,DWORD PTR [rax-0x3c]\nvpcmpeqw ymm0,ymm0,ymm0\nvpunpcklwd ymm1,ymm3,YMMWORD PTR [rdx+0x20]\nvpunpckhwd ymm3,ymm3,YMMWORD PTR [rdx+0x20]\nvpunpcklwd ymm2,ymm4,YMMWORD PTR [rdx+0x60]\nvpunpckhwd ymm4,ymm4,YMMWORD PTR [rdx+0x60]\nvpmulhrsw ymm5,ymm8,ymm1\nvpmulhrsw ymm6,ymm8,ymm2\nvpmulhrsw ymm7,ymm8,ymm3\nvpmulhrsw ymm8,ymm8,ymm4\nvpcmpeqw ymm9,ymm0,ymm1\nvpxor ymm1,ymm9,ymm1\nvpcmpeqw ymm9,ymm0,ymm2\nvpxor ymm2,ymm9,ymm2\nvpcmpeqw ymm9,ymm0,ymm3\nvpxor ymm3,ymm9,ymm3\nvpcmpeqw ymm0,ymm0,ymm4\nvpxor ymm4,ymm4,ymm0\nvpavgw ymm1,ymm1,ymm5\nvpavgw ymm2,ymm2,ymm6\nvpavgw ymm3,ymm3,ymm7\nvpavgw ymm4,ymm8,ymm4\nvpunpckldq ymm0,ymm1,ymm2\nvpunpckhdq ymm1,ymm1,ymm2\nvpunpckldq ymm2,ymm3,ymm4\nvpunpckhdq ymm3,ymm3,ymm4",
+    "saved": 2,
+    "why": "Fold the loads at rdx+0x20 and rdx+0x60 into both unpack consumers, removing two standalone loads. The repeated reads use exactly the original addresses, and the overwritten load registers still receive their required final values."
+  },
+  "d39c3e9e1c": {
+    "rewrite": null,
+    "why": "The rounded products remain independently observable, and saturating doubling followed by saturating addition cannot be collapsed for arbitrary inputs."
+  },
+  "33817190bf": {
+    "rewrite": null,
+    "why": "The factor load, store, and two separately rounded multiplications are all required to preserve the specified results."
+  }
+}

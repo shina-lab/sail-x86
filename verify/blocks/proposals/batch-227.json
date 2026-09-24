@@ -1,0 +1,46 @@
+{
+  "4388822b11": {
+    "rewrite": null,
+    "why": "Both carry-dependent stores, the preserved ESI result, and the final subtraction flags are required."
+  },
+  "8fac0aa677": {
+    "rewrite": "cmp bh,BYTE PTR [rdx]\nadc al,0x14\nor bl,BYTE PTR [rsi]",
+    "saved": 3,
+    "why": "The first comparison is overwritten, and the repeated OR is idempotent. Since OR clears carry before the second ADC, the two byte additions combine into one ADC with immediate 0x14 when final flags are dead."
+  },
+  "de61b4bd29": {
+    "rewrite": null,
+    "why": "All four instructions perform required sequential stores, so replacing the second ADC with ADD would not reduce the instruction count."
+  },
+  "79f10cf04e": {
+    "rewrite": "add ebp,ebx\nadd ebp,DWORD PTR [rbx]\ncwde\nmov bl,0x22\nadc DWORD PTR [rcx],edx\nadd DWORD PTR [rcx],edx\nxor edx,edx\nimul ebp,DWORD PTR [rcx-0x45],0xbb6969d2\ntest eax,0xa970d9d9",
+    "saved": 8,
+    "why": "Use ADD for the explicitly cleared carries, retain one CWDE, and remove the overwritten BL assignment. The ESP XOR only contributes a cleared carry to subsequent observable results, so replacing the following ADC with ADD eliminates it while preserving both stores and the final TEST flags."
+  },
+  "1eea33e806": {
+    "rewrite": null,
+    "why": "The arithmetic has live register, memory, and carry outputs, while the RET and prefix entries prevent a justified stack-free straight-line reduction."
+  },
+  "4b7389d7db": {
+    "rewrite": null,
+    "why": "The subtraction supplies the required final flags, and the two stores and two register assignments have independent required effects."
+  },
+  "9aeb321521": {
+    "rewrite": "mov ch,0xc2\nadd ebp,DWORD PTR [rdi]\nadd eax,DWORD PTR [rsi-0x7965843b]",
+    "saved": 1,
+    "why": "The second assignment of 0xc2 to CH is redundant because no intervening instruction changes RCX."
+  },
+  "d9e58b69de": {
+    "rewrite": "adc DWORD PTR [rax],esp\nadd DWORD PTR [rax],esp\ntest DWORD PTR [rdx+0x24],ecx",
+    "saved": 1,
+    "why": "The first TEST only supplies a cleared carry to the second ADC, so replace that ADC with ADD and remove the TEST. The final TEST still supplies every required flag."
+  },
+  "15eefc924e": {
+    "rewrite": null,
+    "why": "Each of the three stores is required, and the comparison provides the carry consumed by ADC."
+  },
+  "b6bdbbf39b": {
+    "rewrite": null,
+    "why": "The SBB chain is needed for ECX and the final subtraction flags, and MOV fixes RAX; the trailing REX prefix has no standalone instruction semantics that justify an instruction-count reduction."
+  }
+}

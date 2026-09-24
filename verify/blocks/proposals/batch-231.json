@@ -1,0 +1,88 @@
+{
+  "8f9880b1a6": {
+    "rewrite": null,
+    "why": "The load, byte comparison, mask extraction, and subtraction are all needed to preserve xmm0, rdx, and ZF."
+  },
+  "967eaf7fb1": {
+    "rewrite": null,
+    "why": "All four instructions are needed to produce the required comparison vector, adjusted scalar mask, and ZF."
+  },
+  "0c99dadb9c": {
+    "rewrite": null,
+    "why": "The exact scalar result requires the comparison, mask extraction, increment, and variable truncation, while vzeroupper must clear the preserved ymm0 upper half."
+  },
+  "e529253fbe": {
+    "rewrite": null,
+    "why": "Both comparison masks must be combined before extraction and increment, and vzeroupper is required for the final value of ymm0."
+  },
+  "41665d19c1": {
+    "rewrite": "mov eax,DWORD PTR [rdi]\nsub eax,DWORD PTR [rsi]\nmov ecx,DWORD PTR [rdi+rdx*1-0x4]\nsub ecx,DWORD PTR [rsi+rdx*1-0x4]\nor eax,ecx",
+    "saved": 1,
+    "why": "Fold the load into edi into the following subtraction because rdi is not preserved."
+  },
+  "34f4080af0": {
+    "rewrite": null,
+    "why": "The two byte comparisons, mask combination, extraction, and 16-bit inversion are needed to preserve the exact rax result."
+  },
+  "4e7bc2b903": {
+    "rewrite": "mov rax,QWORD PTR [rdi]\nsub rax,QWORD PTR [rsi]\nmov rcx,QWORD PTR [rdi+rdx*1-0x8]\nsub rcx,QWORD PTR [rsi+rdx*1-0x8]\nor rax,rcx",
+    "saved": 1,
+    "why": "Fold the load into the unpreserved rdi into the subtraction; the unchanged final OR preserves both rax and ZF."
+  },
+  "b256806dfc": {
+    "rewrite": null,
+    "why": "The word operands need zero extension before their 32-bit subtraction, and the separate byte subtraction must wrap without changing the upper result bits."
+  },
+  "736cfaac4d": {
+    "rewrite": "vmovdqu64 zmm17,ZMMWORD PTR [rsi+rdx*1-0x40]\nvpcmpneqb k1,zmm17,ZMMWORD PTR [rdi+rdx*1-0x40]\nkshiftrq k2,k1,0x20\nkord k1,k1,k2\nkmovd eax,k1",
+    "saved": 1,
+    "why": "Compare the same 64 bytes at once and OR the two 32-bit halves of the byte-inequality mask. This produces the original mask of nonzero bytes in the OR of the two XOR results."
+  },
+  "79820a8026": {
+    "rewrite": null,
+    "why": "The three register results and the CF/ZF comparison result are independently required."
+  },
+  "8a3c0aa5aa": {
+    "rewrite": "vmovups zmm4,ZMMWORD PTR [rsi]\nvmovups zmm5,ZMMWORD PTR [rsi+0x40]\nmov r11,rdi\nmov r8,rdi\nor r8,0xffffffffffffff80\nsub rdi,r8\nsub rsi,r8\nadd rdx,r8",
+    "saved": 1,
+    "why": "OR with -128 directly forms the original adjustment (rdi & 127) - 128. Subtracting that adjustment from rdi replaces its separate alignment and increment."
+  },
+  "5eb98083ca": {
+    "rewrite": null,
+    "why": "Combining the copy with SSE2 still requires extracting both live scalar results, leaving no reduction from the six instructions."
+  },
+  "70fafbdc25": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rsi]\nmov rdx,QWORD PTR [rsi+0x10]\nmovdqu XMMWORD PTR [rdi],xmm1\nmov QWORD PTR [rdi+0x10],rdx\nmovq rax,xmm1\nshr rdx,0x20\nxor ecx,ecx",
+    "saved": 1,
+    "why": "Combine the first two adjacent qword copies into one SSE2 load/store pair and extract the required rax value from xmm1; the original rbx result is dead."
+  },
+  "ba95793fa3": {
+    "rewrite": null,
+    "why": "Both dependent XOR results must be stored, and the counter and pointer updates are also required."
+  },
+  "f55833294e": {
+    "rewrite": "div edi\nadd dh,ch\ndiv edi\nadd al,BYTE PTR [rbx-0x7cb03334]",
+    "saved": 1,
+    "why": "The initial CMC changes only CF, which neither division nor addition consumes."
+  },
+  "083529d546": {
+    "rewrite": null,
+    "why": "All three loaded registers are preserved, and the comparison is needed for ZF, SF, and OF."
+  },
+  "d36eaaf03e": {
+    "rewrite": null,
+    "why": "The three loads produce required register values, and the separate comparison produces the required flags."
+  },
+  "bd34de750f": {
+    "rewrite": null,
+    "why": "Each loaded register and the comparison flags are required, so none of the four instructions can be removed."
+  },
+  "7b1b468742": {
+    "rewrite": null,
+    "why": "Both AES round results, the newly loaded xmm1, and the copied xmm11 are independently preserved."
+  },
+  "64fdf999ba": {
+    "rewrite": null,
+    "why": "Both AES decryption round results and both vector moves produce independently required final register values."
+  }
+}

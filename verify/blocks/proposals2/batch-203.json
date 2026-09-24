@@ -1,0 +1,85 @@
+{
+  "3affa9e63e": {
+    "rewrite": "movzx eax,BYTE PTR [rdi+0x10]\nlea rdi,[rdi+0x1]\nxchg BYTE PTR [rsi],al\nmov BYTE PTR [rsi+0x10],al\nlea rsi,[rsi+0x1]\nsub rdx,0x1",
+    "saved": 1,
+    "why": "The exchange loads the old byte at [rsi] and stores its replacement in one instruction, allowing the old byte to be stored from al. Neither rax nor rcx is a required final output."
+  },
+  "9f244c6d91": {
+    "rewrite": null,
+    "why": "The required XMM copy, vector store, pointer update and flag-producing decrement each need a separate instruction."
+  },
+  "710de5b746": {
+    "rewrite": null,
+    "why": "The XMM copy, store, checksum XOR, pointer update and flag-producing decrement all produce required effects and cannot be combined under SSE2."
+  },
+  "c3704f7291": {
+    "rewrite": null,
+    "why": "All five stores, five checksum XORs and the final xmm15 copy are required, and SSE2 cannot combine these operations."
+  },
+  "ba0e3fa8ed": {
+    "rewrite": null,
+    "why": "Both stores and checksum XORs are required along with the xmm15 copy, leaving no removable instruction under SSE2."
+  },
+  "59070c6d11": {
+    "rewrite": null,
+    "why": "The three stores, three checksum XORs and xmm15 copy each contribute a required effect with no SSE2 fusion available."
+  },
+  "36506e87bb": {
+    "rewrite": null,
+    "why": "The four stores, four checksum XORs and xmm15 copy are all required and cannot be reduced with the permitted instructions."
+  },
+  "f5d30f16fb": {
+    "rewrite": null,
+    "why": "All three loaded values contribute to required XMM outputs, and both XORs and both pointer updates are necessary."
+  },
+  "fcdf794eed": {
+    "rewrite": null,
+    "why": "The AES result, scalar copies, store, pointer update and carry-producing subtraction are all required and cannot be combined."
+  },
+  "2a44ceeca2": {
+    "rewrite": null,
+    "why": "The store and all four final zeroed XMM registers are required, and SSE2 has no instruction that clears multiple XMM registers."
+  },
+  "2a2650c6fa": {
+    "rewrite": null,
+    "why": "All five instructions establish required scalar outputs, including both copies of the adjusted pointer."
+  },
+  "fd96e5829c": {
+    "rewrite": null,
+    "why": "The original input, both loaded keys, the chaining value, the XOR result and the updated key pointer must all remain available."
+  },
+  "895529df84": {
+    "rewrite": null,
+    "why": "The AES operation, chaining XOR, two stores and four required XMM clears have no instruction-count reduction under SSE2 and AES-NI."
+  },
+  "b831043a1a": {
+    "rewrite": "mov rbp,rcx\nmovups xmm10,XMMWORD PTR [r8]\nmov eax,r10d\ncmp rdx,0x50",
+    "saved": 2,
+    "why": "The rsp adjustments contribute to no listed final register or memory access, and cmp overwrites their flags. Removing them also leaves rsp untouched as required."
+  },
+  "88bf611d90": {
+    "rewrite": null,
+    "why": "The stores, chaining XORs, xmm10 copy, pointer update and final register clears are required, while moving the last XOR into xmm2 still needs a separate copy under SSE2."
+  },
+  "89e9fa26d9": {
+    "rewrite": "pxor xmm2,xmm10\nmovups xmm10,XMMWORD PTR [rdi+0x60]\npxor xmm3,xmm11\nmovdqu XMMWORD PTR [rsi],xmm2\npxor xmm4,xmm12\nmovdqu XMMWORD PTR [rsi+0x10],xmm3\npxor xmm3,xmm3\npxor xmm5,xmm13\nmovdqu XMMWORD PTR [rsi+0x20],xmm4\npxor xmm4,xmm4\npxor xmm6,xmm14\nmovdqu XMMWORD PTR [rsi+0x30],xmm5\npxor xmm5,xmm5\npxor xmm7,xmm15\nmovdqu XMMWORD PTR [rsi+0x40],xmm6\npxor xmm6,xmm6\nmovups xmm2,XMMWORD PTR [rdi+0x50]\npxor xmm2,xmm8\nmovdqu XMMWORD PTR [rsi+0x50],xmm7\npxor xmm7,xmm7\nlea rsi,[rsi+0x60]\npxor xmm8,xmm8\npxor xmm9,xmm9",
+    "saved": 1,
+    "why": "After storing the initial xmm2 result, load [rdi+0x50] directly into xmm2 and XOR with the original xmm8, eliminating the final copy. The disjoint buffers permit delaying this load, and all required clears are retained."
+  },
+  "35dcca3b9e": {
+    "rewrite": null,
+    "why": "Although the final xmm2 value is dead, its XOR feeds a required store, and every other operation produces a required register, memory or flag result."
+  },
+  "d4570d6069": {
+    "rewrite": null,
+    "why": "All stores, XOR results, scalar updates and register clears are required, and computing the last XOR directly in xmm2 still requires a separate copy under SSE2."
+  },
+  "dc30deb3cc": {
+    "rewrite": null,
+    "why": "The saved input, two loaded keys, updated key pointer and XOR result are five distinct required outputs."
+  },
+  "3da379e384": {
+    "rewrite": null,
+    "why": "Both XORs, the store, xmm10 copy, xmm3 clear and pointer update are required, and producing the second XOR in xmm2 still takes two SSE2 instructions."
+  }
+}

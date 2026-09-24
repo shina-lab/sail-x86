@@ -1,0 +1,82 @@
+{
+  "ff980727d7": {
+    "rewrite": null,
+    "why": "Each preserved vector needs its own arithmetic shift, and the six additions use an unconstrained zmm29 that cannot be folded into those shifts."
+  },
+  "29b0d744c0": {
+    "rewrite": null,
+    "why": "Each live output requires signed dword-to-word saturation followed by an arbitrary byte permutation, with no combined operation in the allowed ISA."
+  },
+  "497bdf35e0": {
+    "rewrite": null,
+    "why": "The four independent live vector results already require only one packed rounded multiply each."
+  },
+  "8623113c5a": {
+    "rewrite": null,
+    "why": "Every shifted value feeds a live sum or difference, and the arbitrary signed clamp bounds require both the maximum and minimum operations."
+  },
+  "3497139835": {
+    "rewrite": null,
+    "why": "The rotations and clamped butterflies use arbitrary 32-bit coefficients and bounds, while live product temporaries and broadcasts prevent deleting their computations."
+  },
+  "192599e321": {
+    "rewrite": null,
+    "why": "The three multiply/bias/shift stages have distinct rounding points, and the scalar result, vector outputs, ecx update, and memory store are all required."
+  },
+  "efcce3ba00": {
+    "rewrite": null,
+    "why": "Both stored vectors require the signed saturating add and unsigned saturating subtract, and the pointer update, counter update, and final flags are also live."
+  },
+  "0d21ca95ab": {
+    "rewrite": null,
+    "why": "Every sum and difference is preserved after clamping to arbitrary signed bounds, so neither the arithmetic nor either clamp stage can be removed."
+  },
+  "78f26af701": {
+    "rewrite": null,
+    "why": "All sixteen clamped sum/difference results are live, and the unconstrained zmm30 and zmm31 bounds require both signed clamp operations."
+  },
+  "341fd0627a": {
+    "rewrite": null,
+    "why": "The sixteen unpack instructions each produce a distinct required full-width vector result, already using one instruction per output."
+  },
+  "1fab3dae60": {
+    "rewrite": null,
+    "why": "Each of the sixteen live full-width vector outputs is already produced by a single unpack instruction."
+  },
+  "53417cec1c": {
+    "rewrite": null,
+    "why": "The two multiply/bias/shift stages require their separate rounding points, and the scalar result, broadcasts, saturated sum, ecx update, and store are all live."
+  },
+  "954b0c6dc6": {
+    "rewrite": null,
+    "why": "The two saturation stages and stores are required, as are the pointer and counter updates whose ADD and DEC jointly determine the preserved flags."
+  },
+  "55f45c0e5b": {
+    "rewrite": null,
+    "why": "Both live full-width vectors require an arbitrary dword addition followed by an arithmetic shift, with no applicable fused operation."
+  },
+  "94423dc28c": {
+    "rewrite": null,
+    "why": "All four multiply/add/shift results and their copied destinations are live, along with both broadcast coefficients, so the trailing copies cannot be eliminated."
+  },
+  "4169bf057d": {
+    "rewrite": null,
+    "why": "Each of the four live full-width outputs requires its own arbitrary dword addition and arithmetic shift."
+  },
+  "acd5b72d7b": {
+    "rewrite": null,
+    "why": "Every multiplied and shifted value feeds a live butterfly output, and arbitrary dword coefficients prevent substituting narrower fused arithmetic."
+  },
+  "0c28ad4703": {
+    "rewrite": null,
+    "why": "The two required pointer values and two distinct broadcast constants already take one instruction per output."
+  },
+  "0954379435": {
+    "rewrite": null,
+    "why": "The scalar arithmetic and setup outputs are live, and broadcasting the high word of the preserved r9d result requires the existing transfer and two shuffles in the allowed SSE ISA."
+  },
+  "515187d917": {
+    "rewrite": null,
+    "why": "The unknown row stride requires separate loads and stores, while the wrapping add, arbitrary signed clamps, pointer update, and flag-producing counter update are all needed."
+  }
+}

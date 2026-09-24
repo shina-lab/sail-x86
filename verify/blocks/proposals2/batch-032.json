@@ -1,0 +1,82 @@
+{
+  "9e24f59e1e": {
+    "rewrite": null,
+    "why": "The independent multiply-adds, shared sums, shifts and packs are needed for the preserved outputs, and the coefficients loaded from memory have no specified values."
+  },
+  "6f8a13aed5": {
+    "rewrite": null,
+    "why": "Each multiply-add, bias addition, arithmetic shift and pack contributes to a preserved result, including the final coefficient broadcast and register zeroing."
+  },
+  "132e287343": {
+    "rewrite": null,
+    "why": "The arbitrary byte-shuffle mask requires the separate shuffles, and the subsequent lane arrangements, saturating butterflies and rounded multiplies produce distinct preserved results."
+  },
+  "68aa1ae6ef": {
+    "rewrite": null,
+    "why": "The separately rounded multiplies cannot be combined for arbitrary coefficients, and folding a DWORD coefficient load into a packed multiply would read additional bytes."
+  },
+  "09743c49bb": {
+    "rewrite": null,
+    "why": "The unpack source ymm3 is arbitrary, the high-word sum in ymm2 must survive, and the two row accesses, packing and scalar updates are required."
+  },
+  "0d497f0e4a": {
+    "rewrite": null,
+    "why": "The independent transform products require their bias additions, shifts and saturation, while the intermediate register values and final butterflies must also be preserved."
+  },
+  "22269ba73b": {
+    "rewrite": null,
+    "why": "The block already shares partial sums, and its remaining products, additions, shifts and packs feed distinct preserved results with arbitrary coefficients."
+  },
+  "b8444f4308": {
+    "rewrite": null,
+    "why": "Both coefficient paths need separate multiply-adds, bias additions, shifts and packs, and the intermediate results remaining in registers are preserved outputs."
+  },
+  "9de8b69d26": {
+    "rewrite": null,
+    "why": "The four saturating butterfly results each require their own rounded multiply, and both broadcast results must be preserved."
+  },
+  "eeb1b22d42": {
+    "rewrite": null,
+    "why": "All eight saturating butterfly results and their rounded multiplies are required, along with the final replacement coefficient broadcast."
+  },
+  "d33c42488a": {
+    "rewrite": null,
+    "why": "The sequential rounding steps cannot be merged for arbitrary coefficients, and folding the four-byte coefficient or constant loads into packed multiplies would widen the permitted reads."
+  },
+  "5eb7bd7975": {
+    "rewrite": null,
+    "why": "The arbitrary unpack source and preserved ymm2 require the widening arithmetic, while the pointer addition supplies the carry flag that the final decrement retains."
+  },
+  "4427013ace": {
+    "rewrite": null,
+    "why": "Every row needs its rounded scaling, widening addition and saturated output, and the lane permutations arrange the packed bytes for the required stores and preserved register values."
+  },
+  "e79f71536e": {
+    "rewrite": null,
+    "why": "The pointer decrement, vector zeroing, scalar constant assignment and comparison each establish a separate required register or flag result."
+  },
+  "900dbf7d9b": {
+    "rewrite": null,
+    "why": "AVX2 requires four stores for these 128 bytes, and the two independent scalar updates must preserve their register results and final flags."
+  },
+  "66bf2ee34c": {
+    "rewrite": null,
+    "why": "The four separated vector stores and two independent scalar updates are all required, with no wider store available under AVX2."
+  },
+  "653bf675e6": {
+    "rewrite": null,
+    "why": "The four vector stores and both scalar updates are required, including the carry flag from the pointer subtraction that the decrement leaves unchanged."
+  },
+  "0983839bde": {
+    "rewrite": null,
+    "why": "All four sequential rounded multiplies affect the broadcast result, and the sparse four-byte coefficient reads cannot be folded into wider packed-multiply operands."
+  },
+  "3dc7183e7b": {
+    "rewrite": null,
+    "why": "The arbitrary unpack source and preserved high-word sums require both widening paths for each vector, while the stores and flag-producing scalar updates are necessary."
+  },
+  "c0b3d6d97c": {
+    "rewrite": null,
+    "why": "LEA cannot combine the subtraction of rcx with the addition of 0x10, and the latter addition must supply the carry flag retained by the final byte decrement."
+  }
+}

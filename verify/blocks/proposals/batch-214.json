@@ -1,0 +1,85 @@
+{
+  "bd24407fdb": {
+    "rewrite": "vmovdqa xmm1,XMMWORD PTR [rdi]\nvinserti128 ymm1,ymm1,XMMWORD PTR [rdi+rsi*1],0x1\nvpbroadcastd ymm3,DWORD PTR [r9+r8*2]\nvpshufb ymm3,ymm3,ymm4\nvpunpcklbw ymm0,ymm1,YMMWORD PTR [rdx]\nvpunpckhbw ymm1,ymm1,YMMWORD PTR [rdx]\nadd rdx,0x20\nvpmaddubsw ymm0,ymm0,ymm3\nvpmaddubsw ymm1,ymm1,ymm3\nvpmulhrsw ymm0,ymm0,ymm5\nvpmulhrsw ymm1,ymm1,ymm5\nvpackuswb ymm0,ymm0,ymm1\nvmovdqa XMMWORD PTR [rdi],xmm0\nvextracti128 XMMWORD PTR [rdi+rsi*1],ymm0,0x1\nlea rdi,[rdi+rsi*2]\nadd r8,0x2",
+    "saved": 1,
+    "why": "Fold the dead ymm2 load into both unpack instructions, reading the same original memory range. Move the rdx increment after those reads; the final r8 addition still supplies the required flags."
+  },
+  "88b6b73e24": {
+    "rewrite": "vmovdqa ymm1,YMMWORD PTR [rdi]\nvpunpcklbw ymm0,ymm1,YMMWORD PTR [rdx]\nvpunpckhbw ymm1,ymm1,YMMWORD PTR [rdx]\nadd rdx,0x20\nvpmaddubsw ymm0,ymm0,ymm3\nvpmaddubsw ymm1,ymm1,ymm3\nvpmulhrsw ymm0,ymm0,ymm5\nvpmulhrsw ymm1,ymm1,ymm5\nvpackuswb ymm0,ymm0,ymm1\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,0x20\nsub ecx,0x20",
+    "saved": 1,
+    "why": "Use the original source memory directly in both unpacks, eliminating the load into dead ymm2. Increment rdx after the reads and retain the final subtraction that produces the required flags."
+  },
+  "aa9eb53d27": {
+    "rewrite": null,
+    "why": "The load and store perform the required copy, while the index update and comparison are separately needed for the preserved rcx value and comparison flags."
+  },
+  "8e11b0091a": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required vector result, including the zeroed ymm2 after its original value is added to ymm8."
+  },
+  "93bb284d14": {
+    "rewrite": null,
+    "why": "Both shuffles require their independently blended and byte-added controls, and the final ymm0 control value must also be preserved."
+  },
+  "f03abce3e2": {
+    "rewrite": null,
+    "why": "The coefficient blends, wrapping and saturating horizontal sums, rounding multiplication, and packing all affect the stored bytes, while the scalar updates and comparison are required."
+  },
+  "2406cf8690": {
+    "rewrite": null,
+    "why": "Four independently indexed stores, the preserved upper-lane extraction, and the comparison flags each require their existing instruction."
+  },
+  "f3dec523c5": {
+    "rewrite": "vextracti128 xmm0,ymm4,0x1\nvpblendd xmm1,xmm4,xmm0,0x5\nvpblendd xmm4,xmm4,xmm0,0xa\nvpshufd xmm1,xmm1,0xb1\nvpsubw xmm4,xmm8,xmm4\nvpsubw xmm4,xmm4,xmm1\nvpsrlw xmm4,xmm4,0x2\nvpackuswb xmm4,xmm4,xmm4\nvmovq QWORD PTR [rax],xmm4",
+    "saved": 1,
+    "why": "The extraction already zeroes the upper half of ymm0, the only preserved vector register. The final vzeroupper therefore has no remaining required effect."
+  },
+  "cb596eb5ee": {
+    "rewrite": null,
+    "why": "Both modular word differences must be shifted before saturation and permutation, and the pointer update and decrement preserve required scalar results and flags."
+  },
+  "799f7ffd08": {
+    "rewrite": null,
+    "why": "Both independent word differences and shifts feed the saturating pack, and the arbitrary permutation is required to produce the stored bytes."
+  },
+  "830d8449e2": {
+    "rewrite": null,
+    "why": "The two differences, shifts, saturating pack, and permutation all affect the store, while the pointer update and decrement produce required scalar results and flags."
+  },
+  "8da0313349": {
+    "rewrite": null,
+    "why": "The extraction, saturation, byte subtraction, rounded average, and shuffle all affect the store, and vzeroupper must clear the otherwise untouched upper half of preserved ymm0."
+  },
+  "308d753787": {
+    "rewrite": null,
+    "why": "The five stores target separately required addresses, and both the preserved lane extraction and comparison flags remain necessary."
+  },
+  "0f77e2433a": {
+    "rewrite": null,
+    "why": "The two independently addressed loads and stores cannot be combined, and both pointer updates plus the flag-producing counter subtraction are required."
+  },
+  "cd199e2355": {
+    "rewrite": null,
+    "why": "Both row loads and every shuffle, saturation, rounding, and packing stage contribute to preserved zmm0, with two separate stores and required scalar updates remaining."
+  },
+  "7ddeb586aa": {
+    "rewrite": null,
+    "why": "The independently addressed row loads, arbitrary shuffle and arithmetic operands, preserved packed zmm0, separate stores, and scalar updates leave no redundant instruction."
+  },
+  "ac88185cc8": {
+    "rewrite": null,
+    "why": "Both row loads and all arithmetic stages are needed, and folding the narrowing into separate stores would require an additional upper-lane extraction without saving instructions."
+  },
+  "b06826ab8a": {
+    "rewrite": null,
+    "why": "The arbitrary byte permutation needs both loaded rows together, and the arithmetic, narrowing, separate stores, and required scalar updates leave no removable step."
+  },
+  "66b432099d": {
+    "rewrite": null,
+    "why": "The overlapping loads still supply distinct required bytes to both shuffle and arithmetic chains, which must be packed and stored at the two independently indexed destinations."
+  },
+  "f55604b65a": {
+    "rewrite": null,
+    "why": "Both loads supply shuffle data rather than memory-foldable controls, and both arithmetic chains, their packed store, and the scalar updates remain necessary."
+  }
+}

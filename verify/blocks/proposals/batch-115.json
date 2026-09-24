@@ -1,0 +1,83 @@
+{
+  "b797a76020": {
+    "rewrite": null,
+    "why": "The XOR and store are required, as are the extraction into ymm7, the copy into ymm10, and the comparison producing SF and OF."
+  },
+  "fe371a8615": {
+    "rewrite": null,
+    "why": "The XOR and store produce required memory contents, while the copy and comparison independently produce the required ymm10 value and flags."
+  },
+  "3999839cd8": {
+    "rewrite": null,
+    "why": "The XOR and store produce required memory contents, while the copy and comparison independently produce the required ymm10 value and flags."
+  },
+  "de8ba63340": {
+    "rewrite": null,
+    "why": "The XOR and store produce required memory contents, while the copy and comparison independently produce the required ymm10 value and flags."
+  },
+  "06b37e97cd": {
+    "rewrite": null,
+    "why": "The XOR and store are necessary, both permutations produce live vector outputs, and the comparison must establish SF and OF."
+  },
+  "396d75573d": {
+    "rewrite": null,
+    "why": "The XOR and store are necessary, both permutations produce live vector outputs, and the comparison must establish SF and OF."
+  },
+  "5371342938": {
+    "rewrite": null,
+    "why": "The XOR and store are necessary, both permutations produce live vector outputs, and the comparison must establish SF and OF."
+  },
+  "21880622e2": {
+    "rewrite": null,
+    "why": "The XOR and store are necessary, both permutations produce live vector outputs, and the comparison must establish SF and OF."
+  },
+  "1b946b2b2e": {
+    "rewrite": null,
+    "why": "The XOR and store are required, the permutation and copy establish live ymm15 and ymm0 values, and the comparison supplies the required flags."
+  },
+  "a768b5f1ff": {
+    "rewrite": null,
+    "why": "The XOR result is needed for the store, the subsequent copy supplies the required final ymm0 value, and the comparison supplies SF and OF."
+  },
+  "8543148630": {
+    "rewrite": null,
+    "why": "The XOR result is needed for the store, the subsequent copy supplies the required final ymm0 value, and the comparison supplies SF and OF."
+  },
+  "dd8c58aa99": {
+    "rewrite": null,
+    "why": "The XOR result is needed for the store, the subsequent copy supplies the required final ymm0 value, and the comparison supplies SF and OF."
+  },
+  "6f7f892183": {
+    "rewrite": null,
+    "why": "The XOR result is needed for the store, the subsequent copy supplies the required final ymm0 value, and the comparison supplies SF and OF."
+  },
+  "147ac86e54": {
+    "rewrite": null,
+    "why": "The XOR result is needed for the store, the subsequent copy supplies the required final ymm0 value, and the comparison supplies SF and OF."
+  },
+  "5cbe4d9785": {
+    "rewrite": null,
+    "why": "The XOR result is needed for the store, the subsequent copy supplies the required final ymm0 value, and the comparison supplies SF and OF."
+  },
+  "7769bbe2c8": {
+    "rewrite": null,
+    "why": "The XOR result is needed for the store, the subsequent copy supplies the required final ymm0 value, and the comparison supplies SF and OF."
+  },
+  "c050f03f51": {
+    "rewrite": "vbroadcasti128 ymm0,XMMWORD PTR [rdi]\nvbroadcasti128 ymm1,XMMWORD PTR [rdi+0x10]\nvbroadcasti128 ymm2,XMMWORD PTR [rdi+0x20]\nvbroadcasti128 ymm3,XMMWORD PTR [rdi+0x30]\nvpaddd ymm3,ymm3,YMMWORD PTR [CONST_1]\nvmovdqa ymm8,ymm0\nvmovdqa ymm9,ymm1\nvmovdqa ymm10,ymm2\nvmovdqa ymm11,ymm3",
+    "saved": 1,
+    "why": "Every preserved vector register is overwritten before its initial value is read, and each VEX write zeroes the bits above its destination width. The initial vzeroupper therefore has no effect on any required final value."
+  },
+  "e3e863796e": {
+    "rewrite": null,
+    "why": "The dependent adds, XORs, rotations, and lane permutations all feed live vector outputs, while sub supplies both the required r8 value and ZF."
+  },
+  "1f4ac77af4": {
+    "rewrite": null,
+    "why": "The XOR and store are required, the extraction and addition produce live zmm0 and zmm7 values, and the comparison supplies SF and OF."
+  },
+  "35490e392c": {
+    "rewrite": null,
+    "why": "The XOR and store are required, the extraction and addition produce live zmm1 and zmm7 values, and the comparison supplies SF and OF."
+  }
+}

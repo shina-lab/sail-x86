@@ -1,0 +1,89 @@
+{
+  "590c273be0": {
+    "rewrite": null,
+    "why": "Both rounded products are required final values, so their operand initializations and the two saturating additions are needed."
+  },
+  "844ce3780b": {
+    "rewrite": "pshuflw xmm0,XMMWORD PTR [rdx],0x0\npunpcklqdq xmm0,xmm0\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\nmov DWORD PTR [rdx],ecx\npmulhrsw xmm0,XMMWORD PTR [CONST_2]\nmovdqa xmm1,xmm0\nmovdqa xmm2,xmm0\nmovdqa xmm3,xmm0",
+    "saved": 1,
+    "why": "Fold the constant load into the three rounded multiplies because xmm1 is overwritten by the final copy. Keep all CONST_1 reads before the store and the CONST_2 read after it."
+  },
+  "1ebf043ae9": {
+    "rewrite": null,
+    "why": "Each of the four required products needs an operand initialization and a multiply, with the last buffer load already folded into its multiply."
+  },
+  "8bfd13bc54": {
+    "rewrite": null,
+    "why": "The two-operand unpack network needs its copies to retain both halves and the required final xmm4 value."
+  },
+  "b734852dc6": {
+    "rewrite": null,
+    "why": "The unpack copies preserve both source halves and the live intermediate values in xmm4 and xmm5."
+  },
+  "1081ea743c": {
+    "rewrite": null,
+    "why": "Each exchanged pair needs a temporary and two shuffles, while the two required constant results still need three instructions."
+  },
+  "5c7b684f8e": {
+    "rewrite": null,
+    "why": "All four intermediate products and four saturated sums are live, and the two separately rounded multiplication stages cannot simply be combined."
+  },
+  "90030ee1d7": {
+    "rewrite": "pshuflw xmm0,XMMWORD PTR [rdx],0x0\npunpcklqdq xmm0,xmm0\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npmulhrsw xmm0,XMMWORD PTR [CONST_1]\npmulhrsw xmm0,XMMWORD PTR [CONST_2]\nmovdqa xmm1,xmm0\nmovdqa xmm2,xmm0\nmovdqa xmm3,xmm0",
+    "saved": 2,
+    "why": "Fold both constant loads into the multiplies, retaining every rounding stage and the final copies to xmm1 through xmm3."
+  },
+  "9c2e409623": {
+    "rewrite": "pshufb xmm0,XMMWORD PTR [CONST_1]\npshufb xmm1,XMMWORD PTR [CONST_2]\npshufb xmm2,XMMWORD PTR [CONST_1]\npshufb xmm3,XMMWORD PTR [CONST_2]\nmovdqa xmm4,xmm0\npunpckhdq xmm4,xmm1\npunpckldq xmm0,xmm1\nmovdqa xmm5,xmm2\npunpckhdq xmm5,xmm3\npunpckldq xmm2,xmm3\nmovdqa xmm1,xmm0\npunpckhqdq xmm1,xmm2\npunpcklqdq xmm0,xmm2\nmovdqa xmm3,xmm4\npunpckhqdq xmm3,xmm5\nmovdqa xmm2,xmm4\npunpcklqdq xmm2,xmm5",
+    "saved": 2,
+    "why": "Use memory mask operands for PSHUFB, removing the two mask loads whose destination registers are subsequently overwritten."
+  },
+  "736ee70c95": {
+    "rewrite": "movdqa xmm4,xmm1\npunpckhwd xmm4,xmm3\npunpcklwd xmm1,xmm3\npmaddwd xmm4,XMMWORD PTR [CONST_2]\npmaddwd xmm1,XMMWORD PTR [CONST_2]\npaddd xmm4,XMMWORD PTR [CONST_1]\npaddd xmm1,XMMWORD PTR [CONST_1]\npsrad xmm4,0xc\npsrad xmm1,0xc\npackssdw xmm1,xmm4\nmovdqa xmm4,xmm0\npunpckhwd xmm4,xmm2\npunpcklwd xmm0,xmm2\npmaddwd xmm4,XMMWORD PTR [CONST_4]\npmaddwd xmm0,XMMWORD PTR [CONST_4]\npaddd xmm4,XMMWORD PTR [CONST_1]\npaddd xmm0,XMMWORD PTR [CONST_1]\npsrad xmm4,0xc\npsrad xmm0,0xc\npackssdw xmm0,xmm4\npaddsw xmm0,xmm1",
+    "saved": 26,
+    "why": "Only xmm0 is a required vector output, so retain just the two rounded, packed products that feed its final saturated sum. Fold their coefficients and rounding bias into memory operands."
+  },
+  "9c3ec4cc96": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [CONST_1]\npshufd xmm0,XMMWORD PTR [rdx],0x4e\npmulhrsw xmm0,xmm3\npshufd xmm1,XMMWORD PTR [rdx+0x10],0x4e\npmulhrsw xmm1,xmm3\nmovdqa xmm2,XMMWORD PTR [rdx+0x20]\npmulhrsw xmm2,xmm3\npmulhrsw xmm3,XMMWORD PTR [rdx+0x30]",
+    "saved": 2,
+    "why": "The qword swaps commute with multiplication by the uniform word constant, allowing both swaps to be folded into PSHUFD memory loads."
+  },
+  "4f1302891a": {
+    "rewrite": null,
+    "why": "The unpack network and its intermediate results are live, and saturated word negation requires preserving the special behavior for -32768."
+  },
+  "0ab41e7db1": {
+    "rewrite": null,
+    "why": "The live unpack intermediates require the copies, and ordinary wrapping negation cannot replace the saturated subtractions."
+  },
+  "4edb4145e3": {
+    "rewrite": null,
+    "why": "The rounded scaling, saturated doubling, and unpack network all contribute to required outputs, including the final intermediates in xmm4 and xmm5."
+  },
+  "d47ba54d88": {
+    "rewrite": null,
+    "why": "All four rounded products and four saturated sums are required, leaving no removable initialization or arithmetic instruction."
+  },
+  "060525f83b": {
+    "rewrite": null,
+    "why": "Eight 128-bit stores are needed for the specified addresses at this ISA level, together with one instruction to create zero."
+  },
+  "fa7721fcf5": {
+    "rewrite": "",
+    "saved": 12,
+    "why": "The block changes no required register or flag and performs no stores, so every instruction can be removed."
+  },
+  "ce5c13bddb": {
+    "rewrite": null,
+    "why": "The eight required rounded products already use one multiply each, and the four memory inputs and required store account for the remaining instructions."
+  },
+  "df94a0d250": {
+    "rewrite": "movdqa xmm6,xmm5\npunpckhqdq xmm6,xmm4\npunpcklqdq xmm4,xmm5\nmovdqa xmm5,xmm7\npunpckhqdq xmm5,xmm2\npunpcklqdq xmm2,xmm7\nmovdqa XMMWORD PTR [rdx+0x40],xmm2\nmovdqa XMMWORD PTR [rdx+0x50],xmm6\nmovdqa xmm2,XMMWORD PTR [rdx+0x60]\nmovq xmm1,QWORD PTR [rdx+0x70]\npunpcklqdq xmm1,xmm0\nshufpd xmm0,XMMWORD PTR [rdx+0x70],0x3\nmovdqa xmm6,xmm3\npunpcklqdq xmm6,xmm2\npunpckhqdq xmm2,xmm3\nmovdqa xmm7,XMMWORD PTR [CONST_1]",
+    "saved": 1,
+    "why": "Load the low qword directly into xmm1 and fold the high-qword load into SHUFPD, removing the temporary copy through xmm6."
+  },
+  "58c8429ec2": {
+    "rewrite": null,
+    "why": "Each output needs a separately rounded product, unsigned average, equality mask, and masked result while preserving the original multiplicand and final temporaries."
+  }
+}

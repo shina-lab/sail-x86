@@ -1,0 +1,89 @@
+{
+  "1b43d00130": {
+    "rewrite": null,
+    "why": "All four 128-bit stores and the index subtraction producing the required register value and flags are necessary."
+  },
+  "a571702342": {
+    "rewrite": "pmulhrsw xmm7,xmm0\npaddsw xmm0,xmm0\npaddsw xmm0,xmm7",
+    "saved": 13,
+    "why": "Only xmm0 is a required vector output, so the other three calculation chains are dead. The rounded multiplication can overwrite the unpreserved xmm7, eliminating its copy while retaining both saturating additions."
+  },
+  "f9c5ee2069": {
+    "rewrite": null,
+    "why": "The scalar scaling and rounding, high-word broadcast, constant load, and zero initialization all contribute to required outputs and do not combine into fewer SSE4.1 instructions."
+  },
+  "6b79a401a0": {
+    "rewrite": null,
+    "why": "Each stored vector requires its load, wrapping addition, and two independent signed clamps, while the pointer update and counter decrement are also required."
+  },
+  "2ad13a7145": {
+    "rewrite": null,
+    "why": "All eight independent packed results are required, and each already takes one instruction."
+  },
+  "05a005d8b8": {
+    "rewrite": null,
+    "why": "Each input must produce two distinct live products, requiring two destructive multiplications and one destination initialization under SSE4.1."
+  },
+  "ddffb60c7d": {
+    "rewrite": "movdqa xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,xmm0\npmulld xmm9,xmm8\npmulld xmm8,xmm7\npmulld xmm0,XMMWORD PTR [CONST_2]\npmulld xmm7,XMMWORD PTR [CONST_2]\npaddd xmm7,xmm9\npsubd xmm0,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_3]\nmovdqa xmm9,xmm6\npmulld xmm9,xmm8\npmulld xmm8,xmm1\npmulld xmm6,XMMWORD PTR [CONST_4]\npmulld xmm1,XMMWORD PTR [CONST_4]\npaddd xmm1,xmm9\npsubd xmm6,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_5]\nmovdqa xmm9,xmm2\npmulld xmm9,xmm8\npmulld xmm8,xmm5\npmulld xmm2,XMMWORD PTR [CONST_6]\npmulld xmm5,XMMWORD PTR [CONST_6]\npaddd xmm5,xmm9\npsubd xmm2,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_7]\nmovdqa xmm9,xmm4\npmulld xmm9,xmm8\npmulld xmm8,xmm3\npmulld xmm4,XMMWORD PTR [CONST_8]\npmulld xmm3,XMMWORD PTR [CONST_8]\npaddd xmm3,xmm9\npsubd xmm4,xmm8",
+    "saved": 4,
+    "why": "Use constant memory operands for the two multiplications consuming each xmm10 load, eliminating four loads into the unpreserved xmm10. All eight required vector results are unchanged."
+  },
+  "7f45af82a9": {
+    "rewrite": null,
+    "why": "The sixteen stores, four live vector copies, and pointer addition are all required, with stores limited to 128 bits by the permitted ISA."
+  },
+  "4d98f9eab0": {
+    "rewrite": "psrld xmm14,0xb\npaddd xmm0,xmm14\npsrad xmm0,0x1",
+    "saved": 45,
+    "why": "Only xmm0 is a required vector output, and it depends solely on the logical shift of the initial xmm14, the wrapping addition, and the final arithmetic shift. All other calculations and loads are dead."
+  },
+  "6eb369b53c": {
+    "rewrite": null,
+    "why": "All sixteen vector destinations are required, so the eight packs and eight copies each perform a necessary register write."
+  },
+  "7471f7a679": {
+    "rewrite": "pmulhrsw xmm12,xmm0\npaddsw xmm0,xmm12",
+    "saved": 10,
+    "why": "Only the xmm0 calculation is live, and the commutative rounded multiplication can overwrite the unpreserved xmm12. This removes the temporary copy and all three dead calculation chains."
+  },
+  "99eb636248": {
+    "rewrite": null,
+    "why": "The zeroed xmm7, eight separate 128-bit stores, and flags from testing the arbitrary r9d value are all required."
+  },
+  "e5945431e2": {
+    "rewrite": null,
+    "why": "All four stores are required, and the final xor is necessary to produce both the required zero index and flags."
+  },
+  "73dc8c5eb2": {
+    "rewrite": null,
+    "why": "Eight 128-bit stores and three distinct live scalar updates are necessary, including the subtraction carry and decrement flags."
+  },
+  "06c03c9eed": {
+    "rewrite": "pshufd xmm0,xmm14,0x4e",
+    "saved": 11,
+    "why": "Only xmm0 is a required vector output, and its value comes directly from this shuffle of the initial xmm14. Every other shuffle and copy is dead."
+  },
+  "01d74205e8": {
+    "rewrite": "psrld xmm14,0xa\npaddd xmm0,xmm14\npsrad xmm0,0x2",
+    "saved": 47,
+    "why": "Only xmm0 is a required vector output, and its complete dependency chain consists of these three instructions. The remaining arithmetic, constant initialization, and buffer loads are dead."
+  },
+  "4750826825": {
+    "rewrite": "pshufd xmm0,xmm14,0x4e",
+    "saved": 11,
+    "why": "Only xmm0 is a required vector output, and this shuffle alone produces its final value from the initial xmm14."
+  },
+  "cf376972c9": {
+    "rewrite": null,
+    "why": "All four stores and three distinct scalar updates are required, including the partial-register decrement and the carry flag from the pointer addition."
+  },
+  "3754a3cbd7": {
+    "rewrite": null,
+    "why": "The two constant vectors, zero vector, saved ecx value, and byte addition with its flags are separate required outputs already produced in five instructions."
+  },
+  "908e763d18": {
+    "rewrite": null,
+    "why": "The two constant vectors, zero vector, saved ecx value, and byte addition with its flags are separate required outputs already produced in five instructions."
+  }
+}

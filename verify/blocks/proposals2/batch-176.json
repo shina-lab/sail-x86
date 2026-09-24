@@ -1,0 +1,85 @@
+{
+  "375569c448": {
+    "rewrite": null,
+    "why": "Both full products, the carry-propagating addition, and the index update with matching CF and ZF are required."
+  },
+  "df30532ee6": {
+    "rewrite": null,
+    "why": "The load, complement, store, and pointer updates are required, and combining DEC and SUB would change CF when the initial rdx is zero."
+  },
+  "68df5ce696": {
+    "rewrite": null,
+    "why": "Each of the seven preserved SSE2 results requires a load and XOR before its store, and both pointer updates are required."
+  },
+  "6409dd520c": {
+    "rewrite": null,
+    "why": "The four loads, XORs, and stores plus both pointer updates are required with the preserved registers and SSE2 restriction."
+  },
+  "d6e282335b": {
+    "rewrite": null,
+    "why": "Both preserved vector results require their load, XOR, and store, and neither pointer update can be removed."
+  },
+  "f2f35dbe53": {
+    "rewrite": null,
+    "why": "SSE2 requires the load and XOR to produce the preserved xmm0 result, followed by its store and both pointer updates."
+  },
+  "b59aac7367": {
+    "rewrite": null,
+    "why": "The preserved loaded value, its store, both pointer decrements, and the counter decrement all require their existing instructions."
+  },
+  "42bada3b3b": {
+    "rewrite": null,
+    "why": "Both loaded scalar values and their stores are required, and TEST supplies the required final flags."
+  },
+  "e7885914d1": {
+    "rewrite": null,
+    "why": "The three copies preserve required values, while TZCNT and the three subtractions produce distinct required results and carry behavior."
+  },
+  "dfe8044e76": {
+    "rewrite": "imul r10,rax,0xffffffffffffffff\nshlx r9,rdi,r10\nshrx rsi,rsi,rax\nshrx rdi,rdi,rax\nor rsi,r9\ntest rdx,rdx",
+    "saved": 1,
+    "why": "Multiplication by -1 computes the same modular negation as zeroing r10 and subtracting rax in one instruction. The shifts are unchanged, and the final TEST supplies the required ZF."
+  },
+  "44f74455f5": {
+    "rewrite": null,
+    "why": "Both zeroed registers, all three copied values, the trailing-zero count, and the subtraction result with its carry are required."
+  },
+  "49727f2d13": {
+    "rewrite": null,
+    "why": "Both scalar XOR results need their loads, and the required rbp zero and rdx subtraction with matching flags cannot be removed."
+  },
+  "41e85a4666": {
+    "rewrite": null,
+    "why": "The two independent loaded values and the two preserved pointer updates each require an instruction."
+  },
+  "9cf0609bc1": {
+    "rewrite": null,
+    "why": "All three loaded XOR results, the rbx zero, both pointer updates, and the counter subtraction with its flags are required."
+  },
+  "aa1114f332": {
+    "rewrite": null,
+    "why": "The two loads, pointer update, and accumulator addition produce four distinct required register values."
+  },
+  "14afd23bcb": {
+    "rewrite": null,
+    "why": "Both memory-source XORs and the three scalar updates are required, including the final subtraction flags."
+  },
+  "88d8e0f5c4": {
+    "rewrite": null,
+    "why": "The two loaded XOR results, the preserved rbx zero, and both pointer updates leave no removable instruction."
+  },
+  "f4670b6194": {
+    "rewrite": null,
+    "why": "All four loads, both XORs, the rbp zero, and the two pointer updates contribute to required final register values."
+  },
+  "bf0f49fac0": {
+    "rewrite": "movd xmm4,ecx\nneg ecx\nlea eax,[rcx+0x40]\nmovd xmm5,eax\nmov rax,QWORD PTR [rsi+rdx*8-0x8]\nshr rax,cl\ncmp rdx,0x3",
+    "saved": 1,
+    "why": "After capturing the original ecx, negate it and use LEA to form 64 minus the original value modulo 2^32. This preserves both vector counts, the final rcx and shifted rax, and the final CMP flags."
+  },
+  "d40608aaea": {
+    "rewrite": "movd xmm4,ecx\nneg ecx\nlea eax,[rcx+0x40]\nmovd xmm5,eax\nmov rax,QWORD PTR [rsi+rdx*8-0x8]\nshr rax,cl\npcmpeqb xmm3,xmm3\ncmp rdx,0x3",
+    "saved": 1,
+    "why": "Reuse the required negated ecx to form the complementary vector count with LEA, replacing the constant move and subtraction with one instruction. The scalar shift, all-ones vector, and final comparison remain unchanged."
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "2b13070482": {
+    "rewrite": null,
+    "why": "The comparison vector, extracted mask, store, and both pointer/count updates are required, including CF and ZF from the final subtraction."
+  },
+  "c0a14569d2": {
+    "rewrite": null,
+    "why": "The live comparison vector and bit index, required store, two address updates, and final comparison flags leave no removable instruction."
+  },
+  "82d36cf38d": {
+    "rewrite": null,
+    "why": "Both copied and masked scalar values, all three vector constants, and the final comparison flags are live, and SSE2 cannot combine the scalar copies with their masks."
+  },
+  "4e309f2714": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rdi]\nmovdqu xmm2,XMMWORD PTR [rsi]\nmovdqa xmm8,xmm1\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm8,xmm5\npcmpgtb xmm9,xmm1\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm8,xmm9\npand xmm10,xmm11\npand xmm8,xmm7\npand xmm10,xmm7\npor xmm1,xmm8\npor xmm2,xmm10\npxor xmm0,xmm0\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 2,
+    "why": "Each MOVLPD/MOVHPD pair loads one complete vector and can be replaced by one unaligned MOVDQU accessing exactly the same bytes."
+  },
+  "cad070617e": {
+    "rewrite": null,
+    "why": "All six scalar results and the comparison's CF and ZF are required, with no redundant initialization or mask."
+  },
+  "92f16e8435": {
+    "rewrite": null,
+    "why": "Both folded inputs, all comparison masks, and both shifted scalar results are live, so the destructive SSE2 operations and mask extraction cannot be removed."
+  },
+  "35690aa55d": {
+    "rewrite": null,
+    "why": "The incoming vector values are unconstrained and every generated vector mask is live, preventing removal of the SSE2 copies, comparisons, or mask arithmetic."
+  },
+  "895ad40522": {
+    "rewrite": null,
+    "why": "The fifteen-byte shift, all vector comparison results, and the scalar masks are required, and SSE2 has no instruction combining this load with the shift."
+  },
+  "d9ff874757": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x1\nlea r10,[rdi+0x1]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000 modulo 2^64, and no final flags are required."
+  },
+  "5bc06d5d19": {
+    "rewrite": null,
+    "why": "The shifted xmm3, unshifted xmm4, and all comparison masks are live, while SSE2 lacks a byte-align instruction to collapse the one-byte merge."
+  },
+  "8593cab176": {
+    "rewrite": null,
+    "why": "The fourteen-byte shift and all subsequent vector and scalar mask results are live, with no SSE2 load-and-shift instruction to eliminate an operation."
+  },
+  "c090432ac8": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x2\nlea r10,[rdi+0x2]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "Masking to twelve bits and then subtracting 0x1000 is equivalent to setting all higher bits with OR; final flags are not live."
+  },
+  "2e26f9f694": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm4,XMMWORD PTR [rdi+rcx*1]\npsrldq xmm3,0x2\nmovdqa xmm2,xmm3\npinsrw xmm2,WORD PTR [rdi+rcx*1],0x7\nmovdqa xmm8,xmm1\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm8,xmm5\npcmpgtb xmm9,xmm1\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm8,xmm9\npand xmm10,xmm11\npand xmm8,xmm7\npand xmm10,xmm7\npor xmm1,xmm8\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Load the preserved input directly into xmm4, then use PINSRW to fill the zero top word of a shifted xmm3 copy. The word load accesses only bytes already read by the original vector load."
+  },
+  "b0641f28e8": {
+    "rewrite": null,
+    "why": "The thirteen-byte shift and every generated vector and scalar mask are live, so neither a copy nor a comparison can be dropped under SSE2."
+  },
+  "14b8c23c5a": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x3\nlea r10,[rdi+0x3]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "The mask and subtraction merely preserve the low twelve bits and set every higher bit, which one OR performs when flags are dead."
+  },
+  "5c3c3ebc5c": {
+    "rewrite": null,
+    "why": "The shifted xmm3, full xmm4 input, merged vector, and comparison masks are all live, and SSE2 cannot collapse the three-byte alignment with PALIGNR."
+  },
+  "97dd01a1fb": {
+    "rewrite": null,
+    "why": "The twelve-byte shift and all comparison, folding, and scalar mask results are live, leaving no removable SSE2 operation."
+  },
+  "f0f49e53af": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x4\nlea r10,[rdi+0x4]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "Replacing AND 0xfff followed by SUB 0x1000 with OR 0xfffffffffffff000 preserves r10 for every input, and no flags must match."
+  },
+  "d8b9d41651": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm4,XMMWORD PTR [rdi+rcx*1]\nmovss xmm3,xmm4\npshufd xmm2,xmm3,0x39\npsrldq xmm3,0x4\nmovdqa xmm8,xmm1\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm8,xmm5\npcmpgtb xmm9,xmm1\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm8,xmm9\npand xmm10,xmm11\npand xmm8,xmm7\npand xmm10,xmm7\npor xmm1,xmm8\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Register MOVSS replaces the low dword that xmm3's shift discards, and PSHUFD 0x39 rotates it into xmm2's high dword to form the merge. The subsequent shift leaves xmm3 unchanged from the original result, and xmm4 retains the complete loaded vector."
+  },
+  "25f44a044a": {
+    "rewrite": null,
+    "why": "The eleven-byte shift, folded inputs, comparison masks, and shifted scalar results are all needed, with no shorter SSE2 load-and-shift sequence."
+  }
+}

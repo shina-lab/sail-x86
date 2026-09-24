@@ -1,0 +1,84 @@
+{
+  "2bbaf7f575": {
+    "rewrite": null,
+    "why": "The load, nonzero test, masked equality, mask transfer, and subtraction are all needed for the preserved k1, rcx, and ZF results."
+  },
+  "bde7931a0e": {
+    "rewrite": null,
+    "why": "The load, nonzero test, masked equality, mask transfer, and subtraction are all needed for the preserved k1, rcx, and ZF results."
+  },
+  "30a41aa79c": {
+    "rewrite": null,
+    "why": "The load, nonzero test, masked equality, mask transfer, and subtraction are all needed for the preserved k1, rcx, and ZF results."
+  },
+  "29ef23bb70": {
+    "rewrite": null,
+    "why": "The preserved vector loads and XORs, nonzero reduction, ternary mismatch reduction, and required mask and scalar results leave no removable instruction."
+  },
+  "7f57d94731": {
+    "rewrite": null,
+    "why": "The independent nonzero and equality predicates must be combined before transferring their mask and subtracting 0xff to produce rcx and ZF."
+  },
+  "98f9bd303c": {
+    "rewrite": null,
+    "why": "The load, nonzero test, masked equality, mask transfer, and subtraction are all needed for the preserved k1, rcx, and ZF results."
+  },
+  "0a371762be": {
+    "rewrite": null,
+    "why": "The load, nonzero test, masked equality, mask transfer, and subtraction are all needed for the preserved k1, rcx, and ZF results."
+  },
+  "5164415f8a": {
+    "rewrite": null,
+    "why": "Even though k1 is dead, the exact rcx result still requires the load, nonzero test, masked equality, mask transfer, and subtraction."
+  },
+  "bb2183bfce": {
+    "rewrite": null,
+    "why": "The preserved ymm21 and ymm22 results and the combined nonzero and equality predicates require the existing loads, reductions, mask transfer, and subtraction."
+  },
+  "0658df0358": {
+    "rewrite": null,
+    "why": "The load, nonzero test, masked equality, mask transfer, and subtraction are all needed for the preserved k1, rcx, and ZF results."
+  },
+  "a8138d6d8e": {
+    "rewrite": "mov eax,ecx\nxchg rdi,rsi\nmov r8d,0xfffffffc\nxor edx,edx\nsub eax,0x60",
+    "saved": 2,
+    "why": "A register XCHG replaces the three moves that swap rdi and rsi because the temporary rcx value is dead. The final subtraction preserves the required ZF, SF, and OF values."
+  },
+  "bc9b97f9d4": {
+    "rewrite": null,
+    "why": "The preserved vector load, nonzero test, masked equality, mask transfer, and subtraction each contribute to a required result."
+  },
+  "5b1f414254": {
+    "rewrite": null,
+    "why": "The preserved vector load, nonzero test, masked equality, mask transfer, and subtraction each contribute to a required result."
+  },
+  "166806425c": {
+    "rewrite": "vmovq xmm0,QWORD PTR [rdi]\nvptestmd k2,xmm0,xmm0\nvpcmpeqd k1{k2},xmm0,XMMWORD PTR [rsi]\nkmovd ecx,k1\nsub ecx,0x3",
+    "saved": 1,
+    "why": "Fold the dead xmm1 load into the masked comparison. VMOVQ zeros xmm0 above bit 63, so k2 disables both upper dword lanes and the comparison accesses only bytes within the original eight-byte load."
+  },
+  "cf5ed494a5": {
+    "rewrite": null,
+    "why": "SETL preserves the arbitrary upper bits of edx, and producing both its negation and the separate XOR result still requires all four instructions."
+  },
+  "60eeb5e026": {
+    "rewrite": null,
+    "why": "The separate masked eax and edx results, partial rcx updates, xmm0 zeroing, and ZF from the low-nibble test all remain necessary."
+  },
+  "5113c2c398": {
+    "rewrite": null,
+    "why": "Folding either unaligned load into legacy PCMPEQD would add an alignment requirement, while the preserved xmm0 comparison and remaining mask operations are needed."
+  },
+  "00e7cbcfe4": {
+    "rewrite": null,
+    "why": "Folding either unaligned load into legacy PCMPEQD would add an alignment requirement, while the preserved xmm0 comparison and remaining mask operations are needed."
+  },
+  "aa2bf24e8e": {
+    "rewrite": null,
+    "why": "Folding either unaligned load into legacy PCMPEQD would add an alignment requirement, while the preserved xmm0 comparison and remaining mask operations are needed."
+  },
+  "6950ac688e": {
+    "rewrite": null,
+    "why": "SSE2 needs a movemask and a scalar flag-setting instruction to reduce the comparison, and both xmm0 and the loaded eax must be preserved."
+  }
+}

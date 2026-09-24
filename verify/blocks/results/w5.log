@@ -1,0 +1,16 @@
+=== 144 test functions for 75 blocks -> /home/ruiu/sail-x86/verify/blocks/blocks_tests.sail
+=== Isla IR: 1 chunk(s), 4 in parallel
+    chunk0.ir: 10,197,412 bytes, 268s
+=== Isla traces (60 parallel)
+    100/144 traces, 50s
+=== Z3 (60 parallel, 60s each)
+
+  dav1d          assembler error              3
+  dav1d          original not executable      3
+  dav1d          sat                          1
+  dav1d          timeout                      1
+  dav1d          unsat                        55
+  glibc          unsat                        8
+  openssl        sat                          1
+  openssl        unsat                        3
+wrote results/w5.json

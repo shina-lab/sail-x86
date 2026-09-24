@@ -1,0 +1,88 @@
+{
+  "3ad4f5fb5c": {
+    "rewrite": null,
+    "why": "The extraction, vector shift, scalar arithmetic, signed byte load, and final comparison are all needed for the preserved values and SF."
+  },
+  "7db527472a": {
+    "rewrite": "movq xmm0,QWORD PTR [rsi+0x60]\nmovd xmm1,DWORD PTR [rsi+0x68]\npxor xmm15,xmm15\npshuflw xmm6,xmm6,0x0\npunpcklwd xmm6,xmm15\npunpcklbw xmm0,xmm0\npsraw xmm0,0x8\npunpcklbw xmm1,xmm1\npsraw xmm1,0x8\npshufd xmm4,xmm1,0x0\npshufd xmm5,xmm1,0x55\npshufd xmm3,xmm0,0xff\npshufd xmm2,xmm0,0xaa\npshufd xmm1,xmm0,0x55\npshufd xmm0,xmm0,0x0\nsub rdi,0x161d\nmov edx,0x46",
+    "saved": 2,
+    "why": "Duplicating each byte into a word and shifting that word arithmetically by eight sign-extends the byte. Each conversion needs two instructions instead of copying zero, comparing, and unpacking; the temporary masks are overwritten by the broadcasts."
+  },
+  "3284a7cb10": {
+    "rewrite": "movdqa xmm12,xmm15\npcmpgtb xmm12,xmm8\nmovdqa xmm9,xmm8\npunpcklbw xmm9,xmm12\nmovdqa xmm11,xmm9\npmaddwd xmm11,xmm5\npaddd xmm11,xmm10\npsrldq xmm9,0x4\npsrldq xmm10,0x4\npsrad xmm11,XMMWORD PTR [rsi+0xb0]\npaddw xmm11,xmm9\npacksswb xmm11,xmm11\npslldq xmm11,0x2\npxor xmm11,xmm8\npand xmm11,xmm7\npxor xmm8,xmm11\npsrldq xmm8,0x1\nmovd DWORD PTR [rdi+rcx*1-0x1],xmm8\ninc rcx",
+    "saved": 2,
+    "why": "The masked merge is old XOR ((new XOR old) AND mask), reducing five instructions to three. The changed temporaries are not preserved, and the store, final vector shift, and ZF-producing increment remain identical."
+  },
+  "7d06e25a47": {
+    "rewrite": "pxor xmm1,xmm1\npcmpgtb xmm1,xmm9\nmovdqa xmm3,xmm15\npandn xmm3,xmm9\npunpcklbw xmm9,xmm1\npmaddwd xmm9,xmm8\npshufd xmm2,xmm9,0x55\npaddd xmm9,xmm2\npaddd xmm9,xmm5\npsrldq xmm5,0x4\npsrad xmm9,XMMWORD PTR [rsi+0xb0]\npacksswb xmm9,xmm9\npslldq xmm9,0x3\npand xmm9,xmm15\npor xmm9,xmm3\nmovd DWORD PTR [rdi+rcx*1-0x3],xmm9\npsrldq xmm9,0x1\ninc rcx",
+    "saved": 2,
+    "why": "Compute the preserved unselected bytes in xmm3 before changing xmm9, then perform the arithmetic directly in xmm9 using xmm2 for the shuffle. This removes the copies into and out of the arithmetic temporary while preserving xmm1, xmm3, and xmm5."
+  },
+  "4b747f7dc3": {
+    "rewrite": null,
+    "why": "The three word broadcasts each need two instructions under SSSE3, and the live dword broadcast, mask construction, and scalar updates contain no redundant work."
+  },
+  "d3716fc1c2": {
+    "rewrite": null,
+    "why": "Both arithmetic halves and the final sign mask are live, while folding the unaligned loads into legacy packed arithmetic would add alignment requirements."
+  },
+  "d7996f483c": {
+    "rewrite": "movdqu xmm8,XMMWORD PTR [rsi+rcx*2]\nmovdqu xmm2,XMMWORD PTR [rsi+rcx*2+0x52]\nmovdqa xmm0,xmm7\npmaddubsw xmm0,xmm8\nmovdqa xmm8,xmm7\npmaddubsw xmm8,xmm2\npaddw xmm0,xmm8\npmulhrsw xmm0,xmm6\npmullw xmm0,xmm5\npmulhrsw xmm0,xmm4\nmovq xmm8,QWORD PTR [rdi+rcx*1]\nmovdqa xmm2,xmm8\npunpcklbw xmm2,xmm2\npsraw xmm2,0x8\npaddw xmm0,xmm2\npacksswb xmm0,xmm0\npxor xmm8,xmm0\npand xmm8,xmm1\npxor xmm8,xmm0\nmovq QWORD PTR [rdi+rcx*1],xmm8\nadd rdi,0x52\nadd rsi,0xa4\ndec edx",
+    "saved": 2,
+    "why": "Self-unpacking followed by an arithmetic word shift removes one instruction from byte sign extension because xmm9 is not preserved. Expressing the stored blend as new XOR ((old XOR new) AND mask) removes another instruction and leaves xmm0 unchanged."
+  },
+  "a7f73fa19d": {
+    "rewrite": null,
+    "why": "The zero vector is shared by word zero extension and byte sign extension, and the remaining shifts, broadcasts, and scalar assignments all contribute to preserved outputs."
+  },
+  "f182a2ca99": {
+    "rewrite": null,
+    "why": "Producing both signed word halves requires the load plus five SSSE3-or-earlier conversion instructions, whether using a shared sign mask or self-unpacking and arithmetic shifts."
+  },
+  "1d7ec53f42": {
+    "rewrite": null,
+    "why": "Every broadcast result is preserved, and broadcasting the low word across an XMM register requires two instructions without a prepared shuffle mask."
+  },
+  "2d0bacddfe": {
+    "rewrite": null,
+    "why": "The word broadcast requires two instructions, and the dword broadcast and three independent scalar updates each already use one."
+  },
+  "3911047a9d": {
+    "rewrite": null,
+    "why": "The arbitrary comparison source and mask must be honored, and the widened bytes are needed both for multiplication and the later addition, leaving no removable copy."
+  },
+  "a41cd69d51": {
+    "rewrite": null,
+    "why": "The zero-extended word broadcast, repeated-word broadcast, dword broadcast, and scalar updates already use compact SSSE3-compatible sequences."
+  },
+  "eaa5d20b91": {
+    "rewrite": "movdqa xmm6,xmm3\npcmpgtb xmm6,xmm5\nmovdqa xmm7,xmm9\npandn xmm7,xmm5\npunpcklbw xmm5,xmm6\npmaddwd xmm5,xmm13\npshufd xmm6,xmm5,0x55\npaddd xmm5,xmm6\npaddd xmm5,xmm1\npsrldq xmm1,0x4\npsrad xmm5,XMMWORD PTR [rdx+0xb0]\npacksswb xmm5,xmm5\npslld xmm5,0x18\npand xmm5,xmm9\npor xmm5,xmm7\nmovd DWORD PTR [rdi+r9*1-0x3],xmm5\npsrldq xmm5,0x1\ninc r9",
+    "saved": 3,
+    "why": "Save the unselected original bytes in xmm7 first, then calculate the replacement directly in xmm5 with xmm6 as the comparison and shuffle temporary. This eliminates three copies while keeping the masked result, xmm1 shift, store, and increment unchanged."
+  },
+  "80bfe63c9a": {
+    "rewrite": null,
+    "why": "The three word broadcasts each need two instructions under SSSE3, and the live dword broadcast, mask construction, and scalar updates contain no redundant work."
+  },
+  "fcf8b44aad": {
+    "rewrite": null,
+    "why": "Both arithmetic halves and the final sign mask are live, while folding the unaligned loads into legacy packed arithmetic would add alignment requirements."
+  },
+  "2bea57a19c": {
+    "rewrite": "movdqu xmm8,XMMWORD PTR [rsi+rcx*2]\nmovdqa xmm0,xmm7\npmaddubsw xmm0,xmm8\npmulhrsw xmm0,xmm6\npmullw xmm0,xmm5\npmulhrsw xmm0,xmm4\nmovq xmm8,QWORD PTR [rdi+rcx*1]\npxor xmm9,xmm9\npcmpgtb xmm9,xmm8\nmovdqa xmm2,xmm8\npunpcklbw xmm2,xmm9\npaddw xmm0,xmm2\npacksswb xmm0,xmm0\npxor xmm8,xmm0\npand xmm8,xmm1\npxor xmm8,xmm0\nmovq QWORD PTR [rdi+rcx*1],xmm8\nadd rdi,0x52\nadd rsi,0x52\ndec edx",
+    "saved": 1,
+    "why": "The stored blend is new XOR ((old XOR new) AND mask), which needs three instructions instead of four. The packed result in xmm0 and the required sign mask in xmm9 remain unchanged."
+  },
+  "b50b968f28": {
+    "rewrite": null,
+    "why": "The zero vector is shared by word zero extension and byte sign extension, and the remaining shifts, broadcasts, and scalar assignments all contribute to preserved outputs."
+  },
+  "2718a3c208": {
+    "rewrite": null,
+    "why": "The word broadcast requires two instructions, and the dword broadcast and three independent scalar updates each already use one."
+  },
+  "c1589ecdc3": {
+    "rewrite": null,
+    "why": "The zero-extended word broadcast, repeated-word broadcast, dword broadcast, and scalar updates already use compact SSSE3-compatible sequences."
+  }
+}

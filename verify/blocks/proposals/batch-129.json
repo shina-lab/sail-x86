@@ -1,0 +1,83 @@
+{
+  "8d63556c1a": {
+    "rewrite": null,
+    "why": "The nibble expansion, two independent byte lookups, interleaves and four separate stores all contribute to required outputs."
+  },
+  "d19a3742d2": {
+    "rewrite": null,
+    "why": "The shift and OR both affect shuffle controls for arbitrary input bytes, and the lookup results require both interleaves and all four stores."
+  },
+  "0cf5016d73": {
+    "rewrite": null,
+    "why": "The arbitrary input permutation and palette tables require both index expansions and all four lookup/interleave results for the stores."
+  },
+  "15221f2112": {
+    "rewrite": null,
+    "why": "Both expanded index vectors feed distinct palette lookups, and each interleaved result is needed by a separate store."
+  },
+  "2ae95d786e": {
+    "rewrite": null,
+    "why": "All four palette result vectors are stored, while the input permutation, index expansion and pointer/counter updates remain necessary."
+  },
+  "7e3054b15e": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required final register, including both the signed difference and its absolute value."
+  },
+  "96c2a28dd4": {
+    "rewrite": null,
+    "why": "Both loaded vectors, both differences and both absolute values are required final register values."
+  },
+  "56dc7a7943": {
+    "rewrite": null,
+    "why": "The arithmetic result and all three extracted vectors must remain live, in addition to supplying four distinct stores."
+  },
+  "134d7333d2": {
+    "rewrite": null,
+    "why": "The broadcast, arbitrary byte shuffle, rounded multiply and addition are needed, and extraction is already folded into the stores."
+  },
+  "802cbdf333": {
+    "rewrite": null,
+    "why": "The two independent inputs require separate shuffle and arithmetic chains, with upper-half extraction already folded into the stores."
+  },
+  "13039c2030": {
+    "rewrite": null,
+    "why": "Each of the four independent weights needs its broadcast, rounded multiplication, addition and full-width store."
+  },
+  "853d1cfa24": {
+    "rewrite": null,
+    "why": "The loaded vectors are the left operands of subtraction, so directly folding either load into the memory-source operand would reverse its difference."
+  },
+  "c4598d3e3d": {
+    "rewrite": null,
+    "why": "The two broadcasts are already shared across four distinct rounded products, each requiring its addition and store."
+  },
+  "968bf187dd": {
+    "rewrite": null,
+    "why": "The arithmetic chain supplies the stores, and all three extracted vectors are also required final register values."
+  },
+  "c505f4e480": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle, subtraction, rounded multiplication and addition are necessary, with lane extraction already folded into the stores."
+  },
+  "f827ce57a9": {
+    "rewrite": null,
+    "why": "Each independent input needs its shuffle and arithmetic chain, and the four stores already incorporate the required lane extraction."
+  },
+  "797b4a5cad": {
+    "rewrite": null,
+    "why": "The shared word expansion and subtraction feed four distinct dword broadcasts, each followed by necessary rounded arithmetic and a store."
+  },
+  "de7d8ca30b": {
+    "rewrite": null,
+    "why": "All four instructions independently establish required final values while preserving every listed flag."
+  },
+  "f6b56847e1": {
+    "rewrite": null,
+    "why": "The masked shuffle needs its merge-value initialization, and the remaining arithmetic, permutation, rounding and extraction supply distinct stored results."
+  },
+  "aee30a0b4c": {
+    "rewrite": "vpbroadcastq zmm16,QWORD PTR [r9]\nvpbroadcastq zmm17,QWORD PTR [r9+0x8]\nvpbroadcastd zmm19,DWORD PTR [rdx+r8*1-0x4]\nvpbroadcastd zmm20,DWORD PTR [rdx+r8*1-0x8]\nvpshufb zmm16,zmm16,zmm22\nvpmaddwd zmm16,zmm16,zmm21\nvpshufb zmm17,zmm17,zmm22\nvpmaddwd zmm17,zmm17,zmm21\nvmovdqa32 zmm18,zmm29\nvpshufb zmm18{k2},zmm19,zmm23\nvpdpwssd zmm16,zmm18,zmm24\nvpshufb zmm18{k2},zmm20,zmm23\nvpdpwssd zmm17,zmm18,zmm24\nadd r9,0x10\nvpermt2b zmm16,zmm30,zmm17\nvpavgw zmm16,zmm16,zmm31\nvmovdqa32 XMMWORD PTR [rdi],xmm16\nvextracti32x4 XMMWORD PTR [rdi+rsi*1],ymm16,0x1\nvextracti32x4 XMMWORD PTR [rdi+rsi*2],zmm16,0x2\nvextracti32x4 XMMWORD PTR [rdi+rax*1],zmm16,0x3\nlea rdi,[rdi+rsi*4]\nsub r8d,0x8",
+    "saved": 1,
+    "why": "Consume the first masked shuffle before reusing zmm18 for the second shuffle with the same mask. Masked-off bytes still contain zmm29, eliminating the second merge-value copy."
+  }
+}

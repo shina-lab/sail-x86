@@ -1,0 +1,85 @@
+{
+  "0db53f62b6": {
+    "rewrite": null,
+    "why": "Both loads, both pointer/count updates, and all four independent zeroed accumulators are live."
+  },
+  "a374ad61e3": {
+    "rewrite": null,
+    "why": "Both NH rounds need their loads, lane shuffles, full-width products, and accumulator updates, with no redundant copies in the three-operand AVX2 sequence."
+  },
+  "d29bd32257": {
+    "rewrite": null,
+    "why": "The shuffles select the distinct dword pairs needed by each unsigned multiply, and the loads, accumulators, pointers, and subtraction flags are live."
+  },
+  "094f21dd13": {
+    "rewrite": null,
+    "why": "The self-moves clear live YMM upper halves, while the remaining shuffles and arithmetic are needed for the four products and accumulations."
+  },
+  "be6f5e838c": {
+    "rewrite": "vpunpcklqdq ymm8,ymm0,ymm1\nvpunpckhqdq ymm13,ymm0,ymm1\nvpunpcklqdq ymm10,ymm2,ymm3\nvpunpckhqdq ymm11,ymm2,ymm3\nvpaddq ymm12,ymm8,ymm13\nvpaddq ymm8,ymm10,ymm11\nvperm2i128 ymm9,ymm12,ymm8,0x31\nvinserti128 ymm12,ymm12,xmm8,0x1\nvpaddq ymm8,ymm12,ymm9\nvextracti128 xmm9,ymm13,0x1\nvmovdqu YMMWORD PTR [rcx],ymm8\nvzeroupper",
+    "saved": 1,
+    "why": "Add the unpacked pairs before assembling the two halves of the reduction, reducing the number of lane rearrangements. Extract the required final xmm9 value from ymm13 and retain vzeroupper to preserve every live YMM result."
+  },
+  "33e6b2eb86": {
+    "rewrite": null,
+    "why": "The three loaded vectors, four separately zeroed accumulators, pointer update, and count subtraction all contribute live results."
+  },
+  "677be22934": {
+    "rewrite": null,
+    "why": "The two-operand SSE2 additions require the input copies, and all product shuffles feed live products or explicitly preserved shuffle results."
+  },
+  "5332abbdee": {
+    "rewrite": null,
+    "why": "The shared message vector must seed four separate sums, and the subsequent shuffles, products, and accumulator updates all have live uses."
+  },
+  "8c12525cce": {
+    "rewrite": null,
+    "why": "The copies support four destructive SSE2 sums, and neither the multiplication shuffles nor their live results can be discarded."
+  },
+  "c5e7748fff": {
+    "rewrite": null,
+    "why": "Each reduction needs both unpacked halves, and the high-half unpack results must also remain in xmm0 and xmm2."
+  },
+  "532017ef28": {
+    "rewrite": null,
+    "why": "The multiplication and reduction intermediates are all live, including the loaded vectors and the distinct upper-half effects of legacy and VEX instructions."
+  },
+  "2e1bcc17cb": {
+    "rewrite": null,
+    "why": "Both carryless products, the qword swap, and all three XORs are required to produce the live xmm9, xmm11, and xmm15 results."
+  },
+  "6f8f998314": {
+    "rewrite": null,
+    "why": "Each independent input pair contributes four carryless products to the accumulators, and AVX provides no carryless multiply-accumulate or allowed 256-bit carryless multiplication."
+  },
+  "c5a5ffc143": {
+    "rewrite": null,
+    "why": "Both input pairs contribute independent products, and the final products, accumulators, loaded xmm0 value, and updated pointers are live."
+  },
+  "d04953b9b6": {
+    "rewrite": null,
+    "why": "All four carryless products are live, and updating the three accumulators requires the existing four binary XORs."
+  },
+  "487060a5c4": {
+    "rewrite": null,
+    "why": "The shifted cross terms and both reduction stages produce explicitly preserved intermediates, leaving no removable operation."
+  },
+  "c1c4a5d0a6": {
+    "rewrite": null,
+    "why": "Eight 256-bit stores are needed for the required 256 bytes, and vzeroupper supplies the required final upper-half zeros."
+  },
+  "24457e80a1": {
+    "rewrite": null,
+    "why": "The two-operand SSE2 transposes need their copies to retain both halves and place the live outputs and final temporaries in their required registers."
+  },
+  "61caae9f24": {
+    "rewrite": "movdqa xmm13,xmm0\npunpckldq xmm0,xmm1\npunpckhdq xmm13,xmm1\nmovdqa xmm12,xmm2\npunpckhdq xmm2,xmm3\npunpckldq xmm12,xmm3\nmovdqa xmm1,xmm0\npunpcklqdq xmm0,xmm12\npunpckhqdq xmm1,xmm12\nmovdqa xmm3,xmm13\npunpcklqdq xmm13,xmm2\npunpckhqdq xmm3,xmm2\nmovdqu xmm11,XMMWORD PTR [rsi]\npxor xmm0,xmm11\nmovdqu XMMWORD PTR [rsi],xmm0\nmovdqu xmm11,XMMWORD PTR [rsi+0x10]\npxor xmm1,xmm11\nmovdqu XMMWORD PTR [rsi+0x10],xmm1\nmovdqu xmm2,XMMWORD PTR [rsi+0x20]\npxor xmm2,xmm13\nmovdqu XMMWORD PTR [rsi+0x20],xmm2\nmovdqu xmm11,XMMWORD PTR [rsi+0x30]\npxor xmm3,xmm11\nmovdqu XMMWORD PTR [rsi+0x30],xmm3\nmovdqa xmm13,xmm5\npunpckldq xmm5,xmm6\npunpckhdq xmm13,xmm6\nmovdqa xmm12,xmm7\npunpckhdq xmm7,xmm8\npunpckldq xmm12,xmm8\nmovdqa xmm6,xmm5\npunpcklqdq xmm5,xmm12\npunpckhqdq xmm6,xmm12\nmovdqa xmm8,xmm13\npunpcklqdq xmm13,xmm7\npunpckhqdq xmm8,xmm7\nmovdqu xmm11,XMMWORD PTR [rax]\npxor xmm5,xmm11\nmovdqu XMMWORD PTR [rax],xmm5\nmovdqu xmm11,XMMWORD PTR [rax+0x10]\npxor xmm6,xmm11\nmovdqu XMMWORD PTR [rax+0x10],xmm6\nmovdqu xmm7,XMMWORD PTR [rax+0x20]\npxor xmm7,xmm13\nmovdqu XMMWORD PTR [rax+0x20],xmm7\nmovdqu xmm11,XMMWORD PTR [rax+0x30]\npxor xmm8,xmm11\nmovdqu XMMWORD PTR [rax+0x30],xmm8",
+    "saved": 2,
+    "why": "Load the third memory operand of each group directly into xmm2 or xmm7 and XOR it with the transposed value in xmm13, removing both copies from xmm13. The unaligned loads, stores, final xmm11 load, and all live transpose results are preserved."
+  },
+  "4edde74a2b": {
+    "rewrite": "insertps xmm1,DWORD PTR [rdi+0x10],0x37\nmovdqu xmm0,XMMWORD PTR [rdi]\npshufd xmm0,xmm0,0x1b\nmovdqa xmm7,XMMWORD PTR [CONST_1]",
+    "saved": 1,
+    "why": "INSERTPS with immediate 0x37 loads the memory dword into lane 3 and zeroes lanes 0 through 2, replacing PXOR plus PINSRD."
+  }
+}

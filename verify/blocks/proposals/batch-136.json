@@ -1,0 +1,82 @@
+{
+  "58655a74cd": {
+    "rewrite": null,
+    "why": "The four independent loads and strided stores require both halves of the word transpose, including the copy needed by destructive SSE unpack instructions."
+  },
+  "083182ff32": {
+    "rewrite": null,
+    "why": "The independent products, additions, shift, index update, and comparison remain necessary, and the unaligned load cannot be folded into legacy PADDW."
+  },
+  "32718ebd53": {
+    "rewrite": null,
+    "why": "The wrapped additions and unsigned rounded average are distinct operations, and folding either unaligned load into legacy SSE arithmetic would introduce an alignment requirement."
+  },
+  "ba9a9664ba": {
+    "rewrite": null,
+    "why": "All eight expanded vectors and the zero register are live, and SSSE3 requires separate destination initialization and unpacking for each output."
+  },
+  "02d7fe85d8": {
+    "rewrite": null,
+    "why": "Every scalar result is live, and broadcasting an arbitrary low word across an XMM register requires the two shuffle instructions without a supplied shuffle mask."
+  },
+  "2c4367ee02": {
+    "rewrite": null,
+    "why": "The independent preserved coefficient vectors require both multiply-add paths, and the shifts, saturation, clamping, stores, and partial reload all affect required results."
+  },
+  "520df2c793": {
+    "rewrite": null,
+    "why": "The coefficient vectors and xmm5 are unconstrained inputs, so neither the multiply-add paths nor the unpack, rounding, clamping, and final alignment operations can be collapsed."
+  },
+  "66898f5e77": {
+    "rewrite": null,
+    "why": "The intermediate vector results are live, while folding the otherwise disposable unaligned loads into legacy PADDW would require additional alignment assumptions."
+  },
+  "46c77dcd55": {
+    "rewrite": null,
+    "why": "The reduction produces a total in the low dwords but distinct doubled partial sums in the high dwords, so a shorter horizontal reduction would change the required full XMM result."
+  },
+  "ad2c26f7fa": {
+    "rewrite": null,
+    "why": "The zero-extending scalar transfer, dword shift, unsigned high-word multiplication, and final word shift have distinct effects for arbitrary inputs."
+  },
+  "add99f29eb": {
+    "rewrite": null,
+    "why": "Each output needs the magnitude, rounded product, and two sign operations for arbitrary inputs, followed by its addition, bounds, and separate strided stores."
+  },
+  "ac5b521b27": {
+    "rewrite": null,
+    "why": "The unaligned load cannot be folded into legacy PADDW, and the reduction must preserve its distinct high-dword partial sums before the variable shift."
+  },
+  "6eb7199c31": {
+    "rewrite": null,
+    "why": "The magnitude and sign operations preserve rounding and the signed-minimum corner case, and both bounded vectors and scalar updates are required."
+  },
+  "5b26cd1fbd": {
+    "rewrite": null,
+    "why": "Both unaligned loads require separate transfers, and replacing the shuffle-based reduction with a total broadcast would change the required upper dwords."
+  },
+  "99a866b433": {
+    "rewrite": null,
+    "why": "The two independent rounded and signed products require their full clamping paths, stores, pointer updates, and flag-producing decrement."
+  },
+  "9bc13281d4": {
+    "rewrite": null,
+    "why": "The four unaligned inputs cannot be folded into legacy PADDW operands, and the complete reduction result includes upper lanes that a shorter total-only reduction would lose."
+  },
+  "5af7f415ed": {
+    "rewrite": null,
+    "why": "All four input vectors need independent magnitude, rounding, sign, and clamping operations, with no stated coefficient properties that permit sharing or removing them."
+  },
+  "1dd4bb990c": {
+    "rewrite": null,
+    "why": "The arbitrary signed coefficient vector requires separate widening products before addition, and the packed output, second partial sum, and accumulator are all live."
+  },
+  "243062456f": {
+    "rewrite": null,
+    "why": "Both stores, the live vector addition, the destination-pointer update, and the flag-producing counter update are independently required."
+  },
+  "abdf490fed": {
+    "rewrite": null,
+    "why": "The four widening products and row sums are necessary, and a separate copy preserves the full dword sum while destructive packing creates the other live output."
+  }
+}

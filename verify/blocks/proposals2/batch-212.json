@@ -1,0 +1,67 @@
+{
+  "d3cf61247c": {
+    "rewrite": null,
+    "why": "The loads, byte shuffles, round input addition, saved state copy, SHA round, and final shuffle all produce required values under the legacy two-operand ISA."
+  },
+  "977d2d41cf": {
+    "rewrite": null,
+    "why": "All round inputs, message updates, saved state, and pointer changes are required, and preserving xmm6 requires the copy before PALIGNR."
+  },
+  "29c7603f51": {
+    "rewrite": null,
+    "why": "The SHA updates and round inputs are all needed, and the final alignment requires a copy because xmm3 must retain its updated value."
+  },
+  "22d88f6f4b": {
+    "rewrite": null,
+    "why": "The SHA updates and round inputs are all needed, and the final alignment requires a copy because xmm4 must retain its updated value."
+  },
+  "21991edb43": {
+    "rewrite": null,
+    "why": "The SHA updates and round inputs are all needed, and the final alignment requires a copy because xmm5 must retain its updated value."
+  },
+  "6e7df983d6": {
+    "rewrite": null,
+    "why": "The SHA updates and round inputs are all needed, and the final alignment requires a copy because xmm6 must retain its updated value."
+  },
+  "8935aed08a": {
+    "rewrite": null,
+    "why": "The SHA updates and round inputs are all needed, and the final alignment requires a copy because xmm3 must retain its updated value."
+  },
+  "a46abc0fb9": {
+    "rewrite": null,
+    "why": "The SHA updates and round inputs are all needed, and the final alignment requires a copy because xmm4 must retain its updated value."
+  },
+  "964225b096": {
+    "rewrite": null,
+    "why": "The SHA updates and round inputs are all needed, and the final alignment requires a copy because xmm5 must retain its updated value."
+  },
+  "e58c9277ee": {
+    "rewrite": null,
+    "why": "The SHA updates and round inputs are all needed, and the final alignment requires a copy because xmm6 must retain its updated value."
+  },
+  "162936a7b1": {
+    "rewrite": null,
+    "why": "The SHA updates and round inputs are all needed, and the final alignment requires a copy because xmm3 must retain its updated value."
+  },
+  "4a698ee9c8": {
+    "rewrite": null,
+    "why": "The SHA updates and round inputs are all needed, and the final alignment requires a copy because xmm4 must retain its updated value."
+  },
+  "8a51b855cb": {
+    "rewrite": null,
+    "why": "Every round input and message update is consumed or preserved, including the aligned xmm7 temporary used before its required replacement with xmm8."
+  },
+  "137359a19b": {
+    "rewrite": "pshufd xmm7,xmm1,0x1b\nshufps xmm1,xmm2,0xbb\npshufd xmm2,xmm2,0xb1\npalignr xmm2,xmm7,0x8\nmovdqu XMMWORD PTR [rdi],xmm1\nmovdqu XMMWORD PTR [rdi+0x10],xmm2",
+    "saved": 1,
+    "why": "SHUFPS with immediate 0xbb directly selects lanes 3 and 2 from each original input, replacing the xmm1 shuffle and high-qword unpack. The remaining operations preserve xmm2, xmm7, both stores, and all flags."
+  },
+  "386c41f8d6": {
+    "rewrite": null,
+    "why": "The required zero and register copy each need an instruction, while producing ebx XOR ecx in edi without changing either source needs two."
+  },
+  "a97e3ccfe2": {
+    "rewrite": null,
+    "why": "The required zero and register copy each need an instruction, while producing rbx XOR rcx in rdi without changing either source needs two."
+  }
+}

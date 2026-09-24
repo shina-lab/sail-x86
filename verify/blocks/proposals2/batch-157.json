@@ -1,0 +1,82 @@
+{
+  "bc58fda94b": {
+    "rewrite": null,
+    "why": "The load must produce the final rcx value, both stores are required, and the r8 subtraction with matching flags and rdi update each require an instruction."
+  },
+  "17eec3ea93": {
+    "rewrite": null,
+    "why": "The qword and word loads must preserve their distinct final rcx and rdx values, both stores are required, and neither the r8 subtraction nor the rdi update can be removed."
+  },
+  "3fbdc487a9": {
+    "rewrite": null,
+    "why": "The overlapping loads still produce separately required rcx and rdx values, both stores write necessary bytes, and the count, pointer, and flag results require the remaining instructions."
+  },
+  "5a6f2fd2bf": {
+    "rewrite": null,
+    "why": "Both loads produce required register values and both stores are necessary for the twelve-byte copy, while the r8 subtraction and rdi update have independently required results."
+  },
+  "20078d675c": {
+    "rewrite": null,
+    "why": "Both overlapping qword loads and stores are needed for the required rcx, rdx, and memory results, and the r8 subtraction with matching flags cannot absorb the separate rdi update."
+  },
+  "10e36bf437": {
+    "rewrite": null,
+    "why": "Both overlapping qword transfers contribute necessary bytes and required register values, leaving no removable instruction alongside the required count and pointer updates."
+  },
+  "247c9a0ad6": {
+    "rewrite": null,
+    "why": "The two qword loads must produce the final rcx and rdx values, both stores are required despite their one-byte overlap, and the subtraction and pointer update are independently necessary."
+  },
+  "1343b065b6": {
+    "rewrite": null,
+    "why": "The vector load, vector store, flag-producing r8 subtraction, and rdi update each provide a distinct required effect in this four-instruction block."
+  },
+  "fc08e3e1f0": {
+    "rewrite": null,
+    "why": "The vector transfer must preserve the loaded xmm0 value and copied bytes, the separate dh byte store is required, and both count and pointer updates remain necessary."
+  },
+  "fd7e016588": {
+    "rewrite": null,
+    "why": "The vector and word loads produce required xmm0 and rcx values, both stores are necessary, and the r8 subtraction and rdi update cannot be combined into a shorter SSE2 sequence."
+  },
+  "ed4e49d5ea": {
+    "rewrite": null,
+    "why": "The overlapping vector and dword transfers are needed for the required xmm0, rcx, and memory results, with separate instructions still required for the count and pointer updates."
+  },
+  "ada6ab48ee": {
+    "rewrite": null,
+    "why": "The vector and dword loads and stores each have required effects, and neither the flag-producing r8 subtraction nor the rdi update can be eliminated."
+  },
+  "802d591d28": {
+    "rewrite": null,
+    "why": "Both loads produce required xmm0 and rcx values, all three stores supply necessary bytes, and the count and pointer updates require the final two instructions."
+  },
+  "b2d10a33e0": {
+    "rewrite": null,
+    "why": "The vector and overlapping qword loads must preserve xmm0 and rcx, both stores contribute necessary bytes, and the count, pointer, and flags require the remaining instructions."
+  },
+  "52fbcd8e41": {
+    "rewrite": null,
+    "why": "The overlapping vector and qword transfers retain distinct required register and memory results, and the r8 subtraction and rdi update are independently necessary."
+  },
+  "967ea10fc9": {
+    "rewrite": null,
+    "why": "The vector and qword loads produce required xmm0 and rcx values, both stores are necessary for the twenty-four-byte copy, and the count and pointer updates cannot be removed."
+  },
+  "7e1c9642a3": {
+    "rewrite": null,
+    "why": "The two loads and three stores all have required effects, including the separate dh byte store, while the r8 subtraction with matching flags and rdi update remain necessary."
+  },
+  "d66d828d39": {
+    "rewrite": null,
+    "why": "The vector, qword, and word loads produce separately required xmm0, rdx, and rcx values, all three stores are necessary, and both arithmetic updates must remain."
+  },
+  "6fcc3360cc": {
+    "rewrite": null,
+    "why": "All three loads produce required register values and all three stores contribute necessary bytes despite the tail overlap, leaving the count and pointer updates as separately required instructions."
+  },
+  "27b2b5cd2a": {
+    "rewrite": null,
+    "why": "The vector, qword, and dword transfers each produce required register and memory results, and the r8 subtraction with matching flags and rdi update cannot be eliminated or combined."
+  }
+}

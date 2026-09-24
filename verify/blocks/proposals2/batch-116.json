@@ -1,0 +1,92 @@
+{
+  "a91d5e1349": {
+    "rewrite": null,
+    "why": "The mask load, sign extension, pointer updates, negation, and masked copy all contribute required final values, with the final AND also supplying ZF."
+  },
+  "6d6c8d0f4b": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npxor mm1,mm1\npunpcklbw mm0,mm1\npshufw mm0,mm0,0x87\npackuswb mm0,mm0\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1+0x2]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 1,
+    "why": "Unpreserved MMX temporaries widen, permute, and repack the four bytes for one DWORD store. Reloading only CL and retaining the counter updates preserves RCX and the required flags."
+  },
+  "844d9cf3cc": {
+    "rewrite": null,
+    "why": "The mask load, sign extension, pointer updates, negation, and masked copy all contribute required final values, with the final AND also supplying ZF."
+  },
+  "8556067817": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npxor mm1,mm1\npunpcklbw mm0,mm1\npshufw mm0,mm0,0xd2\npackuswb mm0,mm0\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1+0x3]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 1,
+    "why": "Unpreserved MMX temporaries widen, permute, and repack the four bytes for one DWORD store. Reloading only CL and retaining the counter updates preserves RCX and the required flags."
+  },
+  "777890ebd7": {
+    "rewrite": null,
+    "why": "The mask load, sign extension, pointer updates, negation, and masked copy all contribute required final values, with the final AND also supplying ZF."
+  },
+  "05177a3721": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npxor mm1,mm1\npunpcklbw mm0,mm1\npshufw mm0,mm0,0x36\npackuswb mm0,mm0\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 1,
+    "why": "Unpreserved MMX temporaries widen, permute, and repack the four bytes for one DWORD store. Reloading only CL and retaining the counter updates preserves RCX and the required flags."
+  },
+  "97ae24d136": {
+    "rewrite": null,
+    "why": "The mask load, sign extension, pointer updates, negation, and masked copy all contribute required final values, with the final AND also supplying ZF."
+  },
+  "725149715f": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npxor mm1,mm1\npunpcklbw mm0,mm1\npshufw mm0,mm0,0xc9\npackuswb mm0,mm0\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1+0x3]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 1,
+    "why": "Unpreserved MMX temporaries widen, permute, and repack the four bytes for one DWORD store. Reloading only CL and retaining the counter updates preserves RCX and the required flags."
+  },
+  "540caf00c1": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, pointer updates, negation, and masked copy all contribute required final values, with the final AND also supplying ZF."
+  },
+  "dffbc9b57b": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npxor mm1,mm1\npunpcklbw mm0,mm1\npshufw mm0,mm0,0xc6\npackuswb mm0,mm0\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1+0x3]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 1,
+    "why": "Unpreserved MMX temporaries widen, permute, and repack the four bytes without changing any YMM register. Reloading only CL and retaining the counter updates preserves RCX and the required flags."
+  },
+  "bd587b26e8": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, pointer updates, negation, and masked copy all contribute required final values, with the final AND also supplying ZF."
+  },
+  "615899dec3": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npxor mm1,mm1\npunpcklbw mm0,mm1\npshufw mm0,mm0,0x6c\npackuswb mm0,mm0\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1+0x1]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 1,
+    "why": "Unpreserved MMX temporaries widen, permute, and repack the four bytes without changing any YMM register. Reloading only CL and retaining the counter updates preserves RCX and the required flags."
+  },
+  "0c34e22f74": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, pointer updates, negation, and masked copy all contribute required final values, with the final AND also supplying ZF."
+  },
+  "453f6d3467": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npunpckldq mm0,mm0\npsrlq mm0,0x8\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 3,
+    "why": "Duplicating the input DWORD in an unpreserved MMX register and shifting by eight bits yields the 1,2,3,0 byte permutation. Reloading CL and retaining the counter updates preserves the required register values and flags."
+  },
+  "a2a810769e": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, pointer updates, negation, and masked copy all contribute required final values, with the final AND also supplying ZF."
+  },
+  "978a21132c": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npunpckldq mm0,mm0\npsrlq mm0,0x18\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1+0x2]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 3,
+    "why": "Duplicating the input DWORD in an unpreserved MMX register and shifting by 24 bits yields the 3,0,1,2 byte permutation. Reloading CL and retaining the counter updates preserves the required register values and flags."
+  },
+  "c9af881cc6": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, pointer updates, negation, and masked copy all contribute required final values, with the final AND also supplying ZF."
+  },
+  "4b03cb7e49": {
+    "rewrite": "movq mm0,rcx\nmov ecx,DWORD PTR [rdi+rdx*1]\nbswap ecx\nmov DWORD PTR [rsi+rdx*1],ecx\nmovq rcx,mm0\nmov cl,BYTE PTR [rdi+rdx*1]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 2,
+    "why": "Save RCX in an unpreserved MMX register and use BSWAP for the four-byte reversal. Restoring RCX before reloading CL preserves its upper bytes, while the unchanged counter updates reproduce the required flags."
+  },
+  "cc72c90e17": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, pointer updates, negation, and masked copy all contribute required final values, with the final AND also supplying ZF."
+  },
+  "3beb18d337": {
+    "rewrite": "movd mm0,DWORD PTR [rdi+rdx*1]\npxor mm1,mm1\npunpcklbw mm0,mm1\npshufw mm0,mm0,0x87\npackuswb mm0,mm0\nmovd DWORD PTR [rsi+rdx*1],mm0\nmov cl,BYTE PTR [rdi+rdx*1+0x2]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 1,
+    "why": "Unpreserved MMX temporaries widen, permute, and repack the four bytes without changing any YMM register. Reloading only CL and retaining the counter updates preserves RCX and the required flags."
+  }
+}

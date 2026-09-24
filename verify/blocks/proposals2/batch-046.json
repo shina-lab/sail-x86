@@ -1,0 +1,88 @@
+{
+  "9c774cf36a": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and coefficients require both destructive shuffle paths and the retained multiply-add intermediates."
+  },
+  "8a03e1afb6": {
+    "rewrite": null,
+    "why": "The copies preserve operands needed by subsequent shuffles and multiply-adds, and all final intermediates must match."
+  },
+  "892019b49a": {
+    "rewrite": null,
+    "why": "All six instructions produce distinct required register values, with the final subtraction also supplying the required flags."
+  },
+  "03c411acb5": {
+    "rewrite": null,
+    "why": "Each row needs two arbitrary shuffle-and-multiply paths, and the copies, packing, store, and scalar updates all contribute to required outputs."
+  },
+  "816f3cd895": {
+    "rewrite": null,
+    "why": "Each of the four required broadcast results already takes one instruction."
+  },
+  "74e1d96194": {
+    "rewrite": null,
+    "why": "The arbitrary filter operands require all shuffle and multiply-add paths, and SSSE3 cannot fold the necessary register copies into those operations."
+  },
+  "0b3f16707e": {
+    "rewrite": null,
+    "why": "The required masked vector and two scalar sums still need the broadcast, packed addition, and separate lane extractions under SSSE3."
+  },
+  "4264257dc0": {
+    "rewrite": null,
+    "why": "The four scalar outputs require separate extractions, and SSSE3 lacks direct nonzero-dword extraction to remove the intervening shuffles."
+  },
+  "0271072fcf": {
+    "rewrite": null,
+    "why": "The four-source assembly, per-dword selection, and two signed-byte widening paths require separate operations within SSSE3."
+  },
+  "feb1fa22ae": {
+    "rewrite": null,
+    "why": "The scalar-to-vector move, pointer adjustment, and copy-plus-shift each contribute to required outputs while preserving xmm8."
+  },
+  "240f4b1a59": {
+    "rewrite": "movq xmm1,rbp\npunpcklbw xmm1,xmm1\npsraw xmm1,0x8\npshufd xmm4,xmm1,0x0\npshufd xmm5,xmm1,0x55\npmaddwd xmm4,xmm13\npmaddwd xmm5,xmm9\npshufd xmm7,xmm1,0xaa\npshufd xmm1,xmm1,0xff\nmovdqa xmm6,xmm2\npmaddwd xmm6,xmm7\nmovdqa xmm8,xmm3\npmaddwd xmm8,xmm1\npaddd xmm4,xmm5\npaddd xmm6,xmm8\npaddd xmm4,xmm6",
+    "saved": 2,
+    "why": "Broadcast the first two coefficient pairs directly into xmm4 and xmm5 and commute the PMADDWD operands. This removes two copies while preserving the later final values of xmm7 and xmm8."
+  },
+  "6d24e5cabe": {
+    "rewrite": null,
+    "why": "The arithmetic shift, saturated pack, store, pointer increment, and flag-producing decrement are all required."
+  },
+  "44158a82e8": {
+    "rewrite": null,
+    "why": "Every product and copy contributes to a required final register, and SSSE3 lacks a three-operand PMADDWD form."
+  },
+  "497ec8ea1b": {
+    "rewrite": null,
+    "why": "With arbitrary xmm2 and xmm3, the signed saturation, clamp, subtract, and high multiplication cannot be collapsed into an averaging instruction."
+  },
+  "23cf7aa6f7": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rcx]\nmovdqa xmm3,xmm0\npunpckhwd xmm3,XMMWORD PTR [rdx]\npunpcklwd xmm0,XMMWORD PTR [rdx]\nmovdqa xmm2,XMMWORD PTR [rdx+0x10]\nmovdqa xmm1,XMMWORD PTR [rcx+0x10]\nadd rdx,0x20\nadd rcx,0x20\npmaddwd xmm3,xmm4\npmaddwd xmm0,xmm4\npaddd xmm3,xmm5\npaddd xmm0,xmm5\npsrad xmm3,0x8\npsrad xmm0,0x8\npackssdw xmm0,xmm3\nmovdqa xmm3,xmm1\npunpckhwd xmm3,xmm2\npunpcklwd xmm1,xmm2\npmaddwd xmm3,xmm4\npmaddwd xmm1,xmm4\npaddd xmm3,xmm5\npaddd xmm1,xmm5\npsrad xmm3,0x8\npsrad xmm1,0x8\npackssdw xmm1,xmm3\npminsw xmm0,xmm6\npminsw xmm1,xmm6\npmaxsw xmm0,xmm7\npmaxsw xmm1,xmm7",
+    "saved": 1,
+    "why": "Fold the first load of xmm2 into both unpack instructions using the same [rdx] address. The later load still establishes the required final xmm2 value."
+  },
+  "9f7e610dc4": {
+    "rewrite": "movq xmm3,QWORD PTR [rax]\nmovdqa xmm0,XMMWORD PTR [rdx]\npxor xmm5,xmm5\npunpcklbw xmm3,xmm5\nmovdqa xmm2,xmm0\npunpckhwd xmm2,XMMWORD PTR [rcx]\npunpcklwd xmm0,XMMWORD PTR [rcx]\nmovdqa xmm1,xmm8\npsubw xmm1,xmm3\nmovdqa xmm4,xmm3\npunpckhwd xmm4,xmm1\npunpcklwd xmm3,xmm1\npmaddwd xmm2,xmm4\npmaddwd xmm0,xmm3\nmovq xmm3,QWORD PTR [rax+0x8]\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\npsrad xmm2,0x5\npsrad xmm0,0x5\npackssdw xmm0,xmm2\npunpcklbw xmm3,xmm5\nmovdqa xmm2,xmm1\npunpckhwd xmm2,XMMWORD PTR [rcx+0x10]\npunpcklwd xmm1,XMMWORD PTR [rcx+0x10]\nmovdqa xmm5,xmm8\npsubw xmm5,xmm3\nmovdqa xmm4,xmm3\npunpckhwd xmm4,xmm5\npunpcklwd xmm3,xmm5\npmaddwd xmm2,xmm4\npmaddwd xmm1,xmm3\npsrad xmm2,0x5\npsrad xmm1,0x5\npackssdw xmm1,xmm2\npmaxsw xmm0,xmm6\npmaxsw xmm1,xmm6\npsubsw xmm0,xmm6\npsubsw xmm1,xmm6\npmulhw xmm0,xmm7\npmulhw xmm1,xmm7\nadd rax,0x10\nadd rdx,0x20\nadd rcx,0x20",
+    "saved": 2,
+    "why": "Fold both temporary xmm4 loads into their unpack users and delay pointer increments until those loads are complete. Subsequent coefficient construction supplies the same final xmm4, and the last ADD preserves the original flags."
+  },
+  "dc100273db": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm4,XMMWORD PTR [rcx]\nmovdqa xmm5,xmm4\npunpcklwd xmm4,xmm0\npunpckhwd xmm5,xmm0\npsubsw xmm0,XMMWORD PTR [rcx]\npabsw xmm0,xmm0\nmovdqa xmm6,xmm8\npsubusw xmm6,xmm0\npsrlw xmm6,0xa\nmovdqa xmm2,xmm9\npsubw xmm2,xmm6\nmovdqa xmm0,xmm6\npunpcklwd xmm0,xmm2\npunpckhwd xmm6,xmm2\npmaddwd xmm0,xmm4\npmaddwd xmm6,xmm5\npsrad xmm0,0x5\npsrad xmm6,0x5\npackssdw xmm0,xmm6\npmaxsw xmm0,xmm10\npsubsw xmm0,xmm10\npmulhw xmm0,xmm11\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\nmovdqa xmm4,XMMWORD PTR [rcx+0x10]\nmovdqa xmm5,xmm4\npunpcklwd xmm4,xmm1\npunpckhwd xmm5,xmm1\npsubsw xmm1,XMMWORD PTR [rcx+0x10]\npabsw xmm1,xmm1\nmovdqa xmm6,xmm8\npsubusw xmm6,xmm1\npsrlw xmm6,0xa\nmovdqa xmm3,xmm9\npsubw xmm3,xmm6\nmovdqa xmm1,xmm6\npunpcklwd xmm1,xmm3\npunpckhwd xmm6,xmm3\npmaddwd xmm1,xmm4\npmaddwd xmm6,xmm5\npsrad xmm1,0x5\npsrad xmm6,0x5\npackssdw xmm1,xmm6\npmaxsw xmm1,xmm10\npsubsw xmm1,xmm10\npmulhw xmm1,xmm11\nadd rdx,0x20\nadd rcx,0x20",
+    "saved": 2,
+    "why": "Load each rcx input directly into xmm4, copy it to xmm5 before unpacking, and use a memory operand for the subtraction. This removes one copy per half while preserving all final weight and data registers."
+  },
+  "6410e8c95b": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm4,XMMWORD PTR [rcx]\nmovdqa xmm5,xmm4\npunpcklwd xmm4,xmm0\npunpckhwd xmm5,xmm0\npsubsw xmm0,XMMWORD PTR [rcx]\npabsw xmm0,xmm0\nmovdqa xmm6,xmm8\npsubusw xmm6,xmm0\npsrlw xmm6,0xa\nmovdqa xmm2,xmm9\npsubw xmm2,xmm6\nmovdqa xmm0,xmm6\npunpcklwd xmm0,xmm2\npunpckhwd xmm6,xmm2\npmaddwd xmm0,xmm4\npmaddwd xmm6,xmm5\npsrad xmm0,0x5\npsrad xmm6,0x5\npackssdw xmm0,xmm6\npmaxsw xmm0,xmm10\npsubsw xmm0,xmm10\npmulhw xmm0,xmm11\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\nmovdqa xmm4,XMMWORD PTR [rcx+0x10]\nmovdqa xmm5,xmm4\npunpcklwd xmm4,xmm1\npunpckhwd xmm5,xmm1\npsubsw xmm1,XMMWORD PTR [rcx+0x10]\npabsw xmm1,xmm1\nmovdqa xmm6,xmm8\npsubusw xmm6,xmm1\npsrlw xmm6,0xa\nmovdqa xmm3,xmm9\npsubw xmm3,xmm6\nmovdqa xmm1,xmm6\npunpcklwd xmm1,xmm3\npunpckhwd xmm6,xmm3\npmaddwd xmm1,xmm4\npmaddwd xmm6,xmm5\npsrad xmm1,0x5\npsrad xmm6,0x5\npackssdw xmm1,xmm6\npmaxsw xmm1,xmm10\npsubsw xmm1,xmm10\npmulhw xmm1,xmm11\nphaddw xmm2,xmm3\nadd rdx,0x20\nadd rcx,0x20\npackuswb xmm2,xmm2\npxor xmm3,xmm3\npsubb xmm2,xmm7\npavgb xmm2,xmm3\nmovq QWORD PTR [rax],xmm2\nadd rax,0x8",
+    "saved": 2,
+    "why": "Load each rcx input directly into xmm4, copy it to xmm5 before unpacking, and fold the subtraction input into memory. This removes two copies while preserving the mask computation, store, and final registers."
+  },
+  "3b81559fb4": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm4,XMMWORD PTR [rcx]\nmovdqa xmm5,xmm4\npunpcklwd xmm4,xmm0\npunpckhwd xmm5,xmm0\npsubsw xmm0,XMMWORD PTR [rcx]\npabsw xmm0,xmm0\nmovdqa xmm6,xmm8\npsubusw xmm6,xmm0\npsrlw xmm6,0xa\nmovdqa xmm2,xmm9\npsubw xmm2,xmm6\nmovdqa xmm0,xmm6\npunpcklwd xmm0,xmm2\npunpckhwd xmm6,xmm2\npmaddwd xmm0,xmm4\npmaddwd xmm6,xmm5\npsrad xmm0,0x5\npsrad xmm6,0x5\npackssdw xmm0,xmm6\npmaxsw xmm0,xmm10\npsubsw xmm0,xmm10\npmulhw xmm0,xmm11\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\nmovdqa xmm4,XMMWORD PTR [rcx+0x10]\nmovdqa xmm5,xmm4\npunpcklwd xmm4,xmm1\npunpckhwd xmm5,xmm1\npsubsw xmm1,XMMWORD PTR [rcx+0x10]\npabsw xmm1,xmm1\nmovdqa xmm6,xmm8\npsubusw xmm6,xmm1\npsrlw xmm6,0xa\nmovdqa xmm3,xmm9\npsubw xmm3,xmm6\nmovdqa xmm1,xmm6\npunpcklwd xmm1,xmm3\npunpckhwd xmm6,xmm3\npmaddwd xmm1,xmm4\npmaddwd xmm6,xmm5\npsrad xmm1,0x5\npsrad xmm6,0x5\npackssdw xmm1,xmm6\npmaxsw xmm1,xmm10\npsubsw xmm1,xmm10\npmulhw xmm1,xmm11\npackuswb xmm2,xmm3\nadd rdx,0x20\nadd rcx,0x20\nmovdqa XMMWORD PTR [rax],xmm2\nadd rax,0x10",
+    "saved": 2,
+    "why": "Load each rcx input directly into xmm4, copy it to xmm5 before unpacking, and fold the subtraction input into memory. This removes two copies while preserving the packed mask, store, and final registers."
+  },
+  "4ab7955288": {
+    "rewrite": null,
+    "why": "The gathered loads, retained products, four stores, and scalar updates are required, and the destructive SSSE3 operations still need their input copies."
+  }
+}

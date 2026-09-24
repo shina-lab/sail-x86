@@ -1,0 +1,86 @@
+{
+  "7471f7a679": {
+    "rewrite": null,
+    "why": "All four rounded products and saturated sums are required outputs, and the destructive SSE instructions require preserving each input with a copy."
+  },
+  "73dc8c5eb2": {
+    "rewrite": null,
+    "why": "The eight full-width stores and three independent register updates are required, including the flags produced by the subtraction and decrement."
+  },
+  "06c03c9eed": {
+    "rewrite": null,
+    "why": "The block changes twelve independently required vector registers with twelve instructions, leaving no redundant destination write."
+  },
+  "01d74205e8": {
+    "rewrite": "pcmpeqd xmm8,xmm8\npsrld xmm14,0xa\npsignd xmm1,xmm8\npsignd xmm3,xmm8\npxor xmm5,xmm8\npxor xmm7,xmm8\npaddd xmm0,xmm14\npaddd xmm2,xmm14\npaddd xmm1,xmm14\npaddd xmm3,xmm14\npaddd xmm4,XMMWORD PTR [CONST_1]\npaddd xmm5,XMMWORD PTR [CONST_1]\npaddd xmm6,XMMWORD PTR [CONST_1]\npaddd xmm7,XMMWORD PTR [CONST_1]\nmovdqa xmm13,xmm8\npaddd xmm13,XMMWORD PTR [CONST_1]\nmovdqa xmm8,xmm9\npaddd xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,xmm13\npsubd xmm9,xmm10\nmovdqa xmm10,xmm11\npaddd xmm10,XMMWORD PTR [CONST_1]\nmovdqa xmm11,xmm13\npsubd xmm11,xmm12\nmovdqa xmm12,XMMWORD PTR [rcx+0x30]\npaddd xmm12,xmm14\nmovdqa xmm13,xmm14\npsubd xmm13,XMMWORD PTR [rcx+0x20]\nmovdqa xmm15,xmm14\npsubd xmm15,XMMWORD PTR [rcx]\npaddd xmm14,XMMWORD PTR [rcx+0x10]\npsrad xmm0,0x2\npsrad xmm1,0x2\npsrad xmm2,0x2\npsrad xmm3,0x2\npsrad xmm12,0x2\npsrad xmm13,0x2\npsrad xmm14,0x2\npsrad xmm15,0x2\npsrad xmm4,0xe\npsrad xmm5,0xe\npsrad xmm6,0xe\npsrad xmm7,0xe\npsrad xmm8,0xe\npsrad xmm9,0xe\npsrad xmm10,0xe\npsrad xmm11,0xe",
+    "saved": 3,
+    "why": "PSIGND forms the two modular negations directly, eliminating construction of the shared incremented bias. Folding CONST_1 into PADDD operands and forming its decremented value from the all-ones vector also removes the separate constant load."
+  },
+  "4750826825": {
+    "rewrite": null,
+    "why": "All four copied inputs and eight shuffled results are required final values, so each of the twelve destination writes is necessary."
+  },
+  "cf376972c9": {
+    "rewrite": null,
+    "why": "The four separated vector stores and three independent register updates are all required, including the decrement's partial-register behavior and flags."
+  },
+  "53ce313615": {
+    "rewrite": null,
+    "why": "The four instructions produce four required register results, with the final subtraction also supplying the required flags."
+  },
+  "10a8f41a17": {
+    "rewrite": null,
+    "why": "The eight distinct dword products are live, and each input must be preserved for its second product under destructive SSE multiplication."
+  },
+  "7912d29ca7": {
+    "rewrite": "movdqa xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,xmm0\npmulld xmm9,xmm8\npmulld xmm8,xmm7\npmulld xmm0,XMMWORD PTR [CONST_2]\npmulld xmm7,XMMWORD PTR [CONST_2]\npaddd xmm7,xmm9\npsubd xmm0,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_3]\nmovdqa xmm9,xmm6\npmulld xmm9,xmm8\npmulld xmm8,xmm1\npmulld xmm6,XMMWORD PTR [CONST_4]\npmulld xmm1,XMMWORD PTR [CONST_4]\npaddd xmm1,xmm9\npsubd xmm6,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_5]\nmovdqa xmm9,xmm2\npmulld xmm9,xmm8\npmulld xmm8,xmm5\npmulld xmm2,XMMWORD PTR [CONST_6]\npmulld xmm5,XMMWORD PTR [CONST_6]\npaddd xmm5,xmm9\npsubd xmm2,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_7]\nmovdqa xmm9,xmm4\npmulld xmm9,xmm8\npmulld xmm8,xmm3\npmulld xmm4,XMMWORD PTR [CONST_8]\npmulld xmm3,XMMWORD PTR [CONST_8]\npaddd xmm3,xmm9\npsubd xmm4,xmm8",
+    "saved": 4,
+    "why": "Fold each constant load into the two PMULLD instructions that consume it, removing four loads into xmm10 whose final value is not required."
+  },
+  "9aa12ec45f": {
+    "rewrite": null,
+    "why": "Each input produces two required products with unrelated constants, and the existing copy plus two destructive multiplies already uses three instructions per pair."
+  },
+  "74330944ba": {
+    "rewrite": "movdqa xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,xmm7\npmulld xmm9,xmm8\npmulld xmm8,xmm0\npmulld xmm7,XMMWORD PTR [CONST_2]\npmulld xmm0,XMMWORD PTR [CONST_2]\npaddd xmm0,xmm9\npsubd xmm7,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_3]\nmovdqa xmm9,xmm1\npmulld xmm9,xmm8\npmulld xmm8,xmm6\npmulld xmm1,XMMWORD PTR [CONST_4]\npmulld xmm6,XMMWORD PTR [CONST_4]\npaddd xmm6,xmm9\npsubd xmm1,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_5]\nmovdqa xmm9,xmm5\npmulld xmm9,xmm8\npmulld xmm8,xmm2\npmulld xmm5,XMMWORD PTR [CONST_6]\npmulld xmm2,XMMWORD PTR [CONST_6]\npaddd xmm2,xmm9\npsubd xmm5,xmm8\nmovdqa xmm8,XMMWORD PTR [CONST_7]\nmovdqa xmm9,xmm3\npmulld xmm9,xmm8\npmulld xmm8,xmm4\npmulld xmm3,XMMWORD PTR [CONST_8]\npmulld xmm4,XMMWORD PTR [CONST_8]\npaddd xmm4,xmm9\npsubd xmm3,xmm8",
+    "saved": 4,
+    "why": "Use memory operands for both multiplications by each even-numbered constant, eliminating the four explicit loads into the dead temporary xmm10."
+  },
+  "314ee87078": {
+    "rewrite": null,
+    "why": "The complete r9 result, intervening rounded arithmetic, word broadcast, store, counter initialization, and two additional vector outputs are all required."
+  },
+  "30dbdef700": {
+    "rewrite": null,
+    "why": "Arbitrary clamp bounds require both signed min and max operations for each loaded vector, and every result, store, and scalar update remains live."
+  },
+  "726503cffc": {
+    "rewrite": null,
+    "why": "The four separated stores, two independent pointer updates, and final comparison producing the required flags cannot be removed."
+  },
+  "fcdf4ca5b1": {
+    "rewrite": null,
+    "why": "The full scalar arithmetic result and all initialization outputs are live, while broadcasting its upper word already needs the existing SSE shuffle sequence."
+  },
+  "9f766cb8cc": {
+    "rewrite": null,
+    "why": "The four word additions and two-sided signed clamps are required for arbitrary inputs, along with all stores, register updates, and BTC's carry result."
+  },
+  "3f58e50b16": {
+    "rewrite": null,
+    "why": "Each required dword result needs its multiply, arbitrary bias addition, and arithmetic shift, which cannot be replaced by a narrow rounding multiply."
+  },
+  "9550310a26": {
+    "rewrite": null,
+    "why": "All intermediate output registers are live, and the independent coefficient products, dword sums, shifts, and signed packs have no direct shorter AVX2 replacement."
+  },
+  "26fb9d7bf8": {
+    "rewrite": "vpbroadcastd ymm6,DWORD PTR [rax-0x34]\nvpunpckhwd xmm5,xmm3,xmm0\nvpunpckhwd xmm4,xmm1,xmm2\nvpunpcklwd xmm3,xmm3,xmm1\nvpunpcklwd xmm2,xmm2,xmm0\nvinserti128 ymm5,ymm5,xmm4,0x1\nvpbroadcastd xmm0,DWORD PTR [rax+0x48]\nvpbroadcastd xmm1,DWORD PTR [rax+0x50]\nvinserti128 ymm0,ymm0,xmm1,0x1\nvpbroadcastd xmm1,DWORD PTR [rax+0x4c]\nvpbroadcastd xmm4,DWORD PTR [rax+0x54]\nvinserti128 ymm1,ymm1,xmm4,0x1\nvpmaddwd ymm0,ymm0,ymm5\nvpmaddwd ymm5,ymm5,ymm1\nvpaddd ymm0,ymm0,ymm6\nvpaddd ymm5,ymm5,ymm6\nvpslld ymm0,ymm0,0x4\nvpsrld ymm5,ymm5,0xc\nvpblendw ymm5,ymm5,ymm0,0xaa\nvextracti128 xmm4,ymm5,0x1\nvpsubsw xmm0,xmm5,xmm4\nvpaddsw xmm4,xmm4,xmm5\nvinserti128 ymm3,ymm3,xmm2,0x1\nvpbroadcastd xmm1,DWORD PTR [rax-0x28]\nvpbroadcastd xmm5,DWORD PTR [rax-0x30]\nvinserti128 ymm1,ymm1,xmm5,0x1\nvpbroadcastd xmm2,DWORD PTR [rax-0x24]\nvpbroadcastd xmm5,DWORD PTR [rax-0x2c]\nvinserti128 ymm2,ymm2,xmm5,0x1\nvpmaddwd ymm1,ymm1,ymm3\nvpmaddwd ymm3,ymm3,ymm2\nvpaddd ymm1,ymm1,ymm6\nvpaddd ymm3,ymm3,ymm6\nvpsrad ymm1,ymm1,0xc\nvpsrad ymm3,ymm3,0xc\nvpackssdw ymm3,ymm1,ymm3\nvextracti128 xmm2,ymm3,0x1\nvmovdqa xmm6,xmm6\nvpmaddwd xmm1,xmm5,xmm0\nvpbroadcastd xmm5,DWORD PTR [rax-0x30]\nvpmaddwd xmm0,xmm0,xmm5\nvpaddd xmm1,xmm1,xmm6\nvpaddd xmm0,xmm0,xmm6\nvpsrad xmm1,xmm1,0xc\nvpsrad xmm0,xmm0,0xc\nvpackssdw xmm0,xmm0,xmm1\nvpshufb xmm4,xmm4,XMMWORD PTR [rax-0x80]\nvpsubsw xmm1,xmm2,xmm3\nvpaddsw xmm3,xmm3,xmm2\nvshufps xmm2,xmm4,xmm0,0x4e\nvpblendd xmm4,xmm4,xmm0,0xcc\nvpaddsw xmm0,xmm3,xmm2\nvpsubsw xmm3,xmm3,xmm2\nvpsubsw xmm2,xmm1,xmm4\nvpaddsw xmm1,xmm1,xmm4",
+    "saved": 5,
+    "why": "Combine independent 128-bit paths into the two lanes of YMM registers to share multiply, bias, shift, blend, and pack instructions. Extract the required results and clear ymm6's upper half so every final vector value matches, using only the original memory operands."
+  },
+  "60caac438d": {
+    "rewrite": null,
+    "why": "The four independent full-width multiply-add, bias, and shift paths and both packs are required, including the shifted values left in ymm4 and ymm5."
+  }
+}

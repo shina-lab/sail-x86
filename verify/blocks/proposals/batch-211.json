@@ -1,0 +1,83 @@
+{
+  "bcd1013839": {
+    "rewrite": null,
+    "why": "The two pointer increments, byte extraction, and flag-producing subtraction each produce required results."
+  },
+  "d19601708c": {
+    "rewrite": null,
+    "why": "All three broadcasts and all three scalar operations independently produce required register values."
+  },
+  "71648b6c2f": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and coefficients require the filtering stages, and the extraction and packing preserve the required output and zero upper YMM half."
+  },
+  "e2aad698d9": {
+    "rewrite": null,
+    "why": "Both filtering chains contribute to the packed output, and the row loads, stores, pointer updates, and final subtraction are required."
+  },
+  "92a86897c0": {
+    "rewrite": null,
+    "why": "The two overlapping inputs still require distinct filtering with arbitrary masks and coefficients before packing and storing the required result."
+  },
+  "c6eaad78ca": {
+    "rewrite": "vpbroadcastd ymm9,DWORD PTR [CONST_1]\nvpbroadcastw ymm6,WORD PTR [rax]\nimul r10,rdx,0xffffffffffffffff\nvpbroadcastw ymm7,WORD PTR [rax+0x2]\nvpbroadcastw ymm8,WORD PTR [rax+0x4]\ncmp ecx,0x8",
+    "saved": 1,
+    "why": "Three-operand IMUL by -1 replaces the copy and negation with the same 64-bit result. The final CMP supplies all required flags."
+  },
+  "b1a33fb3da": {
+    "rewrite": null,
+    "why": "The loads, blends, unpack, and shuffle assemble two distinct triples of input dwords while preserving the required broadcast registers."
+  },
+  "7ebf5af504": {
+    "rewrite": null,
+    "why": "Each blend supplies a required upper-lane input to the byte interleaves, and all five loaded values contribute to preserved outputs."
+  },
+  "94ec66499f": {
+    "rewrite": null,
+    "why": "Both pointer increments, the byte extraction, and the subtraction produce separate required results, including the final flags."
+  },
+  "f6fdc81c84": {
+    "rewrite": null,
+    "why": "The broadcasts and blends assemble the required qwords with zero padding before arbitrary shuffles, and all subsequent arithmetic and scalar updates remain necessary."
+  },
+  "9be0f2b78f": {
+    "rewrite": null,
+    "why": "All three independently shuffled multiply-add results feed the rounded output, with no redundant loads, stores, or scalar updates."
+  },
+  "e44b483228": {
+    "rewrite": null,
+    "why": "Each row requires its own three-term filter and store, and arbitrary shuffle masks prevent simplifying the overlapping input assembly."
+  },
+  "2eb568a53e": {
+    "rewrite": null,
+    "why": "Both output vectors require distinct input assembly and filtering, and the stores and two preserved pointer updates cannot be removed."
+  },
+  "e084ffed3b": {
+    "rewrite": null,
+    "why": "The two pointer increments, byte extraction, and flag-producing subtraction each update a required register."
+  },
+  "419f8f0a04": {
+    "rewrite": null,
+    "why": "Every broadcast and scalar operation independently establishes a required final register value."
+  },
+  "f1b0c4c1d1": {
+    "rewrite": null,
+    "why": "All four saturating multiply-add results contribute to the horizontal sum, and the rounded output, store, and scalar updates are required."
+  },
+  "9b7ced9231": {
+    "rewrite": null,
+    "why": "Both rows need independent filtering and stores, with no dead operation or shorter AVX2 fusion for the arbitrary coefficients."
+  },
+  "ed20415506": {
+    "rewrite": null,
+    "why": "The two filtering chains produce separate required stores, and overlapping loads do not eliminate their distinct lane assembly or arithmetic."
+  },
+  "7e62f7af71": {
+    "rewrite": null,
+    "why": "The scalar load and decrement, zero-extended byte transfer, and vector unpack and addition all contribute to required outputs."
+  },
+  "dc49ba1dd8": {
+    "rewrite": null,
+    "why": "The mask and shift must preserve all of YMM8, while the broadcast, addition, and two extractions are needed for the two scalar results."
+  }
+}

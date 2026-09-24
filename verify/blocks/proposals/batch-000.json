@@ -1,0 +1,84 @@
+{
+  "31b0b457ee": {
+    "rewrite": null,
+    "why": "All nine instructions contribute to preserved register values, and the unconstrained xmm2 prevents replacing the unpack with a zero-extending load."
+  },
+  "b732df04fd": {
+    "rewrite": null,
+    "why": "The two potentially unaligned loads, packed XOR, store, and flag-setting index update are needed, while folding a load into legacy PXOR would require alignment."
+  },
+  "125091f101": {
+    "rewrite": null,
+    "why": "The two potentially unaligned loads, packed OR, store, and flag-setting index update are needed, while folding a load into legacy POR would require alignment."
+  },
+  "e034a7e6dc": {
+    "rewrite": null,
+    "why": "The two potentially unaligned loads, packed AND, store, and flag-setting index update are needed, while folding a load into legacy PAND would require alignment."
+  },
+  "701fa3095b": {
+    "rewrite": null,
+    "why": "The two potentially unaligned loads, saturating subtraction, store, and flag-setting index update are needed, while folding a load into legacy PSUBUSB would require alignment."
+  },
+  "ce197620dc": {
+    "rewrite": null,
+    "why": "The two potentially unaligned loads, unsigned minimum, store, and flag-setting index update are needed, while folding a load into legacy PMINUB would require alignment."
+  },
+  "a5daf47227": {
+    "rewrite": null,
+    "why": "The two potentially unaligned loads, unsigned maximum, store, and flag-setting index update are needed, while folding a load into legacy PMAXUB would require alignment."
+  },
+  "5eb6bb85a2": {
+    "rewrite": null,
+    "why": "The XOR mask is unconstrained, so the three XORs around the rounded byte average cannot be discarded, and the unaligned loads cannot be folded into SSE2 arithmetic."
+  },
+  "76bb604c42": {
+    "rewrite": null,
+    "why": "The unpacking operand xmm4 and subtraction operand xmm5 are unconstrained, so narrow saturating arithmetic cannot replace the general word arithmetic and packing."
+  },
+  "4ff125d33c": {
+    "rewrite": null,
+    "why": "All three XOR masks are unconstrained and preserved, leaving no removable operation in the comparison sequence or its unaligned loads, store, and index update."
+  },
+  "59aa4b17ff": {
+    "rewrite": null,
+    "why": "The two potentially unaligned loads, saturating word subtraction, store, and flag-setting index update are needed, while folding a load into legacy PSUBUSW would require alignment."
+  },
+  "ae745d2a72": {
+    "rewrite": null,
+    "why": "The XOR mask is unconstrained, so the three XORs around the rounded word average cannot be discarded, and the unaligned loads cannot be folded into SSE2 arithmetic."
+  },
+  "cfdfd25799": {
+    "rewrite": null,
+    "why": "The four arithmetic instructions update four independently preserved registers, and the final subtraction also supplies the required flags."
+  },
+  "60ba1ae387": {
+    "rewrite": null,
+    "why": "The widening and absolute-value arithmetic depend on unconstrained ymm2 and ymm4, so a narrow negation shortcut would not preserve the general result."
+  },
+  "59781899a2": {
+    "rewrite": null,
+    "why": "The mask load and four scalar operations all feed preserved outputs, and the 32-bit shift's truncation prevents folding it into the 64-bit pointer additions."
+  },
+  "364f42ab8d": {
+    "rewrite": null,
+    "why": "Each operation contributes to a preserved result, and the 32-bit shift's truncation prevents replacing the pointer additions with ordinary 64-bit scaled LEAs."
+  },
+  "64c15e9c14": {
+    "rewrite": "movlps xmm3,QWORD PTR [r8]\nmovhps xmm3,QWORD PTR [r9]\nmovlps xmm4,QWORD PTR [r8+rcx*1]\nmovhps xmm4,QWORD PTR [r9+rcx*1]\nmovaps xmm1,xmm3\nshufps xmm1,xmm4,0x88\nshufps xmm3,xmm4,0xdd\nmovaps XMMWORD PTR [rdi],xmm1\nmovaps XMMWORD PTR [rdi+rcx*1],xmm3\nlea r8,[r8+rcx*2]\nlea r9,[r9+rcx*2]\nadd rdi,0x10\nsub eax,0x10",
+    "saved": 3,
+    "why": "Pair the two buffers' qwords at each offset during loading, then use two SHUFPS instructions to form the required even and odd outputs. This replaces six register rearrangements with three while preserving xmm1, xmm3, all stores, and the scalar updates."
+  },
+  "3685ca9bb2": {
+    "rewrite": null,
+    "why": "Four separate scalar loads and three combining operations are needed to produce the stored vector while also preserving the specified final values of xmm2, xmm3, and xmm4."
+  },
+  "b0781c3e22": {
+    "rewrite": "movaps xmm3,XMMWORD PTR [rsi]\nmovaps xmm4,xmm3\nunpcklps xmm4,XMMWORD PTR [rsi+rcx*1]\nunpckhps xmm3,XMMWORD PTR [rsi+rcx*1]\nmovlps QWORD PTR [r8],xmm4\nmovhps QWORD PTR [r9],xmm4\nmovlps QWORD PTR [r8+rcx*1],xmm3\nmovhps QWORD PTR [r9+rcx*1],xmm3\nlea r8,[r8+rcx*2]\nlea r9,[r9+rcx*2]\nadd rsi,0x10\nsub eax,0x10",
+    "saved": 4,
+    "why": "Store the appropriate halves of the low and high interleaves directly, eliminating three register rearrangements. Fold the originally aligned second load into both unpacks to remove one more instruction while retaining the original store order and values."
+  },
+  "b32fe0a033": {
+    "rewrite": null,
+    "why": "The four scalar stores require four lane-producing instructions under SSE2, including the final MOVHLPS that preserves xmm3's original upper half, alongside the four required scalar updates."
+  }
+}

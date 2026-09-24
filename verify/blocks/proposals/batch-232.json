@@ -1,0 +1,91 @@
+{
+  "40cf6ab492": {
+    "rewrite": "vzeroupper\nmov r15,QWORD PTR [rax-0x30]\nmov r14,QWORD PTR [rax-0x28]\nmov r13,QWORD PTR [rax-0x20]\nmov r12,QWORD PTR [rax-0x18]\nmov rbp,QWORD PTR [rax-0x10]\nmov rbx,QWORD PTR [rax-0x8]",
+    "saved": 1,
+    "why": "Remove the assignment to rsp, which is not a required output and must not be touched. Retain vzeroupper to preserve the required clearing of ymm0's upper half."
+  },
+  "1565dd516a": {
+    "rewrite": null,
+    "why": "Both masked register results, their combined value, and the comparison flags are required, leaving no redundant instruction."
+  },
+  "10dcadc6ed": {
+    "rewrite": null,
+    "why": "The contract requires all four memory stores even though later shifts store zero, and both additions produce required results."
+  },
+  "038ddff04d": {
+    "rewrite": "or eax,0xd0e0f0f\nor cl,BYTE PTR [rcx]\nor BYTE PTR [rdi],al",
+    "saved": 1,
+    "why": "Combine the two immediate ORs into one eax OR, preserving both the low-byte result and the clearing of rax's upper 32 bits."
+  },
+  "63b5a80b10": {
+    "rewrite": null,
+    "why": "The three stores require the reversed xmm8 and the top dword of xmm9, and SSSE3 provides no direct dword extraction store to eliminate either shuffle."
+  },
+  "ab335dee05": {
+    "rewrite": null,
+    "why": "This entry contains data and text rather than valid x86 instructions, so no instruction rewrite can be justified."
+  },
+  "8dedce231e": {
+    "rewrite": null,
+    "why": "The required zero and copy each need an instruction, while the independent ebx XOR ecx result needs both the move and XOR."
+  },
+  "994e4d3441": {
+    "rewrite": "movaps xmm3,xmm1\nshufps xmm1,xmm2,0xbb\nshufps xmm3,xmm2,0x11\nmovups XMMWORD PTR [r8],xmm6\nmovdqu XMMWORD PTR [r9],xmm1\nmovdqu XMMWORD PTR [r9+0x10],xmm3",
+    "saved": 2,
+    "why": "For original dword lanes xmm1=[a,b,c,d] and xmm2=[e,f,g,h], the stored vectors are [d,c,h,g] and [b,a,f,e]. One copy and two shufps instructions produce these directly."
+  },
+  "52725599f5": {
+    "rewrite": null,
+    "why": "The AES round, counter decrement and ZF result, next-key load, and pointer advance all produce required outputs."
+  },
+  "f86772fbbd": {
+    "rewrite": "aesenclast xmm2,xmm1\npxor xmm0,xmm0\nmovups XMMWORD PTR [rsi],xmm2",
+    "saved": 2,
+    "why": "The final values of xmm1 and xmm2 are unrestricted, so their clearing instructions can be removed while retaining the ciphertext store and required xmm0 zero."
+  },
+  "ebbc0051a3": {
+    "rewrite": null,
+    "why": "The AES round, counter decrement and ZF result, next-key load, and pointer advance all produce required outputs."
+  },
+  "e3cbef072f": {
+    "rewrite": "aesdeclast xmm2,xmm1\npxor xmm0,xmm0\nmovups XMMWORD PTR [rsi],xmm2",
+    "saved": 2,
+    "why": "The final values of xmm1 and xmm2 are unrestricted, so their clearing instructions can be removed while retaining the plaintext store and required xmm0 zero."
+  },
+  "5de893ab21": {
+    "rewrite": null,
+    "why": "Both loads, both register copies, and the test producing the required ZF are necessary for the specified outputs."
+  },
+  "6e1292ea81": {
+    "rewrite": null,
+    "why": "All eight loaded vectors, both updated pointers or counters, and the subtraction flags are required, with no combined load-and-increment operation available."
+  },
+  "a53fa45304": {
+    "rewrite": null,
+    "why": "All eight stores, both register copies, both arithmetic updates, and the final ZF are required."
+  },
+  "e24963786a": {
+    "rewrite": null,
+    "why": "Both loaded vectors remain required outputs, so folding the first load into the XOR cannot remove an instruction, and the pointer update is also required."
+  },
+  "3b479d7e42": {
+    "rewrite": "movups XMMWORD PTR [rsi],xmm2\nmov rcx,r11\nmovups XMMWORD PTR [rsi+0x10],xmm3\nmov eax,r10d\nmovups XMMWORD PTR [rsi+0x20],xmm4\npxor xmm4,xmm4\nmovups XMMWORD PTR [rsi+0x30],xmm5\npxor xmm5,xmm5\nmovups XMMWORD PTR [rsi+0x40],xmm6\npxor xmm6,xmm6\nmovups XMMWORD PTR [rsi+0x50],xmm7\npxor xmm7,xmm7\nmovups XMMWORD PTR [rsi+0x60],xmm8\npxor xmm8,xmm8\nmovups XMMWORD PTR [rsi+0x70],xmm9\npxor xmm9,xmm9\nlea rsi,[rsi+0x80]\nadd rdx,0x80",
+    "saved": 2,
+    "why": "Only the xmm2 and xmm3 clears are dead; retain the required zero results in xmm4 through xmm9, all stores, and the scalar results."
+  },
+  "dca320c8d3": {
+    "rewrite": "movups XMMWORD PTR [rsi],xmm2\nmovups XMMWORD PTR [rsi+0x10],xmm3\nmovups XMMWORD PTR [rsi+0x20],xmm4\nmovups XMMWORD PTR [rsi+0x30],xmm5\nmovups XMMWORD PTR [rsi+0x40],xmm6\nmovups XMMWORD PTR [rsi+0x50],xmm7\nmovups XMMWORD PTR [rsi+0x60],xmm8",
+    "saved": 8,
+    "why": "None of xmm2 through xmm9 has a required final value, so all eight clearing instructions can be removed while preserving every store."
+  },
+  "330cda5f0f": {
+    "rewrite": "movups XMMWORD PTR [rsi],xmm2\nmovups XMMWORD PTR [rsi+0x10],xmm3",
+    "saved": 2,
+    "why": "The final values of xmm2 and xmm3 are unrestricted, so only their stores are needed."
+  },
+  "fb564d23eb": {
+    "rewrite": "movups XMMWORD PTR [rsi],xmm2\nmovups XMMWORD PTR [rsi+0x10],xmm3\nmovups XMMWORD PTR [rsi+0x20],xmm4",
+    "saved": 3,
+    "why": "The final values of xmm2 through xmm4 are unrestricted, so all three clears can be removed after preserving their stores."
+  }
+}

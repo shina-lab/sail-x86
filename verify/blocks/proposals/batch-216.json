@@ -1,0 +1,89 @@
+{
+  "c15a17e9fd": {
+    "rewrite": "imul r11,rcx,0xffffffffffffffff\nvpunpcklbw ymm16,ymm16,ymm17\nvpsraw ymm16,ymm16,0x2\nvpshufd ymm27,ymm16,0x0\nvpshufd ymm28,ymm16,0x55\nvpshufd ymm29,ymm16,0xaa\ncmp r8d,0x4",
+    "saved": 1,
+    "why": "Multiplication by -1 computes the same 64-bit result as copying rcx and negating it. The final comparison supplies the required ZF."
+  },
+  "3379a2d727": {
+    "rewrite": "imul r11,rcx,0xffffffffffffffff\nvpunpcklbw zmm16,zmm16,zmm17\nvpsraw zmm16,zmm16,0x2\nvpshufd zmm29,zmm16,0x0\nvpshufd zmm30,zmm16,0x55\nvpshufd zmm31,zmm16,0xaa\ncmp r8d,0x8",
+    "saved": 1,
+    "why": "Multiplication by -1 replaces the copy and negation with one instruction, including wraparound at the signed minimum. The final comparison preserves the required ZF."
+  },
+  "68febc8c43": {
+    "rewrite": null,
+    "why": "Each instruction computes a distinct required register result, and both constant vectors already use single-instruction broadcasts."
+  },
+  "6760ca98b8": {
+    "rewrite": null,
+    "why": "The independent loads and stores, arbitrary dot-product bias, saturation stages, pointer updates, and complete live zmm0 result leave no removable instruction."
+  },
+  "b8fb397d06": {
+    "rewrite": null,
+    "why": "Both rows require their own shuffle and biased dot product, and the packing operations are needed for the stores and complete live zmm0 result."
+  },
+  "62ba8b7133": {
+    "rewrite": null,
+    "why": "The row assembly, three arbitrary shuffles, four biased dot-product terms, saturation, and separate row stores all contribute to required results."
+  },
+  "8d9424a2c9": {
+    "rewrite": "vmovdqa32 zmm22,ZMMWORD PTR [CONST_1]\nvpaddd zmm23,zmm22,DWORD PTR [CONST_2]{1to16}\nvpaddd zmm24,zmm23,DWORD PTR [CONST_2]{1to16}",
+    "saved": 1,
+    "why": "Every constant byte remains below 256 after both additions, so dword additions of 0x04040404 exactly reproduce the byte additions. Memory broadcasts eliminate the separate broadcast instruction."
+  },
+  "98170cd2af": {
+    "rewrite": null,
+    "why": "The arbitrary byte permutations require the assembled two-row vector, and the biased dot products, saturation stages, and separate stores have no removable intermediate."
+  },
+  "b1c898cddb": {
+    "rewrite": null,
+    "why": "The shuffles feed distinct dot-product terms, all accumulator seeds are required, and saturation prevents combining the packing and shift stages."
+  },
+  "1f0f719c2d": {
+    "rewrite": null,
+    "why": "Both source vectors feed necessary shuffles, whose data operands cannot be folded into memory, and all biased arithmetic and saturation stages remain necessary."
+  },
+  "8cf4d99995": {
+    "rewrite": null,
+    "why": "All four instructions update distinct required registers, with the final subtraction also producing the required flags."
+  },
+  "09a0d014ea": {
+    "rewrite": null,
+    "why": "Both pointer updates, the byte extraction, and the flag-producing subtraction each supply a distinct required result."
+  },
+  "bed68fa307": {
+    "rewrite": null,
+    "why": "Each instruction independently produces a required register value, including the broadcast vector and decremented pointer."
+  },
+  "a1d5482cc3": {
+    "rewrite": null,
+    "why": "The arbitrary merge mask requires both initial loads and masked broadcasts, and both shuffled rows need their own biased dot product before saturation and storage."
+  },
+  "94d5c4b199": {
+    "rewrite": null,
+    "why": "The four independent row loads are already combined with insertions, while the shuffles, biased dot products, saturated packing, and arithmetic shift all affect the stored result."
+  },
+  "ef6370f370": {
+    "rewrite": null,
+    "why": "Each permutation consumes a vector assembled from separate 32-byte row loads, and the independent dot products and saturation stages leave no removable instruction."
+  },
+  "abd0423e39": {
+    "rewrite": "vmovdqa32 zmm21,ZMMWORD PTR [CONST_1]\nvpaddd zmm22,zmm21,DWORD PTR [CONST_2]{1to16}\nvpaddd zmm23,zmm22,DWORD PTR [CONST_2]{1to16}",
+    "saved": 1,
+    "why": "The known bytes cannot carry into adjacent bytes when adding 4 twice, making broadcast dword additions equivalent to the original byte additions. This removes the standalone broadcast."
+  },
+  "c1b7e72939": {
+    "rewrite": "vpermb zmm26,zmm21,ZMMWORD PTR [rsi]\nvpermb zmm27,zmm21,ZMMWORD PTR [rsi+rdx*1]\nvpermb zmm28,zmm22,ZMMWORD PTR [rsi]\nvpermb zmm29,zmm22,ZMMWORD PTR [rsi+rdx*1]\nvpermb zmm30,zmm23,ZMMWORD PTR [rsi]\nvpermb zmm31,zmm23,ZMMWORD PTR [rsi+rdx*1]\nlea rsi,[rsi+rdx*2]\nvmovdqa32 zmm16,zmm20\nvpdpbusd zmm16,zmm26,zmm24\nvmovdqa32 zmm18,zmm20\nvpdpbusd zmm18,zmm28,zmm24\nvmovdqa32 zmm17,zmm20\nvpdpbusd zmm17,zmm27,zmm24\nvmovdqa32 zmm19,zmm20\nvpdpbusd zmm19,zmm29,zmm24\nvpdpbusd zmm16,zmm28,zmm25\nvpdpbusd zmm18,zmm30,zmm25\nvpdpbusd zmm17,zmm29,zmm25\nvpdpbusd zmm19,zmm31,zmm25\nvpackssdw zmm16,zmm16,zmm18\nvpackssdw zmm17,zmm17,zmm19\nvpsraw zmm16,zmm16,0x2\nvpsraw zmm17,zmm17,0x2\nvmovdqa32 ZMMWORD PTR [rdi],zmm16\nvmovdqa32 ZMMWORD PTR [rdi+0x40],zmm17\nsub rdi,0xffffffffffffff80\nsub r8d,0x2",
+    "saved": 2,
+    "why": "Fold both source loads into the permutations, reading only the same original 64-byte regions. Delay the rsi update until those reads finish; the arithmetic, stores, and final flags are unchanged."
+  },
+  "244a864f60": {
+    "rewrite": "vmovdqa32 zmm21,ZMMWORD PTR [CONST_1]\nsub rsi,rax\nvpaddd zmm22,zmm21,DWORD PTR [CONST_2]{1to16}\nvpaddd zmm23,zmm22,DWORD PTR [CONST_2]{1to16}",
+    "saved": 1,
+    "why": "The known byte values permit equivalent dword additions without carries between bytes. Folding the constant broadcasts into those additions removes one instruction."
+  },
+  "bc1ae3d7df": {
+    "rewrite": "vpermb zmm26,zmm21,ZMMWORD PTR [rsi+r9*1]\nvpermb zmm27,zmm21,ZMMWORD PTR [rsi+r9*1+0x20]\nvpermb zmm28,zmm22,ZMMWORD PTR [rsi+r9*1]\nvpermb zmm29,zmm22,ZMMWORD PTR [rsi+r9*1+0x20]\nvpermb zmm30,zmm23,ZMMWORD PTR [rsi+r9*1]\nvpermb zmm31,zmm23,ZMMWORD PTR [rsi+r9*1+0x20]\nvmovdqa32 zmm16,zmm20\nvpdpbusd zmm16,zmm26,zmm24\nvmovdqa32 zmm18,zmm20\nvpdpbusd zmm18,zmm28,zmm24\nvmovdqa32 zmm17,zmm20\nvpdpbusd zmm17,zmm27,zmm24\nvmovdqa32 zmm19,zmm20\nvpdpbusd zmm19,zmm29,zmm24\nvpdpbusd zmm16,zmm28,zmm25\nvpdpbusd zmm18,zmm30,zmm25\nvpdpbusd zmm17,zmm29,zmm25\nvpdpbusd zmm19,zmm31,zmm25\nvpackssdw zmm16,zmm16,zmm18\nvpackssdw zmm17,zmm17,zmm19\nvpsraw zmm16,zmm16,0x2\nvpsraw zmm17,zmm17,0x2\nvmovdqa32 ZMMWORD PTR [rdi],zmm16\nvmovdqa32 ZMMWORD PTR [rdi+0x40],zmm17\nsub rdi,0xffffffffffffff80\nadd r9,0x40",
+    "saved": 2,
+    "why": "Each permutation can read its source directly from the original memory region, eliminating both explicit vector loads. The addressing, stores, pointer updates, and final flags remain the same."
+  }
+}

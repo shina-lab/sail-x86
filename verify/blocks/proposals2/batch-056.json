@@ -1,0 +1,90 @@
+{
+  "d5a96760ea": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required register value, so none of the constant loads or scalar updates can be removed."
+  },
+  "db44da3be0": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and coefficients require the separate SSSE3 operations and source copies, with all final vector values and stores preserved."
+  },
+  "fc91fa2c60": {
+    "rewrite": null,
+    "why": "The two filters require their separate shuffles, saturating products, sums, and rounding operations, and all resulting registers remain live."
+  },
+  "d264233c49": {
+    "rewrite": "punpcklwd xmm7,xmm7\npshufd xmm5,xmm7,0x0\npshufd xmm6,xmm7,0x55\npshufd xmm7,xmm7,0xaa\nmovdqa xmm8,XMMWORD PTR [CONST_1]\nimul r10,rdx,0xffffffffffffffff\ncmp ecx,0x4",
+    "saved": 1,
+    "why": "Three-operand IMUL by -1 replaces the copy and NEG with the same 64-bit result. The following CMP supplies all required flags."
+  },
+  "85d7fa184c": {
+    "rewrite": null,
+    "why": "The four instructions update four required registers, and the final subtraction also supplies the required flags."
+  },
+  "2e159363bb": {
+    "rewrite": null,
+    "why": "Both pointer increments, the byte extraction, and the counter subtraction produce independently required results."
+  },
+  "504daf8ca7": {
+    "rewrite": null,
+    "why": "Both incremented pointers and their copies must survive, along with the byte extraction and flag-producing subtraction."
+  },
+  "6e95861e9a": {
+    "rewrite": null,
+    "why": "The four independent loads and filters are needed for the preserved vectors and stores, and the pointer and counter updates are also required."
+  },
+  "a8df96dc02": {
+    "rewrite": null,
+    "why": "The arbitrary masks and coefficients require separate shuffles and saturating products, and SSSE3 cannot fold the necessary source copies into those operations."
+  },
+  "c7ff13d5dc": {
+    "rewrite": null,
+    "why": "The two filters need their separate shuffled inputs and saturated products, while the final vectors, stores, and scalar updates are all required."
+  },
+  "c56203cbc6": {
+    "rewrite": null,
+    "why": "The incremented pointers and their copies are all live, and the extraction and counter subtraction each supply another required result."
+  },
+  "f5ec34b72c": {
+    "rewrite": null,
+    "why": "Preserving the masked and shifted xmm9 requires its copy, while the broadcast, addition, and two dword extractions already use minimal SSSE3 sequences."
+  },
+  "9d1170f626": {
+    "rewrite": "movq xmm11,rax\npunpcklbw xmm11,xmm11\npsraw xmm11,0x8\npshufd xmm5,xmm11,0x0\npshufd xmm8,xmm11,0x55\npshufd xmm10,xmm11,0xaa\npshufd xmm11,xmm11,0xff\npmaddwd xmm5,xmm3\nmovdqa xmm6,xmm0\npmaddwd xmm6,xmm8\nmovdqa xmm7,xmm2\npmaddwd xmm7,xmm10\nmovdqa xmm15,xmm4\npmaddwd xmm15,xmm11\npaddd xmm5,xmm6\npaddd xmm7,xmm15\npaddd xmm5,xmm13\npaddd xmm5,xmm7\npsrad xmm5,0xa\npackssdw xmm5,xmm5\npackuswb xmm5,xmm5\npextrw eax,xmm5,0x0\nmov WORD PTR [rdi],ax\nadd rdi,rsi\ndec r9d",
+    "saved": 1,
+    "why": "Broadcast the first coefficient pair directly into xmm5 and commute PMADDWD's operands, eliminating the copy from xmm3. The original coefficient in xmm15 was overwritten before the block ended."
+  },
+  "fb43a8bdda": {
+    "rewrite": "add rdx,rcx\nshufps xmm3,xmm0,0x4e\nshufps xmm0,xmm2,0x4e\nshufps xmm2,xmm4,0x4e\npshufb xmm5,xmm14\npmaddubsw xmm5,xmm9\nphaddw xmm5,xmm5\npmulhrsw xmm5,xmm12\nmovdqa xmm4,xmm5\npalignr xmm4,xmm1,0xc\npshufd xmm1,xmm4,0x44\npunpcklwd xmm4,xmm5",
+    "saved": 2,
+    "why": "PSHUFD copies and duplicates the low qword in one instruction. Copying that duplicated vector back to xmm4 is unnecessary because PUNPCKLWD reads only its unchanged low qword."
+  },
+  "98b21ba098": {
+    "rewrite": "movhps xmm5,QWORD PTR [rdx+rcx*1]\nlea rdx,[rdx+rcx*2]\nmovdqa xmm3,xmm0\nmovdqa xmm0,xmm2\npshufb xmm5,xmm14\npmaddubsw xmm5,xmm9\nphaddw xmm5,xmm5\npmulhrsw xmm5,xmm12\nshufps xmm1,xmm5,0x4e\npshufd xmm5,xmm1,0x39\nmovdqa xmm2,xmm1\nmovdqa xmm4,xmm1\npunpcklwd xmm2,xmm5\npunpckhwd xmm4,xmm5",
+    "saved": 1,
+    "why": "SHUFPS forms the eight-byte alignment directly in its required final register xmm1. Copying that result for the two unpacks saves one instruction overall."
+  },
+  "5b8d2936a7": {
+    "rewrite": "pshufd xmm15,xmm15,0x0\npaddd xmm14,xmm8\nmovdqa xmm0,xmm14\npand xmm0,xmm10\npsrld xmm0,0x6\npaddd xmm15,xmm0\npshufd xmm7,xmm15,0xee\nmovd r8d,xmm15\nmovd r14d,xmm7\npsrldq xmm15,0x4\npsrldq xmm7,0x4\nmovd eax,xmm15\nmovd r12d,xmm7",
+    "saved": 1,
+    "why": "PSHUFD places the upper two dwords into xmm7's low qword in one instruction, replacing the copy and eight-byte shift. Its different upper qword is never observed."
+  },
+  "58c344a075": {
+    "rewrite": "movq xmm10,rax\npunpcklbw xmm10,xmm10\npsraw xmm10,0x8\npshufd xmm4,xmm10,0x0\npshufd xmm8,xmm10,0x55\npshufd xmm9,xmm10,0xaa\npshufd xmm10,xmm10,0xff\npmaddwd xmm4,xmm15\nmovdqa xmm5,xmm1\npmaddwd xmm5,xmm8\nmovdqa xmm6,xmm2\npmaddwd xmm6,xmm9\nmovdqa xmm7,xmm3\npmaddwd xmm7,xmm10\npaddd xmm4,xmm5\npaddd xmm6,xmm7\npaddd xmm4,xmm13\npaddd xmm4,xmm6\npsrad xmm4,0xa\npackssdw xmm4,xmm4\npackuswb xmm4,xmm4\nmovd DWORD PTR [rdi],xmm4\nadd rdi,rsi\ndec r9d",
+    "saved": 1,
+    "why": "Broadcast the first coefficient pair directly into xmm4 and commute PMADDWD's operands to remove the copy from xmm15. The temporary coefficient in xmm7 was subsequently overwritten."
+  },
+  "485825a03e": {
+    "rewrite": null,
+    "why": "The scalar extraction and vector transfer require two instructions, and preserving xmm8 requires a separate copy before the packed shift."
+  },
+  "2545a3ce4d": {
+    "rewrite": "pshufb xmm14,xmm5\npaddb xmm14,xmm6\nmovq xmm10,r8\npunpcklbw xmm10,xmm10\npsraw xmm10,0x8\npunpckldq xmm15,xmm7\npunpcklqdq xmm15,xmm15\npand xmm11,xmm9\npandn xmm9,xmm15\npor xmm9,xmm11\npshufd xmm15,xmm10,0x0\npshufd xmm8,xmm10,0x55\npshufd xmm11,xmm10,0xff\npshufd xmm10,xmm10,0xaa\npshufb xmm0,xmm14\npshufb xmm2,xmm14\npmaddubsw xmm0,xmm9\npmaddubsw xmm2,xmm9\nphaddw xmm0,xmm2\npmulhrsw xmm0,xmm12\nmovq xmm2,QWORD PTR [rdx]\nmovq xmm3,QWORD PTR [rdx+rcx*2]\nmovhps xmm2,QWORD PTR [rdx+rcx*1]\nadd rdx,rbp\npshufb xmm2,xmm14\npshufb xmm3,xmm14\npmaddubsw xmm2,xmm9\npmaddubsw xmm3,xmm9\nphaddw xmm2,xmm3\npmulhrsw xmm2,xmm12\nmovdqa xmm1,xmm2\npalignr xmm1,xmm0,0x4\npshufd xmm4,xmm2,0x99\nmovdqa xmm3,xmm0\npunpcklwd xmm3,xmm1\npunpckhwd xmm0,xmm1\npunpcklwd xmm2,xmm4",
+    "saved": 1,
+    "why": "Consume the incoming xmm2 before loading the second filter input into it, keeping that filter's result in its final destination. Using scratch xmm1 for the alignment then eliminates the last copy into xmm2."
+  },
+  "f9e457e8d7": {
+    "rewrite": "movq xmm1,QWORD PTR [rdx]\nmovhps xmm1,QWORD PTR [rdx+rcx*1]\nlea rdx,[rdx+rcx*2]\nmovdqa xmm5,xmm3\npmaddwd xmm5,xmm15\nmovdqa xmm6,xmm0\npmaddwd xmm6,xmm8\nmovdqa xmm3,xmm0\nmovdqa xmm0,xmm2\npmaddwd xmm2,xmm10\npaddd xmm5,xmm13\npaddd xmm6,xmm2\npshufb xmm1,xmm14\npmaddubsw xmm1,xmm9\nphaddw xmm1,xmm1\npmulhrsw xmm1,xmm12\nmovdqa xmm2,xmm1\npalignr xmm2,xmm4,0xc\npunpcklwd xmm2,xmm1\nmovdqa xmm7,xmm2\npmaddwd xmm7,xmm11\nmovdqa xmm4,xmm1\npaddd xmm5,xmm6\npaddd xmm5,xmm7\npsrad xmm5,0xa\npackssdw xmm5,xmm5\npackuswb xmm5,xmm5\nmovd r8d,xmm5\nmov WORD PTR [rdi],r8w\nshr r8d,0x10\nmov WORD PTR [rdi+rsi*1],r8w\nlea rdi,[rdi+rsi*2]\nsub r9d,0x2",
+    "saved": 2,
+    "why": "After preserving the incoming xmm2 in xmm0, multiply it in place to remove one temporary copy. Building the subsequent alignment directly in xmm2 removes a second copy."
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "2f6e7bdadd": {
+    "rewrite": null,
+    "why": "The packed sums, variable shifts and ORs, scalar extracts, and vector updates all feed required outputs, with no removable instruction under AVX."
+  },
+  "04b2f9b150": {
+    "rewrite": null,
+    "why": "Both packed differences and their shift/OR results are required, and the scalar packing, extracts, and final ymm10 shift have no redundant step."
+  },
+  "a832b90864": {
+    "rewrite": null,
+    "why": "All results feed preserved outputs, and the unconstrained shift counts prevent treating the shift/OR combinations as rotations or distributing them over XOR."
+  },
+  "f5e6d89e42": {
+    "rewrite": null,
+    "why": "The scalar XOR and packing produce a required vector update, while both packed sums, their shifted results, and the final ymm10 value are live."
+  },
+  "d0fca97aa3": {
+    "rewrite": null,
+    "why": "The packed sums, variable shifts and ORs, scalar extracts, and vector updates all feed required outputs, with no removable instruction under AVX."
+  },
+  "eb06eb2c49": {
+    "rewrite": null,
+    "why": "Both packed differences and their shift/OR results are required, and the scalar packing, extracts, and final ymm10 shift have no redundant step."
+  },
+  "0360ca3b05": {
+    "rewrite": null,
+    "why": "All results feed preserved outputs, and the unconstrained shift counts prevent treating the shift/OR combinations as rotations or distributing them over XOR."
+  },
+  "7898166ab4": {
+    "rewrite": "xor r8d,DWORD PTR [rdi+rsi*4]\nshl r8,0x20\nor r10,r8\nvmovq xmm15,r9\nvpinsrq xmm15,xmm15,r10,0x1\nvpxor xmm1,xmm8,xmm1\nvpxor xmm5,xmm15,xmm5\nvbroadcastss xmm9,DWORD PTR [r15+0x70]\nvpand xmm11,xmm10,xmm14\nvpsubq xmm12,xmm13,xmm11\nvpaddd xmm8,xmm9,xmm3\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rdx,xmm8\nvpextrq rcx,xmm8,0x1\nvpaddd xmm8,xmm9,xmm7\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rax,xmm8\nvpextrq rbx,xmm8,0x1\nmovzx edi,dh",
+    "saved": 1,
+    "why": "Remove vpsrldq xmm10,xmm10,0x1 because its result is never read and ymm10 is not a required final output; the shift counts were already computed from its original value."
+  },
+  "42d922294b": {
+    "rewrite": null,
+    "why": "The constant broadcast, XOR, byte shuffle, and byte shift produce required count and ymm10 values, while the remaining AVX arithmetic and extracts are all live."
+  },
+  "1f8bcaf58d": {
+    "rewrite": null,
+    "why": "Both packed differences and their shift/OR results are required, and the scalar packing, extracts, and final ymm10 shift have no redundant step."
+  },
+  "64cad1b8e6": {
+    "rewrite": null,
+    "why": "All results feed preserved outputs, and the unconstrained shift counts prevent treating the shift/OR combinations as rotations or distributing them over XOR."
+  },
+  "1e9bc82c45": {
+    "rewrite": null,
+    "why": "The scalar XOR and packing produce a required vector update, while both packed sums, their shifted results, and the final ymm10 value are live."
+  },
+  "8268f43baf": {
+    "rewrite": null,
+    "why": "The packed sums, variable shifts and ORs, scalar extracts, and vector updates all feed required outputs, with no removable instruction under AVX."
+  },
+  "175082049b": {
+    "rewrite": null,
+    "why": "Both packed differences and their shift/OR results are required, and the scalar packing, extracts, and final ymm10 shift have no redundant step."
+  },
+  "1c6d941610": {
+    "rewrite": null,
+    "why": "All results feed preserved outputs, and the unconstrained shift counts prevent treating the shift/OR combinations as rotations or distributing them over XOR."
+  },
+  "346f8c113b": {
+    "rewrite": null,
+    "why": "The scalar XOR and packing produce a required vector update, while both packed sums, their shifted results, and the final ymm10 value are live."
+  },
+  "9e7b9244f3": {
+    "rewrite": null,
+    "why": "The packed sums, variable shifts and ORs, scalar extracts, and vector updates all feed required outputs, with no removable instruction under AVX."
+  },
+  "25cde09d47": {
+    "rewrite": null,
+    "why": "Both packed differences and their shift/OR results are required, and the scalar packing, extracts, and final ymm10 shift have no redundant step."
+  },
+  "51cee995b7": {
+    "rewrite": null,
+    "why": "All results feed preserved outputs, and the unconstrained shift counts prevent treating the shift/OR combinations as rotations or distributing them over XOR."
+  },
+  "a9560922ad": {
+    "rewrite": null,
+    "why": "The scalar XOR and packing produce a required vector update, while both packed sums, their shifted results, and the final ymm10 value are live."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "01c4d091d9": {
+    "rewrite": null,
+    "why": "The product, independent OF and CF additions, and store all produce required results."
+  },
+  "abb31f0f38": {
+    "rewrite": null,
+    "why": "Both products, both carry chains, the store, and the final rdi update are required."
+  },
+  "0e2db91934": {
+    "rewrite": null,
+    "why": "Both product halves, the carry-dependent sum, and all three register decrements are live."
+  },
+  "c0698a1f0c": {
+    "rewrite": null,
+    "why": "The multiplication, two required pointer updates, and carry-dependent addition cannot be combined into fewer allowed instructions."
+  },
+  "360e594b21": {
+    "rewrite": null,
+    "why": "Both product halves and both updated pointers are required, as are the adc result and final CF."
+  },
+  "5491b0deda": {
+    "rewrite": null,
+    "why": "Each instruction contributes a required product, pointer value, or carry-dependent sum."
+  },
+  "65bb429ecf": {
+    "rewrite": null,
+    "why": "The two pointer updates are live and cannot be folded into the multiplication or carry-dependent addition."
+  },
+  "43d853d2dd": {
+    "rewrite": null,
+    "why": "The product, rcx decrement, store, and addition with carry each have distinct required effects."
+  },
+  "d15be18c1b": {
+    "rewrite": null,
+    "why": "The multiplication, rsi update, carry-dependent addition, and store are all required."
+  },
+  "791b32818b": {
+    "rewrite": null,
+    "why": "Both multiplications, the store, the rdi update, and the addition with carry produce required results."
+  },
+  "702978c962": {
+    "rewrite": null,
+    "why": "Both pointer decrements and both product halves are live, and adc must also produce the required sum and CF."
+  },
+  "5e1cb978e2": {
+    "rewrite": null,
+    "why": "The two-limb addition must preserve both register results and final flags, and all three stores are required."
+  },
+  "f9229774c0": {
+    "rewrite": null,
+    "why": "Both products, the live intermediate sum, each carry propagation, and all four stores are required."
+  },
+  "7b442d9703": {
+    "rewrite": null,
+    "why": "Both additions with carry, all three stores, and the decrement producing the final arithmetic flags are required."
+  },
+  "54c8425078": {
+    "rewrite": null,
+    "why": "The OF and CF chains contribute separately to live results, while both stores and the final decrement are required."
+  },
+  "f2d7a7b5bf": {
+    "rewrite": null,
+    "why": "The two carry chains, both memory updates, indexed load, product, saved carry bit, and final decrement all have required effects."
+  },
+  "0989b77f3d": {
+    "rewrite": null,
+    "why": "Both loads, zeroing rax, decrementing rsi, and retaining the loaded value in both rdx and r9 are required."
+  },
+  "17236bd2c5": {
+    "rewrite": null,
+    "why": "Saving the original rdx and updating rsi are required, and multiplying the loaded value by r8 still needs two instructions."
+  },
+  "376e5edb10": {
+    "rewrite": null,
+    "why": "Both carry chains, the live copies in rax and rbx, the multiplication, saved carry bit, and pointer and counter updates are all required."
+  },
+  "55b745cd3d": {
+    "rewrite": null,
+    "why": "All loaded and initialized register values are live, and the required copy before imul cannot be folded into an allowed three-register multiply."
+  }
+}

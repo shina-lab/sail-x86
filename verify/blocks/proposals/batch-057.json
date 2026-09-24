@@ -1,0 +1,89 @@
+{
+  "13bcf79421": {
+    "rewrite": null,
+    "why": "Both word dot products, their accumulations and the index update are live, and SSE2 requires the separate input load and temporary."
+  },
+  "fe4464a18b": {
+    "rewrite": null,
+    "why": "Both reductions feed the signed interpolation, while the complete packed xmm0 result, division outputs and final comparison flags must be preserved."
+  },
+  "ed133be58d": {
+    "rewrite": "movdqa xmm8,XMMWORD PTR [r9+0x60]\nmovdqa xmm9,XMMWORD PTR [r9+0x70]\nmovsxd r8,r8d\nlea rdi,[rdi+r8*2]\nimul r8,r8,0xfffffffffffffffe\npxor xmm7,xmm7\nmovdqa xmm4,XMMWORD PTR [CONST_1]",
+    "saved": 1,
+    "why": "LEA adds twice the sign-extended count to rdi, and IMUL computes its negated double in r8, replacing three arithmetic instructions with two. No final flags are required."
+  },
+  "c123455948": {
+    "rewrite": null,
+    "why": "The byte gathers, unpacks and destructive SSE2 dot products have no dead intermediates, and the packed result and both pointer updates are required."
+  },
+  "3f177ead82": {
+    "rewrite": null,
+    "why": "Both chroma stores require each gathered input and both sets of dot products, including the copies needed by destructive SSE2 operations."
+  },
+  "c378dda329": {
+    "rewrite": "movdqa xmm8,XMMWORD PTR [r9+0x60]\nmovdqa xmm9,XMMWORD PTR [r9+0x70]\nmovdqa xmm7,XMMWORD PTR [CONST_1]\nmovdqa xmm10,XMMWORD PTR [CONST_2]\nmovsxd r8,r8d\nlea rdi,[rdi+r8*2]\nimul r8,r8,0xfffffffffffffffe\nmovdqa xmm4,XMMWORD PTR [CONST_3]",
+    "saved": 1,
+    "why": "LEA adds twice the sign-extended count to rdi, and IMUL computes its negated double in r8, replacing three arithmetic instructions with two. No final flags are required."
+  },
+  "5ae73f0da9": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and coefficient vectors require both shuffle paths, including their copies, before the additions and saturating pack."
+  },
+  "2075f21214": {
+    "rewrite": null,
+    "why": "Both chroma outputs use every shuffle and dot product, and SSSE3 requires the copies that preserve inputs for destructive operations."
+  },
+  "7cd709cf58": {
+    "rewrite": "vmovdqa xmm8,XMMWORD PTR [r9+0x60]\nvmovdqa xmm9,XMMWORD PTR [r9+0x70]\nvmovdqa xmm7,XMMWORD PTR [CONST_1]\nvmovdqa xmm10,XMMWORD PTR [CONST_2]\nmovsxd r8,r8d\nlea rdi,[rdi+r8*2]\nimul r8,r8,0xfffffffffffffffe\nvmovdqa xmm4,XMMWORD PTR [CONST_3]",
+    "saved": 1,
+    "why": "LEA and IMUL replace the two additions and negation while preserving both scalar results. The VEX loads retain the required zeroed upper halves."
+  },
+  "dd5faf229b": {
+    "rewrite": null,
+    "why": "The AVX three-operand forms already eliminate input copies, and all remaining shuffles, dot products and packing operations contribute to the stored result."
+  },
+  "20c1440574": {
+    "rewrite": null,
+    "why": "Both chroma outputs use every shuffle and dot product, and the VEX forms already avoid copies for destructive operands."
+  },
+  "447d8c888c": {
+    "rewrite": "vbroadcasti128 ymm8,XMMWORD PTR [r9+0x60]\nvbroadcasti128 ymm9,XMMWORD PTR [r9+0x70]\nvmovdqa ymm7,YMMWORD PTR [CONST_1]\nvmovdqa ymm10,YMMWORD PTR [CONST_2]\nmovsxd r8,r8d\nlea rdi,[rdi+r8*2]\nimul r8,r8,0xfffffffffffffffe\nvbroadcasti128 ymm4,XMMWORD PTR [CONST_3]",
+    "saved": 1,
+    "why": "LEA adds twice the sign-extended count to rdi, and IMUL computes its negated double in r8, replacing three arithmetic instructions with two. No final flags are required."
+  },
+  "3715862f38": {
+    "rewrite": null,
+    "why": "The four 128-bit memory operands assemble the required AVX2 lanes, and every subsequent shuffle, dot product and output operation is live."
+  },
+  "555f9eef0d": {
+    "rewrite": null,
+    "why": "Both packed chroma outputs require all four dot products per input pair, along with the AVX2 lane assembly and pointer updates."
+  },
+  "b5f6a549d9": {
+    "rewrite": null,
+    "why": "Both input vectors feed required masked and shifted products, and xmm2 must retain its unpacked final result alongside the packed xmm0 output."
+  },
+  "a40923960d": {
+    "rewrite": "movd xmm0,DWORD PTR [rsi+r8*2]\nmovdqa xmm1,xmm7\npand xmm1,xmm0\npsrlw xmm0,0x8\npsrlw xmm2,0x8\npmaddwd xmm1,xmm5\npmaddwd xmm0,xmm6\npaddd xmm0,xmm4\npaddd xmm0,xmm1\npsrad xmm0,0x9\npackssdw xmm0,xmm0\nmovd DWORD PTR [rdi+r8*1],xmm0\nadd r8,0x2",
+    "saved": 2,
+    "why": "The copy and mask that produce xmm3 are dead. The shift of xmm2 remains because its final value is required."
+  },
+  "f470f9b2b0": {
+    "rewrite": null,
+    "why": "Both chroma stores require every dot-product path and its input copies, and xmm4 must also preserve its unpacked final result."
+  },
+  "e368502105": {
+    "rewrite": "movd xmm0,DWORD PTR [rcx+r9*2]\nmovdqa xmm1,xmm7\npand xmm1,xmm0\npsrlw xmm0,0x8\npsrlw xmm4,0x8\nmovdqa xmm3,xmm1\npmaddwd xmm3,xmm10\nmovdqa xmm2,xmm0\npmaddwd xmm2,xmm11\npmaddwd xmm1,xmm8\npmaddwd xmm0,xmm9\npaddd xmm3,xmm6\npaddd xmm1,xmm6\npaddd xmm2,xmm3\npaddd xmm0,xmm1\npsrad xmm0,0x9\npsrad xmm2,0x9\npackssdw xmm0,xmm0\npackssdw xmm2,xmm2\nmovd DWORD PTR [rdi+r9*1],xmm0\nmovd DWORD PTR [rsi+r9*1],xmm2\nadd r9,0x2",
+    "saved": 2,
+    "why": "The copy and mask that produce xmm5 are dead. The shift of xmm4 remains because its final value is required."
+  },
+  "5cddba3e10": {
+    "rewrite": null,
+    "why": "The VEX operations already avoid input copies, and both the packed xmm0 output and the separate xmm2 result require every arithmetic path."
+  },
+  "242b7500e6": {
+    "rewrite": "vmovd xmm0,DWORD PTR [rsi+r8*2]\nvpand xmm1,xmm7,xmm0\nvpsrlw xmm0,xmm0,0x8\nvpsrlw xmm2,xmm2,0x8\nvpmaddwd xmm1,xmm1,xmm5\nvpmaddwd xmm0,xmm0,xmm6\nvpaddd xmm0,xmm0,xmm4\nvpaddd xmm0,xmm0,xmm1\nvpsrad xmm0,xmm0,0x9\nvpackssdw xmm0,xmm0,xmm0\nvmovd DWORD PTR [rdi+r8*1],xmm0\nadd r8,0x2",
+    "saved": 1,
+    "why": "The VPAND result in xmm3 is unused. Keeping VPSRLW on xmm2 preserves both its required low half and the zeroed upper half of ymm2."
+  }
+}

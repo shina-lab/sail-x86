@@ -1,0 +1,83 @@
+{
+  "33dee0f4e2": {
+    "rewrite": null,
+    "why": "The signed-byte broadcasts and zero-extended word broadcast need separate unpacking and shuffling under SSSE3, and every scalar result is live."
+  },
+  "62b72cbf84": {
+    "rewrite": null,
+    "why": "The broadcast and three copies each produce a distinct required destination register."
+  },
+  "71d498ca6f": {
+    "rewrite": null,
+    "why": "The two broadcasts feed four distinct rounded products and additions, and all four stores and both scalar updates are required."
+  },
+  "6d169e6f3e": {
+    "rewrite": "vpxor ymm0,ymm0,ymm0\nvpsubw ymm0,ymm0,ymm5\nvpaddw ymm3,ymm0,YMMWORD PTR [rdx+0x2]\nvpaddw ymm4,ymm0,YMMWORD PTR [rdx+0x22]\nvpaddw ymm6,ymm0,YMMWORD PTR [rdx+0x42]\nvpaddw ymm7,ymm0,YMMWORD PTR [rdx+0x62]",
+    "saved": 2,
+    "why": "Negate the shared subtrahend once in an unpreserved register, then fold each load into a packed addition. Word arithmetic wraps modulo 65536, so every result equals the original subtraction."
+  },
+  "bba5b2311b": {
+    "rewrite": null,
+    "why": "The interpolation stages, upper-lane extraction, four separately addressed stores, and pointer and counter updates are all required."
+  },
+  "2ded239a4f": {
+    "rewrite": null,
+    "why": "Both rows require distinct dot products, modular sums, logical shifts, saturation, and averaging, which cannot be fused for arbitrary input values."
+  },
+  "e484c2aa17": {
+    "rewrite": null,
+    "why": "Each instruction establishes a distinct required general-purpose register value."
+  },
+  "d22840288a": {
+    "rewrite": null,
+    "why": "The four dot-product combinations feed two stored vectors, and arbitrary inputs require retaining their modular arithmetic, saturation, and rounding stages."
+  },
+  "34aaead126": {
+    "rewrite": null,
+    "why": "All three overlapping loads produce required vector values, and the comparison supplies the required ZF."
+  },
+  "7716a9ad52": {
+    "rewrite": null,
+    "why": "All vector intermediates are required final values, including the standalone load into ymm2, so folding that load into multiplication would not remove an instruction."
+  },
+  "84d55799aa": {
+    "rewrite": null,
+    "why": "The two rounded unsigned shifts already share one zero vector, and AVX2 has no immediate packed-word rounded shift to replace either shift-and-average pair."
+  },
+  "a3e9dc9a81": {
+    "rewrite": null,
+    "why": "The loaded vector is needed both before and after addition, the unpacked result is live, and both additions already fold their other loads."
+  },
+  "692574e030": {
+    "rewrite": null,
+    "why": "Both blends preserve required tail data for the stored result, and the rounded average, modular additions, shift, store, and required rdx assignment remain necessary."
+  },
+  "c95e0b932f": {
+    "rewrite": null,
+    "why": "Two 256-bit stores are needed for the 64-byte output, and the pointer update and flag-producing counter decrement are both live."
+  },
+  "d7f5ac5098": {
+    "rewrite": null,
+    "why": "The unpack supplies duplicated edge words for both blends, and the remaining loads, rounded average, modular sums, shift, store, and rdx assignment all contribute required effects."
+  },
+  "73081bf358": {
+    "rewrite": null,
+    "why": "The required r9 update and ZF test need the shifted sum, whose scale of 64 cannot be folded into the LEA addressing scale."
+  },
+  "a54314846b": {
+    "rewrite": null,
+    "why": "Each of the three vector loads or broadcasts produces a required value, including zeroed upper halves, and the comparison provides the required ZF."
+  },
+  "be1c8f2d35": {
+    "rewrite": null,
+    "why": "The shifted sum in rcx, updated r9, and all final test flags are required, and LEA cannot incorporate the shift by six."
+  },
+  "41ba4b1831": {
+    "rewrite": null,
+    "why": "The arbitrary byte subtrahend, mask, and signed comparison threshold require distinct operations before extracting the required scalar mask."
+  },
+  "7791e8dcd8": {
+    "rewrite": null,
+    "why": "Both broadcasts contribute required vector results, AVX2 cannot fold a scalar memory broadcast into the packed multiplication, and the comparison flags are live."
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "961c354118": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks, four word sums, two packs, stores, and loop updates are all needed to preserve the required registers and flags."
+  },
+  "d722d7ae36": {
+    "rewrite": null,
+    "why": "SSE2 requires all eight 128-bit stores, and the pointer and counter updates both remain necessary."
+  },
+  "3de03121fb": {
+    "rewrite": null,
+    "why": "The shared unpack and four shuffles efficiently construct the required word broadcasts, and all eight stores and both loop updates are necessary."
+  },
+  "00697325ec": {
+    "rewrite": null,
+    "why": "The four broadcasts are already shared across the sixteen required SSE2 stores, with no removable register or loop updates."
+  },
+  "3c7688f2a8": {
+    "rewrite": null,
+    "why": "All eight stores write distinct potentially required locations, and SSE2 provides no wider store to reduce their count."
+  },
+  "d0cb0468d3": {
+    "rewrite": null,
+    "why": "The wrapping word sums, signed multiply-add reduction, rounding, broadcast, and preserved xmm1 value leave no redundant SSE2 operation."
+  },
+  "b67d6207ce": {
+    "rewrite": null,
+    "why": "The signed reduction and rounded broadcast require the existing SSE2 operations, including the final xmm1 value and edx initialization."
+  },
+  "9ed2ecda11": {
+    "rewrite": null,
+    "why": "Each broadcast needs its own addition and signed lower and upper clamps because the input bounds are arbitrary, and all results are preserved and stored."
+  },
+  "ae311a6666": {
+    "rewrite": null,
+    "why": "The two broadcasts each feed two distinct additions and clamps, so the SSE2 copies and all four stored results remain necessary."
+  },
+  "ef64beb6f6": {
+    "rewrite": null,
+    "why": "SSE2 needs the word broadcast and copies for four separate additions and arbitrary signed clamps, whose results are all preserved and stored."
+  },
+  "6e97247759": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rcx]\nmovdqa xmm3,XMMWORD PTR [rcx+0x10]\nmovdqa xmm1,xmm0\npsrldq xmm1,0x2\npextrw edx,xmm3,0x0\npinsrw xmm1,edx,0x7\nmovss xmm0,xmm3\npshufd xmm0,xmm0,0x39\npaddw xmm0,XMMWORD PTR [rcx]\npsraw xmm0,0x1\npavgw xmm0,xmm1\nmovdqa xmm2,xmm3\npsrldq xmm2,0x2\nmovdqa xmm1,xmm3\npsrldq xmm1,0x4\npshufhw xmm2,xmm2,0xa4\npshufhw xmm1,xmm1,0x54\npaddw xmm1,xmm3\npsraw xmm1,0x1\npavgw xmm1,xmm2\npshufd xmm2,xmm2,0xff\nmov edx,0x8",
+    "saved": 4,
+    "why": "Use PEXTRW/PINSRW for the two-byte alignment and MOVSS plus PSHUFD for the four-byte alignment, folding the original top vector into PADDW. edx is available as scratch before its final initialization."
+  },
+  "91355c3e8e": {
+    "rewrite": null,
+    "why": "Both the merged vector and the shifted xmm4 intermediate must be preserved, so the SSE2 copies, shifts, merge, and duplicate result are all needed."
+  },
+  "04fc1c3b8a": {
+    "rewrite": "movdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\nmovdqa XMMWORD PTR [rdi+0x20],xmm2\nmovdqa XMMWORD PTR [rdi+0x30],xmm3\nmovdqa XMMWORD PTR [rdi+rdx*1],xmm1\nmovdqa XMMWORD PTR [rdi+rdx*1+0x10],xmm2\nmovdqa XMMWORD PTR [rdi+rdx*1+0x20],xmm3\nmovdqa XMMWORD PTR [rdi+rdx*1+0x30],xmm4\nmovdqa XMMWORD PTR [rdi+rdx*2],xmm2\nmovdqa XMMWORD PTR [rdi+rdx*2+0x10],xmm3\nmovdqa XMMWORD PTR [rdi+rdx*2+0x20],xmm4\nmovdqa XMMWORD PTR [rdi+rdx*2+0x30],xmm4\nmovdqa XMMWORD PTR [rdi+rcx*1],xmm3\nmovdqa XMMWORD PTR [rdi+rcx*1+0x10],xmm4\nmovdqa XMMWORD PTR [rdi+rcx*1+0x20],xmm4\nmovdqa XMMWORD PTR [rdi+rcx*1+0x30],xmm4\nadd rdi,rsi\nmovdqa xmm5,xmm1\npslldq xmm5,0xe\npsrldq xmm0,0x2\npor xmm0,xmm5\nmovdqa xmm5,xmm2\npslldq xmm5,0xe\npsrldq xmm1,0x2\npor xmm1,xmm5\nmovdqa xmm5,xmm3\nmovdqa xmm6,xmm2\npslldq xmm5,0xe\npsrldq xmm6,0x2\npor xmm5,xmm6\nmovdqa xmm2,xmm5\npsrldq xmm3,0x2\npshufhw xmm3,xmm3,0xa4\ndec r8d",
+    "saved": 4,
+    "why": "Shift and merge the first two results directly in xmm0 and xmm1, eliminating four copies. The final alignment still produces the required xmm5 and xmm6 values."
+  },
+  "e66b88c831": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rcx+0x10]\nmovdqa xmm1,xmm0\npalignr xmm1,XMMWORD PTR [rcx],0x2\npalignr xmm0,XMMWORD PTR [rcx],0x4\npaddw xmm0,XMMWORD PTR [rcx]\npsraw xmm0,0x1\npavgw xmm0,xmm1\nmovdqa xmm4,XMMWORD PTR [CONST_1]\nmovdqa xmm2,XMMWORD PTR [rcx+0x10]\npshufb xmm2,xmm4\nmovdqa xmm1,xmm2\npshufb xmm1,xmm4\npaddw xmm1,XMMWORD PTR [rcx+0x10]\npsraw xmm1,0x1\npavgw xmm1,xmm2\npshufd xmm2,xmm2,0xff\nmov edx,0x8",
+    "saved": 2,
+    "why": "Fold the top-vector reads into PALIGNR and PADDW and construct the first result directly in xmm0. Reloading the original second vector at its existing address removes the need to retain xmm3, whose final value is unrestricted."
+  },
+  "993e272705": {
+    "rewrite": null,
+    "why": "The destructive SSSE3 alignment needs a copy of xmm1, and both xmm0 and xmm3 must retain the aligned result while xmm1 receives a separate shuffle."
+  },
+  "7d88bbf098": {
+    "rewrite": null,
+    "why": "Each destructive PALIGNR needs its source values preserved for subsequent results, and the final xmm5 value and all stores are required."
+  },
+  "55dbed5cb8": {
+    "rewrite": "vmovdqa xmm3,XMMWORD PTR [rcx+0x10]\nvpalignr xmm1,xmm3,XMMWORD PTR [rcx],0x2\nvpalignr xmm0,xmm3,XMMWORD PTR [rcx],0x4\nvpaddw xmm0,xmm0,XMMWORD PTR [rcx]\nvpsraw xmm0,xmm0,0x1\nvpavgw xmm0,xmm0,xmm1\nvmovdqa xmm4,XMMWORD PTR [CONST_1]\nvpshufb xmm2,xmm3,xmm4\nvpshufb xmm1,xmm2,xmm4\nvpaddw xmm1,xmm1,xmm3\nvpsraw xmm1,xmm1,0x1\nvpavgw xmm1,xmm1,xmm2\nvpshufd xmm2,xmm2,0xff\nmov edx,0x8",
+    "saved": 1,
+    "why": "Fold the first vector load into the alignment and addition memory operands and construct the four-byte alignment directly in xmm0. All required vector results retain the original VEX upper-half zeroing."
+  },
+  "2c2fcd4e54": {
+    "rewrite": "vmovdqa XMMWORD PTR [rdi],xmm0\nvmovdqa XMMWORD PTR [rdi+0x10],xmm1\nvinsertf128 ymm2,ymm2,xmm3,0x1\nvmovups YMMWORD PTR [rdi+0x20],ymm2\nvmovdqa XMMWORD PTR [rdi+rdx*1],xmm1\nvmovdqa XMMWORD PTR [rdi+rdx*1+0x10],xmm2\nvinsertf128 ymm3,ymm3,xmm4,0x1\nvmovups YMMWORD PTR [rdi+rdx*1+0x20],ymm3\nvmovups YMMWORD PTR [rdi+rdx*2],ymm2\nvmovdqa XMMWORD PTR [rdi+rdx*2+0x20],xmm4\nvmovdqa XMMWORD PTR [rdi+rdx*2+0x30],xmm4\nvmovups YMMWORD PTR [rdi+rcx*1],ymm3\nvmovdqa XMMWORD PTR [rdi+rcx*1+0x20],xmm4\nvmovdqa XMMWORD PTR [rdi+rcx*1+0x30],xmm4\nadd rdi,rsi\nvpalignr xmm0,xmm1,xmm0,0x2\nvpalignr xmm1,xmm2,xmm1,0x2\nvpalignr xmm2,xmm3,xmm2,0x2\nvpshufb xmm3,xmm3,xmm6\ndec r8d",
+    "saved": 2,
+    "why": "Build two reusable 256-bit pairs with VINSERTF128 and combine four pairs of adjacent stores into unaligned 256-bit stores with identical byte values. The retained VEX updates zero the modified upper halves before exit."
+  },
+  "15a5fb75c9": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rcx]\nmovdqa xmm1,XMMWORD PTR [rcx+0x10]\nmovdqa xmm2,xmm3\npsrldq xmm2,0x2\npextrw edx,xmm1,0x0\npinsrw xmm2,edx,0x7\nmovss xmm3,xmm1\npshufd xmm3,xmm3,0x39\npaddw xmm3,XMMWORD PTR [rcx]\npsraw xmm3,0x1\npavgw xmm3,xmm2\npavgw xmm2,XMMWORD PTR [rcx]\nmovdqa xmm5,xmm1\npsrldq xmm5,0x2\nmovdqa xmm0,xmm1\npsrldq xmm0,0x4\npshufhw xmm5,xmm5,0xa4\npshufhw xmm0,xmm0,0x54\npaddw xmm0,xmm1\npsraw xmm0,0x1\npavgw xmm0,xmm5\npavgw xmm1,xmm5\nmov edx,0x8",
+    "saved": 4,
+    "why": "Replace the two shift-and-merge constructions with a word insertion and a MOVSS/PSHUFD rotation, folding the original top-vector reads into arithmetic. edx is scratch until its final initialization, and none of these instructions changes CF."
+  },
+  "cff0a3eb0e": {
+    "rewrite": "movdqa XMMWORD PTR [rdi],xmm2\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm3\nmovdqa XMMWORD PTR [rdi+rsi*1+0x10],xmm0\nlea rdi,[rdi+rsi*2]\nmovdqa xmm5,xmm1\npslldq xmm5,0xe\npsrldq xmm2,0x2\npor xmm2,xmm5\nmovdqa xmm5,xmm0\nmovdqa xmm4,xmm3\npslldq xmm5,0xe\npsrldq xmm4,0x2\npor xmm5,xmm4\nmovdqa xmm3,xmm5\npsrldq xmm1,0x2\npshufhw xmm1,xmm1,0xa4\npsrldq xmm0,0x2\npshufhw xmm0,xmm0,0xa4\ndec edx",
+    "saved": 2,
+    "why": "Compute the first shifted merge directly in xmm2, removing its copy into xmm4 and the copy back from xmm5. The second merge still establishes the required final xmm4 and xmm5 values."
+  }
+}

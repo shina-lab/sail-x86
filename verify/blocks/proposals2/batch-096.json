@@ -1,0 +1,90 @@
+{
+  "abbcfb43fa": {
+    "rewrite": null,
+    "why": "The broadcast, scalar outputs, and final sign and overflow flags are all live, leaving no redundant instruction."
+  },
+  "40871021d2": {
+    "rewrite": null,
+    "why": "Doubling edx, retaining its masked copy, clearing r8, loading the vector constant, and setting the comparison flags each require the existing operations."
+  },
+  "e7141057ef": {
+    "rewrite": null,
+    "why": "SSE2 requires the copies for destructive saturated arithmetic and unpacking, and the final vector temporaries must all be preserved."
+  },
+  "c76764a03b": {
+    "rewrite": "vmovdqu xmm2,XMMWORD PTR [rsi+r8*2]\nvmovdqu xmm3,XMMWORD PTR [rdi+r8*2]\nvpsubusw xmm5,xmm2,xmm3\nvmovdqu xmm4,XMMWORD PTR [rdx+r8*2]\nadd r8,0x8\nvpsubusw xmm3,xmm3,xmm2\ncmp r8d,ecx\nvpsubusw xmm6,xmm2,xmm4\nvpsubusw xmm4,xmm4,xmm2\nvpsubusw xmm7,xmm6,xmm3\nvpsubusw xmm3,xmm3,xmm6\nvpor xmm3,xmm3,xmm7\nvpunpckhwd xmm6,xmm3,xmm1\nvpunpcklwd xmm3,xmm3,xmm1\nvpaddd xmm3,xmm3,xmm6\nvpsubusw xmm7,xmm4,xmm5\nvpsubusw xmm5,xmm5,xmm4\nvpor xmm5,xmm5,xmm7\nvpunpckhwd xmm4,xmm5,xmm1\nvpunpcklwd xmm5,xmm5,xmm1\nvpaddd xmm5,xmm5,xmm4\nvpaddd xmm0,xmm0,xmm3\nvpaddd xmm0,xmm0,xmm5",
+    "saved": 3,
+    "why": "Use xmm2 directly for the subtraction and perform each high unpack before overwriting its source with the low unpack. Three VEX copies disappear while all final vector values and flags remain unchanged."
+  },
+  "4df084af24": {
+    "rewrite": null,
+    "why": "All lanes of both vector results are live, so a conventional horizontal-add replacement would not preserve the required shuffle and addition results."
+  },
+  "edfae5c280": {
+    "rewrite": "vmovdqu xmm2,XMMWORD PTR [rsi+r8*2]\nvmovdqu xmm3,XMMWORD PTR [rdi+r8*2]\nvpsubusw xmm5,xmm2,xmm3\nvmovdqu xmm4,XMMWORD PTR [rdx+r8*2]\nadd r8,0x8\nvpsubusw xmm3,xmm3,xmm2\ncmp r8d,ecx\nvpsubusw xmm6,xmm2,xmm4\nvpsubusw xmm4,xmm4,xmm2\nvpsubusw xmm7,xmm6,xmm3\nvpsubusw xmm3,xmm3,xmm6\nvpor xmm3,xmm3,xmm7\nvpunpckhwd xmm6,xmm3,xmm1\nvpunpcklwd xmm3,xmm3,xmm1\nvpaddd xmm3,xmm3,xmm6\nvpsubusw xmm7,xmm4,xmm5\nvpsubusw xmm5,xmm5,xmm4\nvpor xmm5,xmm5,xmm7\nvpunpckhwd xmm4,xmm5,xmm1\nvpunpcklwd xmm5,xmm5,xmm1\nvpaddd xmm5,xmm5,xmm4\nvpaddd xmm0,xmm0,xmm3\nvpaddd xmm0,xmm0,xmm5",
+    "saved": 3,
+    "why": "Fold the initial copy into the three-operand subtraction and the other two copies into high unpacks performed before the low unpacks. The retained VEX writes preserve the original upper-lane zeroing."
+  },
+  "e32b8a2005": {
+    "rewrite": null,
+    "why": "The complete vector results, including the unusual low-word shuffle and preserved high lanes of the merge, require the existing reduction steps."
+  },
+  "d3a0375f46": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi+r8*1]\nmovdqu xmm4,XMMWORD PTR [rdi+r8*1]\nmovdqa xmm6,xmm2\nmovdqa xmm5,xmm2\npsubusb xmm5,xmm4\nmovdqu xmm3,XMMWORD PTR [rdx+r8*1]\nadd r8,0x10\npsubusb xmm4,xmm2\ncmp r8d,ecx\npsubusb xmm6,xmm3\npsubusb xmm3,xmm2\npsadbw xmm4,xmm6\npaddq xmm0,xmm4\npsadbw xmm5,xmm3\npaddq xmm1,xmm5",
+    "saved": 1,
+    "why": "Load the rdi input directly into xmm4 and use it for the first subtraction, removing its copy from xmm3 before xmm3 is overwritten by the rdx load."
+  },
+  "6c1b67518a": {
+    "rewrite": null,
+    "why": "Both lanes of xmm0 and xmm1 remain live, requiring the merge and both additions before scalar extraction."
+  },
+  "2600651b35": {
+    "rewrite": "vmovdqu ymm2,YMMWORD PTR [rsi+r8*1]\nvmovdqu ymm4,YMMWORD PTR [rdi+r8*1]\nvpsubusb ymm5,ymm2,ymm4\nvmovdqu ymm3,YMMWORD PTR [rdx+r8*1]\nadd r8,0x20\nvpsubusb ymm4,ymm4,ymm2\ncmp r8d,ecx\nvpsubusb ymm6,ymm2,ymm3\nvpsubusb ymm3,ymm3,ymm2\nvpsadbw ymm4,ymm4,ymm6\nvpaddq ymm0,ymm0,ymm4\nvpsadbw ymm5,ymm5,ymm3\nvpaddq ymm1,ymm1,ymm5",
+    "saved": 2,
+    "why": "Load the rdi input directly into ymm4 and use ymm2 directly as the source for the subtraction into ymm6, eliminating both register copies."
+  },
+  "accd775f08": {
+    "rewrite": null,
+    "why": "The live vector results require each reduction step, and vzeroupper must also clear the upper halves of the other live vector registers."
+  },
+  "d20d607b0d": {
+    "rewrite": "vmovdqu32 zmm18,ZMMWORD PTR [rsi+r8*1]\nvmovdqu32 zmm20,ZMMWORD PTR [rdi+r8*1]\nvpsubusb zmm21,zmm18,zmm20\nvmovdqu32 zmm19,ZMMWORD PTR [rdx+r8*1]\nadd r8,0x40\nvpsubusb zmm20,zmm20,zmm18\ncmp r8d,ecx\nvpsubusb zmm22,zmm18,zmm19\nvpsubusb zmm19,zmm19,zmm18\nvpsadbw zmm20,zmm20,zmm22\nvpaddq zmm16,zmm16,zmm20\nvpsadbw zmm21,zmm21,zmm19\nvpaddq zmm17,zmm17,zmm21",
+    "saved": 2,
+    "why": "Load the rdi input directly into zmm20 and subtract directly from zmm18 into zmm22, eliminating both copies without changing any final register or flag."
+  },
+  "ffd4b3baf4": {
+    "rewrite": null,
+    "why": "Each extraction and addition is needed to preserve the complete zmm16 and zmm17 results while reducing the eight qwords and extracting eax."
+  },
+  "e521223782": {
+    "rewrite": null,
+    "why": "Each scalar update and the vector mask are live, and the required ZF still needs a separate bit test."
+  },
+  "7145db774e": {
+    "rewrite": "lea rdi,[rdi+rsi*2]\nlea rdx,[rdx+rsi*2]\nadd rcx,rdx\nadd r8,rdx\nimul rsi,rsi,0xfffffffffffffffe\npcmpeqw xmm6,xmm6\ntest rsi,0x10",
+    "saved": 1,
+    "why": "Scaled LEAs use the original rsi to form both doubled offsets, allowing one multiply by -2 to replace the shift and negation. The final test preserves the required ZF."
+  },
+  "606d635827": {
+    "rewrite": null,
+    "why": "The five scalar results, VEX mask construction, and independent bit-test ZF each require the existing operations."
+  },
+  "f189c59076": {
+    "rewrite": "lea rdi,[rdi+rsi*2]\nlea rdx,[rdx+rsi*2]\nadd rcx,rdx\nadd r8,rdx\nimul rsi,rsi,0xfffffffffffffffe\nvpcmpeqw xmm6,xmm6,xmm6\ntest rsi,0x10",
+    "saved": 1,
+    "why": "Use scaled LEAs for the doubled offsets and one multiply by -2 for the final rsi, replacing the shift and negation while retaining the original vector mask and final test."
+  },
+  "c7cf5cfe51": {
+    "rewrite": null,
+    "why": "All five scalar updates and the full-width vector mask are live, and their operations cannot supply the required bit-test ZF."
+  },
+  "4d6dfaaee9": {
+    "rewrite": "lea rdi,[rdi+rsi*2]\nlea rdx,[rdx+rsi*2]\nadd rcx,rdx\nadd r8,rdx\nimul rsi,rsi,0xfffffffffffffffe\nvpcmpeqw ymm6,ymm6,ymm6\ntest rsi,0x20",
+    "saved": 1,
+    "why": "Form the doubled offsets with scaled LEAs and replace the shift followed by negation with one multiply by -2, preserving the full vector mask and final ZF."
+  },
+  "0c4c731979": {
+    "rewrite": null,
+    "why": "With arbitrary xmm7 and all final vector values live, no shorter SSE2 sequence is apparent for the widening, saturated arithmetic, comparison, and selection."
+  }
+}

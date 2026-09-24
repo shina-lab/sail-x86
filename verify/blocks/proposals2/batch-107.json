@@ -1,0 +1,93 @@
+{
+  "e5f22db3a8": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm0,0x0\npshufd xmm11,xmm0,0x55\npshufd xmm12,xmm0,0xaa\npshufd xmm13,xmm0,0xff\nmovq xmm0,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm0,0x0\npshufd xmm15,xmm0,0x55\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r11d,0x800200\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two unaligned-safe loads cover exactly the original coefficient bytes, and six PSHUFD instructions broadcast their dwords. This replaces twelve instructions with eight using the unpreserved xmm0 register."
+  },
+  "b3d019f0e2": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm0,0x0\npshufd xmm11,xmm0,0x55\npshufd xmm12,xmm0,0xaa\npshufd xmm13,xmm0,0xff\nmovq xmm0,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm0,0x0\npshufd xmm15,xmm0,0x55\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r11d,0x800200\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two unaligned-safe loads cover exactly the original coefficient bytes, and six PSHUFD instructions broadcast their dwords. This replaces twelve instructions with eight using the unpreserved xmm0 register."
+  },
+  "1d887e7372": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm0,0x0\npshufd xmm11,xmm0,0x55\npshufd xmm12,xmm0,0xaa\npshufd xmm13,xmm0,0xff\nmovq xmm0,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm0,0x0\npshufd xmm15,xmm0,0x55\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r11d,0x1000400\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two unaligned-safe loads cover exactly the original coefficient bytes, and six PSHUFD instructions broadcast their dwords. This replaces twelve instructions with eight using the unpreserved xmm0 register."
+  },
+  "6393637a7b": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm0,0x0\npshufd xmm11,xmm0,0x55\npshufd xmm12,xmm0,0xaa\npshufd xmm13,xmm0,0xff\nmovq xmm0,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm0,0x0\npshufd xmm15,xmm0,0x55\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r11d,0x1000400\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two unaligned-safe loads cover exactly the original coefficient bytes, and six PSHUFD instructions broadcast their dwords. This replaces twelve instructions with eight using the unpreserved xmm0 register."
+  },
+  "b3d8cbbeaf": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm0,0x0\npshufd xmm11,xmm0,0x55\npshufd xmm12,xmm0,0xaa\npshufd xmm13,xmm0,0xff\nmovq xmm0,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm0,0x0\npshufd xmm15,xmm0,0x55\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r11d,0x4001000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two unaligned-safe loads cover exactly the original coefficient bytes, and six PSHUFD instructions broadcast their dwords. This replaces twelve instructions with eight using the unpreserved xmm0 register."
+  },
+  "67eb953aac": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm0,0x0\npshufd xmm11,xmm0,0x55\npshufd xmm12,xmm0,0xaa\npshufd xmm13,xmm0,0xff\nmovq xmm0,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm0,0x0\npshufd xmm15,xmm0,0x55\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r11d,0x4001000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two unaligned-safe loads cover exactly the original coefficient bytes, and six PSHUFD instructions broadcast their dwords. This replaces twelve instructions with eight using the unpreserved xmm0 register."
+  },
+  "3fa26c941e": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm0,0x0\npshufd xmm11,xmm0,0x55\npshufd xmm12,xmm0,0xaa\npshufd xmm13,xmm0,0xff\nmovq xmm0,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm0,0x0\npshufd xmm15,xmm0,0x55\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r11d,0x10004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two unaligned-safe loads cover exactly the original coefficient bytes, and six PSHUFD instructions broadcast their dwords. This replaces twelve instructions with eight using the unpreserved xmm0 register."
+  },
+  "bc133c1c9d": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm0,0x0\npshufd xmm11,xmm0,0x55\npshufd xmm12,xmm0,0xaa\npshufd xmm13,xmm0,0xff\nmovq xmm0,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm0,0x0\npshufd xmm15,xmm0,0x55\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r11d,0x10004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two unaligned-safe loads cover exactly the original coefficient bytes, and six PSHUFD instructions broadcast their dwords. This replaces twelve instructions with eight using the unpreserved xmm0 register."
+  },
+  "908827b185": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm0,0x0\npshufd xmm11,xmm0,0x55\npshufd xmm12,xmm0,0xaa\npshufd xmm13,xmm0,0xff\nmovq xmm0,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm0,0x0\npshufd xmm15,xmm0,0x55\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r11d,0x40004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two unaligned-safe loads cover exactly the original coefficient bytes, and six PSHUFD instructions broadcast their dwords. This replaces twelve instructions with eight using the unpreserved xmm0 register."
+  },
+  "78f9888da8": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm0,0x0\npshufd xmm11,xmm0,0x55\npshufd xmm12,xmm0,0xaa\npshufd xmm13,xmm0,0xff\nmovq xmm0,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm0,0x0\npshufd xmm15,xmm0,0x55\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r11d,0x40004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two unaligned-safe loads cover exactly the original coefficient bytes, and six PSHUFD instructions broadcast their dwords. This replaces twelve instructions with eight using the unpreserved xmm0 register."
+  },
+  "ae90002159": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm0,0x0\npshufd xmm11,xmm0,0x55\npshufd xmm12,xmm0,0xaa\npshufd xmm13,xmm0,0xff\nmovq xmm0,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm0,0x0\npshufd xmm15,xmm0,0x55\npxor xmm9,xmm9\nmovdqu xmm8,XMMWORD PTR [CONST_1]\nmovdqu xmm7,XMMWORD PTR [CONST_2]\nmov r11d,0x40004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two unaligned-safe loads cover exactly the original coefficient bytes, and six PSHUFD instructions broadcast their dwords. This replaces twelve instructions with eight using the unpreserved xmm0 register."
+  },
+  "b282f33ba0": {
+    "rewrite": null,
+    "why": "The two constant loads, vector zero, pointer load, and scalar zero each establish a distinct required output."
+  },
+  "fd3d8bf33f": {
+    "rewrite": null,
+    "why": "All outputs are required, coefficient broadcasts already take one instruction each, and AVX2 needs separate immediate materialization, vector transfer, and broadcast for this bias."
+  },
+  "4d6872cb1a": {
+    "rewrite": null,
+    "why": "All outputs are required, coefficient broadcasts already take one instruction each, and AVX2 needs separate immediate materialization, vector transfer, and broadcast for this bias."
+  },
+  "c584105db5": {
+    "rewrite": null,
+    "why": "All outputs are required, coefficient broadcasts already take one instruction each, and AVX2 needs separate immediate materialization, vector transfer, and broadcast for this bias."
+  },
+  "2fd96738bf": {
+    "rewrite": null,
+    "why": "All outputs are required, coefficient broadcasts already take one instruction each, and AVX2 needs separate immediate materialization, vector transfer, and broadcast for this bias."
+  },
+  "1ab6051ce4": {
+    "rewrite": null,
+    "why": "All outputs are required, coefficient broadcasts already take one instruction each, and AVX2 needs separate immediate materialization, vector transfer, and broadcast for this bias."
+  },
+  "31ded4e918": {
+    "rewrite": null,
+    "why": "All outputs are required, coefficient broadcasts already take one instruction each, and AVX2 needs separate immediate materialization, vector transfer, and broadcast for this bias."
+  },
+  "5bf79e84de": {
+    "rewrite": null,
+    "why": "All outputs are required, coefficient broadcasts already take one instruction each, and AVX2 needs separate immediate materialization, vector transfer, and broadcast for this bias."
+  },
+  "53535d6745": {
+    "rewrite": null,
+    "why": "All outputs are required, coefficient broadcasts already take one instruction each, and AVX2 needs separate immediate materialization, vector transfer, and broadcast for this bias."
+  }
+}

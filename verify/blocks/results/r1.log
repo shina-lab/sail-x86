@@ -1,0 +1,23 @@
+=== 550 test functions for 279 blocks -> /home/ruiu/sail-x86/verify/blocks/blocks_tests.sail
+=== Isla IR: 2 chunk(s), 6 in parallel
+    chunk0.ir: 17,941,862 bytes, 300s
+    chunk1.ir: 16,874,984 bytes, 302s
+=== Isla traces (80 parallel)
+    100/550 traces, 71s
+    200/550 traces, 105s
+    300/550 traces, 147s
+    400/550 traces, 182s
+    500/550 traces, 227s
+=== Z3 (80 parallel, 60s each)
+
+  dav1d          assembler error              3
+  dav1d          original not executable      1
+  dav1d          sat                          8
+  dav1d          timeout                      5
+  dav1d          unsat                        124
+  ffmpeg         assembler error              1
+  ffmpeg         rewrite not executable       1
+  ffmpeg         sat                          9
+  ffmpeg         timeout                      10
+  ffmpeg         unsat                        117
+wrote results/r1.json

@@ -1,0 +1,84 @@
+{
+  "d96bc86df3": {
+    "rewrite": null,
+    "why": "Both copies, CH clearing, and the terminator store are required to preserve memory, RCX, XMM0, and flags."
+  },
+  "be1f2a0126": {
+    "rewrite": null,
+    "why": "Both copies, CH clearing, and the terminator store are required to preserve memory, RCX, XMM0, and flags."
+  },
+  "9e7ed1797e": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov rdx,QWORD PTR [rsi+0x10]\nmov cl,BYTE PTR [rsi+0x18]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov QWORD PTR [rdi+0x10],rdx\nxor ch,ch\nmov WORD PTR [rdi+0x18],cx",
+    "saved": 1,
+    "why": "Clear CH before storing CX to combine the final character and zero terminator into one word store. The same bytes are written, and RCX and all required flags retain their original final values."
+  },
+  "24ebd91cb2": {
+    "rewrite": null,
+    "why": "The word copy must retain its original high byte in memory before CH is cleared, and the separate terminator store is still required."
+  },
+  "75f1baf189": {
+    "rewrite": null,
+    "why": "The vector, qword, and dword copies all contribute required bytes, while CH clearing and the terminator store have separate observable effects."
+  },
+  "c49f65ad9e": {
+    "rewrite": null,
+    "why": "The vector, qword, and dword copies all contribute required bytes, while CH clearing and the terminator store have separate observable effects."
+  },
+  "7c902185de": {
+    "rewrite": null,
+    "why": "Both vector loads and stores are needed, and CH clearing and the byte terminator store must preserve the required RCX, flags, and memory results."
+  },
+  "9c611662c2": {
+    "rewrite": null,
+    "why": "Both vector loads and stores are needed, and CH clearing and the byte terminator store must preserve the required RCX, flags, and memory results."
+  },
+  "f6a6e7dbd1": {
+    "rewrite": null,
+    "why": "Both vector loads and stores are needed, and CH clearing and the byte terminator store must preserve the required RCX, flags, and memory results."
+  },
+  "1ca0121f78": {
+    "rewrite": null,
+    "why": "Both vector loads and stores are needed, and CH clearing and the byte terminator store must preserve the required RCX, flags, and memory results."
+  },
+  "5ec92e9c97": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmovdqu xmm2,XMMWORD PTR [rsi+0x10]\nmov cl,BYTE PTR [rsi+0x20]\nmovdqu XMMWORD PTR [rdi],xmm0\nmovdqu XMMWORD PTR [rdi+0x10],xmm2\nxor ch,ch\nmov WORD PTR [rdi+0x20],cx",
+    "saved": 1,
+    "why": "Clear CH before storing CX to combine the final character and zero terminator into one word store. The same bytes are written, and RCX and all required flags retain their original final values."
+  },
+  "82721871d1": {
+    "rewrite": null,
+    "why": "Both byte comparisons and the AND-NOT are necessary for arbitrary YMM15, while the final vector values, ECX, and length-comparison flags must all be preserved."
+  },
+  "137f5b90b8": {
+    "rewrite": null,
+    "why": "The two zero-extending loads and subtraction are needed for final RAX, RCX, and flags, while VZEROUPPER must clear the preserved YMM upper halves."
+  },
+  "4db3361d2d": {
+    "rewrite": null,
+    "why": "The two zero-extending loads and subtraction are needed for final RAX, RCX, and flags, while VZEROUPPER must clear the preserved YMM upper halves."
+  },
+  "b9b21429b9": {
+    "rewrite": null,
+    "why": "Aligning RDI, adjusting RSI by the discarded low seven bits, and subtracting aligned RDI from RDX require the existing four operations."
+  },
+  "7a2b11d34f": {
+    "rewrite": null,
+    "why": "R8D is unconstrained, so the subtraction-XOR-subtraction sequence cannot be simplified, and both byte loads and VZEROUPPER have required effects."
+  },
+  "6a2f9b1f24": {
+    "rewrite": null,
+    "why": "R8D is unconstrained, so the subtraction-XOR-subtraction sequence cannot be simplified, and both byte loads and VZEROUPPER have required effects."
+  },
+  "e16a9382f2": {
+    "rewrite": null,
+    "why": "R8D is unconstrained, so the subtraction-XOR-subtraction sequence cannot be simplified, and both byte loads and VZEROUPPER have required effects."
+  },
+  "29afe671ab": {
+    "rewrite": null,
+    "why": "All four arithmetic instructions update distinct preserved registers, and the final subtraction also supplies the required CF and ZF."
+  },
+  "b54df5756e": {
+    "rewrite": null,
+    "why": "The load, nonzero-byte mask, masked equality comparison, mask transfer, and length comparison each produce a required register or flag result."
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "54c7f09f6f": {
+    "rewrite": null,
+    "why": "Both state XORs and the xmm10 update are live, and the scalar packing, additions, general variable shifts, and required extractions have no apparent shorter AVX implementation."
+  },
+  "88c01c6d89": {
+    "rewrite": null,
+    "why": "Both state XORs and the xmm10 update are live, and the scalar packing, additions, general variable shifts, and required extractions have no apparent shorter AVX implementation."
+  },
+  "99ac108854": {
+    "rewrite": null,
+    "why": "The updated states and shifted xmm10 must be preserved, while key mixing and both general shift-and-OR results remain necessary for the scalar outputs."
+  },
+  "63a1512216": {
+    "rewrite": null,
+    "why": "The state updates, xmm10 shift, subtractions, and scalar extractions are all necessary, and AVX cannot directly replace the general variable shift-and-OR operations."
+  },
+  "1157f7208e": {
+    "rewrite": null,
+    "why": "Both state XORs and the xmm10 update are live, and the scalar packing, additions, general variable shifts, and required extractions have no apparent shorter AVX implementation."
+  },
+  "59006b7e8b": {
+    "rewrite": null,
+    "why": "Both state XORs and the xmm10 update are live, and the scalar packing, additions, general variable shifts, and required extractions have no apparent shorter AVX implementation."
+  },
+  "aab328094a": {
+    "rewrite": null,
+    "why": "The updated states and shifted xmm10 must be preserved, while key mixing and both general shift-and-OR results remain necessary for the scalar outputs."
+  },
+  "34954ec4d1": {
+    "rewrite": null,
+    "why": "The state updates, xmm10 shift, subtractions, and scalar extractions are all necessary, and AVX cannot directly replace the general variable shift-and-OR operations."
+  },
+  "ee179c58ac": {
+    "rewrite": null,
+    "why": "Both state XORs and the xmm10 update are live, and the scalar packing, additions, general variable shifts, and required extractions have no apparent shorter AVX implementation."
+  },
+  "91a2ba8002": {
+    "rewrite": null,
+    "why": "Both state XORs and the xmm10 update are live, and the scalar packing, additions, general variable shifts, and required extractions have no apparent shorter AVX implementation."
+  },
+  "8d03395aea": {
+    "rewrite": null,
+    "why": "The updated states and shifted xmm10 must be preserved, while key mixing and both general shift-and-OR results remain necessary for the scalar outputs."
+  },
+  "18d094e163": {
+    "rewrite": null,
+    "why": "The state updates, xmm10 shift, subtractions, and scalar extractions are all necessary, and AVX cannot directly replace the general variable shift-and-OR operations."
+  },
+  "c41e91cae9": {
+    "rewrite": "sub r8d,DWORD PTR [rdi+rsi*4]\nshl r8,0x20\nor r10,r8\nvmovq xmm15,r9\nvpinsrq xmm15,xmm15,r10,0x1\nvpxor xmm0,xmm8,xmm0\nvpxor xmm4,xmm15,xmm4\nvbroadcastss xmm9,DWORD PTR [r15+0x3c]\nvpand xmm11,xmm10,xmm14\nvpsubq xmm12,xmm13,xmm11\nvpaddd xmm8,xmm9,xmm0\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rdx,xmm8\nvpextrq rcx,xmm8,0x1\nvpaddd xmm8,xmm9,xmm4\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rax,xmm8\nvpextrq rbx,xmm8,0x1\nmovzx edi,dh",
+    "saved": 1,
+    "why": "Remove vpsrldq xmm10,xmm10,0x1 because its result is never read and ymm10 is not a required final output."
+  },
+  "c6d55256b5": {
+    "rewrite": null,
+    "why": "The updated states and shifted xmm10 must be preserved, while key mixing and both general shift-and-OR results remain necessary for the scalar outputs."
+  },
+  "0c8a9dc9f8": {
+    "rewrite": null,
+    "why": "The state updates, xmm10 shift, subtractions, and scalar extractions are all necessary, and AVX cannot directly replace the general variable shift-and-OR operations."
+  },
+  "c30c1bdd70": {
+    "rewrite": null,
+    "why": "Both state XORs and the xmm10 update are live, and the scalar packing, additions, general variable shifts, and required extractions have no apparent shorter AVX implementation."
+  },
+  "61cf629868": {
+    "rewrite": null,
+    "why": "Both state XORs and the xmm10 update are live, and the scalar packing, additions, general variable shifts, and required extractions have no apparent shorter AVX implementation."
+  },
+  "171b75b350": {
+    "rewrite": null,
+    "why": "The updated states and shifted xmm10 must be preserved, while key mixing and both general shift-and-OR results remain necessary for the scalar outputs."
+  },
+  "f1f853bd1c": {
+    "rewrite": null,
+    "why": "The state updates, xmm10 shift, subtractions, and scalar extractions are all necessary, and AVX cannot directly replace the general variable shift-and-OR operations."
+  },
+  "952b258329": {
+    "rewrite": null,
+    "why": "Both state XORs and the xmm10 update are live, and the scalar packing, additions, general variable shifts, and required extractions have no apparent shorter AVX implementation."
+  }
+}

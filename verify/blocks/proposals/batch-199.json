@@ -1,0 +1,82 @@
+{
+  "cc856c59c2": {
+    "rewrite": null,
+    "why": "The four scalar extractions and the upper-lane extraction each produce a distinct required register value."
+  },
+  "b156a083e0": {
+    "rewrite": null,
+    "why": "Each of the four instructions extracts a different dword into a required scalar output register."
+  },
+  "3bab98182d": {
+    "rewrite": null,
+    "why": "The arbitrary signed inputs require the widening, products and reductions, while the live ymm0 and ymm2 values, stored result and final comparison prevent dropping the remaining operations."
+  },
+  "e4a1c87170": {
+    "rewrite": null,
+    "why": "The two independently addressed dword copies require separate loads and stores, and both pointer updates and the flag-producing counter update are live."
+  },
+  "f4d31a5155": {
+    "rewrite": null,
+    "why": "The two independently addressed qword copies require separate loads and stores, and both pointer updates and the flag-producing counter update are live."
+  },
+  "3e347b1fed": {
+    "rewrite": null,
+    "why": "Both vector loads and stores are necessary for the independently strided rows, and all three scalar updates have required outputs."
+  },
+  "bb6f1f6c83": {
+    "rewrite": null,
+    "why": "The unknown row strides prevent merging either pair of vector accesses, and the pointer and counter updates must be retained."
+  },
+  "6d992f6a14": {
+    "rewrite": null,
+    "why": "Each row already uses one full-width load and store, with separate required updates to both pointers and the counter."
+  },
+  "3bdc0470df": {
+    "rewrite": null,
+    "why": "The two row loads and qword shift supply distinct multiplication inputs, and arbitrary coefficient and bias values require both products, both additions and the final shift."
+  },
+  "4d89e56d65": {
+    "rewrite": null,
+    "why": "The four qword loads supply both overlapping windows of both rows, and arbitrary per-lane coefficients prevent simplifying the multiply-add and shift sequence."
+  },
+  "874df58657": {
+    "rewrite": null,
+    "why": "The four loads assemble the two overlapping windows across independently strided rows, and the word arithmetic, stores and scalar updates all contribute to required outputs."
+  },
+  "098ef2ebc9": {
+    "rewrite": null,
+    "why": "All four loads are already folded into multiplications, and each row requires both word additions and its shift before the required stores and scalar updates."
+  },
+  "c5cfd1af2b": {
+    "rewrite": null,
+    "why": "The broadcast and qword shift create distinct inputs for arbitrary coefficient vectors, so both multiplications, both additions and the final word shift remain necessary."
+  },
+  "3a9717b83b": {
+    "rewrite": null,
+    "why": "Both overlapping loads are folded into multiplications, and arbitrary coefficients and bias require the two word additions before the logical shift."
+  },
+  "f9a374aa6c": {
+    "rewrite": null,
+    "why": "The arithmetic already folds both loads into multiplications, and the final insertion must separately update zmm16 while preserving the required result in zmm0."
+  },
+  "11c73d4feb": {
+    "rewrite": null,
+    "why": "The two memory multiplications, bias addition, product addition and shift compute the required low half, and the insertion is needed to duplicate it into the upper half."
+  },
+  "e21c493d70": {
+    "rewrite": null,
+    "why": "The two loads are already fused with word multiplications, and arbitrary coefficient and bias values require both additions and the final logical shift."
+  },
+  "8992f7dac1": {
+    "rewrite": null,
+    "why": "The six instructions produce six required scalar register values, with the final subtraction also supplying the required flags."
+  },
+  "7a55fd51cb": {
+    "rewrite": null,
+    "why": "The four independently addressed loads are needed to assemble the stored vector, and the multiplication, subtraction, store and three scalar updates all remain necessary."
+  },
+  "4ee074420d": {
+    "rewrite": null,
+    "why": "Each row already folds both loads into multiplications, and arbitrary coefficient and bias values require its subtraction, addition and arithmetic shift before the stores."
+  }
+}

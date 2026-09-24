@@ -1,0 +1,82 @@
+{
+  "ad3b1e846a": {
+    "rewrite": null,
+    "why": "All six extracted vectors are required, and AVX2 cannot combine these per-byte bit-field shifts and masks into fewer instructions while retaining the required scalar load and flag-setting pointer update."
+  },
+  "c81f11cd66": {
+    "rewrite": null,
+    "why": "Each input needs one mask and two shift-and-mask pairs for its three required outputs, plus the required scalar load and flag-setting pointer update."
+  },
+  "5e91742dd3": {
+    "rewrite": null,
+    "why": "The shifts require their masks to remove bits crossing byte boundaries, and all six extracted vectors, the scalar load, and the pointer update are required."
+  },
+  "fe32139a79": {
+    "rewrite": null,
+    "why": "Both all-ones vector results need a destination-writing instruction, and the scalar load and flag-setting pointer update are also required."
+  },
+  "0da0bddc52": {
+    "rewrite": null,
+    "why": "Both zero vector results must be written while preserving all other vectors, leaving no removable instruction alongside the scalar load and pointer update."
+  },
+  "b3de3c5cf0": {
+    "rewrite": null,
+    "why": "The broadcast and copy write two required vector results, and neither the scalar load nor the flag-setting pointer update can be removed."
+  },
+  "dd38ef6717": {
+    "rewrite": null,
+    "why": "Both ymm0 and ymm4 must contain the broadcast value, requiring two vector writes in addition to the scalar load and pointer update."
+  },
+  "7f90508e24": {
+    "rewrite": null,
+    "why": "Four required vector destinations need the two broadcasts and two copies, with the scalar load and flag-setting pointer update also required."
+  },
+  "c7517c3930": {
+    "rewrite": null,
+    "why": "The broadcast and copy are needed to populate both ymm1 and ymm5, and the remaining instructions produce required scalar results and flags."
+  },
+  "0a6b080ed4": {
+    "rewrite": null,
+    "why": "All four broadcast and copied vector results are preserved, so their four writes and the two scalar instructions are necessary."
+  },
+  "2ea4253f6b": {
+    "rewrite": null,
+    "why": "Both pairs of vector destinations require their broadcast and copy instructions, alongside the required scalar load and pointer update."
+  },
+  "05024a8756": {
+    "rewrite": null,
+    "why": "The two broadcasts and two copies each populate a required vector destination, and the scalar load and flag-setting pointer update remain necessary."
+  },
+  "d830c2b8f4": {
+    "rewrite": null,
+    "why": "The four vector writes are required for ymm1, ymm3, ymm5, and ymm7, as are the scalar load and pointer update."
+  },
+  "05bd993de9": {
+    "rewrite": null,
+    "why": "Six required vector destinations already receive one write each, and the scalar load and flag-setting pointer update cannot be eliminated."
+  },
+  "d6a4d19122": {
+    "rewrite": null,
+    "why": "The three broadcasts and three copies are necessary to populate all six required vector results, leaving only the required scalar load and pointer update."
+  },
+  "ab7f4c4442": {
+    "rewrite": null,
+    "why": "Every vector instruction writes a distinct required destination, and both scalar instructions are needed to preserve the loaded value, updated pointer, and flags."
+  },
+  "9924d74ad1": {
+    "rewrite": null,
+    "why": "All ten vector destinations, including ymm8 and ymm12, have required final values and already receive one move each, in addition to the necessary scalar instructions."
+  },
+  "4d7dfff64f": {
+    "rewrite": null,
+    "why": "The eight vector moves each write a required final value, including both temporary registers, and the scalar load and pointer update are required."
+  },
+  "49d6d1a4a7": {
+    "rewrite": null,
+    "why": "The swaps and their preserved temporary results require all six vector moves, with the scalar load and flag-setting pointer update also necessary."
+  },
+  "8f6b218562": {
+    "rewrite": null,
+    "why": "Each of the four independent vector swaps requires three moves under AVX2, and the final temporary values, scalar load, and pointer-update flags must also be preserved."
+  }
+}

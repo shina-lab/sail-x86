@@ -1,0 +1,92 @@
+{
+  "8899ce16d5": {
+    "rewrite": null,
+    "why": "The constant load, sign extension, two pointer additions, negation, copy, and mask are all needed to produce the required register values and ZF."
+  },
+  "e52feaef47": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nbswap r9d\nrol r9d,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nmov cl,BYTE PTR [rdi+rdx*1+0x1]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 3,
+    "why": "A dword load, byte swap, and left rotation produce byte order 0321, allowing the four stores to be combined over the same bytes. The separate CL load preserves RCX, and the original counter updates preserve the required flags."
+  },
+  "c1d60be206": {
+    "rewrite": null,
+    "why": "The constant load, sign extension, two pointer additions, negation, copy, and mask are all needed to produce the required register values and ZF."
+  },
+  "b29de8b405": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nmov cl,r9b\nror r9d,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 4,
+    "why": "Rotating the loaded dword right by eight bits produces byte order 1230, and copying its original low byte to CL preserves the final RCX value. The combined store writes the same four bytes, and the counter updates preserve the required flags."
+  },
+  "2902dac79c": {
+    "rewrite": null,
+    "why": "The constant load, sign extension, two pointer additions, negation, copy, and mask are all needed to produce the required register values and ZF."
+  },
+  "6143fa03ed": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nrol r9d,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nmov cl,BYTE PTR [rdi+rdx*1+0x2]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 4,
+    "why": "Rotating the loaded dword left by eight bits produces byte order 3012 and combines the stores over the same four bytes. Loading source byte 2 into CL and retaining the counter updates preserves RCX and the required flags."
+  },
+  "fb82518fb8": {
+    "rewrite": null,
+    "why": "The constant load, sign extension, two pointer additions, negation, copy, and mask are all needed to produce the required register values and ZF."
+  },
+  "fca5c5d609": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nmov cl,r9b\nbswap r9d\nmov DWORD PTR [rsi+rdx*1],r9d\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 4,
+    "why": "BSWAP reverses the four loaded bytes into order 3210, while copying the original low byte to CL preserves the final RCX value. The combined store writes the same bytes, and the original counter updates preserve the required flags."
+  },
+  "a91d5e1349": {
+    "rewrite": null,
+    "why": "The constant load, sign extension, two pointer additions, negation, copy, and mask are all needed to produce the required register values and ZF."
+  },
+  "6d6c8d0f4b": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nror r9w,0x8\nrol r9d,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nmov cl,BYTE PTR [rdi+rdx*1+0x2]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 3,
+    "why": "Swapping the low two bytes and then rotating the dword left by eight bits produces byte order 3102 for a combined store. The separate CL load and unchanged counter updates preserve RCX and the required flags."
+  },
+  "844d9cf3cc": {
+    "rewrite": null,
+    "why": "The constant load, sign extension, two pointer additions, negation, copy, and mask are all needed to produce the required register values and ZF."
+  },
+  "8556067817": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nrol r9d,0x10\nror r9w,0x8\nror r9d,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nmov cl,BYTE PTR [rdi+rdx*1+0x3]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 2,
+    "why": "The rotations transform byte order 0123 through 2301 and 3201 into 2013, permitting one load and one store over the original four bytes. The separate CL load and original counter updates preserve RCX and the required flags."
+  },
+  "777890ebd7": {
+    "rewrite": null,
+    "why": "The constant load, sign extension, two pointer additions, negation, copy, and mask are all needed to produce the required register values and ZF."
+  },
+  "05177a3721": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nmov cl,r9b\nror r9d,0x8\nror r9w,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 3,
+    "why": "Rotating the dword right by eight bits and swapping its low two bytes produces byte order 2130, while the original low byte is retained in CL. The combined store writes the same bytes, and the original counter updates preserve the required flags."
+  },
+  "97ae24d136": {
+    "rewrite": null,
+    "why": "The constant load, sign extension, two pointer additions, negation, copy, and mask are all needed to produce the required register values and ZF."
+  },
+  "725149715f": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nrol r9d,0x8\nror r9w,0x8\nrol r9d,0x10\nmov DWORD PTR [rsi+rdx*1],r9d\nmov cl,BYTE PTR [rdi+rdx*1+0x3]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 2,
+    "why": "The rotations transform byte order 0123 through 3012 and 0312 into 1203, permitting one load and one store over the original four bytes. The separate CL load and original counter updates preserve RCX and the required flags."
+  },
+  "540caf00c1": {
+    "rewrite": null,
+    "why": "The constant broadcast, sign extension, two pointer additions, negation, copy, and mask are all needed to produce the required register values and ZF."
+  },
+  "dffbc9b57b": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nbswap r9d\nror r9d,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nmov cl,BYTE PTR [rdi+rdx*1+0x3]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 3,
+    "why": "A byte swap followed by an eight-bit right rotation produces byte order 2103 for a combined store over the same bytes. The separate CL load and original counter updates preserve RCX and the required flags, and YMM0 remains untouched."
+  },
+  "bd587b26e8": {
+    "rewrite": null,
+    "why": "The constant broadcast, sign extension, two pointer additions, negation, copy, and mask are all needed to produce the required register values and ZF."
+  },
+  "615899dec3": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nbswap r9d\nrol r9d,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nmov cl,BYTE PTR [rdi+rdx*1+0x1]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 3,
+    "why": "A byte swap followed by an eight-bit left rotation produces byte order 0321 for a combined store over the same bytes. The separate CL load and original counter updates preserve RCX and the required flags, and YMM0 remains untouched."
+  }
+}

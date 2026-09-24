@@ -1,0 +1,89 @@
+{
+  "87a06a7f8d": {
+    "rewrite": null,
+    "why": "The required copies, masked rcx value, vector zero, and comparison flags each require the existing instructions."
+  },
+  "d6af35bb49": {
+    "rewrite": null,
+    "why": "The required copies, masked rcx value, full zmm16 zero, and comparison flags leave no removable instruction."
+  },
+  "5a28547118": {
+    "rewrite": null,
+    "why": "Both register results and the separate masking and comparison operations are required under SSE2."
+  },
+  "c48673a45e": {
+    "rewrite": "tzcnt eax,eax\nsub edi,edx\nlea eax,[rax+rdi*1+0x21]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the constant addition and final addition with the same 32-bit wraparound; rdi and arithmetic flags are not required outputs."
+  },
+  "6727155cf1": {
+    "rewrite": "tzcnt eax,eax\nsub edi,edx\nlea eax,[rax+rdi*1+0x61]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the constant addition and final addition with the same 32-bit wraparound; rdi and arithmetic flags are not required outputs."
+  },
+  "7734175a5c": {
+    "rewrite": null,
+    "why": "The live loaded vectors, minimum reduction, scalar mask, pointer update, and final ZF all require the existing operations."
+  },
+  "d56190133c": {
+    "rewrite": null,
+    "why": "The vector comparison, scalar mask extraction, live pointer subtraction, and mask-derived ZF each require an instruction."
+  },
+  "c8766a3a20": {
+    "rewrite": "vpcmpeqb ymm3,ymm0,ymm3\nvpmovmskb eax,ymm3\nshl rcx,0x20\nor rax,rcx\ntzcnt rax,rax\nlea rax,[rdi+rax*1-0x3f]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the pointer adjustment and final addition while preserving the full 64-bit result; rdi and flags are not required outputs."
+  },
+  "aafacffe73": {
+    "rewrite": "imul eax,edi,0x100000\nvpxorq xmm16,xmm16,xmm16\ncmp eax,0xfe000000",
+    "saved": 1,
+    "why": "The 32-bit product equals the low 12 input bits shifted left by 20. Comparing against the equally scaled threshold preserves CF and ZF, and rax is not a required output."
+  },
+  "53b5df7053": {
+    "rewrite": null,
+    "why": "Both loaded vectors and comparison masks are live, and the pointer update and combined mask test require separate instructions."
+  },
+  "f2e38e7dc5": {
+    "rewrite": null,
+    "why": "The live rdx mask, concatenation with the initial low 32 bits of rax, trailing-zero count, and final addition have no removable step."
+  },
+  "27a2b684d3": {
+    "rewrite": "pxor xmm0,xmm0\npxor xmm1,xmm1\npxor xmm2,xmm2\npxor xmm3,xmm3\nmov rax,rdi\nimul ecx,edi,0x100000\ncmp ecx,0xfcf00000",
+    "saved": 1,
+    "why": "The 32-bit product equals the low 12 input bits shifted left by 20, allowing an equally scaled comparison with identical CF and ZF. The shifted rcx value is free because rcx is not a required output."
+  },
+  "d833273179": {
+    "rewrite": null,
+    "why": "The saved r9 value, two required constant register values, and zeroed xmm0 each need an instruction."
+  },
+  "85b9e022bc": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x1\nlea r10,[rdi+0x1]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags need preservation."
+  },
+  "3f1c3afe30": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x5\nlea r10,[rdi+0x5]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags need preservation."
+  },
+  "32f3c3d350": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x7\nlea r10,[rdi+0x7]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags need preservation."
+  },
+  "397a0cb9b9": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x8\nlea r10,[rdi+0x8]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags need preservation."
+  },
+  "5c82e5072e": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xa\nlea r10,[rdi+0xa]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags need preservation."
+  },
+  "7fe64e6bf4": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xf\nlea r10,[rdi+0xf]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags need preservation."
+  }
+}

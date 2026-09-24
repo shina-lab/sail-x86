@@ -1,0 +1,88 @@
+{
+  "d8fd1dbb08": {
+    "rewrite": "add BYTE PTR [rcx],r10b\nadc DWORD PTR [rax],eax\nadc ebp,edi",
+    "saved": 1,
+    "why": "The standalone REX prefix is redundant before the following REX-encoded ADD. The three arithmetic instructions retain the memory updates and carry chain."
+  },
+  "de9b569b67": {
+    "rewrite": "add BYTE PTR [rsi+0x43be00be],bh\nadd r8b,dl\nrol BYTE PTR [rax],1\nrcl BYTE PTR [rbx],1\nadc edx,DWORD PTR [rbx]\nadd ah,al",
+    "saved": 1,
+    "why": "Remove the standalone redundant REX prefix and encode the following ADD normally. All register updates, memory updates, and carry dependencies remain intact."
+  },
+  "c91947a0a5": {
+    "rewrite": "add cl,bh\nadd cl,bh",
+    "saved": 3,
+    "why": "The second ADD overwrites the carry set by STC, and neither comparison produces a live result because no flags must match. Only the two updates to CL are needed."
+  },
+  "a272dfc95a": {
+    "rewrite": null,
+    "why": "The R11B update and all five memory updates are required, including the carry dependency through the variable-count rotations and SBB."
+  },
+  "db5b989897": {
+    "rewrite": null,
+    "why": "Each preserved result needs its own memory XOR and byte swap, and the flags from the final XOR must also match."
+  },
+  "792d42103b": {
+    "rewrite": null,
+    "why": "All four vector results are live, and SSSE3 has no packed dword rotation that replaces the copy, shifts, and OR for these rotation counts."
+  },
+  "3f3dd2d41a": {
+    "rewrite": null,
+    "why": "The live ChaCha outputs require the arithmetic, SSSE3 rotation sequences, and permutations, while DEC is needed for both R8 and ZF."
+  },
+  "afe77f0a24": {
+    "rewrite": null,
+    "why": "Folding the unaligned MOVDQU loads into legacy PXOR memory operands would require alignment that is not guaranteed, and the stores and pointer/count updates are live."
+  },
+  "6e245426e7": {
+    "rewrite": null,
+    "why": "Both copies and the shifted R10 are preserved outputs, and TEST supplies required flags that the shift alone does not reproduce."
+  },
+  "8c7ac2d2b7": {
+    "rewrite": "vinsertf128 ymm6,ymm6,xmm1,0x1\nvinsertf128 ymm13,ymm13,xmm5,0x1\nvxorps ymm6,ymm6,YMMWORD PTR [rsi]\nvxorps ymm13,ymm13,YMMWORD PTR [rsi+0x20]\nvmovdqu YMMWORD PTR [rdi],ymm6\nvmovdqu YMMWORD PTR [rdi+0x20],ymm13",
+    "saved": 2,
+    "why": "Pack pairs of input XMM values into YMM registers and combine each pair of XORs and stores into one 256-bit XOR and store. VXORPS and the moves require only AVX, preserve ZF, and write the same bytes."
+  },
+  "7eaaf3357e": {
+    "rewrite": null,
+    "why": "Each 32-byte output already uses one memory-source XOR and one store at the maximum vector width allowed by AVX2."
+  },
+  "5e34ba6c3e": {
+    "rewrite": null,
+    "why": "All four 32-byte outputs already use one memory-source XOR and one store each, with no wider operations available under AVX2."
+  },
+  "0d6d1cfbaf": {
+    "rewrite": null,
+    "why": "The three copied vectors, two copies of the vector sum, and R8 are all required outputs, each needing its existing destination-writing instruction."
+  },
+  "c6c823efbe": {
+    "rewrite": null,
+    "why": "The live ChaCha state already uses single-instruction packed rotations, with required additions, XORs, lane permutations, and a decrement that supplies R8 and ZF."
+  },
+  "609f7d0ff0": {
+    "rewrite": null,
+    "why": "Each of the four preserved vector sums needs its own addition, and SUB is required for RDX, CF, and ZF."
+  },
+  "354acae1d1": {
+    "rewrite": "vinserti32x4 zmm4,zmm0,xmm1,0x1\nvinserti32x4 zmm4,zmm4,xmm2,0x2\nvinserti32x4 zmm4,zmm4,xmm3,0x3\nvpxord zmm4,zmm4,ZMMWORD PTR [rsi]\nlea rsi,[rsi+0x40]\nvmovdqu32 ZMMWORD PTR [rdi],zmm4\nlea rdi,[rdi+0x40]",
+    "saved": 3,
+    "why": "Assemble the four low XMM lanes in a scratch ZMM register, then XOR and store all 64 bytes together. This preserves the full source ZMM registers, both pointer updates, and ZF."
+  },
+  "4d70968148": {
+    "rewrite": null,
+    "why": "All four extracted vectors are preserved outputs, including their zeroed upper bits, and SUB must produce RDX, CF, and ZF."
+  },
+  "cc9a597b4a": {
+    "rewrite": "vinserti32x4 zmm4,zmm4,xmm5,0x1\nvinserti32x4 zmm4,zmm4,xmm6,0x2\nvinserti32x4 zmm4,zmm4,xmm7,0x3\nvpxord zmm4,zmm4,ZMMWORD PTR [rsi]\nlea rsi,[rsi+0x40]\nvmovdqu32 ZMMWORD PTR [rdi],zmm4\nlea rdi,[rdi+0x40]",
+    "saved": 3,
+    "why": "Pack the four input XMM values into ZMM4 and replace four XOR/store pairs with one 64-byte XOR and store. The scratch vector results are not preserved, and the rewrite retains both pointer updates and ZF."
+  },
+  "c615266d67": {
+    "rewrite": null,
+    "why": "Each required extracted vector already takes one instruction, and the remaining SUB is necessary for the preserved count and flags."
+  },
+  "57af91c7a8": {
+    "rewrite": null,
+    "why": "All four extraction destinations must retain their selected lanes and zeroed upper bits, and SUB is required for RDX, CF, and ZF."
+  }
+}

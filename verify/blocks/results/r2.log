@@ -1,0 +1,27 @@
+=== 754 test functions for 377 blocks -> /home/ruiu/sail-x86/verify/blocks/blocks_tests.sail
+=== Isla IR: 3 chunk(s), 8 in parallel
+    chunk2.ir: 12,102,181 bytes, 258s
+    chunk0.ir: 17,973,845 bytes, 273s
+    chunk1.ir: 17,167,617 bytes, 274s
+=== Isla traces (100 parallel)
+    100/754 traces, 33s
+    200/754 traces, 63s
+    300/754 traces, 127s
+    400/754 traces, 137s
+    500/754 traces, 165s
+    600/754 traces, 193s
+    700/754 traces, 214s
+=== Z3 (100 parallel, 60s each)
+
+  ffmpeg         unsat                        98
+  glibc          sat                          2
+  glibc          unsat                        143
+  gmp            unsat                        19
+  libjpeg-turbo  unsat                        26
+  linux          sat                          4
+  linux          timeout                      5
+  linux          unsat                        40
+  openssl        sat                          5
+  openssl        timeout                      6
+  openssl        unsat                        29
+wrote results/r2.json

@@ -1,0 +1,82 @@
+{
+  "58655a74cd": {
+    "rewrite": null,
+    "why": "The narrow loads, transpose shuffles, stores, pointer updates and final comparison all contribute to preserved state."
+  },
+  "ba9a9664ba": {
+    "rewrite": null,
+    "why": "Each byte unpack needs a zeroed destination under SSSE3, and all eight unpacked vectors plus the zero register must be preserved."
+  },
+  "02d7fe85d8": {
+    "rewrite": null,
+    "why": "Broadcasting the low word requires both shuffle operations at this ISA level, and all four scalar operations produce required register values."
+  },
+  "2c4367ee02": {
+    "rewrite": null,
+    "why": "Both dot-product paths and their intermediate register results are preserved, and the arbitrary coefficients and clamp operands do not permit narrower arithmetic shortcuts."
+  },
+  "520df2c793": {
+    "rewrite": null,
+    "why": "The dot products, inserted word, duplicated load, clipping and final alignment all contribute to required register values or stores."
+  },
+  "46c77dcd55": {
+    "rewrite": null,
+    "why": "The reduction must preserve all four lanes of xmm0, including the doubled upper-lane sums, so a shorter ordinary horizontal sum would change the result."
+  },
+  "ad2c26f7fa": {
+    "rewrite": null,
+    "why": "The dword shift, unsigned high-word multiply and final word shift perform distinct truncations for arbitrary inputs."
+  },
+  "add99f29eb": {
+    "rewrite": null,
+    "why": "The magnitude multiply and sign restoration preserve rounding and signed-word edge cases that a direct signed multiply would change, while every store and register update is required."
+  },
+  "6eb7199c31": {
+    "rewrite": null,
+    "why": "Both clipped vectors and the signed input in xmm5 are preserved, and combining the nested sign operations would change the -32768 case."
+  },
+  "99a866b433": {
+    "rewrite": null,
+    "why": "The rounded magnitude and sign operations are needed for unrestricted inputs, and the pointer addition also supplies the preserved carry flag through the final decrement."
+  },
+  "5af7f415ed": {
+    "rewrite": null,
+    "why": "The repeated groups compute four separate stored vectors, and simplifying their magnitude and sign operations would change rounding or signed-word edge cases."
+  },
+  "1dd4bb990c": {
+    "rewrite": null,
+    "why": "Combining words before the signed multiply-adds would change overflow behavior, and the remaining widened sums, packing, stores and scalar updates are required."
+  },
+  "243062456f": {
+    "rewrite": null,
+    "why": "Both 16-byte stores and all three register updates are required, with no wider store available at this ISA level."
+  },
+  "abdf490fed": {
+    "rewrite": null,
+    "why": "The copy preserves the unpacked sum in xmm2 while xmm0 is saturated and packed, and both results plus the accumulator are required."
+  },
+  "a77ddd2944": {
+    "rewrite": null,
+    "why": "Both the saturated packed output and the unpacked sum are live, so eliminating the copy requires an additional copy or shuffle elsewhere."
+  },
+  "c771a81167": {
+    "rewrite": null,
+    "why": "Both loads and signed multiply-adds are needed for unrestricted words, followed by their sum and the comparison that produces the required flags."
+  },
+  "bd2917b66f": {
+    "rewrite": null,
+    "why": "Adding the source words before multiplication would lose signed overflow information, so both widened products and their sum are necessary."
+  },
+  "45c465e883": {
+    "rewrite": null,
+    "why": "The two independent signed multiply-add results require separate loads and multiplication operations before the dword sum."
+  },
+  "6b2a867560": {
+    "rewrite": null,
+    "why": "Arbitrary signed source words prevent moving addition before multiplication, leaving two loads, two multiply-adds and one dword addition."
+  },
+  "739e0917b3": {
+    "rewrite": null,
+    "why": "The accumulator copy is needed because both packed vectors and the full dword sums in xmm2, xmm4 and xmm6 must survive."
+  }
+}

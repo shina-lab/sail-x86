@@ -1,0 +1,84 @@
+{
+  "e2fa93d459": {
+    "rewrite": null,
+    "why": "All four vector destinations are preserved, and each instruction produces a distinct required load or shift result."
+  },
+  "34ac0cde68": {
+    "rewrite": null,
+    "why": "The accumulator copies, index shifts, interleaves, and rounded products all feed preserved outputs, with no known coefficient or index values permitting simplification."
+  },
+  "43eda00001": {
+    "rewrite": null,
+    "why": "The four row loads and stores are required, and arbitrary zmm18 and zmm19 values prevent replacing the unpack, wrapping word addition, and saturation sequence with byte arithmetic."
+  },
+  "05b2b954aa": {
+    "rewrite": null,
+    "why": "The lane insertions, arbitrary byte shuffles, rounded multiplications, and final interleaves all contribute to preserved vector values."
+  },
+  "3b93f9288c": {
+    "rewrite": null,
+    "why": "Each of the four instructions directly computes a different preserved vector result."
+  },
+  "50793cd299": {
+    "rewrite": null,
+    "why": "The dot-product initializations and distinct permutation indices are necessary, and the subsequent saturation, interleave, and multiplication stages all feed preserved results."
+  },
+  "4e86c2380d": {
+    "rewrite": null,
+    "why": "All six instructions produce distinct preserved vector results, including both additional dword permutations."
+  },
+  "6625ad3e8f": {
+    "rewrite": null,
+    "why": "The index copy supplies a second destructive permutation, while both rounded products, all four permutation results, and the shifted index remain live."
+  },
+  "24082dadaf": {
+    "rewrite": null,
+    "why": "Both shifted index vectors serve distinct permutations, and the copied index in zmm23 must itself be preserved."
+  },
+  "bc119e0adb": {
+    "rewrite": null,
+    "why": "The signed word load, store of the original ecx, bit update, multiplication, rounding addition, and flag-producing shift each supply required effects."
+  },
+  "5ccef94c50": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and multiplier require the existing shuffle and multiply stages, and both interleave outputs and the surviving intermediate vectors are preserved."
+  },
+  "886c37c9fb": {
+    "rewrite": null,
+    "why": "Both stages of the lane transpose are needed to combine four independent source vectors per group, and zmm24 and zmm25 are also preserved outputs."
+  },
+  "eba2db8c5d": {
+    "rewrite": null,
+    "why": "Every arithmetic result feeds a required saturated output, and the arbitrary preserved accumulator prevents removing either dot-product initialization."
+  },
+  "7f0fbf6871": {
+    "rewrite": null,
+    "why": "The two-stage word interleaves feed eight distinct rounded products, while the broadcast coefficient and final zmm24 intermediate are also preserved."
+  },
+  "05e312e443": {
+    "rewrite": "",
+    "saved": 29,
+    "why": "Every instruction writes only unpreserved vector registers, and the block has no stores or required flag effects. Removing the entire block preserves every required value."
+  },
+  "768f603322": {
+    "rewrite": null,
+    "why": "The two-stage transpose and four within-lane dword swaps perform distinct required rearrangements, with all result vectors and both transpose temporaries preserved."
+  },
+  "5627fd2884": {
+    "rewrite": "",
+    "saved": 17,
+    "why": "All computed vector values are unpreserved, and there are no stores or required flag effects. The entire block can be removed."
+  },
+  "127e470438": {
+    "rewrite": null,
+    "why": "Both stages of each word interleave are required for the final layout, and the remaining zmm24, zmm25, and zmm26 values must also be preserved."
+  },
+  "106ca6cd99": {
+    "rewrite": null,
+    "why": "The shared loaded index feeds four distinct permutations, and both their full-width results and all four zero-extending upper-half extractions are preserved."
+  },
+  "91a8c39f50": {
+    "rewrite": null,
+    "why": "The signed word load, store of the original ecx, bit update, multiplication, rounding addition, and final flag-producing shift are all required."
+  }
+}

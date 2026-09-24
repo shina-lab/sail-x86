@@ -1,0 +1,82 @@
+{
+  "aafd777abc": {
+    "rewrite": null,
+    "why": "Both overlapping 8-byte loads and stores are needed to copy exactly 15 bytes, and the two pointer updates and counter decrement are required."
+  },
+  "c36070b1a2": {
+    "rewrite": null,
+    "why": "The single 16-byte load and store are already minimal, and both pointer updates and the decrement producing the required counter and ZF remain necessary."
+  },
+  "0ddca71e67": {
+    "rewrite": null,
+    "why": "The overlapping 16-byte and 4-byte stores supply distinct required data across 17 bytes, followed by necessary pointer and counter updates."
+  },
+  "2eed5fb07b": {
+    "rewrite": null,
+    "why": "Copying 17 bytes at the specified addresses requires both load/store pairs, and the two pointer updates and counter decrement cannot be removed."
+  },
+  "60d69286c7": {
+    "rewrite": null,
+    "why": "Both stores are needed to produce the specified 18-byte result, and the pointer update and decrement preserve required register values and ZF."
+  },
+  "1886d16b50": {
+    "rewrite": null,
+    "why": "The 16-byte copy and overlapping 4-byte tail each require a load and store, while both pointer updates and the counter decrement are required."
+  },
+  "605d50bbf8": {
+    "rewrite": null,
+    "why": "The two stores provide distinct required bytes across the 19-byte destination, and neither the pointer update nor the counter decrement is dead."
+  },
+  "93e5baa562": {
+    "rewrite": null,
+    "why": "Both load/store pairs are necessary for the 19-byte copy under SSE2, and all three scalar register updates must be preserved."
+  },
+  "9d0277a174": {
+    "rewrite": null,
+    "why": "The adjacent 16-byte and 4-byte stores cannot be combined into one SSE2 store, and the pointer and counter updates are required."
+  },
+  "cadc21c49e": {
+    "rewrite": null,
+    "why": "The 20-byte copy requires separate 16-byte and 4-byte load/store pairs, followed by necessary updates of both pointers and the counter."
+  },
+  "80c93333f2": {
+    "rewrite": null,
+    "why": "Both stores are needed for the specified overlapping writes spanning 21 bytes, and the pointer update and counter decrement are required."
+  },
+  "25919efa34": {
+    "rewrite": null,
+    "why": "The 16-byte and overlapping 8-byte transfers are both necessary for the 21-byte copy, as are both pointer updates and the counter decrement."
+  },
+  "ae925d7d96": {
+    "rewrite": null,
+    "why": "The 16-byte and overlapping 8-byte stores provide distinct required data across 22 bytes, and both scalar updates remain necessary."
+  },
+  "9524456233": {
+    "rewrite": null,
+    "why": "Both load/store pairs are required to copy the specified 22-byte region without extra accesses, and both pointer updates and the counter decrement must remain."
+  },
+  "6f6b8415e5": {
+    "rewrite": null,
+    "why": "Loading one byte, replicating it with IMUL, and storing the resulting word already uses three instructions, with two more required for the pointer and counter updates."
+  },
+  "821b1aa46a": {
+    "rewrite": null,
+    "why": "The byte load, single-instruction replication, and 4-byte store are minimal under SSE2, and the pointer update and counter decrement are required."
+  },
+  "e63894bd66": {
+    "rewrite": null,
+    "why": "The byte load and replication are necessary, and writing exactly six bytes at the specified addresses requires both stores in addition to the pointer and counter updates."
+  },
+  "c45a69ac03": {
+    "rewrite": null,
+    "why": "SSE2 needs the byte load, scalar replication, MOVD, and PSHUFD to produce the required full XMM0 broadcast, followed by the store and both scalar updates."
+  },
+  "10d69ac879": {
+    "rewrite": null,
+    "why": "The four-instruction byte broadcast is needed for the preserved XMM0 value, and the 8-byte and 2-byte stores plus pointer and counter updates remain necessary."
+  },
+  "f7e2c7678e": {
+    "rewrite": null,
+    "why": "The four-instruction broadcast produces the required full XMM0 value, and the 8-byte and 4-byte stores plus pointer and counter updates cannot be removed."
+  }
+}

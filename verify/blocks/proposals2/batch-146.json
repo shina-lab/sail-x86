@@ -1,0 +1,85 @@
+{
+  "4631537ab2": {
+    "rewrite": null,
+    "why": "The loaded vector, both predicate masks, incremented scalar mask, and ZF are all required, leaving no removable instruction."
+  },
+  "292c0e5052": {
+    "rewrite": null,
+    "why": "Both zero-extended vector loads and both predicate masks must be preserved, and extracting and incrementing the scalar mask still requires two instructions."
+  },
+  "7be0139e8d": {
+    "rewrite": null,
+    "why": "The two loaded vectors, nonzero and equality masks, scalar subtraction result, and ZF each require the existing operations."
+  },
+  "dc9875738f": {
+    "rewrite": null,
+    "why": "The independent zero outputs and masked address comparison are necessary to preserve rdx, xmm7, and the specified comparison flags."
+  },
+  "bf3c305b6e": {
+    "rewrite": null,
+    "why": "SSE2 needs the equality mask, byte selection, zero comparison, mask extraction, and scalar test while preserving xmm0 and the zeroed xmm1."
+  },
+  "bcfb0d92ed": {
+    "rewrite": null,
+    "why": "All loaded vectors, comparison results, and assembled scalar masks are live, and the incoming xmm1 comparison operand cannot be assumed zero."
+  },
+  "b61ea18a9b": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdx]\nmovdqu xmm1,XMMWORD PTR [rdx+0x10]\npcmpeqb xmm0,XMMWORD PTR [rax]\nmovdqu xmm5,XMMWORD PTR [rdx+0x20]\npcmpeqb xmm1,XMMWORD PTR [rax+0x10]\npminub xmm0,XMMWORD PTR [rax]\nmovdqu xmm6,XMMWORD PTR [rdx+0x30]\npminub xmm1,XMMWORD PTR [rax+0x10]\npminub xmm0,xmm1\nmovdqa xmm3,XMMWORD PTR [rax+0x30]\npcmpeqb xmm5,XMMWORD PTR [rax+0x20]\npcmpeqb xmm6,xmm3\npminub xmm5,XMMWORD PTR [rax+0x20]\npminub xmm6,xmm3\npminub xmm0,xmm5\npminub xmm0,xmm6\npcmpeqb xmm0,xmm7\npmovmskb ecx,xmm0\ntest ecx,ecx",
+    "saved": 3,
+    "why": "Fold three temporary vector loads into the comparison and minimum memory operands at the same addresses. The final xmm2 value is dead, and xmm3 retains its required final load."
+  },
+  "3bbbaf5f5c": {
+    "rewrite": null,
+    "why": "SSE2 provides no single scalar instruction to copy and mask either input, and the final comparison is required for CF and ZF."
+  },
+  "4ccafd0201": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rdi]\nmovdqu xmm2,XMMWORD PTR [rsi]\npxor xmm0,xmm0\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 2,
+    "why": "Replace each pair of low- and high-qword loads with one unaligned 128-bit load covering exactly the same bytes. All subsequent vector results, rdx, and ZF remain unchanged."
+  },
+  "bcd4b03550": {
+    "rewrite": null,
+    "why": "The vector results and both scalar outputs are live, so the two independently shifted values and their subtraction cannot be discarded or combined into a single shift."
+  },
+  "5ae2c4fc0e": {
+    "rewrite": null,
+    "why": "Both loaded vectors and the comparison and subtraction results must be preserved, and SSE2 cannot fuse the remaining mask extraction and scalar subtraction."
+  },
+  "b29aec58e6": {
+    "rewrite": null,
+    "why": "The zero-byte mask, shifted comparison result, loaded xmm1, and both scalar outputs are live, and SSE2 has no byte insertion that shortens their construction."
+  },
+  "db49488b11": {
+    "rewrite": null,
+    "why": "Preserving the loaded xmm4, shifted xmm3, and assembled xmm2 requires the existing SSE2 copy, shifts, and merge for this one-byte alignment."
+  },
+  "26af0957e7": {
+    "rewrite": null,
+    "why": "Replacing the load and shift with zeroing and word insertion takes the same number of instructions, while the remaining vector and scalar results are all live."
+  },
+  "c3c0b68ad5": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm4,XMMWORD PTR [rdi+rcx*1]\npsrldq xmm3,0x2\nmovdqa xmm2,xmm3\npinsrw xmm2,WORD PTR [rdi+rcx*1],0x7\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "After shifting xmm3 right by two bytes, copy it and insert the low source word directly into xmm2's zero high word with SSE2 pinsrw. Loading xmm4 directly preserves the full source vector while eliminating one instruction from the alignment sequence."
+  },
+  "f190a245d6": {
+    "rewrite": null,
+    "why": "SSE2 has no shorter load-and-shift construction for the three retained bytes, and every resulting vector and scalar value is required."
+  },
+  "0f779870be": {
+    "rewrite": null,
+    "why": "The preserved source copy and shifted vectors prevent eliminating the merge, and SSE2 lacks a packed alignment instruction for this three-byte offset."
+  },
+  "c432050c9f": {
+    "rewrite": null,
+    "why": "The shifted source, zero-byte mask, comparison subtraction, and separately shifted scalar masks all contribute to required outputs with no shorter SSE2 construction."
+  },
+  "d39b5f609a": {
+    "rewrite": null,
+    "why": "SSE2 lacks direct dword insertion or packed alignment, so preserving xmm2, xmm3, and the full source in xmm4 prevents shortening this merge."
+  },
+  "14870cff12": {
+    "rewrite": null,
+    "why": "The five-byte shifted source requires the existing load and shift, and the live vector masks and scalar results leave no removable instruction."
+  }
+}

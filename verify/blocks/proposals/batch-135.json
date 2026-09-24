@@ -1,0 +1,82 @@
+{
+  "8bea305b0c": {
+    "rewrite": null,
+    "why": "Both 128-bit stores, the preserved destination-pointer update, and the counter decrement producing the required flags are necessary."
+  },
+  "61f22ef87f": {
+    "rewrite": null,
+    "why": "The wrapped five-bit offset, forced sixth bit, and independent test flags require the existing four instructions."
+  },
+  "9bdf2cd80d": {
+    "rewrite": null,
+    "why": "The selection and both rounded interpolations are necessary, and folding their unaligned loads into legacy SSE arithmetic would introduce alignment requirements."
+  },
+  "42600938a0": {
+    "rewrite": null,
+    "why": "Both comparisons and three-operation selections feed required stores, while the threshold update and counter decrement also have preserved results."
+  },
+  "6df63a8a12": {
+    "rewrite": null,
+    "why": "Four 128-bit stores are required at this ISA level, along with the preserved pointer update and flag-producing counter decrement."
+  },
+  "6b7249d348": {
+    "rewrite": null,
+    "why": "Selecting arbitrary word values requires the comparison and three Boolean operations without SSE4.1 blend instructions."
+  },
+  "a5ab1c7310": {
+    "rewrite": null,
+    "why": "The selection and both rounded interpolations are necessary, and folding their unaligned loads into legacy SSE arithmetic would introduce alignment requirements."
+  },
+  "282e0b41ec": {
+    "rewrite": null,
+    "why": "The selection and both rounded interpolations are necessary, and folding their unaligned loads into legacy SSE arithmetic would introduce alignment requirements."
+  },
+  "49661c55b6": {
+    "rewrite": null,
+    "why": "Both comparisons and three-operation selections feed required stores, while the threshold update and counter decrement also have preserved results."
+  },
+  "22aadd032f": {
+    "rewrite": null,
+    "why": "The two weighted terms, rounding addition, shift, index update, and comparison are needed, and the unaligned second load cannot safely become a legacy PADDW memory operand."
+  },
+  "0957d9c55a": {
+    "rewrite": null,
+    "why": "All arithmetic contributes to the preserved result, and folding the unaligned load into PAVGW would introduce an alignment requirement."
+  },
+  "5d0bcf2a21": {
+    "rewrite": null,
+    "why": "The trailing-zero count and all four independently loaded vector values must be preserved."
+  },
+  "4c68d5a71e": {
+    "rewrite": null,
+    "why": "The two scalar expressions, zero-extending vector transfers, arbitrary byte shuffles, and preserved shifted counter each require their existing operations."
+  },
+  "2a3686b73f": {
+    "rewrite": null,
+    "why": "The shifted addition, byte shuffle, signed extrema, and unsigned rounded average are all necessary for arbitrary input values."
+  },
+  "785053b951": {
+    "rewrite": null,
+    "why": "The byte shift, both independent shuffles, and equality comparison all contribute to preserved vector outputs."
+  },
+  "e2f3e99901": {
+    "rewrite": null,
+    "why": "All shuffled, masked, and compared vector results are preserved, and extracting the scalar mask and setting ZF require separate instructions."
+  },
+  "9a0b70d00c": {
+    "rewrite": null,
+    "why": "The three distinct scalar-derived shuffle results and shifted counter require the existing arithmetic, transfers, and shuffles for arbitrary inputs."
+  },
+  "e576fab7b1": {
+    "rewrite": null,
+    "why": "Both masked comparisons produce preserved vectors, and the preserved scalar mask and ZF require the extraction and test."
+  },
+  "2f07e07300": {
+    "rewrite": null,
+    "why": "All five vector outputs are preserved, and neither the doubled scalar result nor the independent comparison flag is redundant."
+  },
+  "0d48a3f404": {
+    "rewrite": null,
+    "why": "Each low/high unpack pair needs a source copy with two-operand SSE, and all four stores, the scalar address calculation, and the final vector copy are required."
+  }
+}

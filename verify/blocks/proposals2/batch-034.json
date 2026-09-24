@@ -1,0 +1,87 @@
+{
+  "dec5a1a1df": {
+    "rewrite": null,
+    "why": "All sixteen rounded products are required, and VPMULHRSW cannot fold these dword broadcasts into its memory operand."
+  },
+  "0abb67dda9": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required saturated sum or difference."
+  },
+  "4875ab20d7": {
+    "rewrite": null,
+    "why": "The four maximum-width stores and both scalar updates are required, including the flags left by ADD and DEC."
+  },
+  "42143eb29f": {
+    "rewrite": null,
+    "why": "Both copies of every rounded product must be preserved, and the coefficient broadcasts cannot be folded into VPMULHRSW."
+  },
+  "e17de28521": {
+    "rewrite": null,
+    "why": "Every broadcast and rounded multiplication feeds a required saturated butterfly result, with no removable copy or dead calculation."
+  },
+  "2bd97de740": {
+    "rewrite": null,
+    "why": "The two successive biased arithmetic shifts impose separate rounding steps, while the store, scalar results, zero vector, and broadcast result are all required."
+  },
+  "5e708ab9ee": {
+    "rewrite": null,
+    "why": "The unpack source and addend are unconstrained, and the packed result, high-word intermediate, store, pointer update, counter, and flags must all match."
+  },
+  "6174bd5c17": {
+    "rewrite": null,
+    "why": "The dot products already use memory broadcasts, their accumulators require initialization, and all four final vector copies are required outputs."
+  },
+  "2e3d6fa3df": {
+    "rewrite": null,
+    "why": "All four rounded products and their duplicate destinations are required, and VPMULHRSW lacks a dword-broadcast memory form."
+  },
+  "437bab2cf7": {
+    "rewrite": null,
+    "why": "All eight rounded products contribute to required saturated sums and differences, and their broadcasts cannot be folded into VPMULHRSW."
+  },
+  "b47311ae48": {
+    "rewrite": "vpunpcklwd zmm20,zmm24,zmm17\nvpunpckhwd zmm24,zmm24,zmm17\nvmovdqa32 zmm17,zmm26\nvpdpwssd zmm17,zmm20,DWORD BCST [r9+0x148]\nvmovdqa32 zmm25,zmm26\nvpdpwssd zmm25,zmm24,DWORD BCST [r9+0x148]\nvpsrad zmm17,zmm17,0xc\nvpsrad zmm25,zmm25,0xc\nvpackssdw zmm17,zmm17,zmm25\nvmovdqa32 zmm25,zmm26\nvpdpwssd zmm25,zmm24,DWORD BCST [r9+0x144]\nvmovdqa32 zmm24,zmm26\nvpdpwssd zmm24,zmm20,DWORD BCST [r9+0x144]\nvpsrad zmm25,zmm25,0xc\nvpsrad zmm24,zmm24,0xc\nvpackssdw zmm24,zmm24,zmm25\nvpunpcklwd zmm20,zmm22,zmm18\nvpunpckhwd zmm22,zmm22,zmm18\nvmovdqa32 zmm18,zmm26\nvpdpwssd zmm18,zmm20,DWORD BCST [r9+0x14c]\nvmovdqa32 zmm25,zmm26\nvpdpwssd zmm25,zmm22,DWORD BCST [r9+0x14c]\nvpsrad zmm18,zmm18,0xc\nvpsrad zmm25,zmm25,0xc\nvpackssdw zmm18,zmm18,zmm25\nvmovdqa32 zmm25,zmm26\nvpdpwssd zmm25,zmm22,DWORD BCST [r9+0x148]\nvmovdqa32 zmm22,zmm26\nvpdpwssd zmm22,zmm20,DWORD BCST [r9+0x148]\nvpsrad zmm25,zmm25,0xc\nvpsrad zmm22,zmm22,0xc\nvpackssdw zmm22,zmm22,zmm25\nvpsubsw zmm20,zmm16,zmm19\nvpaddsw zmm16,zmm16,zmm19\nvpsubsw zmm19,zmm23,zmm21\nvpaddsw zmm23,zmm23,zmm21\nvpsubsw zmm21,zmm17,zmm18\nvpaddsw zmm17,zmm17,zmm18\nvpsubsw zmm18,zmm24,zmm22\nvpaddsw zmm22,zmm22,zmm24",
+    "saved": 3,
+    "why": "Fold all three coefficient broadcasts into the VPDPWSSD memory operands at the same addresses. The removed broadcast destinations zmm27 and zmm28 are not required outputs."
+  },
+  "2806b4319f": {
+    "rewrite": null,
+    "why": "The five broadcasts and two address calculations each produce a required final register value."
+  },
+  "87136a4c43": {
+    "rewrite": null,
+    "why": "Both transpose networks need their word, dword, and qword interleaving stages, and every final vector value is required."
+  },
+  "954a0f123f": {
+    "rewrite": null,
+    "why": "The coefficient loads also initialize destructive arithmetic destinations, and the intermediate products and shifted results are all required final values."
+  },
+  "736ee70c95": {
+    "rewrite": "movdqa xmm6,XMMWORD PTR [CONST_1]\nmovdqa xmm5,xmm1\npunpckhwd xmm5,xmm3\npunpcklwd xmm1,xmm3\nmovdqa xmm3,XMMWORD PTR [CONST_2]\nmovdqa xmm4,xmm1\npmaddwd xmm4,xmm3\npmaddwd xmm3,xmm5\npaddd xmm4,xmm6\npaddd xmm3,xmm6\npsrad xmm4,0xc\npsrad xmm3,0xc\npackssdw xmm4,xmm3\npmaddwd xmm5,XMMWORD PTR [CONST_3]\npmaddwd xmm1,XMMWORD PTR [CONST_3]\npaddd xmm5,xmm6\npaddd xmm1,xmm6\npsrad xmm5,0xc\npsrad xmm1,0xc\npackssdw xmm1,xmm5\nmovdqa xmm5,xmm0\npunpckhwd xmm5,xmm2\npunpcklwd xmm0,xmm2\nmovdqa xmm2,XMMWORD PTR [CONST_4]\nmovdqa xmm3,xmm0\npmaddwd xmm3,xmm2\npmaddwd xmm2,xmm5\npaddd xmm3,xmm6\npaddd xmm2,xmm6\npsrad xmm3,0xc\npsrad xmm2,0xc\npackssdw xmm3,xmm2\npmaddwd xmm5,XMMWORD PTR [CONST_5]\npmaddwd xmm0,XMMWORD PTR [CONST_5]\npaddd xmm5,xmm6\npaddd xmm0,xmm6\npsrad xmm5,0xc\npsrad xmm0,0xc\npackssdw xmm0,xmm5\nmovdqa xmm2,xmm0\npsubsw xmm2,xmm1\npaddsw xmm1,xmm0\nmovdqa xmm0,xmm4\npaddsw xmm0,xmm3\npsubsw xmm3,xmm4",
+    "saved": 2,
+    "why": "Use CONST_3 and CONST_5 directly as PMADDWD memory operands. Their original load destinations are overwritten before any required final value depends on the loaded constants."
+  },
+  "060525f83b": {
+    "rewrite": null,
+    "why": "SSSE3 permits only 16-byte vector stores, so the required 128-byte clearing needs all eight stores and the zero-producing instruction."
+  },
+  "fa7721fcf5": {
+    "rewrite": "movdqa xmm7,xmm4\npaddsw xmm7,xmm3\npsubsw xmm4,xmm3\nmovdqa xmm3,xmm5\npsubsw xmm5,xmm2\npaddsw xmm2,xmm3\npmulhrsw xmm4,XMMWORD PTR [CONST_1]\npmulhrsw xmm5,XMMWORD PTR [CONST_1]\npmulhrsw xmm7,XMMWORD PTR [CONST_1]\npmulhrsw xmm2,XMMWORD PTR [CONST_1]\nmovdqa xmm3,xmm7",
+    "saved": 1,
+    "why": "Compute the second saturated sum directly in xmm2 after its original value has been used for the difference. Using memory coefficients for all four multiplies then eliminates the constant load."
+  },
+  "53b569548f": {
+    "rewrite": "pshufb xmm1,XMMWORD PTR [CONST_1]\npshufb xmm2,XMMWORD PTR [CONST_1]\npshufb xmm4,XMMWORD PTR [CONST_1]\npshufb xmm5,XMMWORD PTR [CONST_1]\nmovdqa XMMWORD PTR [rdx+0x40],xmm0\nmovdqa XMMWORD PTR [rdx+0x50],xmm3\nmovdqa xmm7,xmm2\npmaddwd xmm7,XMMWORD PTR [CONST_2]\npmaddwd xmm2,XMMWORD PTR [CONST_3]\npaddd xmm7,xmm6\npaddd xmm2,xmm6\npsrad xmm7,0xc\npsrad xmm2,0xc\npackssdw xmm2,xmm7\nmovdqa xmm7,xmm4\npmaddwd xmm7,XMMWORD PTR [CONST_2]\npmaddwd xmm4,XMMWORD PTR [CONST_3]\npaddd xmm7,xmm6\npaddd xmm4,xmm6\npsrad xmm7,0xc\npsrad xmm4,0xc\npackssdw xmm4,xmm7\nmovdqa xmm7,xmm5\npmaddwd xmm7,XMMWORD PTR [CONST_3]\npmaddwd xmm5,XMMWORD PTR [CONST_2]\npaddd xmm7,xmm6\npaddd xmm5,xmm6\npsrad xmm7,0xc\npsrad xmm5,0xc\npackssdw xmm7,xmm5\nmovdqa xmm5,xmm1\npmaddwd xmm5,XMMWORD PTR [CONST_3]\npmaddwd xmm1,XMMWORD PTR [CONST_2]\npaddd xmm5,xmm6\npaddd xmm1,xmm6\npsrad xmm5,0xc\npsrad xmm1,0xc\npackssdw xmm5,xmm1",
+    "saved": 5,
+    "why": "Fold the shuffle mask and both multiplication constants into memory operands, copying input vectors when a product needs a separate destination. Keeping xmm0 and xmm3 unchanged preserves their required stores and removes both reloads."
+  },
+  "fc4a493b40": {
+    "rewrite": "movdqa xmm6,xmm2\npunpckhqdq xmm6,xmm1\npunpcklqdq xmm2,xmm1\nmovdqa xmm1,xmm2\npsubsw xmm1,xmm6\npaddsw xmm2,xmm6\nmovdqa xmm6,xmm4\npunpckhqdq xmm6,xmm5\npunpcklqdq xmm4,xmm5\nmovdqa xmm5,xmm4\npsubsw xmm5,xmm6\npaddsw xmm4,xmm6\npmulhrsw xmm1,XMMWORD PTR [CONST_1]\npmulhrsw xmm2,XMMWORD PTR [CONST_1]\npmulhrsw xmm5,XMMWORD PTR [CONST_1]\npmulhrsw xmm4,XMMWORD PTR [CONST_1]\nmovdqa xmm7,xmm4\npunpckhqdq xmm7,xmm5\npunpcklqdq xmm4,xmm5\nmovdqa xmm5,xmm2\npunpckhqdq xmm5,xmm1\npunpcklqdq xmm2,xmm1",
+    "saved": 1,
+    "why": "Fold the coefficient into each PMULHRSW memory operand. The original coefficient load into xmm7 is unnecessary because xmm7 is subsequently overwritten with the required result."
+  },
+  "9637ad00be": {
+    "rewrite": null,
+    "why": "The required 256-byte clearing needs sixteen maximum-width SSSE3 stores and an instruction to establish the required zero value in xmm7."
+  }
+}

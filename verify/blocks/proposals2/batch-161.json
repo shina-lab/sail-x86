@@ -1,0 +1,85 @@
+{
+  "200dabc63e": {
+    "rewrite": "vpxorq ymm22,ymm17,YMMWORD PTR [rdi+0x80]\nvpcmpneqd k2,ymm17,YMMWORD PTR [rdi+0xa0]\nvpxorq ymm24,ymm17,YMMWORD PTR [rdi+0xc0]\nvpcmpneqd k4,ymm17,YMMWORD PTR [rdi+0xe0]\nvpminud ymm18,ymm22,YMMWORD PTR [rdi+0x80]\nvpminud ymm20,ymm24,YMMWORD PTR [rdi+0xc0]\nvpminud ymm19{k2}{z},ymm18,YMMWORD PTR [rdi+0xa0]\nvpminud ymm21,ymm20,YMMWORD PTR [rdi+0xe0]\nvpminud ymm21{k4}{z},ymm21,ymm19\nvpcmpeqd k1,ymm21,ymm16\nkmovd ecx,k1\nsub rdi,0xffffffffffffff80\ntest ecx,ecx",
+    "saved": 4,
+    "why": "Fold the four standalone loads into their consumers, rereading only the original addresses. Inequality and unsigned minimum are symmetric, so swapping their operands preserves all vector and mask results, including upper-vector zeroing."
+  },
+  "06bfd48fb9": {
+    "rewrite": "movq xmm1,rsi\npxor xmm2,xmm2\nmov rcx,rdi\npshufd xmm1,xmm1,0x0\nand rcx,0x3f\ncmp rcx,0x30",
+    "saved": 1,
+    "why": "A single PSHUFD broadcasts the low dword exactly as the two self-unpacks do, while leaving the scalar computation and required flags unchanged."
+  },
+  "35b531462a": {
+    "rewrite": null,
+    "why": "SSE2 needs the load and both comparisons to preserve xmm0 and xmm2, both mask extractions and the OR to produce rax and ZF, and the pointer increment."
+  },
+  "16c5a0f91b": {
+    "rewrite": null,
+    "why": "The aligned load does not eliminate either required comparison, mask extraction, pointer increment, or the OR that produces ZF under SSE2."
+  },
+  "9e8c9be18a": {
+    "rewrite": null,
+    "why": "The loaded vector, both comparison results as used by AND-NOT, final mask vector, and incremented scalar mask require all six AVX2 operations."
+  },
+  "0770cf9c0e": {
+    "rewrite": null,
+    "why": "Preserving ymm0, ymm1, ymm2, rcx, and ZF leaves no removable operation in this load, compare, AND-NOT, and mask-extraction sequence."
+  },
+  "e9b5544d21": {
+    "rewrite": null,
+    "why": "Both vector comparisons and AND-NOT are needed for the required vector outputs, while mask extraction and increment are needed for rcx and ZF."
+  },
+  "a2cdbbd4ca": {
+    "rewrite": null,
+    "why": "The live loaded vector prevents eliminating its load, and AVX2 cannot combine the required comparisons, AND-NOT, mask extraction, and increment into fewer instructions."
+  },
+  "f19d315143": {
+    "rewrite": null,
+    "why": "All four loaded vectors and the intermediate results in ymm1, ymm3, and ymm5 are live, and the remaining minimum reduction, comparison, scalar mask, and ZF require their existing operations."
+  },
+  "b6964b4f9d": {
+    "rewrite": null,
+    "why": "The aligned load must remain to preserve ymm0, and each subsequent operation contributes a required vector result, scalar result, or ZF."
+  },
+  "418852e949": {
+    "rewrite": null,
+    "why": "The indexed load and all five following operations are required to preserve the vector outputs, incremented rcx, and ZF for arbitrary inputs."
+  },
+  "2dd9e46835": {
+    "rewrite": null,
+    "why": "Preserving both loaded vectors and the masked value in ymm5 leaves no redundant operation in the comparison, minimum reduction, mask extraction, and ZF computation."
+  },
+  "7ab3a05f10": {
+    "rewrite": null,
+    "why": "With the index and every vector output preserved, the load, two comparisons, AND-NOT, mask extraction, and increment are all necessary under AVX2."
+  },
+  "e72e83c2b7": {
+    "rewrite": "mov eax,ecx\nxchg rdi,rsi\nmov r8d,0xfffffffc\nxor edx,edx\nsub eax,0x60",
+    "saved": 2,
+    "why": "Replace the three-move swap with one register XCHG because rcx is not live on exit. Keep the final subtraction unchanged to preserve ZF, SF, and OF."
+  },
+  "62a40e8bbb": {
+    "rewrite": null,
+    "why": "The VEX operations must preserve the required vector values and zero upper halves, and the scalar mask extraction plus 16-bit increment are both necessary."
+  },
+  "6cb5218385": {
+    "rewrite": null,
+    "why": "The indexed 128-bit load, comparisons, AND-NOT, mask extraction, and 16-bit increment each contribute required register values or ZF."
+  },
+  "249951abe4": {
+    "rewrite": null,
+    "why": "Both qword loads are needed because folding one into an AVX2 packed comparison would read additional bytes, and the remaining operations preserve the required vector results, rcx, and ZF."
+  },
+  "bd19ff8133": {
+    "rewrite": null,
+    "why": "SETL must preserve the other edx bits before negation, and producing both final edx and its XOR with r8d in eax requires the copy and final flag-setting XOR."
+  },
+  "5a7dcff536": {
+    "rewrite": null,
+    "why": "The loaded vector, nonzero mask, masked equality result, and adjusted scalar mask are all live, so the five instructions each produce a necessary result."
+  },
+  "2bbaf7f575": {
+    "rewrite": null,
+    "why": "Preserving zmm17, k2, k1, rcx, and ZF requires the load, mask test, masked comparison, mask transfer, and subtraction."
+  }
+}

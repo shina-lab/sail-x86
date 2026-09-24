@@ -1,0 +1,83 @@
+{
+  "1eabbb12b1": {
+    "rewrite": null,
+    "why": "The shared key load feeds two XOR paths, and folding it into legacy XORPS memory operands would require an alignment guarantee absent from the block."
+  },
+  "e44564e6e7": {
+    "rewrite": null,
+    "why": "All three loaded values, both XOR results, and the updated pointer must be preserved, requiring each instruction."
+  },
+  "23e5478e61": {
+    "rewrite": null,
+    "why": "The AES final round and store are required, and each of the six preserved vector registers needs its own zeroing instruction at this ISA level."
+  },
+  "cc1a698779": {
+    "rewrite": null,
+    "why": "The AES result, decremented counter and flags, loaded key, and advanced pointer are independent required outputs."
+  },
+  "34c1a2b568": {
+    "rewrite": null,
+    "why": "Producing and storing the AES result requires the round, XOR, and store, while four distinct preserved registers must also be cleared."
+  },
+  "6277ef5f65": {
+    "rewrite": null,
+    "why": "Both loaded registers remain live, and all five XOR results, five stores, and comparison flags are required."
+  },
+  "ea2c2058d0": {
+    "rewrite": null,
+    "why": "All three AES results and the loaded plaintext register remain live, alongside the required XOR, store, and comparison flags."
+  },
+  "167c3f2559": {
+    "rewrite": null,
+    "why": "Each of the five XOR results and stores is required, as are the separate tweak-register copy and output-pointer advance."
+  },
+  "8ba3b36da3": {
+    "rewrite": null,
+    "why": "Both loaded keys and both advanced pointers remain live, and forming the output from plaintext and two independent XOR operands requires the remaining instructions."
+  },
+  "4bf8ecae68": {
+    "rewrite": null,
+    "why": "The AES final round, tweak XOR, preserved tweak copy, store, and pointer advance each supply a required effect."
+  },
+  "e8413bec1a": {
+    "rewrite": null,
+    "why": "Both XOR results and stores, the tweak-register copy, and the pointer advance are required and cannot be combined by the allowed instructions."
+  },
+  "f8aafdd3f7": {
+    "rewrite": null,
+    "why": "All three XOR results and stores remain required, together with the tweak-register copy and pointer advance."
+  },
+  "4560608405": {
+    "rewrite": null,
+    "why": "All four XOR results and stores remain required, together with the tweak-register copy and pointer advance."
+  },
+  "5d952dd8c5": {
+    "rewrite": "movzx eax,BYTE PTR [rdi]\nlea rdi,[rdi+0x1]\nxchg BYTE PTR [rsi-0x10],al\nmov BYTE PTR [rsi],al\nlea rsi,[rsi+0x1]\nsub rdx,0x1",
+    "saved": 1,
+    "why": "XCHG combines reading the old byte at [rsi-0x10] with storing the input byte there, leaving the old byte in AL for the second store. RAX and RCX are not preserved, and the pointer updates and final subtraction retain the required registers and ZF."
+  },
+  "749c99ebfc": {
+    "rewrite": null,
+    "why": "The five XORs and stores remain required, and producing both preserved sign-mask registers still needs three SSE2 instructions in addition to the pointer and scalar-mask updates."
+  },
+  "2cb9daddfa": {
+    "rewrite": null,
+    "why": "The original and doubled tweak must occupy separate preserved registers, while the independent mask and XOR require two more instructions."
+  },
+  "40aebbf2c4": {
+    "rewrite": null,
+    "why": "The AES final round, tweak XOR, two preserved tweak copies, store, and pointer advance each remain necessary."
+  },
+  "8a4e523cf3": {
+    "rewrite": null,
+    "why": "The two XOR results, two tweak-register copies, two stores, and pointer advance are all required independent effects."
+  },
+  "679a744745": {
+    "rewrite": null,
+    "why": "The three XOR results, two tweak-register copies, three stores, and pointer advance all remain required."
+  },
+  "c90437b7e8": {
+    "rewrite": null,
+    "why": "The four XOR results, two tweak-register copies, four stores, and pointer advance all remain required."
+  }
+}

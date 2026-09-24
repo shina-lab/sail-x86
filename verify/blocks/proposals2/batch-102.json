@@ -1,0 +1,84 @@
+{
+  "57f47aff2d": {
+    "rewrite": null,
+    "why": "The pointer loads, seven scalar subtractions, and scale-vector load all produce required final values, with no shorter SSE2 sequence identified."
+  },
+  "cc7b9e37f7": {
+    "rewrite": null,
+    "why": "Each subtraction produces a distinct required scalar result, and the scale-vector load is also required."
+  },
+  "dd7a4dba2d": {
+    "rewrite": null,
+    "why": "The pointer loads, seven scalar subtractions, and scale-vector load all produce required final values, with no shorter SSE2 sequence identified."
+  },
+  "794a4162df": {
+    "rewrite": null,
+    "why": "Each subtraction produces a distinct required scalar result, and the scale-vector load is also required."
+  },
+  "ec07e3eeba": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask and required final values of xmm0, xmm1, and xmm2 leave no removable load, shuffle, copy, or unpack, and the stores and flag-setting increment are required."
+  },
+  "702e798050": {
+    "rewrite": null,
+    "why": "The three address calculations, index negation, and shuffle-mask load each produce a distinct required final value."
+  },
+  "79897e0380": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask and required final values of xmm0, xmm1, and xmm2 leave no removable load, shuffle, copy, or unpack, and the stores and flag-setting increment are required."
+  },
+  "48483d401e": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi+rdx*4]\nmovdqu xmm1,XMMWORD PTR [rsi+rdx*4+0x10]\npshufb xmm0,xmm6\npshufb xmm1,xmm6\npxor xmm2,xmm2\npunpckhwd xmm2,xmm0\npxor xmm3,xmm3\npunpckhwd xmm3,xmm1\npxor xmm4,xmm4\npunpcklwd xmm4,xmm0\npunpcklqdq xmm0,xmm1\npunpcklwd xmm1,xmm1\npslld xmm1,0x10\nmovdqu XMMWORD PTR [rdi+rdx*4],xmm4\nmovdqu XMMWORD PTR [rcx+rdx*4],xmm2\nmovdqu XMMWORD PTR [rdi+rdx*4+0x10],xmm1\nmovdqu XMMWORD PTR [rcx+rdx*4+0x10],xmm3\nadd rdx,0x8",
+    "saved": 2,
+    "why": "Widen the high halves directly from the two shuffled inputs, eliminating the copy and high-qword merge. Self-unpacking and shifting xmm1 produces its required widened low half while preserving xmm0 and all stores and flags."
+  },
+  "4946ebc68a": {
+    "rewrite": null,
+    "why": "The three address calculations, index negation, and shuffle-mask load each produce a distinct required final value."
+  },
+  "1a43b1eb3a": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+rdx*4]\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*4+0x10]\npshufb xmm0,xmm6\npshufb xmm1,xmm6\npxor xmm2,xmm2\npunpckhwd xmm2,xmm0\npxor xmm3,xmm3\npunpckhwd xmm3,xmm1\npxor xmm4,xmm4\npunpcklwd xmm4,xmm0\npunpcklqdq xmm0,xmm1\npunpcklwd xmm1,xmm1\npslld xmm1,0x10\nmovdqa XMMWORD PTR [rdi+rdx*4],xmm4\nmovdqa XMMWORD PTR [rcx+rdx*4],xmm2\nmovdqa XMMWORD PTR [rdi+rdx*4+0x10],xmm1\nmovdqa XMMWORD PTR [rcx+rdx*4+0x10],xmm3\nadd rdx,0x8",
+    "saved": 2,
+    "why": "Widen the high halves directly from the two shuffled inputs, eliminating the copy and high-qword merge. Self-unpacking and shifting xmm1 produces its required widened low half while preserving xmm0 and all stores and flags."
+  },
+  "b31298ed93": {
+    "rewrite": null,
+    "why": "The three address calculations, index negation, and two constant loads each produce a distinct required final value."
+  },
+  "9baeb8d920": {
+    "rewrite": null,
+    "why": "The saved zero-extended count, loaded pointers, and five scalar differences are all required, with no instruction-count reduction identified under AVX."
+  },
+  "e22dd73e59": {
+    "rewrite": null,
+    "why": "The five subtractions each produce a distinct required scalar result in one instruction."
+  },
+  "a0c9af79f0": {
+    "rewrite": null,
+    "why": "The saved count, pointer setup, and scale-vector load all produce required values, including the zeroed upper half of ymm7."
+  },
+  "7467fc5e07": {
+    "rewrite": null,
+    "why": "The five scalar subtractions and VEX constant load each directly produce a required final value."
+  },
+  "9c33817e86": {
+    "rewrite": null,
+    "why": "The saved count, pointer setup, and scale-vector load all produce required values, including the zeroed upper half of ymm7."
+  },
+  "29d2e8b558": {
+    "rewrite": null,
+    "why": "The five scalar subtractions and VEX constant load each directly produce a required final value."
+  },
+  "3d192a7d89": {
+    "rewrite": null,
+    "why": "All loaded pointers and seven scalar differences are required, and packing and extracting these scalar results does not provide a shorter AVX sequence."
+  },
+  "ea678ae553": {
+    "rewrite": null,
+    "why": "The seven subtractions each produce a distinct required scalar result in one instruction."
+  },
+  "378c59bf76": {
+    "rewrite": null,
+    "why": "The pointer loads, seven scalar differences, and VEX scale-vector load all produce required final values, with no shorter AVX sequence identified."
+  }
+}

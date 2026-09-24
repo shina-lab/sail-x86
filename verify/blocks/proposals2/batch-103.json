@@ -1,0 +1,87 @@
+{
+  "aa2a3adeea": {
+    "rewrite": null,
+    "why": "All seven independent subtractions and the constant load produce required final register values."
+  },
+  "8e8fe8f060": {
+    "rewrite": null,
+    "why": "The pointer loads, seven differences, and constant load are all required, and packing the differences would add extraction instructions."
+  },
+  "5f8daed809": {
+    "rewrite": null,
+    "why": "All seven independent subtractions and the constant load produce required final register values."
+  },
+  "e15e6028c1": {
+    "rewrite": null,
+    "why": "Each instruction directly computes a distinct required output: two adjusted pointers, the negated index, and the vector constant."
+  },
+  "cf3e65b22d": {
+    "rewrite": null,
+    "why": "Each instruction directly computes a distinct required output: two adjusted pointers, the negated index, and the vector constant."
+  },
+  "9c5966ee95": {
+    "rewrite": null,
+    "why": "SSE2 requires separate scalar loads and broadcasts, and the EAX shift must truncate to 32 bits before the pointer additions and 64-bit negation."
+  },
+  "dd37abe3b7": {
+    "rewrite": "movss xmm2,DWORD PTR [rdx+rcx*4]\nshufps xmm2,xmm2,0x0\nlea rsi,[rsi+r8*4]\nlea rdi,[rdi+r8*4]\nimul r8,r8,0xfffffffffffffffc",
+    "saved": 1,
+    "why": "Scaled LEAs compute the adjusted pointers from the original R8, while multiplication by -4 combines its shift and negation; flags are unrestricted."
+  },
+  "cc6d74b88a": {
+    "rewrite": null,
+    "why": "The broadcasts are already single instructions, and the EAX shift must truncate to 32 bits before the pointer additions and 64-bit negation."
+  },
+  "96b24458a5": {
+    "rewrite": "vbroadcastss ymm2,DWORD PTR [rdx+rcx*4]\nlea rsi,[rsi+r8*4]\nlea rdi,[rdi+r8*4]\nimul r8,r8,0xfffffffffffffffc",
+    "saved": 1,
+    "why": "Scaled LEAs compute the adjusted pointers from the original R8, while multiplication by -4 combines its shift and negation; flags are unrestricted."
+  },
+  "aa560c421b": {
+    "rewrite": null,
+    "why": "The load, multiply-add, accumulation, and index update are all necessary, with no fused SSE2 instruction to combine them."
+  },
+  "acfd5ca348": {
+    "rewrite": null,
+    "why": "The SSE2 reduction must preserve both complete vector results, and the scalar updates, store, and final comparison remain necessary."
+  },
+  "13bcf79421": {
+    "rewrite": null,
+    "why": "Both independent dot-product accumulations require the existing loads, multiply-adds, and additions under SSE2, followed by the index update."
+  },
+  "ed133be58d": {
+    "rewrite": "movdqa xmm8,XMMWORD PTR [r9+0x60]\nmovdqa xmm9,XMMWORD PTR [r9+0x70]\nmovsxd r8,r8d\nlea rdi,[rdi+r8*2]\nimul r8,r8,0xfffffffffffffffe\npxor xmm7,xmm7\nmovdqa xmm4,XMMWORD PTR [CONST_1]",
+    "saved": 1,
+    "why": "After retaining the sign extension, a scaled LEA updates RDI and multiplication by -2 combines the doubling and negation of R8."
+  },
+  "c123455948": {
+    "rewrite": null,
+    "why": "The SSE2 gathers, unpacking, and arithmetic preserve live vector intermediates, and the arbitrary coefficients prevent a narrower multiply substitution."
+  },
+  "3f177ead82": {
+    "rewrite": null,
+    "why": "The two coefficient sets require separate SSE2 products and copies, and all resulting vector registers must retain their final values."
+  },
+  "c378dda329": {
+    "rewrite": "movdqa xmm8,XMMWORD PTR [r9+0x60]\nmovdqa xmm9,XMMWORD PTR [r9+0x70]\nmovdqa xmm7,XMMWORD PTR [CONST_1]\nmovdqa xmm10,XMMWORD PTR [CONST_2]\nmovsxd r8,r8d\nlea rdi,[rdi+r8*2]\nimul r8,r8,0xfffffffffffffffe\nmovdqa xmm4,XMMWORD PTR [CONST_3]",
+    "saved": 1,
+    "why": "After retaining the sign extension, a scaled LEA updates RDI and multiplication by -2 combines the doubling and negation of R8."
+  },
+  "5ae73f0da9": {
+    "rewrite": null,
+    "why": "The shuffle masks and coefficients are arbitrary inputs, so the copies, shuffles, and arithmetic remain necessary to preserve every vector result."
+  },
+  "2075f21214": {
+    "rewrite": null,
+    "why": "Both conversions use arbitrary masks and coefficients, and their shared inputs require the existing copies under SSSE3."
+  },
+  "7cd709cf58": {
+    "rewrite": "vmovdqa xmm8,XMMWORD PTR [r9+0x60]\nvmovdqa xmm9,XMMWORD PTR [r9+0x70]\nvmovdqa xmm7,XMMWORD PTR [CONST_1]\nvmovdqa xmm10,XMMWORD PTR [CONST_2]\nmovsxd r8,r8d\nlea rdi,[rdi+r8*2]\nimul r8,r8,0xfffffffffffffffe\nvmovdqa xmm4,XMMWORD PTR [CONST_3]",
+    "saved": 1,
+    "why": "A scaled LEA and multiplication by -2 replace three scalar operations after sign extension, while the unchanged VEX loads preserve the required upper-half zeroing."
+  },
+  "dd5faf229b": {
+    "rewrite": null,
+    "why": "The block already uses three-operand VEX instructions, and arbitrary shuffle masks and coefficients prevent further folding within AVX."
+  }
+}

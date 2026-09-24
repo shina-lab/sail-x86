@@ -1,0 +1,85 @@
+{
+  "e02581ca8d": {
+    "rewrite": null,
+    "why": "The destructive PALIGNR operations need the copied sources, and both shuffles, all four stores, and the pointer and counter updates contribute to required outputs."
+  },
+  "cbaca0cf02": {
+    "rewrite": null,
+    "why": "The VEX forms already eliminate alignment copies, and every remaining shuffle, store, and scalar update is required."
+  },
+  "37e91ec735": {
+    "rewrite": null,
+    "why": "Four independently addressed 256-bit stores and the live pointer and counter updates leave no removable instruction."
+  },
+  "2550c45055": {
+    "rewrite": null,
+    "why": "The two separate SAD outputs need a zero operand, and the constant-loaded vector is also live."
+  },
+  "14b73c3968": {
+    "rewrite": null,
+    "why": "The four arbitrary shuffle masks require separate row computations and stores, and the broadcast and loop updates are necessary."
+  },
+  "1a05373ad9": {
+    "rewrite": "vpbroadcastb ymm0,BYTE PTR [rcx-0x1]\nvmovdqa ymm7,YMMWORD PTR [rcx]\nvpbroadcastd ymm4,DWORD PTR [CONST_1]\nvpbroadcastd ymm5,DWORD PTR [CONST_2]\nvpunpcklbw ymm6,ymm7,ymm0\nvpunpckhbw ymm7,ymm7,ymm0\nvpmaddubsw ymm6,ymm6,ymm4\nvpmaddubsw ymm7,ymm7,ymm4\nmov ecx,0xf",
+    "saved": 2,
+    "why": "Broadcasting the reference byte and interleaving it with each source byte lets vpmaddubsw apply the signed weights [1,-1] directly. Each difference lies in [-255,255], so saturation cannot change the result, eliminating the zero vector and masking shuffle."
+  },
+  "961c354118": {
+    "rewrite": null,
+    "why": "With arbitrary incoming masks and word vectors, the four additions and two saturation packs are all needed for the stored results."
+  },
+  "756f41525d": {
+    "rewrite": null,
+    "why": "The two store shuffles, two live alignment updates, four stores, and scalar updates are already expressed with one instruction each."
+  },
+  "8d4424cd05": {
+    "rewrite": null,
+    "why": "Both shuffles feed stores, both alignments and the byte shift update live vectors, and all stores and scalar updates are required."
+  },
+  "846ed539eb": {
+    "rewrite": null,
+    "why": "Each of the four stores captures a required value before its live vector update, and the pointer and counter updates are also required."
+  },
+  "15b5b819bc": {
+    "rewrite": null,
+    "why": "The two store shuffles, four stores, four live vector updates, and two scalar updates contain no redundant instruction."
+  },
+  "7cd8f81319": {
+    "rewrite": null,
+    "why": "The two store shuffles, four stores, four live vector updates, and two scalar updates contain no redundant instruction."
+  },
+  "d722d7ae36": {
+    "rewrite": null,
+    "why": "SSE2 requires eight 128-bit stores for these rows, followed by the required pointer and counter updates."
+  },
+  "3de03121fb": {
+    "rewrite": null,
+    "why": "The qword load and shared word unpack enable all four broadcasts, and SSE2 cannot combine the eight required stores."
+  },
+  "00697325ec": {
+    "rewrite": null,
+    "why": "The shared load and unpack and four broadcasts are needed for arbitrary input words, while SSE2 requires all sixteen stores."
+  },
+  "3c7688f2a8": {
+    "rewrite": null,
+    "why": "The eight required stores already use SSE2's widest vectors, and both scalar updates are live."
+  },
+  "d0cb0468d3": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rcx]\npaddw xmm0,XMMWORD PTR [rcx+0x10]\npaddw xmm0,XMMWORD PTR [rcx+0x20]\npaddw xmm0,XMMWORD PTR [rcx+0x30]\nmov edx,0x10\npmaddwd xmm0,XMMWORD PTR [CONST_1]\npshufd xmm1,xmm0,0x4e\npaddd xmm0,xmm1\npshufd xmm1,xmm0,0xb1\npaddd xmm0,xmm1\npaddd xmm0,XMMWORD PTR [CONST_2]\npsrad xmm0,0x5\npackssdw xmm0,xmm0",
+    "saved": 1,
+    "why": "Pair-swapping shuffles make every dword contain the same horizontal sum. After rounding and shifting, the total is in [-8192,8192], so one packssdw replaces the final two-instruction word broadcast."
+  },
+  "b67d6207ce": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx]\npaddw xmm0,XMMWORD PTR [rdx+0x10]\npaddw xmm0,XMMWORD PTR [rdx+0x20]\npaddw xmm0,XMMWORD PTR [rdx+0x30]\nmov edx,0x10\npmaddwd xmm0,XMMWORD PTR [CONST_1]\npshufd xmm1,xmm0,0x4e\npaddd xmm0,xmm1\npshufd xmm1,xmm0,0xb1\npaddd xmm0,xmm1\npaddd xmm0,XMMWORD PTR [CONST_2]\npsrad xmm0,0x5\npackssdw xmm0,xmm0",
+    "saved": 1,
+    "why": "Pair-swapping shuffles make every dword contain the same horizontal sum. After rounding and shifting, the total is in [-8192,8192], so one packssdw replaces the final two-instruction word broadcast."
+  },
+  "9ed2ecda11": {
+    "rewrite": null,
+    "why": "The shared broadcast preparation is already compact, and arbitrary addends and clamp bounds require every addition, signed clamp, and store."
+  },
+  "65e5c5a85e": {
+    "rewrite": null,
+    "why": "The selected reference word needs the load, word shuffle, and qword duplication under SSE2, while both subtractions and all other outputs remain live."
+  }
+}

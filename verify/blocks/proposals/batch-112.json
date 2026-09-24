@@ -1,0 +1,85 @@
+{
+  "ecebfd573c": {
+    "rewrite": null,
+    "why": "The scalar packing, both XOR updates, the preserved xmm10 shift, and both addition/shift/extraction paths are live and have no evident shorter AVX equivalent."
+  },
+  "37e2316b4b": {
+    "rewrite": null,
+    "why": "Both subtraction/shift results feed required scalar outputs, while the scalar packing, XOR updates, and xmm10 shift are also required."
+  },
+  "5adc3455ec": {
+    "rewrite": null,
+    "why": "Both vector updates and XOR/shift/extraction paths are live, and unconstrained shift counts prevent replacing the shift/OR sequences with rotates."
+  },
+  "d1f87ab9ec": {
+    "rewrite": "xor r8d,DWORD PTR [rdi+rsi*4]\nshl r8,0x20\nor r10,r8\nvmovq xmm15,r9\nvpinsrq xmm15,xmm15,r10,0x1\nvpxor xmm1,xmm8,xmm1\nvpxor xmm5,xmm15,xmm5\nvbroadcastss xmm9,DWORD PTR [r15+0xb0]\nvpand xmm11,xmm10,xmm14\nvpsubq xmm12,xmm13,xmm11\nvpaddd xmm8,xmm9,xmm3\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rdx,xmm8\nvpextrq rcx,xmm8,0x1\nvpaddd xmm8,xmm9,xmm7\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rax,xmm8\nvpextrq rbx,xmm8,0x1\nmovzx edi,dh",
+    "saved": 1,
+    "why": "Remove the byte shift of xmm10 because its result is unused and ymm10 is not required at exit; the shift counts already reside in xmm11 and xmm12."
+  },
+  "04708eb83c": {
+    "rewrite": "vpunpckldq xmm15,xmm0,xmm1\nvpunpckldq xmm8,xmm2,xmm3\nvpunpcklqdq xmm0,xmm15,xmm8\nvpshufb xmm0,xmm0,XMMWORD PTR [CONST_1]",
+    "saved": 21,
+    "why": "Only ymm0 is a required vector output, so retain just its three unpack operations and byte shuffle, folding the constant load into the shuffle. VEX encoding preserves the required zero upper half of ymm0."
+  },
+  "804c5dd844": {
+    "rewrite": null,
+    "why": "The XOR updates remain required independently of the subsequent XOR/shift outputs, and the live xmm10 shift and arbitrary counts leave no evident AVX reduction."
+  },
+  "f5f066ae42": {
+    "rewrite": null,
+    "why": "Both subtraction/shift results feed required scalar outputs, while the scalar packing, XOR updates, and xmm10 shift are also required."
+  },
+  "ea74a61513": {
+    "rewrite": null,
+    "why": "The scalar packing, both XOR updates, the preserved xmm10 shift, and both addition/shift/extraction paths are live and have no evident shorter AVX equivalent."
+  },
+  "1e272e8132": {
+    "rewrite": null,
+    "why": "The scalar packing, both XOR updates, the preserved xmm10 shift, and both addition/shift/extraction paths are live and have no evident shorter AVX equivalent."
+  },
+  "c15aef2c94": {
+    "rewrite": null,
+    "why": "The XOR updates remain required independently of the subsequent XOR/shift outputs, and the live xmm10 shift and arbitrary counts leave no evident AVX reduction."
+  },
+  "3f8465e50e": {
+    "rewrite": null,
+    "why": "Both subtraction/shift results feed required scalar outputs, while the scalar packing, XOR updates, and xmm10 shift are also required."
+  },
+  "45e0c46c96": {
+    "rewrite": null,
+    "why": "The scalar packing, both XOR updates, the preserved xmm10 shift, and both addition/shift/extraction paths are live and have no evident shorter AVX equivalent."
+  },
+  "8df0aa7447": {
+    "rewrite": null,
+    "why": "The scalar packing, both XOR updates, the preserved xmm10 shift, and both addition/shift/extraction paths are live and have no evident shorter AVX equivalent."
+  },
+  "98de3d7501": {
+    "rewrite": null,
+    "why": "The XOR updates remain required independently of the subsequent XOR/shift outputs, and the live xmm10 shift and arbitrary counts leave no evident AVX reduction."
+  },
+  "671c61d069": {
+    "rewrite": null,
+    "why": "Both subtraction/shift results feed required scalar outputs, while the scalar packing, XOR updates, and xmm10 shift are also required."
+  },
+  "99a2f265ff": {
+    "rewrite": null,
+    "why": "The scalar packing, both XOR updates, the preserved xmm10 shift, and both addition/shift/extraction paths are live and have no evident shorter AVX equivalent."
+  },
+  "ca387b0213": {
+    "rewrite": null,
+    "why": "The scalar packing, both XOR updates, the preserved xmm10 shift, and both addition/shift/extraction paths are live and have no evident shorter AVX equivalent."
+  },
+  "5092df48c1": {
+    "rewrite": null,
+    "why": "The XOR updates remain required independently of the subsequent XOR/shift outputs, and the live xmm10 shift and arbitrary counts leave no evident AVX reduction."
+  },
+  "72bb77c2e5": {
+    "rewrite": null,
+    "why": "Both subtraction/shift results feed required scalar outputs, while the scalar packing, XOR updates, and xmm10 shift are also required."
+  },
+  "43ac20ad68": {
+    "rewrite": "sub r8d,DWORD PTR [rdi+rsi*4]\nshl r8,0x20\nor r10,r8\nvmovq xmm15,r9\nvpinsrq xmm15,xmm15,r10,0x1\nvpxor xmm0,xmm8,xmm0\nvpxor xmm4,xmm15,xmm4\nvbroadcastss xmm9,DWORD PTR [r15+0x8c]\nvpand xmm11,xmm10,xmm14\nvpsubq xmm12,xmm13,xmm11\nvpaddd xmm8,xmm9,xmm0\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rdx,xmm8\nvpextrq rcx,xmm8,0x1\nvpaddd xmm8,xmm9,xmm4\nvpslld xmm15,xmm8,xmm11\nvpsrld xmm8,xmm8,xmm12\nvpor xmm8,xmm8,xmm15\nvmovq rax,xmm8\nvpextrq rbx,xmm8,0x1\nmovzx edi,dh",
+    "saved": 1,
+    "why": "Remove the byte shift of xmm10 because its result is unused and ymm10 is not required at exit; the shift counts already reside in xmm11 and xmm12."
+  }
+}

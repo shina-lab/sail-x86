@@ -1,0 +1,87 @@
+{
+  "a9eb3563d7": {
+    "rewrite": null,
+    "why": "The signed 18-bit clamps, lane rearrangements, broadcasts, and preserved unpack intermediates leave no instruction-count reduction."
+  },
+  "3af4c59af8": {
+    "rewrite": null,
+    "why": "All four sums and differences are required, and the two shuffled outputs each need a separate permutation."
+  },
+  "40a8f412b0": {
+    "rewrite": null,
+    "why": "Each rounded dword result requires the initial arithmetic shift, bias addition, and final shift to handle arbitrary signed inputs without overflow."
+  },
+  "37656f6575": {
+    "rewrite": null,
+    "why": "Each arbitrary dword vector requires both bounds of the signed 18-bit clamp, and both broadcast registers must also be preserved."
+  },
+  "42cb9a15e2": {
+    "rewrite": null,
+    "why": "The dword shuffles, interleaves, and lane combinations are required to produce all six preserved rearranged vectors."
+  },
+  "42ebaaa237": {
+    "rewrite": null,
+    "why": "Each of the four required output vectors already takes one arithmetic-shift instruction."
+  },
+  "d5c502ae83": {
+    "rewrite": null,
+    "why": "Both qword shuffles, both sign operations, and both dword permutations contribute to preserved register values."
+  },
+  "b13908c7bd": {
+    "rewrite": null,
+    "why": "The multiply, rounding arithmetic, broadcast, store, and ECX update are all required, including the final shift flags."
+  },
+  "1ae3129225": {
+    "rewrite": null,
+    "why": "Each of the four required products already uses a single multiply with a folded memory operand."
+  },
+  "6e51fcebfa": {
+    "rewrite": null,
+    "why": "All eight preserved output vectors require their own arithmetic-shift instruction."
+  },
+  "2f65b80b2c": {
+    "rewrite": null,
+    "why": "Each of the four required vectors already uses one signed saturating pack instruction."
+  },
+  "b197bc53b9": {
+    "rewrite": null,
+    "why": "The word transpose needs both unpack stages, and each separately preserved upper-lane copy needs its extraction."
+  },
+  "f8a0fe0a1d": {
+    "rewrite": null,
+    "why": "The four assembled vectors and two broadcast constants already require one instruction per destination."
+  },
+  "73086d08bc": {
+    "rewrite": "vpbroadcastd ymm4,DWORD PTR [CONST_1]\nvpmulld ymm0,ymm3,ymm4",
+    "saved": 22,
+    "why": "Only YMM0 is a required vector result, and its final value is the initial YMM3 multiplied by 3784 modulo 2^32 in each lane. All other calculations and constant loads are dead."
+  },
+  "93027ae96e": {
+    "rewrite": "vpaddd ymm0,ymm10,ymm0\nvpaddd ymm0,ymm0,ymm2\nvpsrad ymm0,ymm0,0xb\nvpaddd ymm0,ymm0,ymm3",
+    "saved": 14,
+    "why": "Only YMM0 is a required vector result, so retain its two initial wrapping additions, arithmetic shift, and final addition. All other outputs are dead."
+  },
+  "f48fac375f": {
+    "rewrite": "vmovq xmm4,QWORD PTR [rdi]\nvmovhps xmm4,xmm4,QWORD PTR [rdi+rsi*1]\nvmovq xmm5,QWORD PTR [rdi+rax*1]\nvmovhps xmm5,xmm5,QWORD PTR [rdi+rsi*2]\nvmovdqa YMMWORD PTR [rdx],ymm7\nvmovdqa YMMWORD PTR [rdx+0x20],ymm7\nadd rdx,0x40\nvinserti128 ymm4,ymm4,xmm5,0x1\nvpaddw ymm4,ymm4,ymm0\nvpmaxsw ymm4,ymm4,ymm7\nvpminsw ymm4,ymm8,ymm4\nvextracti128 xmm5,ymm4,0x1\nvmovq QWORD PTR [rdi],xmm4\nvmovhps QWORD PTR [rdi+rsi*1],xmm4\nvmovhps QWORD PTR [rdi+rsi*2],xmm5\nvmovq QWORD PTR [rdi+rax*1],xmm5",
+    "saved": 2,
+    "why": "Assemble the upper lane with two qword loads and one insertion instead of two broadcasts and two blends. The final RDI update is dead, while all stores and the required RDX update are preserved."
+  },
+  "378a823006": {
+    "rewrite": null,
+    "why": "Each of the eight preserved output vectors already takes one arithmetic-shift instruction."
+  },
+  "a246d2be02": {
+    "rewrite": "vmovq xmm4,QWORD PTR [rdi+rax*1]\nvmovhps xmm4,xmm4,QWORD PTR [rdi]\nvmovq xmm5,QWORD PTR [rdi+rsi*2]\nvmovhps xmm5,xmm5,QWORD PTR [rdi+rsi*1]\nvmovdqa YMMWORD PTR [rdx],ymm7\nvmovdqa YMMWORD PTR [rdx+0x20],ymm7\nadd rdx,0x40\nvinserti128 ymm4,ymm4,xmm5,0x1\nvpaddw ymm4,ymm4,ymm0\nvpmaxsw ymm4,ymm4,ymm7\nvpminsw ymm4,ymm8,ymm4\nvextracti128 xmm5,ymm4,0x1\nvmovhps QWORD PTR [rdi],xmm4\nvmovhps QWORD PTR [rdi+rsi*1],xmm5\nvmovq QWORD PTR [rdi+rsi*2],xmm5\nvmovq QWORD PTR [rdi+rax*1],xmm4",
+    "saved": 2,
+    "why": "Assemble the upper lane with two qword loads and one insertion instead of two broadcasts and two blends. The final RDI update is dead, while all stores and the required RDX update are preserved."
+  },
+  "65555bcab5": {
+    "rewrite": null,
+    "why": "The word transpose, subsequent qword selection, and lane assembly are all needed for the six preserved output vectors."
+  },
+  "b54f120542": {
+    "rewrite": "",
+    "saved": 5,
+    "why": "Every destination is dead, no memory is stored, and the constant load may be dropped, so the entire block can be removed."
+  }
+}

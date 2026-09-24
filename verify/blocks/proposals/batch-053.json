@@ -1,0 +1,92 @@
+{
+  "6efd77f4cb": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi+rdx*4]\nmovdqu xmm1,XMMWORD PTR [rsi+rdx*4+0x10]\nmovdqa xmm2,xmm0\nmovdqa xmm3,xmm1\npsrld xmm2,0x10\npslld xmm2,0x10\npsrld xmm3,0x10\npslld xmm3,0x10\npslld xmm0,0x10\npslld xmm1,0x10\nmovdqa xmm4,xmm0\nmovdqu XMMWORD PTR [rdi+rdx*4],xmm4\nmovdqu XMMWORD PTR [rcx+rdx*4],xmm2\nmovdqu XMMWORD PTR [rdi+rdx*4+0x10],xmm1\nmovdqu XMMWORD PTR [rcx+rdx*4+0x10],xmm3\npsrad xmm0,0x10\npsrad xmm1,0x10\npackssdw xmm0,xmm1\nadd rdx,0x8",
+    "saved": 5,
+    "why": "Dword shifts directly form both channels with zero low words. Arithmetic shifts and packing reconstruct the required xmm0 value, while xmm3, xmm4, stores and final flags match."
+  },
+  "56ed0f204c": {
+    "rewrite": "lea rsi,[rsi+rdx*4]\nlea rdi,[rdi+rdx*4]\nlea rcx,[rcx+rdx*4]\nneg rdx",
+    "saved": 1,
+    "why": "The constant load writes only xmm6, whose final value is not required."
+  },
+  "45da155d85": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+rdx*4]\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*4+0x10]\npcmpeqd xmm3,xmm3\npslld xmm3,0x10\nmovdqa xmm2,xmm3\npand xmm2,XMMWORD PTR [rsi+rdx*4]\npand xmm3,XMMWORD PTR [rsi+rdx*4+0x10]\npslld xmm0,0x10\npslld xmm1,0x10\nmovdqa xmm4,xmm0\nmovdqa XMMWORD PTR [rdi+rdx*4],xmm4\nmovdqa XMMWORD PTR [rcx+rdx*4],xmm2\nmovdqa XMMWORD PTR [rdi+rdx*4+0x10],xmm1\nmovdqa XMMWORD PTR [rcx+rdx*4+0x10],xmm3\npsrad xmm0,0x10\npsrad xmm1,0x10\npackssdw xmm0,xmm1\nadd rdx,0x8",
+    "saved": 6,
+    "why": "Shifts produce the left-channel dwords, and a shared high-word mask extracts the right channel from the original aligned addresses. Packing sign-extended left samples reconstructs xmm0 without changing the required stores, xmm3, xmm4 or final flags."
+  },
+  "0ae84a8d6a": {
+    "rewrite": null,
+    "why": "The unaligned loads, channel shuffles, arithmetic shifts and signed packing have no shorter SSE2 replacement identified."
+  },
+  "5dbae6c364": {
+    "rewrite": "lea rsi,[rsi+rdx*8]\nlea rdi,[rdi+rdx*2]\nlea rcx,[rcx+rdx*2]\nneg rdx",
+    "saved": 1,
+    "why": "The constant load into xmm6 is dead under the required final-register set."
+  },
+  "72a92931a8": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+rdx*8]\nmovdqa xmm1,xmm0\nshufps xmm0,XMMWORD PTR [rsi+rdx*8+0x10],0x88\nshufps xmm1,XMMWORD PTR [rsi+rdx*8+0x10],0xdd\nmovdqa xmm2,XMMWORD PTR [rsi+rdx*8+0x20]\nmovdqa xmm3,xmm2\nshufps xmm2,XMMWORD PTR [rsi+rdx*8+0x30],0x88\nshufps xmm3,XMMWORD PTR [rsi+rdx*8+0x30],0xdd\npsrad xmm0,0x10\npsrad xmm2,0x10\npsrad xmm1,0x10\npsrad xmm3,0x10\npackssdw xmm0,xmm2\npackssdw xmm1,xmm3\nmovdqa XMMWORD PTR [rdi+rdx*2],xmm0\nmovdqa XMMWORD PTR [rcx+rdx*2],xmm1\nadd rdx,0x8",
+    "saved": 2,
+    "why": "Fold the second and fourth aligned input loads into both corresponding SHUFPS instructions, eliminating two standalone loads."
+  },
+  "ddba5f0910": {
+    "rewrite": null,
+    "why": "Both pointer updates, the index negation and the constant load each produce a required final register value."
+  },
+  "142fc4a132": {
+    "rewrite": null,
+    "why": "The two pointer updates, index negation and required xmm5 constant already use one instruction per result."
+  },
+  "5e422b4bc6": {
+    "rewrite": null,
+    "why": "All four instructions independently produce required pointer, index or xmm5 values."
+  },
+  "1b69957f04": {
+    "rewrite": null,
+    "why": "All three pointer updates, the index negation and the xmm4 constant load are required and cannot be combined under SSE2."
+  },
+  "56aba11f40": {
+    "rewrite": null,
+    "why": "Each instruction produces a required final value, with no redundant pointer update or constant load."
+  },
+  "abcc27ef3d": {
+    "rewrite": null,
+    "why": "The three pointer updates, index negation and required xmm5 load already take one instruction per result."
+  },
+  "53d1a8382d": {
+    "rewrite": "lea rsi,[rsi+rdx*8]\nlea rdi,[rdi+rdx*4]\nlea rcx,[rcx+rdx*4]\nneg rdx\nmovdqa xmm4,XMMWORD PTR [CONST_1]",
+    "saved": 1,
+    "why": "The CONST_2 load affects only unpreserved xmm6 and can be removed."
+  },
+  "029ecdc417": {
+    "rewrite": "lea rsi,[rsi+rdx*4]\nlea rdi,[rdi+rdx*4]\nlea rcx,[rcx+rdx*4]\nneg rdx\nmovdqa xmm5,XMMWORD PTR [CONST_1]",
+    "saved": 1,
+    "why": "The unused xmm6 shuffle-mask load can be dropped while preserving the required xmm5 constant."
+  },
+  "acee7f484b": {
+    "rewrite": "lea rsi,[rsi+rdx*8]\nlea rdi,[rdi+rdx*2]\nlea rcx,[rcx+rdx*2]\nneg rdx\nmovdqa xmm5,XMMWORD PTR [CONST_1]",
+    "saved": 1,
+    "why": "The final value of xmm6 is unrestricted, making its constant load dead."
+  },
+  "7d186d5fe9": {
+    "rewrite": null,
+    "why": "All five independent differences and the xmm7 constant must be preserved, and each already takes one instruction."
+  },
+  "d8e305be37": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi]\nmovdqa xmm2,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm4,XMMWORD PTR [rsi+r9*1]\nmovaps xmm6,xmm0\nunpcklps xmm6,XMMWORD PTR [rsi+rdx*1]\nunpckhps xmm0,XMMWORD PTR [rsi+rdx*1]\nmovaps xmm1,xmm2\nunpcklps xmm1,XMMWORD PTR [rsi+r8*1]\nunpckhps xmm2,XMMWORD PTR [rsi+r8*1]\nmovaps xmm3,xmm4\nunpcklps xmm3,XMMWORD PTR [rsi+rax*1]\nunpckhps xmm4,XMMWORD PTR [rsi+rax*1]\nmovaps xmm5,xmm3\nshufps xmm3,xmm6,0xe4\nmovlhps xmm6,xmm1\nmovhlps xmm5,xmm1\nmovaps xmm1,xmm4\nshufps xmm4,xmm0,0xe4\nmovlhps xmm0,xmm2\nmovhlps xmm1,xmm2\nmulps xmm6,xmm7\nmulps xmm3,xmm7\ncvtps2dq xmm2,xmm6\ncmpnltps xmm6,xmm7\npaddd xmm6,xmm2\ncvtps2dq xmm2,xmm3\ncmpnltps xmm3,xmm7\npaddd xmm3,xmm2\nmulps xmm5,xmm7\nmulps xmm0,xmm7\ncvtps2dq xmm2,xmm5\ncmpnltps xmm5,xmm7\npaddd xmm5,xmm2\ncvtps2dq xmm2,xmm0\ncmpnltps xmm0,xmm7\npaddd xmm0,xmm2\nmulps xmm4,xmm7\nmulps xmm1,xmm7\ncvtps2dq xmm2,xmm4\ncmpnltps xmm4,xmm7\npaddd xmm4,xmm2\ncvtps2dq xmm2,xmm1\ncmpnltps xmm1,xmm7\npaddd xmm1,xmm2\nmovaps XMMWORD PTR [rdi],xmm6\nmovaps XMMWORD PTR [rdi+0x10],xmm3\nmovaps XMMWORD PTR [rdi+0x20],xmm5\nmovaps XMMWORD PTR [rdi+0x30],xmm0\nmovaps XMMWORD PTR [rdi+0x40],xmm4\nmovaps XMMWORD PTR [rdi+0x50],xmm1\nadd rsi,0x10\nadd rdi,0x60\nsub r10d,0x4",
+    "saved": 3,
+    "why": "Fold the three aligned partner-channel loads into their low and high unpack instructions, retaining the same lane ordering and all conversion operations."
+  },
+  "9db445cef0": {
+    "rewrite": null,
+    "why": "All nine loaded pointers are required, and the final TEST supplies required flags without modifying the loaded rdi value."
+  },
+  "d5ec0cc4c7": {
+    "rewrite": null,
+    "why": "Each of the seven subtractions computes an independently required final register value."
+  },
+  "cfcaacb230": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi]\nmovdqa xmm2,XMMWORD PTR [rsi+r8*1]\nmovdqa xmm4,XMMWORD PTR [rsi+rax*1]\nmovdqa xmm6,XMMWORD PTR [rsi+r11*1]\nmovdqa xmm8,xmm0\npunpckldq xmm0,XMMWORD PTR [rsi+rcx*1]\npunpckhdq xmm8,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm1,xmm2\npunpckldq xmm2,XMMWORD PTR [rsi+r9*1]\npunpckhdq xmm1,XMMWORD PTR [rsi+r9*1]\nmovdqa xmm3,xmm4\npunpckldq xmm4,XMMWORD PTR [rsi+r10*1]\npunpckhdq xmm3,XMMWORD PTR [rsi+r10*1]\nmovdqa xmm5,xmm6\npunpckldq xmm6,XMMWORD PTR [rsi+rbx*1]\npunpckhdq xmm5,XMMWORD PTR [rsi+rbx*1]\nmovdqa xmm7,xmm0\npunpcklqdq xmm0,xmm2\npunpckhqdq xmm7,xmm2\nmovdqa xmm2,xmm8\npunpcklqdq xmm8,xmm1\npunpckhqdq xmm2,xmm1\nmovdqa xmm1,xmm4\npunpcklqdq xmm4,xmm6\npunpckhqdq xmm1,xmm6\nmovdqa xmm6,xmm3\npunpcklqdq xmm3,xmm5\npunpckhqdq xmm6,xmm5\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm4\nmovdqa XMMWORD PTR [rdi+0x20],xmm7\nmovdqa XMMWORD PTR [rdi+0x30],xmm1\nmovdqa XMMWORD PTR [rdi+0x40],xmm8\nmovdqa XMMWORD PTR [rdi+0x50],xmm3\nmovdqa XMMWORD PTR [rdi+0x60],xmm2\nmovdqa XMMWORD PTR [rdi+0x70],xmm6\nadd rsi,0x10\nsub rdi,0xffffffffffffff80\nsub edx,0x4",
+    "saved": 4,
+    "why": "Use the original aligned addresses as memory operands of each pair of dword unpacks, removing four standalone loads while preserving the transpose and stores."
+  }
+}

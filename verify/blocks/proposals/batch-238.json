@@ -1,0 +1,88 @@
+{
+  "425dcaf016": {
+    "rewrite": "pshufd xmm0,xmm6,0x80\npxor xmm0,xmm6\npshufd xmm1,xmm7,0xfe\npxor xmm0,xmm1",
+    "saved": 3,
+    "why": "Accumulate directly in xmm0, eliminating the final copy and the dead updates of xmm1 and xmm6."
+  },
+  "7e248e1a5c": {
+    "rewrite": null,
+    "why": "The byte extraction, xmm8 rotation, XOR, and two-stage xmm0 shuffle all produce required results, with no shorter SSSE3 combination available."
+  },
+  "0e45a91f0e": {
+    "rewrite": null,
+    "why": "The arbitrary xmm9 mask requires both distinct index calculations, and each PSHUFB table needs its own destination load."
+  },
+  "75eeebfa4d": {
+    "rewrite": "pshufb xmm3,XMMWORD PTR [r8+r10*1]\nmovdqu XMMWORD PTR [rdx],xmm3",
+    "saved": 3,
+    "why": "Fold the shuffle-mask load into PSHUFB and remove the dead r8 arithmetic."
+  },
+  "11795f79f8": {
+    "rewrite": null,
+    "why": "The calculation, store, and two constant register assignments are all required, including the flags from ADD."
+  },
+  "99f33d3ef8": {
+    "rewrite": null,
+    "why": "All SIMD intermediates and both carry chains are live, and the preserved masks prevent eliminating the separate SSE2 loads and ANDs."
+  },
+  "1210c673f2": {
+    "rewrite": "mov QWORD PTR [rdi],r8\nmov QWORD PTR [rdi+0x8],r9\nmov QWORD PTR [rdi+0x10],r10\nmov QWORD PTR [rdi+0x18],r11\nmov QWORD PTR [rdi+0x20],r12\nmov QWORD PTR [rdi+0x28],r13\nmov QWORD PTR [rdi+0x30],r14\nmov QWORD PTR [rdi+0x38],r15\nmov r8,QWORD PTR [rbp+0x0]\nneg r8\nand r8,rcx\nnot rcx\nmov r9,QWORD PTR [rbp+0x8]\nor r9,rcx\nmov r10,QWORD PTR [rbp+0x10]\nor r10,rcx\nmov r11,QWORD PTR [rbp+0x18]\nor r11,rcx\nmov r12,QWORD PTR [rbp+0x20]\nor r12,rcx\nmov r13,QWORD PTR [rbp+0x28]\nor r13,rcx\nmov r14,QWORD PTR [rbp+0x30]\nor r14,rcx\nor rcx,QWORD PTR [rbp+0x38]\nadd QWORD PTR [rdi],r8\ncmc\nsbb QWORD PTR [rdi+0x8],r9\nsbb QWORD PTR [rdi+0x10],r10\nsbb QWORD PTR [rdi+0x18],r11\nsbb QWORD PTR [rdi+0x20],r12\nsbb QWORD PTR [rdi+0x28],r13\nsbb QWORD PTR [rdi+0x30],r14\nsbb QWORD PTR [rdi+0x38],rcx\nmov r12,QWORD PTR [rdi+0x20]\nmov r13,QWORD PTR [rdi+0x28]\nmov r14,QWORD PTR [rdi+0x30]\nmov r15,QWORD PTR [rdi+0x38]",
+    "saved": 10,
+    "why": "For upper limbs, adding (~b & c) with carry equals subtracting (b | ~c) with the complementary borrow, so complement the mask once and switch chains with CMC. Updating memory directly preserves both sets of stores, and reloading r12 through r15 preserves the required register results."
+  },
+  "1726c8c772": {
+    "rewrite": null,
+    "why": "Every product, accumulated limb, pointer update, and counter result is live, and the baseline ISA requires the separate carry handling."
+  },
+  "69786bca44": {
+    "rewrite": null,
+    "why": "The initial copy preserves the first addend, and all four products and both independent carry chains contribute to required outputs."
+  },
+  "9d18b78efd": {
+    "rewrite": null,
+    "why": "The loaded rax value, store, two pointer updates, and counter decrement are all required, with no known direction flag permitting a shorter string-instruction replacement."
+  },
+  "db1578bd15": {
+    "rewrite": null,
+    "why": "Preserving all eight arbitrary masks requires the separate SSE2 loads and ANDs, followed by the complete OR reduction, store, and required pointer and counter updates."
+  },
+  "2fa90bdcf1": {
+    "rewrite": null,
+    "why": "Both register results and the final ADC flags require the subtraction and the separate constant initialization."
+  },
+  "2972d5fdea": {
+    "rewrite": null,
+    "why": "All Boolean operations and rotations contribute to the four live outputs, and baseline x86-64 cannot fuse these combinations."
+  },
+  "d15e9a33d8": {
+    "rewrite": "xor eax,r10d\nxor ebx,r11d\nxor edx,r9d",
+    "saved": 5,
+    "why": "Only the XOR results in rax, rbx, and rdx are live; the ecx computation and all four copies are dead."
+  },
+  "f9909f746c": {
+    "rewrite": null,
+    "why": "Baseline x86-64 needs a copy and complement for each result while preserving both input registers."
+  },
+  "08328fed87": {
+    "rewrite": null,
+    "why": "Each byte swap feeds a required store and a separate XOR result, and MOVBE is outside the permitted ISA."
+  },
+  "b0ca434a60": {
+    "rewrite": null,
+    "why": "The byte store, the two distinct transformations of al, and the update of dl all affect required outputs."
+  },
+  "0da1b8c9b7": {
+    "rewrite": null,
+    "why": "Both overlapping memory stores must be retained, and the remaining three instructions each produce a required register update."
+  },
+  "719e8e1519": {
+    "rewrite": "add BYTE PTR [rdi+0x4f],cl\nrex.WRXB",
+    "saved": 2,
+    "why": "Both comparisons only produce dead flags, so remove them while retaining the memory update and trailing prefix."
+  },
+  "ebcdf6b3af": {
+    "rewrite": "add BYTE PTR [rcx],bh",
+    "saved": 3,
+    "why": "All three comparisons only affect dead flags, leaving the byte addition as the sole required operation."
+  }
+}

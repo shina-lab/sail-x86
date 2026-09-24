@@ -1,0 +1,82 @@
+{
+  "e3e202c80e": {
+    "rewrite": null,
+    "why": "The boundary-word duplication, memory blends, rounded average, and wrapping additions all contribute to the preserved YMM1 result."
+  },
+  "e42c477b66": {
+    "rewrite": null,
+    "why": "The wrapping multiply-add and rounded unsigned division need the logical shift and average with zero; simply adding a rounding bias before shifting would mishandle overflow."
+  },
+  "9beceea515": {
+    "rewrite": null,
+    "why": "The four indexed loads, arbitrary byte shuffles, word interpolation, permutation, and word-sign blend mask all affect the preserved YMM0 result."
+  },
+  "2e14c09920": {
+    "rewrite": null,
+    "why": "Every interpolation step feeds the preserved YMM0 or the four independently addressed stores, and all three scalar updates are live."
+  },
+  "7a1bf69964": {
+    "rewrite": null,
+    "why": "With arbitrary initial YMM7, YMM8, and YMM9 values, every step from the broadcast through the scalar mask extraction affects RCX."
+  },
+  "31b881698f": {
+    "rewrite": null,
+    "why": "The loaded vector, broadcast results, product, and comparison flags are live, and AVX2 cannot fold a scalar broadcast into the packed multiply."
+  },
+  "4e6c3648f6": {
+    "rewrite": null,
+    "why": "Both independently addressed stores, the vector addition, and both scalar decrements have required results."
+  },
+  "9b6d547be1": {
+    "rewrite": null,
+    "why": "Both independently addressed stores and all three register updates are required, including the final zero flag."
+  },
+  "30c8002ceb": {
+    "rewrite": null,
+    "why": "RCX and ZF are both preserved, so the arbitrary-input vector calculation needs both scalar mask extraction and a separate zero test."
+  },
+  "e43c1670d0": {
+    "rewrite": null,
+    "why": "The boundary repair and signed saturation feed live vectors, while the scalar copy and complement produce the required RCX without changing incoming flags."
+  },
+  "d1be3f1305": {
+    "rewrite": null,
+    "why": "The four stores use independent address expressions, and the pointer and counter updates are both preserved."
+  },
+  "69b6072990": {
+    "rewrite": null,
+    "why": "The two loaded vectors, the memory-operand sum, and the comparison's zero flag are all required."
+  },
+  "4f2482053b": {
+    "rewrite": null,
+    "why": "The loaded vectors, broadcast coefficient, product, and comparison flags are live, and AVX2 cannot fold the other scalar broadcast into the packed multiply."
+  },
+  "952a418e13": {
+    "rewrite": null,
+    "why": "The lower-lane shuffle and independent upper-lane load are both necessary before the arbitrary-input addition and multiplication."
+  },
+  "a160e43f03": {
+    "rewrite": null,
+    "why": "The eight stores cannot be coalesced for unknown indexes, and both scalar updates are preserved."
+  },
+  "513bba3bdd": {
+    "rewrite": null,
+    "why": "The eight 16-byte stores cannot be coalesced for unknown indexes, and both scalar updates and the final subtraction flags are required."
+  },
+  "b91e02d31a": {
+    "rewrite": null,
+    "why": "The loads and broadcasts feed two independent word products whose wrapping sum is required, and the final comparison supplies live flags."
+  },
+  "e94b5a8866": {
+    "rewrite": null,
+    "why": "Both arithmetic chains have live outputs, and the boundary blend and VEX clearing of YMM6's upper half must be preserved."
+  },
+  "4bc7b061c1": {
+    "rewrite": null,
+    "why": "The initial vector feeds both a live product and the preserved unpack result, while the blend-add result, R8, and comparison flags are also live."
+  },
+  "84f5277344": {
+    "rewrite": null,
+    "why": "The four independently addressed stores and the masked RAX value with its zero flag are all required."
+  }
+}

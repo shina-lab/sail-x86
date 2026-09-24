@@ -1,0 +1,82 @@
+{
+  "698d180b1d": {
+    "rewrite": null,
+    "why": "The two pointer additions, two scaled offsets, and 32-bit decrement each produce a required result, with the decrement also supplying ZF."
+  },
+  "f66880c6be": {
+    "rewrite": null,
+    "why": "All five loads, two count subtractions, two negative scaled offsets, and two pointer adjustments are required, with no available fusion that reduces the instruction count."
+  },
+  "0eb12da5e3": {
+    "rewrite": null,
+    "why": "The dword load that clears the remaining XMM bits, arbitrary byte shuffle, vector store, and two live index updates are required, including ZF from the RSI update."
+  },
+  "aa192757b0": {
+    "rewrite": null,
+    "why": "Both pointer additions, the separate negative multiples in RDI and RSI, and the 32-bit decrement produce required outputs, including ZF from the decrement."
+  },
+  "fb731a483f": {
+    "rewrite": null,
+    "why": "All five loads, both count subtractions, the shared negative multiple of 15, and both pointer adjustments contribute to preserved values and cannot be combined into fewer instructions."
+  },
+  "6905b0dd13": {
+    "rewrite": null,
+    "why": "The vector load, arbitrary byte shuffle, store, and RDI update are all required, with the update also supplying ZF."
+  },
+  "5f8f59abda": {
+    "rewrite": null,
+    "why": "The two pointer additions, negative multiple of 15 in RDI, and 32-bit decrement each require an instruction and preserve the required decrement ZF."
+  },
+  "0b7fd67500": {
+    "rewrite": null,
+    "why": "The five loads, two count updates, separate negative multiples of 12 and 16, and two pointer adjustments all produce required values without a shorter fusion."
+  },
+  "efc236b55d": {
+    "rewrite": null,
+    "why": "SSE4.1 cannot fold the data load into this arbitrary PSHUFB, and the store and both index updates are required, including ZF from the RSI update."
+  },
+  "eef0279568": {
+    "rewrite": null,
+    "why": "The two pointer additions, two negative scaled offsets, and 32-bit decrement already use one instruction per required result, with ZF supplied by the decrement."
+  },
+  "6148641be3": {
+    "rewrite": null,
+    "why": "All five loads, both count updates, the negative multiples of 6 and 12, and both pointer adjustments are required and cannot be fused to reduce the instruction count."
+  },
+  "f34ba3527b": {
+    "rewrite": null,
+    "why": "The qword load that clears the upper XMM bits, arbitrary byte shuffle, vector store, and two live index updates are necessary, including ZF from the RSI update."
+  },
+  "a8d906cea5": {
+    "rewrite": null,
+    "why": "Both pointer additions, the negative multiples of 6 and 12, and the 32-bit decrement produce separate required results, including the final ZF."
+  },
+  "c34191ff40": {
+    "rewrite": null,
+    "why": "The five loads, two count subtractions, separate negative multiples of 16 and 12, and two pointer adjustments all contribute to preserved values with no shorter fusion available."
+  },
+  "ab21df577c": {
+    "rewrite": null,
+    "why": "The data load cannot be folded into PSHUFB under SSE4.1, and the store and both independent index updates are required, with the RSI update supplying ZF."
+  },
+  "f88f18adc9": {
+    "rewrite": null,
+    "why": "The two pointer additions, two negative scaled offsets, and 32-bit decrement each produce a required value, and the decrement must also supply ZF."
+  },
+  "0b378cd7fe": {
+    "rewrite": null,
+    "why": "All five loads, both count subtractions, the shared negative multiple of 16, and both pointer adjustments are necessary to produce the preserved final values."
+  },
+  "933613593f": {
+    "rewrite": null,
+    "why": "The vector load, arbitrary byte shuffle, store, and RDI increment are all necessary, and the increment also produces the required ZF."
+  },
+  "e151a22ef1": {
+    "rewrite": null,
+    "why": "Both pointer additions, the negative multiple of 16 in RDI, and the 32-bit decrement are separate required computations, with ZF supplied by the decrement."
+  },
+  "c4845fa2a1": {
+    "rewrite": null,
+    "why": "All five loads, both count updates, the negative multiples of 8 and 12, and both pointer adjustments contribute to preserved outputs and cannot be reduced by instruction fusion."
+  }
+}

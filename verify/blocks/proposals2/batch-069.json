@@ -1,0 +1,87 @@
+{
+  "8c3fe972a7": {
+    "rewrite": null,
+    "why": "The four loads and stores, two pointer updates, and flag-producing decrement are all required under SSE2."
+  },
+  "ad671cf374": {
+    "rewrite": null,
+    "why": "Each vector needs its source load, averaging operation, and store, and the remaining instructions produce required pointer and counter values."
+  },
+  "c654163d92": {
+    "rewrite": null,
+    "why": "The SSSE3 alignment operations already use compact sequences, and the filter intermediates, clipping results, and final registers must all be preserved."
+  },
+  "7de4f7a948": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi-0x4]\nmovdqu xmm0,XMMWORD PTR [rsi+0x6]\nmovdqa xmm6,xmm0\npsrldq xmm0,0x6\npaddw xmm6,xmm2\nmovdqa xmm3,xmm0\nmovdqa xmm5,xmm2\npslldq xmm3,0xe\npsrldq xmm5,0x2\npor xmm3,xmm5\nmovdqa xmm7,xmm2\nshufpd xmm7,xmm0,0x1\npaddw xmm3,xmm7\nmovdqa xmm4,xmm2\nshufps xmm4,xmm7,0x99\npslldq xmm7,0x2\npsrldq xmm5,0x4\npor xmm7,xmm5\npaddw xmm4,xmm7\npaddw xmm6,xmm8\npsubw xmm6,xmm3\npsraw xmm6,0x2\npsubw xmm6,xmm3\npaddw xmm6,xmm4\npsraw xmm6,0x2\npaddw xmm6,xmm4\npsraw xmm6,0x1\npxor xmm0,xmm0\npmaxsw xmm6,xmm0\npminsw xmm6,xmm1\nmovdqa XMMWORD PTR [rdi],xmm6\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 8,
+    "why": "SHUFPD and SHUFPS construct the eight-byte and four-byte aligned windows with fewer instructions. Shifting the eight-byte window left by two bytes and ORing the reused six-byte-shifted source produces the remaining window while preserving every final temporary."
+  },
+  "1cfc093dc4": {
+    "rewrite": null,
+    "why": "The alignment, filtering, clipping, and averaging operations all contribute to required results, with no shorter SSSE3 sequence identified."
+  },
+  "ced59fc398": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi-0x4]\nmovdqu xmm0,XMMWORD PTR [rsi+0x6]\nmovdqa xmm6,xmm0\npsrldq xmm0,0x6\npaddw xmm6,xmm2\nmovdqa xmm3,xmm0\nmovdqa xmm5,xmm2\npslldq xmm3,0xe\npsrldq xmm5,0x2\npor xmm3,xmm5\nmovdqa xmm7,xmm2\nshufpd xmm7,xmm0,0x1\npaddw xmm3,xmm7\nmovdqa xmm4,xmm2\nshufps xmm4,xmm7,0x99\npslldq xmm7,0x2\npsrldq xmm5,0x4\npor xmm7,xmm5\npaddw xmm4,xmm7\npaddw xmm6,xmm8\npsubw xmm6,xmm3\npsraw xmm6,0x2\npsubw xmm6,xmm3\npaddw xmm6,xmm4\npsraw xmm6,0x2\npaddw xmm6,xmm4\npsraw xmm6,0x1\npxor xmm0,xmm0\npmaxsw xmm6,xmm0\npminsw xmm6,xmm1\npavgw xmm6,XMMWORD PTR [rdi]\nmovdqa XMMWORD PTR [rdi],xmm6\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 8,
+    "why": "Replace two shift-and-OR constructions with SHUFPD and SHUFPS, then reuse the existing shifted source and window for the six-byte alignment. All final registers and the destination average remain identical."
+  },
+  "112afea8f8": {
+    "rewrite": null,
+    "why": "The PALIGNR constructions are already compact, and the averaging load must also remain because its value is required in xmm3."
+  },
+  "8c7cc593ed": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi-0x4]\nmovdqu xmm0,XMMWORD PTR [rsi+0x6]\nmovdqa xmm6,xmm0\npsrldq xmm0,0x6\npaddw xmm6,xmm2\nmovdqa xmm3,xmm0\nmovdqa xmm5,xmm2\npslldq xmm3,0xe\npsrldq xmm5,0x2\npor xmm3,xmm5\nmovdqa xmm7,xmm2\nshufpd xmm7,xmm0,0x1\npaddw xmm3,xmm7\nmovdqa xmm4,xmm2\nshufps xmm4,xmm7,0x99\npslldq xmm7,0x2\npsrldq xmm5,0x4\npor xmm7,xmm5\npaddw xmm4,xmm7\npaddw xmm6,xmm8\npsubw xmm6,xmm3\npsraw xmm6,0x2\npsubw xmm6,xmm3\npaddw xmm6,xmm4\npsraw xmm6,0x2\npaddw xmm6,xmm4\npsraw xmm6,0x1\npxor xmm0,xmm0\npmaxsw xmm6,xmm0\npminsw xmm6,xmm1\nmovdqu xmm3,XMMWORD PTR [r8]\npavgw xmm6,xmm3\nmovdqa XMMWORD PTR [rdi],xmm6\nadd rdi,rdx\nadd rsi,rdx\nadd r8,rdx\ndec ecx",
+    "saved": 8,
+    "why": "Two SSE2 shuffles replace the longer eight-byte and four-byte alignment constructions, and existing intermediates supply the six-byte window. The filter, averaging load, stores, and final register values are preserved."
+  },
+  "28e5fc6ca6": {
+    "rewrite": null,
+    "why": "The compact PALIGNR sequences and both rounded averages are necessary, and the loaded xmm3 value is a required output."
+  },
+  "8517b4bfd6": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi-0x4]\nmovdqu xmm0,XMMWORD PTR [rsi+0x6]\nmovdqa xmm6,xmm0\npsrldq xmm0,0x6\npaddw xmm6,xmm2\nmovdqa xmm3,xmm0\nmovdqa xmm5,xmm2\npslldq xmm3,0xe\npsrldq xmm5,0x2\npor xmm3,xmm5\nmovdqa xmm7,xmm2\nshufpd xmm7,xmm0,0x1\npaddw xmm3,xmm7\nmovdqa xmm4,xmm2\nshufps xmm4,xmm7,0x99\npslldq xmm7,0x2\npsrldq xmm5,0x4\npor xmm7,xmm5\npaddw xmm4,xmm7\npaddw xmm6,xmm8\npsubw xmm6,xmm3\npsraw xmm6,0x2\npsubw xmm6,xmm3\npaddw xmm6,xmm4\npsraw xmm6,0x2\npaddw xmm6,xmm4\npsraw xmm6,0x1\npxor xmm0,xmm0\npmaxsw xmm6,xmm0\npminsw xmm6,xmm1\nmovdqu xmm3,XMMWORD PTR [r8]\npavgw xmm6,xmm3\npavgw xmm6,XMMWORD PTR [rdi]\nmovdqa XMMWORD PTR [rdi],xmm6\nadd rdi,rdx\nadd rsi,rdx\nadd r8,rdx\ndec ecx",
+    "saved": 8,
+    "why": "SHUFPD and SHUFPS shorten two alignment constructions, while a shifted existing window and reused source form the third. This preserves the original filter intermediates and the order of the two rounded averages."
+  },
+  "59b0a26f32": {
+    "rewrite": null,
+    "why": "The loaded value and both pairwise sums are required final registers, and the wrapping arithmetic with intervening arithmetic shifts cannot be collapsed into a simple multiply."
+  },
+  "8e17b5680b": {
+    "rewrite": null,
+    "why": "The filter and final temporaries are required, and folding the unaligned loads into legacy SSE2 arithmetic would introduce an unsupported alignment requirement."
+  },
+  "62c90a5dae": {
+    "rewrite": "mov ecx,0x8\nxor r8d,r8d\nmovdqa xmm6,XMMWORD PTR [CONST_1]",
+    "saved": 1,
+    "why": "The stack adjustment affects no required register or flag output and is omitted to leave rsp untouched. The three required register initializations remain."
+  },
+  "dec1c2c0fa": {
+    "rewrite": null,
+    "why": "The aligned windows and filter temporaries are required outputs, and the incoming unpack and multiplier registers have no constant-value guarantees."
+  },
+  "2913d423a9": {
+    "rewrite": null,
+    "why": "The filter needs the existing window constructions, and the eight-byte averaging load also supplies the required final xmm4 value."
+  },
+  "77ca040b6d": {
+    "rewrite": null,
+    "why": "Each of the four instructions independently initializes a required register, so none can be removed."
+  },
+  "067cb8bfd2": {
+    "rewrite": null,
+    "why": "The SSE2 byte unpacking and word arithmetic are needed for arbitrary incoming xmm3, xmm4, and xmm5 values, and the final loaded temporaries must be preserved."
+  },
+  "734f1663d9": {
+    "rewrite": null,
+    "why": "The arbitrary unpack and multiplier inputs prevent narrower arithmetic substitutions, and the two rounded averages with eight-byte loads cannot be combined."
+  },
+  "d6fcc77c16": {
+    "rewrite": null,
+    "why": "All four instructions initialize distinct required registers, leaving no redundant instruction."
+  },
+  "838a01c1f3": {
+    "rewrite": null,
+    "why": "Both halves of each loaded vector require separate SSE2 unpacking and filtering, and every final vector temporary, including the averaging load, must match."
+  }
+}

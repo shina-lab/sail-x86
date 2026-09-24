@@ -1,0 +1,84 @@
+{
+  "e215afcc27": {
+    "rewrite": null,
+    "why": "The live vector results, RCX and ZF need the load, both byte comparisons, AND-NOT, mask extraction and 16-bit increment."
+  },
+  "54b5363580": {
+    "rewrite": null,
+    "why": "The indexed load, comparisons and AND-NOT produce required vector results, while mask extraction and the increment produce the required RCX and ZF."
+  },
+  "faec6f0571": {
+    "rewrite": null,
+    "why": "The two narrow loads cannot be folded into byte comparisons without widening memory accesses, and the remaining operations produce live vectors, RCX and ZF."
+  },
+  "c3af89646b": {
+    "rewrite": null,
+    "why": "Both four-byte loads must remain narrow, and the comparisons, AND-NOT, mask extraction and subtraction are needed for the preserved results."
+  },
+  "0bd2c2634a": {
+    "rewrite": null,
+    "why": "Forming the shifted OR while preserving both inputs needs the copy, OR and shift, and the comparison supplies the required CF and ZF without changing RAX."
+  },
+  "6500958993": {
+    "rewrite": null,
+    "why": "The load and two predicates produce separate live vector and mask results, and transferring then incrementing the mask is needed for RCX and ZF."
+  },
+  "e915c5b6d5": {
+    "rewrite": null,
+    "why": "The loaded vector, nonzero mask, masked equality mask and incremented RCX are all live, leaving no removable operation."
+  },
+  "69cad84a5f": {
+    "rewrite": null,
+    "why": "All three vector or mask destinations must retain their results, and the mask transfer and increment are needed for RCX and ZF."
+  },
+  "9717b9c0e4": {
+    "rewrite": null,
+    "why": "The load, nonzero test and masked comparison each produce a required result, followed by the necessary mask transfer and increment."
+  },
+  "4971f1ab4a": {
+    "rewrite": null,
+    "why": "Computing the masked negative offset still needs constant formation, subtraction and masking, while clearing ZMM16 produces an independent live result."
+  },
+  "5a471475f6": {
+    "rewrite": null,
+    "why": "Required vector and mask outputs prevent deleting the minimum and XOR work, and the mismatch reduction already combines operations with ternary logic."
+  },
+  "0858abf9ea": {
+    "rewrite": null,
+    "why": "Both mask results and the incremented RCX are live, so the two predicates, mask transfer and increment must remain."
+  },
+  "eee9d3f1da": {
+    "rewrite": null,
+    "why": "The aligned load and both predicates produce live results, while the mask transfer and increment are needed for RCX and ZF."
+  },
+  "ca41f855bc": {
+    "rewrite": null,
+    "why": "The loaded vector, both masks and incremented RCX are preserved outputs, and none of their producing operations can be omitted."
+  },
+  "c93030ffda": {
+    "rewrite": null,
+    "why": "The indexed load and both masks are live, and the required RCX and ZF still need the mask transfer and increment."
+  },
+  "8f0ee347a3": {
+    "rewrite": null,
+    "why": "The minimum and mismatch vectors must be retained, and although K1 is dead at exit its nonzero predicate is still needed to form K0."
+  },
+  "7600ae20ba": {
+    "rewrite": "mov edx,0xc\nbzhi eax,edi,edx\nbzhi ecx,esi,edx\nxor edx,edx\ncmp ecx,eax",
+    "saved": 1,
+    "why": "A shared bit count lets two BMI2 BZHI instructions extract the low 12 bits without separate copies and ANDs. Clearing EDX and retaining the final comparison preserves all required registers and flags."
+  },
+  "3efa615d16": {
+    "rewrite": null,
+    "why": "The indexed vector load and both mask results must be preserved, and RCX plus ZF require the mask transfer and increment."
+  },
+  "6c3c9fef37": {
+    "rewrite": "mov eax,ecx\nxchg rdi,rsi\nmov r8d,0xffffffff\nxor edx,edx\nsub eax,0x60",
+    "saved": 2,
+    "why": "XCHG replaces the three moves that swap RDI and RSI because RCX is dead at exit. The other outputs and the final subtraction flags remain unchanged."
+  },
+  "802ba417c0": {
+    "rewrite": null,
+    "why": "The 16-byte load and both predicates produce live results, and the mask transfer followed by a 16-bit increment is needed to preserve RCX and ZF."
+  }
+}

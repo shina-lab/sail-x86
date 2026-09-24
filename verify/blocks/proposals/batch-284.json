@@ -1,0 +1,82 @@
+{
+  "d9a26aaf31": {
+    "rewrite": null,
+    "why": "The qword load and store, counter subtraction producing ZF, and destination pointer update are all required."
+  },
+  "bc58fda94b": {
+    "rewrite": null,
+    "why": "The qword copy and independent DH byte store are required along with the counter subtraction and destination pointer update."
+  },
+  "17eec3ea93": {
+    "rewrite": null,
+    "why": "Both copy pairs are required, including the partial DX update that preserves the upper bits of RDX, as are the counter and pointer updates."
+  },
+  "3fbdc487a9": {
+    "rewrite": null,
+    "why": "Neither overlapping copy pair is redundant, the zero-extended EDX load must survive in RDX, and both counter and pointer updates are required."
+  },
+  "5a6f2fd2bf": {
+    "rewrite": null,
+    "why": "The qword and dword copy pairs, final zero-extended RDX value, counter subtraction, and pointer update leave no removable instruction."
+  },
+  "20078d675c": {
+    "rewrite": null,
+    "why": "Both overlapping qword copies contribute required bytes and the second load supplies preserved RDX, while the counter and pointer updates remain necessary."
+  },
+  "10e36bf437": {
+    "rewrite": null,
+    "why": "Both overlapping qword copies and the final RDX value are required, and a wider load would access bytes outside the original loads."
+  },
+  "247c9a0ad6": {
+    "rewrite": null,
+    "why": "Both qword copy pairs are needed for the fifteen bytes and preserved RDX, with separate required counter and pointer updates."
+  },
+  "1343b065b6": {
+    "rewrite": null,
+    "why": "The vector load produces preserved XMM0, its store is required, and the counter subtraction and destination pointer update are independent required operations."
+  },
+  "fc08e3e1f0": {
+    "rewrite": null,
+    "why": "The vector copy, independent DH byte store, counter subtraction, and pointer update are all necessary."
+  },
+  "fd7e016588": {
+    "rewrite": null,
+    "why": "The vector and word copy pairs are necessary for the eighteen-byte copy, alongside preserved XMM0 and the counter and pointer updates."
+  },
+  "ed4e49d5ea": {
+    "rewrite": null,
+    "why": "The overlapping vector and dword stores each contribute required bytes, so neither copy pair nor either counter or pointer update can be removed."
+  },
+  "ada6ab48ee": {
+    "rewrite": null,
+    "why": "The vector and dword copy pairs already use one load and one store apiece, with necessary counter and pointer updates."
+  },
+  "802d591d28": {
+    "rewrite": null,
+    "why": "The vector copy, dword copy, and independent DH byte store all supply required data, and both counter and pointer updates are necessary."
+  },
+  "b2d10a33e0": {
+    "rewrite": null,
+    "why": "The overlapping vector and qword copy pairs both contribute required bytes, while XMM0, the counter result, ZF, and the updated pointer must be preserved."
+  },
+  "52fbcd8e41": {
+    "rewrite": null,
+    "why": "Both overlapping copy pairs are required for the twenty-three bytes, and the counter subtraction and pointer update cannot be omitted."
+  },
+  "967ea10fc9": {
+    "rewrite": null,
+    "why": "The vector and qword copies each require their load and store under SSE2, followed by necessary counter and pointer updates."
+  },
+  "7e1c9642a3": {
+    "rewrite": null,
+    "why": "The vector copy, qword copy, independent DH byte store, counter subtraction, and pointer update all have required effects."
+  },
+  "d66d828d39": {
+    "rewrite": null,
+    "why": "All three copy pairs are necessary at the specified addresses and widths, including preserved XMM0 and RDX, together with the counter and pointer updates."
+  },
+  "6fcc3360cc": {
+    "rewrite": null,
+    "why": "Each of the three copy pairs contributes required bytes, including the overlapping tail, while XMM0, RDX, the counter, ZF, and the updated pointer must match."
+  }
+}

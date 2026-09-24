@@ -1,0 +1,102 @@
+{
+  "324e748b07": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0x5\npslldq xmm2,0xb\npor xmm2,xmm3\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm2,XMMWORD PTR [rsi+rcx*1]\npsubb xmm2,xmm0\npmovmskb edx,xmm2\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Fold the RSI load into both byte comparisons and accumulate the equality mask in xmm2. The preserved xmm0 and xmm4 values, final edx, and ZF are unchanged."
+  },
+  "d2f8f3983f": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0xa\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Both byte comparisons can read the original RSI address directly, eliminating the separate load into dead xmm1. The zero-byte mask in xmm0 and the scalar calculation are unchanged."
+  },
+  "e133c5b891": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0x6\npslldq xmm2,0xa\npor xmm2,xmm3\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm2,XMMWORD PTR [rsi+rcx*1]\npsubb xmm2,xmm0\npmovmskb edx,xmm2\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Fold the RSI load into both byte comparisons and accumulate the equality mask in xmm2. The preserved xmm0 and xmm4 values, final edx, and ZF are unchanged."
+  },
+  "9023a4be91": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0x9\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Both byte comparisons can read the original RSI address directly, eliminating the separate load into dead xmm1. The zero-byte mask in xmm0 and the scalar calculation are unchanged."
+  },
+  "3e9d92b7c6": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0x7\npslldq xmm2,0x9\npor xmm2,xmm3\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm2,XMMWORD PTR [rsi+rcx*1]\npsubb xmm2,xmm0\npmovmskb edx,xmm2\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Fold the RSI load into both byte comparisons and accumulate the equality mask in xmm2. The preserved xmm0 and xmm4 values, final edx, and ZF are unchanged."
+  },
+  "1702bfa425": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0x8\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Both byte comparisons can read the original RSI address directly, eliminating the separate load into dead xmm1. The zero-byte mask in xmm0 and the scalar calculation are unchanged."
+  },
+  "989d77adff": {
+    "rewrite": "movdqa xmm4,XMMWORD PTR [rdi+rcx*1]\nshufpd xmm3,xmm4,0x1\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm3,XMMWORD PTR [rsi+rcx*1]\npsubb xmm3,xmm0\npmovmskb edx,xmm3\nsub edx,0xffff",
+    "saved": 4,
+    "why": "SHUFPD concatenates the incoming xmm3 high qword with the loaded low qword, replacing the copy, two shifts, and OR while preserving the load in xmm4. Folding the RSI load into both comparisons removes another instruction."
+  },
+  "2a5f31cfef": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0x7\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Both byte comparisons can read the original RSI address directly, eliminating the separate load into dead xmm1. The zero-byte mask in xmm0 and the scalar calculation are unchanged."
+  },
+  "82d46efc4c": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0x9\npslldq xmm2,0x7\npor xmm2,xmm3\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm2,XMMWORD PTR [rsi+rcx*1]\npsubb xmm2,xmm0\npmovmskb edx,xmm2\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Fold the RSI load into both byte comparisons and accumulate the equality mask in xmm2. The preserved xmm0 and xmm4 values, final edx, and ZF are unchanged."
+  },
+  "08cbaa925d": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0x6\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Both byte comparisons can read the original RSI address directly, eliminating the separate load into dead xmm1. The zero-byte mask in xmm0 and the scalar calculation are unchanged."
+  },
+  "0986334fe5": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0xa\npslldq xmm2,0x6\npor xmm2,xmm3\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm2,XMMWORD PTR [rsi+rcx*1]\npsubb xmm2,xmm0\npmovmskb edx,xmm2\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Fold the RSI load into both byte comparisons and accumulate the equality mask in xmm2. The preserved xmm0 and xmm4 values, final edx, and ZF are unchanged."
+  },
+  "071dc48257": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0x5\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Both byte comparisons can read the original RSI address directly, eliminating the separate load into dead xmm1. The zero-byte mask in xmm0 and the scalar calculation are unchanged."
+  },
+  "a3663980f8": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0xb\npslldq xmm2,0x5\npor xmm2,xmm3\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm2,XMMWORD PTR [rsi+rcx*1]\npsubb xmm2,xmm0\npmovmskb edx,xmm2\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Fold the RSI load into both byte comparisons and accumulate the equality mask in xmm2. The preserved xmm0 and xmm4 values, final edx, and ZF are unchanged."
+  },
+  "aaba610866": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0x4\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Both byte comparisons can read the original RSI address directly, eliminating the separate load into dead xmm1. The zero-byte mask in xmm0 and the scalar calculation are unchanged."
+  },
+  "bfb5a7c797": {
+    "rewrite": "movdqa xmm4,XMMWORD PTR [rdi+rcx*1]\nshufps xmm3,xmm4,0xf\nshufps xmm3,xmm4,0x98\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm3,XMMWORD PTR [rsi+rcx*1]\npsubb xmm3,xmm0\npmovmskb edx,xmm3\nsub edx,0xffff",
+    "saved": 3,
+    "why": "Two SHUFPS instructions form the incoming xmm3 highest dword followed by the loaded lowest three dwords, replacing the copy, shifts, and OR while preserving xmm4. Both comparisons read RSI memory directly to eliminate its separate load."
+  },
+  "d621f1171f": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0x3\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Both byte comparisons can read the original RSI address directly, eliminating the separate load into dead xmm1. The zero-byte mask in xmm0 and the scalar calculation are unchanged."
+  },
+  "50104637b2": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0xd\npslldq xmm2,0x3\npor xmm2,xmm3\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm2,XMMWORD PTR [rsi+rcx*1]\npsubb xmm2,xmm0\npmovmskb edx,xmm2\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Fold the RSI load into both byte comparisons and accumulate the equality mask in xmm2. The preserved xmm0 and xmm4 values, final edx, and ZF are unchanged."
+  },
+  "24565350a8": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0x2\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Both byte comparisons can read the original RSI address directly, eliminating the separate load into dead xmm1. The zero-byte mask in xmm0 and the scalar calculation are unchanged."
+  },
+  "1eb1d42201": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0xe\npslldq xmm2,0x2\npor xmm2,xmm3\npcmpeqb xmm0,XMMWORD PTR [rsi+rcx*1]\npcmpeqb xmm2,XMMWORD PTR [rsi+rcx*1]\npsubb xmm2,xmm0\npmovmskb edx,xmm2\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Fold the RSI load into both byte comparisons and accumulate the equality mask in xmm2. The preserved xmm0 and xmm4 values, final edx, and ZF are unchanged."
+  },
+  "f4afdac811": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm0,XMMWORD PTR [rsi]\npslldq xmm2,0x1\npcmpeqb xmm2,XMMWORD PTR [rsi]\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Both byte comparisons can read the original RSI address directly, eliminating the separate load into dead xmm1. The zero-byte mask in xmm0 and the scalar calculation are unchanged."
+  }
+}
