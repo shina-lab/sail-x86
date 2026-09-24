@@ -1810,6 +1810,11 @@ TEST(push_ds_pop_es_32bit) {
 
   model.zSegReg.data[x86::SEG_DS] = 0x0010;  // DS = 0x10 (data selector)
   model.zSegReg.data[x86::SEG_ES] = 0x0000;  // ES = 0 initially
+  // POP ES validates the descriptor even when the selector was already
+  // loaded in DS. Give it a present, writable, flat data segment.
+  model.zGDTR_base = 0x90000;
+  model.zGDTR_limit = 23;
+  model.phys_mem.write64(0x90010, 0x00CF92000000FFFFULL);
 
   u64 orig_esp = model.zGPR.data[4];
 
