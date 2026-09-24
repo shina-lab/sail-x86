@@ -281,7 +281,7 @@ void add_systematic_tests(std::vector<TestCase> &tests) {
       if (VALS[j] == 0) continue;
 
       // DIV: RDX=0 so quotient always fits (dividend < 2^64, divisor > 0)
-      ArchState init = {.rax = VALS[i], .rbx = VALS[j], .rflags = 0x2};
+      ArchState init = {.rax = VALS[i], .rbx = VALS[j], .rdx = 0, .rflags = 0x2};
       name = std::format("S div64 {},{}", i, j);
       add(name, {0x48, 0xF7, 0xF3}, init, FL_NONE);
     }

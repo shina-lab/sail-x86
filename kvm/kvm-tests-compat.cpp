@@ -59,33 +59,34 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     s.rflags = 0x2;
 
     // ADD EAX, EBX: 01 D8 (default 32-bit operand)
-    add("compat add eax,ebx", {0x01, 0xD8}, s);
+    add("compat add eax,ebx", {0x01, 0xD8}, with_gpr_inputs(s, {&ArchState::rax, &ArchState::rbx}));
     // ADD AX, BX (66h prefix -> 16-bit)
-    add("compat add ax,bx (66h)", {0x66, 0x01, 0xD8}, s);
+    add("compat add ax,bx (66h)", {0x66, 0x01, 0xD8},
+        with_gpr_inputs(s, {&ArchState::rax, &ArchState::rbx}));
     // SUB ECX, EDX: 29 D1
-    add("compat sub ecx,edx", {0x29, 0xD1}, s);
+    add("compat sub ecx,edx", {0x29, 0xD1}, with_gpr_inputs(s, {&ArchState::rcx, &ArchState::rdx}));
     // AND EAX, imm32: 25 FF 00 00 00
-    add("compat and eax,imm32", {0x25, 0xFF, 0x00, 0x00, 0x00}, s);
+    add("compat and eax,imm32", {0x25, 0xFF, 0x00, 0x00, 0x00}, with_gpr_inputs(s, {&ArchState::rax}));
     // CMP EAX, EBX: 39 D8
-    add("compat cmp eax,ebx", {0x39, 0xD8}, s);
+    add("compat cmp eax,ebx", {0x39, 0xD8}, with_gpr_inputs(s, {&ArchState::rax, &ArchState::rbx}));
     // TEST EAX, EBX: 85 D8
-    add("compat test eax,ebx", {0x85, 0xD8}, s);
+    add("compat test eax,ebx", {0x85, 0xD8}, with_gpr_inputs(s, {&ArchState::rax, &ArchState::rbx}));
     // MOV EAX, imm32: B8 78 56 34 12
-    add("compat mov eax,imm32", {0xB8, 0x78, 0x56, 0x34, 0x12}, s, FL_ALL);
+    add("compat mov eax,imm32", {0xB8, 0x78, 0x56, 0x34, 0x12}, with_gpr_inputs(s, {}), FL_ALL);
     // MOV AX, imm16 (66h): 66 B8 34 12
-    add("compat mov ax,imm16 (66h)", {0x66, 0xB8, 0x34, 0x12}, s, FL_ALL);
+    add("compat mov ax,imm16 (66h)", {0x66, 0xB8, 0x34, 0x12}, with_gpr_inputs(s, {}), FL_ALL);
     // XOR EAX, EAX: 31 C0
-    add("compat xor eax,eax", {0x31, 0xC0}, s);
+    add("compat xor eax,eax", {0x31, 0xC0}, with_gpr_inputs(s, {}));
     // IMUL EAX, EBX, imm8: 6B C3 05
-    add("compat imul eax,ebx,imm8", {0x6B, 0xC3, 0x05}, s, FL_CF_OF);
+    add("compat imul eax,ebx,imm8", {0x6B, 0xC3, 0x05}, with_gpr_inputs(s, {&ArchState::rbx}), FL_CF_OF);
     // NOT EAX: F7 D0
-    add("compat not eax", {0xF7, 0xD0}, s, FL_ALL);
+    add("compat not eax", {0xF7, 0xD0}, with_gpr_inputs(s, {&ArchState::rax}), FL_ALL);
     // NEG ECX: F7 D9
-    add("compat neg ecx", {0xF7, 0xD9}, s);
+    add("compat neg ecx", {0xF7, 0xD9}, with_gpr_inputs(s, {&ArchState::rcx}));
     // MOVZX EAX, BL: 0F B6 C3
-    add("compat movzx eax,bl", {0x0F, 0xB6, 0xC3}, s, FL_ALL);
+    add("compat movzx eax,bl", {0x0F, 0xB6, 0xC3}, with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);
     // MOVSX EAX, BX: 0F BF C3
-    add("compat movsx eax,bx", {0x0F, 0xBF, 0xC3}, s, FL_ALL);
+    add("compat movsx eax,bx", {0x0F, 0xBF, 0xC3}, with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);
     // BSWAP EAX: 0F C8
     {
       ArchState bs = {};
@@ -114,15 +115,15 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       add("compat lea eax,[ebx+ecx*4]", {0x8D, 0x04, 0x8B}, lea, FL_ALL);
     }
     // OR EAX, EBX: 09 D8
-    add("compat or eax,ebx", {0x09, 0xD8}, s);
+    add("compat or eax,ebx", {0x09, 0xD8}, with_gpr_inputs(s, {&ArchState::rax, &ArchState::rbx}));
     // XOR ECX, EDX: 31 D1
-    add("compat xor ecx,edx", {0x31, 0xD1}, s);
+    add("compat xor ecx,edx", {0x31, 0xD1}, with_gpr_inputs(s, {&ArchState::rcx, &ArchState::rdx}));
     // ADD EAX, imm8 (sign-ext): 83 C0 0A
-    add("compat add eax,imm8", {0x83, 0xC0, 0x0A}, s);
+    add("compat add eax,imm8", {0x83, 0xC0, 0x0A}, with_gpr_inputs(s, {&ArchState::rax}));
     // SUB EAX, imm8: 83 E8 05
-    add("compat sub eax,imm8", {0x83, 0xE8, 0x05}, s);
+    add("compat sub eax,imm8", {0x83, 0xE8, 0x05}, with_gpr_inputs(s, {&ArchState::rax}));
     // CMP EAX, imm8: 83 F8 10
-    add("compat cmp eax,imm8", {0x83, 0xF8, 0x10}, s);
+    add("compat cmp eax,imm8", {0x83, 0xF8, 0x10}, with_gpr_inputs(s, {&ArchState::rax}));
   }
 
   // =====================================================================
@@ -410,13 +411,13 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     s.rflags = 0x2;
 
     // INC EAX (40)
-    add("compat inc eax (40)", {0x40}, s, inc_mask);
+    add("compat inc eax (40)", {0x40}, with_gpr_inputs(s, {&ArchState::rax}), inc_mask);
     // INC ECX (41)
-    add("compat inc ecx (41)", {0x41}, s, inc_mask);
+    add("compat inc ecx (41)", {0x41}, with_gpr_inputs(s, {&ArchState::rcx}), inc_mask);
     // INC EDX (42)
-    add("compat inc edx (42)", {0x42}, s, inc_mask);
+    add("compat inc edx (42)", {0x42}, with_gpr_inputs(s, {&ArchState::rdx}), inc_mask);
     // INC EBX (43)
-    add("compat inc ebx (43)", {0x43}, s, inc_mask);
+    add("compat inc ebx (43)", {0x43}, with_gpr_inputs(s, {&ArchState::rbx}), inc_mask);
     // INC ESP (44) — careful with stack tests after this
     {
       ArchState se = {};
@@ -425,31 +426,31 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       add("compat inc esp (44)", {0x44}, se, inc_mask);
     }
     // INC EBP (45)
-    add("compat inc ebp (45)", {0x45}, s, inc_mask);
+    add("compat inc ebp (45)", {0x45}, with_gpr_inputs(s, {&ArchState::rbp}), inc_mask);
     // INC ESI (46)
-    add("compat inc esi (46)", {0x46}, s, inc_mask);
+    add("compat inc esi (46)", {0x46}, with_gpr_inputs(s, {&ArchState::rsi}), inc_mask);
     // INC EDI (47)
-    add("compat inc edi (47)", {0x47}, s, inc_mask);
+    add("compat inc edi (47)", {0x47}, with_gpr_inputs(s, {&ArchState::rdi}), inc_mask);
 
     // DEC EAX (48)
-    add("compat dec eax (48)", {0x48}, s, inc_mask);
+    add("compat dec eax (48)", {0x48}, with_gpr_inputs(s, {&ArchState::rax}), inc_mask);
     // DEC ECX (49)
-    add("compat dec ecx (49)", {0x49}, s, inc_mask);
+    add("compat dec ecx (49)", {0x49}, with_gpr_inputs(s, {&ArchState::rcx}), inc_mask);
     // DEC EDX (4A)
-    add("compat dec edx (4A)", {0x4A}, s, inc_mask);
+    add("compat dec edx (4A)", {0x4A}, with_gpr_inputs(s, {&ArchState::rdx}), inc_mask);
     // DEC EBX (4B)
-    add("compat dec ebx (4B)", {0x4B}, s, inc_mask);
+    add("compat dec ebx (4B)", {0x4B}, with_gpr_inputs(s, {&ArchState::rbx}), inc_mask);
     // DEC EBP (4D)
-    add("compat dec ebp (4D)", {0x4D}, s, inc_mask);
+    add("compat dec ebp (4D)", {0x4D}, with_gpr_inputs(s, {&ArchState::rbp}), inc_mask);
     // DEC ESI (4E)
-    add("compat dec esi (4E)", {0x4E}, s, inc_mask);
+    add("compat dec esi (4E)", {0x4E}, with_gpr_inputs(s, {&ArchState::rsi}), inc_mask);
     // DEC EDI (4F)
-    add("compat dec edi (4F)", {0x4F}, s, inc_mask);
+    add("compat dec edi (4F)", {0x4F}, with_gpr_inputs(s, {&ArchState::rdi}), inc_mask);
 
     // INC AX (66 40): 66h prefix -> 16-bit INC
-    add("compat inc ax (66 40)", {0x66, 0x40}, s, inc_mask);
+    add("compat inc ax (66 40)", {0x66, 0x40}, with_gpr_inputs(s, {&ArchState::rax}), inc_mask);
     // DEC AX (66 48): 66h prefix -> 16-bit DEC
-    add("compat dec ax (66 48)", {0x66, 0x48}, s, inc_mask);
+    add("compat dec ax (66 48)", {0x66, 0x48}, with_gpr_inputs(s, {&ArchState::rax}), inc_mask);
 
     // INC from max: overflow detection
     {
@@ -469,6 +470,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     {
       ArchState u = {};
       u.rflags = 0x2;
+      u.rax = 0;
       add("compat dec eax (borrow)", {0x48}, u, inc_mask);
     }
     // DEC from INT_MIN: overflow
@@ -559,17 +561,20 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     s.rflags = 0x2;
 
     // SHL EAX, 1: D1 E0 (AF undefined for shifts)
-    add("compat shl eax,1", {0xD1, 0xE0}, s, FL_NO_AF);
+    add("compat shl eax,1", {0xD1, 0xE0}, with_gpr_inputs(s, {&ArchState::rax}), FL_NO_AF);
     // SHR EAX, CL: D3 E8
-    add("compat shr eax,cl", {0xD3, 0xE8}, s, FL_NO_AF_OF);
+    add("compat shr eax,cl", {0xD3, 0xE8},
+        with_gpr_inputs(s, {&ArchState::rax, &ArchState::rcx}), FL_NO_AF_OF);
     // SAR EAX, imm8=3: C1 F8 03
-    add("compat sar eax,3", {0xC1, 0xF8, 0x03}, s, FL_NO_AF_OF);
+    add("compat sar eax,3", {0xC1, 0xF8, 0x03}, with_gpr_inputs(s, {&ArchState::rax}), FL_NO_AF_OF);
     // ROL EAX, 1: D1 C0
-    add("compat rol eax,1", {0xD1, 0xC0}, s, FL_ALL);
+    add("compat rol eax,1", {0xD1, 0xC0}, with_gpr_inputs(s, {&ArchState::rax}), FL_ALL);
     // ROR EAX, CL: D3 C8
-    add("compat ror eax,cl", {0xD3, 0xC8}, s, FL_ALL & ~FL_OF);
+    add("compat ror eax,cl", {0xD3, 0xC8},
+        with_gpr_inputs(s, {&ArchState::rax, &ArchState::rcx}), FL_ALL & ~FL_OF);
     // SHLD EAX, EBX, imm8=4: 0F A4 D8 04 (AF, OF undefined for count > 1)
-    add("compat shld eax,ebx,4", {0x0F, 0xA4, 0xD8, 0x04}, s, FL_NO_AF_OF);
+    add("compat shld eax,ebx,4", {0x0F, 0xA4, 0xD8, 0x04},
+        with_gpr_inputs(s, {&ArchState::rax, &ArchState::rbx}), FL_NO_AF_OF);
     // SHRD EAX, EBX, CL: 0F AD D8
     add("compat shrd eax,ebx,cl", {0x0F, 0xAD, 0xD8}, s, FL_NO_AF_OF);
   }
@@ -585,7 +590,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     s.rflags = 0x2;
 
     // BT EAX, imm8=5: 0F BA E0 05
-    add("compat bt eax,5", {0x0F, 0xBA, 0xE0, 0x05}, s, FL_CF_ZF);
+    add("compat bt eax,5", {0x0F, 0xBA, 0xE0, 0x05}, with_gpr_inputs(s, {&ArchState::rax}), FL_CF_ZF);
     // BTS EAX, EBX: 0F AB D8
     add("compat bts eax,ebx", {0x0F, 0xAB, 0xD8}, s, FL_CF_ZF);
     // BSF EAX, EBX: 0F BC C3
@@ -724,7 +729,8 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rax = 0x11111111;
       s.rbx = 0x22222222;
       s.rflags = 0x2 | FL_ZF;
-      add("compat cmovz eax,ebx (taken)", {0x0F, 0x44, 0xC3}, s, FL_ALL);
+      add("compat cmovz eax,ebx (taken)", {0x0F, 0x44, 0xC3},
+          with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);
     }
     // CMOVZ EAX, EBX: 0F 44 C3 (ZF=0 -> no move)
     {
@@ -732,21 +738,22 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rax = 0x11111111;
       s.rbx = 0x22222222;
       s.rflags = 0x2;
-      add("compat cmovz eax,ebx (not taken)", {0x0F, 0x44, 0xC3}, s, FL_ALL);
+      add("compat cmovz eax,ebx (not taken)", {0x0F, 0x44, 0xC3},
+          with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);
     }
     // SETZ AL: 0F 94 C0 (ZF=1 -> AL=1)
     {
       ArchState s = {};
       s.rax = 0xDEADBEEF;
       s.rflags = 0x2 | FL_ZF;
-      add("compat setz al (ZF=1)", {0x0F, 0x94, 0xC0}, s, FL_ALL);
+      add("compat setz al (ZF=1)", {0x0F, 0x94, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);
     }
     // SETZ AL: ZF=0 -> AL=0
     {
       ArchState s = {};
       s.rax = 0xDEADBEEF;
       s.rflags = 0x2;
-      add("compat setz al (ZF=0)", {0x0F, 0x94, 0xC0}, s, FL_ALL);
+      add("compat setz al (ZF=0)", {0x0F, 0x94, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);
     }
   }
 
@@ -859,7 +866,8 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rax = 0xDEADBEEF00000000ULL;
       s.rflags = 0x2;
       // MOV EAX, 1: B8 01 00 00 00
-      add("compat mov eax,1 (upper cleared)", {0xB8, 0x01, 0x00, 0x00, 0x00}, s, FL_ALL);
+      add("compat mov eax,1 (upper cleared)", {0xB8, 0x01, 0x00, 0x00, 0x00},
+          with_gpr_inputs(s, {}), FL_ALL);
     }
     // ADD EAX, 0 with upper RAX set
     {
@@ -874,7 +882,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       ArchState s = {};
       s.rax = 0xFFFFFFFFFFFFFFFFULL;
       s.rflags = 0x2;
-      add("compat xor eax,eax (upper cleared)", {0x31, 0xC0}, s);
+      add("compat xor eax,eax (upper cleared)", {0x31, 0xC0}, with_gpr_inputs(s, {}));
     }
     // INC EAX (40h) with upper RAX set
     {
@@ -890,7 +898,8 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rbx = 0x5678;
       s.rflags = 0x2;
       // MOV AX, BX: 66 89 D8 (mov r/m16, r16 with ModRM D8 = mod=11, reg=BX, rm=AX)
-      add("compat mov ax,bx (upper preserved)", {0x66, 0x89, 0xD8}, s, FL_ALL);
+      add("compat mov ax,bx (upper preserved)", {0x66, 0x89, 0xD8},
+          with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);
     }
     // MOV to 8-bit: should NOT clear upper bits
     {
@@ -899,7 +908,8 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.rbx = 0x78;
       s.rflags = 0x2;
       // MOV AL, BL: 88 D8
-      add("compat mov al,bl (upper preserved)", {0x88, 0xD8}, s, FL_ALL);
+      add("compat mov al,bl (upper preserved)", {0x88, 0xD8},
+          with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);
     }
   }
 
@@ -953,7 +963,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.xmm[0] = {};
       s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
       s.xmm[2] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
-      add_xmm("compat vaddps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x58, 0xC2}, s, 0x7);
+      add_xmm("compat vaddps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x58, 0xC2}, with_vector_inputs(s, 0x6), 0x7);
     }
     // VADDPS YMM0, YMM1, YMM2: C5 F4 58 C2 (L=1 for 256-bit)
     {
@@ -962,7 +972,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       s.xmm[0] = {};
       s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
       s.xmm[2] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
-      add_xmm("compat vaddps ymm0,ymm1,ymm2", {0xC5, 0xF4, 0x58, 0xC2}, s, 0x7);
+      add_xmm("compat vaddps ymm0,ymm1,ymm2", {0xC5, 0xF4, 0x58, 0xC2}, with_vector_inputs(s, 0x6), 0x7);
     }
   }
 

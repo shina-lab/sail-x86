@@ -42,7 +42,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     {
       std::vector<u8> data = {0x78, 0x56, 0x34, 0x12, 0xAA, 0xBB, 0xCC, 0xDD};
       tests.push_back({"mov rax,[r8] (REX.B base)", cat, {0x49, 0x8B, 0x00},
-                        {.rax = 0xDEADDEADDEADDEAD, .r8 = DATA_ADDR, .rflags = 0x2},
+                        {.r8 = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -60,7 +60,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
       data[14] = 0x77;
       data[15] = 0x88;
       tests.push_back({"mov rax,[rdi+r8*2] (REX.X)", cat, {0x4A, 0x8B, 0x04, 0x47},
-                        {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .r8 = 4, .rflags = 0x2},
+                        {.rdi = DATA_ADDR, .r8 = 4, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -80,7 +80,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
       data[15] = 0x22;
       tests.push_back({"mov rax,[r13+rcx] (REX.B SIB base)", cat,
                         {0x49, 0x8B, 0x44, 0x0D, 0x00},
-                        {.rax = 0xDEADDEADDEADDEAD, .rcx = 8, .r13 = DATA_ADDR, .rflags = 0x2},
+                        {.rcx = 8, .r13 = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -99,7 +99,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
       data[15] = 0xF0;
       tests.push_back({"mov rax,[r13+r8*4] (REX.X+B)", cat,
                         {0x4B, 0x8B, 0x44, 0x85, 0x00},
-                        {.rax = 0xDEADDEADDEADDEAD, .r8 = 2, .r13 = DATA_ADDR, .rflags = 0x2},
+                        {.r8 = 2, .r13 = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -158,37 +158,41 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     };
 
     // 1-byte NOP: 90
-    tests.push_back({"nop (1B)", cat, {0x90}, s, FL_ALL});
+    tests.push_back({"nop (1B)", cat, {0x90}, with_gpr_inputs(s, {}), FL_ALL});
 
     // 2-byte NOP: 66 90
-    tests.push_back({"nop (2B)", cat, {0x66, 0x90}, s, FL_ALL});
+    tests.push_back({"nop (2B)", cat, {0x66, 0x90}, with_gpr_inputs(s, {}), FL_ALL});
 
     // 3-byte NOP: 0F 1F 00
-    tests.push_back({"nop (3B)", cat, {0x0F, 0x1F, 0x00}, s, FL_ALL});
+    tests.push_back({"nop (3B)", cat, {0x0F, 0x1F, 0x00}, with_gpr_inputs(s, {}), FL_ALL});
 
     // 4-byte NOP: 0F 1F 40 00
-    tests.push_back({"nop (4B)", cat, {0x0F, 0x1F, 0x40, 0x00}, s, FL_ALL});
+    tests.push_back({"nop (4B)", cat, {0x0F, 0x1F, 0x40, 0x00}, with_gpr_inputs(s, {}), FL_ALL});
 
     // 5-byte NOP: 0F 1F 44 00 00
-    tests.push_back({"nop (5B)", cat, {0x0F, 0x1F, 0x44, 0x00, 0x00}, s, FL_ALL});
+    tests.push_back({"nop (5B)", cat, {0x0F, 0x1F, 0x44, 0x00, 0x00}, with_gpr_inputs(s, {}), FL_ALL});
 
     // 6-byte NOP: 66 0F 1F 44 00 00
-    tests.push_back({"nop (6B)", cat, {0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00}, s, FL_ALL});
+    tests.push_back({"nop (6B)", cat, {0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00},
+        with_gpr_inputs(s, {}), FL_ALL});
 
     // 7-byte NOP: 0F 1F 80 00 00 00 00
-    tests.push_back({"nop (7B)", cat, {0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00}, s, FL_ALL});
+    tests.push_back({"nop (7B)", cat, {0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00},
+        with_gpr_inputs(s, {}), FL_ALL});
 
     // 8-byte NOP: 0F 1F 84 00 00 00 00 00
-    tests.push_back({"nop (8B)", cat, {0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00}, s, FL_ALL});
+    tests.push_back({"nop (8B)", cat, {0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+        with_gpr_inputs(s, {}), FL_ALL});
 
     // 9-byte NOP: 66 0F 1F 84 00 00 00 00 00
-    tests.push_back({"nop (9B)", cat, {0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00}, s, FL_ALL});
+    tests.push_back({"nop (9B)", cat, {0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+        with_gpr_inputs(s, {}), FL_ALL});
 
     // Chained: 3B + 5B + 1B NOPs in sequence
     tests.push_back({"nop chain (3+5+1)", cat,
                       {0x0F, 0x1F, 0x00,
                        0x0F, 0x1F, 0x44, 0x00, 0x00,
-                       0x90}, s, FL_ALL});
+                       0x90}, with_gpr_inputs(s, {}), FL_ALL});
   }
 
   // =====================================================================
@@ -215,7 +219,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     {
       std::vector<u8> data = {0x42, 0x43, 0x44, 0x45, 0, 0, 0, 0};
       tests.push_back({"mov eax,[edi] (67 prefix)", cat, {0x67, 0x8B, 0x07},
-                        {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rdi = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -224,7 +228,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     {
       std::vector<u8> data = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
       tests.push_back({"mov rax,[edi] (67+REX.W)", cat, {0x67, 0x48, 0x8B, 0x07},
-                        {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rdi = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -241,14 +245,14 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     // 40 0F B6 C5: REX MOVZX EAX, BPL (rm=5=bpl with REX)
     tests.push_back({"movzx eax,bpl (REX byte reg)", cat,
                       {0x40, 0x0F, 0xB6, 0xC5},
-                      {.rax = 0xDEAD0000BEEF0000, .rbp = 0xABCDEF0123456789, .rflags = 0x2},
+                      {.rbp = 0xABCDEF0123456789, .rflags = 0x2},
                       FL_ALL});
 
     // Without REX, same ModRM accesses CH:
     // 0F B6 C5: MOVZX EAX, CH (rm=5=ch without REX)
     tests.push_back({"movzx eax,ch (no REX byte reg)", cat,
                       {0x0F, 0xB6, 0xC5},
-                      {.rax = 0xDEAD0000BEEF0000, .rcx = 0x123456789ABC00DE, .rflags = 0x2},
+                      {.rcx = 0x123456789ABC00DE, .rflags = 0x2},
                       FL_ALL});
   }
 
@@ -268,7 +272,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
 
     // LZCNT 32-bit: zero -> result=32, CF=1
     tests.push_back({"lzcnt eax,eax zero", cat, {0xF3, 0x0F, 0xBD, 0xC0},
-                      {.rflags = 0x2}, FL_CF | FL_ZF});
+                      {.rax = 0, .rflags = 0x2}, FL_CF | FL_ZF});
 
     // LZCNT 32-bit: 1 -> result=31
     tests.push_back({"lzcnt eax,eax one", cat, {0xF3, 0x0F, 0xBD, 0xC0},
@@ -281,7 +285,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
 
     // LZCNT 64-bit: zero -> result=64, CF=1
     tests.push_back({"lzcnt rax,rax zero", cat, {0xF3, 0x48, 0x0F, 0xBD, 0xC0},
-                      {.rflags = 0x2}, FL_CF | FL_ZF});
+                      {.rax = 0, .rflags = 0x2}, FL_CF | FL_ZF});
 
     // LZCNT 16-bit: 66 F3 0F BD C0
     // AX=0x0001, lzcnt16=15
@@ -302,7 +306,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
 
     // TZCNT 32-bit: zero -> result=32, CF=1
     tests.push_back({"tzcnt eax,eax zero", cat, {0xF3, 0x0F, 0xBC, 0xC0},
-                      {.rflags = 0x2}, FL_CF | FL_ZF});
+                      {.rax = 0, .rflags = 0x2}, FL_CF | FL_ZF});
 
     // TZCNT 32-bit: 0x80000000 -> result=31
     tests.push_back({"tzcnt eax,eax msb", cat, {0xF3, 0x0F, 0xBC, 0xC0},
@@ -320,35 +324,35 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     // F3 0F BC C3: TZCNT EAX, EBX (reg=eax, rm=ebx)
     // tzcnt=8
     tests.push_back({"tzcnt eax,ebx 0x100", cat, {0xF3, 0x0F, 0xBC, 0xC3},
-                      {.rax = 0xFFFFFFFFFFFFFFFF, .rbx = 0x100, .rflags = 0x2}, FL_CF | FL_ZF});
+                      {.rbx = 0x100, .rflags = 0x2}, FL_CF | FL_ZF});
 
     // --- Memory operand tests ---
 
     // LZCNT EAX, [RDI]: F3 0F BD 07
     // Memory contains 0x00010000 -> lzcnt32 = 15
     tests.push_back({"lzcnt eax,[rdi]", cat, {0xF3, 0x0F, 0xBD, 0x07},
-                      {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                      {.rdi = DATA_ADDR, .rflags = 0x2},
                       FL_CF | FL_ZF, 0, false,
                       {0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}, 0});
 
     // LZCNT RAX, [RDI]: F3 48 0F BD 07
     // Memory contains 0x0000000100000000 -> lzcnt64 = 31
     tests.push_back({"lzcnt rax,[rdi]", cat, {0xF3, 0x48, 0x0F, 0xBD, 0x07},
-                      {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                      {.rdi = DATA_ADDR, .rflags = 0x2},
                       FL_CF | FL_ZF, 0, false,
                       {0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}, 0});
 
     // TZCNT EAX, [RDI]: F3 0F BC 07
     // Memory contains 0x00000100 -> tzcnt32 = 8
     tests.push_back({"tzcnt eax,[rdi]", cat, {0xF3, 0x0F, 0xBC, 0x07},
-                      {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                      {.rdi = DATA_ADDR, .rflags = 0x2},
                       FL_CF | FL_ZF, 0, false,
                       {0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0});
 
     // TZCNT RAX, [RDI]: F3 48 0F BC 07
     // Memory contains 0x8000000000000000 -> tzcnt64 = 63
     tests.push_back({"tzcnt rax,[rdi]", cat, {0xF3, 0x48, 0x0F, 0xBC, 0x07},
-                      {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                      {.rdi = DATA_ADDR, .rflags = 0x2},
                       FL_CF | FL_ZF, 0, false,
                       {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80}, 0});
   }
@@ -364,7 +368,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
 
     // Zero input -> count=0, ZF=1
     tests.push_back({"popcnt eax,eax zero", cat, {0xF3, 0x0F, 0xB8, 0xC0},
-                      {.rflags = 0x2 | FL_CF | FL_SF | FL_OF}, FL_ALL});
+                      {.rax = 0, .rflags = 0x2 | FL_CF | FL_SF | FL_OF}, FL_ALL});
 
     // All bits set (32-bit) -> count=32
     tests.push_back({"popcnt eax,eax allones", cat, {0xF3, 0x0F, 0xB8, 0xC0},
@@ -388,7 +392,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
 
     // Different src/dst: POPCNT EAX, EBX, 3 bits set -> count=3
     tests.push_back({"popcnt eax,ebx 0x7", cat, {0xF3, 0x0F, 0xB8, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x7, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x7, .rflags = 0x2}, FL_ALL});
   }
 
   // =====================================================================
@@ -416,7 +420,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
 
     // BSF 32-bit: zero -> ZF=1, dest should be unchanged
     tests.push_back({"bsf eax,ebx zero", cat, {0x0F, 0xBC, 0xC3},
-                      {.rax = 0xDEADDEAD, .rflags = 0x2 | FL_CF | FL_SF}, FL_ALL});
+                      {.rbx = 0, .rflags = 0x2 | FL_CF | FL_SF}, FL_ALL});
 
     // BSF 32-bit: zero source with a nonzero upper half in the destination.
     // Both differential hosts (AMD Zen 4, Intel Emerald Rapids) leave the
@@ -425,7 +429,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     // value, which would clear the upper half; the Intel run shows it
     // does not.
     tests.push_back({"bsf eax,ebx zero hi32", cat, {0x0F, 0xBC, 0xC3},
-                      {.rax = 0xFFFFFFFFDEADDEAD, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0, .rflags = 0x2}, FL_ALL});
 
     // BSF 64-bit: bit 32 only
     // 48 0F BC C3: BSF RAX, RBX
@@ -450,11 +454,11 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
 
     // BSR 32-bit: zero -> ZF=1
     tests.push_back({"bsr eax,ebx zero", cat, {0x0F, 0xBD, 0xC3},
-                      {.rax = 0xDEADDEAD, .rflags = 0x2 | FL_CF | FL_SF}, FL_ALL});
+                      {.rbx = 0, .rflags = 0x2 | FL_CF | FL_SF}, FL_ALL});
 
     // BSR 32-bit: zero source, nonzero upper half in the destination
     tests.push_back({"bsr eax,ebx zero hi32", cat, {0x0F, 0xBD, 0xC3},
-                      {.rax = 0xFFFFFFFFDEADDEAD, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0, .rflags = 0x2}, FL_ALL});
 
     // BSR 64-bit
     tests.push_back({"bsr rax,rbx bit63", cat, {0x48, 0x0F, 0xBD, 0xC3},
@@ -556,44 +560,44 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     // MOVSX EAX, BL: 0F BE C3 (sign-extend byte to dword)
     // BL=0x80 -> EAX=0xFFFFFF80, zero-extended to 64-bit
     tests.push_back({"movsx eax,bl neg", cat, {0x0F, 0xBE, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000000000080, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x0000000000000080, .rflags = 0x2}, FL_ALL});
 
     // MOVSX EAX, BL: BL=0x7F -> EAX=0x0000007F
     tests.push_back({"movsx eax,bl pos", cat, {0x0F, 0xBE, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x000000000000007F, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x000000000000007F, .rflags = 0x2}, FL_ALL});
 
     // MOVSX RAX, BL: 48 0F BE C3 (sign-extend byte to qword)
     // -1 signed byte
     tests.push_back({"movsx rax,bl neg", cat, {0x48, 0x0F, 0xBE, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x00000000000000FF, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x00000000000000FF, .rflags = 0x2}, FL_ALL});
 
     // MOVSX EAX, BX: 0F BF C3 (sign-extend word to dword)
     // -32768 signed word
     tests.push_back({"movsx eax,bx neg", cat, {0x0F, 0xBF, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000000008000, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x0000000000008000, .rflags = 0x2}, FL_ALL});
 
     // MOVSX RAX, BX: 48 0F BF C3 (sign-extend word to qword)
     tests.push_back({"movsx rax,bx neg", cat, {0x48, 0x0F, 0xBF, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000000008000, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x0000000000008000, .rflags = 0x2}, FL_ALL});
 
     // MOVSXD RAX, EBX: 48 63 C3 (sign-extend dword to qword)
     // -2147483648 signed dword
     tests.push_back({"movsxd rax,ebx neg", cat, {0x48, 0x63, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000080000000, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x0000000080000000, .rflags = 0x2}, FL_ALL});
 
     // MOVSXD RAX, EBX: positive value
     tests.push_back({"movsxd rax,ebx pos", cat, {0x48, 0x63, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x000000007FFFFFFF, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x000000007FFFFFFF, .rflags = 0x2}, FL_ALL});
 
     // MOVSXD without REX.W (63 C3): acts as MOV EBX, EBX (no sign extend)
     tests.push_back({"movsxd eax,ebx no-rex.w", cat, {0x63, 0xC3},
-                      {.rax = 0xDEADDEADDEADDEAD, .rbx = 0x0000000080000000, .rflags = 0x2}, FL_ALL});
+                      {.rbx = 0x0000000080000000, .rflags = 0x2}, FL_ALL});
 
     // MOVSX with R8-R15: 41 0F BE C0 = MOVSX EAX, R8B
     // -2 signed byte
     // Actually: 41 0F BE C0: REX.B, MOVSX EAX, r/m8 where rm=0+B=R8B
     tests.push_back({"movsx eax,r8b neg", cat, {0x41, 0x0F, 0xBE, 0xC0},
-                      {.rax = 0xDEADDEADDEADDEAD, .r8 = 0x00000000000000FE, .rflags = 0x2}, FL_ALL});
+                      {.r8 = 0x00000000000000FE, .rflags = 0x2}, FL_ALL});
   }
 
   // =====================================================================
@@ -605,7 +609,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     // BT r64, r64: 48 0F A3 D8 = BT RAX, RBX (test bit RBX in RAX)
     // Sets CF = bit at position (RBX mod 64)
     tests.push_back({"bt rax,rbx bit0 set", cat, {0x48, 0x0F, 0xA3, 0xD8},
-                      {.rax = 0x0000000000000001, .rflags = 0x2}, FL_CF_ZF});
+                      {.rax = 0x0000000000000001, .rbx = 0, .rflags = 0x2}, FL_CF_ZF});
 
     // test bit 1 (not set)
     tests.push_back({"bt rax,rbx bit1 clear", cat, {0x48, 0x0F, 0xA3, 0xD8},
@@ -617,7 +621,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
 
     // BTS r64, r64: 48 0F AB D8 = BTS RAX, RBX (set bit)
     tests.push_back({"bts rax,rbx bit5", cat, {0x48, 0x0F, 0xAB, 0xD8},
-                      {.rbx = 5, .rflags = 0x2}, FL_CF_ZF});
+                      {.rax = 0, .rbx = 5, .rflags = 0x2}, FL_CF_ZF});
 
     // BTR r64, r64: 48 0F B3 D8 = BTR RAX, RBX (reset bit)
     tests.push_back({"btr rax,rbx bit63", cat, {0x48, 0x0F, 0xB3, 0xD8},
@@ -625,7 +629,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
 
     // BTC r64, r64: 48 0F BB D8 = BTC RAX, RBX (complement bit)
     tests.push_back({"btc rax,rbx bit10", cat, {0x48, 0x0F, 0xBB, 0xD8},
-                      {.rbx = 10, .rflags = 0x2}, FL_CF_ZF});
+                      {.rax = 0, .rbx = 10, .rflags = 0x2}, FL_CF_ZF});
 
     // BT r/m, imm8 (Group 8): 0F BA /4 ib
     // 48 0F BA E0 3F: BT RAX, 63
@@ -634,7 +638,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
 
     // BTS r/m, imm8: 48 0F BA E8 00 = BTS RAX, 0
     tests.push_back({"bts rax,0 imm", cat, {0x48, 0x0F, 0xBA, 0xE8, 0x00},
-                      {.rflags = 0x2}, FL_CF_ZF});
+                      {.rax = 0, .rflags = 0x2}, FL_CF_ZF});
 
     // BTR r/m, imm8: 48 0F BA F0 1F = BTR RAX, 31
     tests.push_back({"btr rax,31 imm", cat, {0x48, 0x0F, 0xBA, 0xF0, 0x1F},
@@ -661,7 +665,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     {
       std::vector<u8> data = {0x01, 0x02, 0x03, 0x04, 0, 0, 0, 0};
       tests.push_back({"movbe eax,[rdi]", cat, {0x0F, 0x38, 0xF0, 0x07},
-                        {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rdi = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 
@@ -677,7 +681,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
     {
       std::vector<u8> data = {0xAB, 0xCD, 0, 0, 0, 0, 0, 0};
       tests.push_back({"movbe ax,[rdi]", cat, {0x66, 0x0F, 0x38, 0xF0, 0x07},
-                        {.rax = 0xDEADDEADDEADDEAD, .rdi = DATA_ADDR, .rflags = 0x2},
+                        {.rdi = DATA_ADDR, .rflags = 0x2},
                         FL_ALL, 0, false, data, 0});
     }
 

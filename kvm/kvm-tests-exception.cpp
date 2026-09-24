@@ -26,23 +26,23 @@ void add_exception_tests(std::vector<TestCase> &tests) {
 
   // DIV by zero — all sizes
   add_fault("div rcx (div by zero, 64-bit)", {0x48, 0xF7, 0xF1},
-            {.rax = 42, .rflags = 0x2}, 0);
+            {.rax = 42, .rcx = 0, .rdx = 0, .rflags = 0x2}, 0);
   add_fault("div ecx (div by zero, 32-bit)", {0xF7, 0xF1},
-            {.rax = 42, .rflags = 0x2}, 0);
+            {.rax = 42, .rcx = 0, .rdx = 0, .rflags = 0x2}, 0);
   add_fault("div cx (div by zero, 16-bit)", {0x66, 0xF7, 0xF1},
-            {.rax = 42, .rflags = 0x2}, 0);
+            {.rax = 42, .rcx = 0, .rdx = 0, .rflags = 0x2}, 0);
   add_fault("div cl (div by zero, 8-bit)", {0xF6, 0xF1},
-            {.rax = 42, .rflags = 0x2}, 0);
+            {.rax = 42, .rcx = 0, .rflags = 0x2}, 0);
 
   // IDIV by zero — all sizes
   add_fault("idiv rcx (div by zero, 64-bit)", {0x48, 0xF7, 0xF9},
-            {.rax = 42, .rflags = 0x2}, 0);
+            {.rax = 42, .rcx = 0, .rdx = 0, .rflags = 0x2}, 0);
   add_fault("idiv ecx (div by zero, 32-bit)", {0xF7, 0xF9},
-            {.rax = 42, .rflags = 0x2}, 0);
+            {.rax = 42, .rcx = 0, .rdx = 0, .rflags = 0x2}, 0);
   add_fault("idiv cx (div by zero, 16-bit)", {0x66, 0xF7, 0xF9},
-            {.rax = 42, .rflags = 0x2}, 0);
+            {.rax = 42, .rcx = 0, .rdx = 0, .rflags = 0x2}, 0);
   add_fault("idiv cl (div by zero, 8-bit)", {0xF6, 0xF9},
-            {.rax = 42, .rflags = 0x2}, 0);
+            {.rax = 42, .rcx = 0, .rflags = 0x2}, 0);
 
   // DIV quotient overflow
 
@@ -52,16 +52,16 @@ void add_exception_tests(std::vector<TestCase> &tests) {
 
   // 32-bit: EDX:EAX = 0x1_00000000, ECX=1 → quotient overflows 32 bits
   add_fault("div ecx (quotient overflow, 32-bit)", {0xF7, 0xF1},
-            {.rcx = 1, .rdx = 1, .rflags = 0x2}, 0);
+            {.rax = 0, .rcx = 1, .rdx = 1, .rflags = 0x2}, 0);
 
   // 64-bit: RDX:RAX = 2^64, RCX=1 → quotient overflows 64 bits
   add_fault("div rcx (quotient overflow, 64-bit)", {0x48, 0xF7, 0xF1},
-            {.rcx = 1, .rdx = 1, .rflags = 0x2}, 0);
+            {.rax = 0, .rcx = 1, .rdx = 1, .rflags = 0x2}, 0);
 
   // DIV quotient overflow — 16-bit
   // DX:AX = 0x10000, CX=1 → quotient 65536 > UINT16_MAX
   add_fault("div cx (quotient overflow, 16-bit)", {0x66, 0xF7, 0xF1},
-            {.rcx = 1, .rdx = 1, .rflags = 0x2}, 0);
+            {.rax = 0, .rcx = 1, .rdx = 1, .rflags = 0x2}, 0);
 
   // IDIV quotient overflow
 
@@ -71,11 +71,11 @@ void add_exception_tests(std::vector<TestCase> &tests) {
 
   // 32-bit: EDX=0, EAX=0x80000000, ECX=1 → quotient 0x80000000 > INT32_MAX
   add_fault("idiv ecx (quotient overflow, 32-bit)", {0xF7, 0xF9},
-            {.rax = 0x80000000, .rcx = 1, .rflags = 0x2}, 0);
+            {.rax = 0x80000000, .rcx = 1, .rdx = 0, .rflags = 0x2}, 0);
 
   // 64-bit: RDX=0, RAX=0x8000000000000000, RCX=1
   add_fault("idiv rcx (quotient overflow, 64-bit)", {0x48, 0xF7, 0xF9},
-            {.rax = 0x8000000000000000ULL, .rcx = 1, .rflags = 0x2}, 0);
+            {.rax = 0x8000000000000000ULL, .rcx = 1, .rdx = 0, .rflags = 0x2}, 0);
 
   // IDIV by -1 overflow: most negative / -1 overflows
   // 32-bit: EDX:EAX = 0xFFFFFFFF:80000000 (-2147483648), ECX=0xFFFFFFFF (-1)
@@ -93,11 +93,11 @@ void add_exception_tests(std::vector<TestCase> &tests) {
 
   // LOCK ADD RAX, RBX: F0 48 01 D8 — register destination, #UD
   add_fault("lock add rax,rbx (reg dest → #UD)", {0xF0, 0x48, 0x01, 0xD8},
-            {.rax = 1, .rbx = 2, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // LOCK CMP [RDI], RAX: F0 48 39 07 — CMP doesn't write, #UD even with mem
   add_fault("lock cmp [rdi],rax (CMP not lockable → #UD)", {0xF0, 0x48, 0x39, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // LOCK MOV RAX, RBX: F0 48 89 D8 — MOV is not lockable, #UD
   add_fault("lock mov rax,rbx (non-lockable → #UD)", {0xF0, 0x48, 0x89, 0xD8},
@@ -121,9 +121,9 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // VLDMXCSR/VSTMXCSR are VEX.LZ with vvvv reserved: VEX.L = 1 and
   // vvvv != 1111b are #UD (SDM LDMXCSR/STMXCSR pages).
   add_fault("vldmxcsr [rdi] with VEX.L=1 (#UD)", {0xC5, 0xFC, 0xAE, 0x17},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
   add_fault("vstmxcsr [rdi] with vvvv=1110b (#UD)", {0xC5, 0xF0, 0xAE, 0x1F},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VBROADCASTF32X2 has only 256- and 512-bit forms: EVEX.128 (L'L=00) is #UD.
   add_fault("vbroadcastf32x2 xmm (no 128-bit form → #UD)",
@@ -263,25 +263,34 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     s.dr7 = (1ull << (2 * n)) | ((u64)rw << (16 + 4 * n)) | ((u64)len << (18 + 4 * n));
     return s;
   };
-  add_fault("data bp write LEN=1 hit by mov [rdi],al", {0x88, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR, 1, 0), 1);
+  auto dbp_store = [&](int n, u64 addr, unsigned rw, unsigned len) {
+    ArchState s = dbp(n, addr, rw, len);
+    s.rax = 0;
+    return s;
+  };
+  add_fault("data bp write LEN=1 hit by mov [rdi],al", {0x88, 0x07, 0x90, 0xF4}, dbp_store(0, DATA_ADDR, 1, 0), 1);
   add_fault("data bp R/W LEN=1 hit by mov al,[rdi]", {0x8A, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR, 3, 0), 1);
   add_no_fault("data bp write-only not hit by a read", {0x8A, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR, 1, 0));
-  add_no_fault("data bp LEN=1 at +1 not hit by a byte write at +0", {0x88, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR + 1, 1, 0));
-  add_fault("data bp LEN=1 at +3 hit by a dword write at +0", {0x89, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR + 3, 1, 0), 1);
-  add_no_fault("data bp LEN=1 at +3 not hit by a word write at +0", {0x66, 0x89, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR + 3, 1, 0));
-  add_fault("data bp LEN=4 at +4 hit by a byte write at +7", {0x88, 0x47, 0x07, 0x90, 0xF4}, dbp(0, DATA_ADDR + 4, 1, 3), 1);
-  add_no_fault("data bp LEN=4 at +4 not hit by a byte write at +8", {0x88, 0x47, 0x08, 0x90, 0xF4}, dbp(0, DATA_ADDR + 4, 1, 3));
-  add_fault("data bp LEN=4 at unaligned +6 masks to +4: hit by a write at +4", {0x88, 0x47, 0x04, 0x90, 0xF4}, dbp(0, DATA_ADDR + 6, 1, 3), 1);
-  add_fault("data bp LEN=8 at +8 hit by a byte write at +15", {0x88, 0x47, 0x0F, 0x90, 0xF4}, dbp(0, DATA_ADDR + 8, 1, 2), 1);
-  add_no_fault("data bp LEN=8 at +8 not hit by a byte write at +16", {0x88, 0x47, 0x10, 0x90, 0xF4}, dbp(0, DATA_ADDR + 8, 1, 2));
+  add_no_fault("data bp LEN=1 at +1 not hit by a byte write at +0", {0x88, 0x07, 0x90, 0xF4}, dbp_store(0, DATA_ADDR + 1, 1, 0));
+  add_fault("data bp LEN=1 at +3 hit by a dword write at +0", {0x89, 0x07, 0x90, 0xF4}, dbp_store(0, DATA_ADDR + 3, 1, 0), 1);
+  add_no_fault("data bp LEN=1 at +3 not hit by a word write at +0", {0x66, 0x89, 0x07, 0x90, 0xF4}, dbp_store(0, DATA_ADDR + 3, 1, 0));
+  add_fault("data bp LEN=4 at +4 hit by a byte write at +7", {0x88, 0x47, 0x07, 0x90, 0xF4}, dbp_store(0, DATA_ADDR + 4, 1, 3), 1);
+  add_no_fault("data bp LEN=4 at +4 not hit by a byte write at +8", {0x88, 0x47, 0x08, 0x90, 0xF4}, dbp_store(0, DATA_ADDR + 4, 1, 3));
+  add_fault("data bp LEN=4 at unaligned +6 masks to +4: hit by a write at +4", {0x88, 0x47, 0x04, 0x90, 0xF4}, dbp_store(0, DATA_ADDR + 6, 1, 3), 1);
+  add_fault("data bp LEN=8 at +8 hit by a byte write at +15", {0x88, 0x47, 0x0F, 0x90, 0xF4}, dbp_store(0, DATA_ADDR + 8, 1, 2), 1);
+  add_no_fault("data bp LEN=8 at +8 not hit by a byte write at +16", {0x88, 0x47, 0x10, 0x90, 0xF4}, dbp_store(0, DATA_ADDR + 8, 1, 2));
   {
-    ArchState s = dbp(0, DATA_ADDR, 1, 0);
+    ArchState s = dbp_store(0, DATA_ADDR, 1, 0);
     s.dr[1] = DATA_ADDR + 1; s.dr7 |= (1ull << 2) | (1ull << 20);
     add_fault("data bp DR0 and DR1 hit by one word write (B0 and B1)", {0x66, 0x89, 0x07, 0x90, 0xF4}, s, 1);
   }
-  add_fault("data bp LEN=8 on the stack slot hit by push rax", {0x50, 0x90, 0xF4}, dbp(0, STACK_TOP - 8, 1, 2), 1);
   {
-    ArchState s = dbp(0, DATA_ADDR, 1, 0); s.rflags = 0x102;
+    ArchState s = bp_state(0, STACK_TOP - 8, 0x1 | (1ULL << 16) | (2ULL << 18));
+    s.rax = 0;
+    add_fault("data bp LEN=8 on the stack slot hit by push rax", {0x50, 0x90, 0xF4}, s, 1);
+  }
+  {
+    ArchState s = dbp_store(0, DATA_ADDR, 1, 0); s.rflags = 0x102;
     add_fault("data bp with single-step: BS and B0 together", {0x88, 0x07, 0x90, 0xF4}, s, 1);
   }
   {
@@ -320,7 +329,7 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   {
     ArchState s = dbp(0, DATA_ADDR + 2, 1, 0); s.rcx = 4; s.rax = 0x41;
     add_fault("data bp inside rep stosb (trap after the hitting iteration)", {0xF3, 0xAA, 0x90, 0xF4}, s, -1);
-    ArchState t = {.rcx = 3, .rdi = DATA_ADDR, .rflags = 0x102};
+    ArchState t = {.rax = 0, .rcx = 3, .rdi = DATA_ADDR, .rflags = 0x102};
     add_fault("single-step of rep stosb (trap after the first iteration, RF=1)", {0xF3, 0xAA, 0x90, 0xF4}, t, -1);
   }
 
@@ -448,63 +457,63 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // VMOVSS XMM0, [RDI] with vvvv=1110 (should be 1111): C5 F2 10 07
   // Normal: C5 FA 10 07 (vvvv=1111). F2 = R=1,vvvv=1110,L=0,pp=10.
   add_fault("vmovss xmm,m32 vvvv!=1111 → #UD", {0xC5, 0xF2, 0x10, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VMOVSD XMM0, [RDI] with vvvv=1110: C5 F3 10 07
   // Normal: C5 FB 10 07 (vvvv=1111, pp=11=F2). F3 = R=1,vvvv=1110,L=0,pp=11.
   add_fault("vmovsd xmm,m64 vvvv!=1111 → #UD", {0xC5, 0xF3, 0x10, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VMOVSS [RDI], XMM0 with vvvv=1110: C5 F2 11 07
   add_fault("vmovss m32,xmm vvvv!=1111 → #UD", {0xC5, 0xF2, 0x11, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VMOVSD [RDI], XMM0 with vvvv=1110: C5 F3 11 07
   add_fault("vmovsd m64,xmm vvvv!=1111 → #UD", {0xC5, 0xF3, 0x11, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // ---- More #UD tests: LOCK on 2-byte opcodes ----
   cat = "Exception #UD";
 
   // LOCK MOVZX EAX, BL: F0 0F B6 C3 — MOVZX not lockable, #UD
   add_fault("lock movzx eax,bl (2-byte non-lockable → #UD)", {0xF0, 0x0F, 0xB6, 0xC3},
-            {.rbx = 0x42, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // LOCK BSF EAX, EBX: F0 0F BC C3 — BSF not lockable, #UD
   add_fault("lock bsf eax,ebx (2-byte non-lockable → #UD)", {0xF0, 0x0F, 0xBC, 0xC3},
-            {.rbx = 0x100, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // LOCK CMPXCHG EAX, EBX: F0 0F B1 D8 — reg dest on lockable 2-byte, #UD
   // CMPXCHG r/m, r: ModRM D8 = 11 011 000 = reg, reg=EBX, rm=EAX
   add_fault("lock cmpxchg eax,ebx (reg dest → #UD)", {0xF0, 0x0F, 0xB1, 0xD8},
-            {.rax = 1, .rbx = 2, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // LOCK XADD EAX, EBX: F0 0F C1 D8 — reg dest on lockable 2-byte, #UD
   add_fault("lock xadd eax,ebx (reg dest → #UD)", {0xF0, 0x0F, 0xC1, 0xD8},
-            {.rax = 1, .rbx = 2, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // LOCK INC EAX: F0 FF C0 — INC with register dest, #UD
   // FF C0 = ModRM 11 000 000 = /0, rm=EAX (register)
   add_fault("lock inc eax (reg dest → #UD)", {0xF0, 0xFF, 0xC0},
-            {.rax = 42, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // LOCK NEG EAX: F0 F7 D8 — NEG with register dest, #UD
   // F7 D8 = ModRM 11 011 000 = /3, rm=EAX (register)
   add_fault("lock neg eax (reg dest → #UD)", {0xF0, 0xF7, 0xD8},
-            {.rax = 42, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // LOCK MUL EAX: F0 F7 E0 — MUL (/4) not lockable even as Group 3, #UD
   // F7 E0 = ModRM 11 100 000 = /4, rm=EAX
   add_fault("lock mul eax (MUL not lockable → #UD)", {0xF0, 0xF7, 0xE0},
-            {.rax = 2, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // LOCK DIV ECX: F0 F7 F1 — DIV (/6) not lockable, #UD
   add_fault("lock div ecx (DIV not lockable → #UD)", {0xF0, 0xF7, 0xF1},
-            {.rax = 42, .rcx = 7, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // LOCK PUSH RAX: F0 50 — PUSH not lockable, #UD
   add_fault("lock push rax (non-lockable → #UD)", {0xF0, 0x50},
-            {.rax = 42, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // ---- VEX.L=1 on 128-bit-only instructions → #UD ----
   // VEX 2-byte prefix byte2: R̃ vvvv L pp
@@ -514,27 +523,29 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // VPINSRW xmm0,xmm0,ecx,0 with VEX.L=1: C5 FD C4 C1 00
   // Normal (L=0): C5 F9 C4 C1 00
   add_fault("vpinsrw L=1 (128-bit only → #UD)", {0xC5, 0xFD, 0xC4, 0xC1, 0x00},
-            {.rcx = 0x1234, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   {
     // VPEXTRW eax,xmm1,0 with VEX.L=1: C5 FD C5 C1 00
     // Normal (L=0): C5 F9 C5 C1 00
     ArchState s = {.rflags = 0x2};
     s.xmm[1] = xmm_from_u64(0x0011223344556677, 0x8899AABBCCDDEEFF);
-    add_fault("vpextrw L=1 (128-bit only → #UD)", {0xC5, 0xFD, 0xC5, 0xC1, 0x00}, s, 6);
+    add_fault("vpextrw L=1 (128-bit only → #UD)", {0xC5, 0xFD, 0xC5, 0xC1, 0x00},
+        with_vector_inputs(s, 0x0), 6);
   }
 
   // VMOVD xmm0,ecx with VEX.L=1: C5 FD 6E C1
   // Normal (L=0): C5 F9 6E C1
   add_fault("vmovd xmm,r32 L=1 (128-bit only → #UD)", {0xC5, 0xFD, 0x6E, 0xC1},
-            {.rcx = 0x12345678, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   {
     // VMOVD ecx,xmm0 with VEX.L=1: C5 FD 7E C1
     // Normal (L=0): C5 F9 7E C1
     ArchState s = {.rflags = 0x2};
     s.xmm[0] = xmm_from_u64(0x12345678, 0);
-    add_fault("vmovd r32,xmm L=1 (128-bit only → #UD)", {0xC5, 0xFD, 0x7E, 0xC1}, s, 6);
+    add_fault("vmovd r32,xmm L=1 (128-bit only → #UD)", {0xC5, 0xFD, 0x7E, 0xC1},
+        with_vector_inputs(s, 0x0), 6);
   }
 
   // NOTE: Scalar instructions (VUCOMISS, VCVTSI2SS, VCVTTSS2SI, etc.)
@@ -550,32 +561,32 @@ void add_exception_tests(std::vector<TestCase> &tests) {
 
   // VMOVAPS xmm0,[mem] with vvvv!=1111: C5 F0 28 07 (via [rdi])
   add_fault("vmovaps load vvvv!=0 → #UD", {0xC5, 0xF0, 0x28, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VMOVAPD xmm0,[mem] with vvvv!=1111: C5 F1 28 07
   add_fault("vmovapd load vvvv!=0 → #UD", {0xC5, 0xF1, 0x28, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VMOVAPS [mem],xmm0 with vvvv!=1111: C5 F0 29 07
   add_fault("vmovaps store vvvv!=0 → #UD", {0xC5, 0xF0, 0x29, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VMOVDQA xmm0,[mem] with vvvv!=1111: C5 F1 6F 07
   add_fault("vmovdqa load vvvv!=0 → #UD", {0xC5, 0xF1, 0x6F, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VMOVDQU xmm0,[mem] with vvvv!=1111: C5 F2 6F 07 (pp=F3)
   // C5 FA = R̃=1 vvvv=1111 L=0 pp=10(F3); C5 F2 = vvvv=1110
   add_fault("vmovdqu load vvvv!=0 → #UD", {0xC5, 0xF2, 0x6F, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VMOVDQA [mem],xmm0 with vvvv!=1111: C5 F1 7F 07
   add_fault("vmovdqa store vvvv!=0 → #UD", {0xC5, 0xF1, 0x7F, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VMOVDQU [mem],xmm0 with vvvv!=1111: C5 F2 7F 07
   add_fault("vmovdqu store vvvv!=0 → #UD", {0xC5, 0xF2, 0x7F, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VUCOMISS xmm0,xmm1 with vvvv!=1111: C5 F0 2E C1
   add_fault("vucomiss vvvv!=0 → #UD", {0xC5, 0xF0, 0x2E, 0xC1},
@@ -611,16 +622,16 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // Normal: C4 E2 79 18 07 (W=0 vvvv=1111 L=0 pp=01)
   // Bad:    C4 E2 71 18 07 (W=0 vvvv=1110 L=0 pp=01)
   add_fault("vbroadcastss vvvv!=0 → #UD", {0xC4, 0xE2, 0x71, 0x18, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VMOVUPS xmm0,[mem] with vvvv!=1111: C5 F0 10 07
   // Normal: C5 F8 10 07
   add_fault("vmovups load vvvv!=0 → #UD", {0xC5, 0xF0, 0x10, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VMOVUPS [mem],xmm0 with vvvv!=1111: C5 F0 11 07
   add_fault("vmovups store vvvv!=0 → #UD", {0xC5, 0xF0, 0x11, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VCVTDQ2PS xmm0,xmm1 with vvvv!=1111: C5 F0 5B C1
   // Normal: C5 F8 5B C1 (NP = VCVTDQ2PS)
@@ -636,7 +647,7 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // Normal: C4 E2 7D 19 07 (W=0 vvvv=1111 L=1 pp=01)
   // Bad:    C4 E2 75 19 07 (W=0 vvvv=1110 L=1 pp=01)
   add_fault("vbroadcastsd vvvv!=0 → #UD", {0xC4, 0xE2, 0x75, 0x19, 0x07},
-            {.rdi = DATA_ADDR, .rflags = 0x2}, 6);
+            {.rflags = 0x2}, 6);
 
   // VPBROADCASTD xmm0,xmm1 with vvvv!=1111: C4 E2 71 58 C1
   // Normal: C4 E2 79 58 C1 (W=0 vvvv=1111 L=0 pp=01)
@@ -726,7 +737,8 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     // Read and write of an unmapped address: error code P=0, W per access
     pf.rbx = 0x300000;
     add_pf("pf read [0x300000]", {0x48, 0x8B, 0x03}, pf);   // mov rax,[rbx]
-    add_pf("pf write [0x300000]", {0x48, 0x89, 0x03}, pf);  // mov [rbx],rax
+    ArchState store = pf; store.rax = 0;
+    add_pf("pf write [0x300000]", {0x48, 0x89, 0x03}, store);  // mov [rbx],rax
 
     // First unmapped byte
     pf.rbx = 0x200000;
