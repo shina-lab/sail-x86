@@ -134,6 +134,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  SIGUSR2                       Save graphics to framebuffer.png (SAIL_X86_FRAMEBUFFER overrides)\n");
   fprintf(stderr, "  SIGUSR1                       Dump CPU and interrupt-controller state to stderr, continue\n");
   fprintf(stderr, "  SAIL_X86_TRACE_REAL_UD=1       Dump recent execution on real-mode vector-6 handler entry\n");
+  fprintf(stderr, "  SAIL_X86_TRACE_ADDRESS        Dump recent execution once at this linear code address\n");
 }
 
 // Read a file into a malloc'd buffer. Returns size, or 0 on error.
@@ -1070,6 +1071,9 @@ int main(int argc, char *argv[]) {
   u64 trace_step = parse_env_u64("SAIL_X86_TRACE_STEP", 1);
   bool trace_window_enabled = has_trace_start || has_trace_end || has_trace_step;
   bool trace_real_ud = getenv("SAIL_X86_TRACE_REAL_UD") != nullptr;
+  bool trace_address_enabled = getenv("SAIL_X86_TRACE_ADDRESS") != nullptr;
+  u64 trace_address = parse_env_u64("SAIL_X86_TRACE_ADDRESS", 0);
+  bool trace_address_seen = false;
   struct TraceLocation { u64 count, ip, address; u16 cs; bool physical; };
   TraceLocation recent[64] = {};
   unsigned recent_count = 0, recent_next = 0;
@@ -1168,6 +1172,17 @@ int main(int argc, char *argv[]) {
     }
   };
 
+  auto dump_recent = [&]() {
+    for (unsigned i = 0; i < recent_count; ++i) {
+      const auto &r = recent[(recent_next + 64 - recent_count + i) % 64];
+      fprintf(stderr, "  [%lu] %04x:%08lx:", r.count, r.cs, r.ip);
+      if (r.physical)
+        for (unsigned b = 0; b < 16; ++b) fprintf(stderr, " %02x", model.phys_mem.read8(r.address + b));
+      else fprintf(stderr, " <paged code; bytes omitted>");
+      fputc('\n', stderr);
+    }
+  };
+
   while (!model.should_exit && !got_signal) {
     if (dump_requested) dump_state();
     if (framebuffer_requested) dump_framebuffer();
@@ -1207,33 +1222,49 @@ int main(int argc, char *argv[]) {
     bool was_real = model.zcur_mode == x86::zRealMode;
     u64 previous_ip = model.zRIP;
     u16 previous_cs = model.zSegReg.data[x86::SEG_CS];
-    if (trace_real_ud) {
+    if (trace_real_ud || trace_address_enabled) {
       u64 address = model.zSegCache.data[x86::SEG_CS].zseg_base + previous_ip;
       if (!model.za20_enabled) address &= ~0x100000ULL;
       recent[recent_next] = {insn_count, previous_ip,
                             address, previous_cs, !(model.zCR0 & (1ULL << 31))};
       recent_next = (recent_next + 1) % 64;
       recent_count = std::min(recent_count + 1, 64u);
+      if (trace_address_enabled && !trace_address_seen &&
+          model.zSegCache.data[x86::SEG_CS].zseg_base + previous_ip == trace_address) {
+        trace_address_seen = true;
+        fprintf(stderr, "sail-x86-system: trace address 0x%lx at instruction %lu; recent locations:\n",
+                trace_address, insn_count);
+        dump_recent();
+        dump_state();
+      }
     }
     model.zstep(UNIT);
-    if (trace_real_ud && was_real && model.zcur_mode == x86::zRealMode &&
+    if (trace_real_ud && model.zcur_mode == x86::zRealMode &&
+        (model.zRIP || model.zSegReg.data[x86::SEG_CS]) &&
         model.zRIP == model.phys_mem.read16(model.zIDTR_base + 6 * 4) &&
         model.zSegReg.data[x86::SEG_CS] == model.phys_mem.read16(model.zIDTR_base + 6 * 4 + 2)) {
       u64 stack = model.zSegCache.data[x86::SEG_SS].zseg_base + (model.zGPR.data[4] & 0xFFFF);
-      // A fault saves its own IP; INT 6 and calls save the following IP.
-      // IVT handlers can be shared, so this identifies the target, not
-      // necessarily the delivered vector until the guest installs #UD.
-      if (model.phys_mem.read16(stack) == previous_ip && model.phys_mem.read16(stack + 2) == previous_cs) {
+      // Also retain software interrupts, chained handlers and mode transitions:
+      // requiring a matching fault frame hides precisely those useful cases.
+      // IVT entries can share a handler, so do not infer the delivered vector.
+      bool fault_frame = was_real && model.phys_mem.read16(stack) == previous_ip &&
+                         model.phys_mem.read16(stack + 2) == previous_cs;
+      u32 handler = model.phys_mem.read32(model.zIDTR_base + 6 * 4);
+      bool shared = false;
+      for (unsigned v = 0; v < 256; ++v)
+        if (v != 6 && model.phys_mem.read32(model.zIDTR_base + v * 4) == handler)
+          shared = true;
+      // Firmware shares one IRET stub among many vectors. Do not dump RAM on
+      // each timer tick, while still retaining matching fault frames there.
+      if ((fault_frame || !shared) &&
+          (model.zRIP != previous_ip || model.zSegReg.data[x86::SEG_CS] != previous_cs || !was_real)) {
         fprintf(stderr, "sail-x86-system: real-mode IVT[6] entry from %04x:%04lx at instruction %lu; recent locations (current physical bytes when paging was disabled):\n",
                 previous_cs, previous_ip, insn_count);
-        for (unsigned i = 0; i < recent_count; ++i) {
-          const auto &r = recent[(recent_next + 64 - recent_count + i) % 64];
-          fprintf(stderr, "  [%lu] %04x:%08lx:", r.count, r.cs, r.ip);
-          if (r.physical)
-            for (unsigned b = 0; b < 16; ++b) fprintf(stderr, " %02x", model.phys_mem.read8(r.address + b));
-          else fprintf(stderr, " <paged code; bytes omitted>");
-          fputc('\n', stderr);
-        }
+        fprintf(stderr, "  previous mode=%s, stack frame=%04x:%04x flags=%04x\n",
+                was_real ? "real" : "protected/long",
+                model.phys_mem.read16(stack + 2), model.phys_mem.read16(stack),
+                model.phys_mem.read16(stack + 4));
+        dump_recent();
         dump_state();
       }
     }
