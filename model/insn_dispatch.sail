@@ -1173,7 +1173,7 @@ function decode_execute() = {
       },
 
       // 9B: FWAIT/WAIT
-      155 => __wait(),
+      155 => { __wait(); x87_undefine_cc(0x4700) },
 
       // 9C: PUSHF (default64)
       // SDM: push(RFLAGS AND 00FCFFFFH) — RF (bit 16) and VM (bit 17) cleared.

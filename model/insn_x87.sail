@@ -8,6 +8,68 @@
 // Status word condition code helpers
 // =========================================================================
 
+// Leave the specified condition codes unconstrained without changing TOP,
+// exception flags, or the condition codes defined by the instruction.
+val x87_undefine_cc : word -> unit
+function x87_undefine_cc(mask) =
+  x87_sw = (x87_sw & ~(mask)) | ((undefined : word) & mask)
+
+// SDM Vol.1 Table 8-1 and the individual Vol.2 instruction entries.
+// Apply after successful execution: stores must save the incoming condition
+// codes, and a fault must not change them. FCOMI/FUCOMI preserve C0/C2/C3
+// according to their instruction entries, despite the older Vol.1 table.
+val x87_finish_cc : (byte, byte) -> unit
+function x87_finish_cc(opcode, modrm) = {
+  let reg = unsigned(modrm[5..3]);
+  let mem = modrm[7..6] != 0b11;
+  let mask : word = match unsigned(opcode) {
+    // Arithmetic has undefined C0/C2/C3; comparisons define them.
+    op if op == 216 | op == 220 | op == 222 =>
+      if reg == 2 | reg == 3 then 0x0000 else 0x4500,
+    217 => if mem then match reg {
+      4 => 0x0000,                 // FLDENV loads all condition codes
+      n if n >= 5 => 0x4700,      // FLDCW, FNSTENV, FNSTCW
+      _ => 0x4500,                // FLD, FST, FSTP
+    } else match unsigned(modrm) {
+      208 => 0x4700,              // FNOP
+      n if n == 228 | n == 229 => 0x0000, // FTST, FXAM
+      n if n == 245 | n == 248 => 0x0000, // FPREM1, FPREM
+      n if n == 242 | n == 251 | n == 254 | n == 255 => 0x4100, // trig
+      _ => 0x4500,
+    },
+    218 => if mem then {
+      if reg == 2 | reg == 3 then 0x0000 else 0x4500
+    } else {
+      if reg <= 3 then 0x4500 else 0x0000 // FCMOVcc versus FUCOMPP
+    },
+    219 => if mem | reg <= 3 then 0x4500
+           else if modrm == 0xE2 then 0x4700 // FNCLEX
+           else 0x0000,                    // FNINIT, FCOMI, FUCOMI
+    221 => if mem then match reg {
+      n if n == 4 | n == 6 => 0x0000, // FRSTOR, FNSAVE
+      7 => 0x4700,                // FNSTSW
+      _ => 0x4500,
+    } else match reg {
+      0 => 0x4700,                // FFREE
+      n if n == 4 | n == 5 => 0x0000, // FUCOM, FUCOMP
+      _ => 0x4500,                // FST, FSTP
+    },
+    223 => if mem then 0x4500
+           else if modrm == 0xE0 then 0x4700 // FNSTSW AX
+           else 0x0000,                    // FCOMIP, FUCOMIP
+    _ => 0x0000,
+  };
+  x87_undefine_cc(mask);
+  if opcode == 0xD9 & ~(mem) then {
+    match unsigned(modrm) {
+      // Outside the trigonometric input range, C1 is undefined as well.
+      n if n == 242 | n == 251 | n == 254 | n == 255 =>
+        x87_undefine_cc(0x0200 & sign_extend(16, x87_sw[10])),
+      _ => (),
+    }
+  }
+}
+
 // Set x87 status word condition codes C3(14), C2(10), C0(8) from comparison
 val x87_set_sw_cc : FPCompareResult -> unit
 function x87_set_sw_cc(cmp) = {
@@ -520,5 +582,6 @@ function dispatch_x87(opcode, pfx) = {
     222 => dispatch_x87_de(modrm, operand, pfx),
     223 => dispatch_x87_df(modrm, operand, pfx),
     _   => raise_UD(),
-  }
+  };
+  x87_finish_cc(opcode, modrm)
 }
