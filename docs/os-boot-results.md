@@ -692,3 +692,68 @@ Additional keyboard input, seconds from emulator launch:
 
 - 226.940 s: `<Enter>`.
 - 861.680 s: `win /s<Enter>`.
+
+## Continuation after merging main (2026-09-25)
+
+Merge commit: **`5ce777c101fd3135f6f8e626297782c086a56253`**, parents
+`e00dcb8` and `978f44f`. Resolved the three expected conflicts preserving
+both branches' devices and tests. The imported SMM test fixture now enables
+PIIX4 APMC_EN and SMI_EN before requesting an SMI; platform gating remains
+intact. No additional Sail model change was needed to resolve the merge.
+
+```sh
+git merge main
+TMPDIR="$PWD/build/tmp" cmake -B build
+TMPDIR="$PWD/build/tmp" cmake --build build -j128
+TMPDIR="$PWD/build/tmp" ctest --test-dir build -R '^system_' --output-on-failure
+TMPDIR="$PWD/build/tmp" BOOT_SMOKE_EMU_ARGS='-ips 20 -m 64' \
+  ctest --test-dir build -j2 -R '^boot_linux(_i386)?_banner$' -V
+```
+
+All **15 system tests** pass. Both Linux smoke tests reach the full
+`Sail x86-64 Emulator - Linux Console` banner: amd64 **530.92 s**, i386
+**260.44 s**. The i386 CTest uses its configured `-ips 4` override. The
+initramfs was copied from `/home/ruiu/os-images/linux-i386/initramfs-i386.cpio`
+to `build/initramfs.cpio` and `build/initramfs-i386.cpio`; its kernel was
+copied to `build/bzImage-i386`. The amd64 kernel is the prior session's
+APIC-enabled `build/bzImage`. Logs are under `build/os-boot/merge-*.log`.
+
+Commit `93c0794` adds PNG captures of VGA **text** screens using the guest's
+uploaded font and palette; these are actual emulated text displays, not
+Windows graphical screens. Its glyph/color/page-wrap regression passes.
+Trace-bound stops now also save CPU, RAM and PNG state. All new attempts
+below use writable disk copies or newly created disks inside this worktree.
+
+### merge-xv6
+
+Reached the serial `$` shell after the merge, with the filesystem on the IDE slave.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py --name merge-xv6 --timeout 600 --expect '\$ ' -- build/system-emu/sail-x86-system -ips 4 -b build/bios.bin -hda build/os-boot/xv6.img -hdb build/os-boot/xv6-fs.img
+```
+
+Wall time: **239.148 s**. Instructions: **18,999,416**. Stop: `expected output`; exit status `0`.
+
+Last serial output:
+
+```text
+xv6...
+cpu0: starting 0
+sb: size 1000 nblocks 941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap start 58
+init: starting sh
+$
+```
+
+PNG: unavailable (this run used the pre-text-capture binary and never selected graphics).
+
+Last VGA text:
+
+```text
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+Booting from Hard Disk...
+cpu0: starting 0
+sb: size 1000 nblocks 941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap star
+t 58
+init: starting sh
+$
+```
