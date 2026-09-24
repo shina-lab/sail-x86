@@ -299,3 +299,368 @@ set MTRRs to:
 publish device: node 0xffffffff8215f790, path random, module bus_managers/random/device_v1
 publish device: node 0xffffffff8215f790, path urandom, module bus_managers/random/device_v1
 publish device: node 0xffffffff8215f5b0, path power/button/power_fixed, module drivers/power/acpi_button/device_v1
+REG: Failed to open shadow passwd DB file "/etc/shadow": No such file or directory
+package_daemon: [1139296867:    46] root at "/boot" (device: 3, node: 131072) registered
+package_daemon: [1139471688:    46] volume at "/boot/system" registered
+package_daemon: [1139540475:    46] volume at "/boot/home/config" registered
+vm_soft_fault: va 0x19dcc91a000 not covered by area in address space
+vm_page_fault: vm_soft_fault returned error 'Bad address' on fault at 0x19dcc91a380, ip 0x19dcc91a380, write 0, user 1, exec 1, thread 0x2d
+debug_server: Thread 45 entered the debugger: Segment violation
+Test: and [file_exists [/system/bin/FirstBootPrompt], or [not [file_exists [/boot/home/config/settings/Locale settings]], readonly ]] -> 1
+stack trace, current PC 0x19dcc91a380  :
+  (0x7f3f0c2e28c0)  0x17d0a9abf28  </boot/system/lib/libbnetapi.so> _ZN11BNetworkKit16BNetworkSettings14_StartWatchingEPKcRK10BMessenger + 0x68
+  (0x7f3f0c2e2920)  0x17d0a9abf89  </boot/system/lib/libbnetapi.so> _ZN11BNetworkKit16BNetworkSettings15StartMonitoringERK10BMessenger + 0x49
+  (0x7f3f0c2e2940)  0x140a2ceaf90  </boot/system/servers/net_server> _ZN9NetServer10ReadyToRunEv + 0x30
+  (0x7f3f0c2e2980)  0x19e38ee1187  </boot/system/lib/libbe.so> _ZN12BApplication15DispatchMessageEP8BMessageP8BHandler + 0x467
+  (0x7f3f0c2e2bd0)  0x19e38ee8fc4  </boot/system/lib/libbe.so> _ZN7BLooper11task_looperEv + 0x294
+  (0x7f3f0c2e2c20)  0x19e38eddf11  </boot/system/lib/libbe.so> _ZN12BApplication3RunEv + 0x21
+  (0x7f3f0c2e2c40)  0x140a2ce7b82  </boot/system/servers/net_server> main + 0x42
+  (0x7f3f0c2e2f90)  0x140a2ce7cee  </boot/system/servers/net_server> _start + 0x3e
+  (0x7f3f0c2e2fc0)  0x244f84fbe85  </boot/system/runtime_loader> runtime_loader + 0x115
+slab memory manager: created area 0xffffffff87001000 (4690)
+loaded driver /boot/system/add-ons/kernel/drivers/dev/input/wacom
+loaded driver /boot/system/add-ons/kernel/drivers/dev/input/usb_hid
+ps2_hid: init_hardware
+ps2_hid: init_driver
+ps2_hid: publish_devices
+ps2: possibly a hot plugin of input/keyboard/at/0
+ps2_hid: uninit_driver
+loaded driver /boot/system/add-ons/kernel/drivers/dev/input/ps2_hid
+ps2_dev: reset failed: Operation timed out
+ps2: devfs_publish_device input/mouse/ps2/0, status = 0xffffffff
+ps2: devfs_publish_device input/keyboard/at/0, status = 0x00000000
+ps2: keyboard found
+package_daemon: [1489245738:    62] Failed to get activated packages info from activated packages file. Assuming all package files in package directory are activated.
+package_daemon: [1489357325:    62] active package "ffmpeg6-6.1.1-3-x86_64.hpkg" (dev: 3, node: 393263) not found in packages directory
+package_daemon: [1570169395:    62] Failed to create package (dev: 3, node: 393216, "haiku_userguide_fur-2024_09_09-1-any.hpkg"): Bad data
+package_daemon: [1573113740:    62] Failed to create package (dev: 3, node: 393216, "perl-5.40.0-4-x86_64.hpkg"): Bad data
+package_daemon: [1576404974:    62] Failed to create package (dev: 3, node: 393216, "haiku_userguide_jp-2024_09_09-1-any.hpkg"): Bad data
+package_daemon: [1601602632:    62] Volume::InitPackages Requesting delayed first boot processing for packages dir /boot/system/packages.
+package_daemon: [1601977895:    62] Volume::InitialVerify((nil), (nil))
+package_daemon: [1632929509:    62] Volume::InitialVerify(): volume at "/boot/system" has problems:
+package_daemon: [1632931733:    62]   1: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by zstd-1.5.6-1
+package_daemon: [1633634443:    62]     solution 1:
+package_daemon: [1633635948:    62]       - allow deinstallation of zstd-1.5.6-1
+package_daemon: [1633663683:    62]   2: nothing provides haiku>=r1~alpha4_pm_hrev51461-1 needed by zip-3.0-4
+package_daemon: [1633703834:    62]     solution 1:
+package_daemon: [1633705563:    62]       - allow deinstallation of zip-3.0-4
+package_daemon: [1633750854:    62]   3: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by xz_utils-5.6.2-2
+package_daemon: [1633780122:    62]     solution 1:
+package_daemon: [1633796226:    62]       - allow deinstallation of xz_utils-5.6.2-2
+package_daemon: [1633815162:    62]   4: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by wpa_supplicant-2.10.haiku.3-3
+package_daemon: [1633867588:    62]     solution 1:
+package_daemon: [1633869432:    62]       - allow deinstallation of wpa_supplicant-2.10.haiku.3-3
+package_daemon: [1633899755:    62]   5: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by woff2-1.0.2-2
+package_daemon: [1633935645:    62]     solution 1:
+package_daemon: [1633952617:    62]       - allow deinstallation of woff2-1.0.2-2
+package_daemon: [1633972458:    62]   6: nothing provides haiku>=r1~beta2_hrev54154_93-1 needed by which-2.21-6
+package_daemon: [1634005883:    62]     solution 1:
+package_daemon: [1634021684:    62]       - allow deinstallation of which-2.21-6
+package_daemon: [1634042540:    62]   7: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by wget-1.24.5-2
+package_daemon: [1634089662:    62]     solution 1:
+package_daemon: [1634092641:    62]       - allow deinstallation of wget-1.24.5-2
+package_daemon: [1634120548:    62]   8: nothing provides haiku needed by webpositive-r1~beta5_hrev57937_113-1
+package_daemon: [1634156025:    62]     solution 1:
+package_daemon: [1634158634:    62]       - allow deinstallation of webpositive-r1~beta5_hrev57937_113-1
+package_daemon: [1634190613:    62]   9: nothing provides haiku>=r1~beta3_hrev55181_28-1 needed by vision-0.10.6-2
+package_daemon: [1634240349:    62]     solution 1:
+package_daemon: [1634241853:    62]       - allow deinstallation of vision-0.10.6-2
+package_daemon: [1634276546:    62]   10: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by unzip-6.10c23-5
+package_daemon: [1634312497:    62]     solution 1:
+package_daemon: [1634314212:    62]       - allow deinstallation of unzip-6.10c23-5
+package_daemon: [1634344995:    62]   11: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by tiff-4.6.0-1
+package_daemon: [1634380980:    62]     solution 1:
+package_daemon: [1634406084:    62]       - allow deinstallation of tiff-4.6.0-1
+package_daemon: [1634444886:    62]   12: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by tcpdump-4.99.5-1
+package_daemon: [1634481886:    62]     solution 1:
+package_daemon: [1634497039:    62]       - allow deinstallation of tcpdump-4.99.5-1
+package_daemon: [1634514322:    62]   13: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by tar-1.35-2
+package_daemon: [1634549858:    62]     solution 1:
+package_daemon: [1634565070:    62]       - allow deinstallation of tar-1.35-2
+package_daemon: [1634586064:    62]   14: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by sqlite-3.44.2.0-2
+package_daemon: [1634634307:    62]     solution 1:
+package_daemon: [1634637299:    62]       - allow deinstallation of sqlite-3.44.2.0-2
+package_daemon: [1634670645:    62]   15: nothing provides haiku>=r1~beta3_hrev55181_64-1 needed by speexdsp-1.2.1-1
+package_daemon: [1634706095:    62]     solution 1:
+package_daemon: [1634707810:    62]       - allow deinstallation of speexdsp-1.2.1-1
+package_daemon: [1634738458:    62]   16: nothing provides haiku>=r1~beta4_hrev56578_31-1 needed by speex-1.2.1-2
+package_daemon: [1634773636:    62]     solution 1:
+package_daemon: [1634776582:    62]       - allow deinstallation of speex-1.2.1-2
+package_daemon: [1634809598:    62]   17: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by soxr-0.1.3-2
+package_daemon: [1634845229:    62]     solution 1:
+package_daemon: [1634860505:    62]       - allow deinstallation of soxr-0.1.3-2
+package_daemon: [1634877905:    62]   18: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by snappy-1.1.10-1
+package_daemon: [1634927781:    62]     solution 1:
+package_daemon: [1634931106:    62]       - allow deinstallation of snappy-1.1.10-1
+package_daemon: [1634964330:    62]   19: nothing provides haiku>=r1~alpha4_pm_hrev51461-1 needed by sharutils-4.15.2-3
+package_daemon: [1635000773:    62]     solution 1:
+package_daemon: [1635002503:    62]       - allow deinstallation of sharutils-4.15.2-3
+package_daemon: [1635035152:    62]   20: nothing provides haiku>=r1~beta2_hrev54154_109-1 needed by sed-4.8-1
+package_daemon: [1635070291:    62]     solution 1:
+package_daemon: [1635083832:    62]       - allow deinstallation of sed-4.8-1
+package_daemon: [1635103332:    62]   21: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by readline-8.2.001-1
+package_daemon: [1635153061:    62]     solution 1:
+package_daemon: [1635155714:    62]       - allow deinstallation of readline-8.2.001-1
+package_daemon: [1635187017:    62]   22: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by rav1e-0.7.1-1
+package_daemon: [1635222094:    62]     solution 1:
+package_daemon: [1635224838:    62]       - allow deinstallation of rav1e-0.7.1-1
+package_daemon: [1635255311:    62]   23: nothing provides haiku>=r1~beta4_hrev56578_31-1 needed by pe-2.4.5-10
+package_daemon: [1635290487:    62]     solution 1:
+package_daemon: [1635306037:    62]       - allow deinstallation of pe-2.4.5-10
+package_daemon: [1635325925:    62]   24: nothing provides haiku>=r1~beta2_hrev54154_109-1 needed by pdfwriter-1.0-4
+package_daemon: [1635375467:    62]     solution 1:
+package_daemon: [1635376957:    62]       - allow deinstallation of pdfwriter-1.0-4
+package_daemon: [1635407510:    62]   25: nothing provides haiku>=r1~beta2_hrev54154_109-1 needed by pdflib-5.0.3-4
+package_daemon: [1635451481:    62]     solution 1:
+package_daemon: [1635470821:    62]       - allow deinstallation of pdflib-5.0.3-4
+package_daemon: [1635506006:    62]   26: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by p7zip-17.05-1
+package_daemon: [1635543072:    62]     solution 1:
+package_daemon: [1635559411:    62]       - allow deinstallation of p7zip-17.05-1
+package_daemon: [1635580752:    62]   27: nothing provides haiku>=r1~beta4_hrev56578_31-1 needed by opus-1.3.1-2
+package_daemon: [1635615704:    62]     solution 1:
+package_daemon: [1635628565:    62]       - allow deinstallation of opus-1.3.1-2
+package_daemon: [1635649619:    62]   28: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by openssl3-3.0.14-2
+package_daemon: [1635697124:    62]     solution 1:
+package_daemon: [1635699775:    62]       - allow deinstallation of openssl3-3.0.14-2
+package_daemon: [1635733313:    62]   29: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by openssh-9.8p1-2
+package_daemon: [1635769520:    62]     solution 1:
+package_daemon: [1635772515:    62]       - allow deinstallation of openssh-9.8p1-2
+package_daemon: [1635801111:    62]   30: nothing provides haiku needed by haiku_datatranslators-r1~beta5_hrev57937_113-1
+package_daemon: [1635836144:    62]     solution 1:
+package_daemon: [1635837648:    62]       - allow deinstallation of haiku_datatranslators-r1~beta5_hrev57937_113-1
+package_daemon: [1635869304:    62]   31: nothing provides haiku>=r1~beta3_hrev55181_64-1 needed by gzip-1.12-1
+package_daemon: [1635904177:    62]     solution 1:
+package_daemon: [1635917329:    62]       - allow deinstallation of gzip-1.12-1
+package_daemon: [1635936953:    62]   32: nothing provides haiku>=r1~beta4_hrev56578_31-1 needed by gutenprint9-5.3.4-2
+package_daemon: [1635985131:    62]     solution 1:
+package_daemon: [1635987724:    62]       - allow deinstallation of gutenprint9-5.3.4-2
+package_daemon: [1636017952:    62]   33: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by grep-3.11-2
+package_daemon: [1636067966:    62]     solution 1:
+package_daemon: [1636069476:    62]       - allow deinstallation of grep-3.11-2
+package_daemon: [1636101417:    62]   34: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by graphite2-1.3.14-2
+package_daemon: [1636137395:    62]     solution 1:
+package_daemon: [1636151010:    62]       - allow deinstallation of graphite2-1.3.14-2
+package_daemon: [1636171211:    62]   35: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by file-5.43-2
+package_daemon: [1636205951:    62]     solution 1:
+package_daemon: [1636221119:    62]       - allow deinstallation of file-5.43-2
+package_daemon: [1636240869:    62]   36: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by fdk_aac-2.0.2-4
+package_daemon: [1636317265:    62]     solution 1:
+package_daemon: [1636320060:    62]       - allow deinstallation of fdk_aac-2.0.2-4
+package_daemon: [1636353008:    62]   37: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by expat-2.6.2-1
+package_daemon: [1636386084:    62]     solution 1:
+package_daemon: [1636387588:    62]       - allow deinstallation of expat-2.6.2-1
+package_daemon: [1636423463:    62]   38: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by diffutils-3.10-3
+package_daemon: [1636458461:    62]     solution 1:
+package_daemon: [1636474320:    62]       - allow deinstallation of diffutils-3.10-3
+package_daemon: [1636494030:    62]   39: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by dav1d-1.3.0-1
+package_daemon: [1636553352:    62]     solution 1:
+package_daemon: [1636572253:    62]       - allow deinstallation of dav1d-1.3.0-1
+package_daemon: [1636591134:    62]   40: nothing provides haiku needed by coreutils-9.3-3
+package_daemon: [1636624064:    62]     solution 1:
+package_daemon: [1636626808:    62]       - allow deinstallation of coreutils-9.3-3
+package_daemon: [1636657223:    62]   41: nothing provides haiku>=r1~alpha4_pm_hrev51461-1 needed by bc-1.07.1-2
+package_daemon: [1636691210:    62]     solution 1:
+package_daemon: [1636706425:    62]       - allow deinstallation of bc-1.07.1-2
+package_daemon: [1636741051:    62]   42: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by bepdf-2.1.4-6
+package_daemon: [1636777272:    62]     solution 1:
+package_daemon: [1636779890:    62]       - allow deinstallation of bepdf-2.1.4-6
+package_daemon: [1636812722:    62]   43: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by brotli-1.1.0-1
+package_daemon: [1636848125:    62]     solution 1:
+package_daemon: [1636863332:    62]       - allow deinstallation of brotli-1.1.0-1
+package_daemon: [1636880796:    62]   44: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by bzip2-1.0.8-3
+package_daemon: [1636930610:    62]     solution 1:
+package_daemon: [1636932095:    62]       - allow deinstallation of bzip2-1.0.8-3
+package_daemon: [1636963997:    62]   45: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by findutils-4.9.0-2
+package_daemon: [1636999911:    62]     solution 1:
+package_daemon: [1637002523:    62]       - allow deinstallation of findutils-4.9.0-2
+package_daemon: [1637038570:    62]   46: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by fontconfig-2.13.96-2
+package_daemon: [1637074819:    62]     solution 1:
+package_daemon: [1637087555:    62]       - allow deinstallation of fontconfig-2.13.96-2
+package_daemon: [1637106719:    62]   47: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by freetype-2.13.2-1
+package_daemon: [1637156158:    62]     solution 1:
+package_daemon: [1637157886:    62]       - allow deinstallation of freetype-2.13.2-1
+package_daemon: [1637191193:    62]   48: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by fribidi-1.0.13-1
+package_daemon: [1637226365:    62]     solution 1:
+package_daemon: [1637239074:    62]       - allow deinstallation of fribidi-1.0.13-1
+package_daemon: [1637259014:    62]   49: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by game_music_emu-0.6.3-2
+package_daemon: [1637294504:    62]     solution 1:
+package_daemon: [1637309765:    62]       - allow deinstallation of game_music_emu-0.6.3-2
+package_daemon: [1637339067:    62]   50: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by gawk-5.3.0-1
+package_daemon: [1637375298:    62]     solution 1:
+package_daemon: [1637388884:    62]       - allow deinstallation of gawk-5.3.0-1
+package_daemon: [1637408575:    62]   51: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by gcc_syslibs-13.3.0_2023_08_10-1
+package_daemon: [1637458790:    62]     solution 1:
+package_daemon: [1637460281:    62]       - allow deinstallation of gcc_syslibs-13.3.0_2023_08_10-1
+package_daemon: [1637491672:    62]   52: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by gettext_libintl-0.22.5-1
+package_daemon: [1637528237:    62]     solution 1:
+package_daemon: [1637543403:    62]       - allow deinstallation of gettext_libintl-0.22.5-1
+package_daemon: [1637563463:    62]   53: nothing provides haiku>=r1~beta1_hrev52295_129-1 needed by giflib-5.2.1-1
+package_daemon: [1637628866:    62]     solution 1:
+package_daemon: [1637643330:    62]       - allow deinstallation of giflib-5.2.1-1
+package_daemon: [1637661287:    62]   54: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by git-2.45.2-7
+package_daemon: [1637710600:    62]     solution 1:
+package_daemon: [1637713245:    62]       - allow deinstallation of git-2.45.2-7
+package_daemon: [1637743344:    62]   55: nothing provides haiku>=r1~beta4_hrev56578_31-1 needed by glu-9.0.0-8
+package_daemon: [1637778662:    62]     solution 1:
+package_daemon: [1637781271:    62]       - allow deinstallation of glu-9.0.0-8
+package_daemon: [1637814182:    62]   56: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by gmp-6.3.0-1
+package_daemon: [1637849331:    62]     solution 1:
+package_daemon: [1637864880:    62]       - allow deinstallation of gmp-6.3.0-1
+package_daemon: [1637884588:    62]   57: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by haikuwebkit-1.9.14-1
+package_daemon: [1637934497:    62]     solution 1:
+package_daemon: [1637935987:    62]       - allow deinstallation of haikuwebkit-1.9.14-1
+package_daemon: [1637968184:    62]   58: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by harfbuzz-8.3.0-2
+package_daemon: [1638004443:    62]     solution 1:
+package_daemon: [1638007076:    62]       - allow deinstallation of harfbuzz-8.3.0-2
+package_daemon: [1638035484:    62]   59: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by icu74-74.1-3
+package_daemon: [1638070416:    62]     solution 1:
+package_daemon: [1638082337:    62]       - allow deinstallation of icu74-74.1-3
+package_daemon: [1638105267:    62]   60: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by jasper-2.0.33-1
+package_daemon: [1638141587:    62]     solution 1:
+package_daemon: [1638156756:    62]       - allow deinstallation of jasper-2.0.33-1
+package_daemon: [1638187892:    62]   61: nothing provides haiku needed by keymapswitcher-1.2.7.16-1
+package_daemon: [1638209558:    62]     solution 1:
+package_daemon: [1638224792:    62]       - allow deinstallation of keymapswitcher-1.2.7.16-1
+package_daemon: [1638259725:    62]   62: nothing provides haiku>=r1~beta4_hrev56578_31-1 needed by lame-3.100-4
+package_daemon: [1638296004:    62]     solution 1:
+package_daemon: [1638297719:    62]       - allow deinstallation of lame-3.100-4
+package_daemon: [1638328467:    62]   63: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by lcms-2.16-1
+package_daemon: [1638364692:    62]     solution 1:
+package_daemon: [1638377452:    62]       - allow deinstallation of lcms-2.16-1
+package_daemon: [1638398451:    62]   64: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by less-643-1
+package_daemon: [1638432321:    62]     solution 1:
+package_daemon: [1638445002:    62]       - allow deinstallation of less-643-1
+package_daemon: [1638464536:    62]   65: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by libass-0.17.3-2
+package_daemon: [1638499619:    62]     solution 1:
+package_daemon: [1638515477:    62]       - allow deinstallation of libass-0.17.3-2
+package_daemon: [1638544952:    62]   66: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by libavif1.0-1.1.0-1
+package_daemon: [1638580908:    62]     solution 1:
+package_daemon: [1638582406:    62]       - allow deinstallation of libavif1.0-1.1.0-1
+package_daemon: [1638614366:    62]   67: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by libedit-20230828_3.1-1
+package_daemon: [1638678971:    62]     solution 1:
+package_daemon: [1638694663:    62]       - allow deinstallation of libedit-20230828_3.1-1
+package_daemon: [1638711790:    62]   68: nothing provides haiku>=r1~beta4_hrev56578_31-1 needed by libexecinfo-1.1-6
+package_daemon: [1638762317:    62]     solution 1:
+package_daemon: [1638763802:    62]       - allow deinstallation of libexecinfo-1.1-6
+package_daemon: [1638794893:    62]   69: nothing provides haiku>=r1~beta4_hrev56578_31-1 needed by libffi-3.4.2-2
+package_daemon: [1638832866:    62]     solution 1:
+package_daemon: [1638834377:    62]       - allow deinstallation of libffi-3.4.2-2
+package_daemon: [1638869073:    62]   70: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by libgpg_error-1.47-2
+package_daemon: [1638901466:    62]     solution 1:
+package_daemon: [1638917382:    62]       - allow deinstallation of libgpg_error-1.47-2
+package_daemon: [1638937513:    62]   71: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by libicns-0.8.1-9
+package_daemon: [1638973487:    62]     solution 1:
+package_daemon: [1638986235:    62]       - allow deinstallation of libicns-0.8.1-9
+package_daemon: [1639006940:    62]   72: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by libiconv-1.17-4
+package_daemon: [1639059227:    62]     solution 1:
+package_daemon: [1639061876:    62]       - allow deinstallation of libiconv-1.17-4
+package_daemon: [1639092294:    62]   73: nothing provides haiku>=r1~beta4_hrev56578_31-1 needed by libidn2-2.0.5-3
+package_daemon: [1639125913:    62]     solution 1:
+package_daemon: [1639128510:    62]       - allow deinstallation of libidn2-2.0.5-3
+package_daemon: [1639161594:    62]   74: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by libjpeg_turbo-2.1.4-3
+package_daemon: [1639192468:    62]     solution 1:
+package_daemon: [1639207690:    62]       - allow deinstallation of libjpeg_turbo-2.1.4-3
+package_daemon: [1639228111:    62]   75: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by libjxl-0.6.1-4
+package_daemon: [1639263080:    62]     solution 1:
+package_daemon: [1639275813:    62]       - allow deinstallation of libjxl-0.6.1-4
+package_daemon: [1639310618:    62]   76: nothing provides haiku>=r1~beta4_hrev56578_31-1 needed by libogg-1.3.5-2
+package_daemon: [1639370993:    62]     solution 1:
+package_daemon: [1639383972:    62]       - allow deinstallation of libogg-1.3.5-2
+package_daemon: [1639404662:    62]   77: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by libopenmpt-0.7.2-1
+package_daemon: [1639440920:    62]     solution 1:
+package_daemon: [1639456189:    62]       - allow deinstallation of libopenmpt-0.7.2-1
+package_daemon: [1639477515:    62]   78: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by libpcap-1.10.5-2
+package_daemon: [1639523815:    62]     solution 1:
+package_daemon: [1639525319:    62]       - allow deinstallation of libpcap-1.10.5-2
+package_daemon: [1639560251:    62]   79: nothing provides haiku>=r1~beta4_hrev56578_31-1 needed by libpcre-8.45-3
+package_daemon: [1639597079:    62]     solution 1:
+package_daemon: [1639599732:    62]       - allow deinstallation of libpcre-8.45-3
+package_daemon: [1639618690:    62]   80: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by libpcre2-10.43-2
+package_daemon: [1639654118:    62]     solution 1:
+package_daemon: [1639671780:    62]       - allow deinstallation of libpcre2-10.43-2
+package_daemon: [1639717226:    62]   81: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by libpng16-1.6.40-1
+package_daemon: [1639758921:    62]     solution 1:
+package_daemon: [1639781174:    62]       - allow deinstallation of libpng16-1.6.40-1
+package_daemon: [1639801199:    62]   82: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by libpsl-0.21.5-1
+package_daemon: [1639834845:    62]     solution 1:
+package_daemon: [1639850095:    62]       - allow deinstallation of libpsl-0.21.5-1
+package_daemon: [1639881969:    62]   83: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by libraw-0.20.2-2
+package_daemon: [1639918130:    62]     solution 1:
+package_daemon: [1639919634:    62]       - allow deinstallation of libraw-0.20.2-2
+package_daemon: [1639951365:    62]   84: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by libssh2-1.9.0-5
+package_daemon: [1639997229:    62]     solution 1:
+package_daemon: [1639999766:    62]       - allow deinstallation of libssh2-1.9.0-5
+package_daemon: [1640031610:    62]   85: nothing provides haiku>=r1~beta3_hrev55181_28-1 needed by libtasn1-4.18.0-1
+package_daemon: [1640066765:    62]     solution 1:
+package_daemon: [1640068270:    62]       - allow deinstallation of libtasn1-4.18.0-1
+package_daemon: [1640102560:    62]   86: nothing provides haiku>=r1~beta4_hrev56578_31-1 needed by libtheora-1.1.1-8
+package_daemon: [1640137469:    62]     solution 1:
+package_daemon: [1640151542:    62]       - allow deinstallation of libtheora-1.1.1-8
+package_daemon: [1640185077:    62]   87: nothing provides haiku>=r1~beta4_hrev56578_69-1 needed by libunibreak-5.1-1
+package_daemon: [1640218664:    62]     solution 1:
+package_daemon: [1640233900:    62]       - allow deinstallation of libunibreak-5.1-1
+package_daemon: [1640254878:    62]   88: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by libunistring-1.2-1
+package_daemon: [1640290316:    62]     solution 1:
+package_daemon: [1640305631:    62]       - allow deinstallation of libunistring-1.2-1
+package_daemon: [1640325729:    62]   89: nothing provides haiku>=r1~beta2_hrev54154_109-1 needed by libvorbis-1.3.7-1
+package_daemon: [1640371176:    62]     solution 1:
+package_daemon: [1640374144:    62]       - allow deinstallation of libvorbis-1.3.7-1
+package_daemon: [1640406329:    62]   90: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by libvpx-1.13.1-1
+package_daemon: [1640441387:    62]     solution 1:
+package_daemon: [1640456615:    62]       - allow deinstallation of libvpx-1.13.1-1
+package_daemon: [1640476719:    62]   91: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by libwebp-1.4.0-1
+package_daemon: [1640510044:    62]     solution 1:
+package_daemon: [1640525288:    62]       - allow deinstallation of libwebp-1.4.0-1
+package_daemon: [1640545010:    62]   92: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by libxml2-2.12.5-3
+package_daemon: [1640580422:    62]     solution 1:
+package_daemon: [1640596608:    62]       - allow deinstallation of libxml2-2.12.5-3
+package_daemon: [1640628360:    62]   93: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by libxslt-1.1.39-2
+package_daemon: [1640661840:    62]     solution 1:
+package_daemon: [1640675517:    62]       - allow deinstallation of libxslt-1.1.39-2
+package_daemon: [1640696981:    62]   94: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by llvm12_libs-12.0.1-8
+package_daemon: [1640757533:    62]     solution 1:
+package_daemon: [1640760241:    62]       - allow deinstallation of llvm12_libs-12.0.1-8
+package_daemon: [1640793951:    62]   95: nothing provides haiku>=r1~beta1_hrev52295_129-1 needed by mandoc-1.14.3-2
+package_daemon: [1640827800:    62]     solution 1:
+package_daemon: [1640843066:    62]       - allow deinstallation of mandoc-1.14.3-2
+package_daemon: [1640877210:    62]   96: nothing provides mesa==22.0.5 needed by mesa_devel-22.0.5-3
+package_daemon: [1640909993:    62]     solution 1:
+package_daemon: [1640912399:    62]       - allow deinstallation of mesa_devel-22.0.5-3
+package_daemon: [1640948609:    62]   97: nothing provides mesa==22.0.5 needed by mesa_swpipe-22.0.5-3
+package_daemon: [1640980387:    62]     solution 1:
+package_daemon: [1640996375:    62]       - allow deinstallation of mesa_swpipe-22.0.5-3
+package_daemon: [1641016785:    62]   98: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by nano-8.1-1
+package_daemon: [1641052430:    62]     solution 1:
+package_daemon: [1641065232:    62]       - allow deinstallation of nano-8.1-1
+package_daemon: [1641100627:    62]   99: nothing provides haiku needed by ncurses6-6.4_20230520-1
+package_daemon: [1641119143:    62]     solution 1:
+package_daemon: [1641134333:    62]       - allow deinstallation of ncurses6-6.4_20230520-1
+package_daemon: [1641169188:    62]   100: nothing provides haiku>=r1~alpha4_pm_hrev51461-1 needed by netcat-1.10-4
+package_daemon: [1641206437:    62]     solution 1:
+package_daemon: [1641207942:    62]       - allow deinstallation of netcat-1.10-4
+package_daemon: [1641240513:    62]   101: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by nghttp2-1.59.0-1
+package_daemon: [1641275679:    62]     solution 1:
+package_daemon: [1641291628:    62]       - allow deinstallation of nghttp2-1.59.0-1
+package_daemon: [1641312140:    62]   102: nothing provides haiku>=r1~beta4_hrev56578_87-1 needed by openexr30-3.0.5-2
+package_daemon: [1641362074:    62]     solution 1:
+package_daemon: [1641363918:    62]       - allow deinstallation of openexr30-3.0.5-2
+package_daemon: [1641393255:    62]   103: nothing provides haiku>=r1~beta5_hrev57937_5-1 needed by openjpeg-2.4.0-3
+package_daemon: [1641436208:    62]     solution 1:
+package_daemon: [1641437693:    62]       - allow deinstallation of openjpeg-2.4.0-3
+package_daemon: [1644219598:    62] Failed to get activated packages info from activated packages file. Assuming all package files in package directory are activated.
+package_daemon: [1644225782:    62] The latest volume state is also the currently active one
+package_daemon: [1644289079:    62] Volume::InitPackages Requesting delayed first boot processing for packages dir /boot/home/config/packages.
+package_daemon: [1644335768:    62] Volume::InitialVerify(0x11ff00347a20, (nil))
+package_daemon: [1651486989:    62] Volume::InitialVerify(): volume at "/boot/home/config" is consistent
+62: DEBUGGER: getNumAvailable() < getNumBlocks()
+debug_server: Thread 62 entered the debugger: Debugger call: `getNumAvailable() < getNumBlocks()'
+stack trace, current PC 0x14b025a9129  </boot/system/lib/libroot.so> _kern_debugger + 0x9:
+  (0x7f887f7e7840)  0x14b0262ff0b  </boot/system/lib/libroot.so> _ZN8BPrivate9hoardHeap9freeBlockERPNS_5blockERPNS_10superblockEiPNS_11processHeapE + 0x48b
+  (0x7f887f7e7890)  0x14b02630390  </boot/system/lib/libroot.so> _ZN8BPrivate11processHeap4freeEPv + 0xf0
+  (0x7f887f7e78d0)  0x14b02631609  </boot/system/lib/libroot.so> free + 0x49
+  (0x7f887f7e7900)  0xd0b35b1734  </boot/system/servers/package_daemon> _ZN11VolumeStateD2Ev + 0xe4
+  (0x7f887f7e7940)  0xd0b359c4b2  </boot/system/servers/package_daemon> _ZN24CommitTransactionHandlerD2Ev + 0xb2
+  (0x7f887f7e7990)  0xd0b35b129b  </boot/system/servers/package_daemon> _ZN6Volume18_CommitTransactionEP8BMessagePKN11BPackageKit8BPrivate22BActivationTransactionERKSt3setIP7PackageSt4lessIS9_ESaIS9_EESF_RNS2_24BCommitTransactionResultE + 0xbb
+  (0x7f887f7e7c90)  0xd0b35b1356  </boot/system/servers/package_daemon> _ZN6Volume30HandleCommitTransactionRequestEP8BMessage + 0x76
+  (0x7f887f7e7dc0)  0xd0b35abad9  </boot/system/servers/package_daemon> _ZN4Root10_JobRunnerEv + 0x19
+  (0x7f887f7e7de0)  0x14b025a7e39  </boot/system/lib/libroot.so> thread_entry + 0x19
