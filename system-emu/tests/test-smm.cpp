@@ -179,10 +179,54 @@ TEST(smbase_relocation_moves_handler_and_save_area) {
   ASSERT_EQ(model.phys_mem.read32(NEW_SMBASE + 0x8000 + 0x7EF8), NEW_SMBASE);
 }
 
+TEST(rsm_restores_virtual_8086_context) {
+  x86::Model model;
+  init_model(model);
+  model.zcur_mode = x86::zVirtual8086Mode;
+  model.zcur_cpl = 3;
+  model.zCR0 |= 1;
+  model.zCR4 = 1;
+  model.zRF = 1;
+  model.zVIF = 1;
+  model.zVIP = 1;
+  model.zRIP = 0x1234;
+  for (int i = 0; i < 6; i++) {
+    model.zSegReg.data[i] = 0x1201 + i * 0x100;
+    model.zSegCache.data[i].zseg_base = model.zSegReg.data[i] * 16;
+    model.zSegCache.data[i].zseg_dpl = 3;
+    model.zSegCache.data[i].zseg_type = 3;
+  }
+  const u64 flags = model.zread_rflags(UNIT);
+  model.zdeliver_smi(UNIT);
+  ASSERT_EQ(model.phys_mem.read64(SMBASE_DEFAULT + 0xffe8), flags);
+  ASSERT_EQ((u64)model.zread_rflags(UNIT), 2UL);
+  ASSERT_EQ(model.zcur_cpl, 0L);
+
+  static const u8 rsm[] = {0x0f, 0xaa};
+  model.phys_mem.write_bytes(SMBASE_DEFAULT + 0x8000, rsm, sizeof(rsm));
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ(model.zcur_mode, x86::zVirtual8086Mode);
+  ASSERT_EQ(model.zcur_cpl, 3L);
+  ASSERT_EQ((u64)model.zRIP, 0x1234UL);
+  ASSERT_EQ((u64)model.zread_rflags(UNIT), flags);
+  for (int i = 0; i < 6; i++) {
+    const auto &seg = model.zSegCache.data[i];
+    ASSERT_EQ(model.zSegReg.data[i], u64(0x1201 + i * 0x100));
+    ASSERT_EQ(seg.zseg_base, u64(0x1201 + i * 0x100) * 16);
+    ASSERT_EQ(seg.zseg_limit, 0xffffUL);
+    ASSERT_EQ(seg.zseg_type, 3UL);
+    ASSERT_EQ(seg.zseg_dpl, 3L);
+    ASSERT_EQ(seg.zseg_db, 0UL);
+  }
+  model.model_fini();
+}
+
 int main() {
   printf("SMM tests:\n");
   run_test_smi_saves_state_at_smbase_plus_8000h();
   run_test_smbase_relocation_moves_handler_and_save_area();
+  run_test_rsm_restores_virtual_8086_context();
   printf("\n%d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed ? 1 : 0;
 }

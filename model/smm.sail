@@ -139,6 +139,9 @@ function deliver_smi() = {
 
   // EFLAGS: set to 00000002H (reserved bit 1 always 1)
   write_rflags(0x0000000000000002);
+  RF = bitzero;
+  VIF = bitzero;
+  VIP = bitzero;
 
   // EFER: cleared (exits IA-32e mode if active)
   EFER = 0x0000000000000000;
@@ -213,7 +216,11 @@ function exec_rsm() = {
   CR4 = smram_load64(0x7E40);
 
   // Restore RFLAGS
-  write_rflags(smram_load64(0x7FE8));
+  let restored_flags = smram_load64(0x7FE8);
+  write_rflags(restored_flags);
+  RF = restored_flags[16];
+  VIF = restored_flags[19];
+  VIP = restored_flags[20];
 
   // Restore RIP
   RIP = smram_load64(0x7FD8);
@@ -267,12 +274,16 @@ function exec_rsm() = {
     if SegCache[CS].seg_l == 0b1 then cur_mode = LongMode
     else cur_mode = CompatibilityMode
   } else if CR0[0] == 0b1 then {
-    cur_mode = ProtectedMode
+    cur_mode = if restored_flags[17] == bitone then Virtual8086Mode else ProtectedMode
   } else {
     cur_mode = RealMode
   };
 
   cur_cpl = 0;  // Restored from segment selector RPL, but simplified here
+  if cur_mode == Virtual8086Mode then {
+    cur_cpl = 3;
+    foreach (seg from 0 to 5) load_vm86_segment(seg, read_segreg(seg))
+  };
 
   // Handle Auto HALT Restart (SDM §34.10)
   if smram_load16(0x7F02)[0] == 0b1 then {

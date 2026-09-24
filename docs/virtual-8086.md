@@ -12,6 +12,8 @@ a protected-mode ring-0 handler on the TSS's SS0:ESP0 stack. The frame
 includes GS, FS, DS and ES as well as SS, ESP, EFLAGS, CS and EIP, with an
 error code where appropriate. IRETD restores this frame. Hardware task
 switches and task gates remain outside the model's existing support.
+SMM/RSM preserves the VM86 context, and VMX can enter a VM86 guest and
+save its context on exit, with the required fixed segment-cache checks.
 
 IN, OUT, INS and OUTS consult the TSS I/O permission bitmap even at
 IOPL 3. Privileged instructions fault at CPL 3; ARPL and the descriptor
@@ -22,8 +24,7 @@ operate on VIF, and 16-bit PUSHF/POPF/IRET translate between VIF and the
 stack image's IF. STI, POPF and IRET check VIP; POPF and IRET also reject
 setting TF. 32-bit PUSHFD/POPFD/IRETD still trap at insufficient IOPL.
 An enabled pending virtual interrupt (VIF=VIP=1) faults before execution.
-INT imm8
-can use the TSS interrupt-redirection bitmap to call a handler through
+INT imm8 can use the TSS interrupt-redirection bitmap to call a handler through
 the virtual IVT at linear address zero, without leaving virtual-8086
 mode. INT3 and INTO continue through the protected-mode IDT.
 

@@ -31,6 +31,7 @@ function vmx_check_preconditions() = {
 
 val exec_vmxon : qword -> unit
 function exec_vmxon(addr) = {
+  if cur_mode == Virtual8086Mode then raise_UD();
   // #GP(0) if CPL != 0
   if cur_cpl != 0 then raise_GP0();
 
@@ -39,9 +40,6 @@ function exec_vmxon(addr) = {
 
   // #GP(0) if not in protected mode (CR0.PE must be set)
   if CR0[0] == 0b0 then raise_GP0();
-
-  // #GP(0) if EFLAGS.VM = 1 (V8086 mode)
-  // (In our model, LongMode implies not V8086, and we check CR0.PE)
 
   // IA32_FEATURE_CONTROL checks (SDM §24.11.5):
   // Lock bit (bit 0) must be set, and VMX-outside-SMX (bit 2) must be enabled.

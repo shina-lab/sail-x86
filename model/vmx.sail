@@ -112,6 +112,10 @@ function check_vmentry_controls() = {
 }
 
 // Check guest-state area (SDM §27.2.3).
+val valid_vm86_segment : (word, qword, dword, dword) -> bool
+function valid_vm86_segment(selector, base, limit, access) =
+  base == (zero_extend(64, selector) << 4) & limit == 0x0000FFFF & access == 0x000000F3
+
 val check_vmentry_guest_state : unit -> bool
 function check_vmentry_guest_state() = {
   let entry_ctl = vmcs.entry_controls;
@@ -155,9 +159,26 @@ function check_vmentry_guest_state() = {
   // Must be 0 (active) or 1 (HLT)
   if unsigned(vmcs.guest_activity_state) > 1 then return false;
 
-  // CS type must be a code segment (type bit 3 = 1, S = 1)
-  if vmcs.guest_cs_access[3] == 0b0 then return false;
-  if vmcs.guest_cs_access[4] == 0b0 then return false;
+  // VM86 uses fixed segment caches, including a data-type CS cache
+  // (SDM Vol.3C, Checks on Guest Segment Registers).
+  if vmcs.guest_rflags[17] == bitone then {
+    if ~(valid_vm86_segment(vmcs.guest_cs_selector, vmcs.guest_cs_base,
+                           vmcs.guest_cs_limit, vmcs.guest_cs_access)) then return false;
+    if ~(valid_vm86_segment(vmcs.guest_ss_selector, vmcs.guest_ss_base,
+                           vmcs.guest_ss_limit, vmcs.guest_ss_access)) then return false;
+    if ~(valid_vm86_segment(vmcs.guest_ds_selector, vmcs.guest_ds_base,
+                           vmcs.guest_ds_limit, vmcs.guest_ds_access)) then return false;
+    if ~(valid_vm86_segment(vmcs.guest_es_selector, vmcs.guest_es_base,
+                           vmcs.guest_es_limit, vmcs.guest_es_access)) then return false;
+    if ~(valid_vm86_segment(vmcs.guest_fs_selector, vmcs.guest_fs_base,
+                           vmcs.guest_fs_limit, vmcs.guest_fs_access)) then return false;
+    if ~(valid_vm86_segment(vmcs.guest_gs_selector, vmcs.guest_gs_base,
+                           vmcs.guest_gs_limit, vmcs.guest_gs_access)) then return false
+  } else {
+    // CS type must be a code segment (type bit 3 = 1, S = 1).
+    if vmcs.guest_cs_access[3] == bitzero then return false;
+    if vmcs.guest_cs_access[4] == bitzero then return false
+  };
 
   // VMCS link pointer: if not 0xFFFFFFFFFFFFFFFF, must be 4KB-aligned
   if vmcs.guest_vmcs_link_pointer != 0xFFFFFFFFFFFFFFFF then {
@@ -270,6 +291,9 @@ function vm_entry(is_launch) = {
   RIP = vmcs.guest_rip;
   v(RSP) = vmcs.guest_rsp;
   write_rflags(vmcs.guest_rflags);
+  RF = vmcs.guest_rflags[16];
+  VIF = vmcs.guest_rflags[19];
+  VIP = vmcs.guest_rflags[20];
 
   // --- Load guest segment registers ---
   write_segreg(ES, vmcs.guest_es_selector);
@@ -355,13 +379,14 @@ function vm_entry(is_launch) = {
     if SegCache[CS].seg_l == 0b1 then cur_mode = LongMode
     else cur_mode = CompatibilityMode
   } else if CR0[0] == 0b1 then {
-    cur_mode = ProtectedMode
+    cur_mode = if vmcs.guest_rflags[17] == bitone then Virtual8086Mode else ProtectedMode
   } else {
     cur_mode = RealMode
   };
 
-  // Guest CPL = CS selector RPL (SDM §27.2.2)
-  cur_cpl = unsigned(vmcs.guest_cs_selector[1..0]);
+  // Virtual-8086 CPL is always 3; selector low bits are address bits.
+  cur_cpl = if cur_mode == Virtual8086Mode then 3
+            else unsigned(vmcs.guest_cs_selector[1..0]);
 
   // --- Activity state ---
   if vmcs.guest_activity_state == 0x00000001 then
@@ -611,6 +636,9 @@ function complete_vm_exit(reason, qual) = {
 
   // RFLAGS: SDM §28.5.5: "RFLAGS is cleared, except bit 1 (always 1)"
   write_rflags(0x0000000000000002);
+  RF = bitzero;
+  VIF = bitzero;
+  VIP = bitzero;
 
   // Transfer control to host RIP
   next_rip = Some(RIP)

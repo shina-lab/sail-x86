@@ -319,6 +319,12 @@ static std::vector<Test> tests() {
     Test t{name + " #UD", code}; t.vector = 6; ts.push_back(t);
   }
   for (auto [name, code] : std::vector<std::pair<std::string, Bytes>>{
+      {"BLSI", {0xc4,0xe2,0x78,0xf3,0xd8}},
+      {"VZEROUPPER", {0xc5,0xf8,0x77}},
+      {"VMXON", {0xf3,0x0f,0xc7,0x36,0,1}}}) {
+    Test t{name + " #UD in vm86", code}; t.vector = 6; ts.push_back(t);
+  }
+  for (auto [name, code] : std::vector<std::pair<std::string, Bytes>>{
       {"MOV CR0", {0x0f,0x20,0xc0}}, {"CLTS", {0x0f,0x06}},
       {"LGDT", {0x0f,0x01,0x16,0,1}}, {"LIDT", {0x0f,0x01,0x1e,0,1}}}) {
     Test t{name + " #GP", code}; t.vector = 13; ts.push_back(t);

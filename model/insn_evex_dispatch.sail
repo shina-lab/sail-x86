@@ -129,6 +129,7 @@ function dispatch_evex_0f3a(opcode, pfx) = {
 // distinguish EVEX from BOUND).
 val dispatch_evex_with_p0 : byte -> unit
 function dispatch_evex_with_p0(p0) = {
+  if cur_mode == Virtual8086Mode then raise_UD();
   if ~(avx512_enabled()) then raise_UD();
   let (pfx, mmm) = decode_evex_with_p0(p0);
   let opcode = fetch(1);
