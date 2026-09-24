@@ -1985,64 +1985,89 @@ u64 Model::z__f64_to_f16(u64 a) {
   _Float16 h = (_Float16)d; u16 r; memcpy(&r, &h, 2); return r;
 }
 
+// VCVT(T)SH2SI and the packed VCVT(T)PH2DQ/QQ: a result that exceeds the
+// signed range, or a NaN, gives the indefinite integer value 80000000H or
+// 80000000_00000000H (SDM Vol. 2C, VCVTSH2SI, Description).
+static inline u64 f16_int32_result(float rounded) {
+  if (std::isnan(rounded) || rounded < -2147483648.0f || rounded >= 2147483648.0f)
+    return 0x80000000u;
+  int32_t r = (int32_t)rounded;
+  u32 ru; memcpy(&ru, &r, 4); return ru;
+}
+
+static inline u64 f16_int64_result(float rounded) {
+  if (std::isnan(rounded) || rounded < -9223372036854775808.0f || rounded >= 9223372036854775808.0f)
+    return 0x8000000000000000ull;
+  int64_t r = (int64_t)rounded;
+  u64 ru; memcpy(&ru, &r, 8); return ru;
+}
+
+// VCVT(T)SH2USI and the packed VCVT(T)PH2UDQ/UQQ: a result that cannot be
+// represented in the unsigned destination (negative, too large, or a NaN)
+// gives FFFFFFFFH or FFFFFFFF_FFFFFFFFH (SDM Vol. 2C, VCVTSH2USI and
+// VCVTPH2UDQ, Description).
+static inline u64 f16_uint32_result(float rounded) {
+  if (std::isnan(rounded) || rounded < 0.0f || rounded >= 4294967296.0f)
+    return 0xFFFFFFFFu;
+  return (uint32_t)rounded;
+}
+
+static inline u64 f16_uint64_result(float rounded) {
+  if (std::isnan(rounded) || rounded < 0.0f || rounded >= 18446744073709551616.0f)
+    return ~0ull;
+  return (uint64_t)rounded;
+}
+
 u64 Model::z__f16_to_int32(u64 a) {
   _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
   SYNC_MXCSR_RC();
   float f = (float)h;
-  int32_t r = (int32_t)nearbyintf(f);
-  u32 ru; memcpy(&ru, &r, 4); return ru;
+  return f16_int32_result(nearbyintf(f));
 }
 
 u64 Model::z__f16_to_int64(u64 a) {
   _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
   SYNC_MXCSR_RC();
   float f = (float)h;
-  int64_t r = (int64_t)nearbyintf(f);
-  u64 ru; memcpy(&ru, &r, 8); return ru;
+  return f16_int64_result(nearbyintf(f));
 }
 
 u64 Model::z__f16_to_int32_trunc(u64 a) {
   _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
   float f = (float)h;
-  int32_t r = (int32_t)truncf(f);
-  u32 ru; memcpy(&ru, &r, 4); return ru;
+  return f16_int32_result(truncf(f));
 }
 
 u64 Model::z__f16_to_int64_trunc(u64 a) {
   _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
   float f = (float)h;
-  int64_t r = (int64_t)truncf(f);
-  u64 ru; memcpy(&ru, &r, 8); return ru;
+  return f16_int64_result(truncf(f));
 }
 
 u64 Model::z__f16_to_uint32(u64 a) {
   _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
   SYNC_MXCSR_RC();
   float f = (float)h;
-  uint32_t r = (uint32_t)nearbyintf(f);
-  return r;
+  return f16_uint32_result(nearbyintf(f));
 }
 
 u64 Model::z__f16_to_uint64(u64 a) {
   _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
   SYNC_MXCSR_RC();
   float f = (float)h;
-  uint64_t r = (uint64_t)nearbyintf(f);
-  return r;
+  return f16_uint64_result(nearbyintf(f));
 }
 
 u64 Model::z__f16_to_uint32_trunc(u64 a) {
   _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
   float f = (float)h;
-  uint32_t r = (uint32_t)truncf(f);
-  return r;
+  return f16_uint32_result(truncf(f));
 }
 
 u64 Model::z__f16_to_uint64_trunc(u64 a) {
   _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
   float f = (float)h;
-  uint64_t r = (uint64_t)truncf(f);
-  return r;
+  return f16_uint64_result(truncf(f));
 }
 
 u64 Model::z__uint32_to_f16(u64 a) {

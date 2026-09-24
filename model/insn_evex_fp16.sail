@@ -552,6 +552,9 @@ function dispatch_evex_map5(opcode, pfx) = {
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_rm_evex(modrm, pfx, if pfx.vex_w then 8 else 4);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
+      // SDM: IF *SRC2 is a register* and (EVEX.b = 1): SET_RM(EVEX.RC)
+      let is_reg : bool = match src { RM_reg(_) => true, RM_mem(_) => false };
+      let (_, saved) = evex_begin_rc(pfx, is_reg);
       if pfx.vex_w then {
         // VCVTSI2SH r64 → FP16
         let x : qword = v(src);
@@ -562,7 +565,8 @@ function dispatch_evex_map5(opcode, pfx) = {
         let x : dword = v(src);
         let r : word = __int32_to_f16(x);
         evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-      }
+      };
+      evex_end_rc(saved)
     },
 
     // MAP5 0x2C: VCVTTSH2SI (F3) — FP16 to int with truncation
@@ -584,11 +588,14 @@ function dispatch_evex_map5(opcode, pfx) = {
       let modrm = fetch(1);
       let dst_gpr = modrm_reg(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 2);
+      // SDM: IF *SRC is a register* and (EVEX.b = 1): SET_RM(EVEX.RC)
+      let (_, saved) = evex_begin_rc_xrm(pfx, src);
       let src : word = decode_scalar_src(16, src);
       if pfx.vex_w then
         v(dst_gpr) = __f16_to_int64(src)
       else
-        v(dst_gpr) = __f16_to_int32(src)
+        v(dst_gpr) = __f16_to_int32(src);
+      evex_end_rc(saved)
     },
 
     // MAP5 0x2E: VUCOMISH (NP) — unordered compare scalar FP16, set EFLAGS
@@ -706,11 +713,14 @@ function dispatch_evex_map5(opcode, pfx) = {
           // VCVTSH2USI: scalar FP16 to unsigned int (rounding)
           let src = modrm_xrm_evex(modrm, pfx, 2);
           let dst_gpr = modrm_reg(modrm, pfx);
+          // SDM: IF *SRC is a register* and (EVEX.b = 1): SET_RM(EVEX.RC)
+          let (_, saved) = evex_begin_rc_xrm(pfx, src);
           let src : word = decode_scalar_src(src);
           if pfx.vex_w then
             v(dst_gpr) = __f16_to_uint64(src)
           else
-            v(dst_gpr) = __f16_to_uint32(src)
+            v(dst_gpr) = __f16_to_uint32(src);
+          evex_end_rc(saved)
         },
         _ => raise_UD(),
       }
@@ -784,6 +794,9 @@ function dispatch_evex_map5(opcode, pfx) = {
           // VCVTUSI2SH: unsigned int to scalar FP16
           let src = modrm_rm_evex(modrm, pfx, if pfx.vex_w then 8 else 4);
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
+          // SDM: IF *SRC2 is a register* and (EVEX.b = 1): SET_RM(EVEX.RC)
+          let is_reg : bool = match src { RM_reg(_) => true, RM_mem(_) => false };
+          let (_, saved) = evex_begin_rc(pfx, is_reg);
           if pfx.vex_w then {
             // VCVTUSI2SH r64 → FP16
             let x : qword = v(src);
@@ -794,7 +807,8 @@ function dispatch_evex_map5(opcode, pfx) = {
             let x : dword = v(src);
             let r : word = __uint32_to_f16(x);
             evex_write_scalar(dst, src1[127..16] @ r, pfx, 16)
-          }
+          };
+          evex_end_rc(saved)
         },
         _ => raise_UD(),
       }
