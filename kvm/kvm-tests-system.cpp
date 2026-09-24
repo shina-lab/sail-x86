@@ -197,8 +197,10 @@ void add_system_tests(std::vector<TestCase> &tests) {
     // INT n to a gate of the harness's IDT: recorded like a fault with the
     // vector, no error code, and the next instruction as the return RIP.
     // Vectors whose handler stub expects a CPU-pushed error code (8, 10-14,
-    // 17, 21, 30) and the fault-class vectors are left out.
-    for (int vec : {1, 2, 3, 4, 9, 15, 18, 22, 27, 31}) {
+    // 17, 21, 30) are left out.  The fault-class vectors 0, 5, 6, 7, 16, 19
+    // and 20 check that the pushed RFLAGS image carries RF = 0 for a
+    // software interrupt (SDM Vol.3B §20.3.1.1), not the 1 of a fault.
+    for (int vec : {0, 1, 2, 3, 4, 5, 6, 7, 9, 15, 16, 18, 19, 20, 22, 27, 31}) {
       add_fault("int " + std::to_string(vec), {0xCD, u8(vec), 0x90}, {}, vec);
     }
     add_fault("int 3 after mov rax,imm", {0x48, 0xC7, 0xC0, 0x78, 0x56, 0x34, 0x12, 0xCD, 0x03, 0x90}, {}, 3);

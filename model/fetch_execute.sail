@@ -164,8 +164,15 @@ function step() = {
             VMExit(_, _) => return (),
           }
         } else {
-          // RF as the pushed RFLAGS image would carry it (see deliver_exception)
-          if is_fault_class(vec) then RF = 0b1;
+          // RF as the pushed RFLAGS image would carry it (see
+          // deliver_exception): 1 for a fault-class exception, but the
+          // current value, cleared at the start of the instruction, for a
+          // software interrupt whatever its vector (SDM Vol.3B §20.3.1.1).
+          // INT n, INT3, INTO and INT1 set sw_return_rip before raising.
+          match sw_return_rip {
+            Some(_) => sw_return_rip = None(),
+            None()  => if is_fault_class(vec) then RF = 0b1,
+          };
           fault_pending = true;
           fault_vector = vec;
           fault_error_code = err;

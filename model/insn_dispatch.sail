@@ -1510,6 +1510,7 @@ function decode_execute() = {
           next_rip = Some(RIP)  // deliver_exception set RIP to handler
         } else {
           RIP = decode_pos;
+          sw_return_rip = Some(decode_pos);
           __software_interrupt(0x03)
         }
       },
@@ -1524,6 +1525,7 @@ function decode_execute() = {
           next_rip = Some(RIP)  // deliver_exception set RIP to handler
         } else {
           RIP = decode_pos;
+          sw_return_rip = Some(decode_pos);
           __software_interrupt(imm)
         }
       },
@@ -1539,6 +1541,7 @@ function decode_execute() = {
             next_rip = Some(RIP)
           } else {
             RIP = decode_pos;
+            sw_return_rip = Some(decode_pos);
             __software_interrupt(0x04)
           }
         }
@@ -1848,6 +1851,7 @@ function decode_execute() = {
           next_rip = Some(RIP)
         } else {
           RIP = decode_pos;
+          sw_return_rip = Some(decode_pos);
           __software_interrupt(0x01)
         }
       },
