@@ -973,26 +973,26 @@ public:
 
 class FwCfg {
 public:
+  FwCfg() { rebuild_directory(); }
+
   void set_vga_rom(const u8 *data, size_t len) {
     vga_rom.assign(data, data + len);
-    // Rebuild file directory with one entry for "vgaroms/vgabios.bin"
-    // Format: u32 count (BE), then per file: u32 size (BE), u16 select (BE), u16 reserved, char name[56]
+    rebuild_directory();
+  }
+
+  void rebuild_directory() {
     memset(filedir_buf, 0, sizeof(filedir_buf));
-    // count = 1 (big-endian)
-    filedir_buf[0] = 0; filedir_buf[1] = 0; filedir_buf[2] = 0; filedir_buf[3] = 1;
-    // File entry at offset 4:
-    u8 *f = filedir_buf + 4;
-    // size (big-endian)
-    u32 sz = (u32)len;
-    f[0] = (sz >> 24) & 0xFF; f[1] = (sz >> 16) & 0xFF;
-    f[2] = (sz >> 8) & 0xFF;  f[3] = sz & 0xFF;
-    // select = 0x21 (big-endian) — first user file selector
-    f[4] = 0x00; f[5] = 0x21;
-    // reserved
-    f[6] = 0; f[7] = 0;
-    // name
-    strncpy((char *)f + 8, "vgaroms/vgabios.bin", 56);
-    filedir_len = 4 + 64;  // 4 bytes header + 64 bytes per file entry
+    unsigned count = vga_rom.empty() ? 1 : 2;
+    filedir_buf[3] = count;
+    auto entry = [&](unsigned i, u32 sz, u16 selector, const char *name) {
+      u8 *f = filedir_buf + 4 + i * 64;
+      f[0] = sz >> 24; f[1] = sz >> 16; f[2] = sz >> 8; f[3] = sz;
+      f[4] = selector >> 8; f[5] = selector;
+      strncpy((char *)f + 8, name, 55);
+    };
+    entry(0, 1, 0x22, "etc/irq0-override");
+    if (!vga_rom.empty()) entry(1, vga_rom.size(), 0x21, "vgaroms/vgabios.bin");
+    filedir_len = 4 + count * 64;
   }
 
   void set_ram_size(u64 bytes) {
@@ -1033,6 +1033,10 @@ public:
       data = id_buf;
       len = 4;
       break;
+    case 0x05:  // QEMU_CFG_NB_CPUS: one BSP, no APs
+    case 0x0F:  // QEMU_CFG_MAX_CPUS
+    case 0x22:  // etc/irq0-override: ISA IRQ0 is wired to IOAPIC input 2
+      return offset++ == 0 ? 1 : 0;
     case 0x19:  // QEMU_CFG_FILE_DIR
       data = filedir_buf;
       len = filedir_len;
@@ -1072,7 +1076,7 @@ private:
   u32 e820_len = 0;
 
   // File directory buffer (header + file entries)
-  u8 filedir_buf[128] = {};
+  u8 filedir_buf[132] = {};
   u32 filedir_len = 4;  // default: just u32 count=0
 
   // VGA ROM file data (loaded via set_vga_rom)
