@@ -106,13 +106,13 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // FINIT + FSTSW AX: initialize FPU, store status word to AX
     // DB E3 (FNINIT) + DF E0 (FNSTSW AX)
     tests.push_back({"finit+fstsw ax", cat, {0xDB, 0xE3, 0xDF, 0xE0},
-                      s, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(s, {}), FL_ALL, 0, false, {}, 0});
 
     // FUCOMI: compare ST(0) with ST(1), set EFLAGS
     // FLD1 + FLDZ + DB E9 (FUCOMI ST,ST(1)) — compares 0.0 vs 1.0
     tests.push_back({"fld1+fldz+fucomi", cat,
                       {0xD9, 0xE8, 0xD9, 0xEE, 0xDB, 0xE9},
-                      s, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(s, {}), FL_ALL, 0, false, {}, 0});
   }
 
   // =====================================================================
@@ -216,7 +216,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // FLD1 + FLDZ + DF E9 (FUCOMIP ST, ST(1)) — compares 0.0 vs 1.0
     tests.push_back({"fld1+fldz+fucomip", cat,
                       {0xD9, 0xE8, 0xD9, 0xEE, 0xDF, 0xE9},
-                      s, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(s, {}), FL_ALL, 0, false, {}, 0});
   }
 
   // =====================================================================
@@ -283,7 +283,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     add_xmm("vmaxps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x5F, 0xC2}, s, 0x7);
 
     // VSQRTPS xmm0, xmm1: C5 F8 51 C1  (vvvv=1111=unused, pp=00)
-    add_xmm("vsqrtps xmm0,xmm1", {0xC5, 0xF8, 0x51, 0xC1}, s, 0x3);
+    add_xmm("vsqrtps xmm0,xmm1", {0xC5, 0xF8, 0x51, 0xC1}, with_vector_inputs(s, 0x2), 0x3);
 
     // VANDPS xmm0, xmm1, xmm2: C5 F0 54 C2
     add_xmm("vandps xmm0,xmm1,xmm2", {0xC5, 0xF0, 0x54, 0xC2}, s, 0x7);
@@ -502,41 +502,41 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // D9 E8 (FLD1) + D9 E4 (FTST) + DF E0 (FNSTSW AX) to read result
     tests.push_back({"fld1+ftst+fstsw", cat,
                       {0xD9, 0xE8, 0xD9, 0xE4, 0xDF, 0xE0},
-                      s, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(s, {}), FL_ALL, 0, false, {}, 0});
 
     // FINCSTP/FDECSTP: adjust FPU stack pointer
     // D9 F7 (FINCSTP) + DF E0 (FNSTSW AX)
     tests.push_back({"fincstp+fstsw", cat,
                       {0xD9, 0xF7, 0xDF, 0xE0},
-                      s, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(s, {}), FL_ALL, 0, false, {}, 0});
 
     // D9 F6 (FDECSTP) + DF E0 (FNSTSW AX)
     tests.push_back({"fdecstp+fstsw", cat,
                       {0xD9, 0xF6, 0xDF, 0xE0},
-                      s, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(s, {}), FL_ALL, 0, false, {}, 0});
 
     // FCOM: compare ST(0) and ST(1)
     // FLD1 + FLDZ + D8 D1 (FCOM ST(1)) + DF E0 (FNSTSW AX)
     tests.push_back({"fld1+fldz+fcom+fstsw", cat,
                       {0xD9, 0xE8, 0xD9, 0xEE, 0xD8, 0xD1, 0xDF, 0xE0},
-                      s, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(s, {}), FL_ALL, 0, false, {}, 0});
 
     // FCOMP: compare ST(0) and ST(1), pop
     // FLD1 + FLDZ + D8 D9 (FCOMP ST(1)) + DF E0 (FNSTSW AX)
     tests.push_back({"fld1+fldz+fcomp+fstsw", cat,
                       {0xD9, 0xE8, 0xD9, 0xEE, 0xD8, 0xD9, 0xDF, 0xE0},
-                      s, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(s, {}), FL_ALL, 0, false, {}, 0});
 
     // FXAM: examine ST(0) classification
     // FLD1 + D9 E5 (FXAM) + DF E0 (FNSTSW AX)
     tests.push_back({"fld1+fxam+fstsw", cat,
                       {0xD9, 0xE8, 0xD9, 0xE5, 0xDF, 0xE0},
-                      s, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(s, {}), FL_ALL, 0, false, {}, 0});
 
     // FLDZ + FXAM (examine zero)
     tests.push_back({"fldz+fxam+fstsw", cat,
                       {0xD9, 0xEE, 0xD9, 0xE5, 0xDF, 0xE0},
-                      s, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(s, {}), FL_ALL, 0, false, {}, 0});
   }
 
   // =====================================================================
@@ -562,7 +562,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     s.rcx = 1;
     // F3 48 A5 (REP MOVSQ)
     tests.push_back({"rep movsq", cat, {0xF3, 0x48, 0xA5},
-                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 40});
+                      with_gpr_inputs(s, {&ArchState::rcx, &ArchState::rdi, &ArchState::rsi}), FL_ALL, 0, false, {src_data, src_data + 8}, 40});
 
     // LODSB: load byte from [RSI] into AL
     s.rsi = DATA_ADDR;
@@ -571,19 +571,19 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     s.rax = 0;
     // AC (LODSB)
     tests.push_back({"lodsb", cat, {0xAC},
-                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+                      with_gpr_inputs(s, {&ArchState::rsi}), FL_ALL, 0, false, {src_data, src_data + 8}, 0});
 
     // LODSD: load dword from [RSI] into EAX
     // AD (LODSD — no REX.W, so 32-bit)
     tests.push_back({"lodsd", cat, {0xAD},
-                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+                      with_gpr_inputs(s, {&ArchState::rsi}), FL_ALL, 0, false, {src_data, src_data + 8}, 0});
 
     // SCASD: compare EAX with [RDI]
     s.rdi = DATA_ADDR;
     s.rax = 0x44332211;
     // AF (SCASD)
     tests.push_back({"scasd (match)", cat, {0xAF},
-                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+                      with_gpr_inputs(s, {&ArchState::rax, &ArchState::rdi}), FL_ALL, 0, false, {src_data, src_data + 8}, 0});
   }
 
   // =====================================================================
@@ -646,7 +646,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // VMOVAPS xmm0, xmm1 (EVEX.128.NP.0F W0):
     // P0=0xF1, P1=0x7C (vvvv=1111,1,pp=00), P2=0x08
     add_xmm("evex vmovaps xmm0,xmm1",
-            {0x62, 0xF1, 0x7C, 0x08, 0x28, 0xC1}, s, 0x3);
+            {0x62, 0xF1, 0x7C, 0x08, 0x28, 0xC1}, with_vector_inputs(s, 0x2), 0x3);
   }
   {
     ArchState s;
@@ -745,15 +745,19 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     add_xmm("vinsertf128 ymm0,ymm1,xmm2,1",
             {0xC4, 0xE3, 0x75, 0x18, 0xC2, 0x01}, s, 0x7);
 
+    ArchState extract = {.rflags = 0x2};
+    extract.xmm[0] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
+    extract.xmm[0].q[2] = 0x5555555566666666;
+    extract.xmm[0].q[3] = 0x7777777788888888;
     // VEXTRACTF128 xmm2, ymm0, 0 (extract lower 128)
     // VEX.256.66.0F3A.W0 19 /r ib
     // C4 E3 7D 19 C2 00 → vvvv=1111 (unused), L=1
     add_xmm("vextractf128 xmm2,ymm0,0",
-            {0xC4, 0xE3, 0x7D, 0x19, 0xC2, 0x00}, s, 0x7);
+            {0xC4, 0xE3, 0x7D, 0x19, 0xC2, 0x00}, extract, 0x7);
 
     // VEXTRACTF128 xmm2, ymm0, 1 (extract upper 128)
     add_xmm("vextractf128 xmm2,ymm0,1",
-            {0xC4, 0xE3, 0x7D, 0x19, 0xC2, 0x01}, s, 0x7);
+            {0xC4, 0xE3, 0x7D, 0x19, 0xC2, 0x01}, extract, 0x7);
   }
 
   // =====================================================================
@@ -832,12 +836,12 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // FLD1 + FLDPI + DD E1 (FUCOM ST(1)) + DF E0 (FNSTSW AX)
     tests.push_back({"fld1+fldpi+fucom+fstsw", cat,
                       {0xD9, 0xE8, 0xD9, 0xEB, 0xDD, 0xE1, 0xDF, 0xE0},
-                      s, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(s, {}), FL_ALL, 0, false, {}, 0});
 
     // FUCOMP ST(1): compare ST(0) and ST(1), pop
     tests.push_back({"fld1+fldpi+fucomp+fstsw", cat,
                       {0xD9, 0xE8, 0xD9, 0xEB, 0xDD, 0xE9, 0xDF, 0xE0},
-                      s, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(s, {}), FL_ALL, 0, false, {}, 0});
   }
 
   // =====================================================================
@@ -855,7 +859,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     s.rax = 0;
     // 66 AD (LODSW)
     tests.push_back({"lodsw", cat, {0x66, 0xAD},
-                      s, FL_ALL, 0, false,
+                      with_gpr_inputs(s, {&ArchState::rsi}), FL_ALL, 0, false,
                       {src_data2, src_data2 + 8}, 0});
 
     // REP MOVSD: copy 4-byte units
@@ -864,7 +868,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     s.rcx = 2;
     // F3 A5 (REP MOVSD — no REX.W so 32-bit)
     tests.push_back({"rep movsd", cat, {0xF3, 0xA5},
-                      s, FL_ALL, 0, false,
+                      with_gpr_inputs(s, {&ArchState::rcx, &ArchState::rdi, &ArchState::rsi}), FL_ALL, 0, false,
                       {src_data2, src_data2 + 8}, 40});
 
     // REP MOVSW: copy 2-byte units
@@ -873,7 +877,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     s.rcx = 4;
     // F3 66 A5 (REP MOVSW)
     tests.push_back({"rep movsw", cat, {0x66, 0xF3, 0xA5},
-                      s, FL_ALL, 0, false,
+                      with_gpr_inputs(s, {&ArchState::rcx, &ArchState::rdi, &ArchState::rsi}), FL_ALL, 0, false,
                       {src_data2, src_data2 + 8}, 40});
 
     // SCASW: compare AX with [RDI]
@@ -883,14 +887,14 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     s.rsi = 0;
     // 66 AF (SCASW)
     tests.push_back({"scasw (match)", cat, {0x66, 0xAF},
-                      s, FL_ALL, 0, false,
+                      with_gpr_inputs(s, {&ArchState::rax, &ArchState::rdi}), FL_ALL, 0, false,
                       {src_data2, src_data2 + 8}, 0});
 
     // SCASQ: compare RAX with [RDI]
     s.rax = 0x8877665544332211;
     // 48 AF (SCASQ)
     tests.push_back({"scasq (match)", cat, {0x48, 0xAF},
-                      s, FL_ALL, 0, false,
+                      with_gpr_inputs(s, {&ArchState::rax, &ArchState::rdi}), FL_ALL, 0, false,
                       {src_data2, src_data2 + 8}, 0});
 
     // CMPSW: compare [RSI] with [RDI]
@@ -899,19 +903,19 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     s.rax = 0;
     // 66 A7 (CMPSW)
     tests.push_back({"cmpsw (equal)", cat, {0x66, 0xA7},
-                      s, FL_ALL, 0, false,
+                      with_gpr_inputs(s, {&ArchState::rsi, &ArchState::rdi}), FL_ALL, 0, false,
                       {src_data2, src_data2 + 8}, 0});
 
     // CMPSD (string): compare [RSI] dword with [RDI] dword
     // A7 (CMPSD)
     tests.push_back({"cmpsd (equal)", cat, {0xA7},
-                      s, FL_ALL, 0, false,
+                      with_gpr_inputs(s, {&ArchState::rsi, &ArchState::rdi}), FL_ALL, 0, false,
                       {src_data2, src_data2 + 8}, 0});
 
     // CMPSQ: compare [RSI] qword with [RDI] qword
     // 48 A7 (CMPSQ)
     tests.push_back({"cmpsq (equal)", cat, {0x48, 0xA7},
-                      s, FL_ALL, 0, false,
+                      with_gpr_inputs(s, {&ArchState::rsi, &ArchState::rdi}), FL_ALL, 0, false,
                       {src_data2, src_data2 + 8}, 0});
   }
 
@@ -920,7 +924,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "EVEX";
   {
-    ArchState s = {.rflags = 0x2};  // rcx = 0 (XCR0) by zero-init
+    ArchState s = {.rcx = 0, .rflags = 0x2};  // XCR0 selector
     // XGETBV: 0F 01 D0
     add_xmm("xgetbv ecx=0", {0x0F, 0x01, 0xD0}, s, 0x0);
   }
@@ -959,11 +963,11 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // dst = vvvv, src = r/m
     // 62 [F1] [75] [08] 72 [mod=11,reg=6,rm=1=0xF1] 04
     add_xmm("evex vpslld xmm0,xmm1,4",
-            {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xF1, 0x04}, s, 0x7);
+            {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xF1, 0x04}, with_vector_inputs(s, 0x2), 0x7);
 
     // VPSRLD xmm0, xmm1, imm8(4): 62 F1 7D 08 72 D1 04 (/2)
     add_xmm("evex vpsrld xmm0,xmm1,4",
-            {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xD1, 0x04}, s, 0x7);
+            {0x62, 0xF1, 0x7D, 0x08, 0x72, 0xD1, 0x04}, with_vector_inputs(s, 0x2), 0x7);
   }
 
   // =====================================================================
@@ -990,7 +994,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
 
     // VSQRTPS xmm0, xmm1: 62 F1 7C 08 51 C1 (NP,W=0,vvvv=1111)
     add_xmm("evex vsqrtps xmm0,xmm1",
-            {0x62, 0xF1, 0x7C, 0x08, 0x51, 0xC1}, s, 0x3);
+            {0x62, 0xF1, 0x7C, 0x08, 0x51, 0xC1}, with_vector_inputs(s, 0x2), 0x3);
   }
   {
     ArchState s;
@@ -1364,13 +1368,13 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // FLD1 + FLDPI + DF F1 (FCOMIP ST, ST(1)) — pi > 1, so CF=0, ZF=0
     tests.push_back({"fld1+fldpi+fcomip", cat,
                       {0xD9, 0xE8, 0xD9, 0xEB, 0xDF, 0xF1},
-                      sc, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(sc, {}), FL_ALL, 0, false, {}, 0});
 
     // FCOMIP equal case
     // FLD1 + FLD1 + FCOMIP → equal, ZF=1, CF=0, PF=0
     tests.push_back({"fld1+fld1+fcomip eq", cat,
                       {0xD9, 0xE8, 0xD9, 0xE8, 0xDF, 0xF1},
-                      sc, FL_ALL, 0, false, {}, 0});
+                      with_gpr_inputs(sc, {}), FL_ALL, 0, false, {}, 0});
 
     // FSUBR m32fp: FILD 3 + FSUBR [RDI+4] (m32fp 10.0) + FISTP [RDI]
     // D8 2F = FSUBR m32fp [RDI], D8 6F 04 = FSUBR m32fp [RDI+4]
@@ -1605,11 +1609,11 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // 62 F2 7D 08 1C C1 (vvvv=1111 unused)
     s.xmm[1] = xmm_from_u64(0x80FF01027F00FE03, 0x0405060708090A0B);
     add_xmm("evex vpabsb xmm0,xmm1",
-            {0x62, 0xF2, 0x7D, 0x08, 0x1C, 0xC1}, s, 0x3);
+            {0x62, 0xF2, 0x7D, 0x08, 0x1C, 0xC1}, with_vector_inputs(s, 0x2), 0x3);
 
     // VPABSD xmm0, xmm1: 62 F2 7D 08 1E C1
     add_xmm("evex vpabsd xmm0,xmm1",
-            {0x62, 0xF2, 0x7D, 0x08, 0x1E, 0xC1}, s, 0x3);
+            {0x62, 0xF2, 0x7D, 0x08, 0x1E, 0xC1}, with_vector_inputs(s, 0x2), 0x3);
   }
 
   // =====================================================================
@@ -1638,7 +1642,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // VPERMILPS with immediate: EVEX.128.66.0F3A.W0 04 /r ib
     // 62 F3 7D 08 04 C1 1B → VPERMILPS xmm0, xmm1, 0x1B (reverse)
     add_xmm("evex vpermilps xmm0,xmm1,0x1B",
-            {0x62, 0xF3, 0x7D, 0x08, 0x04, 0xC1, 0x1B}, s, 0x3);
+            {0x62, 0xF3, 0x7D, 0x08, 0x04, 0xC1, 0x1B}, with_vector_inputs(s, 0x2), 0x3);
 
     // VPSHUFB xmm0, xmm1, xmm2: EVEX.128.66.0F38.W0 00 /r
     // 62 F2 75 08 00 C2
@@ -1667,39 +1671,42 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // VPEXTRB ecx, xmm1, 3: EVEX.128.66.0F3A.WIG 14 /r ib
     // 62 F3 7D 08 14 C9 03 (reg=xmm1, r/m=ecx)
     add_xmm("evex vpextrb ecx,xmm1,3",
-            {0x62, 0xF3, 0x7D, 0x08, 0x14, 0xC9, 0x03}, s, 0x3);
+            {0x62, 0xF3, 0x7D, 0x08, 0x14, 0xC9, 0x03}, with_vector_inputs(s, 0x2), 0x3);
 
     // VPEXTRD ecx, xmm1, 2: EVEX.128.66.0F3A.W0 16 /r ib
     // 62 F3 7D 08 16 C9 02
     add_xmm("evex vpextrd ecx,xmm1,2",
-            {0x62, 0xF3, 0x7D, 0x08, 0x16, 0xC9, 0x02}, s, 0x3);
+            {0x62, 0xF3, 0x7D, 0x08, 0x16, 0xC9, 0x02}, with_vector_inputs(s, 0x2), 0x3);
 
     // VPINSRB xmm0, xmm1, ecx, 5: EVEX.128.66.0F3A.WIG 20 /r ib
     // 62 F3 75 08 20 C1 05
     s.rcx = 0x42;
     add_xmm("evex vpinsrb xmm0,xmm1,ecx,5",
-            {0x62, 0xF3, 0x75, 0x08, 0x20, 0xC1, 0x05}, s, 0x7);
+            {0x62, 0xF3, 0x75, 0x08, 0x20, 0xC1, 0x05}, with_vector_inputs(s, 0x2), 0x7);
 
     // VPINSRD xmm0, xmm1, ecx, 1: EVEX.128.66.0F3A.W0 22 /r ib
     // 62 F3 75 08 22 C1 01
     s.rcx = 0xDEADBEEF;
     add_xmm("evex vpinsrd xmm0,xmm1,ecx,1",
-            {0x62, 0xF3, 0x75, 0x08, 0x22, 0xC1, 0x01}, s, 0x7);
+            {0x62, 0xF3, 0x75, 0x08, 0x22, 0xC1, 0x01}, with_vector_inputs(s, 0x2), 0x7);
 
     // VPSHUFD xmm0, xmm1, 0x1B: EVEX.128.66.0F.W0 70 /r ib
     // 62 F1 7D 08 70 C1 1B
     add_xmm("evex vpshufd xmm0,xmm1,0x1B",
-            {0x62, 0xF1, 0x7D, 0x08, 0x70, 0xC1, 0x1B}, s, 0x3);
+            {0x62, 0xF1, 0x7D, 0x08, 0x70, 0xC1, 0x1B},
+                with_vector_inputs(with_gpr_inputs(s, {}), 0x2), 0x3);
 
     // VPSHUFHW xmm0, xmm1, 0x1B: EVEX.128.F3.0F.WIG 70 /r ib
     // 62 F1 7E 08 70 C1 1B
     add_xmm("evex vpshufhw xmm0,xmm1,0x1B",
-            {0x62, 0xF1, 0x7E, 0x08, 0x70, 0xC1, 0x1B}, s, 0x3);
+            {0x62, 0xF1, 0x7E, 0x08, 0x70, 0xC1, 0x1B},
+                with_vector_inputs(with_gpr_inputs(s, {}), 0x2), 0x3);
 
     // VPSHUFLW xmm0, xmm1, 0x1B: EVEX.128.F2.0F.WIG 70 /r ib
     // 62 F1 7F 08 70 C1 1B
     add_xmm("evex vpshuflw xmm0,xmm1,0x1B",
-            {0x62, 0xF1, 0x7F, 0x08, 0x70, 0xC1, 0x1B}, s, 0x3);
+            {0x62, 0xF1, 0x7F, 0x08, 0x70, 0xC1, 0x1B},
+                with_vector_inputs(with_gpr_inputs(s, {}), 0x2), 0x3);
   }
 
   // =====================================================================
@@ -1719,12 +1726,12 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // VPABSW xmm0, xmm1: 62 F2 7D 08 1D C1
     s.xmm[1] = xmm_from_u64(0x80007FFF00010002, 0xFFFE000300040005);
     add_xmm("evex vpabsw xmm0,xmm1",
-            {0x62, 0xF2, 0x7D, 0x08, 0x1D, 0xC1}, s, 0x3);
+            {0x62, 0xF2, 0x7D, 0x08, 0x1D, 0xC1}, with_vector_inputs(s, 0x2), 0x3);
 
     // VPABSQ xmm0, xmm1: 62 F2 FD 08 1F C1 (W=1)
     s.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0x0000000000000001);
     add_xmm("evex vpabsq xmm0,xmm1",
-            {0x62, 0xF2, 0xFD, 0x08, 0x1F, 0xC1}, s, 0x3);
+            {0x62, 0xF2, 0xFD, 0x08, 0x1F, 0xC1}, with_vector_inputs(s, 0x2), 0x3);
 
     // VPMADDUBSW xmm0, xmm1, xmm2: 62 F2 75 08 04 C2
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
@@ -1780,51 +1787,51 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     // VMOVDQA32 xmm0, xmm1: EVEX.128.66.0F.W0 6F /r
     // 62 F1 7D 08 6F C1
     add_xmm("evex vmovdqa32 xmm0,xmm1",
-            {0x62, 0xF1, 0x7D, 0x08, 0x6F, 0xC1}, s, 0x3);
+            {0x62, 0xF1, 0x7D, 0x08, 0x6F, 0xC1}, with_vector_inputs(s, 0x2), 0x3);
 
     // VMOVD xmm0, ecx: EVEX.128.66.0F.W0 6E /r
     // 62 F1 7D 08 6E C1 (reg=xmm0, r/m=ecx)
     s.rcx = 0xDEADBEEF;
     add_xmm("evex vmovd xmm0,ecx",
-            {0x62, 0xF1, 0x7D, 0x08, 0x6E, 0xC1}, s, 0x3);
+            {0x62, 0xF1, 0x7D, 0x08, 0x6E, 0xC1}, with_vector_inputs(s, 0x0), 0x3);
 
     // VMOVQ xmm0, rcx: EVEX.128.66.0F.W1 6E /r
     // 62 F1 FD 08 6E C1
     s.rcx = 0x123456789ABCDEF0;
     add_xmm("evex vmovq xmm0,rcx",
-            {0x62, 0xF1, 0xFD, 0x08, 0x6E, 0xC1}, s, 0x3);
+            {0x62, 0xF1, 0xFD, 0x08, 0x6E, 0xC1}, with_vector_inputs(s, 0x0), 0x3);
 
     // VPADDB xmm0, xmm1, xmm2: 62 F1 75 08 FC C2
     add_xmm("evex vpaddb xmm0,xmm1,xmm2",
-            {0x62, 0xF1, 0x75, 0x08, 0xFC, 0xC2}, s, 0x7);
+            {0x62, 0xF1, 0x75, 0x08, 0xFC, 0xC2}, with_gpr_inputs(s, {}), 0x7);
 
     // VPADDW xmm0, xmm1, xmm2: 62 F1 75 08 FD C2
     add_xmm("evex vpaddw xmm0,xmm1,xmm2",
-            {0x62, 0xF1, 0x75, 0x08, 0xFD, 0xC2}, s, 0x7);
+            {0x62, 0xF1, 0x75, 0x08, 0xFD, 0xC2}, with_gpr_inputs(s, {}), 0x7);
 
     // VPSUBW xmm0, xmm1, xmm2: 62 F1 75 08 F9 C2
     add_xmm("evex vpsubw xmm0,xmm1,xmm2",
-            {0x62, 0xF1, 0x75, 0x08, 0xF9, 0xC2}, s, 0x7);
+            {0x62, 0xF1, 0x75, 0x08, 0xF9, 0xC2}, with_gpr_inputs(s, {}), 0x7);
 
     // VPANDND xmm0, xmm1, xmm2: 62 F1 75 08 DF C2
     add_xmm("evex vpandnd xmm0,xmm1,xmm2",
-            {0x62, 0xF1, 0x75, 0x08, 0xDF, 0xC2}, s, 0x7);
+            {0x62, 0xF1, 0x75, 0x08, 0xDF, 0xC2}, with_gpr_inputs(s, {}), 0x7);
 
     // VPADDSB xmm0, xmm1, xmm2: 62 F1 75 08 EC C2
     add_xmm("evex vpaddsb xmm0,xmm1,xmm2",
-            {0x62, 0xF1, 0x75, 0x08, 0xEC, 0xC2}, s, 0x7);
+            {0x62, 0xF1, 0x75, 0x08, 0xEC, 0xC2}, with_gpr_inputs(s, {}), 0x7);
 
     // VPADDUSB xmm0, xmm1, xmm2: 62 F1 75 08 DC C2
     add_xmm("evex vpaddusb xmm0,xmm1,xmm2",
-            {0x62, 0xF1, 0x75, 0x08, 0xDC, 0xC2}, s, 0x7);
+            {0x62, 0xF1, 0x75, 0x08, 0xDC, 0xC2}, with_gpr_inputs(s, {}), 0x7);
 
     // VPSUBSB xmm0, xmm1, xmm2: 62 F1 75 08 E8 C2
     add_xmm("evex vpsubsb xmm0,xmm1,xmm2",
-            {0x62, 0xF1, 0x75, 0x08, 0xE8, 0xC2}, s, 0x7);
+            {0x62, 0xF1, 0x75, 0x08, 0xE8, 0xC2}, with_gpr_inputs(s, {}), 0x7);
 
     // VPSUBUSB xmm0, xmm1, xmm2: 62 F1 75 08 D8 C2
     add_xmm("evex vpsubusb xmm0,xmm1,xmm2",
-            {0x62, 0xF1, 0x75, 0x08, 0xD8, 0xC2}, s, 0x7);
+            {0x62, 0xF1, 0x75, 0x08, 0xD8, 0xC2}, with_gpr_inputs(s, {}), 0x7);
   }
 
   // =====================================================================

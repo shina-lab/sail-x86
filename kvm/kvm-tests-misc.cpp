@@ -127,9 +127,10 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // AESDECLAST XMM0, XMM1: 66 0F 38 DF C1
     add_xmm("aesdeclast xmm0,xmm1", {0x66, 0x0F, 0x38, 0xDF, 0xC1}, s, 0x3);
     // AESIMC XMM1, XMM0: 66 0F 38 DB C8
-    add_xmm("aesimc xmm1,xmm0", {0x66, 0x0F, 0x38, 0xDB, 0xC8}, s, 0x2);
+    add_xmm("aesimc xmm1,xmm0", {0x66, 0x0F, 0x38, 0xDB, 0xC8}, with_vector_inputs(s, 0x1), 0x2);
     // AESKEYGENASSIST XMM1, XMM0, 0x01: 66 0F 3A DF C8 01
-    add_xmm("aeskeygenassist xmm1,xmm0,0x01", {0x66, 0x0F, 0x3A, 0xDF, 0xC8, 0x01}, s, 0x2);
+    add_xmm("aeskeygenassist xmm1,xmm0,0x01", {0x66, 0x0F, 0x3A, 0xDF, 0xC8, 0x01},
+        with_vector_inputs(s, 0x1), 0x2);
     // PCLMULQDQ XMM0, XMM1, 0x00: 66 0F 3A 44 C1 00
     add_xmm("pclmulqdq xmm0,xmm1,0x00", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
   }
@@ -145,28 +146,28 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.rflags = 0x2 | FL_ZF | FL_SF | FL_PF;
 
     // SETcc AL: 0F 9x C0 (mod=11, rm=rax)
-    add("seto al",   {0x0F, 0x90, 0xC0}, s, FL_ALL);  // OF=0 → 0
-    add("setno al",  {0x0F, 0x91, 0xC0}, s, FL_ALL);  // !OF → 1
-    add("setb al",   {0x0F, 0x92, 0xC0}, s, FL_ALL);  // CF=0 → 0
-    add("setnb al",  {0x0F, 0x93, 0xC0}, s, FL_ALL);  // !CF → 1
-    add("sete al",   {0x0F, 0x94, 0xC0}, s, FL_ALL);  // ZF=1 → 1
-    add("setne al",  {0x0F, 0x95, 0xC0}, s, FL_ALL);  // !ZF → 0
-    add("setbe al",  {0x0F, 0x96, 0xC0}, s, FL_ALL);  // CF|ZF → 1
-    add("setnbe al", {0x0F, 0x97, 0xC0}, s, FL_ALL);  // !CF&!ZF → 0
-    add("sets al",   {0x0F, 0x98, 0xC0}, s, FL_ALL);  // SF=1 → 1
-    add("setns al",  {0x0F, 0x99, 0xC0}, s, FL_ALL);  // !SF → 0
-    add("setp al",   {0x0F, 0x9A, 0xC0}, s, FL_ALL);  // PF=1 → 1
-    add("setnp al",  {0x0F, 0x9B, 0xC0}, s, FL_ALL);  // !PF → 0
-    add("setl al",   {0x0F, 0x9C, 0xC0}, s, FL_ALL);  // SF!=OF → 1
-    add("setnl al",  {0x0F, 0x9D, 0xC0}, s, FL_ALL);  // SF==OF → 0
-    add("setle al",  {0x0F, 0x9E, 0xC0}, s, FL_ALL);  // ZF|(SF!=OF) → 1
-    add("setnle al", {0x0F, 0x9F, 0xC0}, s, FL_ALL);  // !ZF&(SF==OF) → 0
+    add("seto al",   {0x0F, 0x90, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // OF=0 → 0
+    add("setno al",  {0x0F, 0x91, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !OF → 1
+    add("setb al",   {0x0F, 0x92, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // CF=0 → 0
+    add("setnb al",  {0x0F, 0x93, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !CF → 1
+    add("sete al",   {0x0F, 0x94, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // ZF=1 → 1
+    add("setne al",  {0x0F, 0x95, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !ZF → 0
+    add("setbe al",  {0x0F, 0x96, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // CF|ZF → 1
+    add("setnbe al", {0x0F, 0x97, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !CF&!ZF → 0
+    add("sets al",   {0x0F, 0x98, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // SF=1 → 1
+    add("setns al",  {0x0F, 0x99, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !SF → 0
+    add("setp al",   {0x0F, 0x9A, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // PF=1 → 1
+    add("setnp al",  {0x0F, 0x9B, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !PF → 0
+    add("setl al",   {0x0F, 0x9C, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // SF!=OF → 1
+    add("setnl al",  {0x0F, 0x9D, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // SF==OF → 0
+    add("setle al",  {0x0F, 0x9E, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // ZF|(SF!=OF) → 1
+    add("setnle al", {0x0F, 0x9F, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // !ZF&(SF==OF) → 0
 
     // Second set with different flags: CF=1, ZF=0, SF=0, OF=1
     s.rflags = 0x2 | FL_CF | FL_OF;
-    add("seto al (OF=1)",  {0x0F, 0x90, 0xC0}, s, FL_ALL);
-    add("setb al (CF=1)",  {0x0F, 0x92, 0xC0}, s, FL_ALL);
-    add("setl al (SF=OF)", {0x0F, 0x9C, 0xC0}, s, FL_ALL);  // SF=0,OF=1 → 1
+    add("seto al (OF=1)",  {0x0F, 0x90, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);
+    add("setb al (CF=1)",  {0x0F, 0x92, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);
+    add("setl al (SF=OF)", {0x0F, 0x9C, 0xC0}, with_gpr_inputs(s, {}), FL_ALL);  // SF=0,OF=1 → 1
   }
 
   // =====================================================================
@@ -180,16 +181,26 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.rflags = 0x2 | FL_ZF | FL_SF | FL_PF;
 
     // CMOVcc RAX, RBX: 48 0F 4x C3
-    add("cmovnb rax,rbx",  {0x48, 0x0F, 0x43, 0xC3}, s, FL_ALL);  // !CF → taken
-    add("cmovne rax,rbx",  {0x48, 0x0F, 0x45, 0xC3}, s, FL_ALL);  // !ZF → not taken
-    add("cmovbe rax,rbx",  {0x48, 0x0F, 0x46, 0xC3}, s, FL_ALL);  // CF|ZF → taken
-    add("cmova rax,rbx",   {0x48, 0x0F, 0x47, 0xC3}, s, FL_ALL);  // !CF&!ZF → not taken
-    add("cmovs rax,rbx",   {0x48, 0x0F, 0x48, 0xC3}, s, FL_ALL);  // SF → taken
-    add("cmovns rax,rbx",  {0x48, 0x0F, 0x49, 0xC3}, s, FL_ALL);  // !SF → not taken
-    add("cmovp rax,rbx",   {0x48, 0x0F, 0x4A, 0xC3}, s, FL_ALL);  // PF → taken
-    add("cmovnp rax,rbx",  {0x48, 0x0F, 0x4B, 0xC3}, s, FL_ALL);  // !PF → not taken
-    add("cmovge rax,rbx",  {0x48, 0x0F, 0x4D, 0xC3}, s, FL_ALL);  // SF==OF → not taken
-    add("cmovle rax,rbx",  {0x48, 0x0F, 0x4E, 0xC3}, s, FL_ALL);  // ZF|(SF!=OF) → taken
+    add("cmovnb rax,rbx",  {0x48, 0x0F, 0x43, 0xC3},
+        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // !CF → taken
+    add("cmovne rax,rbx",  {0x48, 0x0F, 0x45, 0xC3},
+        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // !ZF → not taken
+    add("cmovbe rax,rbx",  {0x48, 0x0F, 0x46, 0xC3},
+        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // CF|ZF → taken
+    add("cmova rax,rbx",   {0x48, 0x0F, 0x47, 0xC3},
+        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // !CF&!ZF → not taken
+    add("cmovs rax,rbx",   {0x48, 0x0F, 0x48, 0xC3},
+        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // SF → taken
+    add("cmovns rax,rbx",  {0x48, 0x0F, 0x49, 0xC3},
+        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // !SF → not taken
+    add("cmovp rax,rbx",   {0x48, 0x0F, 0x4A, 0xC3},
+        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // PF → taken
+    add("cmovnp rax,rbx",  {0x48, 0x0F, 0x4B, 0xC3},
+        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // !PF → not taken
+    add("cmovge rax,rbx",  {0x48, 0x0F, 0x4D, 0xC3},
+        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // SF==OF → not taken
+    add("cmovle rax,rbx",  {0x48, 0x0F, 0x4E, 0xC3},
+        with_gpr_inputs(s, {&ArchState::rbx}), FL_ALL);  // ZF|(SF!=OF) → taken
   }
 
   // =====================================================================
@@ -204,12 +215,12 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.rsp = 0x20000;
     s.rflags = 0x2;
     // PUSH RAX (50); POP RBX (5B)
-    add("push rax; pop rbx", {0x50, 0x5B}, s, FL_ALL);
+    add("push rax; pop rbx", {0x50, 0x5B}, with_gpr_inputs(s, {&ArchState::rax}), FL_ALL);
 
     // PUSH imm32; POP RAX — tests POP with sign-extended immediate
     s.rax = 0;
     // PUSH 0x42 (6A 42); POP RAX (58)
-    add("push 0x42; pop rax", {0x6A, 0x42, 0x58}, s, FL_ALL);
+    add("push 0x42; pop rax", {0x6A, 0x42, 0x58}, with_gpr_inputs(s, {}), FL_ALL);
   }
 
   // =====================================================================
@@ -365,11 +376,11 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.rax = 42;
     s.rflags = 0x2;
     // LFENCE: 0F AE E8
-    add("lfence", {0x0F, 0xAE, 0xE8}, s, FL_ALL);
+    add("lfence", {0x0F, 0xAE, 0xE8}, with_gpr_inputs(s, {}), FL_ALL);
     // MFENCE: 0F AE F0
-    add("mfence", {0x0F, 0xAE, 0xF0}, s, FL_ALL);
+    add("mfence", {0x0F, 0xAE, 0xF0}, with_gpr_inputs(s, {}), FL_ALL);
     // SFENCE: 0F AE F8
-    add("sfence", {0x0F, 0xAE, 0xF8}, s, FL_ALL);
+    add("sfence", {0x0F, 0xAE, 0xF8}, with_gpr_inputs(s, {}), FL_ALL);
   }
 
   // =====================================================================
@@ -384,10 +395,10 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
 
     // MOVSLDUP XMM2, XMM0: F3 0F 12 D0 — duplicates even-indexed floats
-    add_xmm("movsldup xmm2,xmm0", {0xF3, 0x0F, 0x12, 0xD0}, s, 0x4);
+    add_xmm("movsldup xmm2,xmm0", {0xF3, 0x0F, 0x12, 0xD0}, with_vector_inputs(s, 0x1), 0x4);
 
     // MOVSHDUP XMM2, XMM0: F3 0F 16 D0 — duplicates odd-indexed floats
-    add_xmm("movshdup xmm2,xmm0", {0xF3, 0x0F, 0x16, 0xD0}, s, 0x4);
+    add_xmm("movshdup xmm2,xmm0", {0xF3, 0x0F, 0x16, 0xD0}, with_vector_inputs(s, 0x1), 0x4);
 
     // HADDPS XMM0, XMM1: F2 0F 7C C1
     add_xmm("haddps xmm0,xmm1", {0xF2, 0x0F, 0x7C, 0xC1}, s, 0x3);
@@ -405,7 +416,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.xmm[1] = xmm_from_f64(3.0, 4.0);
 
     // MOVDDUP XMM2, XMM0: F2 0F 12 D0 — duplicate low double
-    add_xmm("movddup xmm2,xmm0", {0xF2, 0x0F, 0x12, 0xD0}, s, 0x4);
+    add_xmm("movddup xmm2,xmm0", {0xF2, 0x0F, 0x12, 0xD0}, with_vector_inputs(s, 0x1), 0x4);
 
     // HADDPD XMM0, XMM1: 66 0F 7C C1
     add_xmm("haddpd xmm0,xmm1", {0x66, 0x0F, 0x7C, 0xC1}, s, 0x3);
@@ -468,11 +479,11 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
     // MOVLPS [RDI], XMM0: 0F 13 07 — store low 64 bits to memory
     tests.push_back({"movlps [rdi],xmm0", cat, {0x0F, 0x13, 0x07},
-                      s, FL_ALL, 0x0, false, {}, 8});
+                      with_vector_inputs(s, 0x1), FL_ALL, 0x0, false, {}, 8});
 
     // MOVHPS [RDI], XMM0: 0F 17 07 — store high 64 bits to memory
     tests.push_back({"movhps [rdi],xmm0", cat, {0x0F, 0x17, 0x07},
-                      s, FL_ALL, 0x0, false, {}, 8});
+                      with_vector_inputs(s, 0x1), FL_ALL, 0x0, false, {}, 8});
 
     // MOVLPS XMM0, [RDI]: 0F 12 07 — load 64 bits into low half
     u8 data[] = {0x00, 0x00, 0x80, 0x41, 0x00, 0x00, 0x00, 0x42};  // 16.0f, 32.0f
@@ -526,7 +537,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     u8 src_data[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
     // We put src data at DATA_ADDR, copy to DATA_ADDR+32
     tests.push_back({"rep movsb", cat, {0xF3, 0xA4},
-                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 40});
+                      with_gpr_inputs(s, {&ArchState::rcx, &ArchState::rdi, &ArchState::rsi}), FL_ALL, 0, false, {src_data, src_data + 8}, 40});
 
     // LODSQ: load [RSI] into RAX
     s.rsi = DATA_ADDR;
@@ -534,24 +545,24 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.rcx = 0;
     s.rax = 0;
     tests.push_back({"lodsq", cat, {0x48, 0xAD},
-                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+                      with_gpr_inputs(s, {&ArchState::rsi}), FL_ALL, 0, false, {src_data, src_data + 8}, 0});
 
     // SCASB: compare AL with [RDI], set flags
     s.rdi = DATA_ADDR;
     s.rax = 0x11;
     tests.push_back({"scasb (match)", cat, {0xAE},
-                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+                      with_gpr_inputs(s, {&ArchState::rax, &ArchState::rdi}), FL_ALL, 0, false, {src_data, src_data + 8}, 0});
 
     s.rax = 0xFF;
     tests.push_back({"scasb (no match)", cat, {0xAE},
-                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+                      with_gpr_inputs(s, {&ArchState::rax, &ArchState::rdi}), FL_ALL, 0, false, {src_data, src_data + 8}, 0});
 
     // CMPSB: compare [RSI] with [RDI]
     s.rsi = DATA_ADDR;
     s.rdi = DATA_ADDR;
     s.rax = 0;
     tests.push_back({"cmpsb (equal)", cat, {0xA6},
-                      s, FL_ALL, 0, false, {src_data, src_data + 8}, 0});
+                      with_gpr_inputs(s, {&ArchState::rsi, &ArchState::rdi}), FL_ALL, 0, false, {src_data, src_data + 8}, 0});
   }
 
   // =====================================================================
@@ -578,7 +589,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
         {0x0F, 0x6E, 0xC0,        // MOVD MM0, EAX (sets tag valid)
          0x0F, 0x77,              // EMMS (should set all tags empty)
          0x0F, 0xAE, 0x07},       // FXSAVE [RDI]
-        {.rax = 0x42, .rdi = DATA_ADDR, .rflags = 0x2},
+        with_xsave_vector_inputs({.rax = 0x42, .rdi = DATA_ADDR, .rflags = 0x2}, 0x2),
         FL_ALL, 0, false, init_data, 512});
     }
   }
@@ -638,36 +649,36 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.xmm[2] = xmm_from_u64(0x428A2F9871374491, 0xB5C0FBCFE9B5DBA5);
 
     // SHA1RNDS4 XMM0, XMM1, 0: NP 0F 3A CC C1 00
-    add_xmm("sha1rnds4 xmm0,xmm1,0", {0x0F, 0x3A, 0xCC, 0xC1, 0x00}, s, 0x3);
+    add_xmm("sha1rnds4 xmm0,xmm1,0", {0x0F, 0x3A, 0xCC, 0xC1, 0x00}, with_vector_inputs(s, 0x3), 0x3);
     // SHA1RNDS4 XMM0, XMM1, 1: NP 0F 3A CC C1 01
-    add_xmm("sha1rnds4 xmm0,xmm1,1", {0x0F, 0x3A, 0xCC, 0xC1, 0x01}, s, 0x3);
+    add_xmm("sha1rnds4 xmm0,xmm1,1", {0x0F, 0x3A, 0xCC, 0xC1, 0x01}, with_vector_inputs(s, 0x3), 0x3);
     // SHA1RNDS4 XMM0, XMM1, 2: NP 0F 3A CC C1 02
-    add_xmm("sha1rnds4 xmm0,xmm1,2", {0x0F, 0x3A, 0xCC, 0xC1, 0x02}, s, 0x3);
+    add_xmm("sha1rnds4 xmm0,xmm1,2", {0x0F, 0x3A, 0xCC, 0xC1, 0x02}, with_vector_inputs(s, 0x3), 0x3);
     // SHA1RNDS4 XMM0, XMM1, 3: NP 0F 3A CC C1 03
-    add_xmm("sha1rnds4 xmm0,xmm1,3", {0x0F, 0x3A, 0xCC, 0xC1, 0x03}, s, 0x3);
+    add_xmm("sha1rnds4 xmm0,xmm1,3", {0x0F, 0x3A, 0xCC, 0xC1, 0x03}, with_vector_inputs(s, 0x3), 0x3);
 
     // SHA1NEXTE XMM0, XMM1: NP 0F 38 C8 C1
-    add_xmm("sha1nexte xmm0,xmm1", {0x0F, 0x38, 0xC8, 0xC1}, s, 0x3);
+    add_xmm("sha1nexte xmm0,xmm1", {0x0F, 0x38, 0xC8, 0xC1}, with_vector_inputs(s, 0x3), 0x3);
 
     // SHA1MSG1 XMM0, XMM1: NP 0F 38 C9 C1
-    add_xmm("sha1msg1 xmm0,xmm1", {0x0F, 0x38, 0xC9, 0xC1}, s, 0x3);
+    add_xmm("sha1msg1 xmm0,xmm1", {0x0F, 0x38, 0xC9, 0xC1}, with_vector_inputs(s, 0x3), 0x3);
 
     // SHA1MSG2 XMM0, XMM1: NP 0F 38 CA C1
-    add_xmm("sha1msg2 xmm0,xmm1", {0x0F, 0x38, 0xCA, 0xC1}, s, 0x3);
+    add_xmm("sha1msg2 xmm0,xmm1", {0x0F, 0x38, 0xCA, 0xC1}, with_vector_inputs(s, 0x3), 0x3);
 
     // SHA256RNDS2 XMM0, XMM1, <XMM0>: NP 0F 38 CB C1
     // Implicit operand is XMM0 (low 64 bits)
-    add_xmm("sha256rnds2 xmm0,xmm1", {0x0F, 0x38, 0xCB, 0xC1}, s, 0x3);
+    add_xmm("sha256rnds2 xmm0,xmm1", {0x0F, 0x38, 0xCB, 0xC1}, with_vector_inputs(s, 0x3), 0x3);
 
     // SHA256RNDS2 with different XMM0 content: use XMM2 as dest to isolate
     // SHA256RNDS2 XMM2, XMM1, <XMM0>: NP 0F 38 CB D1
     add_xmm("sha256rnds2 xmm2,xmm1,<xmm0>", {0x0F, 0x38, 0xCB, 0xD1}, s, 0x7);
 
     // SHA256MSG1 XMM0, XMM1: NP 0F 38 CC C1
-    add_xmm("sha256msg1 xmm0,xmm1", {0x0F, 0x38, 0xCC, 0xC1}, s, 0x3);
+    add_xmm("sha256msg1 xmm0,xmm1", {0x0F, 0x38, 0xCC, 0xC1}, with_vector_inputs(s, 0x3), 0x3);
 
     // SHA256MSG2 XMM0, XMM1: NP 0F 38 CD C1
-    add_xmm("sha256msg2 xmm0,xmm1", {0x0F, 0x38, 0xCD, 0xC1}, s, 0x3);
+    add_xmm("sha256msg2 xmm0,xmm1", {0x0F, 0x38, 0xCD, 0xC1}, with_vector_inputs(s, 0x3), 0x3);
   }
 
   // =====================================================================
@@ -739,12 +750,15 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // Round-trip: XSAVE then PXOR to clear XMMs, then XRSTOR to restore.
     // Verifies XMM0 and XMM1 survive the round-trip.
     {
-      ArchState s;
+      ArchState s = with_xsave_vector_inputs({}, 0x2);
       s.rax = 3;
+      s.rdx = 0;
       s.rdi = DATA_ADDR;
       s.rflags = 0x2;
-      s.xmm[0] = xmm_from_u64(0x1234567890ABCDEF, 0xFEDCBA0987654321);
-      s.xmm[1] = xmm_from_u64(0xAAAABBBBCCCCDDDD, 0xEEEEFFFF00001111);
+      s.xmm[0].lo = 0x1234567890ABCDEF;
+      s.xmm[0].hi = 0xFEDCBA0987654321;
+      s.xmm[1].lo = 0xAAAABBBBCCCCDDDD;
+      s.xmm[1].hi = 0xEEEEFFFF00001111;
       std::vector<u8> code = {
         0x0F, 0xAE, 0x27,             // XSAVE [RDI]
         0x66, 0x0F, 0xEF, 0xC0,       // PXOR XMM0, XMM0
@@ -765,12 +779,15 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
     // Round-trip with mask=2 (SSE only): XMM regs should survive.
     {
-      ArchState s;
+      ArchState s = with_xsave_vector_inputs({}, 0x2);
       s.rax = 2;
+      s.rdx = 0;
       s.rdi = DATA_ADDR;
       s.rflags = 0x2;
-      s.xmm[0] = xmm_from_u64(0xCAFEBABE12345678, 0x9876543210FEDCBA);
-      s.xmm[5] = xmm_from_u64(0xDEADBEEFDEADBEEF, 0xFACEFACEFACEFACE);
+      s.xmm[0].lo = 0xCAFEBABE12345678;
+      s.xmm[0].hi = 0x9876543210FEDCBA;
+      s.xmm[5].lo = 0xDEADBEEFDEADBEEF;
+      s.xmm[5].hi = 0xFACEFACEFACEFACE;
       std::vector<u8> code = {
         0x0F, 0xAE, 0x27,             // XSAVE [RDI]
         0x66, 0x0F, 0xEF, 0xC0,       // PXOR XMM0, XMM0
@@ -793,6 +810,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     {
       ArchState s;
       s.rax = 3;
+      s.rdx = 0;
       s.rdi = DATA_ADDR;
       s.rflags = 0x2;
       std::vector<u8> init_data(576, 0);
@@ -829,9 +847,9 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     {
       ArchState s;
       s.rax = 3;
+      s.rdx = 0;
       s.rdi = DATA_ADDR;
       s.rflags = 0x2;
-      s.xmm[0] = xmm_from_u64(0xDEADBEEFDEADBEEF, 0xDEADBEEFDEADBEEF);
       std::vector<u8> init_data(576, 0);
       // XSTATE_BV = 0 (all init)
       TestCase tc;
@@ -849,9 +867,9 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     {
       ArchState s;
       s.rax = 3;
+      s.rdx = 0;
       s.rdi = DATA_ADDR;
       s.rflags = 0x2;
-      s.xmm[0] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
       std::vector<u8> init_data(576, 0);
       init_data[0] = 0x7F;
       init_data[1] = 0x03;
@@ -875,12 +893,15 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
     // Round-trip with high XMM registers (XMM8-XMM15, needs REX).
     {
-      ArchState s;
+      ArchState s = with_xsave_vector_inputs({}, 0x2);
       s.rax = 3;
+      s.rdx = 0;
       s.rdi = DATA_ADDR;
       s.rflags = 0x2;
-      s.xmm[8] = xmm_from_u64(0x8888888888888888, 0x9999999999999999);
-      s.xmm[15] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
+      s.xmm[8].lo = 0x8888888888888888;
+      s.xmm[8].hi = 0x9999999999999999;
+      s.xmm[15].lo = 0xAAAAAAAAAAAAAAAA;
+      s.xmm[15].hi = 0xBBBBBBBBBBBBBBBB;
       // PXOR XMM8,XMM8: 66 45 0F EF C0
       // PXOR XMM15,XMM15: 66 45 0F EF FF
       std::vector<u8> code = {
@@ -1278,11 +1299,11 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // Large integer that can't be exactly represented: 2^24 + 1 = 16777217
     s.xmm[0] = {};
     s.rax = 16777217;  // 2^24+1: rounds to 16777216.0f or 16777218.0f
-    add_xmm("cvtsi2ss large int", {0xF3, 0x0F, 0x2A, 0xC0}, s);
+    add_xmm("cvtsi2ss large int", {0xF3, 0x0F, 0x2A, 0xC0}, with_vector_inputs(s, 0x1));
 
     // CVTSI2SS xmm0, rax: F3 48 0F 2A C0 (convert int64 → float)
     s.rax = (1ULL << 53) + 1;  // just beyond double precision
-    add_xmm("cvtsi2ss int64 rounding", {0xF3, 0x48, 0x0F, 0x2A, 0xC0}, s);
+    add_xmm("cvtsi2ss int64 rounding", {0xF3, 0x48, 0x0F, 0x2A, 0xC0}, with_vector_inputs(s, 0x1));
 
     // CVTSD2SS round-trip: double → float → double
     // Start with a double that's exactly representable as float
@@ -1292,13 +1313,12 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       u64 bd;
       memcpy(&bd, &d, 8);
       s.xmm[1] = xmm_from_u64(bd, 0);
-      s.xmm[0] = {};
     }
     // CVTSD2SS xmm0, xmm1; CVTSS2SD xmm0, xmm0
     add_xmm("cvtsd2ss+cvtss2sd round-trip",
              {0xF2, 0x0F, 0x5A, 0xC1,   // cvtsd2ss xmm0, xmm1
               0xF3, 0x0F, 0x5A, 0xC0},  // cvtss2sd xmm0, xmm0
-             s);
+             with_vector_inputs(with_gpr_inputs(s, {}), 0x2));
   }
 
   // =====================================================================
@@ -1353,7 +1373,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
                  0x66, 0x58};               // pop ax (16-bit)
       tc.initial = {};
       tc.initial.rflags = 0x2;
-      tc.initial.rax = 0;
       tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
     }
@@ -1868,7 +1887,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.code = {0xC5, 0xFB, 0x93, 0xC2};
       tc.initial = {};
       tc.initial.rflags = 0x2;
-      tc.initial.rax = 0xDEADDEADDEADDEAD;
       tc.initial.kregs[2] = 0x12345678;
       tc.flags_mask = FL_ALL;
       tests.push_back(std::move(tc));
@@ -1884,7 +1902,6 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL);
-    s.xmm[1] = xmm_from_u64(0xAAAABBBBCCCCDDDDULL, 0xEEEEFFFF00001111ULL);
 
     // MOVAPS [rdi], xmm0: 0F 29 07
     {
@@ -2015,6 +2032,9 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.compare_data_len = 16;
       tests.push_back(std::move(tc));
     }
+
+    // The two YMM stores also read XMM1 in their VINSERTF128 preamble.
+    s.xmm[1] = xmm_from_u64(0xAAAABBBBCCCCDDDDULL, 0xEEEEFFFF00001111ULL);
 
     // VMOVAPS [rdi], ymm0: need to set up ymm0 first
     // Use VINSERTF128 ymm0, ymm0, xmm1, 1 (C4 E3 7D 18 C1 01) to set hi half

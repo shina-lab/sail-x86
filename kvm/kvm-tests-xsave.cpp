@@ -13,13 +13,15 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   cat = "XSAVEC roundtrip";
 
   {
-    ArchState s;
+    ArchState s = with_xsave_vector_inputs({}, 0x7);
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     s.rax = 0x7;             // x87 + SSE + AVX
     s.rdx = 0;
-    s.xmm[0] = xmm_from_u64(0xDEADDEADDEADDEAD, 0xBEEFBEEFBEEFBEEF);
-    s.xmm[2] = xmm_from_u64(0x2222222222222222, 0x3333333333333333);
+    s.xmm[0].lo = 0xDEADDEADDEADDEAD;
+    s.xmm[0].hi = 0xBEEFBEEFBEEFBEEF;
+    s.xmm[2].lo = 0x2222222222222222;
+    s.xmm[2].hi = 0x3333333333333333;
 
     std::vector<u8> init(XSAVE_AREA_SIZE, 0);
 
@@ -38,13 +40,15 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
 
   // XSAVEC with full components, round-trip
   {
-    ArchState s;
+    ArchState s = with_xsave_vector_inputs({}, 0xE7);
     s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     s.rax = 0xE7;            // all components
     s.rdx = 0;
-    s.xmm[0] = xmm_from_u64(0xAAAABBBBCCCCDDDD, 0xEEEEFFFF00001111);
-    s.xmm[15] = xmm_from_u64(0x1515151515151515, 0x1616161616161616);
+    s.xmm[0].lo = 0xAAAABBBBCCCCDDDD;
+    s.xmm[0].hi = 0xEEEEFFFF00001111;
+    s.xmm[15].lo = 0x1515151515151515;
+    s.xmm[15].hi = 0x1616161616161616;
     s.kregs[0] = 0xDEAD;
     s.kregs[7] = 0xBEEF;
 

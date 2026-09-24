@@ -335,16 +335,16 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
     // VADDPS xmm0, xmm1, xmm2 should produce clean result
-    add_xmm("vaddps upper clear", {0xC5, 0xF0, 0x58, 0xC2}, s, 0x7);
+    add_xmm("vaddps upper clear", {0xC5, 0xF0, 0x58, 0xC2}, with_vector_inputs(s, 0x6), 0x7);
     // VMOVAPS xmm0, xmm1: C5 F8 28 C1 (vvvv=1111, pp=00)
-    add_xmm("vmovaps upper clear", {0xC5, 0xF8, 0x28, 0xC1}, s, 0x3);
+    add_xmm("vmovaps upper clear", {0xC5, 0xF8, 0x28, 0xC1}, with_vector_inputs(s, 0x2), 0x3);
     // VPXOR xmm0, xmm1, xmm2: C5 F1 EF C2 (pp=01 for 66)
-    add_xmm("vpxor upper clear", {0xC5, 0xF1, 0xEF, 0xC2}, s, 0x7);
+    add_xmm("vpxor upper clear", {0xC5, 0xF1, 0xEF, 0xC2}, with_vector_inputs(s, 0x6), 0x7);
     // VMOVDQA xmm0, xmm1: C5 F9 6F C1 (66, 0F 6F)
-    add_xmm("vmovdqa upper clear", {0xC5, 0xF9, 0x6F, 0xC1}, s, 0x3);
+    add_xmm("vmovdqa upper clear", {0xC5, 0xF9, 0x6F, 0xC1}, with_vector_inputs(s, 0x2), 0x3);
     // VXORPS xmm0, xmm0, xmm0: C5 F8 57 C0 (self-xor = zero)
     s.xmm[0] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0x123456789ABCDEF0);
-    add_xmm("vxorps self upper clear", {0xC5, 0xF8, 0x57, 0xC0}, s, 0x1);
+    add_xmm("vxorps self upper clear", {0xC5, 0xF8, 0x57, 0xC0}, with_vector_inputs(s, 0x0), 0x1);
   }
 
   // --- E. VEX 256-bit arithmetic ---
@@ -362,7 +362,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     add_xmm("vminps ymm", {0xC5, 0xF4, 0x5D, 0xC2}, s, 0x7);
     add_xmm("vmaxps ymm", {0xC5, 0xF4, 0x5F, 0xC2}, s, 0x7);
     // VSQRTPS ymm0, ymm1: C5 FC 51 C1 (vvvv=1111, L=1, pp=00)
-    add_xmm("vsqrtps ymm", {0xC5, 0xFC, 0x51, 0xC1}, s, 0x3);
+    add_xmm("vsqrtps ymm", {0xC5, 0xFC, 0x51, 0xC1}, with_vector_inputs(s, 0x2), 0x3);
     add_xmm("vandps ymm", {0xC5, 0xF4, 0x54, 0xC2}, s, 0x7);
     add_xmm("vorps ymm", {0xC5, 0xF4, 0x56, 0xC2}, s, 0x7);
     add_xmm("vxorps ymm", {0xC5, 0xF4, 0x57, 0xC2}, s, 0x7);
@@ -1234,7 +1234,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     {
       ArchState s;
       s.rflags = 0x2;
-      s.rax = 0;
+      s.rcx = 0;
       // POPCNT eax, ecx: F3 0F B8 C1
       add_xmm("popcnt 0", {0xF3, 0x0F, 0xB8, 0xC1}, s, 0x0);
 
@@ -1371,7 +1371,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm("bswap eax", {0x0F, 0xC8}, s, 0x0);
       // BSWAP rax: 48 0F C8
       s.rax = 0x0102030405060708;
-      add_xmm("bswap rax", {0x48, 0x0F, 0xC8}, s, 0x0);
+      add_xmm("bswap rax", {0x48, 0x0F, 0xC8}, with_gpr_inputs(s, {&ArchState::rax}), 0x0);
     }
 
     // BMI1: ANDN, BLSI, BLSMSK, BLSR, BEXTR
@@ -1390,17 +1390,23 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       tests.push_back({"andn rax", cat, {0xC4, 0xE2, 0xF8, 0xF2, 0xC1}, s, FL_BMI, 0x0, false});
 
       // BLSI eax, ecx
-      tests.push_back({"blsi eax", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xD9}, s, FL_BMI, 0x0, false});
+      tests.push_back({"blsi eax", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xD9},
+          with_gpr_inputs(s, {&ArchState::rcx}), FL_BMI, 0x0, false});
       // BLSMSK eax, ecx
-      tests.push_back({"blsmsk eax", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xD1}, s, FL_BMI, 0x0, false});
+      tests.push_back({"blsmsk eax", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xD1},
+          with_gpr_inputs(s, {&ArchState::rcx}), FL_BMI, 0x0, false});
       // BLSR eax, ecx
-      tests.push_back({"blsr eax", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xC9}, s, FL_BMI, 0x0, false});
+      tests.push_back({"blsr eax", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xC9},
+          with_gpr_inputs(s, {&ArchState::rcx}), FL_BMI, 0x0, false});
 
       // Zero input edge cases
       s.rcx = 0;
-      tests.push_back({"blsi 0", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xD9}, s, FL_BMI, 0x0, false});
-      tests.push_back({"blsmsk 0", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xD1}, s, FL_BMI, 0x0, false});
-      tests.push_back({"blsr 0", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xC9}, s, FL_BMI, 0x0, false});
+      tests.push_back({"blsi 0", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xD9},
+          with_gpr_inputs(s, {&ArchState::rcx}), FL_BMI, 0x0, false});
+      tests.push_back({"blsmsk 0", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xD1},
+          with_gpr_inputs(s, {&ArchState::rcx}), FL_BMI, 0x0, false});
+      tests.push_back({"blsr 0", cat, {0xC4, 0xE2, 0x78, 0xF3, 0xC9},
+          with_gpr_inputs(s, {&ArchState::rcx}), FL_BMI, 0x0, false});
 
       // BEXTR eax, ecx, eax
       s.rcx = 0xDEADBEEF;
@@ -1787,7 +1793,8 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
         s.rax = 0xDEAD0000BEEFAAAA;
         s.rcx = 0x00000000000000FF;
         // MOVZX AX, CL: AX=0x00FF, upper bits of RAX preserved
-        tests.push_back({"movzx ax,cl 16b", cat, {0x66, 0x0F, 0xB6, 0xC1}, s, FL_ALL, 0x0, false});
+        tests.push_back({"movzx ax,cl 16b", cat, {0x66, 0x0F, 0xB6, 0xC1},
+            with_gpr_inputs(s, {&ArchState::rcx}), FL_ALL, 0x0, false});
       }
 
       // 16-bit SHL: 66 D1 E0 = SHL AX, 1
