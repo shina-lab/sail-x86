@@ -15,7 +15,7 @@ function raise_debug_exception(status) = {
   DR6 = (DR6 & 0xFFFFFFFFFFFFFFF0) | status;
   if system_mode then {
     try {
-      deliver_exception(EXN_DB, 0x00000000, false)
+      deliver_exception(EXN_DB, 0x00000000, EV_Exception)
     } catch {
       Fault(vec2, err2) => {
         fault_pending = true;
@@ -85,7 +85,7 @@ function step() = {
         return ()
       };
       try {
-        deliver_exception(vec, 0x00000000, false);
+        deliver_exception(vec, 0x00000000, EV_ExternalInt);
         return ()
       } catch {
         Fault(vec2, err2) => {
@@ -150,7 +150,7 @@ function step() = {
         if system_mode then {
           // In system mode, deliver faults through the IDT.
           try {
-            deliver_exception(vec, err, false);
+            deliver_exception(vec, err, EV_Exception);
             // RIP already set to handler by deliver_exception; skip normal advance
             return ()
           } catch {

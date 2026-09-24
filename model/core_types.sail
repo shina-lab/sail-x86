@@ -95,6 +95,15 @@ function default_seg_desc_cache() = struct {
 // Exception class for double-fault escalation (SDM Vol.3 Table 7-4).
 enum ExceptionClass = { EC_Benign, EC_Contributory, EC_PageFault }
 
+// How an event reaches the IDT.  Only an exception carries an error code
+// (SDM Vol.3A Table 7-1, §7.13: the error code belongs to "an exception
+// condition") and sets RF in the pushed RFLAGS image; only a software
+// interrupt (INT n, INT3, INTO) is subject to the gate DPL check
+// (§7.12.1.1).  An external interrupt is neither, whatever its vector:
+// IRQ0 at vector 8 (the 8259 default the BIOS leaves in place) is an
+// interrupt, not #DF, and pushes no error code.
+enum EventKind = { EV_Exception, EV_SoftwareInt, EV_ExternalInt }
+
 // Exception/interrupt vector numbers.
 type exception_vector = range(0, 255)
 

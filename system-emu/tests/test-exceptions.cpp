@@ -771,6 +771,87 @@ TEST(real_mode_ivt_delivery) {
 
 // =========================================================================
 
+// =========================================================================
+// External interrupts
+// =========================================================================
+
+// Program the master 8259 the way the BIOS leaves it: vectors 8-15, slave
+// on IRQ2, 8086 mode; then unmask IRQ0 only.
+static void program_pic_base8(x86::Model &model) {
+  model.pic_master.write(0x20, 0x11);  // ICW1: edge-triggered, cascade, ICW4 follows
+  model.pic_master.write(0x21, 0x08);  // ICW2: vector base 8
+  model.pic_master.write(0x21, 0x04);  // ICW3: slave on IRQ2
+  model.pic_master.write(0x21, 0x01);  // ICW4: 8086 mode
+  model.pic_master.write(0x21, 0xFE);  // OCW1: unmask IRQ0
+}
+
+TEST(pm32_external_interrupt_vector8_no_error_code) {
+  // IRQ0 through the 8259's default base arrives as vector 8.  It is an
+  // interrupt, not #DF, so it carries no error code (SDM Vol.3A Table 7-1,
+  // §7.13): the 32-bit frame is EIP, CS, EFLAGS and the handler's IRET
+  // returns to the interrupted instruction.  syslinux's protected-mode core
+  // runs with IF=1 under a BIOS-programmed PIC and depends on this.
+  x86::Model model;
+  init_model_32(model);
+  program_pic_base8(model);
+
+  u64 handler_addr = 0x200000;
+  u8 handler_code[] = { 0xF4 };  // hlt
+  model.phys_mem.write_bytes(handler_addr, handler_code, sizeof(handler_code));
+  write_idt_gate_32(model.phys_mem, IDT32_BASE, 8, handler_addr, 0x08, 0x0E, 0, true);
+
+  u16 old_cs = model.zSegReg.data[x86::SEG_CS];
+  model.zIF_flag = 1;
+  model.pic_master.raise_irq(0);
+
+  // The interrupt is taken before the first instruction executes.
+  u8 code[] = { 0x90, 0xF4 };  // nop; hlt
+  int kind = run_code(model, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zRIP, handler_addr + 1);
+
+  // Frame: EIP, CS, EFLAGS — 12 bytes, no error code.
+  u64 esp = model.zGPR.data[4];
+  ASSERT_EQ(esp, STACK_ADDR - 12);
+  ASSERT_EQ((u64)model.phys_mem.read32(esp), CODE_ADDR);          // EIP of the nop
+  ASSERT_EQ((u64)model.phys_mem.read32(esp + 4), (u64)old_cs);    // CS
+  ASSERT_EQ((model.phys_mem.read32(esp + 8) >> 9) & 1, 1UL);      // IF was 1
+  ASSERT_EQ((u64)model.zIF_flag, 0UL);                             // interrupt gate
+
+  model.model_fini();
+}
+
+TEST(external_interrupt_vector8_no_error_code) {
+  // The same interrupt through a 64-bit gate: SS, RSP, RFLAGS, CS, RIP and
+  // no error code.
+  x86::Model model;
+  init_model(model);
+  program_pic_base8(model);
+
+  u64 handler_addr = 0x200000;
+  u8 handler_code[] = { 0xF4 };  // hlt
+  model.phys_mem.write_bytes(handler_addr, handler_code, sizeof(handler_code));
+  write_idt_gate(model.phys_mem, IDT_BASE, 8, handler_addr, 0x08, 0, 0x0E, 0, true);
+
+  model.zIF_flag = 1;
+  model.pic_master.raise_irq(0);
+
+  u8 code[] = { 0x90, 0xF4 };  // nop; hlt
+  int kind = run_code(model, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_HALTED);
+  ASSERT_EQ((u64)model.zRIP, handler_addr + 1);
+
+  u64 rsp = model.zGPR.data[4];
+  ASSERT_EQ(rsp, STACK_ADDR - 40);
+  ASSERT_EQ(model.phys_mem.read64(rsp), CODE_ADDR);        // RIP of the nop
+  ASSERT_EQ(model.phys_mem.read64(rsp + 24), STACK_ADDR);  // RSP
+  ASSERT_EQ((model.phys_mem.read64(rsp + 16) >> 9) & 1, 1UL);
+
+  model.model_fini();
+}
+
+// =========================================================================
+
 int main() {
   printf("Exception delivery tests:\n");
 
@@ -792,6 +873,10 @@ int main() {
 
   // Real mode IVT delivery
   run_test_real_mode_ivt_delivery();
+
+  // External interrupts at exception vectors
+  run_test_pm32_external_interrupt_vector8_no_error_code();
+  run_test_external_interrupt_vector8_no_error_code();
 
   printf("\n  %d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed ? 1 : 0;

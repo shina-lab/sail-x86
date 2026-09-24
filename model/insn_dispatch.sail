@@ -1506,7 +1506,7 @@ function decode_execute() = {
       204 => {
         if system_mode then {
           sw_return_rip = Some(decode_pos);
-          deliver_exception(3, 0x00000000, true);
+          deliver_exception(3, 0x00000000, EV_SoftwareInt);
           next_rip = Some(RIP)  // deliver_exception set RIP to handler
         } else {
           RIP = decode_pos;
@@ -1521,7 +1521,7 @@ function decode_execute() = {
         let imm = fetch(1);
         if system_mode then {
           sw_return_rip = Some(decode_pos);
-          deliver_exception(unsigned(imm), 0x00000000, true);
+          deliver_exception(unsigned(imm), 0x00000000, EV_SoftwareInt);
           next_rip = Some(RIP)  // deliver_exception set RIP to handler
         } else {
           RIP = decode_pos;
@@ -1537,7 +1537,7 @@ function decode_execute() = {
         if OF == 0b1 then {
           if system_mode then {
             sw_return_rip = Some(decode_pos);
-            deliver_exception(EXN_OF, 0x00000000, true);
+            deliver_exception(EXN_OF, 0x00000000, EV_SoftwareInt);
             next_rip = Some(RIP)
           } else {
             RIP = decode_pos;
@@ -1847,7 +1847,7 @@ function decode_execute() = {
       241 => {
         if system_mode then {
           sw_return_rip = Some(decode_pos);
-          deliver_exception(EXN_DB, 0x00000000, false);
+          deliver_exception(EXN_DB, 0x00000000, EV_Exception);
           next_rip = Some(RIP)
         } else {
           RIP = decode_pos;

@@ -405,9 +405,14 @@ function vm_entry(is_launch) = {
     let inj_type : bits(3) = vmcs.entry_interruption_info[10..8];
     let has_ec : bool = vmcs.entry_interruption_info[11] == 0b1;
     let ec : dword = if has_ec then vmcs.entry_exception_errcode else 0x00000000;
-    // Type 3 = hardware exception, type 4 = software interrupt, type 6 = software exception
-    let is_sw : bool = inj_type == 0b100 | inj_type == 0b110;
-    deliver_exception(inj_vec, ec, is_sw);
+    // Interruption type (SDM Vol.3C Table 25-13): 0 external interrupt,
+    // 2 NMI, 3 hardware exception, 4 software interrupt, 5 privileged
+    // software exception (INT1), 6 software exception (INT3, INTO).
+    let kind : EventKind =
+      if inj_type == 0b000 | inj_type == 0b010 then EV_ExternalInt
+      else if inj_type == 0b100 | inj_type == 0b110 then EV_SoftwareInt
+      else EV_Exception;
+    deliver_exception(inj_vec, ec, kind);
     // Clear valid bit after injection
     vmcs.entry_interruption_info = vmcs.entry_interruption_info & 0x7FFFFFFF
   };
