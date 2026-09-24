@@ -746,6 +746,18 @@ public:
     }
   }
 
+  // SeaBIOS boot order (CONFIG_QEMU reads it from CMOS 0x3D and 0x38, one
+  // nibble per device, first device in the low nibble of 0x3D): 1 floppy,
+  // 2 hard disk, 3 CD-ROM.  Up to three of QEMU's letters a, c, d.
+  void set_boot_order(const char *order) {
+    u8 code[3] = { 0, 0, 0 };
+    int n = 0;
+    for (const char *p = order; *p && n < 3; p++)
+      code[n++] = *p == 'a' ? 1 : *p == 'c' ? 2 : *p == 'd' ? 3 : 0;
+    regs[0x3D] = code[0] | (code[1] << 4);
+    regs[0x38] = (regs[0x38] & 0x0F) | (code[2] << 4);
+  }
+
   // Populate extended memory registers from RAM size.
   void set_ram_size(u64 bytes) {
     // 0x30/0x31: extended memory above 1MB in 1KB units (capped at 0xFFFF = 64MB)

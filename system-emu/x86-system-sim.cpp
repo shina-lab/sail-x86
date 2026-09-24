@@ -101,7 +101,7 @@ static void dump_registers(FILE *out, u64 insn_count, const x86::Model &model) {
 
 static void usage(const char *prog) {
   fprintf(stderr, "Usage: %s [options] <bzImage>\n", prog);
-  fprintf(stderr, "       %s [options] -b <bios.bin> [-hda <disk.img>]\n", prog);
+  fprintf(stderr, "       %s [options] -b <bios.bin> [-hda <disk.img>] [-cdrom <image.iso>]\n", prog);
   fprintf(stderr, "Options:\n");
   fprintf(stderr, "  -d              Enable debug trace\n");
   fprintf(stderr, "  -m <MB>         RAM size in MB (default 256)\n");
@@ -109,7 +109,10 @@ static void usage(const char *prog) {
   fprintf(stderr, "  -i <file>       Initramfs image\n");
   fprintf(stderr, "  -vga            Use VGA text mode display (default: serial)\n");
   fprintf(stderr, "  -b <file>       BIOS ROM image (e.g., SeaBIOS bios.bin)\n");
-  fprintf(stderr, "  -hda <file>     Hard disk image\n");
+  fprintf(stderr, "  -hda <file>     Hard disk image (primary IDE master)\n");
+  fprintf(stderr, "  -cdrom <file>   CD-ROM ISO image (secondary IDE master)\n");
+  fprintf(stderr, "  -boot <order>   BIOS boot order: a floppy, c hard disk, d CD-ROM\n");
+  fprintf(stderr, "                  (default: d when a CD-ROM is attached, else the BIOS order)\n");
   fprintf(stderr, "  -fda <file>     Floppy disk image (drive A:)\n");
   fprintf(stderr, "  -h              Show this help\n");
   fprintf(stderr, "Env:\n");
@@ -796,6 +799,8 @@ int main(int argc, char *argv[]) {
   const char *bios_path = nullptr;
   const char *hda_path = nullptr;
   const char *fda_path = nullptr;
+  const char *cdrom_path = nullptr;
+  const char *boot_order = nullptr;
   int first_arg = 1;
 
   while (first_arg < argc && argv[first_arg][0] == '-') {
@@ -822,6 +827,12 @@ int main(int argc, char *argv[]) {
       first_arg += 2;
     } else if (strcmp(argv[first_arg], "-fda") == 0 && first_arg + 1 < argc) {
       fda_path = argv[first_arg + 1];
+      first_arg += 2;
+    } else if (strcmp(argv[first_arg], "-cdrom") == 0 && first_arg + 1 < argc) {
+      cdrom_path = argv[first_arg + 1];
+      first_arg += 2;
+    } else if (strcmp(argv[first_arg], "-boot") == 0 && first_arg + 1 < argc) {
+      boot_order = argv[first_arg + 1];
       first_arg += 2;
     } else if (strcmp(argv[first_arg], "-h") == 0 ||
                strcmp(argv[first_arg], "--help") == 0) {
@@ -914,6 +925,20 @@ int main(int argc, char *argv[]) {
       }
       fprintf(stderr, "sail-x86-system: HDA=%s\n", hda_path);
     }
+
+    if (cdrom_path) {
+      if (!model.ide1.open_cdrom(cdrom_path)) {
+        fprintf(stderr, "Failed to open CD-ROM image: %s\n", cdrom_path);
+        return 1;
+      }
+      fprintf(stderr, "sail-x86-system: CDROM=%s\n", cdrom_path);
+    }
+
+    // SeaBIOS tries the drives in the CMOS boot order; without one it takes
+    // them as it found them (floppy, hard disk, CD-ROM).  A CD-ROM, when
+    // attached, goes first unless -boot says otherwise.
+    if (boot_order || cdrom_path)
+      model.cmos.set_boot_order(boot_order ? boot_order : "d");
 
     if (fda_path) {
       if (!model.floppy.open(fda_path)) {
