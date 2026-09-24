@@ -1196,6 +1196,52 @@ TEST(real_to_protected_mode_transition) {
   model.model_fini();
 }
 
+TEST(lmsw_enters_protected_mode) {
+  // SDM Vol.2A LMSW and Vol.3A 12.9.1: setting PE enters protected mode;
+  // the following far jump loads CS from the GDT, retaining other caches.
+  for (bool memory_operand : {false, true}) {
+    x86::Model model;
+    init_model_16(model);
+    model.zCR0 = 0x10030; // Preserve WP, NE and ET across both LMSW writes.
+    model.zGDTR_base = 0x800;
+    model.zGDTR_limit = 15;
+    model.phys_mem.write64(0x808, 0x00009B040000FFFFUL); // 16-bit CS at 0x40000
+    model.phys_mem.write16(0x9000, 0x000F);
+    const u8 reg_code[] = {
+      0xB8, 0x0F, 0x00,             // mov ax, 0x000f
+      0x0F, 0x01, 0xF0,             // lmsw ax
+      0xEA, 0x34, 0x12, 0x08, 0x00, // jmp 0008:1234
+    };
+    const u8 mem_code[] = {
+      0xB8, 0x0F, 0x00,
+      0x0F, 0x01, 0x36, 0x00, 0x90, // lmsw word [0x9000]
+      0xEA, 0x34, 0x12, 0x08, 0x00,
+    };
+    const u8 target[] = {
+      0x31, 0xC0,                   // xor ax, ax
+      0x0F, 0x01, 0xF0,             // lmsw ax: PE is sticky; MP/EM/TS clear
+      0xB8, 0xEF, 0xBE,             // mov ax, 0xbeef
+      0xF4,
+    };
+    model.phys_mem.write_bytes(0x41234, target, sizeof(target));
+    ASSERT_EQ(run_code(model, 0x1000, memory_operand ? mem_code : reg_code,
+                       memory_operand ? sizeof(mem_code) : sizeof(reg_code), 2), RUN_OK);
+    ASSERT_EQ(model.zcur_mode, x86::zProtectedMode);
+    ASSERT_EQ((u64)model.zCR0, 0x1003FUL);
+    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0UL);
+    model.zstep(UNIT); // Far JMP must use the descriptor, not selector << 4.
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0x40000UL);
+    ASSERT_EQ((u64)model.zRIP, 0x1234UL);
+    for (unsigned i = 0; i < 4; ++i) model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ(model.zsystem_state, x86::zSysHalted);
+    ASSERT_EQ((u64)model.zCR0, 0x10031UL);
+    ASSERT_EQ((u64)model.zGPR.data[0], 0xBEEFUL);
+    model.model_fini();
+  }
+}
+
 // =========================================================================
 // Legacy state and interrupt returns
 // =========================================================================
@@ -2031,6 +2077,7 @@ int main() {
 
   printf("\nMode transition tests:\n");
   run_test_real_to_protected_mode_transition();
+  run_test_lmsw_enters_protected_mode();
 
   printf("\nIRET tests:\n");
   run_test_real_mode_iret_no_pop_sp_ss();
