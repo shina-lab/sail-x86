@@ -14,9 +14,9 @@ planar VGA. It has no HPET or additional CPUs.
 | Linux i386 | Serial `sail#` shell | None for the requested boot |
 | Linux amd64 | `sail#` through BIOS/ISO with ACPI and I/O APIC, and by direct bzImage boot | Neither command line needs `noapic nolapic` |
 | Haiku | VBE 1024x768 boot logo, three icons lit | No desktop or COM1 output within the budget |
-| ReactOS | FreeLoader setup hive and kernel initialization | Aborted on 108-byte x87 save; C++ memory limit fixed and regression-tested, full retry still needed |
+| ReactOS | Text setup: partitioned, formatted and checked FAT32; file copy reached 11% (`eventvwr.exe`) | Persistent kernel idle wait; no reported model fault; no first boot |
 | FreeBSD | CD Loader 1.2 and BTX entry | Fails before loader prompt; virtual-8086 boot path remains unsupported |
-| Windows 3.1 | Express Setup and first-stage file copy | Invalid Opcode when starting graphical setup; no Windows PNG |
+| Windows 3.1 | Express Setup, first-stage copy, protected-mode DOSX startup | LMSW bug fixed; next #GP is an unsupported 16-bit call gate; no graphical screen |
 | Windows 95 | Setup from FreeDOS hard disk | ScanDisk R6002; no graphical screen or Windows PNG |
 
 The APIC/IOAPIC, IDE slave, MP/ACPI firmware, VBE/PNG and planar VGA work
@@ -756,4 +756,494 @@ sb: size 1000 nblocks 941 ninodes 200 nlog 30 logstart 2 inodestart 32 bmap star
 t 58
 init: starting sh
 $
+```
+
+## sail-llvm continuation (2026-09-25)
+
+All boot attempts in this continuation use **`build/llvm/sail-x86-system`**,
+built by `system-emu/build-llvm.sh` with sail-llvm. Rebuild that binary after
+any model or emulator-source change. The earlier sections used the official
+Sail compiler unless stated otherwise. The supplied `xv6-llvm-smoke.json`
+records the serial shell in **9.938 s / 20,071,554 instructions**.
+
+Before continuing, the official build was checked after the runtime-neutral
+`set_zmm_low128` rewrite and the 50-row text-display fix:
+
+```sh
+cmake --build build -j64
+ctest --test-dir build -R '^system_' --output-on-failure
+```
+
+The full build succeeded and **all 15 system tests passed** (0.47 s).
+FreeBSD, virtual-8086 model work and the KVM harness are outside this
+continuation's scope. Writable disks remain under `build/os-boot`.
+
+### win31-llvm-ud-06
+
+Reproduced the Express Setup / first-stage copy failure. FreeDOS printed Invalid Opcode at 0078:0B3E, but the original matching-frame IVT[6] diagnostic did not capture the error. Stopped for a broader handler trace. No serial output.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win31-llvm-ud-06 --timeout 900 -- build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-llvm-ud.img -boot c
+```
+
+Wall time: **174.473 s**. Instructions: **667,676,672**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win31-llvm-ud-06 guest display](os-boot/win31-llvm-ud-06.png)
+
+Last VGA text:
+
+```text
+Invalid Opcode at 0B3E 0078 0046 3579 2C70 3540 004A 42B0 42B0 0100 00DB 1FFE 00
+00
+C:\WINDOWS>
+     Please wait while Setup loads Windows. When Windows appears,
+     you can continue setting up your system.
+
+     If Windows does not start, see Troubleshooting in your Windows
+     documentation, and then run Setup again.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Please Wait ...
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 36.64,
+    "text": "\n",
+    "reason": "Start Windows 3.1 Setup",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-ud-06 '\\n' 'Start Windows 3.1 Setup'"
+  },
+  {
+    "at_seconds": 43.11,
+    "text": "\n",
+    "reason": "Use Express Setup",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-ud-06 '\\n' 'Use Express Setup'"
+  },
+  {
+    "at_seconds": 174.45,
+    "text": "\u0001x",
+    "reason": "Stop after reproducing Invalid Opcode without a matching fault-frame trace",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-ud-06 '\\x01x' 'Stop after reproducing Invalid Opcode without a matching fault-frame trace'"
+  }
+]
+```
+
+### win31-llvm-handler-07
+
+The broader IVT[6] entry trace still did not capture the Windows error, although it recorded firmware entries into a shared IRET stub. The live IVT[6] points to a FreeDOS trampoline; the next run watches its resident handler directly. No serial output.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win31-llvm-handler-07 --timeout 240 --send '20:\n' --send '23:\n' -- build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-llvm-handler.img -boot c
+```
+
+Wall time: **86.632 s**. Instructions: **335,098,880**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win31-llvm-handler-07 guest display](os-boot/win31-llvm-handler-07.png)
+
+Last VGA text:
+
+```text
+Invalid Opcode at 0B3E 0078 0046 3579 2C70 3540 004A 42B0 42B0 0100 00DB 1FFE 00
+00
+C:\WINDOWS>
+     Please wait while Setup loads Windows. When Windows appears,
+     you can continue setting up your system.
+
+     If Windows does not start, see Troubleshooting in your Windows
+     documentation, and then run Setup again.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Please Wait ...
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 86.59,
+    "text": "\u0001x",
+    "reason": "Stop after confirming the error bypasses the live IVT[6] entry",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-handler-07 '\\x01x' 'Stop after confirming the error bypasses the live IVT[6] entry'"
+  }
+]
+```
+
+### win31-llvm-resident-08
+
+The resident-handler address probe identifies LMSW AX (0F 01 F0) at 31D4:0ADF, then a far jump to 0078:0B0E. CR0.PE becomes 1 but cur_mode remains real. The jump therefore uses 0078<<4, executes low-memory data, and faults on FF FF at 0078:0B3E. The SDM-backed LMSW regression below reproduces the missing mode transition.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 SAIL_X86_TRACE_ADDRESS=0x117d2 python3 system-emu/run-boot.py --name win31-llvm-resident-08 --timeout 180 --send '20:\n' --send '23:\n' -- build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-llvm-resident.img -boot c
+```
+
+Wall time: **53.021 s**. Instructions: **160,870,400**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win31-llvm-resident-08 guest display](os-boot/win31-llvm-resident-08.png)
+
+Last VGA text:
+
+```text
+Windows Setup
+
+
+     Please wait while Setup loads Windows. When Windows appears,
+     you can continue setting up your system.
+
+     If Windows does not start, see Troubleshooting in your Windows
+     documentation, and then run Setup again.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Please Wait ...
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 52.88,
+    "text": "\u0001x",
+    "reason": "Stop after capturing entry to the resident Invalid Opcode handler",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-resident-08 '\\x01x' 'Stop after capturing entry to the resident Invalid Opcode handler'"
+  }
+]
+```
+
+The saved GDTR operand is limit `011F`, base `00117C00`. Descriptor `0078`
+has base `00031D40`, so the correct target is `0003284E`, beginning
+`B8 68 00 8E D0` (`MOV AX,0068; MOV SS,AX`). The observed incorrect target
+is `0000128E`. The fault occurs after Windows has loaded a protected-mode
+IDT, explaining why a real-mode handler probe using the current IDTR did
+not match. A linear probe at the resident FreeDOS handler (`000117D2`)
+retains the full transition history.
+
+The supplied SDM revision 090, Vol.2A **LMSW**, pp.3-560–3-561, explicitly
+specifies entering protected mode when PE is set and forbids clearing PE
+with LMSW. Vol.3A **12.9.1**, step 9, specifies retaining the segment
+contents until reloaded. The new `lmsw_enters_protected_mode` instruction
+regression failed before the fix (`cur_mode=RealMode`, expected protected).
+It exercises register and memory operands, CR0 preservation, PE stickiness
+and a nonzero GDT code-segment base after the far jump.
+
+### reactos-llvm-install-06
+
+Created the 1023 MiB FAT32 partition, completed quick format and the disk check, selected MBR/VBR bootloader installation and the default ReactOS directory, and started file copy. The farthest screen is 11%, Copying file: eventvwr.exe. It stayed there with repeated samples in the kernel idle loop (80946BA3) until the 20-minute bound expired. No host abort or model fault was reported. File copy did not complete, so there was no installed-system first boot; the partial disk is retained for diagnosis.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py --name reactos-llvm-install-06 --timeout 1200 --send '2:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-llvm-install.img -cdrom build/os-boot/reactos-setup.iso -boot d
+```
+
+Wall time: **1200.519 s**. Instructions: **1,963,057,414**. Stop: `timeout`; exit status `0`.
+
+Last serial output:
+
+```text
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/disk/partition.c:216) fixme: DiskGetPartitionEntry() unimplemented for RAW
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/arch/i386/hwpci.c:111) err: No valid routing table found!
+```
+
+![reactos-llvm-install-06 guest display](os-boot/reactos-llvm-install-06.png)
+
+Last VGA text:
+
+```text
+ReactOS 0.4.17-x86-dev Setup
+
+
+
+
+
+
+
+
+          Please wait while ReactOS Setup copies files to your ReactOS
+                              installation folder.
+                   This may take several minutes to complete.
+
+
+
+
+
+
+
+
+
+          Setup is copying files...
+
+                                       11 %
+
+
+
+
+
+
+
+
+
+
+
+
+
+                 1  %                  35 %                  54 %
+
+
+
+             Kernel Pool           Kernel Cache          Free Memory
+
+
+
+
+   Copying file: eventvwr.exe
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 114.41,
+    "text": "\n",
+    "reason": "Accept default English language",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Accept default English language'"
+  },
+  {
+    "at_seconds": 133.01,
+    "text": "\n",
+    "reason": "Continue from Welcome",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Continue from Welcome'"
+  },
+  {
+    "at_seconds": 142.67,
+    "text": "\n",
+    "reason": "Continue past version status",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Continue past version status'"
+  },
+  {
+    "at_seconds": 152.22,
+    "text": "\n",
+    "reason": "Accept detected ACPI, VESA and keyboard settings",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Accept detected ACPI, VESA and keyboard settings'"
+  },
+  {
+    "at_seconds": 161.78,
+    "text": "\n",
+    "reason": "Install on the blank 1 GiB worktree disk",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Install on the blank 1 GiB worktree disk'"
+  },
+  {
+    "at_seconds": 172.89,
+    "text": "\n",
+    "reason": "Select FAT quick format",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Select FAT quick format'"
+  },
+  {
+    "at_seconds": 182.75,
+    "text": "\n",
+    "reason": "Confirm formatting the new worktree partition",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Confirm formatting the new worktree partition'"
+  },
+  {
+    "at_seconds": 210.87,
+    "text": "\n",
+    "reason": "Install bootloader in MBR and VBR of worktree disk",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Install bootloader in MBR and VBR of worktree disk'"
+  },
+  {
+    "at_seconds": 224.56,
+    "text": "\n",
+    "reason": "Accept the default ReactOS directory and start file copy",
+    "command": "python3 build/os-boot/send-input.py reactos-llvm-install-06 '\\n' 'Accept the default ReactOS directory and start file copy'"
+  }
+]
+```
+
+### win31-llvm-lmsw-09
+
+With the LMSW mode-transition fix, setup passes the former Invalid Opcode and enters protected-mode DOSX startup. It then repeats a general-protection exception while formatting the DPMI fault report (Fault: 000D); it has not reached a graphical Windows screen. The next attempt probes the installed #GP gate.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_REAL_UD=1 python3 system-emu/run-boot.py --name win31-llvm-lmsw-09 --timeout 300 --send '20:\n' --send '23:\n' -- build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-llvm-lmsw.img -boot c
+```
+
+Wall time: **138.057 s**. Instructions: **764,797,952**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win31-llvm-lmsw-09 guest display](os-boot/win31-llvm-lmsw-09.png)
+
+Last VGA text:
+
+```text
+Windows Setup
+
+
+     Please wait while Setup loads Windows. When Windows appears,
+     you can continue setting up your system.
+
+     If Windows does not start, see Troubleshooting in your Windows
+     documentation, and then run Setup again.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Please Wait ...
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 764797952 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 137.91,
+    "text": "\u0001x",
+    "reason": "Stop after LMSW fix advances to a repeated protected-mode DPMI general-protection exception",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-lmsw-09 '\\x01x' 'Stop after LMSW fix advances to a repeated protected-mode DPMI general-protection exception'"
+  }
+]
+```
+
+After the LMSW fix, **all 15 official-build system tests pass** (0.47 s)
+and **all 63 basic tests pass with sail-llvm**. The complete logs are
+`build/os-boot/official-lmsw-tests.log` and `llvm-basic-tests.log`.
+
+### win31-llvm-gp-10
+
+The first post-LMSW #GP is at 005B:0B79, CALL FAR 00CB:0000 (9A 00 00 CB 00). GDT[00C8] is 0000E40000780C63: a present DPL-3 16-bit call gate, zero parameter words, target 0078:0C63. model/mem.sail explicitly supports code-segment far transfers only, not call gates. This is the remaining model feature gap; no virtual-8086 work was attempted. Setup remains on Please wait while Setup loads Windows, with no graphical Windows screen.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_ADDRESS=0x118e77 python3 system-emu/run-boot.py --name win31-llvm-gp-10 --timeout 180 --send '20:\n' --send '23:\n' -- build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-llvm-gp.img -boot c
+```
+
+Wall time: **58.230 s**. Instructions: **226,430,976**. Stop: `exit`; exit status `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+![win31-llvm-gp-10 guest display](os-boot/win31-llvm-gp-10.png)
+
+Last VGA text:
+
+```text
+Windows Setup
+
+
+     Please wait while Setup loads Windows. When Windows appears,
+     you can continue setting up your system.
+
+     If Windows does not start, see Troubleshooting in your Windows
+     documentation, and then run Setup again.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Please Wait ...
+
+sail-x86-system: Ctrl-a x — exiting
+sail-x86-system: exited after 226430976 instructions
+```
+
+Additional keyboard input:
+
+```json
+[
+  {
+    "at_seconds": 58.09,
+    "text": "\u0001x",
+    "reason": "Stop after capturing the first protected-mode general-protection handler entry",
+    "command": "python3 build/os-boot/send-input.py win31-llvm-gp-10 '\\x01x' 'Stop after capturing the first protected-mode general-protection handler entry'"
+  }
+]
 ```
