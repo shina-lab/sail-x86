@@ -203,4 +203,110 @@ void add_system_tests(std::vector<TestCase> &tests) {
     }
     add_fault("int 3 after mov rax,imm", {0x48, 0xC7, 0xC0, 0x78, 0x56, 0x34, 0x12, 0xCD, 0x03, 0x90}, {}, 3);
   }
+
+  // =====================================================================
+  // SYSCALL/SYSRET/SYSENTER/SYSEXIT with their MSRs
+  // =====================================================================
+  cat = "System fast call";
+  {
+    // The model runs in system mode here, delivering exceptions through a
+    // mirror of the guest's IDT, so a return to CPL 3 can end in a UD2
+    // whose #UD (vector, RIP, pushed RFLAGS) is the observed outcome.
+    const u32 MSR_EFER = 0xC0000080, MSR_STAR = 0xC0000081, MSR_LSTAR = 0xC0000082,
+              MSR_FMASK = 0xC0000084, MSR_SYSENTER_CS = 0x174, MSR_SYSENTER_ESP = 0x175,
+              MSR_SYSENTER_EIP = 0x176;
+    const u64 EFER_SCE = 0x501;                      // LME + LMA + SCE
+    const u64 STAR = (0x43ULL << 48) | (0x08ULL << 32);  // SYSRET: CS 0x53/0x43, SS 0x4B; SYSCALL: CS 0x08, SS 0x10
+    auto sys = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                   std::vector<std::pair<u32, u64>> msrs, int vec = -2) {
+      TestCase tc;
+      tc.name = name;
+      tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = init;
+      tc.flags_mask = FL_ALL;
+      tc.enable_paging = true;
+      tc.system_mode = true;
+      tc.msrs = std::move(msrs);
+      if (vec != -2) {
+        tc.expect_fault = true;
+        tc.expected_vector = vec;
+      }
+      tests.push_back(std::move(tc));
+    };
+    // Layout: the instruction at offset 0, a UD2 behind it that only a
+    // missing transfer would reach, NOPs, and the transfer target at
+    // offset 8: nothing (the harness's HLT) for an entry to CPL 0, UD2 or
+    // INT3 for a return to CPL 3.
+    auto layout = [](std::vector<u8> insn, std::vector<u8> target) {
+      std::vector<u8> code = std::move(insn);
+      code.insert(code.end(), {0x0F, 0x0B});
+      while (code.size() < 8) code.push_back(0x90);
+      code.insert(code.end(), target.begin(), target.end());
+      return code;
+    };
+    const std::vector<u8> ud2 = {0x0F, 0x0B};
+    const u64 TARGET = CODE_ADDR + 8;
+
+    // SYSCALL: RCX := next RIP, R11 := RFLAGS, RFLAGS &= ~FMASK, RIP := LSTAR,
+    // CPL stays 0.  IF and DF are set at the call so FMASK's effect shows.
+    for (u64 fmask : {0ULL, 0x600ULL}) {
+      ArchState s = {.rflags = initial_flags() | 0x600};
+      sys(std::format("syscall (FMASK={:#x})", fmask), layout({0x0F, 0x05}, {}), s,
+          {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}, {MSR_LSTAR, TARGET}, {MSR_FMASK, fmask}});
+    }
+
+    // SYSRET: RIP := RCX, RFLAGS := (R11 & 3C7FD7H) | 2, CS/SS from STAR[63:48],
+    // CPL 3.  The UD2 at the target reports the loaded RIP and RFLAGS.
+    {
+      ArchState s = {.rcx = TARGET, .r11 = 0x202};
+      sys("sysretq to CPL 3 (ud2 there)", layout({0x48, 0x0F, 0x07}, ud2), s,
+          {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 6);
+      ArchState f = {.rcx = TARGET, .r11 = 0x2 | FL_ARITH | (1ULL << 16) | (1ULL << 17)};
+      sys("sysretq with RF and VM in R11 (masked)", layout({0x48, 0x0F, 0x07}, ud2), f,
+          {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 6);
+      sys("sysret to compatibility mode CPL 3 (ud2 there)", layout({0x0F, 0x07}, ud2), s,
+          {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 6);
+      // Intel raises the #GP(0) in SYSRET itself (SDM Vol.2B SYSRET); AMD
+      // completes the return and faults on the fetch at CPL 3, with the
+      // non-canonical RIP and the new RFLAGS in the frame (observed on the
+      // Threadripper), so this case runs on Intel hosts only.
+      if (!amd_host) {
+        ArchState nc = {.rcx = 0x0000800000000000ULL, .r11 = 0x202};
+        sys("sysretq with a non-canonical RCX (#GP)", layout({0x48, 0x0F, 0x07}, ud2), nc,
+            {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 13);
+      }
+      // INT3 at CPL 3 through a DPL 0 gate: #GP with error code 3*8+2.
+      sys("sysretq then int3 at CPL 3 (#GP, error 0x1a)", layout({0x48, 0x0F, 0x07}, {0xCC}), s,
+          {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 13);
+    }
+
+    // SYSENTER (Intel hosts only, see above): CS 0x08, SS 0x10, RSP and RIP
+    // from the MSRs, IF cleared.  Bits 15:2 of IA32_SYSENTER_CS zero: #GP(0).
+    if (!amd_host) {
+      ArchState s = {.rflags = initial_flags() | 0x200};
+      sys("sysenter to CPL 0 (HLT at SYSENTER_EIP)", layout({0x0F, 0x34}, {}), s,
+          {{MSR_SYSENTER_CS, 0x08}, {MSR_SYSENTER_ESP, STACK_TOP - 0x100}, {MSR_SYSENTER_EIP, TARGET}});
+      sys("sysenter with IA32_SYSENTER_CS=3 (#GP: bits 15:2 zero)", layout({0x0F, 0x34}, {}), s,
+          {{MSR_SYSENTER_CS, 0x3}, {MSR_SYSENTER_ESP, STACK_TOP - 0x100}, {MSR_SYSENTER_EIP, TARGET}}, 13);
+    }
+
+    // SYSEXIT: CS := IA32_SYSENTER_CS + 32 (64-bit) or + 16, RPL 3, SS := CS + 8,
+    // RIP := RDX, RSP := RCX, CPL 3.  With SYSENTER_CS = 0x33 the selectors
+    // are the GDT's user code and data (0x53, 0x5B) or 0x43 and 0x4B.
+    {
+      ArchState s = {.rcx = STACK_TOP - 0x200, .rdx = TARGET};
+      sys("sysexitq to CPL 3 (ud2 there)", layout({0x48, 0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x33}}, 6);
+      sys("sysexit to compatibility mode CPL 3 (ud2 there)", layout({0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x33}}, 6);
+      ArchState nc = {.rcx = STACK_TOP - 0x200, .rdx = 0x0000800000000000ULL};
+      sys("sysexitq with a non-canonical RDX (#GP)", layout({0x48, 0x0F, 0x35}, ud2), nc, {{MSR_SYSENTER_CS, 0x33}}, 13);
+      // IA32_SYSENTER_CS = 3: bits 15:2 zero, #GP(0) per the SDM's Operation
+      // section and its compatibility-mode list.  The 64-bit list says the
+      // selector must be zero; the Xeon follows the pseudocode, and KVM's
+      // emulator on AMD follows the list, so the 64-bit case is Intel-only.
+      sys("sysexit with IA32_SYSENTER_CS=3 (#GP: bits 15:2 zero)", layout({0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x3}}, 13);
+      if (!amd_host)
+        sys("sysexitq with IA32_SYSENTER_CS=3 (#GP: bits 15:2 zero)", layout({0x48, 0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x3}}, 13);
+    }
+  }
 }

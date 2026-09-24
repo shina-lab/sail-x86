@@ -456,6 +456,11 @@ struct TestCase {
                                   // reason at the test)
   int approx_result_bits = 0;    // low computed bits; remaining bits must match exactly
   unsigned approx_reg = 0;       // only this destination register gets a tolerance
+  std::vector<std::pair<u32, u64>> msrs;  // MSRs loaded on both sides before the run
+                                          // (IA32_EFER goes through the KVM segment state)
+  bool system_mode = false;      // the model delivers exceptions through a mirror of the
+                                 // guest's IDT; SYSCALL/SYSRET/SYSENTER/SYSEXIT need the
+                                 // model's system-mode paths
 };
 
 // Test registration functions (defined in separate kvm-tests-*.cpp files)

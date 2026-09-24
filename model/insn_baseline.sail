@@ -19,6 +19,14 @@ function general_detect_check() = {
   }
 }
 
+// A linear address is canonical when bits 63:N repeat bit N-1, with N = 48
+// under 4-level paging and 57 under 5-level paging (SDM Vol.1 §3.3.7.1,
+// Vol.3A §4.5).  SYSRET and SYSEXIT raise #GP(0) for a non-canonical target.
+val is_canonical_linear : qword -> bool
+function is_canonical_linear(addr) =
+  if CR4[12] == 0b1 then addr[63..56] == zeros() | addr[63..56] == ones()
+  else addr[63..47] == zeros() | addr[63..47] == ones()
+
 val check_lock_rm : (Prefixes, RM, bool) -> unit
 function check_lock_rm(pfx, dest, is_cmp) = {
   if pfx.has_lock then {
@@ -867,12 +875,14 @@ function dispatch_2byte_gpr(op, pfx) = {
 
     // 0F 07: SYSRET (requires CPL=0)
     // SDM Vol.2B SYSRET, Operation: #UD unless CS.L = 1, IA32_EFER.LMA = 1
-    // and IA32_EFER.SCE = 1; then #GP(0) if CPL != 0.
+    // and IA32_EFER.SCE = 1; then #GP(0) if CPL != 0; with a 64-bit operand
+    // size, #GP(0) if RCX is not canonical.
     7 => {
       if SegCache[CS].seg_l != 0b1 | EFER[10] != 0b1 | EFER[0] != 0b1 then raise_UD();
       if cur_cpl != 0 then raise_GP0();
       // SYSRET: restore RIP from RCX, RFLAGS from R11
       let new_rip : qword = v(RCX);
+      if pfx.rex_w & ~(is_canonical_linear(new_rip)) then raise_GP0();
 
       // SDM: RFLAGS := (R11 & 3C7FD7H) | 2
       // Clear RF (bit 16), VM (bit 17), reserved bits; force bit 1 = 1
@@ -1158,7 +1168,8 @@ function dispatch_2byte_gpr(op, pfx) = {
     // truncating PUSH addresses to the low 32 bits of RSP.
     52 => {
       let sysenter_cs : qword = __rdmsr(0x00000174);
-      if sysenter_cs[15..0] == zeros() then raise_GP0();
+      // SDM Vol.2B SYSENTER, Operation: #GP(0) if IA32_SYSENTER_CS[15:2] = 0
+      if sysenter_cs[15..2] == zeros() then raise_GP0();
       let ia32e : bool = EFER[10] == 0b1;
       write_segreg(CS, sysenter_cs[15..0] & 0xFFFC);
       SegCache[CS] = struct {
@@ -1203,9 +1214,13 @@ function dispatch_2byte_gpr(op, pfx) = {
     // Without the descriptor-cache / cur_mode updates, the user code runs
     // with stale kernel-CS metadata (or whatever was last loaded).
     53 => {
-      if cur_cpl != 0 then raise_GP0();
+      // SDM Vol.2B SYSEXIT, Operation: #GP(0) if IA32_SYSENTER_CS[15:2] = 0
+      // or CPL != 0 (the 64-bit exception list says "= 0", but the silicon
+      // follows the pseudocode); with a 64-bit operand size also if RCX or
+      // RDX is not canonical.
       let sysenter_cs : qword = __rdmsr(0x00000174);
-      if sysenter_cs[15..0] == zeros() then raise_GP0();
+      if sysenter_cs[15..2] == zeros() | cur_cpl != 0 then raise_GP0();
+      if pfx.rex_w & ~(is_canonical_linear(v(64, RCX)) & is_canonical_linear(v(64, RDX))) then raise_GP0();
       if pfx.rex_w then {
         // 64-bit: CS.sel = IA32_SYSENTER_CS + 32, SS.sel = IA32_SYSENTER_CS + 40
         write_segreg(CS, (sysenter_cs[15..0] + 0x0020) | 0x0003);

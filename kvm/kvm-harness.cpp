@@ -75,6 +75,95 @@ static x86::zVendor host_vendor() {
   return b == 0x68747541 ? x86::zVendor_AMD : x86::zVendor_Intel;  // "Auth"
 }
 
+// Exception handlers for vectors 0-31 at handler_addr (16-byte stubs, then a
+// common handler 32 * 16 bytes in), and a 64-bit IDT of interrupt gates to
+// them at idt_addr.  The common handler records vector, error code, pushed
+// RIP and pushed RFLAGS at fault_info_addr and halts.  Addresses are
+// relative to base: the guest memory for the KVM side, the process's own
+// address space (base 0) for the model.
+static void write_idt(u8 *base, u64 idt_addr, u64 handler_addr, u64 fault_info_addr) {
+  // Vectors with error codes pushed by CPU
+  auto has_error_code = [](int v) {
+    return v == 8 || v == 10 || v == 11 || v == 12 ||
+           v == 13 || v == 14 || v == 17 || v == 21 || v == 30;
+  };
+  const u64 common_handler = handler_addr + 32 * 16;
+
+  // Write handler stubs, 16 bytes each
+  for (int v = 0; v < 32; v++) {
+    u8 stub[16];
+    memset(stub, 0xCC, sizeof(stub));  // fill with INT3
+    int off = 0;
+    if (!has_error_code(v)) {
+      stub[off++] = 0x6A;  // push 0 (dummy error code)
+      stub[off++] = 0x00;
+    } else {
+      stub[off++] = 0x90;  // nop nop (error code on stack)
+      stub[off++] = 0x90;
+    }
+    stub[off++] = 0x6A;   // push <vector>
+    stub[off++] = (u8)v;
+    stub[off++] = 0xE9;                          // jmp rel32
+    u64 stub_addr = handler_addr + v * 16;
+    i32 rel = (i32)(common_handler - (stub_addr + off + 4));
+    memcpy(stub + off, &rel, 4);
+    memcpy(base + stub_addr, stub, 16);
+  }
+
+  // Common handler: pop vector + error code, store at fault_info_addr, HLT
+  auto abs32 = [](u64 addr) {
+    return std::vector<u8>{(u8)addr, (u8)(addr >> 8), (u8)(addr >> 16), (u8)(addr >> 24)};
+  };
+  std::vector<u8> common = {0x58};                               // pop rax (vector)
+  auto emit = [&](std::initializer_list<u8> bytes, u64 addr = ~0ULL) {
+    common.insert(common.end(), bytes);
+    if (addr != ~0ULL) { auto a = abs32(addr); common.insert(common.end(), a.begin(), a.end()); }
+  };
+  emit({0x48, 0x89, 0x04, 0x25}, fault_info_addr);              // mov [fi], rax
+  emit({0x58});                                                 // pop rax (error code)
+  emit({0x48, 0x89, 0x04, 0x25}, fault_info_addr + 8);          // mov [fi+8], rax
+  emit({0x48, 0x8B, 0x04, 0x24});                               // mov rax, [rsp]  (pushed RIP)
+  emit({0x48, 0x89, 0x04, 0x25}, fault_info_addr + 16);         // mov [fi+16], rax
+  emit({0x48, 0x8B, 0x44, 0x24, 0x10});                         // mov rax, [rsp+16]  (pushed RFLAGS)
+  emit({0x48, 0x89, 0x04, 0x25}, fault_info_addr + 24);         // mov [fi+24], rax
+  emit({0xF4});                                                 // hlt
+  memcpy(base + common_handler, common.data(), common.size());
+
+  // Write IDT entries (16-byte interrupt gate descriptors)
+  for (int v = 0; v < 32; v++) {
+    u64 handler = handler_addr + v * 16;
+    u8 entry[16] = {};
+    u16 offset_lo = handler & 0xFFFF;
+    u16 selector = 0x08;  // code segment
+    u8 type_attr = 0x8E;  // present, DPL=0, 64-bit interrupt gate
+    u16 offset_mid = (handler >> 16) & 0xFFFF;
+    u32 offset_hi = (handler >> 32) & 0xFFFFFFFF;
+    memcpy(entry + 0, &offset_lo, 2);
+    memcpy(entry + 2, &selector, 2);
+    entry[4] = 0;  // IST = 0
+    entry[5] = type_attr;
+    memcpy(entry + 6, &offset_mid, 2);
+    memcpy(entry + 8, &offset_hi, 4);
+    memcpy(base + idt_addr + v * 16, entry, 16);
+  }
+}
+
+// MSRs the fast system calls read, reset to zero before every test and
+// loaded from TestCase::msrs.  IA32_EFER is handled through the segment
+// state (KVM) and the EFER register (model).
+static constexpr u32 MSR_IA32_EFER = 0xC0000080;
+static constexpr u32 FAST_CALL_MSRS[] = {
+  0xC0000081, 0xC0000082, 0xC0000083, 0xC0000084,  // STAR, LSTAR, CSTAR, FMASK
+  0x00000174, 0x00000175, 0x00000176,              // SYSENTER_CS, _ESP, _EIP
+};
+
+// The model's __rdmsr/__wrmsr externals keep their values here
+// (usermode-emu/x86-externals.cpp).
+namespace x86 {
+void x86_externals_reset_msrs();
+void x86_externals_set_msr(u64 msr, u64 value);
+}
+
 // ---- KVM VM ----
 
 struct KvmVm {
@@ -180,74 +269,7 @@ struct KvmVm {
     pd[0] = 0x0 | 0x87;  // 2MB page, present + writable + user + PS
 
     // IDT: exception handlers for vectors 0-31
-    {
-      // Vectors with error codes pushed by CPU
-      auto has_error_code = [](int v) {
-        return v == 8 || v == 10 || v == 11 || v == 12 ||
-               v == 13 || v == 14 || v == 17 || v == 21 || v == 30;
-      };
-
-      // Write handler stubs at HANDLER_ADDR, 16 bytes each
-      for (int v = 0; v < 32; v++) {
-        u8 stub[16];
-        memset(stub, 0xCC, sizeof(stub));  // fill with INT3
-        int off = 0;
-        if (!has_error_code(v)) {
-          stub[off++] = 0x6A;  // push 0 (dummy error code)
-          stub[off++] = 0x00;
-        } else {
-          stub[off++] = 0x90;  // nop nop (error code on stack)
-          stub[off++] = 0x90;
-        }
-        stub[off++] = 0x6A;   // push <vector>
-        stub[off++] = (u8)v;
-        stub[off++] = 0xE9;                          // jmp rel32
-        u64 stub_addr = HANDLER_ADDR + v * 16;
-        i32 rel = (i32)(COMMON_HANDLER - (stub_addr + off + 4));
-        memcpy(stub + off, &rel, 4);
-        memcpy(guest_mem + stub_addr, stub, 16);
-      }
-
-      // Common handler: pop vector + error code, store at FAULT_INFO_ADDR, HLT
-      u8 common[] = {
-        0x58,                                                     // pop rax (vector)
-        0x48, 0x89, 0x04, 0x25,                                   // mov [FAULT_INFO_ADDR], rax
-          (u8)(FAULT_INFO_ADDR), (u8)(FAULT_INFO_ADDR >> 8),
-          (u8)(FAULT_INFO_ADDR >> 16), (u8)(FAULT_INFO_ADDR >> 24),
-        0x58,                                                     // pop rax (error code)
-        0x48, 0x89, 0x04, 0x25,                                   // mov [FAULT_INFO_ADDR+8], rax
-          (u8)(FAULT_INFO_ADDR + 8), (u8)((FAULT_INFO_ADDR + 8) >> 8),
-          (u8)((FAULT_INFO_ADDR + 8) >> 16), (u8)((FAULT_INFO_ADDR + 8) >> 24),
-        0x48, 0x8B, 0x04, 0x24,                                   // mov rax, [rsp]  (pushed RIP)
-        0x48, 0x89, 0x04, 0x25,                                   // mov [FAULT_INFO_ADDR+16], rax
-          (u8)(FAULT_INFO_ADDR + 16), (u8)((FAULT_INFO_ADDR + 16) >> 8),
-          (u8)((FAULT_INFO_ADDR + 16) >> 16), (u8)((FAULT_INFO_ADDR + 16) >> 24),
-        0x48, 0x8B, 0x44, 0x24, 0x10,                             // mov rax, [rsp+16]  (pushed RFLAGS)
-        0x48, 0x89, 0x04, 0x25,                                   // mov [FAULT_INFO_ADDR+24], rax
-          (u8)(FAULT_INFO_ADDR + 24), (u8)((FAULT_INFO_ADDR + 24) >> 8),
-          (u8)((FAULT_INFO_ADDR + 24) >> 16), (u8)((FAULT_INFO_ADDR + 24) >> 24),
-        0xF4,                                                     // hlt
-      };
-      memcpy(guest_mem + COMMON_HANDLER, common, sizeof(common));
-
-      // Write IDT entries (16-bit interrupt gate descriptors)
-      for (int v = 0; v < 32; v++) {
-        u64 handler = HANDLER_ADDR + v * 16;
-        u8 entry[16] = {};
-        u16 offset_lo = handler & 0xFFFF;
-        u16 selector = 0x08;  // code segment
-        u8 type_attr = 0x8E;  // present, DPL=0, 64-bit interrupt gate
-        u16 offset_mid = (handler >> 16) & 0xFFFF;
-        u32 offset_hi = (handler >> 32) & 0xFFFFFFFF;
-        memcpy(entry + 0, &offset_lo, 2);
-        memcpy(entry + 2, &selector, 2);
-        entry[4] = 0;  // IST = 0
-        entry[5] = type_attr;
-        memcpy(entry + 6, &offset_mid, 2);
-        memcpy(entry + 8, &offset_hi, 4);
-        memcpy(guest_mem + IDT_ADDR + v * 16, entry, 16);
-      }
-    }
+    write_idt(guest_mem, IDT_ADDR, HANDLER_ADDR, FAULT_INFO_ADDR);
 
     // GDT: null, 64-bit code, data, plus test entries for LAR/LSL/VERR/VERW
     u64 *gdt = (u64 *)(guest_mem + GDT_ADDR);
@@ -393,7 +415,38 @@ struct KvmVm {
     reset_data_seg(sregs_tmp.gs);
     // Reset CR2 so a #PF in one test is not visible to the next.
     sregs_tmp.cr2 = 0;
+    // EFER: LME + LMA, plus whatever the test loads (SCE for SYSCALL).
+    sregs_tmp.efer = 0x500;
+    for (auto [msr, value] : tc.msrs)
+      if (msr == MSR_IA32_EFER) sregs_tmp.efer = value;
     ioctl(vcpu_fd, KVM_SET_SREGS, &sregs_tmp);
+
+    // The fast-call MSRs: zero unless the test loads them.
+    {
+      struct {
+        struct kvm_msrs hdr;
+        struct kvm_msr_entry entries[sizeof(FAST_CALL_MSRS) / sizeof(u32)];
+      } msrs = {};
+      msrs.hdr.nmsrs = sizeof(FAST_CALL_MSRS) / sizeof(u32);
+      for (u32 i = 0; i < msrs.hdr.nmsrs; i++) {
+        msrs.entries[i].index = FAST_CALL_MSRS[i];
+        for (auto [msr, value] : tc.msrs)
+          if (msr == FAST_CALL_MSRS[i]) msrs.entries[i].data = value;
+      }
+      for (auto [msr, value] : tc.msrs) {
+        bool known = msr == MSR_IA32_EFER;
+        for (u32 m : FAST_CALL_MSRS) known |= msr == m;
+        if (!known) {
+          fprintf(stderr, "test %s loads MSR %#x, which the harness does not reset\n",
+                  tc.name.c_str(), msr);
+          abort();
+        }
+      }
+      if (ioctl(vcpu_fd, KVM_SET_MSRS, &msrs) != (int)msrs.hdr.nmsrs) {
+        perror("KVM_SET_MSRS");  // host API failure, not a divergence
+        abort();
+      }
+    }
 
     memset(guest_mem + CODE_ADDR, 0, 0x1000);
     memset(guest_mem + DATA_ADDR, 0, 0x1000);
@@ -759,6 +812,37 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   // Initialize x87 FPU to default state (CW=0x037F, etc.)
   model.zx87_init(UNIT);
 
+  // The guest runs with EFER.LME and LMA; far transfers and the fast system
+  // calls consult them.  A test's MSRs override EFER and fill the externals'
+  // MSR store, which is empty otherwise.
+  model.zEFER = 0x500;
+  x86::x86_externals_reset_msrs();
+  for (auto [msr, value] : tc.msrs) {
+    if (msr == MSR_IA32_EFER) model.zEFER = value;
+    else x86::x86_externals_set_msr(msr, value);
+  }
+
+  // System mode: the model delivers exceptions through an IDT that mirrors
+  // the guest's, at addresses this process can map (the guest's handler
+  // page lies below the lowest mappable address).  The stubs record the
+  // same information as the guest's at SAIL_FAULT_INFO_ADDR and halt.
+  static constexpr u64 SAIL_IDT_ADDR = 0x18000;
+  static constexpr u64 SAIL_HANDLER_ADDR = 0x19000;
+  static constexpr u64 SAIL_COMMON_HANDLER = SAIL_HANDLER_ADDR + 32 * 16;
+  static constexpr u64 SAIL_FAULT_INFO_ADDR = 0x1A000;
+  if (tc.system_mode) {
+    static bool idt_mapped = false;
+    if (!idt_mapped) {
+      map_guest_page(SAIL_IDT_ADDR, 0x3000);
+      idt_mapped = true;
+    }
+    write_idt(nullptr, SAIL_IDT_ADDR, SAIL_HANDLER_ADDR, SAIL_FAULT_INFO_ADDR);
+    memset((void *)SAIL_FAULT_INFO_ADDR, 0xFF, 24);
+    model.zIDTR_base = SAIL_IDT_ADDR;
+    model.zIDTR_limit = 32 * 16 - 1;
+    model.zsystem_mode = true;
+  }
+
   // Set ZMM registers and MXCSR
   model.mxcsr_state.mxcsr = tc.initial.mxcsr;
   for (int i = 0; i < 32; i++) {
@@ -801,8 +885,7 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
     ((u64 *)SAIL_PDPT_ADDR)[0] = SAIL_PD_ADDR | 0x7;
     ((u64 *)SAIL_PD_ADDR)[0]   = 0x0 | 0x87;  // 2MB page, P+RW+U+PS
     model.zCR3 = SAIL_PML4_ADDR;
-    model.zCR0 = 0x80000011;  // PG + ET + PE, as in the KVM guest
-    model.zEFER = 0x500;      // LME + LMA: 4-level long-mode walk
+    model.zCR0 = 0x80000011;  // PG + ET + PE, as in the KVM guest; EFER.LME + LMA above
   }
 
   for (int i = 0; i < 1000; i++) {
@@ -851,6 +934,31 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   return {};
 
 done:
+  // In system mode an exception ends in the mirror's common handler.
+  if (tc.system_mode && model.zRIP > SAIL_COMMON_HANDLER &&
+      model.zRIP <= SAIL_COMMON_HANDLER + 0x100) {
+    u64 vec_val, err_val, rip_val, rflags_val;
+    memcpy(&vec_val, (void *)SAIL_FAULT_INFO_ADDR, 8);
+    memcpy(&err_val, (void *)(SAIL_FAULT_INFO_ADDR + 8), 8);
+    memcpy(&rip_val, (void *)(SAIL_FAULT_INFO_ADDR + 16), 8);
+    memcpy(&rflags_val, (void *)(SAIL_FAULT_INFO_ADDR + 24), 8);
+    if (fault_out) {
+      fault_out->faulted = true;
+      fault_out->vector = (int)vec_val;
+      fault_out->error_code = err_val;
+      fault_out->faulting_rip = rip_val;
+      fault_out->cr2 = model.zCR2;
+      fault_out->dr6 = model.zDR6;
+      fault_out->dr7 = model.zDR7;
+      fault_out->rflags_image = rflags_val;
+    } else {
+      *err += std::format("Sail: unexpected fault #{} (error {:#x}) at RIP={:#x}\n",
+                          (i64)vec_val, err_val, rip_val);
+    }
+    model.model_fini();
+    return {};
+  }
+
   u64 rflags = model.zread_rflags(UNIT);
 
   if (data_len > 0)

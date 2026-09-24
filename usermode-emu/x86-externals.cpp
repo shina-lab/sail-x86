@@ -7,6 +7,7 @@
 #include <cstring>
 #include <cmath>
 #include <cfenv>
+#include <unordered_map>
 #include <immintrin.h>
 #include <x86intrin.h>
 
@@ -92,11 +93,23 @@ unit Model::z__tlb_insert(u64, u64, bool) { return UNIT; }
 unit Model::z__tlb_flush(unit) { return UNIT; }
 
 // =========================================================================
-// MSR (stub — user mode doesn't have MSR access)
+// MSRs the model keeps outside its registers: a plain store, empty at start
+// (user mode has no MSR access; the KVM harness loads a test's MSRs).
 // =========================================================================
 
-u64 Model::z__rdmsr(u64) { return 0; }
-unit Model::z__wrmsr(u64, u64) { return UNIT; }
+static std::unordered_map<u64, u64> msr_store;
+
+void x86_externals_reset_msrs() { msr_store.clear(); }
+void x86_externals_set_msr(u64 msr, u64 value) { msr_store[msr] = value; }
+
+u64 Model::z__rdmsr(u64 msr) {
+  auto it = msr_store.find(msr);
+  return it == msr_store.end() ? 0 : it->second;
+}
+unit Model::z__wrmsr(u64 msr, u64 value) {
+  msr_store[msr] = value;
+  return UNIT;
+}
 bool Model::z__check_pending_smi(unit) { return false; }
 
 // =========================================================================
