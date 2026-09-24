@@ -112,6 +112,20 @@ set_tests_properties(boot_linux_banner PROPERTIES
   LABELS "boot"
   SKIP_RETURN_CODE 127)
 
+# The same boot with a 32-bit (i386) kernel and initramfs, placed in the
+# build directory as bzImage-i386 and initramfs-i386.cpio (tinyconfig with
+# the emulator's fragment, CONFIG_M686, no PAE, a 32-bit busybox).  Skips
+# when they are absent.  The 32-bit kernel's timer tick (HZ=250) costs more
+# instructions than the default 1 MIPS virtual CPU gives it, so it runs at
+# -ips 4 (see the option's comment in x86-system-sim.cpp).
+add_test(NAME boot_linux_i386_banner
+         COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/boot-smoke.sh ${CMAKE_BINARY_DIR})
+set_tests_properties(boot_linux_i386_banner PROPERTIES
+  ENVIRONMENT "BOOT_SMOKE_KERNEL=${CMAKE_BINARY_DIR}/bzImage-i386;BOOT_SMOKE_INITRD=${CMAKE_BINARY_DIR}/initramfs-i386.cpio;BOOT_SMOKE_EMU_ARGS=-ips 4"
+  TIMEOUT 900
+  LABELS "boot"
+  SKIP_RETURN_CODE 127)
+
 add_executable(system_test_a20 tests/test-a20.cpp)
 target_link_libraries(system_test_a20 PRIVATE x86_system_model)
 add_dependencies(system_test_a20 generated_sail_x86_model)
