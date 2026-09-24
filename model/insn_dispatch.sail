@@ -866,14 +866,32 @@ function decode_execute() = {
         }
       },
 
-      // 63: MOVSXD r64, r/m32 (in 64-bit mode)
+      // 63: MOVSXD r64, r/m32 in 64-bit mode; ARPL r/m16, r16 in protected
+      // and compatibility mode (SDM Vol.2A ARPL: "not encodable in 64-bit
+      // mode", #UD in real-address mode)
       99 => {
-        let (reg, src) = fetch_modrm(pfx);
-        if pfx.rex_w then {
-          v(reg) = sign_extend(64, v(32, src))
+        if cur_mode == LongMode then {
+          let (reg, src) = fetch_modrm(pfx);
+          if pfx.rex_w then {
+            v(reg) = sign_extend(64, v(32, src))
+          } else {
+            let os = opsize(pfx);
+            v(reg) = v(os, src)
+          }
+        } else if cur_mode == RealMode then {
+          raise_UD()
         } else {
-          let os = opsize(pfx);
-          v(reg) = v(os, src)
+          // IF DEST[RPL] < SRC[RPL] THEN ZF := 1; DEST[RPL] := SRC[RPL]
+          // ELSE ZF := 0.  Only ZF is affected.
+          let (reg, dest) = fetch_modrm(pfx);
+          let d : word = v(16, dest);
+          let s : word = v(16, reg);
+          if unsigned(d[1..0]) < unsigned(s[1..0]) then {
+            ZF = 0b1;
+            v(dest) = d[15..2] @ s[1..0]
+          } else {
+            ZF = 0b0
+          }
         }
       },
 

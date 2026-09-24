@@ -253,8 +253,19 @@ function seg_linear(m, access_size) = {
   let offset = if rip_rel_pending then decode_pos + rip_rel_disp else m.addr;
   check_seg_limit(m.seg, offset, access_size);
   let linear : qword = offset + get_seg_base(m.seg);
-  if cur_mode == LongMode then linear
-  else zero_extend(linear[31..0])
+  if cur_mode == LongMode then {
+    // A data access through a non-canonical linear address is #GP(0),
+    // or #SS(0) when the SS segment is used (SDM Vol.1 §3.3.7.1; the
+    // "64-Bit Mode Exceptions" of every memory instruction).  Canonical:
+    // bits 63:47 all equal, or 63:56 with 5-level paging (CR4.LA57).
+    let high : bits(17) = if CR4[12] == 0b1 then sign_extend(linear[63..56]) else linear[63..47];
+    if high != zeros() & high != ones() then {
+      if m.seg == SS then raise_SS0() else raise_GP0()
+    };
+    linear
+  } else {
+    zero_extend(linear[31..0])
+  }
 }
 
 // Segmented memory read/write via MemRef (n is in bits; seg_linear takes bytes).

@@ -410,6 +410,41 @@ inline ArchState with_xsave_vector_inputs(ArchState values, u64 mask) {
   return values;
 }
 
+// Intel AMX state, compared for a test whose XCR0 enables the tile
+// components (bits 17 and 18): the TILECFG register in its 64-byte
+// LDTILECFG/XSAVE image (palette, start_row, colsb[8] at 16, rows[8] at
+// 48) and the eight tiles, 16 rows of 64 bytes each, in XSAVE TILEDATA
+// order.  Kept out of ArchState, which every test case carries, because a
+// test's initial AMX state is always the INIT state.
+struct AmxState {
+  u8 tilecfg[64] = {};
+  u8 tiles[8][16][64] = {};
+
+  bool compare(const AmxState &other) const {
+    bool ok = true;
+    if (memcmp(tilecfg, other.tilecfg, 64) != 0) {
+      fprintf(stderr, "  MISMATCH TILECFG:\n    kvm= ");
+      for (int i = 0; i < 64; i++) fprintf(stderr, "%02x", tilecfg[i]);
+      fprintf(stderr, "\n    sail=");
+      for (int i = 0; i < 64; i++) fprintf(stderr, "%02x", other.tilecfg[i]);
+      fprintf(stderr, "\n");
+      ok = false;
+    }
+    for (int t = 0; t < 8; t++) {
+      for (int r = 0; r < 16; r++) {
+        if (memcmp(tiles[t][r], other.tiles[t][r], 64) == 0) continue;
+        fprintf(stderr, "  MISMATCH TMM%d row %d:\n    kvm= ", t, r);
+        for (int i = 63; i >= 0; i--) fprintf(stderr, "%02x", tiles[t][r][i]);
+        fprintf(stderr, "\n    sail=");
+        for (int i = 63; i >= 0; i--) fprintf(stderr, "%02x", other.tiles[t][r][i]);
+        fprintf(stderr, "\n");
+        ok = false;
+      }
+    }
+    return ok;
+  }
+};
+
 // Fault information captured from exception handlers.
 struct FaultInfo {
   bool faulted = false;
@@ -420,6 +455,7 @@ struct FaultInfo {
   u64 dr6 = 0;  // DR6 after the fault (meaningful for #DB; compared under DR6_CMP_MASK)
   u64 dr7 = 0;  // DR7 after the fault (general detect clears GD)
   u64 rflags_image = 0;  // RFLAGS as pushed for the handler (compared under RFLAGS_IMAGE_MASK)
+  u64 xfd_err = 0;  // IA32_XFD_ERR after the fault (loaded by an XFD #NM; compared on hosts with AMX)
 };
 
 // DR6 bits compared between KVM and the model: B0-B3, BD, BS, BT.  Bit 11
@@ -492,5 +528,8 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests);
 void add_avx_hi16_tests(std::vector<TestCase> &tests);
 void add_avx_fp16_tests(std::vector<TestCase> &tests);
 void add_system_tests(std::vector<TestCase> &tests);
+void add_hint_tests(std::vector<TestCase> &tests);
+void add_waitpkg_tests(std::vector<TestCase> &tests);
+void add_amx_tests(std::vector<TestCase> &tests);
 
 #endif // KVM_HARNESS_H

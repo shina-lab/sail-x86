@@ -28,46 +28,34 @@
 // SDM §34.5.1 Table 34-4: Initial SMM execution environment.
 // =========================================================================
 
-// Helper: compute SMRAM state save address from offset.
-// SDM: state save area at SMBASE + 0x8000 + offset.
 // SMRAM helpers: read/write the state save area.
-// Offset is from SDM Table 34-3, relative to SMBASE + 0x8000.
+// The offset is the column-1 value of SDM Table 34-3, which is "added to
+// SMBASE + 8000H" (§34.4.1: the area runs from [SMBASE + 8000H + 7FFFH]
+// down to [SMBASE + 8000H + 7C00H]; §34.3.1: "[SMBASE + FE00H] to
+// [SMBASE + FFFFH]").  The 8000H is the SMI handler's entry offset, so the
+// save area lies just below the top of the 64-KByte SMRAM.
 // We pass the offset as a bitvector to avoid Sail integer constraint issues.
+val smram_state_addr : bits(16) -> qword
+function smram_state_addr(offset) =
+  (0x00000000 @ smbase) + 0x0000000000008000 + zero_extend(offset)
+
 val smram_save64 : (bits(16), qword) -> unit
-function smram_save64(offset, v) = {
-  let addr : qword = (0x00000000 @ smbase) + zero_extend(offset);
-  phys_write(addr, v)
-}
+function smram_save64(offset, v) = phys_write(smram_state_addr(offset), v)
 
 val smram_save32 : (bits(16), dword) -> unit
-function smram_save32(offset, v) = {
-  let addr : qword = (0x00000000 @ smbase) + zero_extend(offset);
-  phys_write(addr, v)
-}
+function smram_save32(offset, v) = phys_write(smram_state_addr(offset), v)
 
 val smram_save16 : (bits(16), word) -> unit
-function smram_save16(offset, v) = {
-  let addr : qword = (0x00000000 @ smbase) + zero_extend(offset);
-  phys_write(addr, v)
-}
+function smram_save16(offset, v) = phys_write(smram_state_addr(offset), v)
 
 val smram_load64 : bits(16) -> qword
-function smram_load64(offset) = {
-  let addr : qword = (0x00000000 @ smbase) + zero_extend(offset);
-  phys_read(addr)
-}
+function smram_load64(offset) = phys_read(smram_state_addr(offset))
 
 val smram_load32 : bits(16) -> dword
-function smram_load32(offset) = {
-  let addr : qword = (0x00000000 @ smbase) + zero_extend(offset);
-  phys_read(addr)
-}
+function smram_load32(offset) = phys_read(smram_state_addr(offset))
 
 val smram_load16 : bits(16) -> word
-function smram_load16(offset) = {
-  let addr : qword = (0x00000000 @ smbase) + zero_extend(offset);
-  phys_read(addr)
-}
+function smram_load16(offset) = phys_read(smram_state_addr(offset))
 
 val deliver_smi : unit -> unit
 function deliver_smi() = {
@@ -211,8 +199,12 @@ val exec_rsm : unit -> unit
 function exec_rsm() = {
   if ~(in_smm) then raise_UD();
 
-  // Restore SMBASE first (for relocation support)
-  smbase = smram_load32(0x7EF8);
+  // SMBASE relocation (SDM Vol.3C §34.11): "The RSM instruction reloads
+  // the internal SMBASE register with the value in the SMBASE field each
+  // time it exits SMM.  All subsequent SMI requests will use the new
+  // SMBASE value".  The rest of this state save map is still read at the
+  // current SMBASE, so the new value takes effect once the loads are done.
+  let new_smbase : dword = smram_load32(0x7EF8);
 
   // Restore control registers
   CR0 = smram_load64(0x7FF8);
@@ -288,7 +280,8 @@ function exec_rsm() = {
     system_state = SysHalted
   };
 
-  // Exit SMM
+  // Exit SMM, with the relocated SMBASE for the next SMI
+  smbase = new_smbase;
   in_smm = false;
 
   // RIP was already restored above; set next_rip so step() doesn't overwrite it

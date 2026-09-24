@@ -1082,4 +1082,78 @@ void add_mmx_tests(std::vector<TestCase> &tests) {
       }, s, FL_ALL, 0, false, std::vector<u8>(16, 0xCC), 16});
     }
   }
+
+  // =====================================================================
+  // SSSE3 with mm operands: NP 0F 38 00-0B, 1C-1E and NP 0F 3A 0F, the
+  // "With 64-bit Operands" forms of the SDM's Operation sections
+  // =====================================================================
+  cat = "MMX SSSE3";
+  {
+    // op mm0, mm1 with mm0 from rax and mm1 from rbx; the result comes
+    // back in rax.
+    auto op_rr = [&](const std::string &name, std::vector<u8> op, u64 a, u64 b) {
+      std::vector<u8> code = {0x48, 0x0F, 0x6E, 0xC0,   // MOVQ mm0, rax
+                              0x48, 0x0F, 0x6E, 0xCB};  // MOVQ mm1, rbx
+      code.insert(code.end(), op.begin(), op.end());
+      code.insert(code.end(), {0x48, 0x0F, 0x7E, 0xC0,  // MOVQ rax, mm0
+                               0x0F, 0x77});            // EMMS
+      ArchState s;
+      s.rax = a;
+      s.rbx = b;
+      tests.push_back({name, cat, std::move(code), s, FL_ALL, 0, false});
+    };
+    // op mm0, [rdi] with the source in memory
+    auto op_rm = [&](const std::string &name, std::vector<u8> op, u64 a, u64 b) {
+      std::vector<u8> code = {0x48, 0x0F, 0x6E, 0xC0};  // MOVQ mm0, rax
+      code.insert(code.end(), op.begin(), op.end());
+      code.insert(code.end(), {0x48, 0x0F, 0x7E, 0xC0, 0x0F, 0x77});
+      ArchState s;
+      s.rax = a;
+      s.rdi = DATA_ADDR;
+      std::vector<u8> data(8);
+      memcpy(data.data(), &b, 8);
+      tests.push_back({name, cat, std::move(code), s, FL_ALL, 0, false, data});
+    };
+    // Words -2, 1, 32767, -32768 and 256, 255, -32768, 32767: sums and
+    // differences that saturate, products that round, bytes of both signs
+    const u64 A = 0x80007FFF0001FFFEULL;
+    const u64 B = 0x7FFF800000FF0100ULL;
+    struct { const char *name; u8 op; } ops[] = {
+      {"pshufb", 0x00}, {"phaddw", 0x01}, {"phaddd", 0x02}, {"phaddsw", 0x03},
+      {"pmaddubsw", 0x04}, {"phsubw", 0x05}, {"phsubd", 0x06}, {"phsubsw", 0x07},
+      {"psignb", 0x08}, {"psignw", 0x09}, {"psignd", 0x0A}, {"pmulhrsw", 0x0B},
+      {"pabsb", 0x1C}, {"pabsw", 0x1D}, {"pabsd", 0x1E},
+    };
+    for (auto &o : ops) {
+      op_rr(std::format("{} mm0,mm1", o.name), {0x0F, 0x38, o.op, 0xC1}, A, B);
+      op_rr(std::format("{} mm0,mm1 (operands swapped)", o.name), {0x0F, 0x38, o.op, 0xC1}, B, A);
+      op_rm(std::format("{} mm0,[rdi]", o.name), {0x0F, 0x38, o.op, 0x07}, A, B);
+    }
+    // PSHUFB: every index, then zeroing (bit 7) and ignored bits 6:3
+    op_rr("pshufb mm0,mm1 (control 07..00)", {0x0F, 0x38, 0x00, 0xC1},
+          0x1122334455667788ULL, 0x0001020304050607ULL);
+    op_rr("pshufb mm0,mm1 (control with bit 7 and bits 6:3)", {0x0F, 0x38, 0x00, 0xC1},
+          0x1122334455667788ULL, 0x80FF0F17E0080910ULL);
+    // PSIGN: negative, zero and positive control lanes
+    op_rr("psignb mm0,mm1 (mixed signs)", {0x0F, 0x38, 0x08, 0xC1}, 0x8001FF7F00801234ULL, 0xFF00017F80FF0001ULL);
+    op_rr("psignw mm0,mm1 (mixed signs)", {0x0F, 0x38, 0x09, 0xC1}, 0x8000000112347FFFULL, 0xFFFF00000001FFFFULL);
+    op_rr("psignd mm0,mm1 (zero control)", {0x0F, 0x38, 0x0A, 0xC1}, 0x8000000012345678ULL, 0);
+    op_rr("psignd mm0,mm1 (mixed signs)", {0x0F, 0x38, 0x0A, 0xC1}, 0x8000000012345678ULL, 0xFFFFFFFF00000001ULL);
+    // PMULHRSW: -32768 * -32768 rounds to 0x8000
+    op_rr("pmulhrsw mm0,mm1 (0x8000 squared)", {0x0F, 0x38, 0x0B, 0xC1}, 0x8000400040007FFFULL, 0x8000C00040000001ULL);
+    // PMADDUBSW: 255*127 + 255*127 fits, 255*-128 + 255*-128 saturates
+    op_rr("pmaddubsw mm0,mm1 (saturating)", {0x0F, 0x38, 0x04, 0xC1}, 0xFFFFFFFF80FF017FULL, 0x80807F7F7F7F0102ULL);
+    // PABS of the most negative values stays as is
+    op_rr("pabsb mm0,mm1 (0x80 lanes)", {0x0F, 0x38, 0x1C, 0xC1}, 0, 0x80FF7F0180FF7F01ULL);
+    op_rr("pabsw mm0,mm1 (0x8000 lanes)", {0x0F, 0x38, 0x1D, 0xC1}, 0, 0x8000FFFF7FFF0001ULL);
+    op_rr("pabsd mm0,mm1 (0x80000000 lane)", {0x0F, 0x38, 0x1E, 0xC1}, 0, 0x80000000FFFFFFFFULL);
+    // PALIGNR mm0, mm1, imm8: counts within the 16 concatenated bytes, at
+    // the edge and beyond (a count above 16 gives 0)
+    for (u8 imm : {0, 1, 3, 7, 8, 9, 15, 16, 17, 255}) {
+      op_rr(std::format("palignr mm0,mm1,{}", imm), {0x0F, 0x3A, 0x0F, 0xC1, imm},
+            0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL);
+    }
+    op_rm("palignr mm0,[rdi],5", {0x0F, 0x3A, 0x0F, 0x07, 0x05},
+          0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL);
+  }
 }

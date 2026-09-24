@@ -38,9 +38,9 @@ target_include_directories(sail-x86-system PRIVATE ${NCURSESW_INCLUDE_DIRS})
 target_link_libraries(sail-x86-system PRIVATE x86_system_model ${NCURSESW_LIBRARIES})
 add_dependencies(sail-x86-system generated_sail_x86_model)
 
-# =========================================================================
+# ==================================================================
 # "make linux" — download + build kernel, build initramfs, print boot command.
-# =========================================================================
+# ==================================================================
 #
 # Requires: curl, busybox-static, fakeroot, standard build tools.
 # Downloads Linux kernel source automatically if not already present.
@@ -75,9 +75,9 @@ add_custom_target(linux
     COMMAND ${CMAKE_COMMAND} -E echo ""
 )
 
-# =========================================================================
+# ==================================================================
 # "make dos" — download + build SeaBIOS, create FreeDOS disk image.
-# =========================================================================
+# ==================================================================
 
 add_custom_target(dos
     DEPENDS sail-x86-system
@@ -108,7 +108,21 @@ add_test(NAME system_exceptions COMMAND system_test_exceptions)
 add_test(NAME boot_linux_banner
          COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/boot-smoke.sh ${CMAKE_BINARY_DIR})
 set_tests_properties(boot_linux_banner PROPERTIES
-  TIMEOUT 600
+  TIMEOUT 1800
+  LABELS "boot"
+  SKIP_RETURN_CODE 127)
+
+# The same boot with a 32-bit (i386) kernel and initramfs, placed in the
+# build directory as bzImage-i386 and initramfs-i386.cpio (tinyconfig with
+# the emulator's fragment, CONFIG_M686, no PAE, a 32-bit busybox).  Skips
+# when they are absent.  The 32-bit kernel's timer tick (HZ=250) costs more
+# instructions than the default 1 MIPS virtual CPU gives it, so it runs at
+# -ips 4 (see the option's comment in x86-system-sim.cpp).
+add_test(NAME boot_linux_i386_banner
+         COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/boot-smoke.sh ${CMAKE_BINARY_DIR})
+set_tests_properties(boot_linux_i386_banner PROPERTIES
+  ENVIRONMENT "BOOT_SMOKE_KERNEL=${CMAKE_BINARY_DIR}/bzImage-i386;BOOT_SMOKE_INITRD=${CMAKE_BINARY_DIR}/initramfs-i386.cpio;BOOT_SMOKE_EMU_ARGS=-ips 4"
+  TIMEOUT 1800
   LABELS "boot"
   SKIP_RETURN_CODE 127)
 
@@ -166,3 +180,8 @@ add_executable(system_test_rtc tests/test-rtc.cpp x86-phys-mem.cpp)
 target_include_directories(system_test_rtc PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
 add_test(NAME system_rtc COMMAND system_test_rtc)
+
+add_executable(system_test_smm tests/test-smm.cpp)
+target_link_libraries(system_test_smm PRIVATE x86_system_model)
+add_dependencies(system_test_smm generated_sail_x86_model)
+add_test(NAME system_smm COMMAND system_test_smm)

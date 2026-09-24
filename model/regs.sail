@@ -578,6 +578,7 @@ register has_adx       : bool
 register has_sha       : bool
 register has_rdrand    : bool
 register has_rdseed    : bool
+register has_rdpid     : bool  // CPUID.07H:ECX[22] — RDPID (F3 0F C7 /7)
 register has_crc32     : bool
 register has_movdiri   : bool
 register has_movdir64b : bool
@@ -585,6 +586,62 @@ register has_xsave     : bool  // XSAVE/XRSTOR, XSETBV/XGETBV, XCR0 (CPUID.01H:E
 register has_avx512    : bool  // silicon support (separate from XCR0 enable)
 register has_la57      : bool  // CPUID.07H:ECX[16] — 5-Level Paging
 register has_vmx       : bool  // CPUID.01H:ECX[5] — VMX support
+register has_amx_tile  : bool  // CPUID.07H:EDX[24] — AMX tile architecture (LDTILECFG, TILELOADD, ...)
+register has_amx_int8  : bool  // CPUID.07H:EDX[25] — TDPBSSD/TDPBSUD/TDPBUSD/TDPBUUD
+register has_amx_bf16  : bool  // CPUID.07H:EDX[22] — TDPBF16PS
+register has_prefetchw : bool  // CPUID.80000001H:ECX[8] — PREFETCHW (0F 0D /1; a NOP either way)
+register has_cldemote  : bool  // CPUID.07H:ECX[25] — CLDEMOTE (0F 1C /0; a NOP either way)
+register has_waitpkg   : bool  // CPUID.07H:ECX[5] — TPAUSE, UMONITOR, UMWAIT and IA32_UMWAIT_CONTROL
+
+// The user-level monitor of UMONITOR/UMWAIT (SDM Vol.2B): armed by
+// UMONITOR, consumed by UMWAIT.  Stores to the monitored range are not
+// tracked; UMWAIT is taken to run to its deadline, which the SDM allows.
+register umonitor_armed : bool = false
+
+// =========================================================================
+// Intel AMX tile state (SDM Vol.1 Chapter 19)
+//
+// Palette 1, the only non-INIT palette, has eight tiles of at most 16 rows
+// by 64 bytes (CPUID.1DH.01H).  TILECFG holds the palette, the restart row
+// of an interrupted tile load or store, and each tile's shape; a tile whose
+// rows and colsb are both zero is not valid.  TMM holds the rows, tile t
+// row r at index 16 * t + r.  TILES_CONFIGURED of the SDM is
+// tilecfg_palette != 0.  XSAVE manages TILECFG as component 17 and the
+// 8 KB of tile data as component 18.
+// =========================================================================
+
+register tilecfg_palette   : byte = 0x00
+register tilecfg_start_row : byte = 0x00
+register tilecfg_colsb     : vector(8, word)
+register tilecfg_rows      : vector(8, byte)
+register TMM               : vector(128, zmmword)
+
+// Extended feature disable (SDM Vol.1 §13.14; CPUID.0DH.01H:EAX[4]):
+// IA32_XFD (1C4H) disables the state components whose bits it and XCR0
+// both have, and IA32_XFD_ERR (1C5H) names the components an instruction
+// faulted on (#NM).  Only bit 18 (TILEDATA) can be set, as on the first
+// processors with AMX (CPUID.0DH.12H:ECX[2]); both reset to zero.
+register IA32_XFD     : qword = zeros()
+register IA32_XFD_ERR : qword = zeros()
+
+// zero_all_tile_data of the SDM.
+val amx_zero_all_tiles : unit -> unit
+function amx_zero_all_tiles() = {
+  foreach (i from 0 to 127) {
+    TMM[i] = zeros()
+  }
+}
+
+// TILECFG in its INIT state: palette 0, TILES_CONFIGURED = 0.
+val amx_init_tilecfg : unit -> unit
+function amx_init_tilecfg() = {
+  tilecfg_palette = 0x00;
+  tilecfg_start_row = 0x00;
+  foreach (n from 0 to 7) {
+    tilecfg_colsb[n] = 0x0000;
+    tilecfg_rows[n] = 0x00
+  }
+}
 
 // Vendor profile for the values the SDM leaves to the implementation and
 // on which the two vendors differ: the standard-format XSAVE offsets of
@@ -651,10 +708,17 @@ function enable_features_v1() = {
   has_sha = false;
   has_rdrand = false;
   has_rdseed = false;
+  has_rdpid = false;
   has_crc32 = false;
   has_xsave = false;
   has_avx512 = false;
-  has_vmx = false
+  has_vmx = false;
+  has_amx_tile = false;
+  has_amx_int8 = false;
+  has_amx_bf16 = false;
+  has_prefetchw = false;
+  has_cldemote = false;
+  has_waitpkg = false
 }
 
 // x86-64-v2: Nehalem+ (SSE4.2, POPCNT, CMPXCHG16B)
@@ -688,7 +752,8 @@ function enable_features_v3() = {
   has_movbe = true;
   has_rdrand = true;
   has_aesni = true;
-  has_adx = true
+  has_adx = true;
+  has_prefetchw = true  // Broadwell and later
 }
 
 // x86-64-v4 and everything above it that the model implements: AVX-512
@@ -701,6 +766,7 @@ function enable_features_v4() = {
   XCR0 = 0x00000000000000E7;
   has_avx512 = true;
   has_rdseed = true;
+  has_rdpid = true;
   has_sha = true;
   has_vpclmulqdq = true;
   has_vaes = true;
@@ -708,10 +774,18 @@ function enable_features_v4() = {
   has_avx_vnni = true
 }
 
-// All features (current default behavior, matches XCR0=0xE7)
+// Everything the model implements: x86-64-v4 plus Intel AMX (AMX-TILE,
+// AMX-INT8, AMX-BF16), whose tile state XCR0 bits 17 and 18 enable.
 val enable_features_all : unit -> unit
 function enable_features_all() = {
-  enable_features_v4()
+  enable_features_v4();
+  XCR0_SUPPORTED = XCR0_SUPPORTED | 0x0000000000060000;  // + TILECFG + TILEDATA
+  XCR0 = XCR0 | 0x0000000000060000;
+  has_amx_tile = true;
+  has_amx_int8 = true;
+  has_amx_bf16 = true;
+  has_cldemote = true;
+  has_waitpkg = true
 }
 
 // =========================================================================

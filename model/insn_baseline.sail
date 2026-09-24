@@ -98,12 +98,13 @@ function cpuid(leaf, subleaf) = {
   let sub_val : range(0, 4294967295) = unsigned(subleaf);
 
   match leaf_val {
-    // Leaf 0: Vendor string + max basic leaf.
+    // Leaf 0: Vendor string + max basic leaf (1EH with AMX, whose leaves
+    // 1DH and 1EH are valid only when MAX_LEAF reaches them).
     // We report "GenuineIntel" because system libraries (e.g. glibc)
     // select code paths based on the vendor string. Presenting as a
     // genuine Intel CPU ensures the same feature negotiation that would
     // happen on real hardware.
-    0 => (0x00000016, 0x756E6547, 0x6C65746E, 0x49656E69),
+    0 => (if has_amx_tile then 0x0000001E else 0x00000016, 0x756E6547, 0x6C65746E, 0x49656E69),
 
     // Leaf 1: Family/Model/Stepping, feature bits
     1 => {
@@ -160,14 +161,20 @@ function cpuid(leaf, subleaf) = {
         if has_sha        then ebx = ebx | 0x20000000;  // bit 29
         var ecx : dword = 0x00000000;
         if has_avx512     then ecx = ecx | 0x00005842;  // VBMI(1)+VBMI2(6)+VNNI(11)+BITALG(12)+VPOPCNTDQ(14)
+        if has_waitpkg    then ecx = ecx | 0x00000020;  // bit 5 (WAITPKG)
         if has_gfni       then ecx = ecx | 0x00000100;  // bit 8 (GFNI)
         if has_vaes       then ecx = ecx | 0x00000200;  // bit 9 (VAES)
         if has_vpclmulqdq then ecx = ecx | 0x00000400;  // bit 10 (VPCLMULQDQ)
         if has_la57       then ecx = ecx | 0x00010000;  // bit 16 (LA57)
+        if has_rdpid      then ecx = ecx | 0x00400000;  // bit 22 (RDPID)
+        if has_cldemote   then ecx = ecx | 0x02000000;  // bit 25 (CLDEMOTE)
         if has_movdiri    then ecx = ecx | 0x08000000;  // bit 27
         if has_movdir64b  then ecx = ecx | 0x10000000;  // bit 28
         var edx : dword = 0x00000000;
         if has_avx512     then edx = edx | 0x00800100;  // bit 8 (AVX512_VP2INTERSECT) + bit 23 (AVX512_FP16)
+        if has_amx_bf16   then edx = edx | 0x00400000;  // bit 22 (AMX-BF16)
+        if has_amx_tile   then edx = edx | 0x01000000;  // bit 24 (AMX-TILE)
+        if has_amx_int8   then edx = edx | 0x02000000;  // bit 25 (AMX-INT8)
         // EAX: maximum sub-leaf; sub-leaf 1 exists once something is in it
         let max_sub : dword = if has_avx_vnni | has_avx512 then 0x00000001 else 0x00000000;
         (max_sub, ebx, ecx, edx)
@@ -190,11 +197,13 @@ function cpuid(leaf, subleaf) = {
                     xsave_area_size_standard(XCR0),
                     xsave_area_size_standard(XCR0_SUPPORTED),
                     0x00000000),
-      // EAX: XSAVEOPT(0), XSAVEC(1), XGETBV w/ ECX=1(2), XSAVES/XRSTORS(3)
+      // EAX: XSAVEOPT(0), XSAVEC(1), XGETBV w/ ECX=1(2), XSAVES/XRSTORS(3),
+      //      XFD(4) with AMX (SDM Vol.1 §13.14)
       // EBX = compacted size for currently enabled components (dynamic)
       // ECX = supported IA32_XSS bits [31:0] (none)
       // EDX = supported IA32_XSS bits [63:32] (none)
-      (true, 1) => (0x0000000F, xsave_area_size_compacted(XCR0), 0x00000000, 0x00000000),
+      (true, 1) => (if has_amx_tile then 0x0000001F else 0x0000000F,
+                    xsave_area_size_compacted(XCR0), 0x00000000, 0x00000000),
       // Components 2 (AVX, 256 bytes), 5 (opmask, 64), 6 (ZMM_Hi256, 512)
       // and 7 (Hi16_ZMM, 1024).  EBX, the standard-format offset, follows
       // the vendor profile: see xsave_std_offset in insn_xsave.sail.
@@ -202,8 +211,30 @@ function cpuid(leaf, subleaf) = {
       (true, 5) => (0x00000040, to_bits(32, xsave_std_offset(5)), 0x00000000, 0x00000000),
       (true, 6) => (0x00000200, to_bits(32, xsave_std_offset(6)), 0x00000000, 0x00000000),
       (true, 7) => (0x00000400, to_bits(32, xsave_std_offset(7)), 0x00000000, 0x00000000),
+      // Components 17 (TILECFG, 64 bytes) and 18 (TILEDATA, 8192 bytes)
+      // of Intel AMX; ECX[1]: 64-byte aligned in the compacted format;
+      // ECX[2]: IA32_XFD can disable the component (TILEDATA only, as on
+      // the first processors with AMX).
+      (true, 17) => if has_amx_tile then (0x00000040, to_bits(32, xsave_std_offset(17)), 0x00000002, 0x00000000)
+                    else (0x00000000, 0x00000000, 0x00000000, 0x00000000),
+      (true, 18) => if has_amx_tile then (0x00002000, to_bits(32, xsave_std_offset(18)), 0x00000006, 0x00000000)
+                    else (0x00000000, 0x00000000, 0x00000000, 0x00000000),
       _ => (0x00000000, 0x00000000, 0x00000000, 0x00000000)
     },
+
+    // Leaf 0x1D: AMX tile information (SDM Table 21-65, 21-66).  Sub-leaf 0
+    // gives the highest palette, 1; sub-leaf 1 describes palette 1: 8192
+    // bytes of tiles, 1024 per tile, 64 per row, 8 tile names, 16 rows.
+    29 => match (has_amx_tile, sub_val) {
+      (true, 0) => (0x00000001, 0x00000000, 0x00000000, 0x00000000),
+      (true, 1) => (0x04002000, 0x00080040, 0x00000010, 0x00000000),
+      _ => (0x00000000, 0x00000000, 0x00000000, 0x00000000)
+    },
+
+    // Leaf 0x1E: TMUL information (SDM Table 21-67): tmul_maxk = 16 rows,
+    // tmul_maxn = 64 column bytes.
+    30 => if has_amx_tile & sub_val == 0 then (0x00000000, 0x00004010, 0x00000000, 0x00000000)
+          else (0x00000000, 0x00000000, 0x00000000, 0x00000000),
 
     // Leaf 0x15: Time Stamp Counter / Core Crystal Clock
     // EAX = denominator, EBX = numerator, ECX = crystal frequency (Hz)
@@ -219,9 +250,10 @@ function cpuid(leaf, subleaf) = {
 
     // Leaf 0x80000001: Extended feature bits
     2147483649 => {
-      // ECX: LAHF(0), conditionally LZCNT(5)
+      // ECX: LAHF(0), conditionally LZCNT(5) and PREFETCHW(8)
       var ecx : dword = 0x00000001;  // LAHF
-      if has_lzcnt then ecx = ecx | 0x00000020;  // bit 5
+      if has_lzcnt     then ecx = ecx | 0x00000020;  // bit 5
+      if has_prefetchw then ecx = ecx | 0x00000100;  // bit 8
       // EDX: SYSCALL(11), NX(20), LM(29)
       let edx : dword = 0x20100800;
       (0x00000000, 0x00000000, ecx, edx)
@@ -402,6 +434,57 @@ function bt_adjust(os, rm, bit_idx) = {
   }
 }
 
+// TPAUSE r32, <edx>, <eax> (66 0F AE /6, mod = 11) and UMWAIT r32, <edx>,
+// <eax> (F2 0F AE /6, mod = 11) — SDM Vol.2B; CPUID.07H.00H:ECX.WAITPKG[5].
+// The processor rests in the C0.1 or C0.2 state that bit 0 of the register
+// selects until the TSC reaches EDX:EAX or, first, the limit the OS set in
+// IA32_UMWAIT_CONTROL[31:2] (TSC quanta; 0 for no limit), and sets CF when
+// the OS limit ended the wait; UMWAIT also wakes on a store to the UMONITOR
+// range and does not rest at all when no monitor is armed.  The model does
+// not idle: a wait ends at its deadline, which the SDM allows (other
+// implementation-dependent events may end it earlier), so CF is 1 exactly
+// when the instruction would rest and the OS limit is the earlier deadline.
+// AF, PF, SF, ZF and OF are cleared.
+val exec_tpause_umwait : (GPRRef, bool) -> unit
+function exec_tpause_umwait(r, is_umwait) = {
+  if ~(has_waitpkg) then raise_UD();
+  let ctl : dword = v(32, r);
+  if ctl[31..1] != zeros() then raise_GP0();
+  if CR4[2] == 0b1 & cur_cpl != 0 then raise_GP0();
+  let limit : qword = zero_extend(__rdmsr(0x000000E1)[31..2] @ 0b00);
+  let tsc : qword = __rdtsc();
+  let instr_deadline : qword = v(32, RDX) @ v(32, RAX);
+  let rests : bool = ~(is_umwait) | umonitor_armed;
+  let using_os_deadline : bool = limit != zeros() & (tsc + limit) <_u instr_deadline;
+  CF = bool_to_bit(rests & using_os_deadline);
+  OF = 0b0;
+  SF = 0b0;
+  ZF = 0b0;
+  AF = 0b0;
+  PF = 0b0;
+  if is_umwait then umonitor_armed = false
+}
+
+// UMONITOR r16/r32/r64 (F3 0F AE /6, mod = 11): arm the monitor on the
+// linear address of the effective address in the register, whose width is
+// the address size; DS unless overridden.  The SDM gives the instruction
+// "the permission checking and faults associated with a byte load"
+// (#GP(0) or #SS(0) for a non-canonical address, #PF), so the model reads
+// a byte there; the monitored range itself is not tracked.  (A Xeon
+// Platinum 8562Y+ under KVM raises none of these faults; see the paper's
+// evidence for the observation.  The model follows the manual.)
+val exec_umonitor : (GPRRef, Prefixes) -> unit
+function exec_umonitor(r, pfx) = {
+  if ~(has_waitpkg) then raise_UD();
+  let ea : qword = match get_address_size(pfx) {
+    16 => zero_extend(v(16, r)),
+    32 => zero_extend(v(32, r)),
+    64 => v(64, r),
+  };
+  let _ : byte = read_mem(struct { seg = resolve_seg(pfx, DS), addr = ea });
+  umonitor_armed = true
+}
+
 val dispatch_2byte_gpr : (range(0, 255), Prefixes) -> unit
 function dispatch_2byte_gpr(op, pfx) = {
   match op {
@@ -436,31 +519,55 @@ function dispatch_2byte_gpr(op, pfx) = {
           LDTR = sel
         },
 
-        // 0F 00 /3: LTR r/m16 — Load Task Register (requires CPL=0)
+        // 0F 00 /3: LTR r/m16 — Load Task Register (SDM Vol.2A LTR)
         3 => {
+          // Not recognized in real-address mode; CPL must be 0.
+          if cur_mode == RealMode then raise_UD();
           if cur_cpl != 0 then raise_GP0();
           let src = modrm_rm(modrm, pfx);
           let sel : word = v(src);
-          TR = sel;
-          // Load TSS base/limit from GDT descriptor (implicit supervisor read).
-          let desc_addr : qword = GDTR_base + zero_extend(sel & 0xFFF8);
+          // Operation: a null selector is #GP(0); an LDT selector or an
+          // index beyond the GDT limit is #GP(selector), before the
+          // descriptor is read.  In 64-bit mode the TSS descriptor is
+          // 16 bytes.
+          if (sel & 0xFFFC) == zeros() then raise_GP0();
+          let err : dword = selector_error_code(sel);
+          if sel[2] == 0b1 then raise_GP(err);
+          let desc_off : qword = zero_extend(sel & 0xFFF8);
+          let desc_size : int = if cur_mode == LongMode then 16 else 8;
+          if unsigned(desc_off) + desc_size - 1 > unsigned(GDTR_limit) then raise_GP(err);
+          // Implicit supervisor reads of the descriptor.
+          let desc_addr : qword = GDTR_base + desc_off;
           let desc_lo : dword = read_mem_implicit(desc_addr);
           let desc_hi : dword = read_mem_implicit(desc_addr + 4);
-          // Base = desc[63:56] @ desc[39:32] @ desc[31:16]
-          let base_lo : dword = desc_lo[31..16] @ 0x0000;
-          let base_mid : byte = desc_hi[7..0];
-          let base_hi : byte = desc_hi[31..24];
-          TR_base = zero_extend(base_hi @ base_mid @ base_lo[31..16]);
-          // In 64-bit mode, read the next 8 bytes for the high 32 bits of base
-          let desc_ext : dword = read_mem_implicit(desc_addr + 8);
-          TR_base = zero_extend(desc_ext) @ TR_base[31..0];
+          // An available TSS is a system descriptor (S = 0) of type 1001B
+          // (32/64-bit) or, in protected mode only, 0001B (16-bit); a
+          // busy TSS or any other descriptor is #GP(selector), and a
+          // descriptor that is not present is #NP(selector).
+          let typ : bits(4) = desc_hi[11..8];
+          let available_tss : bool =
+            desc_hi[12] == 0b0 & (typ == 0x9 | (typ == 0x1 & cur_mode == ProtectedMode));
+          if ~(available_tss) then raise_GP(err);
+          if desc_hi[15] == 0b0 then throw Fault(EXN_NP, err);
+          // Base = desc[63:56] @ desc[39:32] @ desc[31:16], extended by the
+          // upper 8 bytes in 64-bit mode, whose type field must be zero.
+          var base : qword = zero_extend(desc_hi[31..24] @ desc_hi[7..0] @ desc_lo[31..16]);
+          if cur_mode == LongMode then {
+            let ext_lo : dword = read_mem_implicit(desc_addr + 8);
+            let ext_hi : dword = read_mem_implicit(desc_addr + 12);
+            if ext_hi[12..8] != 0b00000 then raise_GP(err);
+            base = ext_lo @ base[31..0]
+          };
           // Limit = desc[51:48] @ desc[15:0] (with granularity)
-          let limit_lo : word = desc_lo[15..0];
-          let limit_hi : bits(4) = desc_hi[19..16];
-          let g : bit = desc_hi[23];
-          TR_limit = if g == 0b1
-            then (zero_extend(limit_hi @ limit_lo) << 12) | 0x00000FFF
-            else zero_extend(limit_hi @ limit_lo)
+          let raw_limit : bits(20) = desc_hi[19..16] @ desc_lo[15..0];
+          let limit : dword = if desc_hi[23] == 0b1 then zero_extend(raw_limit) @ 0xFFF
+                              else zero_extend(raw_limit);
+          // TSSsegmentDescriptor(busy) := 1: type bit 1 of the descriptor in
+          // memory, then the task register itself.
+          write_mem_linear(desc_addr + 4, desc_hi | 0x00000200);
+          TR = sel;
+          TR_base = base;
+          TR_limit = limit
         },
 
         // 0F 00 /4: VERR r/m16 — Verify segment readable, set ZF
@@ -565,8 +672,13 @@ function dispatch_2byte_gpr(op, pfx) = {
           }
         },
 
-        // 0F 01 CA: CLAC — Clear AC flag (SMAP)
-        202 => AC_flag = 0b0,
+        // 0F 01 CA: CLAC — Clear AC flag (SMAP).  With F2 the encoding is
+        // ERETS and with F3 ERETU (SDM Vol.2A: FRED event returns), which
+        // the model does not implement: #UD, as on a processor without FRED.
+        202 => {
+          if pfx.has_rep | pfx.has_repne then raise_UD();
+          AC_flag = 0b0
+        },
 
         // 0F 01 CB: STAC — Set AC flag (SMAP)
         203 => AC_flag = 0b1,
@@ -576,14 +688,19 @@ function dispatch_2byte_gpr(op, pfx) = {
 
         // 0F 01 EE: RDPKRU — Read Protection Key Rights (ECX must be 0)
         // Returns PKRU in EAX, 0 in EDX.  We don't implement PKU, so
-        // return 0 (all access allowed).
+        // return 0 (all access allowed).  F3 0F 01 EE is CLUI (SDM
+        // Vol.2A: "#UD if CPUID.07H.00H:EDX.UINTR[5] = 0"), not implemented.
         238 => {
+          if pfx.has_rep then raise_UD();
           v(RAX) = 0x00000000;
           v(RDX) = 0x00000000
         },
 
-        // 0F 01 EF: WRPKRU — Write Protection Key Rights (NOP, no PKU)
-        239 => (),
+        // 0F 01 EF: WRPKRU — Write Protection Key Rights (NOP, no PKU).
+        // F3 0F 01 EF is STUI (UINTR), not implemented: #UD.
+        239 => {
+          if pfx.has_rep then raise_UD()
+        },
 
         // 0F 01 F9: RDTSCP — Read TSC and IA32_TSC_AUX
         // SDM: #GP(0) if CR4.TSD (bit 2) = 1 and CPL > 0
@@ -1122,6 +1239,20 @@ function dispatch_2byte_gpr(op, pfx) = {
         // IA32_XSS (0xDA0): supervisor state components for XSAVES/XRSTORS.
         // No supervisor components supported, so only 0 is valid.
         if msr_val != zeros() then raise_GP0()
+      } else if ecx == 0x000000E1 then {
+        // IA32_UMWAIT_CONTROL (0xE1, SDM Vol.2B TPAUSE/UMWAIT): the OS
+        // limit on a wait in bits 31:2 and the C0.2 disable in bit 0; bit
+        // 1 and bits 63:32 are reserved.  Exists with WAITPKG.
+        if ~(has_waitpkg) then raise_GP0();
+        if msr_val[63..32] != zeros() | msr_val[1] == bitone then raise_GP0();
+        __wrmsr(ecx, msr_val)
+      } else if ecx == 0x000001C4 | ecx == 0x000001C5 then {
+        // IA32_XFD (1C4H) and IA32_XFD_ERR (1C5H), SDM Vol.1 §13.14: exist
+        // with XFD (CPUID.0DH.01H:EAX[4], here with AMX); a bit can be set
+        // only for a component with CPUID.0DH.i:ECX[2], i.e. bit 18.
+        if ~(has_amx_tile) then raise_GP0();
+        if (msr_val & ~(0x0000000000040000 : qword)) != zeros() then raise_GP0();
+        if ecx == 0x000001C4 then IA32_XFD = msr_val else IA32_XFD_ERR = msr_val
       } else if ecx >=_u 0x00000480 & ecx <=_u 0x00000491 then {
         // VMX capability MSRs are read-only — #GP(0) on write
         raise_GP0()
@@ -1130,7 +1261,19 @@ function dispatch_2byte_gpr(op, pfx) = {
       }
     },
 
-    // 0F 18-1E: Prefetch hints / multi-byte NOPs
+    // 0F 0D: PREFETCHW m8 (/1; SDM Vol.2B) and the reserved NOPs of the
+    // opcode's other forms.  Every 0F 0D encoding is decoded with a ModR/M
+    // byte and behaves as NOP (SDM Vol.3B, "Reserved NOP"): the hint moves
+    // no architectural state and takes no memory fault.  AMD, whose APM
+    // defines the opcode as PREFETCH/PREFETCHW with a memory operand,
+    // raises #UD for the register form (observed on Zen 4 under KVM).
+    13 => {
+      let modrm = fetch(1);
+      if modrm[7..6] == 0b11 & vendor == Vendor_AMD then raise_UD();
+      let _ = modrm_rm(modrm, pfx)
+    },
+
+    // 0F 18-1E: PREFETCHh, CLDEMOTE (0F 1C /0) and the reserved NOPs.
     // These all consume ModR/M and do nothing.
     op if 24 <= op & op <= 30 => {
       let modrm = fetch(1);
@@ -1296,6 +1439,11 @@ function dispatch_2byte_gpr(op, pfx) = {
         0xC0000080 => EFER,
         0x0000003A => ia32_feature_control,
         0x00000DA0 => zeros(), // IA32_XSS is always 0 (no supervisor state components supported)
+        // IA32_UMWAIT_CONTROL exists with WAITPKG; the value written, 0 at reset
+        0x000000E1 => { if ~(has_waitpkg) then raise_GP0(); __rdmsr(ecx) },
+        // IA32_XFD and IA32_XFD_ERR exist with XFD (here with AMX)
+        0x000001C4 => { if ~(has_amx_tile) then raise_GP0(); IA32_XFD },
+        0x000001C5 => { if ~(has_amx_tile) then raise_GP0(); IA32_XFD_ERR },
         0xC0000100 => SegCache[FS].seg_base,
         0xC0000101 => SegCache[GS].seg_base,
         0xC0000102 => KERNEL_GS_BASE,
@@ -1382,17 +1530,29 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(_) => raise_UD(),
         }
       } else match reg_field {
-        // FXSAVE m512byte
+        // FXSAVE m512byte (SDM Vol.2A FXSAVE): #GP(0) unless the operand
+        // is aligned on a 16-byte boundary.
         0 => match (dest, pfx.rex_w) {
-          (RM_mem(m), true)  => __fxsave64(seg_linear(m, 512)),
-          (RM_mem(m), false) => __fxsave(seg_linear(m, 512)),
+          (RM_mem(m), w) => {
+            check_alignment(m, 16);
+            if w then __fxsave64(seg_linear(m, 512)) else __fxsave(seg_linear(m, 512))
+          },
           _ => raise_UD(),
         },
 
-        // FXRSTOR m512byte
+        // FXRSTOR m512byte (SDM Vol.2A FXRSTOR): #GP(0) unless the operand
+        // is 16-byte aligned, and "for an attempt to set reserved bits in
+        // MXCSR" (those clear in MXCSR_MASK); otherwise the image is loaded.
+        // As a non-VEX instruction on XMM state it does not access bits
+        // 511:128 of the registers (Vol.1 §14.8).
         1 => match (dest, pfx.rex_w) {
-          (RM_mem(m), true)  => __fxrstor64(seg_linear(m, 512)),
-          (RM_mem(m), false) => __fxrstor(seg_linear(m, 512)),
+          (RM_mem(m), w) => {
+            check_alignment(m, 16);
+            let addr : qword = seg_linear(m, 512);
+            let mxcsr : dword = read_mem(addr + 24);
+            if (mxcsr & ~(mxcsr_mask())) != zeros() then raise_GP0();
+            if w then __fxrstor64(addr) else __fxrstor(addr)
+          },
           _ => raise_UD(),
         },
 
@@ -1423,7 +1583,9 @@ function dispatch_2byte_gpr(op, pfx) = {
           },
         },
 
-        // /6: XSAVEOPT (NP, mem) / CLWB (66, mem) / MFENCE (reg)
+        // /6: XSAVEOPT (NP, mem) / CLWB (66, mem) / MFENCE (NP, reg), and
+        // with mod=11 the WAITPKG instructions TPAUSE (66), UMONITOR (F3)
+        // and UMWAIT (F2) (SDM Vol.2B; CPUID.07H.00H:ECX.WAITPKG[5]).
         6 => match dest {
           RM_mem(m) => {
             if pfx.has_opsize then {
@@ -1434,7 +1596,16 @@ function dispatch_2byte_gpr(op, pfx) = {
               exec_xsaveopt(seg_linear(m, 576), mask)
             }
           },
-          RM_reg(_) => (),  // MFENCE
+          RM_reg(r) => match get_mandatory_prefix(pfx) {
+            // MFENCE
+            MP_NONE => (),
+            // TPAUSE r32, <edx>, <eax>
+            MP_66   => exec_tpause_umwait(r, false),
+            // UMWAIT r32, <edx>, <eax>
+            MP_F2   => exec_tpause_umwait(r, true),
+            // UMONITOR r16/r32/r64
+            MP_F3   => exec_umonitor(r, pfx),
+          },
         },
 
         // /7: CLFLUSH (NP, mem) / CLFLUSHOPT (66, mem) / SFENCE (reg)
@@ -1952,7 +2123,10 @@ function dispatch_2byte_gpr(op, pfx) = {
         // /6: RDRAND (mod=11) or VMX (mod!=11)
         6 => match dest {
           RM_reg(r) => {
-            // /6 mod=11: RDRAND r16/r32/r64
+            // /6 mod=11: NFx RDRAND r16/r32/r64.  F3 0F C7 /6 is SENDUIPI
+            // (UINTR, not implemented: #UD); F2 is not allowed with an NFx
+            // opcode (SDM Vol.2A §3.1.1.1).
+            if pfx.has_rep | pfx.has_repne then raise_UD();
             if ~(has_rdrand) then raise_UD();
             let os = opsize(pfx);
             let (rnd, cf_val) = __rdrand64();
@@ -1984,20 +2158,31 @@ function dispatch_2byte_gpr(op, pfx) = {
               exec_vmptrld(addr)
           },
         },
-        // /7: RDSEED (mod=11) or VMPTRST (mod!=11)
+        // /7: RDSEED or RDPID (mod=11) or VMPTRST (mod!=11)
         7 => match dest {
           RM_reg(r) => {
-            // /7 mod=11: RDSEED r16/r32/r64
-            if ~(has_rdseed) then raise_UD();
-            let os = opsize(pfx);
-            let (rnd, cf_val) = __rdseed64();
-            v(r) = rnd[(os - 1) .. 0] & sign_extend(cf_val);
-            CF = cf_val;
-            OF = 0b0;
-            SF = 0b0;
-            ZF = 0b0;
-            AF = 0b0;
-            PF = 0b0
+            if pfx.has_repne then raise_UD();  // F2 not allowed with NFx RDSEED
+            if pfx.has_rep then {
+              // F3 0F C7 /7: RDPID r32/r64 (SDM Vol.2B RDPID): DEST :=
+              // IA32_TSC_AUX.  "The value of CS.D and operand-size prefixes
+              // (66H and REX.W) do not affect the behavior", so the
+              // destination is r64 in 64-bit mode and r32 otherwise.
+              if ~(has_rdpid) then raise_UD();
+              let aux : dword = __rdmsr(0xC0000103)[31..0];
+              if cur_mode == LongMode then v(r) = zero_extend(64, aux) else v(r) = aux
+            } else {
+              // /7 mod=11: NFx RDSEED r16/r32/r64
+              if ~(has_rdseed) then raise_UD();
+              let os = opsize(pfx);
+              let (rnd, cf_val) = __rdseed64();
+              v(r) = rnd[(os - 1) .. 0] & sign_extend(cf_val);
+              CF = cf_val;
+              OF = 0b0;
+              SF = 0b0;
+              ZF = 0b0;
+              AF = 0b0;
+              PF = 0b0
+            }
           },
           RM_mem(m) => {
             // /7 mem: VMPTRST — store current VMCS pointer

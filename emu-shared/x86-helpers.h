@@ -109,6 +109,22 @@ static inline void bytes_to_bits(lbits *out, const u8 *in, size_t nbytes, size_t
   KILL(lbits)(&acc);
 }
 
+// Replace bits 127:0 of a 512-bit register with 16 little-endian bytes and
+// keep bits 511:128 (FXRSTOR: a non-VEX instruction on XMM state does not
+// access the upper bits, SDM Vol.1 §14.8).  The register stays 512 bits
+// wide; building it from the 16 bytes alone would leave a 128-bit lbits
+// that the model's 512-bit slices reject.
+static inline void set_zmm_low128(lbits &zmm, const u8 *bytes) {
+  lbits low;
+  CREATE(lbits)(&low);
+  bytes_to_bits(&low, bytes, 16, 128);
+  mpz_fdiv_q_2exp(*zmm.bits, *zmm.bits, 128);
+  mpz_mul_2exp(*zmm.bits, *zmm.bits, 128);
+  mpz_ior(*zmm.bits, *zmm.bits, *low.bits);
+  zmm.len = 512;
+  KILL(lbits)(&low);
+}
+
 // Enable all CPU features: the model's own x86-64-v4 profile (CR0/CR4/XCR0
 // and every has_* flag it knows, so a flag added in regs.sail is picked up
 // here automatically) plus the extensions the emulators expose beyond it.

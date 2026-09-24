@@ -1061,6 +1061,11 @@ int main(int argc, char *argv[]) {
   const u64 PIT_TICK_INTERVAL = 1000 * ips;
   const u64 PIT_CYCLES_PER_TICK = 1193;
   u64 tsc_frac = 0;
+  // While halted no instruction runs, so the TSC must follow the PIT by
+  // hand: one tick is 1193 PIT cycles of the 1 GHz TSC.  A kernel that keeps
+  // time on the TSC (clocksource tsc) otherwise sees time stand still whenever
+  // it idles, and no timer of its ever expires.
+  const u64 TSC_PER_PIT_TICK = PIT_CYCLES_PER_TICK * 1000000000ULL / 1193182;
   u64 next_pit_tick = PIT_TICK_INTERVAL;
 
   // VGA refresh: render framebuffer every 50K instructions (~20 fps at 1M ips)
@@ -1210,12 +1215,13 @@ int main(int argc, char *argv[]) {
           model.model_fini();
           return 1;
         }
-        // Wait for an interrupt: poll stdin + tick PIT until something fires
+        // Wait for an interrupt: poll stdin + tick PIT until something fires.
+        // One PIT tick (1 ms of guest time) per millisecond of wall time.
         // (or the user quits; leaving through the main loop prints the
         // instruction count like every other exit).
         while (!model.interrupt_pending() && !model.should_exit && !got_signal) {
           if (dump_requested) dump_state();
-    if (framebuffer_requested) dump_framebuffer();
+          if (framebuffer_requested) dump_framebuffer();
           if (poll_stdin) {
             if (curses_active) {
               // In curses mode, use getch() and push scancodes to i8042
@@ -1237,10 +1243,10 @@ int main(int argc, char *argv[]) {
                 model.set_irq(1, model.kbd.has_data());
               // Render VGA while waiting
               render_vga_text(model);
-              napms(10);
+              napms(1);
             } else {
               struct pollfd pfd = { STDIN_FILENO, POLLIN, 0 };
-              if (poll(&pfd, 1, 10 /*ms*/) > 0) {
+              if (poll(&pfd, 1, 1 /*ms*/) > 0) {
                 u8 buf[64];
                 ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
                 for (ssize_t i = 0; n > 0 && i < n; i++) {
@@ -1264,7 +1270,7 @@ int main(int argc, char *argv[]) {
             if (model.uart.has_irq())
               model.set_irq(4, model.uart.has_irq());
           }
-          model.tsc += 1000000; // advance all clocks by one virtual millisecond in HLT
+          model.tsc += TSC_PER_PIT_TICK;
           if (model.pit.tick(PIT_CYCLES_PER_TICK))
             model.pulse_irq(0);
         }

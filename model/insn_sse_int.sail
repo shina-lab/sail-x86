@@ -5,6 +5,8 @@
 
 // Forward declarations — defined in files compiled after this one
 val dispatch_mmx : (range(0, 255), Prefixes) -> unit
+val dispatch_mmx_38 : (range(0, 255), Prefixes) -> unit
+val mmx_palignr : Prefixes -> unit
 val avx_phminposuw_128 : xmmword -> xmmword
 
 // =========================================================================
@@ -811,6 +813,14 @@ val dispatch_3byte_38_sse_int : (byte, Prefixes) -> unit
 function dispatch_3byte_38_sse_int(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   let mp = get_mandatory_prefix(pfx);
+  // NP 0F 38 00-0B and 1C-1E are the MMX-register forms of the SSSE3
+  // instructions ("mm1, mm2/m64" in SDM Vol.2B PSHUFB, PHADDW/PHADDD,
+  // PHADDSW, PMADDUBSW, PHSUBW/PHSUBD, PHSUBSW, PSIGNB/W/D, PMULHRSW and
+  // PABSB/W/D); the 66 forms below are the xmm ones.
+  if mp == MP_NONE & (op <= 11 | (28 <= op & op <= 30)) then {
+    dispatch_mmx_38(op, pfx);
+    return ()
+  };
   if mp != MP_66 then raise_UD();
   let modrm = fetch(1);
   let xreg = modrm_xreg(modrm, pfx);
@@ -959,6 +969,11 @@ val dispatch_3byte_3a_sse_int : (byte, Prefixes) -> unit
 function dispatch_3byte_3a_sse_int(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   let mp = get_mandatory_prefix(pfx);
+  // NP 0F 3A 0F is PALIGNR mm1, mm2/m64, imm8 (SDM Vol.2B PALIGNR).
+  if mp == MP_NONE & op == 15 then {
+    mmx_palignr(pfx);
+    return ()
+  };
   if mp != MP_66 then raise_UD();
   let modrm = fetch(1);
   let xreg = modrm_xreg(modrm, pfx);
