@@ -688,6 +688,74 @@ TEST(paging_pae_4kb) {
 
 // =========================================================================
 
+TEST(cross_page_instruction_fetch_fault) {
+  x86::Model model;
+  init_model(model);
+  setup_4kb_pages(model.phys_mem, 0x10000, 0x20000, 0x100000, 0x100000, 3);
+  model.zCR3 = 0x10000;
+  // FreeBSD init's MOVABS R12,0x100000000 straddles an absent code page.
+  const u8 code[] = {0x49, 0xBC, 0, 0, 0, 0, 1, 0, 0, 0};
+  model.phys_mem.write_bytes(0x100FFD, code, 3);
+  model.phys_mem.write_bytes(0x300000, code + 3, 7);
+  model.zGPR.data[12] = 0xDEADBEEF;
+  model.zRIP = 0x100FFD;
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, true);
+  ASSERT_EQ(model.zfault_vector, 14);
+  ASSERT_EQ(model.zfault_error_code, 16); // instruction fetch, not present
+  ASSERT_EQ(model.zCR2, 0x101000UL);
+  ASSERT_EQ(model.zRIP, 0x100FFDUL);
+  ASSERT_EQ(model.zGPR.data[12], 0xDEADBEEFUL);
+  // Fault handler supplies a non-contiguous physical page, then retries.
+  model.phys_mem.write64(0x22000 + 0x101 * 8, 0x300003);
+  model.z__tlb_flush(UNIT);
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ(model.zGPR.data[12], 0x100000000UL);
+  ASSERT_EQ(model.zRIP, 0x101007UL);
+  model.model_fini();
+}
+
+TEST(cross_page_data_faults) {
+  // Read from an absent second page; write to an absent or read-only one.
+  for (int variant = 0; variant < 3; ++variant) {
+    x86::Model model;
+    init_model(model);
+    setup_4kb_pages(model.phys_mem, 0x10000, 0x20000, 0x100000, 0x100000, 3);
+    model.zCR3 = 0x10000;
+    bool store = variant != 0;
+    if (variant == 2) model.phys_mem.write64(0x22000 + 0x101 * 8, 0x300001);
+    model.phys_mem.write32(0x100FFC, 0x55667788);
+    model.phys_mem.write32(0x300000, 0x11223344);
+    u8 code[] = {0x48, u8(store ? 0x89 : 0x8B), 0x07}; // MOV [RDI],RAX or RAX,[RDI]
+    model.phys_mem.write_bytes(0x100800, code, sizeof(code));
+    model.zRIP = 0x100800;
+    model.zGPR.data[7] = 0x100FFC;
+    model.zGPR.data[0] = 0xFEDCBA9876543210;
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, true);
+    ASSERT_EQ(model.zfault_vector, 14);
+    ASSERT_EQ(model.zfault_error_code, store ? (variant == 2 ? 3 : 2) : 0);
+    ASSERT_EQ(model.zCR2, 0x101000UL);
+    ASSERT_EQ(model.zRIP, 0x100800UL);
+    ASSERT_EQ(model.zGPR.data[0], 0xFEDCBA9876543210UL);
+    ASSERT_EQ(model.phys_mem.read32(0x100FFC), 0x55667788UL);
+    ASSERT_EQ(model.phys_mem.read32(0x300000), 0x11223344UL);
+    model.phys_mem.write64(0x22000 + 0x101 * 8, 0x300003);
+    model.z__tlb_flush(UNIT);
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ(model.zRIP, 0x100803UL);
+    if (store) {
+      ASSERT_EQ(model.phys_mem.read32(0x100FFC), 0x76543210UL);
+      ASSERT_EQ(model.phys_mem.read32(0x300000), 0xFEDCBA98UL);
+    } else {
+      ASSERT_EQ(model.zGPR.data[0], 0x1122334455667788UL);
+    }
+    model.model_fini();
+  }
+}
+
 int main() {
   printf("Paging tests:\n");
 
@@ -698,6 +766,8 @@ int main() {
   run_test_write_protect();
   run_test_huge_page_1gb();
   run_test_store_through_paging();
+  run_test_cross_page_instruction_fetch_fault();
+  run_test_cross_page_data_faults();
 
   // 5-level paging (LA57) tests
   run_test_la57_identity_map_4kb();
