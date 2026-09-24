@@ -834,6 +834,11 @@ public:
     dev1[0x0A] = 0x01;                      // Subclass: IDE
     dev1[0x0B] = 0x01;                      // Class: mass storage
     dev1[0x0E] = 0x00;                      // Header type 0
+    // IDETIM (0x40-0x43): IDE decode enable for both channels.  A BIOS
+    // sets these; Linux's ata_piix skips a channel whose bit is clear
+    // without a word.
+    dev1[0x41] = 0x80;                      // primary channel enabled
+    dev1[0x43] = 0x80;                      // secondary channel enabled
 
     // Device 0:2.0 — Simple VGA controller (for option ROM discovery)
     // SeaBIOS scans PCI for VGA devices (class 0x0300) to load VGA BIOS.
