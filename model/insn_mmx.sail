@@ -378,3 +378,66 @@ function dispatch_mmx(op, pfx) = {
 
   mmx_touch()
 }
+
+// =========================================================================
+// SSSE3 with MMX registers (NP 0F 38 xx /r, NP 0F 3A 0F /r ib): the
+// "With 64-bit Operands" forms of the SDM's Operation sections.
+// =========================================================================
+
+// PSHUFB with 64-bit operands (SDM Vol.2B PSHUFB): the index is the low
+// 3 bits of the control byte; bit 7 set zeroes the result byte.
+val mmx_pshufb : (qword, qword) -> qword
+function mmx_pshufb(src, ctrl) = {
+  var r : qword = zeros();
+  foreach (i from 0 to 7) {
+    let lo = i * 8;
+    let mask : byte = velem(8, ctrl, i);
+    let selected : byte = velem(8, src, mask[2..0]);
+    r[(lo + 7)..lo] = selected & sign_extend(~(mask[7]))
+  };
+  r
+}
+
+function dispatch_mmx_38(op, pfx) = {
+  let modrm = fetch(1);
+  let dst = unsigned(modrm[5..3]);
+  let s : qword = mmx_read_rm(modrm, modrm_rm(modrm, pfx));
+  let d : qword = x87_ST[dst][63..0];
+  // The horizontal forms pair the destination's elements into the low
+  // half of the result and the source's into the high half (PHADDW:
+  // mm1[15:0] := mm1[31:16] + mm1[15:0], ..., mm1[63:48] :=
+  // mm2/m64[63:48] + mm2/m64[47:32]): packed_horiz over the concatenation.
+  let r : qword = match op {
+    0  => mmx_pshufb(d, s),
+    1  => packed_horiz(PB_Add, 16, s @ d),
+    2  => packed_horiz(PB_Add, 32, s @ d),
+    3  => packed_horiz(PB_SatAddS, 16, s @ d),
+    4  => packed_binop(PB_Pmaddubsw, 16, d, s),
+    5  => packed_horiz(PB_Sub, 16, s @ d),
+    6  => packed_horiz(PB_Sub, 32, s @ d),
+    7  => packed_horiz(PB_SatSubS, 16, s @ d),
+    8  => packed_binop(PB_PSign,  8, d, s),
+    9  => packed_binop(PB_PSign, 16, d, s),
+    10 => packed_binop(PB_PSign, 32, d, s),
+    11 => packed_binop(PB_MulHRS, 16, d, s),
+    28 => packed_unop(PU_Abs,  8, s),
+    29 => packed_unop(PU_Abs, 16, s),
+    30 => packed_unop(PU_Abs, 32, s),
+    _  => raise_UD(),
+  };
+  x87_ST[dst] = ones(16) @ r;
+  mmx_touch()
+}
+
+// PALIGNR mm1, mm2/m64, imm8: temp1[127:0] := CONCATENATE(DEST, SRC) >>
+// (imm8 * 8); DEST[63:0] := temp1[63:0].  A count above 16 leaves 0.
+function mmx_palignr(pfx) = {
+  let modrm = fetch(1);
+  let dst = unsigned(modrm[5..3]);
+  let src = modrm_rm(modrm, pfx);
+  let imm = fetch(1);
+  let s : qword = mmx_read_rm(modrm, src);
+  let concat : xmmword = x87_ST[dst][63..0] @ s;
+  x87_ST[dst] = ones(16) @ ((concat >> (unsigned(imm) * 8))[63..0]);
+  mmx_touch()
+}
