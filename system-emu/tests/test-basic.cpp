@@ -1970,6 +1970,35 @@ TEST(push_seg_ud_in_64bit) {
 
 // =========================================================================
 
+TEST(sse_shuffle_rip_relative_immediate) {
+  for (bool packed_double : {true, false}) {
+    x86::Model model;
+    init_model(model);
+    const u64 initial[8] = {0x1111222233334444, 0x5555666677778888,
+                           2, 3, 4, 5, 6, 7};
+    lbits value;
+    CREATE(lbits)(&value);
+    x86::bytes_to_bits(&value, reinterpret_cast<const u8 *>(initial), 64, 512);
+    COPY(lbits)(&model.zZMM.data[0], value);
+    KILL(lbits)(&value);
+    model.phys_mem.write64(0x100040, 0xAAAABBBBCCCCDDDD);
+    model.phys_mem.write64(0x100048, 0xEEEEFFFF00001111);
+    // The RIP base includes imm8. Omitting it makes the aligned operand
+    // appear misaligned and raises #GP, as in FreeBSD init's allocator.
+    const u8 pd[] = {0x66, 0x0F, 0xC6, 0x05, 0x37, 0, 0, 0, 0x02, 0xF4};
+    const u8 ps[] = {0x0F, 0xC6, 0x05, 0xB8, 0xFF, 0xFF, 0xFF, 0x6C, 0xF4};
+    int result = packed_double ? run_code(model, 0x100000, pd, sizeof(pd)) :
+                                 run_code(model, 0x100080, ps, sizeof(ps));
+    ASSERT_EQ(result, RUN_HALTED);
+    u64 actual[8];
+    x86::bits_to_bytes(model.zZMM.data[0], reinterpret_cast<u8 *>(actual), 64);
+    ASSERT_EQ(actual[0], packed_double ? 0x1111222233334444UL : 0x5555666633334444UL);
+    ASSERT_EQ(actual[1], packed_double ? 0xEEEEFFFF00001111UL : 0xAAAABBBB00001111UL);
+    for (unsigned i = 2; i < 8; ++i) ASSERT_EQ(actual[i], initial[i]);
+    model.model_fini();
+  }
+}
+
 TEST(ide_busmaster_pci_io) {
   x86::Model model;
   init_model(model);
@@ -2014,6 +2043,7 @@ int main() {
   run_test_loop_counter_hlt();
   run_test_system_regs_initial_values();
   run_test_ide_busmaster_pci_io();
+  run_test_sse_shuffle_rip_relative_immediate();
 
   printf("\nPrivileged instruction tests:\n");
   run_test_mov_cr0_read_write();
