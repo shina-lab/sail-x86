@@ -92,7 +92,8 @@ public:
   KeyboardController kbd;
   CMOS cmos;
   VGAText vga;
-  ATAController ata;
+  IDEChannel ide0{0x1F0, 0x3F6};  // primary channel, IRQ 14
+  IDEChannel ide1{0x170, 0x376};  // secondary channel, IRQ 15
   DMAController dma;
   FloppyController floppy;
   FwCfg fw_cfg;

@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <vector>
+#include <algorithm>
 #include <queue>
 #include <unistd.h>
 #include <fcntl.h>
@@ -1062,161 +1063,151 @@ private:
 };
 
 // =========================================================================
-// ATA/IDE PIO Disk Controller — Primary channel (0x1F0-0x1F7, 0x3F6)
+// IDE channel — one PIO master device: an ATA hard disk or an ATAPI CD-ROM
 //
-// Supports PIO-mode READ SECTORS, WRITE SECTORS, IDENTIFY DEVICE,
-// FLUSH CACHE, and INITIALIZE DEVICE PARAMETERS commands.
+// The primary channel is at 0x1F0-0x1F7/0x3F6 (IRQ 14), the secondary at
+// 0x170-0x177/0x376 (IRQ 15).  Only the master device of a channel exists;
+// while the slave is selected every register reads as zero, so drive probes
+// skip it.  An empty channel reads as zero too.
+//
+// Hard disk: READ/WRITE SECTORS, IDENTIFY DEVICE, INITIALIZE DEVICE
+// PARAMETERS, SET FEATURES, FLUSH CACHE.  CD-ROM: IDENTIFY PACKET DEVICE,
+// DEVICE RESET and PACKET with the SCSI/MMC commands a BIOS or an OS needs
+// to boot from and mount a disc: TEST UNIT READY, REQUEST SENSE, INQUIRY,
+// READ CAPACITY, READ(10)/(12), READ TOC, MODE SENSE(10), GET
+// CONFIGURATION, START STOP UNIT, PREVENT/ALLOW MEDIUM REMOVAL.
+//
+// All data moves through the 16-bit data port.  A transfer is a byte
+// buffer split into DRQ blocks: 512 bytes for ATA, and for ATAPI at most
+// the byte count the host wrote before PACKET.  The device interrupts once
+// per data-in block (ATA and ATAPI), once per completed data-out block, and
+// once more at the end of every ATAPI command; the host's status read
+// clears the interrupt.
 // =========================================================================
 
-class ATAController {
+class IDEChannel {
 public:
-  ~ATAController() {
-    if (disk_fd >= 0) close(disk_fd);
+  enum Kind { NONE, DISK, CDROM };
+
+  IDEChannel(u16 base, u16 ctrl) : base(base), ctrl(ctrl) {}
+  ~IDEChannel() {
+    if (fd >= 0) close(fd);
   }
 
-  bool open(const char *path) {
-    disk_fd = ::open(path, O_RDWR);
-    if (disk_fd < 0) { perror(path); return false; }
-    struct stat st;
-    if (fstat(disk_fd, &st) < 0) { perror("fstat"); close(disk_fd); disk_fd = -1; return false; }
-    disk_size = st.st_size;
-    status = 0x40;  // DRDY
-    return true;
-  }
-
-  bool is_open() const { return disk_fd >= 0; }
+  bool open_disk(const char *path) { return open_image(path, DISK, 512, O_RDWR); }
+  bool open_cdrom(const char *path) { return open_image(path, CDROM, 2048, O_RDONLY); }
+  bool is_open() const { return fd >= 0; }
+  Kind kind() const { return dev; }
 
   bool handles(u16 port) const {
-    return (0x1F0 <= port && port <= 0x1F7) || port == 0x3F6;
+    return (base <= port && port <= base + 7) || port == ctrl;
   }
+  bool is_data_port(u16 port) const { return port == base; }
 
   u8 read(u16 port) {
-    // If drive 1 is selected and not data port, return 0
-    if ((drive_head & 0x10) && port != 0x1F0)
-      return 0x00;
-
-    switch (port) {
-    case 0x1F0: // Data (low byte of 16-bit — use read16 for real reads)
-      return 0xFF;
-    case 0x1F1: // Error
-      return error;
-    case 0x1F2: // Sector Count
-      return sector_count;
-    case 0x1F3: // LBA Low
-      return lba_low;
-    case 0x1F4: // LBA Mid
-      return lba_mid;
-    case 0x1F5: // LBA High
-      return lba_high;
-    case 0x1F6: // Drive/Head
-      return drive_head;
-    case 0x1F7: // Status (clears IRQ)
+    if (dev == NONE || slave_selected()) return 0x00;
+    if (port == ctrl) return status;  // alternate status: no IRQ clear
+    switch (port - base) {
+    case 0: return 0x00;          // data port is 16-bit; see read16
+    case 1: return error;
+    case 2: return sector_count;  // ATAPI: interrupt reason
+    case 3: return lba_low;
+    case 4: return lba_mid;       // ATAPI: byte count low
+    case 5: return lba_high;      // ATAPI: byte count high
+    case 6: return drive_head;
+    case 7:                       // status: clears the interrupt
       irq_pending = false;
       return status;
-    case 0x3F6: // Alternate Status (does NOT clear IRQ)
-      return (drive_head & 0x10) ? 0x00 : status;
-    default:
-      return 0xFF;
     }
+    return 0x00;
   }
 
   void write(u16 port, u8 val) {
-    switch (port) {
-    case 0x1F0: // Data (low byte — use write16 for real writes)
-      break;
-    case 0x1F1: // Features
-      features = val;
-      break;
-    case 0x1F2: // Sector Count
-      sector_count = val;
-      break;
-    case 0x1F3: // LBA Low
-      lba_low = val;
-      break;
-    case 0x1F4: // LBA Mid
-      lba_mid = val;
-      break;
-    case 0x1F5: // LBA High
-      lba_high = val;
-      break;
-    case 0x1F6: // Drive/Head
-      drive_head = val;
-      break;
-    case 0x1F7: // Command
-      if (drive_head & 0x10) break;  // Drive 1: ignore
-      execute_command(val);
-      break;
-    case 0x3F6: // Device Control
+    if (port == ctrl) {
       nien = (val & 0x02) != 0;
-      if (val & 0x04) {
-        // SRST — software reset
-        status = 0x40;  // DRDY
-        error = 0x01;   // Diagnostic passed
-        sector_count = 0x01;
-        lba_low = 0x01;
-        lba_mid = 0x00;
-        lba_high = 0x00;
-        drive_head = 0x00;
-        buf_reading = false;
-        buf_writing = false;
-      }
+      if (val & 0x04) reset_device();  // SRST
+      return;
+    }
+    switch (port - base) {
+    case 1: features = val; break;
+    case 2: sector_count = val; break;
+    case 3: lba_low = val; break;
+    case 4: lba_mid = val; break;
+    case 5: lba_high = val; break;
+    case 6: drive_head = val; break;
+    case 7:
+      if (dev != NONE && !slave_selected()) execute(val);
       break;
     }
   }
 
-  // 16-bit data port read (called from z__port_in16)
-  u16 read16(u16 port) {
-    if (port != 0x1F0 || !buf_reading) return 0xFFFF;
-    u16 val;
-    memcpy(&val, &data_buf[buf_pos * 2], 2);
-    buf_pos++;
-    if (buf_pos >= 256) {
-      // Sector transfer complete
-      buf_pos = 0;
-      sectors_remaining--;
-      if (sectors_remaining > 0) {
-        // Load next sector
-        current_lba++;
-        load_sector(current_lba);
+  // 16-bit data port read (also used for the halves of a 32-bit read)
+  u16 read16() {
+    if (xfer != XFER_IN || dev == NONE || slave_selected()) return 0x0000;
+    u16 v = buf[buf_pos];
+    if (buf_pos + 1 < block_end) v |= (u16)buf[buf_pos + 1] << 8;
+    buf_pos = std::min(buf_pos + 2, block_end);
+    if (buf_pos >= block_end) {
+      if (buf_pos < buf.size()) {
+        begin_in_block();
       } else {
-        buf_reading = false;
-        status = 0x40;  // DRDY, clear DRQ
-        raise_irq();
+        xfer = XFER_NONE;
+        status = 0x40;  // DRDY
+        if (packet) {
+          sector_count = 0x03;  // I/O | C/D: command complete
+          raise_irq();
+        }
       }
     }
-    return val;
+    return v;
   }
 
-  // 16-bit data port write (called from z__port_out16)
-  void write16(u16 port, u16 val) {
-    if (port != 0x1F0 || !buf_writing) return;
-    memcpy(&data_buf[buf_pos * 2], &val, 2);
-    buf_pos++;
-    if (buf_pos >= 256) {
-      // Sector received, write to disk
-      u64 offset = current_lba * 512;
-      if (offset + 512 <= disk_size)
-        (void)!pwrite(disk_fd, data_buf, 512, offset);
-      buf_pos = 0;
-      sectors_remaining--;
-      if (sectors_remaining > 0) {
-        current_lba++;
+  // 16-bit data port write
+  void write16(u16 val) {
+    if (dev == NONE || slave_selected()) return;
+    if (xfer == XFER_CDB) {
+      cdb[cdb_pos++] = val & 0xFF;
+      cdb[cdb_pos++] = val >> 8;
+      if (cdb_pos >= 12) {
+        xfer = XFER_NONE;
+        execute_packet();
+      }
+      return;
+    }
+    if (xfer != XFER_OUT) return;
+    buf[buf_pos++] = val & 0xFF;
+    buf[buf_pos++] = val >> 8;
+    if (buf_pos >= block_end) {
+      // One sector received: write it and either expect the next or finish.
+      u64 offset = (u64)current_lba * 512;
+      if (offset + 512 <= image_size)
+        (void)!pwrite(fd, &buf[block_end - 512], 512, offset);
+      current_lba++;
+      if (buf_pos < buf.size()) {
+        block_end = buf_pos + 512;
         status = 0x48;  // DRDY | DRQ
       } else {
-        buf_writing = false;
+        xfer = XFER_NONE;
         status = 0x40;  // DRDY
       }
       raise_irq();
     }
   }
 
+  // Set when the device asserts INTRQ; the platform delivers it to the PIC
+  // once (edge) and clears it.
   bool irq_pending = false;
 
 private:
-  int disk_fd = -1;
-  u64 disk_size = 0;
+  enum Xfer { XFER_NONE, XFER_IN, XFER_OUT, XFER_CDB };
 
-  // ATA registers
+  u16 base, ctrl;
+  Kind dev = NONE;
+  int fd = -1;
+  u64 image_size = 0;
+  u32 sector_size = 512;
+
+  // Task-file registers
   u8 error = 0;
   u8 features = 0;
   u8 sector_count = 0;
@@ -1225,133 +1216,404 @@ private:
   u8 lba_high = 0;
   u8 drive_head = 0;
   u8 status = 0;
-  bool nien = false;  // nIEN bit from device control
+  bool nien = false;
 
-  // Data transfer state
-  u8 data_buf[512];
-  int buf_pos = 0;
-  bool buf_reading = false;
-  bool buf_writing = false;
-  u32 current_lba = 0;
-  int sectors_remaining = 0;
+  // Transfer state
+  Xfer xfer = XFER_NONE;
+  std::vector<u8> buf;    // the whole transfer
+  size_t buf_pos = 0;     // next byte to move
+  size_t block_end = 0;   // end of the current DRQ block
+  size_t block_limit = 512;
+  u32 current_lba = 0;    // next sector of a data-out transfer
 
-  u32 get_lba() const {
-    if (drive_head & 0x40) {
-      // LBA mode
-      return lba_low | (lba_mid << 8) | (lba_high << 16) |
-             ((drive_head & 0x0F) << 24);
-    }
-    // CHS mode: convert to LBA
-    // C = (lba_high << 8) | lba_mid, H = drive_head & 0x0F, S = lba_low
-    u16 cyl = (lba_high << 8) | lba_mid;
-    u8 head = drive_head & 0x0F;
-    u8 sec = lba_low;
-    // Assume 16 heads, 63 sectors/track (standard geometry)
-    return (cyl * 16 + head) * 63 + (sec - 1);
+  // ATAPI state
+  u8 cdb[12] = {};
+  int cdb_pos = 0;
+  u8 sense_key = 0, asc = 0, ascq = 0;
+  bool medium_locked = false;
+  bool packet = false;  // the current transfer belongs to a PACKET command
+
+  bool slave_selected() const { return (drive_head & 0x10) != 0; }
+
+  bool open_image(const char *path, Kind k, u32 ssize, int flags) {
+    fd = ::open(path, flags);
+    if (fd < 0 && flags == O_RDWR) fd = ::open(path, O_RDONLY);
+    if (fd < 0) { perror(path); return false; }
+    struct stat st;
+    if (fstat(fd, &st) < 0) { perror("fstat"); close(fd); fd = -1; return false; }
+    image_size = st.st_size;
+    sector_size = ssize;
+    dev = k;
+    reset_device();
+    return true;
   }
 
-  void load_sector(u32 lba) {
-    u64 offset = (u64)lba * 512;
-    memset(data_buf, 0, 512);
-    if (offset + 512 <= disk_size)
-      (void)!pread(disk_fd, data_buf, 512, offset);
-    buf_pos = 0;
-    buf_reading = true;
-    status = 0x48;  // DRDY | DRQ
-  }
+  u64 total_sectors() const { return (image_size + sector_size - 1) / sector_size; }
 
   void raise_irq() {
     if (!nien) irq_pending = true;
   }
 
-  void execute_command(u8 cmd) {
-    switch (cmd) {
-    case 0x20: // READ SECTORS
-    case 0x21: // READ SECTORS (no retry)
-    {
-      current_lba = get_lba();
-      sectors_remaining = sector_count ? sector_count : 256;
-      load_sector(current_lba);
-      raise_irq();
-      break;
-    }
-    case 0x30: // WRITE SECTORS
-    case 0x31: // WRITE SECTORS (no retry)
-    {
-      current_lba = get_lba();
-      sectors_remaining = sector_count ? sector_count : 256;
-      buf_pos = 0;
-      buf_writing = true;
-      status = 0x48;  // DRDY | DRQ
-      break;
-    }
-    case 0x91: // INITIALIZE DEVICE PARAMETERS
-      status = 0x40;  // DRDY
-      raise_irq();
-      break;
-    case 0xE7: // FLUSH CACHE
-      status = 0x40;  // DRDY
-      raise_irq();
-      break;
-    case 0xEC: // IDENTIFY DEVICE
-      identify();
-      break;
-    default:
-      // Unknown command: set error
-      status = 0x41;  // DRDY | ERR
-      error = 0x04;   // ABRT
-      raise_irq();
-      break;
-    }
+  // Leave the signature that tells the host what kind of device this is:
+  // ATA 01 01 00 00, ATAPI 01 01 14 EB (sector count, LBA low, mid, high).
+  void set_signature() {
+    sector_count = 0x01;
+    lba_low = 0x01;
+    lba_mid = dev == CDROM ? 0x14 : 0x00;
+    lba_high = dev == CDROM ? 0xEB : 0x00;
+    drive_head = 0x00;
   }
 
-  void identify() {
-    memset(data_buf, 0, 512);
-    u16 *id = reinterpret_cast<u16 *>(data_buf);
-    id[0] = 0x0040;    // General: fixed disk, non-removable
-    u32 total_sectors = disk_size / 512;
-    // CHS geometry (word 1=cylinders, 3=heads, 6=sectors)
-    id[1] = total_sectors / (16 * 63);  // cylinders
-    if (id[1] > 16383) id[1] = 16383;
-    id[3] = 16;   // heads
-    id[6] = 63;   // sectors per track
+  void reset_device() {
+    xfer = XFER_NONE;
+    buf.clear();
+    buf_pos = block_end = 0;
+    cdb_pos = 0;
+    irq_pending = false;
+    error = 0x01;  // diagnostics passed
+    status = dev == NONE ? 0x00 : 0x40;
+    set_signature();
+    sense_key = asc = ascq = 0;
+  }
 
-    // Model string (words 27-46, 40 ASCII chars, swapped byte pairs)
-    const char *model = "Sail-x86 Virtual Disk                   ";
-    for (int i = 0; i < 20; i++)
-      id[27 + i] = (model[i * 2] << 8) | model[i * 2 + 1];
+  void abort_command() {
+    xfer = XFER_NONE;
+    status = 0x41;  // DRDY | ERR
+    error = 0x04;   // ABRT
+    raise_irq();
+  }
 
-    // Serial number (words 10-19)
-    const char *serial = "SAIL0001            ";
-    for (int i = 0; i < 10; i++)
-      id[10 + i] = (serial[i * 2] << 8) | serial[i * 2 + 1];
+  void complete_ok() {
+    xfer = XFER_NONE;
+    status = 0x40;  // DRDY
+    raise_irq();
+  }
 
-    // Firmware rev (words 23-26)
-    const char *fwrev = "1.0     ";
-    for (int i = 0; i < 4; i++)
-      id[23 + i] = (fwrev[i * 2] << 8) | fwrev[i * 2 + 1];
-
-    id[47] = 0x8001;   // Max sectors per R/W MULTIPLE (1)
-    id[49] = 0x0200;   // Capabilities: LBA supported
-    id[51] = 0x0200;   // PIO timing mode
-    id[53] = 0x0007;   // Words 54-58, 64-70, 88 valid
-    id[54] = id[1];    // Current cylinders
-    id[55] = 16;       // Current heads
-    id[56] = 63;       // Current sectors
-    u32 cur_cap = (u32)id[54] * 16 * 63;
-    id[57] = cur_cap & 0xFFFF;
-    id[58] = (cur_cap >> 16) & 0xFFFF;
-    // Total LBA sectors (words 60-61)
-    id[60] = total_sectors & 0xFFFF;
-    id[61] = (total_sectors >> 16) & 0xFFFF;
-
+  // Data-in: the host reads `buf`, block by block.
+  void begin_data_in(size_t limit) {
+    block_limit = limit;
     buf_pos = 0;
-    buf_reading = true;
+    xfer = XFER_IN;
+    begin_in_block();
+  }
+
+  void begin_in_block() {
+    size_t n = std::min(buf.size() - buf_pos, block_limit);
+    block_end = buf_pos + n;
+    if (packet) {
+      lba_mid = n & 0xFF;
+      lba_high = (n >> 8) & 0xFF;
+      sector_count = 0x02;  // I/O: data for the host
+    }
     status = 0x48;  // DRDY | DRQ
     raise_irq();
   }
-};
 
+  u32 get_lba() const {
+    if (drive_head & 0x40)
+      return lba_low | (lba_mid << 8) | (lba_high << 16) | ((drive_head & 0x0F) << 24);
+    // CHS with the geometry reported by IDENTIFY: 16 heads, 63 sectors
+    u16 cyl = (lba_high << 8) | lba_mid;
+    return (cyl * 16 + (drive_head & 0x0F)) * 63 + (lba_low - 1);
+  }
+
+  void execute(u8 cmd) {
+    error = 0;
+    packet = false;
+    switch (cmd) {
+    case 0x08:  // DEVICE RESET (ATAPI)
+      if (dev != CDROM) { abort_command(); break; }
+      reset_device();  // no interrupt
+      break;
+    case 0x90:  // EXECUTE DEVICE DIAGNOSTIC
+      xfer = XFER_NONE;
+      set_signature();
+      error = 0x01;
+      status = 0x40;
+      raise_irq();
+      break;
+    case 0x20: case 0x21: {  // READ SECTORS
+      if (dev != DISK) { abort_command(); break; }
+      u32 lba = get_lba();
+      int n = sector_count ? sector_count : 256;
+      buf.assign((size_t)n * 512, 0);
+      u64 offset = (u64)lba * 512;
+      if (offset < image_size)
+        (void)!pread(fd, buf.data(), std::min<u64>(buf.size(), image_size - offset), offset);
+      begin_data_in(512);
+      break;
+    }
+    case 0x30: case 0x31: {  // WRITE SECTORS
+      if (dev != DISK) { abort_command(); break; }
+      current_lba = get_lba();
+      int n = sector_count ? sector_count : 256;
+      buf.assign((size_t)n * 512, 0);
+      buf_pos = 0;
+      block_end = 512;
+      xfer = XFER_OUT;
+      status = 0x48;  // DRDY | DRQ, no interrupt for the first block
+      break;
+    }
+    case 0x91:  // INITIALIZE DEVICE PARAMETERS
+    case 0xE7:  // FLUSH CACHE
+    case 0xEA:  // FLUSH CACHE EXT
+    case 0xEF:  // SET FEATURES
+      complete_ok();
+      break;
+    case 0xE5:  // CHECK POWER MODE
+      sector_count = 0xFF;  // active
+      complete_ok();
+      break;
+    case 0xEC:  // IDENTIFY DEVICE
+      if (dev != DISK) { set_signature(); abort_command(); break; }
+      identify_disk();
+      begin_data_in(512);
+      break;
+    case 0xA1:  // IDENTIFY PACKET DEVICE
+      if (dev != CDROM) { abort_command(); break; }
+      identify_cdrom();
+      begin_data_in(512);
+      break;
+    case 0xA0: {  // PACKET
+      if (dev != CDROM) { abort_command(); break; }
+      // Byte count limit for the DRQ blocks of the reply; 0 and 0xFFFF
+      // mean the maximum, and blocks are even-sized.
+      size_t limit = lba_mid | (lba_high << 8);
+      if (limit == 0 || limit == 0xFFFF) limit = 0xFFFE;
+      block_limit = limit & ~(size_t)1;
+      cdb_pos = 0;
+      packet = true;
+      xfer = XFER_CDB;
+      sector_count = 0x01;  // C/D: expecting the command packet
+      status = 0x48;        // DRDY | DRQ, no interrupt (device-paced DRQ)
+      break;
+    }
+    default:
+      abort_command();
+      break;
+    }
+  }
+
+  static void put_string(u16 *id, int word, const char *s, int words) {
+    for (int i = 0; i < words; i++) {
+      u8 a = *s ? *s++ : ' ';
+      u8 b = *s ? *s++ : ' ';
+      id[word + i] = (a << 8) | b;
+    }
+  }
+
+  void identify_disk() {
+    buf.assign(512, 0);
+    u16 *id = reinterpret_cast<u16 *>(buf.data());
+    u32 sectors = image_size / 512;
+    id[0] = 0x0040;  // fixed disk
+    id[1] = std::min<u32>(sectors / (16 * 63), 16383);  // cylinders
+    id[3] = 16;      // heads
+    id[6] = 63;      // sectors per track
+    put_string(id, 10, "SAIL0001", 10);
+    put_string(id, 23, "1.0", 4);
+    put_string(id, 27, "Sail-x86 Virtual Disk", 20);
+    id[47] = 0x8001;  // one sector per READ/WRITE MULTIPLE
+    id[49] = 0x0200;  // LBA
+    id[51] = 0x0200;  // PIO timing mode
+    id[53] = 0x0007;  // words 54-58, 64-70, 88 valid
+    id[54] = id[1];
+    id[55] = 16;
+    id[56] = 63;
+    u32 cur = (u32)id[54] * 16 * 63;
+    id[57] = cur & 0xFFFF;
+    id[58] = cur >> 16;
+    id[60] = sectors & 0xFFFF;
+    id[61] = sectors >> 16;
+    id[64] = 0x0003;  // PIO modes 3 and 4
+    id[80] = 0x007E;  // ATA-1..6
+  }
+
+  void identify_cdrom() {
+    buf.assign(512, 0);
+    u16 *id = reinterpret_cast<u16 *>(buf.data());
+    // ATAPI device, CD-ROM, removable, DRQ within 50 us of PACKET (no
+    // interrupt before the command packet), 12-byte packets
+    id[0] = (2 << 14) | (5 << 8) | (1 << 7) | (2 << 5);
+    put_string(id, 10, "SAILCD01", 10);
+    id[20] = 3;    // buffer type
+    id[21] = 512;  // buffer size in sectors
+    id[22] = 4;    // ECC bytes
+    put_string(id, 23, "1.0", 4);
+    put_string(id, 27, "Sail-x86 CD-ROM", 20);
+    id[49] = 0x0200;  // LBA, no DMA
+    id[53] = 0x0003;  // words 54-58 and 64-70 valid
+    id[64] = 0x0003;  // PIO modes 3 and 4
+    id[65] = 0x00B4;
+    id[66] = 0x00B4;
+    id[67] = 0x012C;  // minimum PIO cycle time without flow control
+    id[68] = 0x00B4;  // minimum PIO cycle time with IORDY
+    id[71] = 30;      // PACKET to bus release, ns
+    id[72] = 30;      // SERVICE to BSY clear, ns
+    id[80] = 0x007E;  // ATA/ATAPI-1..6
+    id[82] = 0x0210;  // DEVICE RESET, PACKET
+    id[83] = 0x4000;
+    id[84] = 0x4000;
+    id[85] = 0x0210;
+    id[87] = 0x4000;
+  }
+
+  // ----- ATAPI packet commands -----
+
+  static u16 be16(const u8 *p) { return (p[0] << 8) | p[1]; }
+  static u32 be32(const u8 *p) { return ((u32)p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]; }
+  static void put_be16(u8 *p, u16 v) { p[0] = v >> 8; p[1] = v; }
+  static void put_be32(u8 *p, u32 v) { p[0] = v >> 24; p[1] = v >> 16; p[2] = v >> 8; p[3] = v; }
+  static void put_msf(u8 *p, u32 lba) {
+    u32 x = lba + 150;
+    p[0] = 0;
+    p[1] = x / (60 * 75);
+    p[2] = (x / 75) % 60;
+    p[3] = x % 75;
+  }
+
+  void packet_ok() {
+    xfer = XFER_NONE;
+    status = 0x40;        // DRDY
+    sector_count = 0x03;  // I/O | C/D
+    raise_irq();
+  }
+
+  void check_condition(u8 key, u8 a, u8 q) {
+    sense_key = key; asc = a; ascq = q;
+    xfer = XFER_NONE;
+    status = 0x41;        // DRDY | ERR
+    error = key << 4;
+    sector_count = 0x03;  // I/O | C/D
+    raise_irq();
+  }
+
+  // Reply with `len` bytes of `buf`, or fewer if the host asked for less.
+  void packet_reply(size_t len, size_t alloc) {
+    len = std::min(len, alloc);
+    if (len == 0) { packet_ok(); return; }
+    buf.resize(len);
+    begin_data_in(block_limit);
+  }
+
+  void execute_packet() {
+    const u8 *c = cdb;
+    switch (c[0]) {
+    case 0x00:  // TEST UNIT READY
+    case 0x1B:  // START STOP UNIT
+      packet_ok();
+      break;
+    case 0x1E:  // PREVENT ALLOW MEDIUM REMOVAL
+      medium_locked = (c[4] & 0x01) != 0;
+      packet_ok();
+      break;
+    case 0x03: {  // REQUEST SENSE
+      buf.assign(18, 0);
+      buf[0] = 0x70;  // current error, fixed format
+      buf[2] = sense_key;
+      buf[7] = 10;    // additional sense length
+      buf[12] = asc;
+      buf[13] = ascq;
+      sense_key = asc = ascq = 0;
+      packet_reply(18, c[4]);
+      break;
+    }
+    case 0x12: {  // INQUIRY
+      if (c[1] & 0x01) { check_condition(5, 0x24, 0x00); break; }  // no VPD pages
+      buf.assign(36, 0);
+      buf[0] = 0x05;  // CD-ROM
+      buf[1] = 0x80;  // removable
+      buf[2] = 0x00;  // ATAPI: no ANSI version claimed
+      buf[3] = 0x21;  // ATAPI, response data format 1
+      buf[4] = 31;    // additional length
+      memcpy(&buf[8], "SAIL    ", 8);
+      memcpy(&buf[16], "Sail-x86 CD-ROM ", 16);
+      memcpy(&buf[32], "1.0 ", 4);
+      packet_reply(36, be16(c + 3));
+      break;
+    }
+    case 0x25: {  // READ CAPACITY
+      buf.assign(8, 0);
+      put_be32(&buf[0], (u32)total_sectors() - 1);
+      put_be32(&buf[4], 2048);
+      packet_reply(8, 8);
+      break;
+    }
+    case 0x28:    // READ(10)
+    case 0xA8: {  // READ(12)
+      u32 lba = be32(c + 2);
+      u32 n = c[0] == 0x28 ? be16(c + 7) : be32(c + 6);
+      if (n == 0) { packet_ok(); break; }
+      if ((u64)lba + n > total_sectors()) { check_condition(5, 0x21, 0x00); break; }
+      buf.assign((size_t)n * 2048, 0);
+      (void)!pread(fd, buf.data(), std::min<u64>(buf.size(), image_size - (u64)lba * 2048), (u64)lba * 2048);
+      begin_data_in(block_limit);
+      break;
+    }
+    case 0x43: {  // READ TOC: one data track, formats 0 (TOC) and 1 (session)
+      bool msf = (c[1] & 0x02) != 0;
+      u8 format = c[2] & 0x0F;
+      if (format == 0) format = c[9] >> 6;
+      u8 start = c[6];
+      size_t alloc = be16(c + 7);
+      buf.assign(4, 0);
+      auto descriptor = [&](u8 track, u32 lba) {
+        u8 d[8] = { 0, 0x14, track, 0, 0, 0, 0, 0 };  // ADR 1, data track
+        if (msf) put_msf(&d[4], lba); else put_be32(&d[4], lba);
+        buf.insert(buf.end(), d, d + 8);
+      };
+      if (format == 0) {
+        if (start > 1 && start != 0xAA) { check_condition(5, 0x24, 0x00); break; }
+        buf[2] = 1;  // first track
+        buf[3] = 1;  // last track
+        if (start <= 1) descriptor(1, 0);
+        descriptor(0xAA, (u32)total_sectors());  // lead-out
+      } else if (format == 1) {
+        buf[2] = 1;  // first session
+        buf[3] = 1;  // last session
+        descriptor(1, 0);
+      } else {
+        check_condition(5, 0x24, 0x00);
+        break;
+      }
+      put_be16(&buf[0], buf.size() - 2);
+      packet_reply(buf.size(), alloc);
+      break;
+    }
+    case 0x5A: {  // MODE SENSE(10): only the CD capabilities page (2Ah)
+      u8 page = c[2] & 0x3F;
+      if (page != 0x2A && page != 0x3F) { check_condition(5, 0x24, 0x00); break; }
+      buf.assign(8 + 20, 0);
+      put_be16(&buf[0], buf.size() - 2);
+      buf[8] = 0x2A;
+      buf[9] = 18;                      // page length
+      buf[12] = 0x70;                   // multi-session, mode 2 form 1 and 2
+      buf[14] = (1 << 5) | 0x08 | (medium_locked ? 0x02 : 0) | 0x01;  // tray, eject, lock
+      put_be16(&buf[16], 706);          // maximum read speed, kB/s (4x)
+      put_be16(&buf[18], 2);            // volume levels
+      put_be16(&buf[20], 512);          // buffer size, kB
+      put_be16(&buf[22], 706);          // current read speed
+      packet_reply(buf.size(), be16(c + 7));
+      break;
+    }
+    case 0x46: {  // GET CONFIGURATION: current profile CD-ROM, profile list
+      u16 start = be16(c + 2);
+      buf.assign(8, 0);
+      put_be16(&buf[6], 0x0008);  // current profile: CD-ROM
+      if (start == 0) {
+        u8 f[8] = { 0x00, 0x00, 0x03, 4, 0x00, 0x08, 0x01, 0x00 };  // profile list: CD-ROM, current
+        buf.insert(buf.end(), f, f + 8);
+      }
+      put_be32(&buf[0], buf.size() - 4);
+      packet_reply(buf.size(), be16(c + 7));
+      break;
+    }
+    default:  // MODE SENSE(6), GET EVENT STATUS NOTIFICATION, READ CD, ...
+      check_condition(5, 0x20, 0x00);  // ILLEGAL REQUEST, invalid command operation code
+      break;
+    }
+  }
+};
 // =========================================================================
 // 8237 DMA Controller — ISA DMA (channels 0-3)
 //

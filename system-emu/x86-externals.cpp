@@ -220,7 +220,8 @@ u64 Model::z__port_in8(u64 port) {
   if (kbd.handles(p))        return kbd.read(p);
   if (cmos.handles(p))       return cmos.read(p);
   if (floppy.handles(p))     return floppy.read(p);
-  if (ata.handles(p))        return ata.read(p);
+  if (ide0.handles(p))       return ide0.read(p);
+  if (ide1.handles(p))       return ide1.read(p);
   if (fw_cfg.handles_read(p)) return fw_cfg.read(p);
   if (p == 0x61)             { pit.tick(10); return pit.read_port_b(); }
   if (p == 0x92)             return za20_enabled ? 0x02 : 0x00;
@@ -245,8 +246,9 @@ u64 Model::z__port_in8(u64 port) {
 
 u64 Model::z__port_in16(u64 port) {
   u16 p = (u16)port;
-  // ATA data port must be read as an atomic 16-bit word
-  if (p == 0x1F0) return ata.read16(p);
+  // IDE data ports must be read as atomic 16-bit words
+  if (ide0.is_data_port(p)) return ide0.read16();
+  if (ide1.is_data_port(p)) return ide1.read16();
   u16 lo = z__port_in8(port);
   u16 hi = z__port_in8(port + 1);
   return (hi << 8) | lo;
@@ -258,6 +260,9 @@ u64 Model::z__port_in32(u64 port) {
   if (p == 0xCF8) return pci.read_addr();
   // PCI config data register: atomic 32-bit read
   if (p == 0xCFC) return pci.read_data();
+  // 32-bit IDE data port access (insl) moves two words
+  if (ide0.is_data_port(p)) { u32 lo = ide0.read16(); return lo | ((u32)ide0.read16() << 16); }
+  if (ide1.is_data_port(p)) { u32 lo = ide1.read16(); return lo | ((u32)ide1.read16() << 16); }
   u32 b0 = z__port_in8(port);
   u32 b1 = z__port_in8(port + 1);
   u32 b2 = z__port_in8(port + 2);
@@ -275,7 +280,8 @@ unit Model::z__port_out8(u64 port, u64 val) {
   else if (kbd.handles(p))        kbd.write(p, v);
   else if (cmos.handles(p))       cmos.write(p, v);
   else if (floppy.handles(p))     { floppy.write(p, v); floppy.do_dma_transfer(dma, phys_mem); }
-  else if (ata.handles(p))        ata.write(p, v);
+  else if (ide0.handles(p))       ide0.write(p, v);
+  else if (ide1.handles(p))       ide1.write(p, v);
   else if (fw_cfg.handles_write(p)) fw_cfg.write(p, v);
   else if (p == 0x61)             pit.write_port_b(v);
   else if (vga.handles(p))        vga.write(p, v);
@@ -329,6 +335,9 @@ unit Model::z__port_out32(u64 port, u64 val) {
   if (p == 0xCF8) { pci.write_addr((u32)val); return UNIT; }
   // PCI config data register: atomic 32-bit write
   if (p == 0xCFC) { pci.write_data((u32)val); return UNIT; }
+  // 32-bit IDE data port access (outsl) moves two words
+  if (ide0.is_data_port(p)) { ide0.write16((u16)val); ide0.write16((u16)(val >> 16)); return UNIT; }
+  if (ide1.is_data_port(p)) { ide1.write16((u16)val); ide1.write16((u16)(val >> 16)); return UNIT; }
   z__port_out8(port, val & 0xFF);
   z__port_out8(port + 1, (val >> 8) & 0xFF);
   z__port_out8(port + 2, (val >> 16) & 0xFF);
@@ -357,9 +366,16 @@ void Model::z__check_pending_irq(sail_int *rop, unit) {
     pic_master.raise_irq(6);
   }
 
-  // Raise ATA IRQ 14 on slave PIC (IRQ 6 on slave = system IRQ 14)
-  if (ata.irq_pending)
+  // IDE interrupts: primary channel IRQ 14 (slave line 6), secondary IRQ 15
+  // (slave line 7).  Edge-triggered: delivered once, the PIC latches it.
+  if (ide0.irq_pending) {
+    ide0.irq_pending = false;
     pic_slave.raise_irq(6);
+  }
+  if (ide1.irq_pending) {
+    ide1.irq_pending = false;
+    pic_slave.raise_irq(7);
+  }
 
   // Cascade: if slave has pending interrupts, raise IRQ 2 on master
   if (pic_slave.has_pending())

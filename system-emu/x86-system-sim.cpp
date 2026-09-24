@@ -908,7 +908,7 @@ int main(int argc, char *argv[]) {
             (u64)model.zSegCache.data[x86::SEG_CS].zseg_base + (u64)model.zRIP);
 
     if (hda_path) {
-      if (!model.ata.open(hda_path)) {
+      if (!model.ide0.open_disk(hda_path)) {
         fprintf(stderr, "Failed to open disk image: %s\n", hda_path);
         return 1;
       }
