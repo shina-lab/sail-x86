@@ -967,6 +967,64 @@ TEST(real_mode_mov_ax_hlt) {
   model.model_fini();
 }
 
+TEST(xlat_segmented_table) {
+  // SDM Vol.2D, XLAT: the table is DS:(E)BX, with segment overrides.
+  // A nonzero segment base caught ScanDisk's printf lookup reading DOS
+  // memory instead of its character-classification table.
+  for (bool override_es : {false, true}) {
+    x86::Model model;
+    init_model_16(model);
+    model.zSegReg.data[x86::SEG_DS] = 0x2000;
+    model.zSegCache.data[x86::SEG_DS].zseg_base = 0x20000;
+    model.zSegReg.data[x86::SEG_ES] = 0x3000;
+    model.zSegCache.data[x86::SEG_ES].zseg_base = 0x30000;
+    model.zGPR.data[0] = 0x123456789ABC0080;
+    model.zGPR.data[3] = 0x100002000;
+    model.zCF = 1; model.zZF = 1; model.zOF = 1;
+    model.phys_mem.write8(0x2080, 0xEE); // wrong, unsegmented address
+    model.phys_mem.write8(0x22080, 0x42);
+    model.phys_mem.write8(0x32080, 0x73);
+    const u8 code[] = {0x26, 0xD7, 0xF4}; // ES: XLAT; HLT
+    ASSERT_EQ(run_code(model, 0x1000, code + !override_es,
+                       sizeof(code) - !override_es), RUN_HALTED);
+    ASSERT_EQ(model.zGPR.data[0], 0x123456789ABC0000UL | (override_es ? 0x73 : 0x42));
+    ASSERT_EQ(model.zCF, 1u);
+    ASSERT_EQ(model.zZF, 1u);
+    ASSERT_EQ(model.zOF, 1u);
+    model.model_fini();
+  }
+}
+
+TEST(xlat_address_size_and_segment_limit) {
+  for (bool address32 : {false, true}) {
+    x86::Model model;
+    init_model_16(model);
+    model.zSegReg.data[x86::SEG_DS] = 0x2000;
+    model.zSegCache.data[x86::SEG_DS].zseg_base = 0x20000;
+    model.zGPR.data[0] = 2;
+    model.zGPR.data[3] = 0xFFFFFFFF;
+    model.phys_mem.write8(0x20001, 0x5A);
+    const u8 code[] = {0x67, 0xD7, 0xF4};
+    ASSERT_EQ(run_code(model, 0x1000, code + !address32,
+                       sizeof(code) - !address32), RUN_HALTED);
+    ASSERT_EQ(model.zGPR.data[0], 0x5Au);
+    model.model_fini();
+  }
+
+  x86::Model model;
+  init_model_16(model);
+  model.zSegReg.data[x86::SEG_SS] = 0x3000;
+  model.zSegCache.data[x86::SEG_SS].zseg_base = 0x30000;
+  model.zSegCache.data[x86::SEG_SS].zseg_limit = 0x100;
+  model.zGPR.data[0] = 1;
+  model.zGPR.data[3] = 0x100;
+  const u8 code[] = {0x36, 0xD7, 0xF4}; // SS: XLAT beyond the limit
+  ASSERT_EQ(run_code(model, 0x1000, code, sizeof(code)), RUN_FAULTED);
+  ASSERT_EQ(model.zfault_vector, 12u); // #SS
+  ASSERT_EQ(model.zGPR.data[0], 1u);
+  model.model_fini();
+}
+
 TEST(real_mode_far_jmp_ea) {
   // Far JMP (EA) in real mode: ljmp 0x1000:0x0010
   // Should set CS=0x1000, CS.base=0x10000, EIP=0x0010
@@ -2022,6 +2080,8 @@ int main() {
 
   printf("\nReal mode tests:\n");
   run_test_real_mode_mov_ax_hlt();
+  run_test_xlat_segmented_table();
+  run_test_xlat_address_size_and_segment_limit();
   run_test_real_mode_far_jmp_ea();
   run_test_real_mode_far_call_9a();
 

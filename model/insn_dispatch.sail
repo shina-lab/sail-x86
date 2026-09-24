@@ -1710,9 +1710,18 @@ function decode_execute() = {
 
       // D7: XLAT/XLATB
       215 => {
+        // SDM Vol.2D, XLAT: DS:(E)BX + unsigned AL, with segment
+        // override support. Truncate the effective offset to address size
+        // before adding the segment base (Vol.1, address calculations).
+        let asz = get_address_size(pfx);
         let al : qword = zero_extend(v(8, RAX));
-        let addr : qword = zero_extend(v(get_address_size(pfx), RBX)) + al;
-        v(RAX) = read_mem(8, addr)
+        let sum : qword = zero_extend(v(asz, RBX)) + al;
+        let seg : segreg_idx = match pfx.seg_override {
+          Some(s) => s,
+          None() => DS,
+        };
+        let src : MemRef = struct { seg = seg, addr = zero_extend(sum[asz - 1 .. 0]) };
+        v(RAX) = read_mem(8, src)
       },
 
       // D8-DF: x87 FPU
