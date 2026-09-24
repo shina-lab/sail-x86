@@ -1038,7 +1038,7 @@ int main(int argc, char *argv[]) {
   u64 trace_step = parse_env_u64("SAIL_X86_TRACE_STEP", 1);
   bool trace_window_enabled = has_trace_start || has_trace_end || has_trace_step;
   bool trace_real_ud = getenv("SAIL_X86_TRACE_REAL_UD") != nullptr;
-  struct TraceLocation { u64 count, ip, base; u16 cs; };
+  struct TraceLocation { u64 count, ip, address; u16 cs; bool physical; };
   TraceLocation recent[64] = {};
   unsigned recent_count = 0, recent_next = 0;
   const char *probe_insn_env = getenv("SAIL_X86_PROBE_INSN");
@@ -1175,8 +1175,10 @@ int main(int argc, char *argv[]) {
     u64 previous_ip = model.zRIP;
     u16 previous_cs = model.zSegReg.data[x86::SEG_CS];
     if (trace_real_ud) {
+      u64 address = model.zSegCache.data[x86::SEG_CS].zseg_base + previous_ip;
+      if (!model.za20_enabled) address &= ~0x100000ULL;
       recent[recent_next] = {insn_count, previous_ip,
-                            model.zSegCache.data[x86::SEG_CS].zseg_base, previous_cs};
+                            address, previous_cs, !(model.zCR0 & (1ULL << 31))};
       recent_next = (recent_next + 1) % 64;
       recent_count = std::min(recent_count + 1, 64u);
     }
@@ -1189,12 +1191,14 @@ int main(int argc, char *argv[]) {
       // IVT handlers can be shared, so this identifies the target, not
       // necessarily the delivered vector until the guest installs #UD.
       if (model.phys_mem.read16(stack) == previous_ip && model.phys_mem.read16(stack + 2) == previous_cs) {
-        fprintf(stderr, "sail-x86-system: real-mode IVT[6] entry from %04x:%04lx at instruction %lu; recent locations (current memory bytes):\n",
+        fprintf(stderr, "sail-x86-system: real-mode IVT[6] entry from %04x:%04lx at instruction %lu; recent locations (current physical bytes when paging was disabled):\n",
                 previous_cs, previous_ip, insn_count);
         for (unsigned i = 0; i < recent_count; ++i) {
           const auto &r = recent[(recent_next + 64 - recent_count + i) % 64];
           fprintf(stderr, "  [%lu] %04x:%08lx:", r.count, r.cs, r.ip);
-          for (unsigned b = 0; b < 16; ++b) fprintf(stderr, " %02x", model.phys_mem.read8(r.base + r.ip + b));
+          if (r.physical)
+            for (unsigned b = 0; b < 16; ++b) fprintf(stderr, " %02x", model.phys_mem.read8(r.address + b));
+          else fprintf(stderr, " <paged code; bytes omitted>");
           fputc('\n', stderr);
         }
         dump_state();
