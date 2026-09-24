@@ -1553,7 +1553,9 @@ function decode_execute() = {
       // Protected mode outer-privilege: also pop ESP, SS.
       // 64-bit mode: always pop RIP, CS, RFLAGS, RSP, SS (SDM Vol.2 IRET).
       207 => {
-        if NT == 0b1 then raise_GP0();
+        // SDM Vol.2A IRET Operation, REAL-ADDRESS-MODE: NT does not
+        // select a task return when PE=0; pop the ordinary return frame.
+        if cur_mode != RealMode & NT == 0b1 then raise_GP0();
         let os = opsize(pfx);
         if os == 16 | os == 32 then {
           // IRET/IRETD (16/32-bit operand size)

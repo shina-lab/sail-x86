@@ -1239,6 +1239,38 @@ TEST(real_mode_iret_no_pop_sp_ss) {
   model.model_fini();
 }
 
+TEST(real_mode_iret_with_nt) {
+  // SDM Vol. 2A, IRET Operation: real-address-mode return precedes
+  // the protected-mode NT/task-return test. Check both operand sizes
+  // and both values of NT in the flags image being restored.
+  for (unsigned width : {2u, 4u}) {
+    for (unsigned restored_nt : {0u, 1u}) {
+      x86::Model model;
+      init_model_16(model);
+      model.zNT = 1;
+      model.zGPR.data[4] = 0x8000;
+      u32 flags = 0x3002 | (restored_nt << 14);
+      if (width == 2) {
+        model.phys_mem.write16(0x8000, 0x1100);
+        model.phys_mem.write16(0x8002, 0);
+        model.phys_mem.write16(0x8004, flags);
+      } else {
+        model.phys_mem.write32(0x8000, 0x1100);
+        model.phys_mem.write32(0x8004, 0);
+        model.phys_mem.write32(0x8008, flags);
+      }
+      model.phys_mem.write8(0x1100, 0xF4); // HLT at the return address
+      const u8 code[] = {0x66, 0xCF};
+      int kind = run_code(model, 0x1000, code + (width == 2), width == 2 ? 1 : 2);
+      ASSERT_EQ(kind, RUN_HALTED);
+      ASSERT_EQ(model.zGPR.data[4], 0x8000 + 3 * width);
+      ASSERT_EQ(model.zNT, restored_nt);
+      ASSERT_EQ(model.zSegReg.data[x86::SEG_CS], 0u);
+      model.model_fini();
+    }
+  }
+}
+
 TEST(real_mode_int_iret_preserves_regs) {
   // INT+IRET round-trip in real mode should return to the instruction
   // after INT with the same CS:IP and FLAGS (except IF/TF cleared by INT).
@@ -1972,6 +2004,7 @@ int main() {
 
   printf("\nIRET tests:\n");
   run_test_real_mode_iret_no_pop_sp_ss();
+  run_test_real_mode_iret_with_nt();
   run_test_real_mode_int_iret_preserves_regs();
   run_test_protected_mode_iret_same_privilege();
   run_test_ia32e_iretq_to_compat_loads_ss_descriptor();
