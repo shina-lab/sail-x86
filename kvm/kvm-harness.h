@@ -83,6 +83,22 @@ static constexpr u64 FL_ZF_ONLY = FL_ZF;
 static constexpr u64 FL_CF_ZF = FL_CF | FL_ZF;
 static constexpr u64 FL_NONE = 0;
 
+inline u64 condition_flags_mask(unsigned cc) {
+  static constexpr u64 masks[] = {
+    FL_OF, FL_CF, FL_ZF, FL_CF | FL_ZF,
+    FL_SF, FL_PF, FL_SF | FL_OF, FL_ZF | FL_SF | FL_OF,
+  };
+  assert(cc < 16);
+  return masks[cc / 2];
+}
+
+inline u64 shift_input_flags_mask(int digit, int width, unsigned count) {
+  if (digit != 2 && digit != 3) return 0;
+  count &= width == 64 ? 63 : 31;
+  if (width < 32) count %= width + 1;
+  return count ? FL_CF : 0;
+}
+
 // The arithmetic flags defined by a shift/rotate depend on the input count.
 // Other flags, including those an instruction preserves, are always checked.
 inline u64 shift_flags_mask(int digit, int width, unsigned count) {
@@ -157,6 +173,14 @@ inline ZmmVal xmm_from_u32(u32 a, u32 b, u32 c, u32 d) {
 // zero) override this background; execution uses the resulting concrete state.
 inline u64 initial_register_fill = 0;
 
+// Only arithmetic status flags follow the register background. Control flags
+// must not enable single stepping, interrupts, or a different execution mode.
+// A test overrides just the status flags its instruction sequence consumes.
+inline u64 initial_flags(u64 inputs = 0, u64 values = 0) {
+  assert((inputs & ~FL_ARITH) == 0);
+  return 0x2 | (initial_register_fill & FL_ARITH & ~inputs) | (values & inputs);
+}
+
 inline std::array<ZmmVal, 32> initial_zmm_values() {
   std::array<ZmmVal, 32> values;
   for (auto &reg : values)
@@ -191,7 +215,7 @@ struct ArchState {
   u64 r14 = initial_register_fill;
   u64 r15 = initial_register_fill;
   u64 rip = 0;
-  u64 rflags = 0;
+  u64 rflags = initial_flags();
   std::array<ZmmVal, 32> xmm = initial_zmm_values(); // full 512-bit ZMM registers
   u32 mxcsr = 0x1F80;   // default MXCSR
   std::array<u64, 8> kregs = initial_kreg_values(); // AVX-512 opmask registers k0-k7
@@ -360,6 +384,11 @@ inline ArchState with_vector_inputs(ArchState values, u32 inputs) {
   values.xmm = ArchState{}.xmm;
   for (unsigned i = 0; i < 32; i++)
     if (inputs & (1U << i)) values.xmm[i] = vectors[i];
+  return values;
+}
+
+inline ArchState with_flag_inputs(ArchState values, u64 inputs) {
+  values.rflags = (values.rflags & ~FL_ARITH) | initial_flags(inputs, values.rflags);
   return values;
 }
 

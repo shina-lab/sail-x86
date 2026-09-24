@@ -5,17 +5,18 @@ sequence reads, including zero-valued inputs. Leave unrelated registers and
 write-only destinations at their defaults. This lets the harness detect both
 missing writes and unintended changes to preserved state.
 
-The harness constructs every test twice. Unspecified GPRs, ZMM registers, and
-opmask registers start with either all zero bits or all one bits. Explicit
-inputs override that background in both runs. The test name reports the fill
-used. RSP, RIP, flags, MXCSR, and debug controls retain valid execution defaults;
-they are not blindly filled with ones.
+The harness constructs every test twice. Unspecified GPRs, ZMM registers,
+opmask registers, and arithmetic flags (CF, PF, AF, ZF, SF, OF) start with
+either all zero bits or all one bits. Explicit inputs override that background
+in both runs. The test name reports the fill used. RSP, RIP, control flags,
+MXCSR, and debug controls retain valid execution defaults. Setting all of
+RFLAGS would enable single stepping and other changes to the execution setup.
 
 For example, a 64-bit unsigned division with a zero high dividend must specify
 RDX, even though it happens to be zero in the first run:
 
 ```cpp
-ArchState input = {.rax = 42, .rcx = 7, .rdx = 0, .rflags = 0x2};
+ArchState input = {.rax = 42, .rcx = 7, .rdx = 0};
 ```
 
 Do not add an RDX initializer to the corresponding 8-bit division, whose
@@ -27,6 +28,14 @@ When several forms share an operand pool, use `with_gpr_inputs` or
 must not carry over a register operand used only by the register form. These
 helpers select existing values; the pool still needs explicit assignments for
 every selected input.
+
+Flags are inputs at bit granularity. For ADC with an incoming carry of zero,
+use `.rflags = initial_flags(FL_CF, 0)`. ADOX instead declares OF. Conditional
+operations select the flags their condition reads with `condition_flags_mask`
+and `with_flag_inputs`. Do not preset the entire flags register just to supply
+one carry bit. Flags that an instruction only writes or preserves must follow
+the background, including CF for INC/DEC and all flags for a zero-count shift.
+LAHF and PUSHF need explicit flag inputs because they read flags as data.
 
 An old destination can be an input: FMA and variable funnel shifts read it,
 and merging masks use its masked-off elements. EVEX test helpers supply a

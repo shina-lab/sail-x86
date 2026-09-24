@@ -18,7 +18,19 @@ int main() {
     inputs.kregs[1] = 0;
     expect(inputs.rax == 0 && inputs.rbx == 42, "explicit GPR inputs survive fill");
     expect(inputs.rcx == fill && inputs.r15 == fill, "default GPR inputs use fill");
-    expect(inputs.rsp == 0 && inputs.rflags == 0, "stack and control state stay fixed");
+    expect(inputs.rsp == 0 && (inputs.rflags & ~FL_ARITH) == 0x2,
+           "stack and control state stay fixed");
+    expect((inputs.rflags & FL_ARITH) == (fill & FL_ARITH),
+           "arithmetic flags use the register background");
+    ArchState carry = {.rflags = initial_flags(FL_CF, 0)};
+    expect(!(carry.rflags & FL_CF) &&
+           (carry.rflags & (FL_ARITH & ~FL_CF)) == (fill & (FL_ARITH & ~FL_CF)),
+           "an explicit zero carry leaves other arithmetic flags at the background");
+    carry.rflags = initial_flags(FL_CF, FL_CF);
+    expect((carry.rflags & FL_CF) != 0, "an explicit carry survives either fill");
+    ArchState selected_flags = with_flag_inputs(carry, FL_OF);
+    expect(selected_flags.rflags == background.rflags,
+           "unused flag inputs do not leak from a shared operand pool");
     for (int reg = 0; reg < 32; reg++)
       for (int q = 0; q < 8; q++)
         expect(background.xmm[reg].q[q] == fill, "every default SIMD bit uses fill");
@@ -46,6 +58,10 @@ int main() {
     correct.xmm[31] = {};
     correct.kregs[7] = 0;
     expect(correct.compare(background) == (fill == 0), "detect omitted zero writes");
+    ArchState cleared_flags = background;
+    cleared_flags.rflags &= ~FL_ARITH;
+    expect(cleared_flags.compare(background) == (fill == 0),
+           "detect omitted arithmetic flag clears");
   }
   initial_register_fill = 0;
   for (const auto &v : {xmm_from_u64(1, 2), xmm_from_u32(1, 2, 3, 4),
