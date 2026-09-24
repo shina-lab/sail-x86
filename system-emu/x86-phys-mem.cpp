@@ -111,15 +111,12 @@ bool PhysicalMemory::rom_read(u64 paddr, u8 &out) const {
     out = rom_data[paddr - high_base];
     return true;
   }
-  // VGA ROM: serve at legacy C0000 and at PCI ROM BAR address.
+  // VGA ROM: the PCI expansion-ROM BAR remains read-only. The C0000
+  // shadow is RAM: SeaVGABIOS updates variables there after relocation.
   // The BAR address may change when SeaBIOS remaps PCI resources.
   if (vga_rom_data) {
     if (paddr >= vga_rom_bar && paddr < vga_rom_bar + vga_rom_size) {
       out = vga_rom_data[paddr - vga_rom_bar];
-      return true;
-    }
-    if (paddr >= 0xC0000 && paddr < 0xC0000 + vga_rom_size) {
-      out = vga_rom_data[paddr - 0xC0000];
       return true;
     }
   }
@@ -132,6 +129,8 @@ void PhysicalMemory::load_vga_rom(const u8 *data, size_t len, u64 bar_addr) {
   memcpy(vga_rom_data, data, len);
   vga_rom_size = len;
   vga_rom_bar = bar_addr;
+  if (size > 0xC0000)
+    memcpy(ram + 0xC0000, data, std::min<u64>(len, size - 0xC0000));
 }
 
 bool PhysicalMemory::in_rom(u64 paddr) const {

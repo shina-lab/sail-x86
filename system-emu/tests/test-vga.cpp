@@ -65,6 +65,16 @@ int main() {
   p.pci.write_addr(0x80000070); p.pci.write_data(0x004A0000); p.sync_vga_bars();
   m.write32(0xA0000, 0xDEADBEEF);
   assert(m.read32(0xA0000) == 0xDEADBEEF);
+  std::vector<u8> bios(0x20000, 0xFF);
+  m.load_rom(bios.data(), bios.size());
+  u8 rom[16] = {0x55, 0xAA};
+  m.load_vga_rom(rom, sizeof(rom), 0xFEB00000);
+  assert(m.read8(0xC0000) == 0x55);
+  m.write32(0xC0008, 0x12345678); // SeaVGABIOS writable global variable
+  u32 global;
+  m.read_bytes(0xC0008, &global, 4);
+  assert(global == 0x12345678);
+  assert(m.read32(0xFEB00008) == 0);
   p.pci.write_data(0x000A0000); p.sync_vga_bars();
   assert(m.read32(0xA0000) == 0x0A090807);
   m.smram_active = true;
