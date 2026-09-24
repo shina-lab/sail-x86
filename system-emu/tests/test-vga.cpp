@@ -23,6 +23,13 @@ int main() {
   assert(text[3] == 0 && text[4] == 255);  // background
   assert(text[24] == 0 && text[25] == 255); // next cell wraps the text page
   crtc(0x0C, 0); crtc(0x0D, 0);
+  // ReactOS selects an eight-scanline font and a 50-row text display.
+  crtc(9, 7); gc(6, 0);
+  m.write16(0xB8000 + 49 * 160, 0x2141);
+  assert(m.read16(0xB8000 + 49 * 160) == 0x2141);
+  text = v.text_rgb(m.ram_ptr() + 0xB8000);
+  assert(v.text_rows() == 50 && v.text_height() == 400);
+  assert(text[(49 * 8 * 640) * 3] == 255);
   seq(4, 6); gc(6, 5); gc(8, 255);
   const u8 pattern[4] = {0xAA, 0xCC, 0xF0, 0xFF};
   for (unsigned plane = 0; plane < 4; ++plane) {

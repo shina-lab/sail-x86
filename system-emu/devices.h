@@ -193,6 +193,7 @@ public:
     unsigned map = (gc_regs[6] >> 2) & 3;
     // Keep the existing text RAM view at B0000/B8000. Font uploads and all
     // graphics memory accesses at A0000 go through the VGA data path.
+    if (!graphics() && addr >= 0xB0000) return false;
     return addr >= 0xA0000 && addr < (map == 0 ? 0xC0000 : 0xB0000) && map < 2;
   }
   u8 read_mem(u64 addr) {
@@ -237,18 +238,20 @@ public:
     }
   }
   bool graphics() const { return gc_regs[6] & 1; }
-  unsigned text_width() const { return COLS * ((seq_regs[1] & 1) ? 8 : 9); }
-  unsigned text_height() const { return ROWS * ((crtc_regs[9] & 31) + 1); }
-  // Snapshot the same 80x25 text window used by the console renderer, with
+  unsigned text_cols() const { return unsigned(crtc_regs[1]) + 1; }
+  unsigned text_rows() const { return std::max(1u, std::min(100u, pixel_height())); }
+  unsigned text_width() const { return text_cols() * ((seq_regs[1] & 1) ? 8 : 9); }
+  unsigned text_height() const { return text_rows() * ((crtc_regs[9] & 31) + 1); }
+  // Snapshot the CRTC text window (including 80x50 installer screens), with
   // the guest's uploaded plane-2 font and attribute/DAC colors. Blink is
   // captured in its visible phase, including the hardware cursor.
   std::vector<u8> text_rgb(const u8 *memory) const {
-    unsigned cw = text_width() / COLS, ch = text_height() / ROWS;
+    unsigned cw = text_width() / text_cols(), ch = text_height() / text_rows();
     unsigned w = text_width(), h = text_height();
     std::vector<u8> image(size_t(w) * h * 3);
     unsigned cursor = (unsigned(crtc_regs[0x0E]) << 8) | crtc_regs[0x0F];
     for (unsigned y = 0; y < h; ++y) for (unsigned x = 0; x < w; ++x) {
-      unsigned cell = (start_addr() + (y / ch) * COLS + x / cw) & 0x3FFF;
+      unsigned cell = (start_addr() + (y / ch) * crtc_regs[0x13] * 2 + x / cw) & 0x3FFF;
       u8 code = memory[cell * 2], attr = memory[cell * 2 + 1];
       unsigned map = (attr & 8) ? ((seq_regs[3] >> 2) & 3) | ((seq_regs[3] >> 3) & 4)
                                 : (seq_regs[3] & 3) | ((seq_regs[3] >> 2) & 4);
@@ -304,7 +307,10 @@ public:
   VGAText() {
     // 80x25 color text CRTC defaults (16-pixel font, matching SeaVGABIOS)
     crtc_regs[0x01] = 79;    // Horizontal display end (80 cols)
+    crtc_regs[0x07] = 2;     // Vertical display end bit 8
     crtc_regs[0x09] = 0x0F;  // Max scan line = 15 (16-pixel font)
+    crtc_regs[0x12] = 0x8F;  // Vertical display end = 399
+    crtc_regs[0x13] = 40;    // 80 character words per row
     crtc_regs[0x0A] = 13;    // Cursor start scan line
     crtc_regs[0x0B] = 14;    // Cursor end scan line
     // Sequencer defaults for text mode

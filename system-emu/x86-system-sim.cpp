@@ -1152,9 +1152,10 @@ int main(int argc, char *argv[]) {
             model.zsystem_state == x86::zSysHalted ? "halted" : "running");
     fprintf(stderr, "  VGA text screen:\n");
     unsigned start = model.vga.start_addr() * 2;
-    for (unsigned y = 0; y < 25; ++y) {
-      for (unsigned x = 0; x < 80; ++x) {
-        u8 ch = model.phys_mem.read8(0xB8000 + ((start + 2 * (y * 80 + x)) & 0x7FFF));
+    for (unsigned y = 0; y < model.vga.text_rows(); ++y) {
+      for (unsigned x = 0; x < model.vga.text_cols(); ++x) {
+        u8 ch = model.phys_mem.read8(((model.vga.misc_output & 1) ? 0xB8000 : 0xB0000) +
+                    ((start + y * model.vga.crtc_regs[0x13] * 4 + x * 2) & 0x7FFF));
         fputc(ch >= 32 && ch < 127 ? ch : ' ', stderr);
       }
       fputc('\n', stderr);
