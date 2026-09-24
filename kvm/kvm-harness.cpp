@@ -356,6 +356,10 @@ struct KvmVm {
     struct kvm_sregs sregs_tmp;
     ioctl(vcpu_fd, KVM_GET_SREGS, &sregs_tmp);
     sregs_tmp.cr4 = 0x50620;  // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
+    // TPR, as the model starts every run with it.  KVM on AMD also keeps a
+    // guest's CR8 write in the VMCB, which this does not reach, so a
+    // template that writes CR8 restores 0 itself.
+    sregs_tmp.cr8 = 0;
     // Set CS based on processor mode
     if (tc.compat_mode) {
       sregs_tmp.cs.selector = 0x48;
@@ -515,15 +519,24 @@ struct KvmVm {
   // running the next test.
   bool poisoned = false;
 
+  // KVM_RUN, resuming across the exits that carry no guest-visible event:
+  // without an in-kernel APIC, a CR8 write that lowers the TPR is reported
+  // to user space (KVM_EXIT_SET_TPR) and the guest simply continues.
+  void run_vcpu() {
+    do {
+      if (ioctl(vcpu_fd, KVM_RUN, 0) < 0) {
+        perror("KVM_RUN");  // host API failure, not a divergence
+        abort();
+      }
+    } while (run->exit_reason == KVM_EXIT_SET_TPR);
+  }
+
   // Run test expecting a fault.  Returns fault info; on a divergence that
   // is not a comparable fault (normal HLT, triple fault, odd exit reason),
   // appends a description to *err so the caller can count a failure
   // instead of aborting the whole suite.
   FaultInfo run_test_fault(std::string *err) {
-    if (ioctl(vcpu_fd, KVM_RUN, 0) < 0) {
-      perror("KVM_RUN");  // host API failure, not a divergence
-      abort();
-    }
+    run_vcpu();
 
     FaultInfo fi;
     if (run->exit_reason == KVM_EXIT_HLT) {
@@ -543,10 +556,7 @@ struct KvmVm {
   }
 
   ArchState run_test(std::string *err) {
-    if (ioctl(vcpu_fd, KVM_RUN, 0) < 0) {
-      perror("KVM_RUN");  // host API failure, not a divergence
-      abort();
-    }
+    run_vcpu();
 
     if (run->exit_reason != KVM_EXIT_HLT) {
       *err += std::format("KVM: unexpected exit reason {}\n", run->exit_reason);

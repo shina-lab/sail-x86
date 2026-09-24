@@ -866,7 +866,10 @@ function dispatch_2byte_gpr(op, pfx) = {
     },
 
     // 0F 07: SYSRET (requires CPL=0)
+    // SDM Vol.2B SYSRET, Operation: #UD unless CS.L = 1, IA32_EFER.LMA = 1
+    // and IA32_EFER.SCE = 1; then #GP(0) if CPL != 0.
     7 => {
+      if SegCache[CS].seg_l != 0b1 | EFER[10] != 0b1 | EFER[0] != 0b1 then raise_UD();
       if cur_cpl != 0 then raise_GP0();
       // SYSRET: restore RIP from RCX, RFLAGS from R11
       let new_rip : qword = v(RCX);
@@ -976,6 +979,16 @@ function dispatch_2byte_gpr(op, pfx) = {
       vmx_exit_if_cr_write(cr_idx, cr_val);
       match cr_idx {
         0 => {
+          // SDM Vol.2B MOV to CR: setting a reserved bit in CR0[63:32] is
+          // #GP(0), setting one in CR0[31:0] is ignored.  Reserved: all but
+          // PE MP EM TS ET NE (5:0), WP (16), AM (18), NW CD PG (31:29).
+          if cr_val[63..32] != zeros() then raise_GP0();
+          let cr_val : qword = cr_val & 0x00000000E005003F;
+          // #GP(0) on invalid combinations: PG = 1 with PE = 0, or CD = 0
+          // with NW = 1; and in 64-bit mode on clearing PG.
+          if cr_val[31] == 0b1 & cr_val[0] == 0b0 then raise_GP0();
+          if cr_val[29] == 0b1 & cr_val[30] == 0b0 then raise_GP0();
+          if cur_mode == LongMode & cr_val[31] == 0b0 then raise_GP0();
           CR0 = cr_val;
           // EFER.LMA = EFER.LME & CR0.PG (SDM Vol.3 §4.1.1)
           let lme = EFER[8];
@@ -996,11 +1009,22 @@ function dispatch_2byte_gpr(op, pfx) = {
         2 => CR2 = cr_val,
         3 => { CR3 = cr_val; __tlb_flush() },
         4 => {
+          // SDM Vol.2B MOV to CR: #GP(0) on setting a reserved bit in CR4.
+          // Vol.3A §2.5 defines bits 14:0, 25:16, 27, 28 and 32; the rest
+          // (15, 26, 31:29, 63:33) are reserved.
+          if (cr_val & 0xFFFFFFFEE4008000) != zeros() then raise_GP0();
+          // #GP(0) on leaving IA-32e mode by clearing CR4.PAE
+          if EFER[10] == 0b1 & cr_val[5] == 0b0 then raise_GP0();
           // SDM: #GP(0) if changing CR4.LA57 (bit 12) while paging is enabled
           if CR0[31] == 0b1 & cr_val[12] != CR4[12] then raise_GP0();
           CR4 = cr_val
         },
-        8 => CR8 = cr_val[3..0],
+        8 => {
+          // SDM Vol.2B MOV to CR: #GP(0) on setting a reserved bit in CR8;
+          // only the TPR field, bits 3:0, is defined (Vol.3A §2.5).
+          if cr_val[63..4] != zeros() then raise_GP0();
+          CR8 = cr_val[3..0]
+        },
         _ => raise_UD(),
       };
       finish_system_register_move()
