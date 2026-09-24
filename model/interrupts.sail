@@ -409,9 +409,10 @@ val deliver_exception : (exception_vector, dword, EventKind) -> unit
 function deliver_exception(vec, err_code, kind) = {
   // Single-step bookkeeping (fetch_execute.sail): an event delivered during
   // an instruction means no single-step trap after it, and delivery ends
-  // the MOV SS/POP SS shadow (SDM Vol.3A §7.8.3).
+  // the STI and MOV SS/POP SS shadows (SDM Vol.3A §7.8.1, §7.8.3).
   event_delivered = true;
   ss_shadow = 0;
+  sti_shadow = 0;
 
   // RF in the pushed RFLAGS image (SDM Vol.3B §20.3.1.1): 1 for a fault-
   // class exception, otherwise the current value (traps, software and

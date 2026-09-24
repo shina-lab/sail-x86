@@ -484,6 +484,11 @@ register DR7  : qword = 0x0000000000000400  // Debug control
 register event_delivered : bool = false
 register ss_shadow : range(0, 2) = 0
 
+// STI with IF initially clear inhibits maskable interrupts through the next
+// instruction, but does not suppress debug exceptions (SDM Vol.2B STI,
+// Vol.3A 7.8.1). Keep this separate from the MOV SS/POP SS debug shadow.
+register sti_shadow : range(0, 2) = 0
+
 // Data-breakpoint bookkeeping (SDM Vol.3B §20.3.1.2), maintained by the
 // memory interface, exec_rep and step():
 //   pending_dbp — Bn of the data breakpoints hit by the current
@@ -851,4 +856,3 @@ register ept_active : bool = false
 // =========================================================================
 
 register a20_enabled : bool = false
-

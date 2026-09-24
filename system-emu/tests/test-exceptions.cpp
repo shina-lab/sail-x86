@@ -131,9 +131,12 @@ static int tests_failed = 0;
   static void run_test_##name() { \
     printf("  %-50s", #name); \
     fflush(stdout); \
+    int failures_before = tests_failed; \
     test_##name(); \
-    printf("PASS\n"); \
-    tests_passed++; \
+    if (tests_failed == failures_before) { \
+      printf("PASS\n"); \
+      tests_passed++; \
+    } \
   } \
   static void test_##name()
 
@@ -850,6 +853,167 @@ TEST(external_interrupt_vector8_no_error_code) {
   model.model_fini();
 }
 
+TEST(sti_defers_pending_irq_one_instruction) {
+  // SDM Vol.2B STI (4-673), Vol.3A 7.8.1: IF changes immediately, but
+  // an IF=0 -> IF=1 STI inhibits maskable interrupts for one instruction.
+  for (unsigned mode = 0; mode < 3; ++mode) {
+    x86::Model m;
+    if (mode == 0) init_model_real(m);
+    else if (mode == 1) init_model_32(m);
+    else init_model(m);
+    program_pic_base8(m);
+    const u64 code = mode == 0 ? 0x7C00 : CODE_ADDR;
+    const u64 handler = mode == 0 ? 0x6000 : 0x200000;
+    if (mode == 0) {
+      m.zSegReg.data[x86::SEG_CS] = 0;
+      m.zSegCache.data[x86::SEG_CS].zseg_base = 0;
+      m.phys_mem.write32(8 * 4, handler);
+    } else if (mode == 1) {
+      write_idt_gate_32(m.phys_mem, IDT32_BASE, 8, handler, 8, 0xE, 0, true);
+    } else {
+      write_idt_gate(m.phys_mem, IDT_BASE, 8, handler, 8, 0, 0xE, 0, true);
+    }
+    const u8 insns[] = {0xFB, 0x90, 0x90}; // sti; nop; nop
+    m.phys_mem.write_bytes(code, insns, sizeof(insns));
+    m.zRIP = code;
+    m.zIF_flag = 0;
+    m.pic_master.raise_irq(0);
+    m.zstep(UNIT);
+    ASSERT_EQ((u64)m.zIF_flag, 1u);
+    ASSERT_EQ((u64)m.zRIP, code + 1);
+    m.zstep(UNIT);
+    ASSERT_EQ((u64)m.zRIP, code + 2);
+    ASSERT_EQ(m.pic_master.get_irr(), 1u);
+    ASSERT_EQ(m.pic_master.get_isr(), 0u);
+    m.zstep(UNIT);
+    ASSERT_EQ((u64)m.zRIP, handler);
+    ASSERT_EQ(m.pic_master.get_isr(), 1u);
+    m.model_fini();
+  }
+}
+
+TEST(sti_with_if_set_does_not_inhibit_irq) {
+  x86::Model m;
+  init_model_32(m);
+  program_pic_base8(m);
+  write_idt_gate_32(m.phys_mem, IDT32_BASE, 8, 0x200000, 8, 0xE, 0, true);
+  m.phys_mem.write8(CODE_ADDR, 0xFB);
+  m.zRIP = CODE_ADDR;
+  m.zIF_flag = 1;
+  m.zstep(UNIT);
+  m.pic_master.raise_irq(0);
+  m.zstep(UNIT);
+  ASSERT_EQ((u64)m.zRIP, 0x200000u);
+  m.model_fini();
+}
+
+TEST(repeated_sti_does_not_extend_inhibition) {
+  x86::Model m;
+  init_model_32(m);
+  program_pic_base8(m);
+  write_idt_gate_32(m.phys_mem, IDT32_BASE, 8, 0x200000, 8, 0xE, 0, true);
+  const u8 code[] = {0xFB, 0xFB, 0x90};
+  m.phys_mem.write_bytes(CODE_ADDR, code, sizeof(code));
+  m.zRIP = CODE_ADDR;
+  m.zIF_flag = 0;
+  m.pic_master.raise_irq(0);
+  m.zstep(UNIT);
+  m.zstep(UNIT);
+  ASSERT_EQ((u64)m.zRIP, CODE_ADDR + 2);
+  m.zstep(UNIT);
+  ASSERT_EQ((u64)m.zRIP, 0x200000u);
+  m.model_fini();
+}
+
+TEST(sti_cli_keeps_irq_pending) {
+  x86::Model m;
+  init_model_32(m);
+  program_pic_base8(m);
+  const u8 code[] = {0xFB, 0xFA, 0x90};
+  m.phys_mem.write_bytes(CODE_ADDR, code, sizeof(code));
+  m.zRIP = CODE_ADDR;
+  m.zIF_flag = 0;
+  m.pic_master.raise_irq(0);
+  for (int i = 0; i < 3; ++i) m.zstep(UNIT);
+  ASSERT_EQ((u64)m.zRIP, CODE_ADDR + 3);
+  ASSERT_EQ((u64)m.zIF_flag, 0u);
+  ASSERT_EQ(m.pic_master.get_irr(), 1u);
+  ASSERT_EQ(m.pic_master.get_isr(), 0u);
+  m.model_fini();
+}
+
+TEST(sti_does_not_block_fault_and_event_ends_inhibition) {
+  x86::Model m;
+  init_model_32(m);
+  program_pic_base8(m);
+  // A trap gate preserves IF, letting IRQ0 preempt the #UD handler.
+  write_idt_gate_32(m.phys_mem, IDT32_BASE, 6, 0x210000, 8, 0xF, 0, true);
+  write_idt_gate_32(m.phys_mem, IDT32_BASE, 8, 0x200000, 8, 0xE, 0, true);
+  const u8 code[] = {0xFB, 0x0F, 0x0B}; // sti; ud2
+  m.phys_mem.write_bytes(CODE_ADDR, code, sizeof(code));
+  m.zRIP = CODE_ADDR;
+  m.zIF_flag = 0;
+  m.pic_master.raise_irq(0);
+  m.zstep(UNIT);
+  m.zstep(UNIT);
+  ASSERT_EQ((u64)m.zRIP, 0x210000u);
+  ASSERT_EQ((u64)m.zIF_flag, 1u);
+  m.zstep(UNIT);
+  ASSERT_EQ((u64)m.zRIP, 0x200000u);
+  m.model_fini();
+}
+
+TEST(sti_does_not_suppress_single_step) {
+  x86::Model m;
+  init_model_32(m);
+  write_idt_gate_32(m.phys_mem, IDT32_BASE, 1, 0x200000, 8, 0xE, 0, true);
+  m.phys_mem.write8(CODE_ADDR, 0xFB);
+  m.zRIP = CODE_ADDR;
+  m.zIF_flag = 0;
+  m.zTF = 1;
+  m.zstep(UNIT);
+  ASSERT_EQ((u64)m.zRIP, 0x200000u);
+  ASSERT_EQ(m.phys_mem.read32(m.zGPR.data[4]), CODE_ADDR + 1);
+  m.model_fini();
+}
+
+TEST(sti_sysexit_delivers_irq_in_user_context) {
+  // The fast system-call return used by ReactOS: STI must protect SYSEXIT.
+  x86::Model m;
+  init_model_32(m);
+  program_pic_base8(m);
+  m.zGDTR_base = 0x6000;
+  m.zGDTR_limit = 0x27;
+  m.phys_mem.write64(0x6008, 0x00CF9B000000FFFFULL);
+  m.phys_mem.write64(0x6010, 0x00CF93000000FFFFULL);
+  m.phys_mem.write64(0x6018, 0x00CFFB000000FFFFULL);
+  m.phys_mem.write64(0x6020, 0x00CFF3000000FFFFULL);
+  m.zSegReg.data[x86::SEG_CS] = 8;
+  m.zSegReg.data[x86::SEG_SS] = 0x10;
+  write_idt_gate_32(m.phys_mem, IDT32_BASE, 8, 0x200000, 8, 0xE, 0, true);
+  m.z__wrmsr(0x174, 8);
+  const u8 code[] = {0xFB, 0x0F, 0x35};
+  m.phys_mem.write_bytes(CODE_ADDR, code, sizeof(code));
+  m.zRIP = CODE_ADDR;
+  m.zGPR.data[2] = 0x120000; // EDX: user EIP
+  m.zGPR.data[1] = 0x70000;  // ECX: user ESP
+  m.zIF_flag = 0;
+  m.pic_master.raise_irq(0);
+  m.zstep(UNIT);
+  m.zstep(UNIT);
+  ASSERT_EQ((u64)m.zRIP, 0x120000u);
+  ASSERT_EQ((u64)m.zcur_cpl, 3u);
+  m.zstep(UNIT);
+  ASSERT_EQ((u64)m.zRIP, 0x200000u);
+  u64 esp = m.zGPR.data[4];
+  ASSERT_EQ(esp, STACK_ADDR - 20);
+  ASSERT_EQ(m.phys_mem.read32(esp), 0x120000u);
+  ASSERT_EQ(m.phys_mem.read32(esp + 4), 0x1Bu);
+  ASSERT_EQ(m.phys_mem.read32(esp + 12), 0x70000u);
+  ASSERT_EQ(m.phys_mem.read32(esp + 16), 0x23u);
+  m.model_fini();
+}
+
 // =========================================================================
 
 int main() {
@@ -877,6 +1041,13 @@ int main() {
   // External interrupts at exception vectors
   run_test_pm32_external_interrupt_vector8_no_error_code();
   run_test_external_interrupt_vector8_no_error_code();
+  run_test_sti_defers_pending_irq_one_instruction();
+  run_test_sti_with_if_set_does_not_inhibit_irq();
+  run_test_repeated_sti_does_not_extend_inhibition();
+  run_test_sti_cli_keeps_irq_pending();
+  run_test_sti_does_not_block_fault_and_event_ends_inhibition();
+  run_test_sti_does_not_suppress_single_step();
+  run_test_sti_sysexit_delivers_irq_in_user_context();
 
   printf("\n  %d passed, %d failed\n", tests_passed, tests_failed);
   return tests_failed ? 1 : 0;

@@ -1927,7 +1927,12 @@ function decode_execute() = {
       250 => IF_flag = 0b0,
 
       // FB: STI
-      251 => IF_flag = 0b1,
+      251 => {
+        // SDM Vol.2B STI: inhibit only when IF was clear. A second STI
+        // with IF already set does not extend the inhibition.
+        if IF_flag == 0b0 then sti_shadow = 2;
+        IF_flag = 0b1
+      },
 
       // FC: CLD
       252 => DF = 0b0,

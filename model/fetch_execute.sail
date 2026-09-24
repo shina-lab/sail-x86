@@ -68,8 +68,9 @@ function step() = {
 
   // Check for pending external interrupts before fetching.
   // Only deliver if IF=1 (interrupts enabled) and in system mode, and not
-  // in the instruction following MOV SS/POP SS (SDM Vol.3A §7.8.3).
-  if system_mode & IF_flag == 0b1 & ss_shadow == 0 then {
+  // in the instruction following STI or MOV SS/POP SS (SDM Vol.3A
+  // §7.8.1 and §7.8.3).
+  if system_mode & IF_flag == 0b1 & ss_shadow == 0 & sti_shadow == 0 then {
     let irq_vec = __check_pending_irq();
     if 0 <= irq_vec & irq_vec <= 255 then {
       let vec : exception_vector = irq_vec;
@@ -222,7 +223,8 @@ function step() = {
   };
 
   // The SS-load shadow lasts through the following instruction.
-  ss_shadow = match ss_shadow { 2 => 1, _ => 0 }
+  ss_shadow = match ss_shadow { 2 => 1, _ => 0 };
+  sti_shadow = match sti_shadow { 2 => 1, _ => 0 }
 }
 
 // Run instructions until a fault, halt, or step count reached.
