@@ -178,7 +178,7 @@ function xrstor_sse(base) = {
   // XMM0-XMM15
   foreach (i from 0 to 15) {
     let xmm_val : xmmword = read_mem(base + 160 + 16 * i);
-    ZMM[i] = zero_extend(xmm_val)
+    ZMM[i][127..0] = xmm_val
   }
 }
 
@@ -282,7 +282,7 @@ function xinit_x87() = x87_init()
 val xinit_sse : unit -> unit
 function xinit_sse() = {
   foreach (i from 0 to 15) {
-    ZMM[i] = zero_extend(zeros() : xmmword)
+    ZMM[i][127..0] = zeros()
   };
   __ldmxcsr(0x00001F80)
 }
