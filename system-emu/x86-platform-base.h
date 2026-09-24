@@ -117,6 +117,16 @@ public:
   // Echo the firmware debug console (port 0x402) to stderr
   bool bios_debug = false;
 
+  // Hand a freshly asserted IDE interrupt to the PIC at once, at the port
+  // access that raised it, the way the 8259 latches an edge.  Waiting for
+  // the next instruction boundary with IF=1 loses it when the driver reads
+  // the status register (deasserting INTRQ) inside its interrupt handler,
+  // as libata does after every PIO block.
+  void latch_ide_irqs() {
+    if (ide0.irq_pending) { ide0.irq_pending = false; pic_slave.raise_irq(6); }  // IRQ 14
+    if (ide1.irq_pending) { ide1.irq_pending = false; pic_slave.raise_irq(7); }  // IRQ 15
+  }
+
   // Software TLB: 1024-entry direct-mapped, indexed by VPN[9:0].
   // Each entry caches a 4KB page translation.
   static constexpr int TLB_SIZE = 1024;

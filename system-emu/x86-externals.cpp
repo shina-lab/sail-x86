@@ -248,8 +248,8 @@ u64 Model::z__port_in8(u64 port) {
 u64 Model::z__port_in16(u64 port) {
   u16 p = (u16)port;
   // IDE data ports must be read as atomic 16-bit words
-  if (ide0.is_data_port(p)) return ide0.read16();
-  if (ide1.is_data_port(p)) return ide1.read16();
+  if (ide0.is_data_port(p)) { u16 v = ide0.read16(); latch_ide_irqs(); return v; }
+  if (ide1.is_data_port(p)) { u16 v = ide1.read16(); latch_ide_irqs(); return v; }
   u16 lo = z__port_in8(port);
   u16 hi = z__port_in8(port + 1);
   return (hi << 8) | lo;
@@ -262,8 +262,8 @@ u64 Model::z__port_in32(u64 port) {
   // PCI config data register: atomic 32-bit read
   if (p == 0xCFC) return pci.read_data();
   // 32-bit IDE data port access (insl) moves two words
-  if (ide0.is_data_port(p)) { u32 lo = ide0.read16(); return lo | ((u32)ide0.read16() << 16); }
-  if (ide1.is_data_port(p)) { u32 lo = ide1.read16(); return lo | ((u32)ide1.read16() << 16); }
+  if (ide0.is_data_port(p)) { u32 v = ide0.read16(); v |= (u32)ide0.read16() << 16; latch_ide_irqs(); return v; }
+  if (ide1.is_data_port(p)) { u32 v = ide1.read16(); v |= (u32)ide1.read16() << 16; latch_ide_irqs(); return v; }
   u32 b0 = z__port_in8(port);
   u32 b1 = z__port_in8(port + 1);
   u32 b2 = z__port_in8(port + 2);
@@ -281,8 +281,8 @@ unit Model::z__port_out8(u64 port, u64 val) {
   else if (kbd.handles(p))        kbd.write(p, v);
   else if (cmos.handles(p))       cmos.write(p, v);
   else if (floppy.handles(p))     { floppy.write(p, v); floppy.do_dma_transfer(dma, phys_mem); }
-  else if (ide0.handles(p))       ide0.write(p, v);
-  else if (ide1.handles(p))       ide1.write(p, v);
+  else if (ide0.handles(p))       { ide0.write(p, v); latch_ide_irqs(); }
+  else if (ide1.handles(p))       { ide1.write(p, v); latch_ide_irqs(); }
   else if (fw_cfg.handles_write(p)) fw_cfg.write(p, v);
   else if (p == 0x61)             pit.write_port_b(v);
   else if (vga.handles(p))        vga.write(p, v);
@@ -326,8 +326,8 @@ unit Model::z__port_out8(u64 port, u64 val) {
 unit Model::z__port_out16(u64 port, u64 val) {
   u16 p = (u16)port;
   // IDE data ports must be written as atomic 16-bit words
-  if (ide0.is_data_port(p)) { ide0.write16((u16)val); return UNIT; }
-  if (ide1.is_data_port(p)) { ide1.write16((u16)val); return UNIT; }
+  if (ide0.is_data_port(p)) { ide0.write16((u16)val); latch_ide_irqs(); return UNIT; }
+  if (ide1.is_data_port(p)) { ide1.write16((u16)val); latch_ide_irqs(); return UNIT; }
   // fw_cfg selector is a 16-bit register
   if (p == 0x510) { fw_cfg.write(p, (u16)val); return UNIT; }
   z__port_out8(port, val & 0xFF);
@@ -342,8 +342,8 @@ unit Model::z__port_out32(u64 port, u64 val) {
   // PCI config data register: atomic 32-bit write
   if (p == 0xCFC) { pci.write_data((u32)val); return UNIT; }
   // 32-bit IDE data port access (outsl) moves two words
-  if (ide0.is_data_port(p)) { ide0.write16((u16)val); ide0.write16((u16)(val >> 16)); return UNIT; }
-  if (ide1.is_data_port(p)) { ide1.write16((u16)val); ide1.write16((u16)(val >> 16)); return UNIT; }
+  if (ide0.is_data_port(p)) { ide0.write16((u16)val); ide0.write16((u16)(val >> 16)); latch_ide_irqs(); return UNIT; }
+  if (ide1.is_data_port(p)) { ide1.write16((u16)val); ide1.write16((u16)(val >> 16)); latch_ide_irqs(); return UNIT; }
   z__port_out8(port, val & 0xFF);
   z__port_out8(port + 1, (val >> 8) & 0xFF);
   z__port_out8(port + 2, (val >> 16) & 0xFF);
@@ -372,16 +372,9 @@ void Model::z__check_pending_irq(sail_int *rop, unit) {
     pic_master.raise_irq(6);
   }
 
-  // IDE interrupts: primary channel IRQ 14 (slave line 6), secondary IRQ 15
-  // (slave line 7).  Edge-triggered: delivered once, the PIC latches it.
-  if (ide0.irq_pending) {
-    ide0.irq_pending = false;
-    pic_slave.raise_irq(6);
-  }
-  if (ide1.irq_pending) {
-    ide1.irq_pending = false;
-    pic_slave.raise_irq(7);
-  }
+  // IDE interrupts are latched at the port access that raised them; this
+  // catches one raised any other way (reset).
+  latch_ide_irqs();
 
   // Cascade: if slave has pending interrupts, raise IRQ 2 on master
   if (pic_slave.has_pending())
