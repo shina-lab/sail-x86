@@ -936,9 +936,29 @@ int main(int argc, char **argv) {
   int failed = 0;
   std::string last_cat;
 
+  // KVM_FILTERS="prefix1;prefix2" runs the categories matching any of the
+  // prefixes, in suite order (for bisecting interactions between tests).
+  std::vector<std::string> filters;
+  if (const char *env = getenv("KVM_FILTERS")) {
+    std::string s = env;
+    size_t start = 0;
+    while (start <= s.size()) {
+      size_t end = s.find(';', start);
+      if (end == std::string::npos) end = s.size();
+      if (end > start) filters.push_back(s.substr(start, end - start));
+      start = end + 1;
+    }
+  }
+
   for (const auto &tc : tests) {
     if (filter && tc.category.compare(0, strlen(filter), filter) != 0)
       continue;
+    if (!filters.empty()) {
+      bool any = false;
+      for (const auto &f : filters)
+        if (tc.category.compare(0, f.size(), f) == 0) any = true;
+      if (!any) continue;
+    }
     if (tc.category != last_cat) {
       last_cat = tc.category;
       fprintf(stderr, "Testing %s ...\n", last_cat.c_str());
