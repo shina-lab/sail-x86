@@ -359,6 +359,8 @@ register TR         : word   // Task register selector
 // TSS base and limit (loaded from GDT when LTR executes)
 register TR_base  : qword
 register TR_limit : dword
+// Hidden TSS descriptor type, retained by LTR (SDM Vol.3A section 10.2.4).
+register TR_type : bits(4) = 0xB
 
 // =========================================================================
 // Segment descriptor cache helpers
@@ -851,4 +853,3 @@ register ept_active : bool = false
 // =========================================================================
 
 register a20_enabled : bool = false
-

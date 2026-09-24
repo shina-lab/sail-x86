@@ -1126,6 +1126,110 @@ static void write_gdt_data_desc(x86::Model &model, u64 gdt_base, int index,
   model.phys_mem.write32(offset + 4, hi);
 }
 
+static void init_call_gate(x86::Model &model, bool tss32, bool gate32,
+                          unsigned params, unsigned target_dpl = 0) {
+  init_model_16(model);
+  model.zcur_mode = x86::zProtectedMode;
+  model.zCR0 |= 1;
+  model.zGDTR_base = 0x1000;
+  model.zGDTR_limit = 0x3f;
+  write_gdt_code_desc(model, 0x1000, 1, 0x10000, 0xffff, 3, false, false);
+  write_gdt_code_desc(model, 0x1000, 2, 0x20000, 0xffff, target_dpl, false, false);
+  write_gdt_data_desc(model, 0x1000, 3, 0x30000, 0xffff, 3, false, false);
+  write_gdt_data_desc(model, 0x1000, 4, 0x40000, 0xffff, target_dpl, false, false);
+  // Available 16- or 32-bit TSS at selector 28h, then load it with LTR.
+  model.phys_mem.write64(0x1028, 0x60000000ULL | (tss32 ? 0x67 : 0x2b)
+      | ((u64)(tss32 ? 0x89 : 0x81) << 40));
+  model.zload_segment_register(x86::SEG_CS, 8);
+  model.zRIP = 0x100;
+  const u8 ltr[] = {0xb8, 0x28, 0, 0x0f, 0, 0xd8};
+  model.phys_mem.write_bytes(0x10100, ltr, sizeof(ltr));
+  model.zstep(UNIT);
+  model.zstep(UNIT);
+  const unsigned off = tss32 ? target_dpl * 8 + 4 : target_dpl * 4 + 2;
+  if (tss32) model.phys_mem.write32(0x6000 + off, 0x900);
+  else model.phys_mem.write16(0x6000 + off, 0x900);
+  model.phys_mem.write16(0x6000 + off + (tss32 ? 4 : 2), 0x20 | target_dpl);
+  // DPL3 call gate. High offset bits deliberately nonzero for the 16-bit gate.
+  model.phys_mem.write64(0x1030, 0x0300 | (0x10ULL << 16)
+      | ((u64)params << 32) | ((u64)(gate32 ? 0xec : 0xe4) << 40)
+      | (gate32 ? 0 : 0xabcd000000000000ULL));
+  model.zcur_cpl = 3;
+  model.zload_segment_register(x86::SEG_CS, 0xb);
+  model.zload_segment_register(x86::SEG_SS, 0x1b);
+  model.zGPR.data[4] = 0x800;
+  model.zRIP = 0x100;
+  const u8 call[] = {0x9a, 0xad, 0xde, 0x33, 0};
+  model.phys_mem.write_bytes(0x10100, call, sizeof(call));
+}
+
+TEST(legacy_call_gate_privilege_stacks) {
+  // Gate width and TSS width are independent. Check both TSS layouts,
+  // CPL0/CPL1 targets, nonzero stack bases, copied parameters and ignored
+  // operand offsets (SDM Vol.2A CALL, MORE-PRIVILEGE).
+  for (bool tss32 : {false, true}) for (bool gate32 : {false, true}) {
+    x86::Model model;
+    const unsigned level = tss32 ? 1 : 0;
+    init_call_gate(model, tss32, gate32, 2, level);
+    const unsigned slot = gate32 ? 4 : 2;
+    for (unsigned i = 0; i < 2; ++i) {
+      if (gate32) model.phys_mem.write32(0x30800 + i * slot, 0xabcd1234 + i);
+      else model.phys_mem.write16(0x30800 + i * slot, 0x1234 + i);
+    }
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ((u64)model.zcur_cpl, level);
+    ASSERT_EQ((u64)model.zRIP, 0x300UL);
+    ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], 0x10UL | level);
+    ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], 0x20UL | level);
+    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_base, 0x40000UL);
+    const u64 sp = 0x900 - 6 * slot;
+    ASSERT_EQ((u64)model.zGPR.data[4], sp);
+    const u32 expected[] = {0x105, 0xb, gate32 ? 0xabcd1234U : 0x1234U,
+        gate32 ? 0xabcd1235U : 0x1235U, 0x800, 0x1b};
+    for (unsigned i = 0; i < 6; ++i) {
+      const u32 actual = gate32 ? model.phys_mem.read32(0x40000 + sp + i * slot)
+                               : model.phys_mem.read16(0x40000 + sp + i * slot);
+      ASSERT_EQ(actual, expected[i]);
+    }
+    ASSERT_EQ(model.phys_mem.read16(0x800), 0);
+    model.model_fini();
+  }
+}
+
+TEST(legacy_call_gate_same_privilege_and_faults) {
+  for (unsigned variant = 0; variant < 5; ++variant) {
+    x86::Model model;
+    init_call_gate(model, false, false, 0, variant == 0 ? 3 : 0);
+    if (variant == 0) model.zTR_limit = 0; // Same CPL must not inspect TSS.
+    if (variant == 1) model.phys_mem.write8(0x1035, 0x64); // Gate not present.
+    if (variant == 2) model.phys_mem.write8(0x1035, 0x84); // Gate DPL0.
+    if (variant == 3) model.zTR_limit = 4; // SS0 extends beyond TSS limit.
+    if (variant == 4) model.phys_mem.write16(0x6004, 0x23); // Wrong stack RPL.
+    model.zstep(UNIT);
+    if (variant == 0) {
+      ASSERT_EQ(model.zfault_pending, false);
+      ASSERT_EQ((u64)model.zcur_cpl, 3UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x7fcUL);
+      ASSERT_EQ(model.phys_mem.read16(0x307fc), 0x105);
+      ASSERT_EQ(model.phys_mem.read16(0x307fe), 0xb);
+      // A normal far return recovers the segmented caller stack.
+      model.phys_mem.write8(0x20300, 0xcb);
+      model.zstep(UNIT);
+      ASSERT_EQ((u64)model.zRIP, 0x105UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x800UL);
+    } else {
+      ASSERT_EQ(model.zfault_pending, true);
+      ASSERT_EQ((u64)model.zfault_vector, variant == 1 ? 11UL : variant == 2 ? 13UL : 10UL);
+      ASSERT_EQ((u64)model.zfault_error_code, variant < 3 ? 0x30UL : variant == 3 ? 0x28UL : 0x20UL);
+      ASSERT_EQ((u64)model.zcur_cpl, 3UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x800UL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], 0x1bUL);
+    }
+    model.model_fini();
+  }
+}
+
 TEST(protected_mode_far_jmp_ea) {
   // Far JMP (EA) in protected mode:
   // Set up GDT with a flat 32-bit code segment at selector 0x08.
@@ -2127,6 +2231,8 @@ int main() {
   run_test_real_mode_far_call_9a();
 
   printf("\nProtected mode far transfer tests:\n");
+  run_test_legacy_call_gate_privilege_stacks();
+  run_test_legacy_call_gate_same_privilege_and_faults();
   run_test_protected_mode_far_jmp_ea();
   run_test_protected_mode_far_jmp_ff5();
 

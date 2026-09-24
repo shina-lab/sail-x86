@@ -567,7 +567,8 @@ function dispatch_2byte_gpr(op, pfx) = {
           write_mem_linear(desc_addr + 4, desc_hi | 0x00000200);
           TR = sel;
           TR_base = base;
-          TR_limit = limit
+          TR_limit = limit;
+          TR_type = typ | 0x2
         },
 
         // 0F 00 /4: VERR r/m16 — Verify segment readable, set ZF

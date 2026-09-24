@@ -343,6 +343,7 @@ function vm_entry(is_launch) = {
   TR = vmcs.guest_tr_selector;
   TR_base = vmcs.guest_tr_base;
   TR_limit = vmcs.guest_tr_limit;
+  TR_type = vmcs.guest_tr_access[3..0];
 
   // GDTR and IDTR
   GDTR_base = vmcs.guest_gdtr_base;
@@ -492,6 +493,7 @@ function complete_vm_exit(reason, qual) = {
   vmcs.guest_tr_selector = TR;
   vmcs.guest_tr_base = TR_base;
   vmcs.guest_tr_limit = TR_limit;
+  vmcs.guest_tr_access[3..0] = TR_type;
   vmcs.guest_ldtr_selector = LDTR;
 
   // Save activity state
@@ -546,6 +548,7 @@ function complete_vm_exit(reason, qual) = {
   SegCache[FS].seg_base = vmcs.host_fs_base;
   SegCache[GS].seg_base = vmcs.host_gs_base;
   TR_base = vmcs.host_tr_base;
+  TR_type = 0xB;
 
   // Host GDTR/IDTR
   GDTR_base = vmcs.host_gdtr_base;
