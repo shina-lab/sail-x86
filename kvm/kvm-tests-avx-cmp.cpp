@@ -32,7 +32,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
 
   {
     // Byte comparison: some equal, some not
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = i;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[2].q)[i] = (i % 2 == 0) ? i : i + 1;
 
@@ -49,7 +49,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
 
   {
     // Word comparison
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, i * 100);
     for (int i = 0; i < 32; i++) s.xmm[2].set<u16>(i, (i % 3 == 0) ? i * 100 : i * 100 + 1);
 
@@ -62,7 +62,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
 
   {
     // DWord comparison
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, i * 1000);
     for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, (i % 2 == 0) ? i * 1000 : i * 1000 - 1);
 
@@ -75,7 +75,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
 
   {
     // QWord comparison
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = i * 10000;
     for (int i = 0; i < 8; i++) s.xmm[2].q[i] = (i % 2 == 0) ? i * 10000 : i * 10000 + 1;
 
@@ -116,7 +116,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
 
   {
     // VPCMPD with various predicates
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 16; i++) s.xmm[1].set<int32_t>(i, i * 100 - 500);
     for (int i = 0; i < 16; i++) s.xmm[2].set<int32_t>(i, 300);
 
@@ -131,7 +131,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
 
   {
     // VPCMPQ
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = (u64)((int64_t)(i * 100) - 300);
     for (int i = 0; i < 8; i++) s.xmm[2].q[i] = 100;
 
@@ -144,7 +144,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
 
   {
     // VPCMPUD (unsigned)
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, i * 100);
     for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, 500);
 
@@ -157,7 +157,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
 
   {
     // VPCMPB
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 64; i++) ((int8_t *)s.xmm[1].q)[i] = -32 + i;
     for (int i = 0; i < 64; i++) ((int8_t *)s.xmm[2].q)[i] = 0;
 
@@ -170,7 +170,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
 
   {
     // VPCMPW
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 32; i++) s.xmm[1].set<int16_t>(i, -16 + i);
     for (int i = 0; i < 32; i++) s.xmm[2].set<int16_t>(i, 0);
 
@@ -182,7 +182,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
 
   {
     // VPCMPUQ
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = i * 100;
     for (int i = 0; i < 8; i++) s.xmm[2].q[i] = 300;
 
@@ -201,7 +201,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
   // VPTESTNMD: F3 0F38 27, W0  VPTESTNMQ: F3 0F38 27, W1
   // =====================================================================
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, (i % 2 == 0) ? 0xFFFFFFFF : 0);
     for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, 0xFFFFFFFF);
 
@@ -213,7 +213,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
     for (int ll = 0; ll <= 2; ll++) add_cmp_test("VPTESTNMD", e, s, ll);
   }
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = (i % 2 == 0) ? 0xFFFFFFFFFFFFFFFF : 0;
     for (int i = 0; i < 8; i++) s.xmm[2].q[i] = 0xFFFFFFFFFFFFFFFF;
 
@@ -225,7 +225,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
     for (int ll = 0; ll <= 2; ll++) add_cmp_test("VPTESTNMQ", e, s, ll);
   }
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = (i % 4 == 0) ? 0xFF : 0;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[2].q)[i] = 0xFF;
 
@@ -237,7 +237,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
     for (int ll = 0; ll <= 2; ll++) add_cmp_test("VPTESTNMB", e, s, ll);
   }
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, (i % 3 == 0) ? 0xFFFF : 0);
     for (int i = 0; i < 32; i++) s.xmm[2].set<u16>(i, 0xFFFF);
 
@@ -257,7 +257,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
   // VBLENDMPS: 66 0F38 65, W0   VBLENDMPD: 66 0F38 65, W1
   // =====================================================================
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, 0xAAAAAAAA);
     for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, 0x55555555);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -276,7 +276,7 @@ void add_avx_cmp_tests(std::vector<TestCase> &tests) {
     }
   }
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = 0xAA;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[2].q)[i] = 0x55;
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;

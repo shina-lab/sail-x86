@@ -9,7 +9,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
                          std::initializer_list<unsigned> vector_inputs = {}) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     for (unsigned reg : vector_inputs)
       tc.initial.xmm[reg] = {};
     tc.xmm_mask = 0x1; tc.init_data = adata;
@@ -19,7 +19,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
                          std::initializer_list<unsigned> vector_inputs = {}) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     for (unsigned reg : vector_inputs)
       tc.initial.xmm[reg] = {};
     tc.flags_mask = FL_ALL; tc.init_data = adata;
@@ -33,7 +33,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VADDSUBPS: VEX.F2.0F.WIG D0 /r
   // VADDSUBPD: VEX.66.0F.WIG D0 /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float ps1[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     float ps2[] = {10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f};
     memcpy(s.xmm[1].q, ps1, 32);
@@ -64,7 +64,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VHADDPS: VEX.F2.0F.WIG 7C /r   VHADDPD: VEX.66.0F.WIG 7C /r
   // VHSUBPS: VEX.F2.0F.WIG 7D /r   VHSUBPD: VEX.66.0F.WIG 7D /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float ps1[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     float ps2[] = {10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f};
     memcpy(s.xmm[1].q, ps1, 32);
@@ -107,7 +107,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VBLENDPS: VEX.66.0F3A.WIG 0C /r ib
   // VBLENDPD: VEX.66.0F3A.WIG 0D /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].set<u32>(i, 0xAAAAAAAA);
     for (int i = 0; i < 8; i++) s.xmm[2].set<u32>(i, 0x55555555);
 
@@ -131,7 +131,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VROUNDSS: VEX.66.0F3A.WIG 0A /r ib
   // VROUNDSD: VEX.66.0F3A.WIG 0B /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float ps[] = {1.3f, 2.7f, -1.5f, 3.9f, -0.1f, 4.5f, -2.2f, 8.8f};
     memcpy(s.xmm[1].q, ps, 32);
 
@@ -159,7 +159,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VDPPS: VEX.66.0F3A.WIG 40 /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float ps1[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     float ps2[] = {2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
     memcpy(s.xmm[1].q, ps1, 32);
@@ -179,7 +179,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VLDDQU: VEX.F2.0F.WIG F0 /r (load unaligned from memory)
   // Needs memory operand — test with [rdi]
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.rdi = DATA_ADDR;
     std::vector<u8> data(32);
     for (int i = 0; i < 32; i++) data[i] = 0x10 + i;
@@ -203,7 +203,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VPERM2F128: VEX.256.66.0F3A.W0 06 /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 4; i++) s.xmm[1].q[i] = 0x1111111111111111ULL * (i + 1);
     for (int i = 0; i < 4; i++) s.xmm[2].q[i] = 0xAAAAAAAAAAAAAAAAULL + i;
 
@@ -219,7 +219,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VINSERTF128: VEX.256.66.0F3A.W0 18 /r ib
   // VEXTRACTF128: VEX.256.66.0F3A.W0 19 /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 4; i++) s.xmm[1].q[i] = 0x1111111111111111ULL * (i + 1);
     s.xmm[2] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
 
@@ -247,7 +247,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VZEROALL: VEX.256.0F.WIG 77
   // VZEROUPPER: VEX.128.0F.WIG 77
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 16; i++) {
       s.xmm[i] = xmm_from_u64(0xDEADDEADDEADDEAD, 0xCAFECAFECAFECAFE);
       s.xmm[i].q[2] = 0xAAAAAAAAAAAAAAAA;
@@ -265,7 +265,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VMOVMSKPS: VEX.NP.0F.WIG 50 /r (extract sign bits → GPR)
   // VMOVMSKPD: VEX.66.0F.WIG 50 /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float ps[] = {-1.0f, 2.0f, -3.0f, 4.0f, -5.0f, 6.0f, -7.0f, 8.0f};
     memcpy(s.xmm[1].q, ps, 32);
 
@@ -287,7 +287,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VPMOVMSKB: VEX.66.0F.WIG D7 /r (byte sign bits → GPR)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 32; i++) ((u8 *)s.xmm[1].q)[i] = (i % 3 == 0) ? 0x80 : 0x01;
 
     Vex v; v.mm = 1; v.pp = 1; v.W = false; v.opcode = 0xD7;
@@ -300,7 +300,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VTESTPS: VEX.66.0F38.W0 0E /r    VTESTPD: VEX.66.0F38.W0 0F /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[0].set<u32>(i, 0x80000000);  // all negative
     for (int i = 0; i < 8; i++) s.xmm[2].set<u32>(i, 0x80000000);
 
@@ -321,7 +321,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VDPPD: VEX.66.0F3A.WIG 41 /r ib (double dot product)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     double pd1[] = {2.0, 3.0};
     double pd2[] = {4.0, 5.0};
     memcpy(s.xmm[1].q, pd1, 16);
@@ -335,7 +335,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VPBLENDD: VEX.66.0F3A.W0 02 /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].set<u32>(i, 0xAAAAAAAA);
     for (int i = 0; i < 8; i++) s.xmm[2].set<u32>(i, 0x55555555);
 
@@ -351,7 +351,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VPBLENDW: VEX.66.0F3A.WIG 0E /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 16; i++) s.xmm[1].set<u16>(i, 0xAAAA);
     for (int i = 0; i < 16; i++) s.xmm[2].set<u16>(i, 0x5555);
 
@@ -368,7 +368,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VMOVHLPS: VEX.NP.0F.WIG 12 /r (move high to low)
   // VMOVLHPS: VEX.NP.0F.WIG 16 /r (move low to high)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.xmm[1] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
     s.xmm[2] = xmm_from_u64(0xCCCCCCCCCCCCCCCC, 0xDDDDDDDDDDDDDDDD);
 
@@ -381,7 +381,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VPERM2I128: VEX.256.66.0F3A.W0 46 /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 4; i++) s.xmm[1].q[i] = 0x1111111111111111ULL * (i + 1);
     for (int i = 0; i < 4; i++) s.xmm[2].q[i] = 0xAAAAAAAAAAAAAAAAULL + i;
 
@@ -394,7 +394,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VINSERTPS: VEX.66.0F3A.WIG 21 /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.xmm[1] = xmm_from_u64(0xAAAAAAAABBBBBBBB, 0xCCCCCCCCDDDDDDDD);
     s.xmm[2] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
 
@@ -406,7 +406,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VEXTRACTPS: VEX.66.0F3A.WIG 17 /r ib (extract f32 to GPR)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
 
     Vex v; v.mm = 3; v.pp = 1; v.W = false; v.opcode = 0x17;
@@ -417,7 +417,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VEXTRACTI128: VEX.256.66.0F3A.W0 39 /r ib
   // VINSERTI128: VEX.256.66.0F3A.W0 38 /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 4; i++) s.xmm[1].q[i] = 0x1111111111111111ULL * (i + 1);
     s.xmm[2] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
 
@@ -438,7 +438,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VMPSADBW: VEX.66.0F3A.WIG 42 /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 32; i++) ((u8 *)s.xmm[1].q)[i] = i;
     for (int i = 0; i < 32; i++) ((u8 *)s.xmm[2].q)[i] = 32 + i;
 
@@ -459,7 +459,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VAESDEC: VEX.66.0F38.WIG DE /r
   // VAESDECLAST: VEX.66.0F38.WIG DF /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
     s.xmm[2] = xmm_from_u64(0x0F0E0D0C0B0A0908, 0x0706050403020100);
 
@@ -501,7 +501,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VAESIMC: VEX.66.0F38.WIG DB /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
 
     Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0xDB;
@@ -512,7 +512,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VAESKEYGENASSIST: VEX.66.0F3A.WIG DF /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
 
     Vex v; v.mm = 3; v.pp = 1; v.W = false; v.opcode = 0xDF;
@@ -523,7 +523,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VEX SSSE3: VPHADDD/W/SW, VPHSUBD/W/SW, VPSIGNB/D/W
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].set<int32_t>(i, i * 100 - 300);
     for (int i = 0; i < 8; i++) s.xmm[2].set<int32_t>(i, i * 50 + 100);
 
@@ -546,7 +546,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     add_vok("VPHSUBD ymm,[rdi] misaligned", v.encode_rm_mem(), {1});
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 16; i++) s.xmm[1].set<int16_t>(i, i * 100 - 700);
     for (int i = 0; i < 16; i++) s.xmm[2].set<int16_t>(i, i * 50 + 100);
 
@@ -580,7 +580,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
   {
     // VPSIGNB/D/W
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 32; i++) ((int8_t *)s.xmm[1].q)[i] = i - 16;
     for (int i = 0; i < 32; i++) ((int8_t *)s.xmm[2].q)[i] = (i % 3) - 1;  // -1, 0, 1 pattern
 
@@ -604,7 +604,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VPTEST: VEX.66.0F38.WIG 17 /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.xmm[1] = xmm_from_u64(0xFFFFFFFF00000000, 0x00000000FFFFFFFF);
     s.xmm[2] = xmm_from_u64(0xFFFFFFFF00000000, 0x00000000FFFFFFFF);
 
@@ -622,7 +622,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VPHMINPOSUW: VEX.66.0F38.WIG 41 /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     u16 vals[] = {5, 3, 7, 1, 9, 2, 4, 6};
     memcpy(s.xmm[1].q, vals, 16);
 
@@ -637,7 +637,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VEX VRCPSS: VEX.F3.0F.WIG 53 /r
   // VEX VRSQRTSS: VEX.F3.0F.WIG 52 /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float vals[] = {1.0f, 4.0f, 9.0f, 16.0f, 25.0f, 36.0f, 49.0f, 64.0f};
     memcpy(s.xmm[1].q, vals, 32);
 
@@ -683,7 +683,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VPSHUFB VEX: VEX.66.0F38.WIG 00 /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 32; i++) ((u8 *)s.xmm[1].q)[i] = i + 1;
     for (int i = 0; i < 32; i++) ((u8 *)s.xmm[2].q)[i] = 15 - (i % 16);
 
@@ -700,7 +700,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VPSHUFHW VEX: VEX.F3.0F.WIG 70 /r ib
   // VPSHUFLW VEX: VEX.F2.0F.WIG 70 /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, 0x100 * (i + 1));
 
     Vex v; v.mm = 1; v.W = false; v.opcode = 0x70;
@@ -748,7 +748,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     u32 eax71, ebx71, ecx71, edx71;
     __cpuid_count(7, 1, eax71, ebx71, ecx71, edx71);
     if (eax71 & (1u << 4)) {
-      ArchState s = {}; s.rflags = 0x2;
+      ArchState s = {};
       for (int i = 0; i < 8; i++) {
         s.xmm[0].set<u32>(i, (i & 1) ? 0x7FFFFF00u : 1000u * i);
         s.xmm[1].set<u32>(i, 0xFF7F0102u + 0x01010101u * i);
@@ -771,7 +771,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VPCLMULQDQ VEX: VEX.66.0F3A.WIG 44 /r ib
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
     s.xmm[2] = xmm_from_u64(0x5A5A5A5A5A5A5A5A, 0xA5A5A5A5A5A5A5A5);
 
@@ -799,7 +799,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VMASKMOVPS load: VEX.66.0F38 2C /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.rdi = DATA_ADDR;
     // mask in xmm1: high bit of each dword selects
     for (int i = 0; i < 4; i++) s.xmm[1].set<u32>(i, (i % 2) ? 0x80000000 : 0);
@@ -812,7 +812,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VMASKMOVPD load: VEX.66.0F38 2D /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.rdi = DATA_ADDR;
     s.xmm[1].q[0] = 0x8000000000000000ULL; s.xmm[1].q[1] = 0;
     std::vector<u8> data(16); for (int i = 0; i < 16; i++) data[i] = 0x20 + i;
@@ -824,7 +824,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VMASKMOVPS store: VEX.66.0F38 2E /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
     for (int i = 0; i < 4; i++) s.xmm[1].set<u32>(i, (i % 2) ? 0x80000000 : 0);
@@ -836,7 +836,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VMASKMOVPD store: VEX.66.0F38 2F /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
     s.xmm[1].q[0] = 0x8000000000000000ULL; s.xmm[1].q[1] = 0;
@@ -848,7 +848,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VPMASKMOVD load: VEX.66.0F38 8C /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.rdi = DATA_ADDR;
     for (int i = 0; i < 4; i++) s.xmm[1].set<u32>(i, (i % 2) ? 0x80000000 : 0);
     std::vector<u8> data(16); for (int i = 0; i < 16; i++) data[i] = 0x30 + i;
@@ -860,7 +860,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VPMASKMOVD store: VEX.66.0F38 8E /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
     for (int i = 0; i < 4; i++) s.xmm[1].set<u32>(i, (i % 2) ? 0x80000000 : 0);
@@ -872,7 +872,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VPMASKMOVQ load: VEX.66.0F38.W1 8C /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.rdi = DATA_ADDR;
     s.xmm[1].q[0] = 0x8000000000000000ULL; s.xmm[1].q[1] = 0;
     std::vector<u8> data(16); for (int i = 0; i < 16; i++) data[i] = 0x40 + i;
@@ -884,7 +884,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VPMASKMOVQ store: VEX.66.0F38.W1 8E /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
     s.xmm[1].q[0] = 0x8000000000000000ULL; s.xmm[1].q[1] = 0;
@@ -899,7 +899,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VPBLENDVB: VEX.66.0F3A.W0 4C /r is4
   // 4-operand variable blend: imm8[7:4] = mask register index
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].set<u32>(i, 0xAAAAAAAA);
     for (int i = 0; i < 8; i++) s.xmm[2].set<u32>(i, 0x55555555);
     // xmm3 mask: sign bit set for even dwords
@@ -953,7 +953,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VPCMPESTRM: VEX.66.0F3A.WIG 60 /r ib  VPCMPESTRI: 61
   // VPCMPISTRM: VEX.66.0F3A.WIG 62 /r ib  VPCMPISTRI: 63
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.rax = 4; s.rdx = 4;
     s.xmm[1] = xmm_from_u64(0x0000000061616161, 0);  // "aaaa\0..."
     s.xmm[2] = xmm_from_u64(0x0000000062616261, 0);  // "abab\0..."

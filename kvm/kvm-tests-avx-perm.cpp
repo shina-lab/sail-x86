@@ -33,7 +33,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
                          std::initializer_list<unsigned> vector_inputs = {}) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     for (unsigned reg : vector_inputs)
       tc.initial.xmm[reg] = {};
     tc.xmm_mask = 0x1; tc.init_data = adata;
@@ -42,7 +42,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VPSHUFD: EVEX.66.0F.W0 70 /r ib (all VLs)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, 0x10 * (i + 1));
     Evex e; e.mm = 1; e.pp = 1; e.W = false; e.opcode = 0x70;
     e.reg = 0; e.vvvv = 0; e.rm = 1;
@@ -61,7 +61,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VPSHUFHW/VPSHUFLW (all VLs)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, 0x100 * (i + 1));
     for (int ll = 0; ll <= 2; ll++) {
       const char *vl[] = {"xmm", "ymm", "zmm"};
@@ -87,7 +87,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VPERMD: VL256/512 only
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, 0xA0 + i);
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, (15 - i) % 16);
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x36;
@@ -100,7 +100,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VPERMQ: VL256/512 only
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[2].q[i] = 0xA0 + i;
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = (7 - i) % 8;
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x36;
@@ -115,7 +115,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VPERMILPS/PD (all VLs)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, 0x10 * (i + 1));
     for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, (3 - (i % 4)));
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x0C;
@@ -126,7 +126,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
       add_vok("VPERMILPS xmm,[rdi] (reg) misaligned", v.encode_rm_mem(), {1}); }
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 0x100 * (i + 1);
     for (int i = 0; i < 8; i++) s.xmm[2].q[i] = (1 - (i % 2));
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x0D;
@@ -139,7 +139,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VPALIGNR (all VLs)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = 0xA0 + (i % 16);
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[2].q)[i] = 0x10 + (i % 16);
     Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x0F;
@@ -158,7 +158,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VALIGND/Q (all VLs)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, 0xA0 + i);
     for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, 0x10 + i);
     Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x03;
@@ -171,7 +171,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     }
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 0xA0 + i;
     for (int i = 0; i < 8; i++) s.xmm[2].q[i] = 0x10 + i;
     Evex e; e.mm = 3; e.pp = 1; e.W = true; e.opcode = 0x03;
@@ -186,7 +186,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VPBROADCASTD/Q/B/W (all VLs)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.xmm[1] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0x1234567890ABCDEF);
     struct { const char *name; u8 opcode; bool W; u32 kmask; } bcasts[] = {
       {"VPBROADCASTD", 0x58, false, 0xAAAA},
@@ -216,7 +216,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VBROADCASTSS (all VLs)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float f = 3.14f; memcpy(&s.xmm[1].q[0], &f, 4);
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x18;
     e.reg = 0; e.vvvv = 0; e.rm = 1;
@@ -228,7 +228,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VBROADCASTSD: VL256/512 only
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     double d = 2.718; memcpy(&s.xmm[1].q[0], &d, 8);
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x19;
     e.reg = 0; e.vvvv = 0; e.rm = 1;
@@ -248,7 +248,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VMOVDDUP/VMOVSHDUP/VMOVSLDUP (all VLs)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 0x1000 * (i + 1) + i;
     Evex e; e.mm = 1; e.reg = 0; e.vvvv = 0; e.rm = 1;
     e.pp = 3; e.W = true; e.opcode = 0x12;
@@ -261,7 +261,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VSHUFPS/PD (all VLs)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, 0x10 * (i + 1));
     for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, 0xA0 + i);
     Evex e; e.mm = 1; e.pp = 0; e.W = false; e.opcode = 0xC6;
@@ -274,7 +274,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     }
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 0x100 * (i + 1);
     for (int i = 0; i < 8; i++) s.xmm[2].q[i] = 0xA00 + i;
     Evex e; e.mm = 1; e.pp = 1; e.W = true; e.opcode = 0xC6;
@@ -289,7 +289,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VPERMW/VPERMB (all VLs)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 32; i++) s.xmm[2].set<u16>(i, 0x100 * (i + 1));
     for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, (31 - i));
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x8D;
@@ -297,7 +297,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     add_evex_rr_tests(tests, cat, "VPERMW", e, s, 0x6, 0x55555555);
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[2].q)[i] = i + 1;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = (63 - i);
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x8D;
@@ -307,7 +307,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VPERMPS: EVEX.66.0F38.W0 16 /r (VL256/512 only)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, 0xA0 + i);
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, (15 - i) % 16);
     Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = 0x16;
@@ -320,7 +320,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
 
   // VPERMPD: EVEX.66.0F38.W1 16 /r (VL256/512 only)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[2].q[i] = 0xA0 + i;
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = (7 - i) % 8;
     Evex e; e.mm = 2; e.pp = 1; e.W = true; e.opcode = 0x16;
@@ -340,7 +340,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
   // VPERMI2B: EVEX.66.0F38.W0 75 /r
   // VPERMI2W: EVEX.66.0F38.W1 75 /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     // dst = indices, src1(vvvv) = table0, src2(rm) = table1
     for (int i = 0; i < 16; i++) s.xmm[0].set<u32>(i, i);  // indices
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, 0xA0 + i);
@@ -357,7 +357,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     add_evex_rr_tests(tests, cat, "VPERMI2PD", e, s, 0x7, 0x55);
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[0].q)[i] = i;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = 0xA0 + i;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[2].q)[i] = 0xB0 + i;
@@ -376,7 +376,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
   // VPERMT2B: EVEX.66.0F38.W0 7D /r
   // VPERMT2W: EVEX.66.0F38.W1 7D /r
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 16; i++) s.xmm[0].set<u32>(i, 0xA0 + i);  // table0
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, i);  // indices (vvvv)
     for (int i = 0; i < 16; i++) s.xmm[2].set<u32>(i, 0xB0 + i);  // table1
@@ -392,7 +392,7 @@ void add_avx_perm_tests(std::vector<TestCase> &tests) {
     add_evex_rr_tests(tests, cat, "VPERMT2PD", e, s, 0x7, 0x55);
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[0].q)[i] = 0xA0 + i;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = i;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[2].q)[i] = 0xB0 + i;

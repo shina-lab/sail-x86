@@ -40,7 +40,6 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
 
   // Packed f32 state
   ArchState sps;
-  sps.rflags = 0x2;
   float ps0[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                  9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f};
   float ps1[] = {0.5f, 1.5f, 2.5f, 3.5f, 4.5f, 5.5f, 6.5f, 7.5f,
@@ -53,7 +52,6 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
 
   // Packed f64 state
   ArchState spd;
-  spd.rflags = 0x2;
   double pd0[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
   double pd1[] = {0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5};
   double pd2[] = {100.0, 200.0, 300.0, 400.0, 500.0, 600.0, 700.0, 800.0};
@@ -65,7 +63,7 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
   auto add_vok = [&](const std::string &name, std::vector<u8> code) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     // Every memory form here reads the old destination and VEX.vvvv.
     tc.initial.xmm[0] = xmm_from_u64(0, 0);
     tc.initial.xmm[1] = xmm_from_u64(0, 0);
@@ -116,7 +114,6 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
   // The opcodes are +1 from packed: e.g. VFMADD132SS = 0x99, VFMADD213SS = 0xA9
 
   ArchState sss;
-  sss.rflags = 0x2;
   float ss0 = 1.5f, ss1 = 2.5f, ss2 = 100.0f;
   sss.xmm[0].q[0] = 0;
   memcpy(&sss.xmm[0].q[0], &ss0, 4);
@@ -127,7 +124,6 @@ void add_avx_fma_tests(std::vector<TestCase> &tests) {
   sss.xmm[2].q[1] = 0xBEEFBEEFBEEFBEEF;
 
   ArchState ssd;
-  ssd.rflags = 0x2;
   double sd0 = 1.5, sd1 = 2.5, sd2 = 100.0;
   memcpy(&ssd.xmm[0].q[0], &sd0, 8);
   ssd.xmm[0].q[1] = 0xDEADDEADDEADDEAD;

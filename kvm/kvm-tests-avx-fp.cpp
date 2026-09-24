@@ -27,7 +27,6 @@ void add_avx_fp_tests(std::vector<TestCase> &tests) {
   // --- Helper: common initial state for packed f64 binary ops ---
   auto make_pd_state = []() {
     ArchState s;
-    s.rflags = 0x2;
     double v1[] = {1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5};
     double v2[] = {10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0};
     memcpy(s.xmm[1].q, v1, 64);
@@ -40,7 +39,6 @@ void add_avx_fp_tests(std::vector<TestCase> &tests) {
   // --- Helper: common initial state for packed f32 binary ops ---
   auto make_ps_state = []() {
     ArchState s;
-    s.rflags = 0x2;
     float v1[] = {1.5f, 2.5f, 3.5f, 4.5f, 5.5f, 6.5f, 7.5f, 8.5f,
                   9.5f, 10.5f, 11.5f, 12.5f, 13.5f, 14.5f, 15.5f, 16.5f};
     float v2[] = {10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f,
@@ -110,7 +108,7 @@ void add_avx_fp_tests(std::vector<TestCase> &tests) {
                          std::initializer_list<unsigned> vector_inputs = {}) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     for (unsigned reg : vector_inputs)
       tc.initial.xmm[reg] = {};
     tc.xmm_mask = 0x1; tc.init_data = adata;
@@ -194,7 +192,6 @@ void add_avx_fp_tests(std::vector<TestCase> &tests) {
     e.reg = 0; e.vvvv = 0; e.rm = 1;
 
     ArchState s;
-    s.rflags = 0x2;
     double vals[] = {4.0, 9.0, 16.0, 25.0, 36.0, 49.0, 64.0, 81.0};
     memcpy(s.xmm[1].q, vals, 64);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -208,7 +205,6 @@ void add_avx_fp_tests(std::vector<TestCase> &tests) {
     e.reg = 0; e.vvvv = 0; e.rm = 1;
 
     ArchState s;
-    s.rflags = 0x2;
     float vals[] = {4.0f, 9.0f, 16.0f, 25.0f, 36.0f, 49.0f, 64.0f, 81.0f,
                     100.0f, 121.0f, 144.0f, 169.0f, 196.0f, 225.0f, 256.0f, 289.0f};
     memcpy(s.xmm[1].q, vals, 64);
@@ -236,7 +232,7 @@ void add_avx_fp_tests(std::vector<TestCase> &tests) {
     auto add_vok_approx = [&](const std::string &name, std::vector<u8> code, int result_bits) {
       TestCase tc; tc.name = name; tc.category = cat;
       tc.code = std::move(code);
-      tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+      tc.initial = {.rdi = DATA_ADDR + 1};
       if (result_bits == 32) tc.initial.xmm[1] = xmm_from_u64(0, 0);
       tc.xmm_mask = 0x1; tc.init_data = adata;
       tc.approx_rel_tol = 1.6e-3; tc.approx_elem_bits = 32;

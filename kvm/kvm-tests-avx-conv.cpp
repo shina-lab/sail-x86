@@ -13,7 +13,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   // VCVTUDQ2PS: EVEX.F2.0F.W0  7A /r  (u32→f32)
   // =====================================================================
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float vals[] = {1.5f, -2.7f, 3.0f, 100.9f, -0.5f, 255.1f, 0.0f, -1.0f,
                     1000.5f, -999.9f, 42.42f, 0.001f, 65535.5f, -32768.5f, 1.0f, -0.0f};
     memcpy(s.xmm[1].q, vals, 64);
@@ -28,7 +28,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     add_evex_rr_tests(tests, cat, "VCVTDQ2PS", e, s, 0x2, 0xAAAA);
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float vals[] = {1.5f, 2.7f, 3.0f, 100.9f, 0.5f, 255.1f, 0.0f, 1.0f,
                     1000.5f, 999.9f, 42.42f, 0.001f, 65535.5f, 32768.5f, 1.0f, 0.0f};
     memcpy(s.xmm[1].q, vals, 64);
@@ -40,7 +40,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     add_evex_rr_tests(tests, cat, "VCVTTPS2UDQ", e, s, 0x2, 0xAAAA);
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, i * 1000 + 42);
 
     Evex e; e.mm = 1; e.pp = 3; e.W = false; e.opcode = 0x7A;
@@ -58,7 +58,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   // VCVTTPD2UQQ:EVEX.66.0F.W1  78 /r  (f64→u64 truncate)
   // =====================================================================
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 1000 * (i + 1) + 42;
 
     Evex e; e.mm = 1; e.W = true; e.reg = 0; e.vvvv = 0; e.rm = 1;
@@ -66,7 +66,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     add_evex_rr_tests(tests, cat, "VCVTQQ2PD", e, s, 0x2, 0x55);
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     double vals[] = {1.5, -2.7, 3.0, 100.9, -0.5, 255.1, 0.0, -1.0};
     memcpy(s.xmm[1].q, vals, 64);
 
@@ -77,7 +77,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     add_evex_rr_tests(tests, cat, "VCVTTPD2QQ", e, s, 0x2, 0x55);
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 1000 * (i + 1) + 42;
 
     Evex e; e.mm = 1; e.W = true; e.reg = 0; e.vvvv = 0; e.rm = 1;
@@ -85,7 +85,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     add_evex_rr_tests(tests, cat, "VCVTUQQ2PD", e, s, 0x2, 0x55);
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     double vals[] = {1.5, 2.7, 3.0, 100.9, 0.5, 255.1, 0.0, 1.0};
     memcpy(s.xmm[1].q, vals, 64);
 
@@ -105,7 +105,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   // For VCVTPD2PS: VL128→xmm(low 64 used), VL256→xmm, VL512→ymm
   // Test each VL individually
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     double vals[] = {1.5, -2.7, 3.0, 100.9, -0.5, 255.1, 0.0, -1.0};
     memcpy(s.xmm[1].q, vals, 64);
 
@@ -121,7 +121,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
 
   // VCVTPS2PD: VL128→xmm(low 64 read), VL256→xmm read, VL512→ymm read
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float vals[] = {1.5f, -2.7f, 3.0f, 100.9f, -0.5f, 255.1f, 0.0f, -1.0f,
                     1000.5f, -999.9f, 42.42f, 0.001f, 65535.5f, -32768.5f, 1.0f, -0.0f};
     memcpy(s.xmm[1].q, vals, 64);
@@ -144,7 +144,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   // VCVTTPD2UDQ:EVEX.NP.0F.W1 78 /r
   // =====================================================================
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     double vals[] = {1.5, -2.7, 3.0, 100.9, -0.5, 255.1, 0.0, -1.0};
     memcpy(s.xmm[1].q, vals, 64);
 
@@ -165,7 +165,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     }
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     double vals[] = {1.5, 2.7, 3.0, 100.9, 0.5, 255.1, 0.0, 1.0};
     memcpy(s.xmm[1].q, vals, 64);
 
@@ -195,7 +195,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   // Let me just test the ones I'm sure about.
   // =====================================================================
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 1000 * (i + 1) + 42;
 
     Evex e; e.mm = 1; e.pp = 0; e.W = true; e.opcode = 0x5B;
@@ -216,7 +216,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   // VCVTSI2SD: EVEX.F2.0F.W0 2A /r (i32→f64, from GPR)
   // =====================================================================
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     double d = 3.14159; memcpy(&s.xmm[1].q[0], &d, 8);
     s.xmm[1].q[1] = 0xBBBBBBBBBBBBBBBB;
     s.xmm[0].q[0] = 0xAAAAAAAAAAAAAAAA;
@@ -227,7 +227,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VCVTSD2SS xmm", cat, e.encode_rr(), s, FL_ALL, 0x3, false});
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float f = 3.14f; memcpy(&s.xmm[1].q[0], &f, 4);
     s.xmm[1].q[1] = 0xBBBBBBBBBBBBBBBB;
     s.xmm[0].q[0] = 0xAAAAAAAAAAAAAAAA;
@@ -254,7 +254,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   // VCVTTSD2USI: EVEX.F2.0F.W0 78 /r [W1 for 64-bit]
   // =====================================================================
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.rax = 12345;
     s.xmm[1] = xmm_from_u64(0xBBBBBBBBBBBBBBBB, 0xCCCCCCCCCCCCCCCC);
 
@@ -275,7 +275,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VCVTUSI2SD xmm,xmm,eax", cat, e.encode_rr(), s, FL_ALL, 0x3, false});
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float f = 42.7f; memcpy(&s.xmm[1].q[0], &f, 4);
     Evex e; e.mm = 1; e.reg = 0; e.vvvv = 0; e.rm = 1;
     e.LL = 0; e.aaa = 0; e.z = false;
@@ -294,7 +294,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VCVTTSS2USI eax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     double d = 42.7; memcpy(&s.xmm[1].q[0], &d, 8);
     Evex e; e.mm = 1; e.reg = 0; e.vvvv = 0; e.rm = 1;
     e.LL = 0; e.aaa = 0; e.z = false;
@@ -323,7 +323,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   // VCVTUQQ2PS: EVEX.F2.0F.W1 7A /r (u64→f32, narrowing)
   // =====================================================================
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     int32_t ivals[] = {1, -2, 3, -4, 5, -6, 7, -8, 9, -10, 11, -12, 13, -14, 15, -16};
     memcpy(s.xmm[1].q, ivals, 64);
 
@@ -336,7 +336,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     }
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     u32 uvals[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     memcpy(s.xmm[1].q, uvals, 64);
 
@@ -349,7 +349,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     }
   }
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float fvals[] = {1.5f, 2.7f, -3.0f, 100.9f, 0.5f, -255.1f, 0.0f, -1.0f,
                      1000.5f, -999.9f, 42.42f, 0.001f, 65535.5f, -32768.5f, 1.0f, -0.0f};
     memcpy(s.xmm[1].q, fvals, 64);
@@ -370,7 +370,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   }
   // VCVTPS2UQQ/VCVTTPS2UQQ (unsigned)
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float fvals[] = {1.5f, 2.7f, 3.0f, 100.9f, 0.5f, 255.1f, 0.0f, 1.0f,
                      1000.5f, 999.9f, 42.42f, 0.001f, 65535.5f, 32768.5f, 1.0f, 0.0f};
     memcpy(s.xmm[1].q, fvals, 64);
@@ -391,7 +391,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   }
   // VCVTUQQ2PS: narrowing u64→f32
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 1000 * (i + 1) + 42;
     Evex e; e.mm = 1; e.pp = 3; e.W = true; e.opcode = 0x7A;
     e.reg = 0; e.vvvv = 0; e.rm = 1;
@@ -410,7 +410,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   {
     static const std::vector<u8> kmovq_k0_rax = {0xC4, 0xE1, 0xFB, 0x93, 0xC0};
 
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     float f1 = 3.0f, f2 = 5.0f;
     memcpy(&s.xmm[1].q[0], &f1, 4);
     memcpy(&s.xmm[2].q[0], &f2, 4);
@@ -429,7 +429,7 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
   {
     static const std::vector<u8> kmovq_k0_rax = {0xC4, 0xE1, 0xFB, 0x93, 0xC0};
 
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     double d1 = 3.0, d2 = 5.0;
     memcpy(&s.xmm[1].q[0], &d1, 8);
     memcpy(&s.xmm[2].q[0], &d2, 8);

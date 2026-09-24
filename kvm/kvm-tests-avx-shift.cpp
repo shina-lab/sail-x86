@@ -81,7 +81,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
   auto add_vok = [&](const std::string &name, std::vector<u8> code) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     tc.initial.xmm[1] = xmm_from_u64(0, 0); // input; the count comes from memory
     tc.xmm_mask = 0x1; tc.init_data = adata;
     tests.push_back(std::move(tc));
@@ -92,7 +92,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
   // VPSLLD: 66 0F F2, W0    VPSRLD: 66 0F D2, W0    VPSRAD: 66 0F E2, W0
   // VPSLLQ: 66 0F F3, W1    VPSRLQ: 66 0F D3, W1    VPSRAQ: 66 0F E2, W1
   {
-    ArchState sw; sw.rflags = 0x2;
+    ArchState sw;
     fill_words(sw.xmm[1], 0x8001, 0x100);
     sw.xmm[2] = xmm_from_u64(4, 0);  // shift count = 4
     for (int i = 0; i < 8; i++) sw.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -107,7 +107,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
       v.opcode = 0xE1; add_vok("VPSRAW xmm,[rdi] misaligned", v.encode_rm_mem()); }
   }
   {
-    ArchState sd; sd.rflags = 0x2;
+    ArchState sd;
     fill_dwords(sd.xmm[1], 0x80000001, 0x11111111);
     sd.xmm[2] = xmm_from_u64(8, 0);
     for (int i = 0; i < 8; i++) sd.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -121,7 +121,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     add_shift_reg("VPSRAD", 1, false, 0xE2, sd, 0xAAAA);
   }
   {
-    ArchState sq; sq.rflags = 0x2;
+    ArchState sq;
     fill_qwords(sq.xmm[1], 0x8000000000000001ULL, 0x1111111111111111ULL);
     sq.xmm[2] = xmm_from_u64(16, 0);
     for (int i = 0; i < 8; i++) sq.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -138,7 +138,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
   // constructing an intermediate bitvector as large as the count itself.
   for (u64 count : {0ULL, 15ULL, 16ULL, 31ULL, 32ULL, 63ULL, 64ULL,
                     1ULL << 32, ~0ULL}) {
-    ArchState s = {.rflags = 0x2};
+    ArchState s = {};
     for (u64 &word : s.xmm[1].q)
       word = 0x800180017FFE7FFEULL;
     s.xmm[2] = xmm_from_u64(count, 0);
@@ -153,7 +153,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
   // VPSLLD imm: 66 0F 72 /6 ib    VPSRLD imm: 66 0F 72 /2 ib    VPSRAD imm: 66 0F 72 /4 ib
   // VPSLLQ imm: 66 0F 73 /6 ib    VPSRLQ imm: 66 0F 73 /2 ib    VPSRAQ imm: 66 0F 72 /4 W1 ib
   {
-    ArchState sw; sw.rflags = 0x2;
+    ArchState sw;
     fill_words(sw.xmm[1], 0x8001, 0x100);
     for (int i = 0; i < 8; i++) sw.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
@@ -162,7 +162,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     add_shift_imm("VPSRAW", false, 0x71, 4, sw, 0x55555555, 4);
   }
   {
-    ArchState sd; sd.rflags = 0x2;
+    ArchState sd;
     fill_dwords(sd.xmm[1], 0x80000001, 0x11111111);
     for (int i = 0; i < 8; i++) sd.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
@@ -171,7 +171,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     add_shift_imm("VPSRAD", false, 0x72, 4, sd, 0xAAAA, 8);
   }
   {
-    ArchState sq; sq.rflags = 0x2;
+    ArchState sq;
     fill_qwords(sq.xmm[1], 0x8000000000000001ULL, 0x1111111111111111ULL);
     for (int i = 0; i < 8; i++) sq.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
@@ -183,7 +183,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
   // ---- Byte shift (VPSLLDQ / VPSRLDQ) ----
   // VPSLLDQ: 66 0F 73 /7 ib    VPSRLDQ: 66 0F 73 /3 ib
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = i + 1;
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
@@ -196,7 +196,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
   // VPSLLVD: 66 0F38 47, W0   VPSRLVD: 66 0F38 45, W0   VPSRAVD: 66 0F38 46, W0
   // VPSLLVQ: 66 0F38 47, W1   VPSRLVQ: 66 0F38 45, W1   VPSRAVQ: 66 0F38 46, W1
   {
-    ArchState sw; sw.rflags = 0x2;
+    ArchState sw;
     fill_words(sw.xmm[1], 0x8001, 0x100);
     // Per-element shift counts: 0,1,2,3,4,...
     for (int i = 0; i < 32; i++) sw.xmm[2].set<u16>(i, i % 16);
@@ -207,7 +207,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     add_var_shift("VPSRAVW", 2, true, 0x11, sw, 0x55555555);
   }
   {
-    ArchState sd; sd.rflags = 0x2;
+    ArchState sd;
     fill_dwords(sd.xmm[1], 0x80000001, 0x11111111);
     for (int i = 0; i < 16; i++) sd.xmm[2].set<u32>(i, i % 32);
     for (int i = 0; i < 8; i++) sd.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -222,7 +222,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
       v.opcode = 0x46; add_vok("VPSRAVD xmm,[rdi] misaligned", v.encode_rm_mem()); }
   }
   {
-    ArchState sq; sq.rflags = 0x2;
+    ArchState sq;
     fill_qwords(sq.xmm[1], 0x8000000000000001ULL, 0x1111111111111111ULL);
     for (int i = 0; i < 8; i++) sq.xmm[2].q[i] = i * 8;
     for (int i = 0; i < 8; i++) sq.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -239,7 +239,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
   // VPROLD: 66 0F 72 /1 ib, W0    VPROLQ: 66 0F 72 /1 ib, W1
   // VPRORD: 66 0F 72 /0 ib, W0    VPRORQ: 66 0F 72 /0 ib, W1
   {
-    ArchState sd; sd.rflags = 0x2;
+    ArchState sd;
     fill_dwords(sd.xmm[1], 0x80000001, 0x11111111);
     for (int i = 0; i < 8; i++) sd.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
@@ -247,7 +247,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     add_shift_imm("VPRORD", false, 0x72, 0, sd, 0xAAAA, 5);
   }
   {
-    ArchState sq; sq.rflags = 0x2;
+    ArchState sq;
     fill_qwords(sq.xmm[1], 0x8000000000000001ULL, 0x1111111111111111ULL);
     for (int i = 0; i < 8; i++) sq.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
@@ -259,7 +259,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
   // VPROLVD: 66 0F38 15, W0   VPROLVQ: 66 0F38 15, W1
   // VPRORVD: 66 0F38 14, W0   VPRORVQ: 66 0F38 14, W1
   {
-    ArchState sd; sd.rflags = 0x2;
+    ArchState sd;
     fill_dwords(sd.xmm[1], 0x80000001, 0x11111111);
     for (int i = 0; i < 16; i++) sd.xmm[2].set<u32>(i, (i * 3) % 32);
     for (int i = 0; i < 8; i++) sd.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -268,7 +268,7 @@ void add_avx_shift_tests(std::vector<TestCase> &tests) {
     add_var_shift("VPRORVD", 2, false, 0x14, sd, 0xAAAA);
   }
   {
-    ArchState sq; sq.rflags = 0x2;
+    ArchState sq;
     fill_qwords(sq.xmm[1], 0x8000000000000001ULL, 0x1111111111111111ULL);
     for (int i = 0; i < 8; i++) sq.xmm[2].q[i] = (i * 7) % 64;
     for (int i = 0; i < 8; i++) sq.xmm[0].q[i] = 0xDEADDEADDEADDEAD;

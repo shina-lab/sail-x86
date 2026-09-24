@@ -49,7 +49,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
                          std::initializer_list<unsigned> vector_inputs = {}) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     for (unsigned reg : vector_inputs)
       tc.initial.xmm[reg] = {};
     tc.xmm_mask = 0x1; tc.init_data = adata;
@@ -79,7 +79,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     // VPADDB: 66 0F FC, WIG   VPADDW: 66 0F FD, WIG
     // VPSUBB: 66 0F F8, WIG   VPSUBW: 66 0F F9, WIG
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_bytes(s.xmm[1], 0);
       fill_bytes(s.xmm[2], 64);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -90,7 +90,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       add_vok("VPSUBB xmm,[rdi] misaligned", vex_bin(1, 0xF8, false), {1});
     }
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_words(s.xmm[1], 100, 100);
       fill_words(s.xmm[2], 200, 200);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -105,7 +105,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     // VPADDD: 66 0F FE, W0    VPADDQ: 66 0F D4, W1
     // VPSUBD: 66 0F FA, W0    VPSUBQ: 66 0F FB, W1
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_dwords(s.xmm[1], 0x10000000, 0x10000000);
       fill_dwords(s.xmm[2], 0x01000000, 0x01000000);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -116,7 +116,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       add_vok("VPSUBD xmm,[rdi] misaligned", vex_bin(1, 0xFA, false), {1});
     }
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_qwords(s.xmm[1], 0x100000000ULL, 0x100000000ULL);
       fill_qwords(s.xmm[2], 0x200000000ULL, 0x200000000ULL);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -133,7 +133,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     // VPADDUSB: 66 0F DC, WIG  VPADDUSW: 66 0F DD, WIG
     // VPSUBUSB: 66 0F D8, WIG  VPSUBUSW: 66 0F D9, WIG
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       // Test saturation: values near boundaries
       for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = 120 + (i % 16);  // near 127
       for (int i = 0; i < 64; i++) ((u8 *)s.xmm[2].q)[i] = 10 + (i % 8);
@@ -149,7 +149,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       add_vok("VPSUBUSB xmm,[rdi] misaligned", vex_bin(1, 0xD8, false), {1});
     }
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, 32000 + i * 100);
       for (int i = 0; i < 32; i++) s.xmm[2].set<u16>(i, 1000 + i * 50);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -167,7 +167,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     // --- Average ---
     // VPAVGB: 66 0F E0, WIG   VPAVGW: 66 0F E3, WIG
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_bytes(s.xmm[1], 10);
       fill_bytes(s.xmm[2], 20);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -176,7 +176,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       add_vok("VPAVGB xmm,[rdi] misaligned", vex_bin(1, 0xE0, false), {1});
     }
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_words(s.xmm[1], 1000, 100);
       fill_words(s.xmm[2], 2000, 200);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -195,7 +195,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     // VPMULUDQ: 66 0F F4, W1 (unsigned dword → qword)
     // VPMULDQ:  66 0F38 28, W1 (signed dword → qword)
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_words(s.xmm[1], 100, 7);
       fill_words(s.xmm[2], 200, 11);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -210,7 +210,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       add_vok("VPMULHRSW xmm,[rdi] misaligned", vex38_bin(1, 0x0B, false), {1});
     }
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_dwords(s.xmm[1], 100, 7);
       fill_dwords(s.xmm[2], 200, 11);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -219,7 +219,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       add_vok("VPMULLD xmm,[rdi] misaligned", vex38_bin(1, 0x40, false), {1});
     }
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_qwords(s.xmm[1], 100, 7);
       fill_qwords(s.xmm[2], 200, 11);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -235,7 +235,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     // VPMADDWD:  66 0F F5, WIG (pairs of words → dwords)
     // VPMADDUBSW: 66 0F38 04, WIG (unsigned*signed byte pairs → words with sat)
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_words(s.xmm[1], 10, 3);
       fill_words(s.xmm[2], 20, 5);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -244,7 +244,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       add_vok("VPMADDWD xmm,[rdi] misaligned", vex_bin(1, 0xF5, false), {1});
     }
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_bytes(s.xmm[1], 1);
       fill_bytes(s.xmm[2], 2);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -255,7 +255,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
 
     // --- VPSADBW: 66 0F F6, WIG ---
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_bytes(s.xmm[1], 10);
       fill_bytes(s.xmm[2], 20);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -273,7 +273,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     // VPORD:  66 0F EB, W0    VPORQ:  66 0F EB, W1
     // VPXORD: 66 0F EF, W0    VPXORQ: 66 0F EF, W1
     // VPANDND: 66 0F DF, W0   VPANDNQ: 66 0F DF, W1
-    ArchState sd; sd.rflags = 0x2;
+    ArchState sd;
     fill_dwords(sd.xmm[1], 0xFF00FF00, 1);
     fill_dwords(sd.xmm[2], 0x0F0F0F0F, 0);
     for (int i = 0; i < 8; i++) sd.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -287,7 +287,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     add_int_binary("VPANDND", 1, 1, false, 0xDF, sd, 0xAAAA);
     add_vok("VPANDN xmm,[rdi] misaligned", vex_bin(1, 0xDF, false), {1});
 
-    ArchState sq; sq.rflags = 0x2;
+    ArchState sq;
     fill_qwords(sq.xmm[1], 0xFF00FF00FF00FF00ULL, 1);
     fill_qwords(sq.xmm[2], 0x0F0F0F0F0F0F0F0FULL, 0);
     for (int i = 0; i < 8; i++) sq.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -305,7 +305,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     // VPMINSB: 66 0F38 38, WIG   VPMINUB: 66 0F DA, WIG
     // VPMAXSB: 66 0F38 3C, WIG   VPMAXUB: 66 0F DE, WIG
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = i * 3;
       for (int i = 0; i < 64; i++) ((u8 *)s.xmm[2].q)[i] = 100 + i;
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -323,7 +323,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     // VPMINSW: 66 0F EA, WIG   VPMINUW: 66 0F38 3A, WIG
     // VPMAXSW: 66 0F EE, WIG   VPMAXUW: 66 0F38 3E, WIG
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_words(s.xmm[1], 100, 50);
       fill_words(s.xmm[2], 1000, 30);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -341,7 +341,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     // VPMINSD: 66 0F38 39, W0   VPMINUD: 66 0F38 3B, W0
     // VPMAXSD: 66 0F38 3D, W0   VPMAXUD: 66 0F38 3F, W0
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_dwords(s.xmm[1], 100, 1000);
       fill_dwords(s.xmm[2], 8000, 500);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -359,7 +359,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     // VPMINSQ: 66 0F38 39, W1   VPMINUQ: 66 0F38 3B, W1
     // VPMAXSQ: 66 0F38 3D, W1   VPMAXUQ: 66 0F38 3F, W1
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_qwords(s.xmm[1], 100, 1000);
       fill_qwords(s.xmm[2], 4000, 500);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -388,7 +388,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     };
 
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       // Mix of positive and negative values
       for (int i = 0; i < 64; i++) ((int8_t *)s.xmm[1].q)[i] = -64 + i;
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -396,21 +396,21 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       add_vok("VPABSB xmm,[rdi] misaligned", vex38_un(1, 0x1C, false));
     }
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       for (int i = 0; i < 32; i++) s.xmm[1].set<int16_t>(i, -16000 + i * 1000);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
       add_unary("VPABSW", 2, 1, false, 0x1D, s, 0x55555555);
       add_vok("VPABSW xmm,[rdi] misaligned", vex38_un(1, 0x1D, false));
     }
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       for (int i = 0; i < 16; i++) s.xmm[1].set<int32_t>(i, -8000 + i * 1000);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
       add_unary("VPABSD", 2, 1, false, 0x1E, s, 0xAAAA);
       add_vok("VPABSD xmm,[rdi] misaligned", vex38_un(1, 0x1E, false));
     }
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       for (int i = 0; i < 8; i++) s.xmm[1].q[i] = (u64)((int64_t)(-4000) + i * 1000);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
       add_unary("VPABSQ", 2, 1, true, 0x1F, s, 0x55);
@@ -419,7 +419,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
     // VPOPCNTB: 66 0F38 54, W0  VPOPCNTW: 66 0F38 54, W1
     // VPOPCNTD: 66 0F38 55, W0  VPOPCNTQ: 66 0F38 55, W1
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_bytes(s.xmm[1], 0);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
@@ -427,7 +427,7 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
       add_unary("VPOPCNTW", 2, 1, true,  0x54, s, 0x55555555);
     }
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_dwords(s.xmm[1], 0, 0x11111111);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
@@ -437,13 +437,13 @@ void add_avx_int_tests(std::vector<TestCase> &tests) {
 
     // VPLZCNTD: 66 0F38 44, W0  VPLZCNTQ: 66 0F38 44, W1
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_dwords(s.xmm[1], 1, 0x100);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
       add_unary("VPLZCNTD", 2, 1, false, 0x44, s, 0xAAAA);
     }
     {
-      ArchState s; s.rflags = 0x2;
+      ArchState s;
       fill_qwords(s.xmm[1], 1, 0x10000);
       for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
       add_unary("VPLZCNTQ", 2, 1, true, 0x44, s, 0x55);

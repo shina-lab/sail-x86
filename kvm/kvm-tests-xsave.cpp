@@ -14,7 +14,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
 
   {
     ArchState s = with_xsave_vector_inputs({}, 0x7);
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     s.rdi = DATA_ADDR;
     s.rax = 0x7;             // x87 + SSE + AVX
     s.rdx = 0;
@@ -41,7 +41,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // XSAVEC with full components, round-trip
   {
     ArchState s = with_xsave_vector_inputs({}, 0xE7);
-    s.rflags = 0x2;
+    s.rflags = initial_flags();
     s.rdi = DATA_ADDR;
     s.rax = 0xE7;            // all components
     s.rdx = 0;
@@ -73,7 +73,6 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // XGETBV ECX=0: should return XCR0 in EDX:EAX
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rcx = 0;
     tests.push_back({"xgetbv ecx=0", cat,
                       {0x0F, 0x01, 0xD0},
@@ -87,7 +86,6 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // XGETBV ECX=2: should #GP
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rcx = 2;
 
     TestCase tc;
@@ -109,7 +107,6 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // CPUID leaf 0xD, subleaf 2: AVX component info (size=256, offset=576)
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rax = 0xD;
     s.rcx = 2;
     tests.push_back({"cpuid leaf 0xD sub 2", cat,
@@ -125,7 +122,6 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // is.
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rax = 0xD;
     s.rcx = 0;
     tests.push_back({"cpuid leaf 0xD sub 0 (EBX)", cat,
@@ -141,7 +137,6 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // selects from the host, so all four registers are compared.
   for (u64 sub : {5ull, 6ull, 7ull}) {
     ArchState s;
-    s.rflags = 0x2;
     s.rax = 0xD;
     s.rcx = sub;
     tests.push_back({std::format("cpuid leaf 0xD sub {}", sub), cat,
@@ -157,7 +152,6 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // RDMSR IA32_XSS: should return 0 (no supervisor components supported)
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rcx = 0xDA0;           // IA32_XSS
     // 0F 32 = RDMSR
     tests.push_back({"rdmsr IA32_XSS", cat,
@@ -168,7 +162,6 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // WRMSR IA32_XSS with 0: should succeed (no-op)
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rcx = 0xDA0;
     s.rax = 0;               // low 32 bits = 0
     s.rdx = 0;               // high 32 bits = 0
@@ -181,7 +174,6 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // WRMSR IA32_XSS with nonzero: should #GP (no bits supported)
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rcx = 0xDA0;
     s.rax = 0x100;           // bit 8 (PT state) — not supported
     s.rdx = 0;
@@ -209,7 +201,6 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // the host's AMX support, which the model does not implement.
   for (u64 xcr0 : {0x03ull, 0x07ull, 0xE7ull}) {
     ArchState s;
-    s.rflags = 0x2;
     s.rax = 0xD;
     s.rcx = 1;
     TestCase tc;
@@ -258,7 +249,6 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // XSAVE [RDI] with EDX:EAX = 0xE6: every component but x87 is written.
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     s.rax = 0xE6;
     s.rdx = 0;
@@ -274,7 +264,6 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // component offsets; every ZMM and k register is compared afterwards.
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rdi = DATA_ADDR;
     s.rax = 0xE6;
     s.rdx = 0;

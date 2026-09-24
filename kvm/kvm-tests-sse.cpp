@@ -17,7 +17,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     tc.name = name;
     tc.category = cat;
     tc.code = std::move(code);
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     for (unsigned reg : xmm_inputs)
       tc.initial.xmm[reg] = xmm_from_u64(0, 0);
     tc.flags_mask = FL_ALL;
@@ -34,7 +34,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     tc.name = name;
     tc.category = cat;
     tc.code = std::move(code);
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     for (unsigned reg : xmm_inputs)
       tc.initial.xmm[reg] = xmm_from_u64(0, 0);
     tc.flags_mask = FL_ALL;
@@ -45,7 +45,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   // Misaligned store test: expects #GP(0) fault
   auto add_misalign_fault_st = [&](const std::string &name, std::vector<u8> code) {
-    ArchState init = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    ArchState init = {.rdi = DATA_ADDR + 1};
     init.xmm[0] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
     TestCase tc;
     tc.name = name;
@@ -62,7 +62,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // Misaligned store test: must NOT fault, compare written data
   auto add_misalign_ok_st = [&](const std::string &name, std::vector<u8> code,
                                  size_t cmp_len = 16) {
-    ArchState init = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    ArchState init = {.rdi = DATA_ADDR + 1};
     init.xmm[0] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
     TestCase tc;
     tc.name = name;
@@ -82,7 +82,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     tc.name = name;
     tc.category = cat;
     tc.code = std::move(code);
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     for (unsigned reg : xmm_inputs)
       tc.initial.xmm[reg] = xmm_from_u64(0, 0);
     tc.flags_mask = FL_ALL;
@@ -97,7 +97,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
 
@@ -131,7 +130,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // ADDPD/SUBPD/MULPD/DIVPD — packed double
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f64(1.5, 2.5);
     s.xmm[1] = xmm_from_f64(3.0, 4.0);
 
@@ -152,7 +150,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // ADDSS/SUBSS/MULSS/DIVSS — scalar single
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
 
@@ -173,7 +170,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // ADDSD/SUBSD/MULSD/DIVSD — scalar double
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f64(1.5, 100.0);
     s.xmm[1] = xmm_from_f64(2.5, 200.0);
 
@@ -194,7 +190,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE2 integer — PADDB/PADDW/PADDD/PADDQ, PSUBB, PAND/POR/PXOR
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1011121314151617, 0x18191A1B1C1D1E1F);
 
@@ -227,7 +222,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE2 shuffle/unpack
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
 
@@ -245,7 +239,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE conversions
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.5f, 2.7f, -3.2f, 4.9f);
 
     // CVTPS2DQ XMM1, XMM0: 66 0F 5B C8 (ModRM: reg=1, rm=0)
@@ -258,7 +251,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // CVTDQ2PS XMM1, XMM0: 0F 5B C8 (with integer input)
     ArchState si = {};
-    si.rflags = 0x2;
     si.xmm[0] = xmm_from_u32(1, 2, 0xFFFFFFFF, 100);
     add_xmm("cvtdq2ps xmm1,xmm0", {0x0F, 0x5B, 0xC8}, si, 0x2);
     add_misalign_fault("cvtdq2ps xmm0,[rdi] misaligned", {0x0F, 0x5B, 0x07});
@@ -267,7 +259,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // MOVD/MOVQ — GPR ↔ XMM
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rax = 0x123456789ABCDEF0;
 
     // MOVQ XMM0, RAX: 66 48 0F 6E C0
@@ -280,7 +271,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // MOVQ RAX, XMM1: 66 48 0F 7E C8 (reg=1, rm=0 → XMM1 to RAX)
     ArchState s2 = {};
-    s2.rflags = 0x2;
     s2.xmm[1] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0x1234567890ABCDEF);
     // MOVQ RAX, XMM1: 66 REX.W 0F 7E C8 (ModRM: reg=xmm1=1, rm=rax=0)
     tests.push_back({"movq rax,xmm1", cat, {0x66, 0x48, 0x0F, 0x7E, 0xC8},
@@ -290,7 +280,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE compare — UCOMISS sets EFLAGS
   {
     ArchState s;
-    s.rflags = 0x2;
 
     // Equal
     s.xmm[0] = xmm_from_f32(1.0f, 0, 0, 0);
@@ -323,7 +312,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // Upper registers (XMM8+) via REX prefix
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[8]  = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[9]  = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
 
@@ -334,7 +322,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE logical — ANDPS/ANDNPS/ORPS/XORPS
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0xFF00FF00FF00FF00, 0x0F0F0F0F0F0F0F0F);
     s.xmm[1] = xmm_from_u64(0x00FF00FF00FF00FF, 0xF0F0F0F0F0F0F0F0);
 
@@ -368,7 +355,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE SQRT — SQRTPS/SQRTPD/SQRTSS/SQRTSD
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(4.0f, 9.0f, 16.0f, 25.0f);
 
     // SQRTPS XMM1, XMM0: 0F 51 C8
@@ -379,7 +365,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_misalign_ok("sqrtss xmm0,[rdi] misaligned", {0xF3, 0x0F, 0x51, 0x07});
 
     ArchState sd = {};
-    sd.rflags = 0x2;
     sd.xmm[0] = xmm_from_f64(4.0, 9.0);
 
     // SQRTPD XMM1, XMM0: 66 0F 51 C8
@@ -393,7 +378,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE MIN/MAX — remaining variants (MINPD/MAXPD/MINSS/MAXSS/MINSD/MAXSD)
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 8.0f, 3.0f, 6.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 2.0f, 7.0f, 4.0f);
 
@@ -405,7 +389,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_misalign_ok("maxss xmm0,[rdi] misaligned", {0xF3, 0x0F, 0x5F, 0x07}, {0});
 
     ArchState sd = {};
-    sd.rflags = 0x2;
     sd.xmm[0] = xmm_from_f64(1.5, 8.5);
     sd.xmm[1] = xmm_from_f64(5.5, 2.5);
 
@@ -426,7 +409,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE comparison — CMPPS/CMPPD
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 5.0f, 3.0f, 3.0f);
     s.xmm[1] = xmm_from_f32(2.0f, 5.0f, 1.0f, 4.0f);
 
@@ -439,7 +421,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_xmm("cmpps le", {0x0F, 0xC2, 0xC1, 0x02}, s, 0x3);
 
     ArchState sd = {};
-    sd.rflags = 0x2;
     sd.xmm[0] = xmm_from_f64(1.0, 5.0);
     sd.xmm[1] = xmm_from_f64(2.0, 5.0);
 
@@ -460,7 +441,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE2 integer — PSUBW/PSUBD/PSUBQ, PANDN, PCMPEQB/PCMPEQW/PCMPEQD, PCMPGTB
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x0001020304050607, 0x08090A0B0C0D0E0F);
 
@@ -500,7 +480,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE2 shuffle — PSHUFD, SHUFPD, UNPCKLPD, UNPCKHPD
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
 
     // PSHUFD XMM1, XMM0, 0x1B (reverse): 66 0F 70 C8 1B
@@ -510,7 +489,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_xmm("pshufd xmm1,xmm0,0x00", {0x66, 0x0F, 0x70, 0xC8, 0x00}, s, 0x2);
 
     ArchState sd = {};
-    sd.rflags = 0x2;
     sd.xmm[0] = xmm_from_f64(1.0, 2.0);
     sd.xmm[1] = xmm_from_f64(3.0, 4.0);
 
@@ -528,7 +506,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE2 data movement — MOVAPD/MOVUPD/MOVDQA/MOVDQU
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0xDEADBEEFCAFEBABE, 0x123456789ABCDEF0);
 
     // MOVAPD XMM2, XMM0: 66 0F 28 D0
@@ -560,7 +537,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE2 pack/unpack integer
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u32(0x00010002, 0x00030004, 0x00050006, 0x00070008);
     s.xmm[1] = xmm_from_u32(0x000A000B, 0x000C000D, 0x000E000F, 0x00100011);
 
@@ -603,7 +579,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE2 shift — PSLLW/PSLLD/PSLLQ/PSRLW/PSRLD/PSRLQ/PSRAW/PSRAD (imm8)
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
 
     // PSLLW XMM0, 4: 66 0F 71 F0 04
@@ -636,7 +611,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE2 multiply — PMULLW/PMULHW/PMULHUW/PMULUDQ/PMADDWD
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
     s.xmm[1] = xmm_from_u64(0x0010002000300040, 0x0050006000700080);
 
@@ -660,7 +634,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE2 saturating arithmetic — PADDSB/PADDSW/PADDUSB/PADDUSW/PSUBSB/PSUBSW/PSUBUSB/PSUBUSW
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x7F80FF01FE027E81, 0x7FFF800100FEFF01);
     s.xmm[1] = xmm_from_u64(0x0180017F01FE8001, 0x00017FFF01010101);
 
@@ -693,7 +666,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE2 average/SAD — PAVGB/PAVGW/PSADBW
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1011121314151617, 0x18191A1B1C1D1E1F);
 
@@ -716,7 +688,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     TestCase tc;
     tc.name = "rsqrtss xmm0,[rdi] misaligned"; tc.category = cat;
     tc.code = {0xF3, 0x0F, 0x52, 0x07};
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     tc.flags_mask = FL_ALL; tc.xmm_mask = 0x1; tc.init_data = align_data;
     tc.approx_rel_tol = 1.6e-3; tc.approx_elem_bits = 32;
     tc.approx_result_bits = 32;
@@ -727,7 +699,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     TestCase tc;
     tc.name = "rcpss xmm0,[rdi] misaligned"; tc.category = cat;
     tc.code = {0xF3, 0x0F, 0x53, 0x07};
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     tc.flags_mask = FL_ALL; tc.xmm_mask = 0x1; tc.init_data = align_data;
     tc.approx_rel_tol = 1.6e-3; tc.approx_elem_bits = 32;
     tc.approx_result_bits = 32;
@@ -738,14 +710,12 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   {
     // CVTDQ2PD: F3 0F E6 C8 (xmm1,xmm0)
     ArchState si = {};
-    si.rflags = 0x2;
     si.xmm[0] = xmm_from_u32(1, 0xFFFFFFFF, 100, 0);  // low 2 dwords used
     add_xmm("cvtdq2pd xmm1,xmm0", {0xF3, 0x0F, 0xE6, 0xC8}, si, 0x2);
     add_misalign_ok("cvtdq2pd xmm0,[rdi] misaligned", {0xF3, 0x0F, 0xE6, 0x07});
 
     // CVTPD2DQ: F2 0F E6 C8 (xmm1,xmm0)
     ArchState sd = {};
-    sd.rflags = 0x2;
     sd.xmm[0] = xmm_from_f64(1.5, -2.5);
     add_xmm("cvtpd2dq xmm1,xmm0", {0xF2, 0x0F, 0xE6, 0xC8}, sd, 0x2);
     add_misalign_fault("cvtpd2dq xmm0,[rdi] misaligned", {0xF2, 0x0F, 0xE6, 0x07});
@@ -756,7 +726,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // CVTPS2PD: 0F 5A C8 (xmm1,xmm0)
     ArchState sp = {};
-    sp.rflags = 0x2;
     sp.xmm[0] = xmm_from_f32(1.5f, -2.5f, 3.0f, 4.0f);
     add_xmm("cvtps2pd xmm1,xmm0", {0x0F, 0x5A, 0xC8}, sp, 0x2);
     add_misalign_ok("cvtps2pd xmm0,[rdi] misaligned", {0x0F, 0x5A, 0x07});
@@ -775,7 +744,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // CVTSI2SS: F3 0F 2A C0 (xmm0,eax)
     ArchState sg = {};
-    sg.rflags = 0x2;
     sg.rax = 42;
     add_xmm("cvtsi2ss xmm0,eax", {0xF3, 0x0F, 0x2A, 0xC0}, sg, 0x1);
     add_misalign_ok("cvtsi2ss xmm0,[rdi] misaligned", {0xF3, 0x0F, 0x2A, 0x07});
@@ -786,7 +754,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // CVTSI2SS with REX.W (64-bit): F3 48 0F 2A C0 (xmm0,rax)
     ArchState sg64 = {};
-    sg64.rflags = 0x2;
     sg64.rax = 0x100000042;
     add_xmm("cvtsi2ss xmm0,rax", {0xF3, 0x48, 0x0F, 0x2A, 0xC0}, sg64, 0x1);
 
@@ -795,7 +762,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // CVTSS2SI: F3 0F 2D C0 (eax,xmm0) — result in RAX
     ArchState sf = {};
-    sf.rflags = 0x2;
     sf.xmm[0] = xmm_from_f32(42.5f, 0, 0, 0);
     tests.push_back({"cvtss2si eax,xmm0", cat, {0xF3, 0x0F, 0x2D, 0xC0},
                       sf, FL_ALL, 0x0, false});
@@ -803,7 +769,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // CVTSD2SI: F2 0F 2D C0 (eax,xmm0)
     ArchState sfd = {};
-    sfd.rflags = 0x2;
     sfd.xmm[0] = xmm_from_f64(42.5, 0);
     tests.push_back({"cvtsd2si eax,xmm0", cat, {0xF2, 0x0F, 0x2D, 0xC0},
                       sfd, FL_ALL, 0x0, false});
@@ -823,7 +788,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // COMISS/COMISD — ordered compare, set EFLAGS
   {
     ArchState s;
-    s.rflags = 0x2;
 
     s.xmm[0] = xmm_from_f32(1.0f, 0, 0, 0);
     s.xmm[1] = xmm_from_f32(2.0f, 0, 0, 0);
@@ -835,7 +799,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_xmm("comiss eq", {0x0F, 0x2F, 0xC1}, s, 0x0);
 
     ArchState sd = {};
-    sd.rflags = 0x2;
     sd.xmm[0] = xmm_from_f64(3.0, 0);
     sd.xmm[1] = xmm_from_f64(1.0, 0);
     // COMISD XMM0, XMM1: 66 0F 2F C1
@@ -846,7 +809,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // PSLLDQ/PSRLDQ — byte shift
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
 
     // PSLLDQ XMM0, 3: 66 0F 73 F8 03 (ModRM /7, rm=xmm0)
@@ -858,7 +820,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // MOVHLPS/MOVLHPS — reg-reg forms
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
 
@@ -880,7 +841,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // MOVSS/MOVSD — reg-reg forms (merge into low element)
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
 
@@ -890,7 +850,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_misalign_ok_st("movss [rdi],xmm0 misaligned", {0xF3, 0x0F, 0x11, 0x07}, 4);
 
     ArchState sd = {};
-    sd.rflags = 0x2;
     sd.xmm[0] = xmm_from_f64(1.5, 2.5);
     sd.xmm[1] = xmm_from_f64(10.5, 20.5);
 
@@ -903,7 +862,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // PINSRW/PEXTRW
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rax = 0x1234;
     s.xmm[0] = xmm_from_u64(0, 0);
 
@@ -913,7 +871,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // PEXTRW EAX, XMM1, 2: 66 0F C5 C1 02
     ArchState s2 = {};
-    s2.rflags = 0x2;
     s2.xmm[1] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
     tests.push_back({"pextrw eax,xmm1,2", cat, {0x66, 0x0F, 0xC5, 0xC1, 0x02},
                       s2, FL_ALL, 0x0, false});
@@ -925,7 +882,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // SSE2 PSHUFHW/PSHUFLW
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
 
     // PSHUFHW XMM1, XMM0, 0x1B: F3 0F 70 C8 1B
@@ -943,7 +899,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x0003020100070605, 0x0403020108070605);
 
@@ -954,7 +909,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
     s.xmm[1] = xmm_from_u64(0x0010002000300040, 0x0050006000700080);
 
@@ -987,7 +941,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
 
     // PABSB XMM1, XMM0: 66 0F 38 1C C8
@@ -1003,7 +956,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
     s.xmm[1] = xmm_from_u64(0x0001000100010001, 0xFFFF0000FFFF0000);
 
@@ -1020,7 +972,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
 
@@ -1036,7 +987,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
     s.xmm[1] = xmm_from_u64(0x02FE027E04806183, 0x80000000FFFFFFFF);
 
@@ -1107,7 +1057,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // PINSRB/PINSRD/PEXTRB/PEXTRD
   {
     ArchState s;
-    s.rflags = 0x2;
     s.rax = 0x42;
     s.xmm[0] = xmm_from_u64(0, 0);
 
@@ -1119,7 +1068,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_misalign_ok("pinsrd xmm0,[rdi],0 misaligned", {0x66, 0x0F, 0x3A, 0x22, 0x07, 0x00}, {0});
 
     ArchState s2 = {};
-    s2.rflags = 0x2;
     s2.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
 
     // PEXTRB EAX, XMM0, 5: 66 0F 3A 14 C0 05
@@ -1135,7 +1083,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // EXTRACTPS/INSERTPS
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
 
     // EXTRACTPS EAX, XMM0, 2: 66 0F 3A 17 C0 02
@@ -1152,7 +1099,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // BLENDPS/BLENDPD/PBLENDW
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
 
@@ -1161,7 +1107,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_misalign_fault("blendps xmm0,[rdi],0 misaligned", {0x66, 0x0F, 0x3A, 0x0C, 0x07, 0x00}, {0});
 
     ArchState sd = {};
-    sd.rflags = 0x2;
     sd.xmm[0] = xmm_from_f64(1.0, 2.0);
     sd.xmm[1] = xmm_from_f64(10.0, 20.0);
 
@@ -1170,7 +1115,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_misalign_fault("blendpd xmm0,[rdi],0 misaligned", {0x66, 0x0F, 0x3A, 0x0D, 0x07, 0x00}, {0});
 
     ArchState si = {};
-    si.rflags = 0x2;
     si.xmm[0] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
     si.xmm[1] = xmm_from_u64(0x0010002000300040, 0x0050006000700080);
 
@@ -1182,7 +1126,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // ROUNDPS/ROUNDPD/ROUNDSS/ROUNDSD
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.3f, 2.7f, -1.5f, -2.5f);
 
     // ROUNDPS XMM1, XMM0, 0 (round nearest): 66 0F 3A 08 C8 00
@@ -1196,7 +1139,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_xmm("roundps trunc", {0x66, 0x0F, 0x3A, 0x08, 0xC8, 0x03}, s, 0x2);
 
     ArchState sd = {};
-    sd.rflags = 0x2;
     sd.xmm[0] = xmm_from_f64(1.3, -2.7);
 
     // ROUNDPD XMM1, XMM0, 0: 66 0F 3A 09 C8 00
@@ -1216,7 +1158,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // PTEST — sets ZF and CF in EFLAGS
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0xFF00FF00FF00FF00, 0x00FF00FF00FF00FF);
     s.xmm[1] = xmm_from_u64(0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00);
 
@@ -1232,7 +1173,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // PMOVZX — zero-extend packed integers
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0);
 
     // PMOVZXBW XMM1, XMM0: 66 0F 38 30 C8
@@ -1258,7 +1198,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // PMOVSX — sign-extend packed integers
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0);
 
     // PMOVSXBW XMM1, XMM0: 66 0F 38 20 C8
@@ -1284,7 +1223,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // DPPS/DPPD — dot product
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
 
@@ -1295,7 +1233,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_xmm("dpps xmm0,xmm1,0x71", {0x66, 0x0F, 0x3A, 0x40, 0xC1, 0x71}, s, 0x3);
 
     ArchState sd = {};
-    sd.rflags = 0x2;
     sd.xmm[0] = xmm_from_f64(1.5, 2.5);
     sd.xmm[1] = xmm_from_f64(3.0, 4.0);
 
@@ -1307,7 +1244,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // MPSADBW — test all 8 imm8[2:0] combinations
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
 
@@ -1320,14 +1256,12 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // MPSADBW with identical operands (all SADs should be 0)
     ArchState s2;
-    s2.rflags = 0x2;
     s2.xmm[0] = xmm_from_u64(0xAABBCCDDEEFF0011, 0x2233445566778899);
     s2.xmm[1] = s2.xmm[0];
     add_xmm("mpsadbw identical", {0x66, 0x0F, 0x3A, 0x42, 0xC1, 0x00}, s2, 0x3);
 
     // MPSADBW with max contrast (0x00 vs 0xFF)
     ArchState s3;
-    s3.rflags = 0x2;
     s3.xmm[0] = xmm_from_u64(0x0000000000000000, 0x0000000000000000);
     s3.xmm[1] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
     add_xmm("mpsadbw max contrast", {0x66, 0x0F, 0x3A, 0x42, 0xC1, 0x00}, s3, 0x3);
@@ -1344,7 +1278,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // imm8 = 0xC0: count_s=3 (ignored for mem), count_d=0, zmask=0
     // Should insert the 32-bit value at [RDI] into XMM0[31:0].
     {
-      ArchState s = {.rdi = DATA_ADDR, .rflags = 0x2};
+      ArchState s = {.rdi = DATA_ADDR};
       s.xmm[0] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
       std::vector<u8> data = {0xAA, 0xBB, 0xCC, 0xDD, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
       tests.push_back({"insertps xmm,m32 count_s=3", cat,
@@ -1355,7 +1289,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // INSERTPS XMM0, [RDI], 0x10: count_s=0, count_d=1, zmask=0
     // Insert 32-bit [RDI] into XMM0[63:32]
     {
-      ArchState s = {.rdi = DATA_ADDR, .rflags = 0x2};
+      ArchState s = {.rdi = DATA_ADDR};
       s.xmm[0] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
       std::vector<u8> data = {0xEE, 0xFF, 0x00, 0x11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
       tests.push_back({"insertps xmm,m32 dst=1", cat,
@@ -1374,7 +1308,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // C5 F1 12 07: VEX pp=01(66), vvvv=xmm1, opcode=12, modrm=07([rdi])
     // SDM: DEST[63:0] := SRC2[63:0]; DEST[127:64] := SRC1[127:64]; upper zeroed
     {
-      ArchState s = {.rdi = DATA_ADDR, .rflags = 0x2};
+      ArchState s = {.rdi = DATA_ADDR};
       s.xmm[1] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
       std::vector<u8> data = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
       tests.push_back({"vmovlpd xmm0,xmm1,[rdi]", cat,
@@ -1385,7 +1319,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // C5 FA 12 C1: VEX pp=10(F3), vvvv=1111, opcode=12, modrm=C1(xmm1)
     // SDM: DEST = [src[95:64], src[95:64], src[31:0], src[31:0]]
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
       tests.push_back({"vmovsldup xmm0,xmm1", cat,
         {0xC5, 0xFA, 0x12, 0xC1}, s, FL_ALL, 0x1});
@@ -1396,7 +1330,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // C5 FB 12 C1: VEX pp=11(F2), vvvv=1111, opcode=12, modrm=C1(xmm1)
     // SDM: DEST[63:0] := SRC[63:0]; DEST[127:64] := SRC[63:0]
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[1] = xmm_from_u64(0x1234567890ABCDEF, 0xFEDCBA0987654321);
       tests.push_back({"vmovddup xmm0,xmm1", cat,
         {0xC5, 0xFB, 0x12, 0xC1}, s, FL_ALL, 0x1});
@@ -1407,7 +1341,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // C5 F1 16 07: VEX pp=01(66), vvvv=xmm1, opcode=16, modrm=07([rdi])
     // SDM: DEST[63:0] := SRC1[63:0]; DEST[127:64] := SRC2[63:0]; upper zeroed
     {
-      ArchState s = {.rdi = DATA_ADDR, .rflags = 0x2};
+      ArchState s = {.rdi = DATA_ADDR};
       s.xmm[1] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
       std::vector<u8> data = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
       tests.push_back({"vmovhpd xmm0,xmm1,[rdi]", cat,
@@ -1418,7 +1352,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // C5 FA 16 C1: VEX pp=10(F3), vvvv=1111, opcode=16, modrm=C1(xmm1)
     // SDM: DEST = [src[127:96], src[127:96], src[63:32], src[63:32]]
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
       tests.push_back({"vmovshdup xmm0,xmm1", cat,
         {0xC5, 0xFA, 0x16, 0xC1}, s, FL_ALL, 0x1});
@@ -1438,7 +1372,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // MOVD MM0, EAX (0F 6E C0) loads 3 into low dword
     // We just test a simple case: MM0 has {3, 0} after MOVD
     {
-      ArchState s = {.rax = 3, .rflags = 0x2};
+      ArchState s = {.rax = 3};
       s.xmm[0] = xmm_from_u64(0xDEADDEADDEADDEAD, 0xBBBBBBBBBBBBBBBB);
       tests.push_back({"cvtpi2ps xmm0,mm0", cat,
         {0x0F, 0x6E, 0xC0,        // MOVD MM0, EAX (MM0 = {0, 3})
@@ -1450,7 +1384,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // CVTPI2PD: 66 0F 2A /r — convert 2 packed dwords from MM to 2 doubles in XMM
     {
-      ArchState s = {.rax = 5, .rflags = 0x2};
+      ArchState s = {.rax = 5};
       tests.push_back({"cvtpi2pd xmm0,mm0", cat,
         {0x0F, 0x6E, 0xC0,        // MOVD MM0, EAX (MM0 = {0, 5})
          0x66, 0x0F, 0x2A, 0xC0,  // CVTPI2PD XMM0, MM0
@@ -1461,7 +1395,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // CVTPS2PI: NP 0F 2D /r — convert 2 floats from low XMM to 2 dwords in MM
     // Then MOVD EAX,MM0 to read result; compare via RAX
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[0] = xmm_from_u32(0x40400000, 0x40A00000, 0, 0); // 3.0f, 5.0f
       tests.push_back({"cvtps2pi mm0,xmm0; movd eax,mm0", cat,
         {0x0F, 0x2D, 0xC0,        // CVTPS2PI MM0, XMM0
@@ -1473,7 +1407,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // CVTTPS2PI: NP 0F 2C /r — truncate 2 floats to 2 dwords in MM
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[0] = xmm_from_u32(0x40490FDB, 0x40C90FDB, 0, 0); // pi, 2*pi
       tests.push_back({"cvttps2pi mm0,xmm0; movd eax,mm0", cat,
         {0x0F, 0x2C, 0xC0,        // CVTTPS2PI MM0, XMM0
@@ -1485,7 +1419,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // CVTPD2PI: 66 0F 2D /r — round 2 doubles to 2 dwords in MM
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[0] = xmm_from_u64(0x4008000000000000, 0x4014000000000000); // 3.0, 5.0
       tests.push_back({"cvtpd2pi mm0,xmm0; movd eax,mm0", cat,
         {0x66, 0x0F, 0x2D, 0xC0,  // CVTPD2PI MM0, XMM0
@@ -1497,7 +1431,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // CVTTPD2PI: 66 0F 2C /r — truncate 2 doubles to 2 dwords in MM
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[0] = xmm_from_u64(0x400921FB54442D18, 0x4019000000000000); // pi, 6.25
       tests.push_back({"cvttpd2pi mm0,xmm0; movd eax,mm0", cat,
         {0x66, 0x0F, 0x2C, 0xC0,  // CVTTPD2PI MM0, XMM0
@@ -1518,7 +1452,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // C4 E3 79 1D C8 03: imm8=0x03 → truncation mode (imm8[2]=0, imm8[1:0]=11)
     // XMM1 = [1.6, 2.5, 3.7, 4.9] → truncated to [1.0, 2.0, 3.0, 4.0] as FP16
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[1] = xmm_from_u32(0x3FCCCCCD, 0x40200000, 0x406CCCCD, 0x409CCCCD);
       // C4 E3 79 1D C8 03: VEX.128.66.0F3A W=0 vvvv=1111, 1D, modrm=C8(reg=xmm1,rm=xmm0), imm=03
       tests.push_back({"vcvtps2ph xmm0,xmm1,trunc", cat,
@@ -1541,7 +1475,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PEXTRW [RDI], XMM0, 2: 66 0F 3A 15 07 02
     // Extract word at index 2 from XMM0, store to memory
     {
-      ArchState s = {.rdi = DATA_ADDR, .rflags = 0x2};
+      ArchState s = {.rdi = DATA_ADDR};
       s.xmm[0] = xmm_from_u32(0x11112222, 0x33334444, 0x55556666, 0x77778888);
       tests.push_back({"pextrw [rdi],xmm0,2", cat,
         {0x66, 0x0F, 0x3A, 0x15, 0x07, 0x02}, s, FL_ALL, 0, false, {}, 2});
@@ -1558,7 +1492,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // SDM: DEST[63:0] := SRC[63:0]; DEST[127:64] := 0
     // First load MM0 via MOVD MM0,EAX (0F 6E C0), then MOVQ2DQ
     {
-      ArchState s = {.rax = 0x1234567890ABCDEF, .rflags = 0x2};
+      ArchState s = {.rax = 0x1234567890ABCDEF};
       tests.push_back({"movd mm0,eax; movq2dq xmm0,mm0", cat,
         {0x0F, 0x6E, 0xC0,        // MOVD MM0, EAX (loads low 32 bits)
          0xF3, 0x0F, 0xD6, 0xC0,  // MOVQ2DQ XMM0, MM0
@@ -1576,7 +1510,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // VCVTDQ2PS xmm0, xmm1: VEX.128.NP.0F.WIG 5B /r
     // C5 F8 5B C1: convert packed dword integers to packed f32
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[1] = xmm_from_u32(1, 2, 3, 4);
       tests.push_back({"vcvtdq2ps xmm0,xmm1", cat,
         {0xC5, 0xF8, 0x5B, 0xC1}, s, FL_ALL, 0x1});
@@ -1585,7 +1519,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // VCVTPS2DQ xmm0, xmm1: VEX.128.66.0F.WIG 5B /r
     // C5 F9 5B C1: convert packed f32 to packed dword integers (MXCSR rounding)
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[1] = xmm_from_u32(0x3F800000, 0x40000000, 0x40400000, 0x40800000); // 1,2,3,4
       tests.push_back({"vcvtps2dq xmm0,xmm1", cat,
         {0xC5, 0xF9, 0x5B, 0xC1}, s, FL_ALL, 0x1});
@@ -1594,7 +1528,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // VCVTTPS2DQ xmm0, xmm1: VEX.128.F3.0F.WIG 5B /r
     // C5 FA 5B C1: convert packed f32 to packed dword integers (truncation)
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[1] = xmm_from_u32(0x40490FDB, 0x40C90FDB, 0x41200000, 0xC1200000); // pi,2pi,10,-10
       tests.push_back({"vcvttps2dq xmm0,xmm1", cat,
         {0xC5, 0xFA, 0x5B, 0xC1}, s, FL_ALL, 0x1});
@@ -1603,7 +1537,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // VCVTDQ2PS ymm0, ymm1: VEX.256.NP.0F.WIG 5B /r
     // C5 FC 5B C1: 256-bit convert packed dword integers to packed f32
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[1] = xmm_from_u32(1, 2, 3, 4);  // low 128
       // Need to set ymm1 upper half too — but test harness only sets xmm
       // Just test that the instruction doesn't fault
@@ -1633,14 +1567,14 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // pred 8: EQ_UQ — equal, unordered quiet (true for NaN)
     // 1.0 vs 2.0 → not equal, ordered → false
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[1] = xmm_from_u32(ONE, 0, 0, 0);
       s.xmm[2] = xmm_from_u32(TWO, 0, 0, 0);
       add_xmm("vcmpps pred8 eq_uq ord", {0xC5, 0xF0, 0xC2, 0xC2, 0x08}, s, 0x1);
     }
     // 1.0 vs NaN → unordered → true (EQ_UQ returns true for unordered)
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[1] = xmm_from_u32(ONE, 0, 0, 0);
       s.xmm[2] = xmm_from_u32(QNAN, 0, 0, 0);
       add_xmm("vcmpps pred8 eq_uq nan", {0xC5, 0xF0, 0xC2, 0xC2, 0x08}, s, 0x1);
@@ -1648,7 +1582,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // pred 11: FALSE_OQ — always false
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[1] = xmm_from_u32(ONE, ONE, ONE, ONE);
       s.xmm[2] = xmm_from_u32(ONE, ONE, ONE, ONE);
       add_xmm("vcmpps pred11 false", {0xC5, 0xF0, 0xC2, 0xC2, 0x0B}, s, 0x1);
@@ -1656,7 +1590,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // pred 12: NEQ_OQ — not equal, ordered (false for NaN)
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[1] = xmm_from_u32(ONE, 0, 0, 0);
       s.xmm[2] = xmm_from_u32(QNAN, 0, 0, 0);
       add_xmm("vcmpps pred12 neq_oq nan", {0xC5, 0xF0, 0xC2, 0xC2, 0x0C}, s, 0x1);
@@ -1664,7 +1598,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // pred 15: TRUE_UQ — always true
     {
-      ArchState s = {.rflags = 0x2};
+      ArchState s = {};
       s.xmm[1] = xmm_from_u32(0, 0, 0, 0);
       s.xmm[2] = xmm_from_u32(ONE, TWO, QNAN, 0);
       add_xmm("vcmpps pred15 true", {0xC5, 0xF0, 0xC2, 0xC2, 0x0F}, s, 0x1);
@@ -1696,7 +1630,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       {0xC5, 0xFE, 0x6F, 0x07,
        0x0F, 0x10, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
-      {.rdi = DATA_ADDR, .rflags = 0x2},
+      {.rdi = DATA_ADDR},
       FL_ALL, 0x3, false, data, 0});
 
     // MOVAPS XMM0, [RDI+32]: legacy SSE aligned 128-bit load
@@ -1708,7 +1642,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       {0xC5, 0xFE, 0x6F, 0x07,
        0x0F, 0x28, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
-      {.rdi = DATA_ADDR, .rflags = 0x2},
+      {.rdi = DATA_ADDR},
       FL_ALL, 0x3, false, data, 0});
 
     // MOVDQU XMM0, [RDI+32]: legacy SSE integer 128-bit load (F3 0F 6F)
@@ -1719,7 +1653,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       {0xC5, 0xFE, 0x6F, 0x07,
        0xF3, 0x0F, 0x6F, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
-      {.rdi = DATA_ADDR, .rflags = 0x2},
+      {.rdi = DATA_ADDR},
       FL_ALL, 0x3, false, data, 0});
 
     // MOVSS XMM0, [RDI+32]: legacy SSE scalar float load (F3 0F 10)
@@ -1730,7 +1664,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       {0xC5, 0xFE, 0x6F, 0x07,
        0xF3, 0x0F, 0x10, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
-      {.rdi = DATA_ADDR, .rflags = 0x2},
+      {.rdi = DATA_ADDR},
       FL_ALL, 0x3, false, data, 0});
 
     // MOVSD XMM0, [RDI+32]: legacy SSE scalar double load (F2 0F 10)
@@ -1741,7 +1675,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       {0xC5, 0xFE, 0x6F, 0x07,
        0xF2, 0x0F, 0x10, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
-      {.rdi = DATA_ADDR, .rflags = 0x2},
+      {.rdi = DATA_ADDR},
       FL_ALL, 0x3, false, data, 0});
 
     // MOVUPD XMM0, [RDI+32]: legacy SSE 128-bit double load (66 0F 10)
@@ -1752,7 +1686,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       {0xC5, 0xFE, 0x6F, 0x07,
        0x66, 0x0F, 0x10, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
-      {.rdi = DATA_ADDR, .rflags = 0x2},
+      {.rdi = DATA_ADDR},
       FL_ALL, 0x3, false, data, 0});
 
     // MOVDDUP XMM0, [RDI+32]: legacy SSE double duplicate (F2 0F 12)
@@ -1763,7 +1697,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       {0xC5, 0xFE, 0x6F, 0x07,
        0xF2, 0x0F, 0x12, 0x47, 0x20,
        0xC4, 0xE3, 0x7D, 0x39, 0xC1, 0x01},
-      {.rdi = DATA_ADDR, .rflags = 0x2},
+      {.rdi = DATA_ADDR},
       FL_ALL, 0x3, false, data, 0});
   }
 
@@ -1783,7 +1717,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // XMM0 = "abcd\0...", XMM1 = "xxbx\0..." -> find 'b' at index 2
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x0000000064636261, 0);  // "abcd\0..."
       s.xmm[1] = xmm_from_u64(0x0000000078627878, 0);  // "xxbx\0..."
       // 66 0F 3A 63 C1 00: PCMPISTRI XMM0, XMM1, 0x00
@@ -1794,7 +1727,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPISTRI: equal each (mode 0x08) -- byte-by-byte compare
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x00006F6C6C6568, 0);  // "hello\0..."
       s.xmm[1] = xmm_from_u64(0x00006F6C6C6568, 0);  // "hello\0..."
       add_xmm("pcmpistri eq_each match", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x08}, s, 0);
@@ -1803,7 +1735,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPISTRI: equal each with difference at byte 2
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
       s.xmm[1] = xmm_from_u64(0x0000000044584241, 0);  // "AB\x58D\0..."
       add_xmm("pcmpistri eq_each diff@2", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x08}, s, 0);
@@ -1813,7 +1744,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // 66 0F 3A 62 C1 08: PCMPISTRM XMM0, XMM1, 0x08
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
       s.xmm[1] = xmm_from_u64(0x00000000FF43FF41, 0);  // "A\xffC\xff\0..."
       add_xmm("pcmpistrm eq_each", {0x66, 0x0F, 0x3A, 0x62, 0xC1, 0x08}, s, 0x1);
@@ -1823,7 +1753,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // EAX=length of xmm0 string, EDX=length of xmm1 string
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rax = 3;  // length of needle
       s.rdx = 4;  // length of haystack
       s.xmm[0] = xmm_from_u64(0x0000000000434241, 0);  // "ABC\0..."
@@ -1837,7 +1766,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // xmm0 = range pair "AZ" (0x41, 0x5A), xmm1 = "Hello" (mixed case)
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x000000000000005A41, 0);  // "AZ\0..."
       s.xmm[1] = xmm_from_u64(0x000000006F6C6C6548, 0);  // "Hello\0..."
       add_xmm("pcmpistri ranges", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x04}, s, 0);
@@ -1847,7 +1775,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // Search for "BC" in "ABCD"
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x0000000000004342, 0);  // "BC\0..."
       s.xmm[1] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
       add_xmm("pcmpistri eq_ord substr", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x0C}, s, 0);
@@ -1856,7 +1783,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPISTRI: equal ordered — no match
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x0000000000005958, 0);  // "XY\0..."
       s.xmm[1] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
       add_xmm("pcmpistri eq_ord nomatch", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x0C}, s, 0);
@@ -1865,7 +1791,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPISTRI: negative polarity (mode 0x18) — inverts result
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
       s.xmm[1] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
       // equal each + negative polarity: finds first non-matching byte
@@ -1875,7 +1800,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPISTRI: MSB index (imm8[6]=1, mode 0x48)
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x0000000064636261, 0);  // "abcd\0..."
       s.xmm[1] = xmm_from_u64(0x0000000078627878, 0);  // "xxbx\0..."
       add_xmm("pcmpistri eq_any MSB", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x40}, s, 0);
@@ -1884,7 +1808,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPISTRI: word mode (imm8[0]=1, mode 0x01) — unsigned words, equal any
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x0000000200000001, 0);  // words: 1, 2, 0, 0
       s.xmm[1] = xmm_from_u64(0x0003000100040002, 0);  // words: 2, 4, 1, 3
       add_xmm("pcmpistri word eq_any", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x01}, s, 0);
@@ -1893,7 +1816,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPISTRI: signed bytes, equal each (mode 0x0A)
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x00000000807F0102, 0);  // bytes: 2,1,127,-128,0...
       s.xmm[1] = xmm_from_u64(0x00000000807F0102, 0);  // same
       add_xmm("pcmpistri signed eq_each", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x0A}, s, 0);
@@ -1902,7 +1824,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPISTRI: full 16-byte strings (no nulls in first 16 bytes)
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x4847464544434241, 0x504F4E4D4C4B4A49);  // "ABCDEFGHIJKLMNOP"
       s.xmm[1] = xmm_from_u64(0x4847464544434241, 0x504F4E4D4C4B4A49);  // same
       add_xmm("pcmpistri full16 eq_each", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x08}, s, 0);
@@ -1911,7 +1832,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPISTRI: full 16-byte strings that differ at last byte
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x4847464544434241, 0x504F4E4D4C4B4A49);  // "ABCDEFGHIJKLMNOP"
       s.xmm[1] = xmm_from_u64(0x4847464544434241, 0x5A4F4E4D4C4B4A49);  // "ABCDEFGHIJKLMNOZ"
       add_xmm("pcmpistri full16 diff@15", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x08}, s, 0);
@@ -1922,7 +1842,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPISTRM: equal any, byte-expand mask (imm8[6]=1, mode 0x40)
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x0000000064636261, 0);  // "abcd\0..."
       s.xmm[1] = xmm_from_u64(0x0000000078627878, 0);  // "xxbx\0..."
       // equal any, byte-expand: each matching byte → 0xFF in XMM0
@@ -1932,7 +1851,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPISTRM: equal each, bitmask (mode 0x08)
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x4847464544434241, 0x504F4E4D4C4B4A49);
       s.xmm[1] = xmm_from_u64(0x4847464544434241, 0x5A4F4E4D4C4B4A49);
       add_xmm("pcmpistrm eq_each full16", {0x66, 0x0F, 0x3A, 0x62, 0xC1, 0x08}, s, 0x1);
@@ -1941,7 +1859,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPISTRM: ranges, bitmask (mode 0x04)
     {
       ArchState s;
-      s.rflags = 0x2;
       s.xmm[0] = xmm_from_u64(0x000000000000007A61, 0);  // "az\0..." (lowercase range)
       s.xmm[1] = xmm_from_u64(0x000000006F6C6C6548, 0);  // "Hello\0..."
       add_xmm("pcmpistrm ranges", {0x66, 0x0F, 0x3A, 0x62, 0xC1, 0x04}, s, 0x1);
@@ -1952,7 +1869,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPESTRI: equal any with explicit lengths
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rax = 4;  // length of charset
       s.rdx = 5;  // length of string
       s.xmm[0] = xmm_from_u64(0x00000000666F6F62, 0);  // "boof\0..." (chars to search for)
@@ -1963,7 +1879,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPESTRI: negative length (treated as unsigned, saturated to 16)
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rax = -1LL;  // abs(-1) = 1? No, SDM says abs value, saturated to 16
       s.rdx = 4;
       s.xmm[0] = xmm_from_u64(0x0000000044434241, 0);
@@ -1974,7 +1889,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPESTRM: equal each with explicit lengths
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rax = 3;
       s.rdx = 3;
       s.xmm[0] = xmm_from_u64(0xFF00FF00FF434241, 0);  // "ABC" + garbage
@@ -1986,7 +1900,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPESTRM: zero-length operands
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rax = 0;
       s.rdx = 0;
       s.xmm[0] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
@@ -1999,7 +1912,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCLMULQDQ XMM0, XMM1, imm8: 66 0F 3A 44 C1 imm8
     {
       ArchState s;
-      s.rflags = 0x2;
 
       // Simple: 1 × 1 = 1
       s.xmm[0] = xmm_from_u64(0x0000000000000001, 0x0000000000000001);
@@ -2053,7 +1965,6 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // MASKMOVDQU xmm0, xmm1: 66 0F F7 C1 (stores to [RDI])
     {
       ArchState s;
-      s.rflags = 0x2;
       s.rdi = DATA_ADDR;
       // src data in xmm0
       s.xmm[0] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
@@ -2080,7 +1991,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       {
         ArchState ms = {};
         ms.rdi = DATA_ADDR + 1;
-        ms.rflags = 0x2;
+        ms.rflags = initial_flags();
         ms.xmm[0] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
         ms.xmm[1] = xmm_from_u64(0x8080808080808080, 0x8080808080808080);
         tests.push_back({"maskmovdqu misaligned",

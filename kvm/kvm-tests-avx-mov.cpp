@@ -12,7 +12,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
   auto add_vfault = [&](const std::string &name, std::vector<u8> code) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     tc.expect_fault = true; tc.expected_vector = 13;
     tc.init_data = adata;
     tests.push_back(std::move(tc));
@@ -21,14 +21,14 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
                          std::initializer_list<unsigned> vector_inputs = {}) {
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code);
-    tc.initial = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    tc.initial = {.rdi = DATA_ADDR + 1};
     for (unsigned reg : vector_inputs)
       tc.initial.xmm[reg] = {};
     tc.xmm_mask = 0x1; tc.init_data = adata;
     tests.push_back(std::move(tc));
   };
   auto add_vok_st = [&](const std::string &name, std::vector<u8> code) {
-    ArchState init = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    ArchState init = {.rdi = DATA_ADDR + 1};
     init.xmm[0] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code); tc.initial = init;
@@ -36,7 +36,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
     tests.push_back(std::move(tc));
   };
   auto add_vfault_st = [&](const std::string &name, std::vector<u8> code) {
-    ArchState init = {.rdi = DATA_ADDR + 1, .rflags = 0x2};
+    ArchState init = {.rdi = DATA_ADDR + 1};
     init.xmm[0] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
     TestCase tc; tc.name = name; tc.category = cat;
     tc.code = std::move(code); tc.initial = init;
@@ -53,7 +53,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
   // VMOVUPD: EVEX.66.0F.W1 10 /r (load), 11 /r (store)
   // =====================================================================
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 0x1111111111111111ULL * (i + 1);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
@@ -121,7 +121,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
   // VMOVDQU64: EVEX.F3.0F.W1 6F /r (load)
   // =====================================================================
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 0xAAAABBBBCCCCDDDDULL + i;
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
 
@@ -159,7 +159,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
   // EVEX.66.0F.W1 6E /r (GPR→XMM), 7E /r (XMM→GPR)
   // =====================================================================
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.rax = 0xDEADBEEFCAFEBABE;
     s.xmm[0].q[0] = 0x1111111111111111;
     s.xmm[0].q[1] = 0x2222222222222222;
@@ -253,7 +253,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
   // EVEX.66.0F3A.W1 16 /r ib (VPEXTRQ)
   // =====================================================================
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.xmm[1] = xmm_from_u64(0x0807060504030201, 0x100F0E0D0C0B0A09);
 
     // VPEXTRB eax, xmm1, 5: extract byte 5
@@ -289,7 +289,7 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
   // EVEX.66.0F3A.W1 22 /r ib (VPINSRQ)
   // =====================================================================
   {
-    ArchState s = {}; s.rflags = 0x2;
+    ArchState s = {};
     s.xmm[1] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
     s.rax = 0x42;
 

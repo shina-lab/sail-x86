@@ -63,42 +63,42 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
 
   // Word→Byte sources: mix values to exercise saturation
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, i * 17);  // 0..527
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
     add_narrow(wb_entries, 3, s, 0xAAAAAAAA);
   }
   // DWord→Byte
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, i * 37);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
     add_narrow(db_entries, 3, s, 0xAAAA);
   }
   // QWord→Byte
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = i * 47;
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
     add_narrow(qb_entries, 3, s, 0x55);
   }
   // DWord→Word
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 16; i++) s.xmm[1].set<u32>(i, i * 5000);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
     add_narrow(dw_entries, 3, s, 0xAAAA);
   }
   // QWord→Word
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = i * 10000;
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
     add_narrow(qw_entries, 3, s, 0x55);
   }
   // QWord→DWord
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 8; i++) s.xmm[1].q[i] = 0x100000000ULL * (i + 1);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
     add_narrow(qd_entries, 3, s, 0x55);
@@ -119,7 +119,7 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
       {"VPMOVZXWD", 0x33, false}, {"VPMOVZXWQ", 0x34, false}, {"VPMOVZXDQ", 0x35, false},
     };
 
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     // Source with mix of positive and negative values (for sign-extension tests)
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = 0x70 + i;  // wraps to negative in signed
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -147,7 +147,7 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   {
     // VPACKSSWB / VPACKUSWB: word → byte
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 32; i++) s.xmm[1].set<int16_t>(i, -200 + i * 15);
     for (int i = 0; i < 32; i++) s.xmm[2].set<int16_t>(i, 50 + i * 10);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -161,7 +161,7 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
   }
   {
     // VPACKSSDW: dword → word
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 16; i++) s.xmm[1].set<int32_t>(i, -50000 + i * 8000);
     for (int i = 0; i < 16; i++) s.xmm[2].set<int32_t>(i, 10000 + i * 5000);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -172,7 +172,7 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
   }
   {
     // VPACKUSDW: 66 0F38 2B, W0
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 16; i++) s.xmm[1].set<int32_t>(i, -1000 + i * 5000);
     for (int i = 0; i < 16; i++) s.xmm[2].set<int32_t>(i, 60000 + i * 1000);
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;
@@ -190,7 +190,7 @@ void add_avx_narrow_tests(std::vector<TestCase> &tests) {
   // VPUNPCKLQDQ: 66 0F 6C  VPUNPCKHQDQ: 66 0F 6D
   // =====================================================================
   {
-    ArchState s; s.rflags = 0x2;
+    ArchState s;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[1].q)[i] = i;
     for (int i = 0; i < 64; i++) ((u8 *)s.xmm[2].q)[i] = 128 + i;
     for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEAD;

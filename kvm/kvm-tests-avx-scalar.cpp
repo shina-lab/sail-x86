@@ -39,7 +39,6 @@ void add_avx_scalar_tests(std::vector<TestCase> &tests) {
   // --- Setup states with sentinels in upper lanes ---
   auto make_ss_state = [](float a, float b) {
     ArchState s;
-    s.rflags = 0x2;
     // dst (xmm0): sentinel in upper, scalar in low
     float dst_val = 99.0f;
     s.xmm[0].q[0] = 0xDEADBEEF00000000ULL;
@@ -56,7 +55,6 @@ void add_avx_scalar_tests(std::vector<TestCase> &tests) {
 
   auto make_sd_state = [](double a, double b) {
     ArchState s;
-    s.rflags = 0x2;
     double dst_val = 99.0;
     memcpy(&s.xmm[0].q[0], &dst_val, 8);
     s.xmm[0].q[1] = 0xDEADDEAD11111111;
@@ -116,7 +114,6 @@ void add_avx_scalar_tests(std::vector<TestCase> &tests) {
     float vals_b[] = {5.0f, 5.0f, 1.0f};
     for (int i = 0; i < 3; i++) {
       ArchState s;
-      s.rflags = 0x2;
       memcpy(&s.xmm[0].q[0], &vals_a[i], 4);
       memcpy(&s.xmm[1].q[0], &vals_b[i], 4);
       const char *rel[] = {"lt", "eq", "gt"};
@@ -132,7 +129,6 @@ void add_avx_scalar_tests(std::vector<TestCase> &tests) {
     double vals_b[] = {5.0, 5.0, 1.0};
     for (int i = 0; i < 3; i++) {
       ArchState s;
-      s.rflags = 0x2;
       memcpy(&s.xmm[0].q[0], &vals_a[i], 8);
       memcpy(&s.xmm[1].q[0], &vals_b[i], 8);
       const char *rel[] = {"lt", "eq", "gt"};
@@ -149,7 +145,6 @@ void add_avx_scalar_tests(std::vector<TestCase> &tests) {
   // VMOVSD reg,reg,reg: EVEX.LIG.F2.0F.W1 10 /r
   {
     ArchState s;
-    s.rflags = 0x2;
     s.xmm[0].q[0] = 0xDEADDEADDEADDEAD;
     s.xmm[0].q[1] = 0x1111111111111111;
     s.xmm[1].q[0] = 0xAAAAAAAAAAAAAAAA;

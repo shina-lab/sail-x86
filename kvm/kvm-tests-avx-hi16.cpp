@@ -22,7 +22,7 @@ void add_avx_hi16_tests(std::vector<TestCase> &tests) {
   };
 
   // Shared operand pool. Each test selects just the registers it reads.
-  ArchState s = {.rflags = 0x2};
+  ArchState s = {};
   for (int i = 16; i < 32; i++)
     fill_qwords(s.xmm[i], 0x0101010101010101ULL * (i - 15),
                 0x1000100010001000ULL + i);
