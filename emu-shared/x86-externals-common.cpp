@@ -2057,19 +2057,26 @@ u64 Model::z__uint64_to_f16(u64 a) {
   _Float16 h = (_Float16)v; u16 r; memcpy(&r, &h, 2); return r;
 }
 
+// VCVTPH2W / VCVTTPH2W: a result that does not fit int16, or a NaN, gives
+// the indefinite integer value 8000H (SDM Vol. 2C, VCVTPH2W, Description).
+static inline u64 f16_int16_result(float rounded) {
+  if (std::isnan(rounded) || rounded < -32768.0f || rounded > 32767.0f)
+    return 0x8000;
+  int16_t r = (int16_t)rounded;
+  u16 ru; memcpy(&ru, &r, 2); return ru;
+}
+
 u64 Model::z__f16_to_int16(u64 a) {
   _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
   SYNC_MXCSR_RC();
   float f = (float)h;
-  int16_t r = (int16_t)nearbyintf(f);
-  u16 ru; memcpy(&ru, &r, 2); return ru;
+  return f16_int16_result(nearbyintf(f));
 }
 
 u64 Model::z__f16_to_int16_trunc(u64 a) {
   _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
   float f = (float)h;
-  int16_t r = (int16_t)truncf(f);
-  u16 ru; memcpy(&ru, &r, 2); return ru;
+  return f16_int16_result(truncf(f));
 }
 
 u64 Model::z__int16_to_f16(u64 a) {
@@ -2078,19 +2085,26 @@ u64 Model::z__int16_to_f16(u64 a) {
   _Float16 h = (_Float16)v; u16 r; memcpy(&r, &h, 2); return r;
 }
 
+// VCVTPH2UW / VCVTTPH2UW: a result that does not fit uint16 (including a
+// negative one), or a NaN, gives the all-ones integer value (SDM Vol. 2C,
+// VCVTPH2UW, Description: "the integer value FFFF...H is returned").
+static inline u64 f16_uint16_result(float rounded) {
+  if (std::isnan(rounded) || rounded < 0.0f || rounded > 65535.0f)
+    return 0xFFFF;
+  return (uint16_t)rounded;
+}
+
 u64 Model::z__f16_to_uint16(u64 a) {
   _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
   SYNC_MXCSR_RC();
   float f = (float)h;
-  uint16_t r = (uint16_t)nearbyintf(f);
-  return r;
+  return f16_uint16_result(nearbyintf(f));
 }
 
 u64 Model::z__f16_to_uint16_trunc(u64 a) {
   _Float16 h; u16 ua = (u16)a; memcpy(&h, &ua, 2);
   float f = (float)h;
-  uint16_t r = (uint16_t)truncf(f);
-  return r;
+  return f16_uint16_result(truncf(f));
 }
 
 u64 Model::z__uint16_to_f16(u64 a) {

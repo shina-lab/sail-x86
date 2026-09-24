@@ -315,6 +315,40 @@ void add_avx_fp16_tests(std::vector<TestCase> &tests) {
   }
   // @@END
 
+  // @@BLOCK conv_ph2w
+  // FP16 -> int16 (VCVTPH2W 66.MAP5.W0 7D, VCVTTPH2W 66.MAP5.W0 7C) and
+  // FP16 -> uint16 (VCVTPH2UW NP.MAP5.W0 7D, VCVTTPH2UW NP.MAP5.W0 7C).
+  // The input set has 65504 (does not fit int16) and negative values (do
+  // not fit uint16), which must give the integer indefinite values.
+  {
+    static const float halves[] = {1.5f, -2.75f, 1000.0f, 0.1f, 65504.0f, -0.0f,
+                                   0.00006f, 3.140625f, -7.0f, 0.333f, 12.0f, -1e-5f,
+                                   255.0f, 256.5f, -100.25f, 2.0f};
+    ArchState s;
+    s.rflags = 0x2;
+    s.rdi = DATA_ADDR;
+    set_ph(s.xmm[1], halves, 16);
+    sentinel(s.xmm[0]);
+    struct Cv { const char *name; int pp; u8 op; } to_int[] = {
+      {"VCVTPH2W", 1, 0x7D}, {"VCVTTPH2W", 1, 0x7C},
+      {"VCVTPH2UW", 0, 0x7D}, {"VCVTTPH2UW", 0, 0x7C},
+    };
+    for (auto &c : to_int) {
+      Evex e; e.mm = 5; e.pp = c.pp; e.W = false; e.opcode = c.op;
+      e.reg = 0; e.vvvv = 0; e.rm = 1;
+      add_evex_rr_tests(tests, cat, c.name, e, s, 0x2, 0xAAAA);
+    }
+    // Non-negative inputs for the unsigned conversions, so that no lane is
+    // out of range.
+    ArchState su = s;
+    gen_ph(su.xmm[1], [](int i) { return float(i * 37 % 300) + 0.5f * float(i % 3); });
+    {
+      Evex e; e.mm = 5; e.pp = 0; e.W = false; e.reg = 0; e.vvvv = 0; e.rm = 1;
+      e.opcode = 0x7D; add_evex_rr_tests(tests, cat, "VCVTPH2UW in range", e, su, 0x2, 0xAAAA);
+      e.opcode = 0x7C; add_evex_rr_tests(tests, cat, "VCVTTPH2UW in range", e, su, 0x2, 0xAAAA);
+    }
+  }
+  // @@END
 
   // @@BLOCK conv_narrow
   // Conversions to FP16 whose result is narrower than the source vector:
