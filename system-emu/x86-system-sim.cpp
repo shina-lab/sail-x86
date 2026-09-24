@@ -1085,10 +1085,12 @@ int main(int argc, char *argv[]) {
     framebuffer_requested = 0;
     const char *path = getenv("SAIL_X86_FRAMEBUFFER");
     if (!path) path = "framebuffer.png";
-    if (write_png(path, model.vbe.width(), model.vbe.height(),
-                  model.vbe.rgb(model.vga.dac_palette, model.vga.dac_mask)))
+    unsigned width = model.vbe.enabled() ? model.vbe.width() : model.vga.pixel_width();
+    unsigned height = model.vbe.enabled() ? model.vbe.height() : model.vga.pixel_height();
+    auto rgb = model.vbe.enabled() ? model.vbe.rgb(model.vga.dac_palette, model.vga.dac_mask) : model.vga.graphics_rgb();
+    if (write_png(path, width, height, rgb))
       fprintf(stderr, "sail-x86-system: framebuffer %ux%ux%u saved to %s\n",
-              model.vbe.width(), model.vbe.height(), model.vbe.depth(), path);
+              width, height, model.vbe.enabled() ? model.vbe.depth() : ((model.vga.gc_regs[5] & 0x40) ? 8 : 4), path);
   };
   auto dump_state = [&]() {
     dump_requested = false;

@@ -182,6 +182,91 @@ public:
   u8 dac_rgb_pos = 0;  // 0, 1, 2 for R, G, B
   u8 dac_palette[256][3] = {};
 
+  // Four 64 KB VGA planes. Reads load all four latches; writes use the
+  // sequencer map mask and graphics-controller data path (including the
+  // latch-only mode used for accelerated planar copies).
+  std::vector<u8> planes = std::vector<u8>(4 * 65536);
+  u8 latch[4] = {};
+
+  bool maps(u64 addr) const {
+    unsigned map = (gc_regs[6] >> 2) & 3;
+    // Keep the existing text RAM view at B0000/B8000. Font uploads and all
+    // graphics memory accesses at A0000 go through the VGA data path.
+    return addr >= 0xA0000 && addr < (map == 0 ? 0xC0000 : 0xB0000) && map < 2;
+  }
+  u8 read_mem(u64 addr) {
+    unsigned offset = (addr - 0xA0000) & 0xFFFF, plane = gc_regs[4] & 3;
+    if (seq_regs[4] & 8) { plane = offset & 3; offset >>= 2; }
+    else if (!(seq_regs[4] & 4) && (gc_regs[5] & 0x10)) {
+      plane = (plane & 2) | (offset & 1); offset >>= 1;
+    }
+    for (unsigned p = 0; p < 4; ++p) latch[p] = planes[p * 65536 + offset];
+    if (!(gc_regs[5] & 8)) return latch[plane];
+    u8 result = 0xFF;
+    for (unsigned p = 0; p < 4; ++p)
+      if (gc_regs[7] & (1 << p)) result &= ~(latch[p] ^ ((gc_regs[2] & (1 << p)) ? 0xFF : 0));
+    return result;
+  }
+  void write_mem(u64 addr, u8 value) {
+    unsigned offset = (addr - 0xA0000) & 0xFFFF;
+    unsigned mask = seq_regs[2] & 15;
+    if (seq_regs[4] & 8) { mask &= 1 << (offset & 3); offset >>= 2; }
+    else if (!(seq_regs[4] & 4) && (gc_regs[5] & 0x10)) {
+      mask &= (offset & 1) ? 0xA : 5; offset >>= 1;
+    }
+    unsigned mode = gc_regs[5] & 3;
+    unsigned rotation = gc_regs[3] & 7;
+    u8 rotated = (value >> rotation) | (value << ((8 - rotation) & 7));
+    for (unsigned p = 0; p < 4; ++p) {
+      if (!(mask & (1 << p))) continue;
+      u8 result = rotated, bitmask = gc_regs[8];
+      if (mode == 1) { planes[p * 65536 + offset] = latch[p]; continue; }
+      if (mode == 0 && (gc_regs[1] & (1 << p))) result = gc_regs[0] & (1 << p) ? 255 : 0;
+      if (mode == 2) result = value & (1 << p) ? 255 : 0;
+      if (mode == 3) {
+        result = gc_regs[0] & (1 << p) ? 255 : 0;
+        bitmask &= rotated;
+      }
+      switch ((gc_regs[3] >> 3) & 3) {
+      case 1: result &= latch[p]; break;
+      case 2: result |= latch[p]; break;
+      case 3: result ^= latch[p]; break;
+      }
+      planes[p * 65536 + offset] = (result & bitmask) | (latch[p] & ~bitmask);
+    }
+  }
+  bool graphics() const { return gc_regs[6] & 1; }
+  unsigned pixel_width() const {
+    return std::min(2560u, unsigned(crtc_regs[1] + 1) * ((gc_regs[5] & 0x40) ? 4 : 8));
+  }
+  unsigned pixel_height() const {
+    unsigned lines = crtc_regs[0x12] | ((crtc_regs[7] & 2) << 7) | ((crtc_regs[7] & 0x40) << 3);
+    unsigned repeat = (crtc_regs[9] & 31) + 1;
+    if (crtc_regs[9] & 0x80) repeat *= 2;
+    return std::min(1600u, (lines + 1) / repeat);
+  }
+  std::vector<u8> graphics_rgb() const {
+    if (!graphics()) return {};
+    unsigned w = pixel_width(), h = pixel_height();
+    std::vector<u8> image(size_t(w) * h * 3);
+    for (unsigned y = 0; y < h; ++y) for (unsigned x = 0; x < w; ++x) {
+      unsigned offset = (start_addr() + y * crtc_regs[0x13] * 2 +
+                         ((gc_regs[5] & 0x40) ? x / 4 : x / 8)) & 0xFFFF;
+      unsigned color = 0;
+      if (gc_regs[5] & 0x40) color = planes[(x & 3) * 65536 + offset];
+      else {
+        for (unsigned p = 0; p < 4; ++p)
+          color |= ((planes[p * 65536 + offset] >> (7 - (x & 7))) & 1) << p;
+        color = attr_regs[color & attr_regs[0x12] & 15] & 63;
+        if (attr_regs[0x10] & 0x80) color = (color & 15) | ((attr_regs[0x14] & 3) << 4);
+        color |= (attr_regs[0x14] & 12) << 4;
+      }
+      for (unsigned c = 0; c < 3; ++c)
+        image[(size_t(y) * w + x) * 3 + c] = (dac_palette[color & dac_mask][c] & 63) * 255 / 63;
+    }
+    return image;
+  }
+
   // Retrace counter (for Input Status Register 1)
   u8 isr1_counter = 0;
 
@@ -195,6 +280,8 @@ public:
     seq_regs[1] = 0x00;  // Clocking mode
     seq_regs[2] = 0x03;  // Map mask (planes 0,1)
     seq_regs[4] = 0x02;  // Memory mode (text, odd/even)
+    gc_regs[6] = 0x0E;  // B8000 text aperture
+    gc_regs[8] = 0xFF;
   }
 
   u8 read(u16 port) {
@@ -216,9 +303,9 @@ public:
     case 0x3CC: return misc_output;
     case 0x3CE: return gc_index;
     case 0x3CF: return gc_regs[gc_index & 0x0F];
-    case 0x3D4: return crtc_index;
-    case 0x3D5: return crtc_regs[crtc_index];
-    case 0x3DA:
+    case 0x3B4: case 0x3D4: return crtc_index;
+    case 0x3B5: case 0x3D5: return crtc_regs[crtc_index];
+    case 0x3BA: case 0x3DA:
       attr_flip_flop = false;  // reading ISR1 resets attribute flip-flop
       isr1_counter++;
       // Bit 0: display enable (1 during retrace), Bit 3: vertical retrace
@@ -248,8 +335,8 @@ public:
       break;
     case 0x3CE: gc_index = val; break;
     case 0x3CF: gc_regs[gc_index & 0x0F] = val; break;
-    case 0x3D4: crtc_index = val; break;
-    case 0x3D5: crtc_regs[crtc_index] = val; break;
+    case 0x3B4: case 0x3D4: crtc_index = val; break;
+    case 0x3B5: case 0x3D5: crtc_regs[crtc_index] = val; break;
     case 0x3DA: /* Feature Control (write) — ignore */ break;
     default: break;
     }
@@ -257,6 +344,7 @@ public:
 
   bool handles(u16 port) const {
     return (port >= 0x3C0 && port <= 0x3CF) ||
+           port == 0x3B4 || port == 0x3B5 || port == 0x3BA ||
            port == 0x3D4 || port == 0x3D5 || port == 0x3DA;
   }
 

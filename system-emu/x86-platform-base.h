@@ -57,6 +57,7 @@ public:
   LocalAPIC *lapic = nullptr;
   IOAPIC *ioapic = nullptr;
   BochsVBE *vbe = nullptr;
+  VGAText *vga = nullptr;
 
   // ROM intercept: check if paddr falls in a ROM region, return byte if so.
   bool rom_read(u64 paddr, u8 &out) const;
@@ -87,6 +88,7 @@ public:
     phys_mem.lapic = &lapic;
     phys_mem.ioapic = &ioapic;
     phys_mem.vbe = &vbe;
+    phys_mem.vga = &vga;
     lapic.clock = &tsc;
     ioapic.lapic = &lapic;
     lapic.broadcast_eoi = [this](u8 vector) { ioapic.eoi(vector); };

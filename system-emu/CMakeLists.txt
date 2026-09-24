@@ -146,3 +146,8 @@ add_test(NAME system_vbe COMMAND system_test_vbe)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME system_png COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/test-png.py $<TARGET_FILE:system_test_vbe>)
+
+add_executable(system_test_vga tests/test-vga.cpp x86-phys-mem.cpp)
+target_include_directories(system_test_vga PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
+add_test(NAME system_vga COMMAND system_test_vga)

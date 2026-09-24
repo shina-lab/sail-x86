@@ -4,6 +4,11 @@
 #include <cstdlib>
 
 bool PhysicalMemory::video_read(u64 addr, void *buf, u64 len) const {
+  if (!(vbe && vbe->maps(addr)) && vga && vga->maps(addr)) {
+    auto *out = static_cast<u8 *>(buf);
+    for (u64 i = 0; i < len; ++i) out[i] = vga->read_mem(addr + i);
+    return true;
+  }
   if (!vbe || !vbe->maps(addr)) return false;
   auto *out = static_cast<u8 *>(buf);
   for (u64 i = 0; i < len; ++i) out[i] = vbe->maps(addr + i) ? vbe->read_mem(addr + i) : 0xFF;
@@ -11,6 +16,11 @@ bool PhysicalMemory::video_read(u64 addr, void *buf, u64 len) const {
 }
 
 bool PhysicalMemory::video_write(u64 addr, const void *buf, u64 len) {
+  if (!(vbe && vbe->maps(addr)) && vga && vga->maps(addr)) {
+    const auto *in = static_cast<const u8 *>(buf);
+    for (u64 i = 0; i < len; ++i) vga->write_mem(addr + i, in[i]);
+    return true;
+  }
   if (!vbe || !vbe->maps(addr)) return false;
   const auto *in = static_cast<const u8 *>(buf);
   for (u64 i = 0; i < len; ++i) if (vbe->maps(addr + i)) vbe->write_mem(addr + i, in[i]);
