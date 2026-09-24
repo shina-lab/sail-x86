@@ -443,6 +443,26 @@ void add_avx_fp16_tests(std::vector<TestCase> &tests) {
     return s;
   };
 
+  // @@BLOCK vcmpph
+  // VCMPPH k1, xmm1, xmm2, imm (C2): predicates EQ_OQ 0, LT_OS 1, UNORD_Q 3,
+  // NEQ_UQ 4, NLT_US 5, GT_OQ 0x1E; the NaN lanes exercise the ordered
+  // and unordered variants.
+  {
+    ArchState s = map3_state();
+    struct P { const char *name; u8 imm; } preds[] = {
+      {"eq", 0x00}, {"lt", 0x01}, {"unord", 0x03}, {"neq", 0x04}, {"nlt", 0x05}, {"gt", 0x1E},
+    };
+    for (auto &p : preds) {
+      Evex e; e.mm = 3; e.pp = 0; e.W = false; e.opcode = 0xC2;
+      e.reg = 1; e.vvvv = 1; e.rm = 2;
+      for (int ll = 0; ll <= 2; ll++) {
+        e.LL = ll;
+        tests.push_back({std::string("VCMPPH k1 ") + p.name + " " + vl_name[ll], cat,
+                         e.encode_rr_imm(p.imm), s, FL_ALL, 0, false});
+      }
+    }
+  }
+  // @@END
 
 
 
