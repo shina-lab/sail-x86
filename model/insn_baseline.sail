@@ -1468,7 +1468,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F A1: POP FS (d64)
     161 => {
       let os = opsize_default64(pfx);
-      load_segment_register(FS, match os {
+      load_data_segment_register(FS, match os {
         16 => pop(16),
         32 => pop(32)[15..0],
         64 => pop(64)[15..0],
@@ -1517,7 +1517,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F A9: POP GS (d64)
     169 => {
       let os = opsize_default64(pfx);
-      load_segment_register(GS, match os {
+      load_data_segment_register(GS, match os {
         16 => pop(16),
         32 => pop(32)[15..0],
         64 => pop(64)[15..0],
@@ -1615,7 +1615,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             180 => FS,
             181 => GS,
           };
-          load_segment_register(seg, selector)
+          load_data_segment_register(seg, selector)
         },
         RM_reg(_) => raise_UD(),
       }

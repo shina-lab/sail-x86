@@ -492,6 +492,44 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     add_fault("mov fs,ax (0x28 gate) → #GP", seg_load(0x0028, 0xE0, 0xE0), {}, 13);
     add_fault("mov gs,ax (0x100 beyond GDT) → #GP", seg_load(0x0100, 0xE8, 0xE8), {}, 13);
     add_fault("mov ds,ax (0x39, RPL 1 > DPL 0) → #GP", seg_load(0x0039, 0xD8, 0xD8), {}, 13);
+
+    // LSS/LFS/LGS r32,m16:32 (0F B2/B4/B5) and POP FS/GS (0F A1/A9) run the
+    // same checks.  The far pointer at [rdi] is 0x12345678 : selector.
+    auto lxs = [&](const std::string &name, u8 op, u16 sel, u8 read_modrm, bool fault) {
+      TestCase tc;
+      tc.name = name;
+      tc.category = cat;
+      tc.code = {0x0F, op, 0x07, 0x8C, read_modrm};  // lXs eax,[rdi]; mov ebx,Sreg
+      tc.initial = {.rdi = DATA_ADDR};
+      tc.init_data = {0x78, 0x56, 0x34, 0x12, u8(sel), u8(sel >> 8)};
+      tc.flags_mask = FL_ALL;
+      if (fault) { tc.expect_fault = true; tc.expected_vector = 13; }
+      tests.push_back(std::move(tc));
+    };
+    lxs("lss eax,[rdi] (0x10); mov ebx,ss", 0xB2, 0x0010, 0xD3, false);
+    lxs("lss eax,[rdi] (null, RPL 0 at CPL 0); mov ebx,ss", 0xB2, 0x0000, 0xD3, false);
+    lxs("lfs eax,[rdi] (0x38 read-only data); mov ebx,fs", 0xB4, 0x0038, 0xE3, false);
+    lxs("lgs eax,[rdi] (0x48 readable code); mov ebx,gs", 0xB5, 0x0048, 0xEB, false);
+    lxs("lss eax,[rdi] (0x38 read-only) → #GP", 0xB2, 0x0038, 0xD3, true);
+    lxs("lss eax,[rdi] (0x5b DPL 3) → #GP", 0xB2, 0x005B, 0xD3, true);
+    lxs("lfs eax,[rdi] (0x18 TSS) → #GP", 0xB4, 0x0018, 0xE3, true);
+    lxs("lgs eax,[rdi] (0x40 execute-only) → #GP", 0xB5, 0x0040, 0xEB, true);
+    lxs("lgs eax,[rdi] (0x100 beyond GDT) → #GP", 0xB5, 0x0100, 0xEB, true);
+    auto pop_seg = [&](const std::string &name, u8 op, u16 sel, u8 read_modrm, bool fault) {
+      TestCase tc;
+      tc.name = name;
+      tc.category = cat;
+      tc.code = {0x68, u8(sel), u8(sel >> 8), 0x00, 0x00, 0x0F, op, 0x8C, read_modrm};  // push sel; pop Sreg; mov eax,Sreg
+      tc.flags_mask = FL_ALL;
+      if (fault) { tc.expect_fault = true; tc.expected_vector = 13; }
+      tests.push_back(std::move(tc));
+    };
+    pop_seg("push 0x48; pop fs; mov eax,fs", 0xA1, 0x0048, 0xE0, false);
+    pop_seg("push 0x5b; pop gs; mov eax,gs", 0xA9, 0x005B, 0xE8, false);
+    pop_seg("push 0; pop fs (null); mov eax,fs", 0xA1, 0x0000, 0xE0, false);
+    pop_seg("push 0x28; pop fs (gate) → #GP", 0xA1, 0x0028, 0xE0, true);
+    pop_seg("push 0x100; pop gs (beyond GDT) → #GP", 0xA9, 0x0100, 0xE8, true);
+    pop_seg("push 0x40; pop gs (execute-only) → #GP", 0xA9, 0x0040, 0xE8, true);
   }
 
   // VEX VMOVSS/VMOVSD memory forms: vvvv must be 1111b, else #UD
