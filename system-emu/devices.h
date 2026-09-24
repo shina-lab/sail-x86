@@ -971,6 +971,7 @@ public:
     return (u16(dev1f3[0x41]) << 8 | dev1f3[0x40]) & 0xFFC0;
   }
   bool vga_memory_enabled() const { return dev2[4] & 2; }
+  bool smram_open() const { return (dev0[0x72] & 0x48) == 0x48; }
 
   u32 read_data() const {
     if (!(addr & 0x80000000)) return 0xFFFFFFFF;  // Enable bit not set

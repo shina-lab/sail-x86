@@ -371,6 +371,9 @@ unit Model::z__port_out32(u64 port, u64 val) {
 bool Model::z__check_pending_smi(unit) {
   bool pending = smi_pending;
   smi_pending = false;
+  // Assert the chipset's SMM memory view before Sail writes the save state.
+  // This check is skipped while in SMM; the first check after RSM closes it.
+  phys_mem.smram_active = pending;
   return pending;
 }
 

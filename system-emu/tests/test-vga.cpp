@@ -61,5 +61,13 @@ int main() {
   assert(v.pixel_width() == 320 && v.pixel_height() == 200);
   rgb = v.graphics_rgb();
   assert(rgb[0] == 255 && rgb[3] == 0);
+  // The chipset's open SMRAM window and SMM cycles bypass VGA decoding.
+  p.pci.write_addr(0x80000070); p.pci.write_data(0x004A0000); p.sync_vga_bars();
+  m.write32(0xA0000, 0xDEADBEEF);
+  assert(m.read32(0xA0000) == 0xDEADBEEF);
+  p.pci.write_data(0x000A0000); p.sync_vga_bars();
+  assert(m.read32(0xA0000) == 0x0A090807);
+  m.smram_active = true;
+  assert(m.read32(0xA0000) == 0xDEADBEEF);
   puts("VGA planes, latches, read/write modes, chain-4, DAC, mode 12h/13h: PASS");
 }

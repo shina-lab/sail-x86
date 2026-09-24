@@ -58,6 +58,7 @@ public:
   IOAPIC *ioapic = nullptr;
   BochsVBE *vbe = nullptr;
   VGAText *vga = nullptr;
+  bool smram_open = false, smram_active = false;
 
   // ROM intercept: check if paddr falls in a ROM region, return byte if so.
   bool rom_read(u64 paddr, u8 &out) const;
@@ -128,6 +129,7 @@ public:
     phys_mem.set_vga_rom_bar(pci.vga_rom_bar_addr);
     vbe.lfb_base = pci.vga_lfb_addr;
     vbe.memory_enabled = pci.vga_memory_enabled();
+    phys_mem.smram_open = pci.smram_open();
   }
   u8 imcr_index = 0;
   bool imcr_apic = false;
