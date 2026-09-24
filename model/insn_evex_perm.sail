@@ -266,7 +266,7 @@ function dispatch_evex_perm(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, 1);
     let eb = evex_elem_bw(pfx);
     let vl = evex_vl(pfx);
-    write_simd(vl, dst, packed_expand(eb, evex_src(vl, src), evex_kmask64(pfx)))
+    evex_write(dst, evex_wmask(pfx, vl / eb), packed_expand(eb, evex_src(vl, src), evex_kmask64(pfx)))
   },
 
   // 0F38 63: VPCOMPRESSB (66,W0) / VPCOMPRESSW (66,W1) [VBMI2]
@@ -279,7 +279,7 @@ function dispatch_evex_perm(op, pfx) = {
     let vl = evex_vl(pfx);
     let k = evex_kmask64(pfx);
     match dest {
-      XRM_reg(xi) => write_simd(vl, xi, packed_compress(eb, read_simd(vl, src), k)),
+      XRM_reg(xi) => evex_write(xi, evex_compress_wmask(pfx, vl / eb), packed_compress(eb, read_simd(vl, src), k)),
       XRM_mem(m) => packed_compress_mem(eb, seg_linear(m, 64), read_simd(vl, src), k),
     }
   },
@@ -346,7 +346,7 @@ function dispatch_evex_perm(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let eb = evex_elem(pfx);
     let vl = evex_vl(pfx);
-    write_simd(vl, dst, packed_expand(eb, evex_src(vl, src), evex_kmask64(pfx)))
+    evex_write(dst, evex_wmask(pfx, vl / eb), packed_expand(eb, evex_src(vl, src), evex_kmask64(pfx)))
   },
 
   // 0F38 8A: VCOMPRESSPS (66,W0) / VCOMPRESSPD (66,W1) [F]
@@ -360,7 +360,7 @@ function dispatch_evex_perm(op, pfx) = {
     let vl = evex_vl(pfx);
     let k = evex_kmask64(pfx);
     match dest {
-      XRM_reg(xi) => write_simd(vl, xi, packed_compress(eb, read_simd(vl, src), k)),
+      XRM_reg(xi) => evex_write(xi, evex_compress_wmask(pfx, vl / eb), packed_compress(eb, read_simd(vl, src), k)),
       XRM_mem(m) => packed_compress_mem(eb, seg_linear(m, 64), read_simd(vl, src), k),
     }
   },

@@ -175,6 +175,19 @@ function evex_wmask(pfx, n) =
     zeroing = pfx.evex_z,
   }
 
+// Compress writes a contiguous prefix, not the positions selected in the
+// source mask. The remaining destination elements are merged or zeroed.
+val evex_compress_wmask : forall 'n, 'n in {1, 2, 4, 8, 16, 32, 64}.
+  (Prefixes, int('n)) -> Writemask('n)
+function evex_compress_wmask(pfx, n) = {
+  let count = popcount_mask(evex_kmask64(pfx), n);
+  assert(0 <= count & count <= n);
+  struct {
+    bits = ones(n) >> (n - count),
+    zeroing = pfx.evex_z,
+  }
+}
+
 // Scalar writemask write: only the lowest 'eb bits are subject to masking,
 // upper XMM bits always come from result (src1).
 val evex_write_scalar : forall 'eb, 'eb in {16, 32, 64}.
