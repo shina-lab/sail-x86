@@ -692,6 +692,10 @@ function dispatch_evex_imm(op, pfx) = {
   },
 
   // 0F3A 1D: VCVTPS2PH (66, W=0) — convert FP32 to FP16 with imm8 rounding
+  // SDM VCVTPS2PH (EVEX encoded versions): each 16-bit result element is
+  // written IF k1[j] OR *no writemask*, else left unchanged (merging) or
+  // zeroed; DEST[MAXVL-1:VL/2] := 0.  A register destination therefore
+  // takes the writemask like the memory form does.
   29 => {
     if mp != MP_66 | pfx.rex_w then raise_UD();
     let modrm = fetch(1);
@@ -703,7 +707,7 @@ function dispatch_evex_imm(op, pfx) = {
         let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
         let res = avx_vcvtps2ph(read_simd(128, src), rc);
         match dest {
-          XRM_reg(xi) => write_simd(128, xi, zero_extend(res)),
+          XRM_reg(xi) => evex_write(xi, evex_wmask(pfx, 4), res),
           XRM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), 8, 2)
         }
       },
@@ -713,7 +717,7 @@ function dispatch_evex_imm(op, pfx) = {
         let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
         let res = avx_vcvtps2ph(read_simd(256, src), rc);
         match dest {
-          XRM_reg(xi) => write_simd(128, xi, res),
+          XRM_reg(xi) => evex_write(xi, evex_wmask(pfx, 8), res),
           XRM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), 16, 2)
         }
       },
@@ -723,7 +727,7 @@ function dispatch_evex_imm(op, pfx) = {
         let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
         let res = avx_vcvtps2ph(ZMM[src], rc);
         match dest {
-          XRM_reg(xi) => write_simd(256, xi, res),
+          XRM_reg(xi) => evex_write(xi, evex_wmask(pfx, 16), res),
           XRM_mem(m) => evex_masked_mem_store(m, zero_extend(res), evex_kmask64(pfx), 32, 2)
         }
       },

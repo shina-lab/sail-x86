@@ -445,4 +445,54 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     code.insert(code.end(), kmovq_k0_rax.begin(), kmovq_k0_rax.end());
     tests.push_back({"VCMPSD LT", cat, code, s, FL_ALL, 0, false});
   }
+
+  // =====================================================================
+  // VCVTPS2PH xmm/m64 {k1}{z}, xmm, imm8  EVEX.128.66.0F3A.W0 1D
+  // VCVTPS2PH xmm/m128, ymm / ymm/m256, zmm at the other lengths.
+  // imm8[2] = 0 selects the rounding mode in imm8[1:0], 1 uses MXCSR.RC.
+  // The source is ModRM:reg, the destination ModRM:r/m; the values need
+  // rounding, and round across the largest finite value, so the mode
+  // matters.  Inputs whose result is tiny (below the smallest FP16
+  // denormal) or whose magnitude exceeds 65536 are left out; the model's
+  // fp32_to_fp16 (branchless.sail) does not yet round those per mode.
+  // =====================================================================
+  {
+    ArchState s;
+    float vals[16] = {1.0f, 1.00048828125f, 65504.0f, 65520.0f, 65519.0f, -0.0f, NAN, INFINITY,
+                      0.1f, -2.5f, 3.0517578125e-05f, 6.103515625e-05f, -65519.0f, 1234.5678f, 3.0e-5f, -2.0e-5f};
+    memcpy(s.xmm[1].q, vals, 64);
+    for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEADULL;
+    const char *vl_name[] = {"xmm", "ymm", "zmm"};
+    Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x1D; e.reg = 1; e.vvvv = 0; e.rm = 0;
+    for (int ll = 0; ll <= 2; ll++) {
+      e.LL = ll;
+      for (u8 imm : {0x00, 0x01, 0x02, 0x03, 0x04}) {
+        std::string name = std::format("VCVTPS2PH xmm0,{}1,{:#x}", vl_name[ll], imm);
+        e.aaa = 0; e.z = false;
+        tests.push_back({name, cat, e.encode_rr_imm(imm), with_vector_inputs(s, 0x2), FL_ALL, 0, false});
+        if (imm == 0x04) {
+          // MXCSR.RC = round toward zero
+          ArchState rz = with_vector_inputs(s, 0x2); rz.mxcsr = 0x7F80;
+          tests.push_back({name + " MXCSR.RC=RZ", cat, e.encode_rr_imm(imm), rz, FL_ALL, 0, false});
+        }
+      }
+      ArchState km = with_vector_inputs(s, 0x2); km.kregs[1] = 0xA5A5;
+      e.aaa = 1; e.z = true;
+      tests.push_back({std::format("VCVTPS2PH xmm0,{}1,0 {{k1}}{{z}}", vl_name[ll]), cat, e.encode_rr_imm(0), km, FL_ALL, 0, false});
+      e.aaa = 1; e.z = false;
+      tests.push_back({std::format("VCVTPS2PH xmm0,{}1,0 {{k1}}", vl_name[ll]), cat, e.encode_rr_imm(0),
+                       with_merge_input(km, 0x2, 0), FL_ALL, 0, false});
+      // memory destination: the store is 8/16/32 bytes, masked per element
+      for (int masked = 0; masked <= 1; masked++) {
+        e.aaa = masked; e.z = false;
+        TestCase tc; tc.category = cat;
+        tc.name = std::format("VCVTPS2PH [rdi]{},{}1,0", masked ? "{k1}" : "", vl_name[ll]);
+        tc.code = e.encode_rm_mem_imm(0);
+        tc.initial = with_vector_inputs(s, 0x2); tc.initial.rdi = DATA_ADDR;
+        if (masked) tc.initial.kregs[1] = 0xA5A5;
+        tc.init_data = std::vector<u8>(64, 0xCC); tc.compare_data_len = 64;
+        tests.push_back(std::move(tc));
+      }
+    }
+  }
 }

@@ -46,10 +46,12 @@ function fetch_modrm_evex(pfx, disp_n) = {
 val evex_masked_mem_store : (MemRef, zmmword, qword, int, int) -> unit
 function evex_masked_mem_store(m, data, mask, nbytes, elem_bytes) = {
   if mask == ones() then {
-    // Fast path: no masking, write the full vector
+    // Fast path: no masking, write the full vector.  8 bytes is the
+    // narrowing VCVTPS2PH xmm/m64 form (SDM: a 64-bit memory destination).
     match nbytes {
       64 => write_mem(m, data),
       32 => write_mem(256, m, data[255..0]),
+      8  => write_mem(64, m, data[63..0]),
       _  => write_mem(128, m, data[127..0]),
     }
   } else {
