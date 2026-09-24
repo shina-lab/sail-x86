@@ -150,6 +150,13 @@ public:
     set_irq(irq, true);
     set_irq(irq, false);
   }
+  u8 read_keyboard(u16 port) {
+    u8 value = kbd.read(port);
+    // Each byte in the controller output buffer has its own IRQ edge.
+    // Lower the line when the host consumes a byte, even if more are queued.
+    if (port == 0x60) set_irq(1, false);
+    return value;
+  }
   bool pic_connected() const {
     return lapic.enabled() ? lapic.accepts_pic() : !imcr_apic;
   }

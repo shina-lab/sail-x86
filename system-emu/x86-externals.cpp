@@ -222,7 +222,7 @@ u64 Model::z__port_in8(u64 port) {
   if (pic_master.handles(p)) return pic_master.read(p);
   if (pic_slave.handles(p))  return pic_slave.read(p);
   if (pit.handles(p))        return pit.read(p);
-  if (kbd.handles(p))        return kbd.read(p);
+  if (kbd.handles(p))        return read_keyboard(p);
   if (cmos.handles(p))       return cmos.read(p);
   if (floppy.handles(p))     return floppy.read(p);
   if (ide0.handles(p))       { u8 v = ide0.read(p); latch_ide_irqs(); return v; }

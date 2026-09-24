@@ -98,6 +98,19 @@ int main() {
   assert(a.acknowledge() == 0x34);
   m.write32(LAPIC + 0xB0, 0);
 
+  // Consuming a queued PS/2 byte lowers IRQ1 so the next byte has an edge.
+  route(p, 1, 0x31);
+  p.kbd.push_scancode(0x1E);
+  p.kbd.push_scancode(0x9E);
+  p.set_irq(1, true);
+  assert(a.acknowledge() == 0x31);
+  assert(p.read_keyboard(0x60) == 0x1E);
+  m.write32(LAPIC + 0xB0, 0);
+  p.set_irq(1, true);
+  assert(a.acknowledge() == 0x31);
+  assert(p.read_keyboard(0x60) == 0x9E);
+  m.write32(LAPIC + 0xB0, 0);
+
   m.write32(LAPIC + 0xF0, 0xFF);
   m.write32(LAPIC + 0x320, 0x42);
   assert(m.read32(LAPIC + 0x320) & 0x10000);
