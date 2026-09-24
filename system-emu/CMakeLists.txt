@@ -156,3 +156,8 @@ add_executable(system_test_apic_cpu tests/test-apic-cpu.cpp)
 target_link_libraries(system_test_apic_cpu PRIVATE x86_system_model)
 add_dependencies(system_test_apic_cpu generated_sail_x86_model)
 add_test(NAME system_apic_cpu COMMAND system_test_apic_cpu)
+
+add_executable(system_test_keyboard tests/test-keyboard.cpp)
+target_include_directories(system_test_keyboard PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
+add_test(NAME system_keyboard COMMAND system_test_keyboard)

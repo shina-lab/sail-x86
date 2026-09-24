@@ -701,11 +701,20 @@ public:
       case 0xAE:  // Enable first PS/2 port
         kbd_enabled = true;
         break;
+      case 0xD0:  // Read output port (reset deasserted, current A20 gate)
+        out_buf.push(1 | ((a20_gate && *a20_gate) ? 2 : 0));
+        break;
       case 0xD1:  // Write output port (next byte to 0x60)
         last_cmd = 0xD1;
         break;
       case 0xFE:  // Pulse CPU reset line (system reboot)
         reboot_requested = true;
+        break;
+      case 0xDD:  // Disable A20
+        if (a20_gate) *a20_gate = false;
+        break;
+      case 0xDF:  // Enable A20
+        if (a20_gate) *a20_gate = true;
         break;
       default:
         last_cmd = val;
