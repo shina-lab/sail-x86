@@ -121,3 +121,10 @@ add_executable(system_test_vmx tests/test-vmx.cpp)
 target_link_libraries(system_test_vmx PRIVATE x86_system_model)
 add_dependencies(system_test_vmx generated_sail_x86_model)
 add_test(NAME system_vmx COMMAND system_test_vmx)
+
+# IDE channel device model (ATA disk and ATAPI CD-ROM), driven through its
+# ports without a CPU.
+add_executable(system_test_ide tests/test-ide.cpp)
+target_include_directories(system_test_ide PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
+add_test(NAME system_ide COMMAND system_test_ide)
