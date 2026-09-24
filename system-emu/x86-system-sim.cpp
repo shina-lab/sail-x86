@@ -1090,9 +1090,14 @@ int main(int argc, char *argv[]) {
     framebuffer_requested = 0;
     const char *path = getenv("SAIL_X86_FRAMEBUFFER");
     if (!path) path = "framebuffer.png";
-    unsigned width = model.vbe.enabled() ? model.vbe.width() : model.vga.pixel_width();
-    unsigned height = model.vbe.enabled() ? model.vbe.height() : model.vga.pixel_height();
-    auto rgb = model.vbe.enabled() ? model.vbe.rgb(model.vga.dac_palette, model.vga.dac_mask) : model.vga.graphics_rgb();
+    bool text = !model.vbe.enabled() && !model.vga.graphics();
+    unsigned width = model.vbe.enabled() ? model.vbe.width() :
+                     text ? model.vga.text_width() : model.vga.pixel_width();
+    unsigned height = model.vbe.enabled() ? model.vbe.height() :
+                      text ? model.vga.text_height() : model.vga.pixel_height();
+    auto rgb = model.vbe.enabled() ? model.vbe.rgb(model.vga.dac_palette, model.vga.dac_mask) :
+               text ? model.vga.text_rgb(model.phys_mem.ram_ptr() + ((model.vga.misc_output & 1) ? 0xB8000 : 0xB0000)) :
+               model.vga.graphics_rgb();
     if (write_png(path, width, height, rgb))
       fprintf(stderr, "sail-x86-system: framebuffer %ux%ux%u saved to %s\n",
               width, height, model.vbe.enabled() ? model.vbe.depth() : ((model.vga.gc_regs[5] & 0x40) ? 8 : 4), path);
@@ -1129,6 +1134,7 @@ int main(int argc, char *argv[]) {
     if (dump_requested) dump_state();
     if (framebuffer_requested) dump_framebuffer();
     if (trace_window_enabled && has_trace_end && insn_count >= trace_end) {
+      dump_state();
       fprintf(stderr, "sail-x86-system: stopping at trace end %lu instructions\n", insn_count);
       break;
     }

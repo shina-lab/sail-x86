@@ -237,6 +237,36 @@ public:
     }
   }
   bool graphics() const { return gc_regs[6] & 1; }
+  unsigned text_width() const { return COLS * ((seq_regs[1] & 1) ? 8 : 9); }
+  unsigned text_height() const { return ROWS * ((crtc_regs[9] & 31) + 1); }
+  // Snapshot the same 80x25 text window used by the console renderer, with
+  // the guest's uploaded plane-2 font and attribute/DAC colors. Blink is
+  // captured in its visible phase, including the hardware cursor.
+  std::vector<u8> text_rgb(const u8 *memory) const {
+    unsigned cw = text_width() / COLS, ch = text_height() / ROWS;
+    unsigned w = text_width(), h = text_height();
+    std::vector<u8> image(size_t(w) * h * 3);
+    unsigned cursor = (unsigned(crtc_regs[0x0E]) << 8) | crtc_regs[0x0F];
+    for (unsigned y = 0; y < h; ++y) for (unsigned x = 0; x < w; ++x) {
+      unsigned cell = (start_addr() + (y / ch) * COLS + x / cw) & 0x3FFF;
+      u8 code = memory[cell * 2], attr = memory[cell * 2 + 1];
+      unsigned map = (attr & 8) ? ((seq_regs[3] >> 2) & 3) | ((seq_regs[3] >> 3) & 4)
+                                : (seq_regs[3] & 3) | ((seq_regs[3] >> 2) & 4);
+      unsigned font = (map & 3) * 0x4000 + (map >> 2) * 0x2000;
+      u8 glyph = planes[2 * 65536 + font + code * 32 + y % ch];
+      bool ink = x % cw < 8 ? (glyph & (0x80 >> (x % cw)))
+                           : ((attr_regs[0x10] & 4) && code >= 0xC0 && code <= 0xDF && (glyph & 1));
+      if (!(crtc_regs[0x0A] & 0x20) && cell == cursor &&
+          y % ch >= (crtc_regs[0x0A] & 31) && y % ch <= (crtc_regs[0x0B] & 31)) ink = true;
+      unsigned color = ink ? attr & 15 : (attr >> 4) & ((attr_regs[0x10] & 8) ? 7 : 15);
+      color = attr_regs[color] & 63;
+      if (attr_regs[0x10] & 0x80) color = (color & 15) | ((attr_regs[0x14] & 3) << 4);
+      color |= (attr_regs[0x14] & 12) << 4;
+      for (unsigned c = 0; c < 3; ++c)
+        image[(size_t(y) * w + x) * 3 + c] = (dac_palette[color & dac_mask][c] & 63) * 255 / 63;
+    }
+    return image;
+  }
   unsigned pixel_width() const {
     return std::min(2560u, unsigned(crtc_regs[1] + 1) * ((gc_regs[5] & 0x40) ? 4 : 8));
   }

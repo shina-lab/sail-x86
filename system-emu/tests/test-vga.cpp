@@ -10,6 +10,19 @@ int main() {
   auto gc = [&](u8 i, u8 x) { v.write(0x3CE, i); v.write(0x3CF, x); };
   auto crtc = [&](u8 i, u8 x) { v.write(0x3D4, i); v.write(0x3D5, x); };
   auto &m = p.phys_mem;
+  // Text captures use uploaded glyphs, the visible CRTC page and colors.
+  seq(1, 1); crtc(0x0A, 0x20); crtc(0x0C, 0x3F); crtc(0x0D, 0xFF);
+  v.attr_regs[1] = 1; v.attr_regs[2] = 2;
+  v.dac_palette[1][0] = 63; v.dac_palette[2][1] = 63;
+  v.planes[2 * 65536 + 'A' * 32] = 0x80;
+  m.write16(0xB8000 + 0x7FFE, 0x2141);
+  m.write16(0xB8000, 0x1241);
+  auto text = v.text_rgb(m.ram_ptr() + 0xB8000);
+  assert(v.text_width() == 640 && v.text_height() == 400);
+  assert(text[0] == 255 && text[1] == 0);  // glyph foreground
+  assert(text[3] == 0 && text[4] == 255);  // background
+  assert(text[24] == 0 && text[25] == 255); // next cell wraps the text page
+  crtc(0x0C, 0); crtc(0x0D, 0);
   seq(4, 6); gc(6, 5); gc(8, 255);
   const u8 pattern[4] = {0xAA, 0xCC, 0xF0, 0xFF};
   for (unsigned plane = 0; plane < 4; ++plane) {
