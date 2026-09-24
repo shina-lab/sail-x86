@@ -5,6 +5,7 @@ add_executable(kvm_harness
   kvm-tests-sse.cpp
   kvm-tests-misc.cpp
   kvm-tests-x87-avx.cpp
+  kvm-tests-x87-compat.cpp
   kvm-tests-fp-edge.cpp
   kvm-tests-encoding.cpp
   kvm-tests-exception.cpp

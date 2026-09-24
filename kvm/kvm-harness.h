@@ -469,6 +469,7 @@ void add_baseline_tests(std::vector<TestCase> &tests);
 void add_sse_tests(std::vector<TestCase> &tests);
 void add_misc_instruction_tests(std::vector<TestCase> &tests);
 void add_x87_avx_tests(std::vector<TestCase> &tests);
+void add_x87_compat_tests(std::vector<TestCase> &tests);
 void add_fp_edge_tests(std::vector<TestCase> &tests);
 void add_encoding_tests(std::vector<TestCase> &tests);
 void add_exception_tests(std::vector<TestCase> &tests);

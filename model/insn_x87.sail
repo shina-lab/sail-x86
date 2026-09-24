@@ -343,9 +343,14 @@ function dispatch_x87_db(modrm, operand, _) = {
         1 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), ~(ZF))),
         2 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), ~(CF) & ~(ZF))),
         3 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), ~(PF))),
-        // FNCLEX — clear exception flags
+        // Obsolete controls, FNCLEX and FNINIT
         4 => {
-          if modrm_val == 226 then {
+          // SDM Vol.3B, "Obsolete Instructions and Undefined Opcodes":
+          // FENI, FDISI and FSETPM act as integer NOPs, preserving all
+          // x87 state (including the condition codes and exception flags).
+          if modrm_val == 224 | modrm_val == 225 | modrm_val == 228 then {
+            ()
+          } else if modrm_val == 226 then {
             var sw : word = x87_sw;
             sw[7 .. 0] = 0x00;
             sw[15] = 0b0;
