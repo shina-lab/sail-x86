@@ -1970,6 +1970,36 @@ TEST(push_seg_ud_in_64bit) {
 
 // =========================================================================
 
+TEST(ide_busmaster_pci_io) {
+  x86::Model model;
+  init_model(model);
+  model.z__port_out32(0xCF8, 0x80000920);
+  model.z__port_out32(0xCFC, 0xFFFFFFFF);
+  ASSERT_EQ(model.z__port_in32(0xCFC), 0xFFFFFFF1UL);
+  model.z__port_out32(0xCFC, 0xC001);
+  ASSERT_EQ(model.z__port_in8(0xC000), 0xFFUL); // PCI I/O decode disabled
+  model.z__port_out32(0xCF8, 0x80000904);
+  model.z__port_out16(0xCFC, 5);
+  ASSERT_EQ(model.z__port_in16(0xC000), 0UL);
+  // Both channels, through the real port dispatcher at all access widths.
+  model.z__port_out32(0xC004, 0x1234567B);
+  ASSERT_EQ(model.z__port_in32(0xC004), 0x12345678UL);
+  ASSERT_EQ(model.z__port_in32(0xC00C), 0UL);
+  model.z__port_out16(0xC008, 0xFF09);
+  ASSERT_EQ(model.z__port_in16(0xC008), 9UL);
+  ASSERT_EQ(model.z__port_in8(0xC00A), 1UL);
+  model.z__port_out8(0xC008, 0);
+  ASSERT_EQ(model.z__port_in8(0xC00A), 0UL);
+  model.z__port_out32(0xCF8, 0x80000920);
+  model.z__port_out32(0xCFC, 0xD001);
+  ASSERT_EQ(model.z__port_in32(0xC004), 0xFFFFFFFFUL);
+  ASSERT_EQ(model.z__port_in32(0xD004), 0x12345678UL);
+  model.z__port_out32(0xCF8, 0x80000904);
+  model.z__port_out16(0xCFC, 4);
+  ASSERT_EQ(model.z__port_in8(0xD000), 0xFFUL);
+  model.model_fini();
+}
+
 int main() {
   printf("System emulator tests:\n");
 
@@ -1983,6 +2013,7 @@ int main() {
   run_test_jmp_forward_hlt();
   run_test_loop_counter_hlt();
   run_test_system_regs_initial_values();
+  run_test_ide_busmaster_pci_io();
 
   printf("\nPrivileged instruction tests:\n");
   run_test_mov_cr0_read_write();
