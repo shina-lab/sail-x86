@@ -1438,7 +1438,11 @@ function dispatch_2byte_gpr(op, pfx) = {
       let (reg, src) = fetch_modrm(pfx);
       let bit_idx = v(os, reg);
       let (adj_rm, bit_num) = bt_adjust(src, bit_idx);
-      CF = v(os, adj_rm)[bit_num]
+      CF = v(os, adj_rm)[bit_num];
+      OF = undefined;
+      SF = undefined;
+      AF = undefined;
+      PF = undefined
     },
 
     // 0F A4: SHLD r/m, r, imm8
@@ -1492,7 +1496,11 @@ function dispatch_2byte_gpr(op, pfx) = {
       var x = v(os, adj_rm);
       CF = x[bit_num];
       x[bit_num] = 0b1;
-      v(adj_rm) = x
+      v(adj_rm) = x;
+      OF = undefined;
+      SF = undefined;
+      AF = undefined;
+      PF = undefined
     },
 
     // 0F AC: SHRD r/m, r, imm8
@@ -1540,7 +1548,11 @@ function dispatch_2byte_gpr(op, pfx) = {
       var x = v(os, adj_rm);
       CF = x[bit_num];
       x[bit_num] = 0b0;
-      v(os, adj_rm) = x
+      v(os, adj_rm) = x;
+      OF = undefined;
+      SF = undefined;
+      AF = undefined;
+      PF = undefined
     },
 
     // 0F B2: LSS r, m16:16/32/64 — Load far pointer into SS
@@ -1638,7 +1650,11 @@ function dispatch_2byte_gpr(op, pfx) = {
           v(dest) = x
         },
         _ => raise_UD(),
-      }
+      };
+      OF = undefined;
+      SF = undefined;
+      AF = undefined;
+      PF = undefined
     },
 
     // 0F BB: BTC r/m, r
@@ -1651,7 +1667,11 @@ function dispatch_2byte_gpr(op, pfx) = {
       var x = v(os, adj_rm);
       CF = x[bit_num];
       x[bit_num] = ~(x[bit_num]);
-      v(os, adj_rm) = x
+      v(os, adj_rm) = x;
+      OF = undefined;
+      SF = undefined;
+      AF = undefined;
+      PF = undefined
     },
 
     // 0F BC: BSF r, r/m (or TZCNT with F3 prefix)

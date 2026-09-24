@@ -280,8 +280,8 @@ function exec_shl(a, count_raw) = {
   AF = undefined;
   // OF defined only for count==1; undefined otherwise
   OF = blend(undefined, OF, is_eq(count_bv, 0b000001));
-  // CF undefined when count > operand size (possible for 8/16-bit)
-  CF = blend(CF, undefined, is_gt_u(to_bits(7, count), to_bits(7, 'os)));
+  // CF undefined when count >= operand size (possible for 8/16-bit)
+  CF = blend(CF, undefined, is_ge_u(to_bits(7, count), to_bits(7, 'os)));
 
   // When count==0: restore all flags and return original value
   let count_nz : bit = is_nonzero(count_bv);
@@ -317,8 +317,8 @@ function exec_shr(a, count_raw) = {
   AF = undefined;
   // OF defined only for count==1; undefined otherwise
   OF = blend(undefined, OF, is_eq(count_bv, 0b000001));
-  // CF undefined when count > operand size (possible for 8/16-bit)
-  CF = blend(CF, undefined, is_gt_u(to_bits(7, count), to_bits(7, 'os)));
+  // CF undefined when count >= operand size (possible for 8/16-bit)
+  CF = blend(CF, undefined, is_ge_u(to_bits(7, count), to_bits(7, 'os)));
 
   let count_nz : bit = is_nonzero(count_bv);
   CF = blend(old_CF, CF, count_nz);
