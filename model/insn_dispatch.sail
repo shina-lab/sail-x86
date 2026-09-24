@@ -537,7 +537,7 @@ function exec_retf(pfx, maybe_imm) = {
 
   // RPL must not be less than current CPL (not applicable in real mode)
   if cur_mode != RealMode & return_rpl < cur_cpl then {
-    throw Fault(EXN_GP, zero_extend(new_cs))
+    throw Fault(EXN_GP, selector_error_code(new_cs))
   };
 
   // In real mode, far return simply pops IP and CS — no privilege checks,
@@ -610,7 +610,7 @@ function decode_execute() = {
           32 => pop(32)[15..0],
           _  => pop(16),
         };
-        load_segment_register(ES, x)
+        load_data_segment_register(ES, x)
       },
 
       // 0E: PUSH CS — Push CS selector onto stack (SDM Vol.2B PUSH)
@@ -651,7 +651,7 @@ function decode_execute() = {
           32 => pop(32)[15..0],
           _  => pop(16),
         };
-        load_segment_register(SS, x);
+        load_data_segment_register(SS, x);
         ss_shadow = 2
       },
 
@@ -675,7 +675,7 @@ function decode_execute() = {
           32 => pop(32)[15..0],
           _  => pop(16),
         };
-        load_segment_register(DS, x)
+        load_data_segment_register(DS, x)
       },
 
       // 27: DAA — Decimal Adjust AL After Addition (SDM Vol.2A)
@@ -1089,7 +1089,7 @@ function decode_execute() = {
         assert(reg_field <= 5);
         let seg : segreg_idx = reg_field;
         if seg == CS then raise_UD();
-        load_segment_register(seg, v(src));
+        load_data_segment_register(seg, v(src));
         // Loading SS starts the one-instruction shadow that holds interrupts
         // and the single-step trap (SDM Vol.3A §7.8.3); LSS does not.
         if seg == SS then ss_shadow = 2
@@ -1410,7 +1410,7 @@ function decode_execute() = {
               RM_mem(m) => {
                 let (far_offset, selector) = read_far_pointer(os, m);
                 v(reg) = far_offset;
-                load_segment_register(ES, selector)
+                load_data_segment_register(ES, selector)
               },
               RM_reg(_) => raise_UD(),  // unreachable: mod=11 handled above
             }
@@ -1435,7 +1435,7 @@ function decode_execute() = {
               RM_mem(m) => {
                 let (far_offset, selector) = read_far_pointer(os, m);
                 v(reg) = far_offset;
-                load_segment_register(DS, selector)
+                load_data_segment_register(DS, selector)
               },
               RM_reg(_) => raise_UD(),
             }

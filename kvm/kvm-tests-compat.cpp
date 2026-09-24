@@ -1732,6 +1732,38 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     // A pop into SS is followed by a memory access through the new stack
     add("compat pop ss; push eax; pop ebx",
         {0x68, 0x10, 0x00, 0x00, 0x00, 0x17, 0x50, 0x5B}, ArchState{.rax = 0x12345678});
+    // A readable code segment may be loaded into a data-segment register
+    add("compat push 0x48; pop ds (readable code); mov eax,ds",
+        {0x68, 0x48, 0x00, 0x00, 0x00, 0x1F, 0x8C, 0xD8}, ArchState{});
+    // Selector checks of the segment load (SDM Vol.2B POP, Operation):
+    // #GP(0) for a null SS, otherwise #GP with the selector's index as the
+    // error code.
+    add_fault("compat pop ss (null) #GP", {0x6A, 0x00, 0x17}, ArchState{}, 13);
+    add_fault("compat pop ss (0x38 read-only) #GP", {0x68, 0x38, 0x00, 0x00, 0x00, 0x17}, ArchState{}, 13);
+    add_fault("compat pop ss (0x48 code) #GP", {0x68, 0x48, 0x00, 0x00, 0x00, 0x17}, ArchState{}, 13);
+    add_fault("compat pop ss (0x5b DPL 3) #GP", {0x68, 0x5B, 0x00, 0x00, 0x00, 0x17}, ArchState{}, 13);
+    add_fault("compat pop ss (0x13, RPL 3) #GP", {0x68, 0x13, 0x00, 0x00, 0x00, 0x17}, ArchState{}, 13);
+    add_fault("compat pop ds (0x40 execute-only) #GP", {0x68, 0x40, 0x00, 0x00, 0x00, 0x1F}, ArchState{}, 13);
+    add_fault("compat pop ds (0x39, RPL 1 > DPL 0) #GP", {0x68, 0x39, 0x00, 0x00, 0x00, 0x1F}, ArchState{}, 13);
+    add_fault("compat pop es (0x18 TSS) #GP", {0x68, 0x18, 0x00, 0x00, 0x00, 0x07}, ArchState{}, 13);
+    add_fault("compat pop ds (0x100 beyond GDT) #GP", {0x68, 0x00, 0x01, 0x00, 0x00, 0x1F}, ArchState{}, 13);
+    add_fault("compat pop es (0x28 gate) #GP", {0x68, 0x28, 0x00, 0x00, 0x00, 0x07}, ArchState{}, 13);
+    // MOV Sreg,r/m16 and LDS/LES run the same checks
+    add_fault("compat mov ss,ax (0x38 read-only) #GP", {0x66, 0xB8, 0x38, 0x00, 0x8E, 0xD0}, ArchState{}, 13);
+    add_fault("compat mov ds,ax (0x18 TSS) #GP", {0x66, 0xB8, 0x18, 0x00, 0x8E, 0xD8}, ArchState{}, 13);
+    {
+      // LDS eax,[edi]: pointer 0x00000010:0x40 loads the execute-only segment
+      TestCase tc;
+      tc.name = "compat lds eax,[edi] (0x40 execute-only) #GP";
+      tc.category = cat;
+      tc.code = {0xC5, 0x07};
+      tc.initial = {.rdi = DATA_ADDR};
+      tc.init_data = {0x10, 0x00, 0x00, 0x00, 0x40, 0x00};
+      tc.expect_fault = true;
+      tc.expected_vector = 13;
+      tc.compat_mode = true;
+      tests.push_back(std::move(tc));
+    }
   }
 
   // =====================================================================
@@ -1811,6 +1843,10 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     add_fault("compat jmp far 0x100 (beyond GDT) #GP", ptr(0xEA, CODE_ADDR + 7, 0x100), s, 13);
     add_fault("compat call far null selector #GP(0)", ptr(0x9A, CODE_ADDR + 7, 0x0000), s, 13);
     add_fault("compat call far 0x10 (data segment) #GP", ptr(0x9A, CODE_ADDR + 7, 0x10), s, 13);
+    // The error code carries the selector's index and TI bit only (SDM
+    // Vol.3A §7.13): 0x50 for the DPL 3 code selector 0x53.
+    add_fault("compat jmp far 0x53 (DPL 3 code) #GP", ptr(0xEA, CODE_ADDR + 7, 0x53), s, 13);
+    add_fault("compat call far 0x53 (DPL 3 code) #GP", ptr(0x9A, CODE_ADDR + 7, 0x53), s, 13);
   }
 
   // =====================================================================

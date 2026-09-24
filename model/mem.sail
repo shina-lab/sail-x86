@@ -195,6 +195,12 @@ function load_segment_register(idx, selector) = {
   }
 }
 
+// Error code of a fault attributed to a segment selector (SDM Vol.3A §7.13,
+// Figure 7-7): the selector's index and TI bit; bits 1:0 are the IDT and
+// EXT flags, both clear for a selector referenced by an instruction.
+val selector_error_code : word -> dword
+function selector_error_code(selector) = zero_extend(selector & 0xFFFC)
+
 // =========================================================================
 // Segment limit checking (SDM Vol.3A §6.3)
 // =========================================================================
@@ -293,13 +299,73 @@ function read_descriptor(selector) = {
   let desc_offset : qword = zero_extend(index @ 0b000);
   // Descriptor must fit within the table limit (offset + 7 <= limit)
   if unsigned(desc_offset) + 7 > unsigned(table_limit) then {
-    throw Fault(EXN_GP, zero_extend(selector))
+    throw Fault(EXN_GP, selector_error_code(selector))
   };
   // Implicit supervisor access (SDM Vol.3A §4.6): descriptor-table reads
   // bypass U/S regardless of CPL.
   let desc_lo : dword = read_mem_implicit(table_base + desc_offset);
   let desc_hi : dword = read_mem_implicit(table_base + desc_offset + 4);
   parse_seg_descriptor(desc_lo, desc_hi)
+}
+
+// Load SS, DS, ES, FS or GS on behalf of MOV Sreg, POP Sreg and the LxS
+// instructions, with the checks of the SDM's Operation sections (Vol.2B
+// MOV, "Loading a segment register while in protected mode results in
+// special checks and actions"; Vol.2B POP; Vol.2A LDS/LES/LFS/LGS/LSS):
+//   SS: null selector -> #GP(0); index beyond the table limit, RPL != CPL,
+//       not a writable data segment, or DPL != CPL -> #GP(selector);
+//       not present -> #SS(selector).  In 64-bit mode a null SS is
+//       permitted when CPL < 3 and RPL = CPL (MOV, 64-Bit Mode Exceptions).
+//   DS/ES/FS/GS with a non-null selector: index beyond the table limit,
+//       neither a data nor a readable code segment, or a data or
+//       nonconforming code segment with RPL > DPL or CPL > DPL
+//       -> #GP(selector); not present -> #NP(selector).
+//   DS/ES/FS/GS with a null selector: loaded without checks.
+// Real mode loads the base from the selector.  CS is never loaded here:
+// far transfers have their own checks.
+val load_data_segment_register : (segreg_idx, word) -> unit
+function load_data_segment_register(idx, selector) = {
+  if cur_mode == RealMode then load_segment_register(idx, selector)
+  else {
+    let rpl : range(0, 3) = unsigned(selector[1..0]);
+    let null_selector : bool = selector[15..2] == zeros();
+    if idx == SS then {
+      if null_selector then {
+        if cur_mode == LongMode & cur_cpl < 3 & rpl == cur_cpl then
+          load_segment_register(idx, selector)
+        else
+          raise_GP0()
+      } else {
+        let desc = read_descriptor(selector);
+        let writable_data : bool = desc.seg_s == 0b1 & desc.seg_type[3] == 0b0
+                                 & desc.seg_type[1] == 0b1;
+        if rpl != cur_cpl | ~(writable_data) | desc.seg_dpl != cur_cpl then {
+          throw Fault(EXN_GP, selector_error_code(selector))
+        };
+        if desc.seg_present == 0b0 then {
+          throw Fault(EXN_SS, selector_error_code(selector))
+        };
+        load_segment_register(idx, selector)
+      }
+    } else if null_selector then {
+      load_segment_register(idx, selector)
+    } else {
+      let desc = read_descriptor(selector);
+      let data : bool = desc.seg_type[3] == 0b0;
+      let readable_code : bool = desc.seg_type[3] == 0b1 & desc.seg_type[1] == 0b1;
+      let conforming_code : bool = desc.seg_type[3] == 0b1 & desc.seg_type[2] == 0b1;
+      if desc.seg_s == 0b0 | ~(data | readable_code) then {
+        throw Fault(EXN_GP, selector_error_code(selector))
+      };
+      if ~(conforming_code) & (rpl > desc.seg_dpl | cur_cpl > desc.seg_dpl) then {
+        throw Fault(EXN_GP, selector_error_code(selector))
+      };
+      if desc.seg_present == 0b0 then {
+        throw Fault(EXN_NP, selector_error_code(selector))
+      };
+      load_segment_register(idx, selector)
+    }
+  }
 }
 
 // Validate and load CS for a far JMP in protected mode (same-privilege,
@@ -323,11 +389,11 @@ function validate_far_jmp_cs(selector) = {
 
   // Must be a code/data segment (S=1), not a system descriptor
   if desc.seg_s == 0b0 then {
-    throw Fault(EXN_GP, zero_extend(selector))
+    throw Fault(EXN_GP, selector_error_code(selector))
   };
   // Must be a code segment (type bit 3 set)
   if desc.seg_type[3] == 0b0 then {
-    throw Fault(EXN_GP, zero_extend(selector))
+    throw Fault(EXN_GP, selector_error_code(selector))
   };
 
   let rpl : range(0, 3) = unsigned(selector[1..0]);
@@ -336,21 +402,21 @@ function validate_far_jmp_cs(selector) = {
   if conforming then {
     // Conforming: DPL must be <= CPL
     if desc.seg_dpl > cur_cpl then {
-      throw Fault(EXN_GP, zero_extend(selector))
+      throw Fault(EXN_GP, selector_error_code(selector))
     }
   } else {
     // Non-conforming: DPL must equal CPL, RPL must be <= CPL
     if desc.seg_dpl != cur_cpl then {
-      throw Fault(EXN_GP, zero_extend(selector))
+      throw Fault(EXN_GP, selector_error_code(selector))
     };
     if rpl > cur_cpl then {
-      throw Fault(EXN_GP, zero_extend(selector))
+      throw Fault(EXN_GP, selector_error_code(selector))
     }
   };
 
   // Segment must be present
   if desc.seg_present == 0b0 then {
-    throw Fault(EXN_NP, zero_extend(selector))
+    throw Fault(EXN_NP, selector_error_code(selector))
   };
 
   desc

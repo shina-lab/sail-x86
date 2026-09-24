@@ -459,6 +459,41 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   add_fault("vmovntps [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF8, 0x2B, 0x07},
             {.rdi = DATA_ADDR + 1}, 13);
 
+  // Segment loads in 64-bit mode (SDM Vol.2B MOV, 64-Bit Mode Exceptions).
+  // The GDT offers 0x10 (data), 0x38 (read-only data), 0x40 (execute-only
+  // code), 0x48 (readable 32-bit code), 0x18 (TSS), 0x28 (gate), 0x53/0x5B
+  // (DPL 3 code/data).  "mov ax,imm16; mov Sreg,ax", then "mov eax,Sreg".
+  {
+    auto seg_load = [](u16 sel, u8 modrm_load, u8 modrm_read) {
+      return std::vector<u8>{0x66, 0xB8, u8(sel), u8(sel >> 8), 0x8E, modrm_load, 0x8C, modrm_read};
+    };
+    // Permitted: a null SS at CPL 0 with RPL 0; DS/ES/FS/GS with data,
+    // readable code, or DPL 3 segments (RPL and CPL do not exceed DPL 3).
+    tests.push_back({"mov ss,ax (null, RPL 0 at CPL 0)", cat, seg_load(0x0000, 0xD0, 0xD0), {}, FL_ALL});
+    tests.push_back({"mov fs,ax (0x48 readable code); mov eax,fs", cat, seg_load(0x0048, 0xE0, 0xE0), {}, FL_ALL});
+    tests.push_back({"mov gs,ax (0x5b DPL 3 data); mov eax,gs", cat, seg_load(0x005B, 0xE8, 0xE8), {}, FL_ALL});
+    tests.push_back({"mov ds,ax (0x53 DPL 3 code); mov eax,ds", cat, seg_load(0x0053, 0xD8, 0xD8), {}, FL_ALL});
+    tests.push_back({"mov es,ax (0x38 read-only data); mov eax,es", cat, seg_load(0x0038, 0xC0, 0xC0), {}, FL_ALL});
+    tests.push_back({"mov ds,ax (null); mov eax,ds", cat, seg_load(0x0000, 0xD8, 0xD8), {}, FL_ALL});
+    // #GP(0): a null SS whose RPL differs from CPL.  The Xeon faults as the
+    // SDM says; the AMD host loads the selector, so the case is Intel-only.
+    if (!amd_host)
+      add_fault("mov ss,ax (null, RPL 3 at CPL 0) → #GP(0)", seg_load(0x0003, 0xD0, 0xD0), {}, 13);
+    // #GP(selector): SS must be a writable data segment with RPL = DPL = CPL
+    add_fault("mov ss,ax (0x38 read-only) → #GP", seg_load(0x0038, 0xD0, 0xD0), {}, 13);
+    add_fault("mov ss,ax (0x48 code) → #GP", seg_load(0x0048, 0xD0, 0xD0), {}, 13);
+    add_fault("mov ss,ax (0x5b DPL 3) → #GP", seg_load(0x005B, 0xD0, 0xD0), {}, 13);
+    add_fault("mov ss,ax (0x13, RPL 3) → #GP", seg_load(0x0013, 0xD0, 0xD0), {}, 13);
+    add_fault("mov ss,ax (0x18 TSS) → #GP", seg_load(0x0018, 0xD0, 0xD0), {}, 13);
+    // #GP(selector): DS/ES/FS/GS need a data or readable code segment whose
+    // DPL is at least RPL and CPL, and an index inside the table
+    add_fault("mov ds,ax (0x40 execute-only) → #GP", seg_load(0x0040, 0xD8, 0xD8), {}, 13);
+    add_fault("mov es,ax (0x18 TSS) → #GP", seg_load(0x0018, 0xC0, 0xC0), {}, 13);
+    add_fault("mov fs,ax (0x28 gate) → #GP", seg_load(0x0028, 0xE0, 0xE0), {}, 13);
+    add_fault("mov gs,ax (0x100 beyond GDT) → #GP", seg_load(0x0100, 0xE8, 0xE8), {}, 13);
+    add_fault("mov ds,ax (0x39, RPL 1 > DPL 0) → #GP", seg_load(0x0039, 0xD8, 0xD8), {}, 13);
+  }
+
   // VEX VMOVSS/VMOVSD memory forms: vvvv must be 1111b, else #UD
   cat = "Exception #UD";
 
