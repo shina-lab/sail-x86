@@ -878,6 +878,9 @@ public:
 
   void write_addr(u32 val) { addr = val; }
   u32 read_addr() const { return addr; }
+  u16 pm_base() const {
+    return (u16(dev1f3[0x41]) << 8 | dev1f3[0x40]) & 0xFFC0;
+  }
 
   u32 read_data() const {
     if (!(addr & 0x80000000)) return 0xFFFFFFFF;  // Enable bit not set

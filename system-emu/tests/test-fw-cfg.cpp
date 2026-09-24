@@ -1,8 +1,16 @@
 #include "devices.h"
+#include "pm.h"
 #include <cassert>
 #include <cstdio>
 
 int main() {
+  ACPIPM pm;
+  assert(pm.timer(1000000000) == 3579545);
+  assert(pm.timer(10000000000) == (35795450 & 0xFFFFFF));
+  pm.write(4, 1);
+  assert(pm.read(4, 0) == 1); // SCI_EN survives the BIOS SMI handler
+  pm.write(5, 0x20);
+  assert(pm.write(4, 1)); // S5 power-off
   FwCfg fw;
   fw.write(0x510, 5);
   assert(fw.read(0x511) == 1 && fw.read(0x511) == 0);

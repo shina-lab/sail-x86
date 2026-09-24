@@ -235,7 +235,8 @@ u64 Model::z__port_in8(u64 port) {
   if (p == 0xB3)             return apmc_status; // APM Status
   if (p == 0x402)            return bios_debug ? 0xE9 : 0xFF; // QEMU debug console readback
   // PIIX4 ACPI PM I/O (base 0xB000, range 0x40)
-  if (0xB000 <= p && p < 0xB040) return 0x00;
+  if (pci.pm_base() <= p && p < pci.pm_base() + 0x40)
+    return pm.read(p - pci.pm_base(), tsc);
   if (vga.handles(p))        return vga.read(p);
   // DMA controller (0x00-0x0F)
   if (dma.handles(p))        return dma.read(p);
@@ -320,8 +321,8 @@ unit Model::z__port_out8(u64 port, u64 val) {
   } else if (p == 0xB3) {
     // APM Status: store value
     apmc_status = v;
-  } else if (0xB000 <= p && p < 0xB040) {
-    // PIIX4 ACPI PM I/O: absorb writes
+  } else if (pci.pm_base() <= p && p < pci.pm_base() + 0x40) {
+    if (pm.write(p - pci.pm_base(), v)) should_exit = true;
   }
   else if (p == 0x402) {
     // QEMU debug console: SeaBIOS dprintf output, shown with SAIL_X86_BIOS_DEBUG

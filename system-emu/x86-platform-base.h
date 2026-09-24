@@ -3,6 +3,7 @@
 #include "../emu-shared/integers.h"
 #include "devices.h"
 #include "apic.h"
+#include "pm.h"
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -113,6 +114,7 @@ public:
   PCIConfigSpace pci;
   LocalAPIC lapic;
   IOAPIC ioapic;
+  ACPIPM pm;
   u8 imcr_index = 0;
   bool imcr_apic = false;
   bool irq_lines[16] = {};
