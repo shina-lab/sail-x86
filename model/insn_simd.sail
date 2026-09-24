@@ -252,14 +252,21 @@ enum PackedShiftOp = { PS_Srl, PS_Sra, PS_Sll }
 val packed_uniform_shift : forall 'vl 'eb, 'vl in {64, 128, 256, 512} & 'eb in {16, 32, 64, 128}.
   (PackedShiftOp, int('eb), bits('vl), nat) -> bits('vl)
 function packed_uniform_shift(op, eb, src, count) = {
+  // A count greater than the element width leaves all 0s (PSRL*, PSLL*) or
+  // the sign bit in every position (PSRA*): SDM PSRLW/PSRLD/PSRLQ,
+  // PSLLW/PSLLD/PSLLQ, PSRAW/PSRAD/PSRAQ, Description.  Shifting by the
+  // width itself gives the same result, so clamp the count there; the
+  // 64-bit register count can otherwise exceed what the bitvector shift
+  // accepts.
+  let c : nat = if count > eb then eb else count;
   var r : bits('vl) = zeros();
   foreach (i from 0 to ('vl / 'eb - 1)) {
     let lo = i * 'eb;
     let e = velem('eb, src, i);
     r[(lo + 'eb - 1)..lo] = match op {
-      PS_Srl => e >> count,
-      PS_Sra => e >>> count,
-      PS_Sll => e << count,
+      PS_Srl => e >> c,
+      PS_Sra => e >>> c,
+      PS_Sll => e << c,
     }
   };
   r

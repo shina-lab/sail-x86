@@ -1026,9 +1026,8 @@ void add_mmx_tests(std::vector<TestCase> &tests) {
       {"pslld", 0xF2, 0x8000000100000002},
       {"psllq", 0xF3, 0x8000000100000002},
     };
-    // Counts of 2^32 and more are left out: packed_uniform_shift shifts a
-    // GMP bitvector by the whole count, which aborts the model process.
-    static const u64 counts[] = {0, 3, 15, 16, 17, 31, 32, 33, 63, 64, 65, 255, 65536};
+    static const u64 counts[] = {0, 3, 15, 16, 17, 31, 32, 33, 63, 64, 65, 255, 65536,
+                                 1ULL << 32, 1ULL << 63, ~0ULL};
     for (const Shift &sh : shifts) {
       for (u64 c : counts) {
         ArchState s;
