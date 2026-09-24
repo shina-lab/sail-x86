@@ -11,7 +11,7 @@ No KVM harness, ReactOS, Windows 3.1, FreeBSD or virtual-8086 work is included.
 
 | OS | Farthest progress | Current blocker |
 |---|---|---|
-| Windows 95 | **Graphical Setup license agreement, then SU-0013** | FreeDOS startup disk rejected; Microsoft DOS retry in progress |
+| Windows 95 | **Graphical Windows 95 Setup Wizard** | Installation being driven onward |
 | Haiku R1 beta 5 x86-64 | **All seven icons and user-space debugger** after 30 minutes | `net_server` execution fault; later `package_daemon` heap assertion |
 
 These are actual guest captures, not graphics test patterns:
@@ -125,7 +125,23 @@ MS-DOS boot partition. COM1 remains silent. A separate local copy,
 `win95-msdos.img`, is now being prepared using the Microsoft DOS boot image
 from the supplied media. It successfully boots COMMAND.COM, unlike the
 pre-fix attempts. `SYS C:` reports `System transferred`; no original image
-or other worktree file is changed.
+or other worktree file is changed. The first run reports a CAB extraction
+failure at the sixteenth PRECOPY data block. The FAT filesystem passes
+`fsck.fat -n`; MINI.CAB and the complete PRECOPY1/PRECOPY2 set pass `7z t`,
+and their hashes match the initial local disk copy. SYS changed the BPB
+head count from 32 to the BIOS-reported 16. A fresh boot from the converted
+hard disk clears the extraction failure, but SU-0013 persists.
+
+A QEMU TCG control using the same image and `bios-chs-trans=none`,
+1040 cylinders, 16 heads and 63 sectors reproduces SU-0013. The original
+MBR sets both CHS addresses to `fe ff ff` even though the disk presents only
+16 heads; it marks the partition as type 06 despite extending beyond the
+CHS range. On a separate local copy, the start CHS is corrected to
+cylinder 2/head 0/sector 33 (LBA 2048), the end is saturated to
+1023/15/63, and the partition is marked FAT16 LBA (type 0e). QEMU then
+reaches the actual Setup Wizard. The same corrected image also reaches the **Windows 95 Setup Wizard**
+in Sail as `b-win95-partition`. These are disk-metadata corrections, not
+changes to the CPU model.
 
 ## Haiku PCI IDE diagnosis
 
@@ -193,6 +209,23 @@ fault at `0x19dcc91a380`, reached from
 the debugger on `getNumAvailable() < getNumBlocks()` in its heap allocator.
 The underlying cause of these user-space failures is not established.
 
+The later serial-enabled CD run reproduces a failure in `net_server`'s
+same `_StartWatching` call chain, this time a #GP at
+`BMessenger::operator==`, PC `0x1adeb80c720`. A RAM snapshot taken at the
+fault retains the process page tables (`CR3=0x3b8dd000`) and its kernel
+interrupt frame. The instruction is `mov edx,[rsi]`, RSI is the
+noncanonical `0x1f0f2e666691001e`, and R15 is that value minus `0x20`.
+The PLT/GOT entry for `BPathMonitor::StartWatching` points to its correct
+mapped implementation. This is consistent with a bad pointer in the path monitor's handler
+lookup, after the kernel has initialized devices and scheduling. Its origin
+has not been traced to a specific instruction, so no speculative Sail
+change is made for it.
+
+A **QEMU 11.0.2 TCG control**, using the same local Haiku media and rebuilt
+BIOS/VGA ROM with one CPU and no NIC, reaches the graphical Haiku welcome
+dialog. This confirms the media can boot; it is not counted as Sail
+progress. The controls use TCG only and do not involve the KVM harness.
+
 The first timed-phase CD run lasts **1800.859 seconds / 7,256,361,662
 instructions**, reaches seven icons, then a white framebuffer. Its normal
 serial logging was not enabled by the prematurely timed menu input.
@@ -201,6 +234,50 @@ ATAPI phase. A new manually verified serial-enabled run finds most such
 reads at 41.25 microseconds (BSY set, DRQ clear), but an outlier at
 1.72425 milliseconds sees the next DRQ. The one-millisecond service time
 therefore removes most repeated delays, not every possible timeout.
+
+The final serial-enabled CD run completes **1800.683 seconds /
+7,283,956,397 instructions**. Its [serial output](os-boot/b-haiku-phase-serial.serial)
+and [screen](os-boot/b-haiku-phase-serial.png) are retained. It ends in the
+`net_server` user debugger; `quit` brings up its kill/resume/cancel prompt,
+and the time bound expires there. Of 2,625 traced first status reads,
+2,621 see BSY with DRQ clear. The four that see DRQ arrive after 1.599,
+1.72425, 1.74225 and 12.24175 milliseconds, confirming the remaining
+intermittent timing sensitivity.
+
+## QEMU TCG controls (not Sail boot results)
+
+These manual controls collect screenshots and serial files, but not an
+instruction counter or runner wall-time measurement. All processes were
+stopped after the comparison. QEMU is version 11.0.2, with `-accel tcg`;
+no KVM interface or harness is used.
+
+The common arguments are:
+
+```sh
+qemu-system-x86_64 -accel tcg -machine pc -smp 1 -L /usr/share/qemu \
+  -bios build/bios.bin -vga none -device VGA,romfile=build/vgabios.bin \
+  -nic none -display none -no-reboot -no-shutdown
+```
+
+* Haiku: `-cpu max -m 1024 -drive file=build/os-boot/haiku-b.iso,media=cdrom,readonly=on -boot d`,
+  monitor `unix:build/os-boot/b-haiku-qemu.monitor,server,nowait`, serial
+  `file:build/os-boot/b-haiku-qemu.serial`. An initial invocation without
+  `-bios` fails because QEMU cannot locate `bios-256k.bin`. The explicit
+  firmware run reaches the [welcome dialog](os-boot/b-haiku-qemu.png).
+* Windows: `-cpu pentium3 -m 64 -boot c`. The first ordinary `-drive
+  file=build/os-boot/win95-qemu.img,format=raw,if=ide` boot says Invalid
+  system disk because QEMU's default translated geometry differs from the
+  SYS-written BPB. Matching Sail with `-drive
+  file=build/os-boot/win95-qemu.img,format=raw,if=none,id=disk -device
+  ide-hd,drive=disk,cyls=1040,heads=16,secs=63,bios-chs-trans=none` boots and
+  reproduces [SU-0013](os-boot/b-win95-qemu.png). Monitor/serial stems are
+  `b-win95-qemu`.
+* The same Windows command with `win95-chs.img` and monitor/serial stem
+  `b-win95-qemu-chs` tests the corrected partition entry. Enter continues
+  from welcome; `sendkey alt-y` accepts the license. It reaches the
+  [Setup Wizard](os-boot/b-win95-qemu-chs.png). All QEMU serial files are
+  empty. QEMU screenshots are obtained through monitor `screendump` and
+  converted losslessly from PPM to PNG.
 
 ## Image preparation and reproduction
 
@@ -928,7 +1005,7 @@ stack trace, current PC 0x14b025a9129  </boot/system/lib/libroot.so> _kern_debug
 
 ### b-haiku-phase-trace
 
-IDE timing trace. Initial keys start at one second and miss the boot-menu latch; stopped manually to retry with earlier keys. First observed firmware status reads occur 1.25 microseconds after a packet phase; later reads occur at 41.25 microseconds.
+IDE timing trace. Initial keys start at one second; no boot menu appears before the logo. Stopped manually to retry with earlier keys. First observed firmware status reads occur 1.25 microseconds after a packet phase; later reads occur at 41.25 microseconds.
 
 ```sh
 SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 system-emu/run-boot.py --name b-haiku-phase-trace --timeout 1800 --send '1: ' --send '2: ' --send '3: ' --send '4: ' --send '5: ' --send '6: ' --send '7: ' --send '8: ' --send '9: ' --send '10: ' --send '12: ' --send '15: ' --send '18: ' --send '21: ' --send '24: ' -- build/llvm/sail-x86-system -ips 4 -m 1024 -kbd -b build/bios.bin -cdrom build/os-boot/haiku-b.iso -boot d
@@ -1006,7 +1083,7 @@ Last serial output:
 
 ### b-linux-retf-regression
 
-Outcome pending analysis.
+Regression boot after RETF validation: 64-bit Linux reaches sail# with ACPI/APIC enabled.
 
 ```sh
 SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name b-linux-retf-regression --timeout 180 --expect 'sail# ' -- build/llvm/sail-x86-system -ips 4 -m 64 -b build/bios.bin -cdrom build/os-boot/linux-b-apic.iso -boot d
@@ -1054,3 +1131,90 @@ Press Ctrl-a x to exit the emulator.
 
 sail# [6n
 ```
+
+### b-win95-msdos
+
+Supplied Microsoft DOS floppy now boots COMMAND.COM. SYS C: transfers DOS system files to a separate disk copy. Setup reaches graphical welcome but then reports that a Setup CAB could not be decompressed. Host fsck is clean; MINI.CAB and the PRECOPY cabinet set pass 7-Zip testing and match the original prepared disk byte for byte. SYS changes BPB heads from 32 to BIOS-reported 16; a fresh HDD boot follows to rule out cached geometry.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name b-win95-msdos --timeout 900 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/win95-b-boot.img -hda build/os-boot/win95-msdos.img -boot a
+```
+
+Wall: **506.003 s**. Instructions: **2,534,667,165**. Runner result: `exit`, exit `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+Additional manual inputs:
+
+* 2026-09-24 23:03:35 UTC: `sys c:\n`
+* 2026-09-24 23:05:07 UTC: `y\n`
+* 2026-09-24 23:06:21 UTC: `c:\ncd \\win95\nsetup /is\n`
+* 2026-09-24 23:07:29 UTC: `tup /is\n`
+* 2026-09-24 23:09:34 UTC: `\n`
+
+### b-win95-msdos-hdd
+
+Fresh boot from the converted Microsoft DOS disk. Cabinet extraction now completes and Setup reaches the license agreement, then SU-0013 remains. A QEMU TCG control reproduces SU-0013 with the same image and un-translated 16-head geometry. Correcting the invalid MBR CHS start and selecting FAT16 LBA (type 0e) clears it in QEMU; the corrected local disk is retried in Sail.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 system-emu/run-boot.py --name b-win95-msdos-hdd --timeout 1500 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/win95-msdos-hdd.img -boot c
+```
+
+Wall: **338.745 s**. Instructions: **1,675,791,693**. Runner result: `exit`, exit `0`.
+
+Last serial output:
+
+```text
+(no serial output)
+```
+
+Additional manual inputs:
+
+* 2026-09-24 23:13:19 UTC: `\n`
+* 2026-09-24 23:16:20 UTC: `\t\n`
+
+### b-haiku-phase-serial
+
+Manually verifies serial-debug checkbox, then completes a 30-minute CD run. BFS mounts, all seven icons light, and net_server enters the user debugger on a GP at BMessenger::operator== with a noncanonical handler pointer. A live RAM snapshot preserves its page tables and interrupt frame. 2621 of 2625 first phase-status reads see BSY/DRQ-clear; four late polls see the next DRQ. Near the end, quit is sent to the debugger. No desktop is observed.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 system-emu/run-boot.py --name b-haiku-phase-serial --timeout 1800 --send '0.1: ' --send '0.25: ' --send '0.5: ' --send '0.75: ' --send '1: ' --send '2: ' --send '3: ' --send '4: ' --send '5: ' -- build/llvm/sail-x86-system -ips 4 -m 1024 -kbd -b build/bios.bin -cdrom build/os-boot/haiku-b.iso -boot d
+```
+
+Wall: **1800.683 s**. Instructions: **7,283,956,397**. Runner result: `timeout`, exit `0`.
+
+Last serial output:
+
+```text
+: [1805343274:    60]   96: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1805375575:    60]     solution 1:
+package_daemon: [1805387135:    60]       - allow deinstallation of which-2.21-6
+package_daemon: [1805403244:    60]   97: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1805429373:    60]     solution 1:
+package_daemon: [1805440464:    60]       - allow deinstallation of woff2-1.0.2-2
+package_daemon: [1805464850:    60]   98: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1805482529:    60]     solution 1:
+package_daemon: [1805494222:    60]       - allow deinstallation of xz_utils-5.6.2-2
+package_daemon: [1805523978:    60]   99: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1805542621:    60]     solution 1:
+package_daemon: [1805543996:    60]       - allow deinstallation of zstd-1.5.6-1
+package_daemon: [1808099338:    60] Failed to get activated packages info from activated packages file. Assuming all package files in package directory are activated.
+package_daemon: [1808118805:    60] The latest volume state is also the currently active one
+package_daemon: [1808174903:    60] Volume::InitPackages Requesting delayed first boot processing for packages dir /boot/home/config/packages.
+package_daemon: [1808217862:    60] Volume::InitialVerify(0x1160192b0a20, (nil))
+slab memory manager: created area 0xffffffff87801000 (5468)
+package_daemon: [1816408736:    60] Volume::InitialVerify(): volume at "/boot/home/config" is consistent
+```
+
+Additional manual inputs:
+
+* 2026-09-24 23:00:50 UTC: ` `
+* 2026-09-24 23:01:48 UTC: `\x01d\x01d\n`
+* 2026-09-24 23:02:47 UTC: `\n`
+* 2026-09-24 23:03:06 UTC: `\x1b`
+* 2026-09-24 23:03:16 UTC: `\x01d\x01d\x01d\x01d\x01d\n`
+* 2026-09-24 23:29:09 UTC: `quit\n`
