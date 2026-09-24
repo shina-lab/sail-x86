@@ -123,6 +123,8 @@ static void usage(const char *prog) {
   fprintf(stderr, "  SAIL_X86_TRACE_PHYS_WRITE     Log phys writes overlapping this address (hex/dec)\n");
   fprintf(stderr, "  SAIL_X86_DETERMINISTIC_RDRAND Replace RDRAND/RDSEED with splitmix64(seed)\n");
   fprintf(stderr, "  SAIL_X86_BIOS_DEBUG           Echo the firmware debug port (0x402) to stderr\n");
+  fprintf(stderr, "Signals:\n");
+  fprintf(stderr, "  SIGUSR1                       Dump CPU and interrupt-controller state to stderr, continue\n");
 }
 
 // Read a file into a malloc'd buffer. Returns size, or 0 on error.
@@ -1036,7 +1038,21 @@ int main(int argc, char *argv[]) {
   static volatile bool got_signal = false;
   signal(SIGTERM, [](int) { got_signal = true; });
 
+  // SIGUSR1 dumps the CPU state and the interrupt controllers to stderr and
+  // continues: a look inside a run that has gone quiet on the console.
+  static volatile bool dump_requested = false;
+  signal(SIGUSR1, [](int) { dump_requested = true; });
+  auto dump_state = [&]() {
+    dump_requested = false;
+    dump_registers(stderr, insn_count, model);
+    fprintf(stderr, "  PIC master IRR=%02x IMR=%02x ISR=%02x  slave IRR=%02x IMR=%02x ISR=%02x  %s\n",
+            model.pic_master.get_irr(), model.pic_master.get_imr(), model.pic_master.get_isr(),
+            model.pic_slave.get_irr(), model.pic_slave.get_imr(), model.pic_slave.get_isr(),
+            model.zsystem_state == x86::zSysHalted ? "halted" : "running");
+  };
+
   while (!model.should_exit && !got_signal) {
+    if (dump_requested) dump_state();
     if (trace_window_enabled && has_trace_end && insn_count >= trace_end) {
       fprintf(stderr, "sail-x86-system: stopping at trace end %lu instructions\n", insn_count);
       break;
@@ -1124,6 +1140,7 @@ int main(int argc, char *argv[]) {
         // (or the user quits; leaving through the main loop prints the
         // instruction count like every other exit).
         while (!model.pic_master.has_pending() && !model.should_exit) {
+          if (dump_requested) dump_state();
           if (poll_stdin) {
             if (curses_active) {
               // In curses mode, use getch() and push scancodes to i8042
