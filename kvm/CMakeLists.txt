@@ -220,6 +220,13 @@ set(KVM_CATEGORIES
   "K-register ops"
   "Vec stores"
   "XSAVE image"
+  "AVX smoke"
+  "EVEX smoke"
+  "AVX-512 FP16"
+  "CALL/RET"
+  FSGSBASE
+  LEA
+  XLAT
 )
 
 foreach(cat ${KVM_CATEGORIES})

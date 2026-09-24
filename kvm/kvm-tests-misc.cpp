@@ -1791,7 +1791,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.name = "kmovw k1,m16: load 1234h";
       tc.category = cat;
       // mov rdi, DATA_ADDR; kmovw k1, [rdi]; kmovw eax, k1
-      tc.code = {0x48, 0xBF, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,  // mov rdi, 0x10000 (DATA_ADDR)
+      tc.code = {0x48, 0xBF, 0x00, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,  // mov rdi, 0x11000 (DATA_ADDR)
                  0xC5, 0xF8, 0x90, 0x0F,   // kmovw k1, [rdi]
                  0xC5, 0xF8, 0x93, 0xC1};  // kmovw eax, k1
       tc.initial = {};
@@ -1807,7 +1807,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.name = "kmovw m16,k1: store BEEF to mem";
       tc.category = cat;
       // mov rdi, DATA_ADDR; kmovw [rdi], k1
-      tc.code = {0x48, 0xBF, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,  // mov rdi, DATA_ADDR
+      tc.code = {0x48, 0xBF, 0x00, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,  // mov rdi, DATA_ADDR
                  0xC5, 0xF8, 0x91, 0x0F};  // kmovw [rdi], k1
       tc.initial = {};
       tc.initial.rflags = initial_flags();

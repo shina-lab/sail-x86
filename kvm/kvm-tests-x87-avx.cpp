@@ -256,7 +256,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   //   R̄=1, vvvv=~1=1110=0xE, L=0, pp=00 → byte = 0xF0
   //   opcode=0x58, ModRM=0xC2 (mod=11, reg=0, rm=2)
   // =====================================================================
-  cat = "AVX";
+  cat = "AVX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
@@ -434,7 +434,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 48. AVX VBROADCAST, VINSERTF128/VEXTRACTF128
   // =====================================================================
-  cat = "AVX";
+  cat = "AVX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
@@ -584,7 +584,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // For xmm0 = xmm1 op xmm2: R̄=X̄=B̄=R̄'=1, vvvv=~1=1110, V̄'=1
   //   P0 = 0xF1, P1 = 0x75 (W=0,66), P2 = 0x08 (128,no mask)
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
@@ -654,7 +654,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   //   P0: R̄=1,X̄=1,B̄=1, mmmmm=00010 (0F38) → 0xE2
   //   P1: W=0, vvvv=~1=1110, L=0, pp=01 (66) → 0x71
   // =====================================================================
-  cat = "AVX";
+  cat = "AVX smoke";
   {
     ArchState s;
     s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
@@ -711,7 +711,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // VEXTRACTF128 xmm, ymm, imm8: VEX.256.66.0F3A.W0 19 /r ib
   //   C4 E3 7D 19 C2 01 → extract upper 128 of ymm0 into xmm2
   // =====================================================================
-  cat = "AVX";
+  cat = "AVX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
@@ -902,7 +902,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 56. XGETBV test
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s = {.rcx = 0};  // XCR0 selector
     // XGETBV: 0F 01 D0
@@ -912,7 +912,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 57. More EVEX integer operations
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
@@ -952,7 +952,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 58. More EVEX FP operations
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.0f, 4.0f, 9.0f, 16.0f);
@@ -991,7 +991,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 59. EVEX FMA (more variants)
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
@@ -1044,7 +1044,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // VFMADD132PS: dst = dst * src3 + vvvv
   // EVEX.128.66.0F38.W0: P0=0xF2 (mm=10), P1=0x75, P2=0x08
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);   // dst (a)
@@ -1078,7 +1078,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 61. EVEX FMA PD and scalar SS/SD
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[0] = xmm_from_f64(2.0, 3.0);
@@ -1375,7 +1375,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // P2: z=0, L'L=01 (256-bit), b=0, V'=1, aaa=000
   //   → P2 = 0b_0_01_0_1_000 = 0x28
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
@@ -1417,7 +1417,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 64. EVEX shuffle/permutation
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
@@ -1451,7 +1451,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 65. EVEX conversion instructions
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.5f, 2.7f, -3.2f, 4.9f);
@@ -1479,7 +1479,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // (result[i] = a*b+c for odd i, a*b-c for even i)
   // EVEX.128.66.0F38.W0: opcode 0x96
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
@@ -1524,7 +1524,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // 67. EVEX 0F38 arithmetic/comparison
   // EVEX.128.66.0F38: P0=0xF2 (mm=10), P1=0x75 (W=0,66), P2=0x08
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
@@ -1584,7 +1584,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 68. EVEX permutation/shuffle
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -1620,7 +1620,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 69. EVEX immediate instructions (0F3A map)
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
@@ -1675,7 +1675,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 70. EVEX more arithmetic (0F38 map)
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
@@ -1739,7 +1739,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 71. EVEX data movement and more integer
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
@@ -1798,7 +1798,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 72. EVEX FP comparison
   // =====================================================================
-  cat = "EVEX";
+  cat = "EVEX smoke";
   {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
@@ -1826,7 +1826,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // 73. VEX VFMADDSUB / VFMSUBADD
   // =====================================================================
-  cat = "AVX";
+  cat = "AVX smoke";
   {
     ArchState s;
     s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
