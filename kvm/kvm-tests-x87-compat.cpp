@@ -3,6 +3,7 @@
 // SDM Vol.3B, Architecture Compatibility, "Obsolete Instructions and
 // Undefined Opcodes". These encodings are not in the Vol.2 opcode maps.
 void add_x87_compat_tests(std::vector<TestCase> &tests) {
+  std::string category = "x87 obsolete";
   // Load an explicit x87 state, execute the instruction, and save its
   // result. Compare all eight 80-bit registers, CW, SW and the full tag
   // word. Pointer fields and reserved bits of the FSAVE image are omitted.
@@ -39,7 +40,7 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
     TestCase tc;
     tc.name = std::format("{} ({}-bit, CW={:04x}, SW={:04x}, TW={:04x})",
                           name, compat32 ? 32 : 64, cw, sw, tw);
-    tc.category = "x87 obsolete";
+    tc.category = category;
     tc.code = std::move(code);
     tc.initial.rdi = DATA_ADDR;
     tc.flags_mask = undefined_cc ? FL_NO_AF : FL_ALL;
@@ -64,4 +65,79 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
     }
   }
 
+  // Exercise all seven ordinary aliases and their canonical counterparts.
+  // All eight registers contain distinct values (including zero and
+  // negative numbers). Rotating TOP catches physical/logical-index errors;
+  // starting C1 at one checks its architecturally defined clearing.
+  category = "x87 aliases";
+  struct { const char *name; u8 opcode, base; u16 undefined_cc; } aliases[] = {
+    {"fcom alias",  0xDC, 0xD0, 0},
+    {"fcomp alias", 0xDC, 0xD8, 0},
+    {"fxch alias",  0xDD, 0xC8, 0x4500},
+    {"fcomp alias", 0xDE, 0xD0, 0},
+    {"fstp alias",  0xDF, 0xD0, 0x4500},
+    {"fxch alias",  0xDF, 0xC8, 0x4500},
+    {"fstp alias",  0xDF, 0xD8, 0x4500},
+    {"fcom",        0xD8, 0xD0, 0},
+    {"fcomp",       0xD8, 0xD8, 0},
+    {"fxch",        0xD9, 0xC8, 0x4500},
+    {"fstp",        0xDD, 0xD8, 0x4500},
+  };
+  for (bool compat32 : {false, true}) {
+    for (unsigned top = 0; top < 8; top++) {
+      for (unsigned i = 0; i < 8; i++) {
+        for (auto &op : aliases) {
+          u8 modrm = op.base + i;
+          add_state(std::format("{} st({}) [{:02x} {:02x}]",
+                                op.name, i, op.opcode, modrm),
+                    {op.opcode, modrm}, 0x037F, (top << 11) | 0x4700,
+                    0, op.undefined_cc, compat32);
+        }
+      }
+    }
+  }
+
+  // The two forms with distinct behavior: D9 D8+i never raises stack
+  // underflow, and DF C0+i (FFREEP) frees ST(i) before popping ST(0).
+  // Check a full stack, an empty source, an empty destination and an
+  // entirely empty stack, including with invalid-operation unmasked.
+  category = "x87 compatibility stack";
+  for (bool compat32 : {false, true}) {
+    for (unsigned top : {0, 3, 7}) {
+      for (unsigned i = 0; i < 8; i++) {
+        u16 source_empty = 3 << (2 * top);
+        u16 dest_empty = 3 << (2 * ((top + i) & 7));
+        for (u16 tw : {u16(0), source_empty, dest_empty, u16(0xFFFF)}) {
+          for (u16 cw : {0x037F, 0x037E}) {
+            add_state(std::format("fstp without stack underflow st({})", i),
+                      {0xD9, u8(0xD8 + i)}, cw, (top << 11) | 0x4700,
+                      tw, 0x4500, compat32);
+            add_state(std::format("ffreep st({})", i), {0xDF, u8(0xC0 + i)},
+                      cw, (top << 11) | 0x4700, tw, 0x4700, compat32);
+          }
+        }
+      }
+    }
+  }
+
+  // Adjacent reserved cells are still invalid. In particular, DE D0+i is
+  // FCOMP, but only DE D9 in the next group is FCOMPP.
+  category = "x87 compatibility invalid";
+  for (bool compat32 : {false, true}) {
+    for (auto code : {std::vector<u8>{0xD9, 0xD1}, {0xDB, 0xE5},
+                      {0xDB, 0xE7}, {0xDE, 0xD8}, {0xDE, 0xDA},
+                      {0xDE, 0xDB}, {0xDE, 0xDC}, {0xDE, 0xDD},
+                      {0xDE, 0xDE}, {0xDE, 0xDF}, {0xDF, 0xE1},
+                      {0xDF, 0xF8}}) {
+      TestCase tc;
+      tc.name = std::format("reserved x87 {:02x} {:02x} ({}-bit)",
+                            code[0], code[1], compat32 ? 32 : 64);
+      tc.category = category;
+      tc.code = std::move(code);
+      tc.compat_mode = compat32;
+      tc.expect_fault = true;
+      tc.expected_vector = 6;
+      tests.push_back(std::move(tc));
+    }
+  }
 }

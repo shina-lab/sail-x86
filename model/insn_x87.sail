@@ -55,11 +55,17 @@ function x87_finish_cc(opcode, modrm) = {
       _ => 0x4500,                // FST, FSTP
     },
     223 => if mem then 0x4500
-           else if modrm == 0xE0 then 0x4700 // FNSTSW AX
+           else if reg == 0 | modrm == 0xE0 then 0x4700 // FFREEP, FNSTSW AX
            else 0x0000,                    // FCOMIP, FUCOMIP
     _ => 0x0000,
   };
   x87_undefine_cc(mask);
+  // Register exchanges and stores do not round; their defined C1 is zero.
+  // The compatibility encodings are normalized before reaching this code.
+  if ~(mem) & ((opcode == 0xD9 & (reg == 1 | reg == 3)) |
+               (opcode == 0xDD & (reg == 2 | reg == 3))) then {
+    x87_sw[9] = 0b0
+  };
   if opcode == 0xD9 & ~(mem) then {
     match unsigned(modrm) {
       // Outside the trigonometric input range, C1 is undefined as well.
@@ -74,6 +80,7 @@ function x87_finish_cc(opcode, modrm) = {
 val x87_set_sw_cc : FPCompareResult -> unit
 function x87_set_sw_cc(cmp) = {
   var sw : word = x87_sw;
+  sw[9] = 0b0; // C1 is cleared by comparisons
   match cmp {
     FP_GT        => { sw[14] = 0b0; sw[10] = 0b0; sw[8] = 0b0; },
     FP_LT        => { sw[14] = 0b0; sw[10] = 0b0; sw[8] = 0b1;  },
@@ -161,6 +168,15 @@ function dispatch_x87_d9(modrm, operand, _) = {
           x87_write_st(sti, v0)
         },
         2 => if sti == 0 then () else raise_UD(),  // FNOP
+        // D9 D8+i: FSTP without a stack-underflow exception (SDM Vol.3B,
+        // "Obsolete Instructions and Undefined Opcodes"). An empty ST(0)
+        // skips the store, preserving the destination's value and tag;
+        // the pop still happens. Unlike FSTP, it never substitutes a NaN.
+        3 => {
+          let tag : bits(2) = (x87_tw >> (2 * x87_physical(0)))[1..0];
+          if tag != 0b11 then x87_write_st(sti, x87_read_st(0));
+          let _ = x87_pop()
+        },
         _ => {
           // D9 E0-FF: misc operations encoded by full ModR/M
           match modrm_val {
@@ -556,6 +572,9 @@ function dispatch_x87_df(modrm, operand, _) = {
     RM_reg(_) => {
       let modrm_val : range(0, 255) = unsigned(modrm);
       match reg {
+        // DF C0+i: FFREEP, free the original ST(i), then pop ST(0).
+        // Neither step consumes a floating-point operand or checks its tag.
+        0 => { x87_free(sti); let _ = x87_pop() },
         // FNSTSW AX
         4 => {
           if modrm_val == 224 then {
@@ -585,8 +604,24 @@ function dispatch_x87_df(modrm, operand, _) = {
 // =========================================================================
 
 val dispatch_x87 : (byte, Prefixes) -> unit
-function dispatch_x87(opcode, pfx) = {
-  let modrm = fetch(1);
+function dispatch_x87(encoded_opcode, pfx) = {
+  let encoded_modrm = fetch(1);
+  // SDM Vol.3B, "Obsolete Instructions and Undefined Opcodes": these
+  // seven register-form groups have the semantics of existing instructions.
+  // Normalize both execution and condition-code handling to the canonical
+  // encoding. Matching all five high ModR/M bits leaves memory forms and
+  // adjacent invalid encodings unchanged. D9 D8+i and DF C0+i have distinct
+  // semantics and are handled separately by their dispatchers.
+  let (opcode, modrm) : (byte, byte) = match (encoded_opcode, encoded_modrm[7..3]) {
+    (0xDC, 0b11010) => (0xD8, encoded_modrm),        // FCOM
+    (0xDC, 0b11011) => (0xD8, encoded_modrm),        // FCOMP
+    (0xDD, 0b11001) => (0xD9, encoded_modrm),        // FXCH
+    (0xDE, 0b11010) => (0xD8, encoded_modrm | 0x08), // FCOMP
+    (0xDF, 0b11010) => (0xDD, encoded_modrm | 0x08), // FSTP
+    (0xDF, 0b11001) => (0xD9, encoded_modrm),        // FXCH
+    (0xDF, 0b11011) => (0xDD, encoded_modrm),        // FSTP
+    _ => (encoded_opcode, encoded_modrm),
+  };
   let operand = modrm_rm(modrm, pfx);
   let op : range(0, 255) = unsigned(opcode);
   match op {

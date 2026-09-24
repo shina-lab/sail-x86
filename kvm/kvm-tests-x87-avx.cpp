@@ -2234,9 +2234,9 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
       }
     }
 
-    // Reserved x87 encodings raise #UD.  Not included: DC D0+i, DC D8+i,
-    // DD C8+i, and DE D0+i (i != 1), which the SDM leaves blank but the
-    // processors execute as aliases of FCOM, FCOMP, FXCH, and FCOMP.
+    // Reserved x87 encodings outside the compatibility forms raise #UD.
+    // The aliases specified by SDM Vol.3B, "Obsolete Instructions and
+    // Undefined Opcodes", are exercised in kvm-tests-x87-compat.cpp.
     cat = "x87 invalid";
     {
       add_ud("d9 /1 mem (reserved)", {0xD9, 0x0F});
