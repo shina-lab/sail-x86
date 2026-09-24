@@ -92,6 +92,7 @@ public:
     phys_mem.vbe = &vbe;
     phys_mem.vga = &vga;
     lapic.clock = &tsc;
+    cmos.clock = &tsc;
     ioapic.lapic = &lapic;
     lapic.broadcast_eoi = [this](u8 vector) { ioapic.eoi(vector); };
   }
@@ -162,6 +163,7 @@ public:
     return lapic.enabled() ? (lapic.accepts_pic() || ioapic.accepts_pic()) : !imcr_apic;
   }
   bool interrupt_pending() {
+    set_irq(8, cmos.has_irq());
     latch_ide_irqs();
     if (pic_slave.has_pending()) pic_master.raise_irq(2);
     return lapic.pending() >= 0 || (pic_connected() && pic_master.has_pending());

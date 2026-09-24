@@ -805,11 +805,12 @@ private:
 // =========================================================================
 // CMOS/RTC — Real-Time Clock (ports 0x70-0x71)
 //
-// Linux reads RTC during boot. Return reasonable defaults.
+// MC146818-compatible clock, driven by the platform's virtual nanoseconds.
 // =========================================================================
 
 class CMOS {
 public:
+  const u64 *clock = nullptr;
   CMOS() {
     memset(regs, 0, sizeof(regs));
     // RTC time defaults
@@ -873,17 +874,28 @@ public:
   }
 
   u8 read(u16 port) {
-    if (port == 0x71)
-      return regs[index & 0x7F];
+    update();
+    if (port == 0x71) {
+      u8 value = regs[index];
+      if (index == 0x0A && running() && !(regs[0x0B] & 0x80) &&
+          now() % 1000000000 >= 999755859) value |= 0x80; // UIP
+      if (index == 0x0C) regs[index] = 0; // reading C acknowledges the IRQ
+      return value;
+    }
     return 0xFF;
   }
 
   void write(u16 port, u8 val) {
+    update();
     if (port == 0x70)
       index = val & 0x7F;  // Bit 7 is NMI mask
-    else if (port == 0x71)
-      regs[index & 0x7F] = val;
+    else if (port == 0x71 && index != 0x0C && index != 0x0D) {
+      regs[index] = index == 0x0A ? val & 0x7F : val;
+      update_irq();
+    }
   }
+
+  bool has_irq() { update(); return regs[0x0C] & 0x80; }
 
   bool handles(u16 port) const {
     return port == 0x70 || port == 0x71;
@@ -892,6 +904,64 @@ public:
 private:
   u8 index = 0;
   u8 regs[128];
+  u64 last_ticks = 0, last_second = 0;
+  u64 now() const { return clock ? *clock : 0; }
+  bool running() const { return (regs[0x0A] & 0x70) == 0x20; }
+  unsigned number(u8 x) const { return (regs[0x0B] & 4) ? x : (x >> 4) * 10 + (x & 15); }
+  u8 encode(unsigned x) const { return (regs[0x0B] & 4) ? x : (x / 10) * 16 + x % 10; }
+  void update_irq() {
+    regs[0x0C] &= 0x7F;
+    if (regs[0x0C] & regs[0x0B] & 0x70) regs[0x0C] |= 0x80;
+  }
+  void second() {
+    unsigned sec = number(regs[0]), min = number(regs[2]);
+    unsigned hour = number(regs[4] & 0x7F);
+    bool h24 = regs[0x0B] & 2;
+    if (!h24) hour = hour % 12 + ((regs[4] & 0x80) ? 12 : 0);
+    if (++sec >= 60) {
+      sec = 0;
+      if (++min >= 60) {
+        min = 0;
+        if (++hour >= 24) {
+          hour = 0;
+          regs[6] = encode(number(regs[6]) % 7 + 1);
+          unsigned day = number(regs[7]), month = number(regs[8]);
+          unsigned year = number(regs[9]) + 100 * number(regs[0x32]);
+          static const u8 days[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+          unsigned limit = days[(month >= 1 && month <= 12) ? month - 1 : 0];
+          if (month == 2 && year % 4 == 0 && (year % 100 || year % 400 == 0)) ++limit;
+          if (++day > limit) {
+            day = 1;
+            if (++month > 12) { month = 1; ++year; }
+          }
+          regs[7] = encode(day); regs[8] = encode(month);
+          regs[9] = encode(year % 100); regs[0x32] = encode(year / 100);
+        }
+      }
+    }
+    regs[0] = encode(sec); regs[2] = encode(min);
+    regs[4] = h24 ? encode(hour) : encode(hour % 12 ? hour % 12 : 12) | (hour >= 12 ? 0x80 : 0);
+    regs[0x0C] |= 0x10; // update-ended flag
+    bool alarm = true;
+    for (unsigned i : {0u, 2u, 4u})
+      alarm &= (regs[i + 1] & 0xC0) == 0xC0 || regs[i + 1] == regs[i];
+    if (alarm) regs[0x0C] |= 0x20;
+  }
+  void update() {
+    u64 ns = now(), sec = ns / 1000000000;
+    u64 ticks = sec * 32768 + (ns % 1000000000) * 32768 / 1000000000;
+    if (running()) {
+      unsigned rate = regs[0x0A] & 15;
+      if (rate) {
+        unsigned shift = rate <= 2 ? rate + 6 : rate - 1;
+        if ((ticks >> shift) != (last_ticks >> shift)) regs[0x0C] |= 0x40;
+      }
+      if (!(regs[0x0B] & 0x80) && sec >= last_second)
+        for (u64 s = last_second; s < sec; ++s) second();
+    }
+    last_ticks = ticks; last_second = sec;
+    update_irq();
+  }
 };
 
 // =========================================================================

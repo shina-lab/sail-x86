@@ -161,3 +161,8 @@ add_executable(system_test_keyboard tests/test-keyboard.cpp)
 target_include_directories(system_test_keyboard PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
 add_test(NAME system_keyboard COMMAND system_test_keyboard)
+
+add_executable(system_test_rtc tests/test-rtc.cpp x86-phys-mem.cpp)
+target_include_directories(system_test_rtc PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
+add_test(NAME system_rtc COMMAND system_test_rtc)

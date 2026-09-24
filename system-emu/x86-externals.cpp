@@ -231,7 +231,11 @@ u64 Model::z__port_in8(u64 port) {
   if (pic_slave.handles(p))  return pic_slave.read(p);
   if (pit.handles(p))        return pit.read(p);
   if (kbd.handles(p))        return read_keyboard(p);
-  if (cmos.handles(p))       return cmos.read(p);
+  if (cmos.handles(p)) {
+    u8 value = cmos.read(p);
+    set_irq(8, cmos.has_irq());
+    return value;
+  }
   if (floppy.handles(p))     return floppy.read(p);
   if (ide0.handles(p))       { u8 v = ide0.read(p); latch_ide_irqs(); return v; }
   if (ide1.handles(p))       { u8 v = ide1.read(p); latch_ide_irqs(); return v; }
@@ -390,6 +394,8 @@ bool Model::z__check_pending_smi(unit) {
 
 
 void Model::z__check_pending_irq(sail_int *rop, unit) {
+
+  set_irq(8, cmos.has_irq());
 
   // Raise floppy IRQ 6 on master PIC (edge-triggered: one-shot)
   if (floppy.irq_pending) {
