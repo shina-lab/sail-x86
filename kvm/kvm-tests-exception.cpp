@@ -135,6 +135,9 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   u32 vendor_eax, vendor_ebx, vendor_ecx, vendor_edx;
   __get_cpuid(0, &vendor_eax, &vendor_ebx, &vendor_ecx, &vendor_edx);
   const bool amd_host = (vendor_ebx == 0x68747541);  // "Auth" of AuthenticAMD
+  // A completed MOV DR leaves arithmetic flags undefined on Intel (SDM
+  // Vol.2B, MOV debug-register entry); AMD preserves them (APM Vol.3).
+  const u64 mov_dr_undefined_flags = amd_host ? 0 : FL_ARITH;
 
   // INT1/ICEBP (F1) is a trap: the pushed RIP is past the instruction and
   // DR6 is not modified.  Both hosts' silicon pushes the next RIP (measured
@@ -163,6 +166,7 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   add_fault("single-step ud2 (fault, no #DB)", {0x0F, 0x0B}, {.rflags = initial_flags() | 0x100}, 6);
   add_fault("single-step mov dr7", {0x0F, 0x23, 0xF8, 0x90, 0xF4},
             {.rax = 0x400, .rflags = initial_flags() | 0x100}, 1);
+  tests.back().rflags_image_ignore = mov_dr_undefined_flags;
   // Probes whose outcome the SDM leaves to the reader; the host decides.
   add_fault("single-step sti; nop (STI shadow and the trap)",
             {0xFB, 0x90, 0xF4}, {.rflags = initial_flags() | 0x100}, -1);
@@ -196,8 +200,9 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     s.dr7 = dr7_bits;
     return s;
   };
-  auto add_no_fault = [&](const std::string &name, std::vector<u8> code, ArchState init) {
-    tests.push_back({name, cat, std::move(code), init, FL_ALL, 0, false});
+  auto add_no_fault = [&](const std::string &name, std::vector<u8> code,
+                          ArchState init, u64 flags_mask = FL_ALL) {
+    tests.push_back({name, cat, std::move(code), init, flags_mask, 0, false});
   };
   add_fault("insn bp DR0 (L0) on the second instruction",
             {0x90, 0x90, 0xF4}, bp_state(0, CODE_ADDR + 1, 0x1), 1);
@@ -366,11 +371,14 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     add_fault("mov dr7,rax with bit 32 set (#GP)", {0x0F, 0x23, 0xF8, 0xF4}, s, 13);
     add_fault("mov dr6,rax with bit 32 set (#GP)", {0x0F, 0x23, 0xF0, 0xF4}, s, 13);
     s.rax = 0x1400;  // bits 10 and 12: bit 10 reads as 1 regardless, bit 12 is dropped
-    add_no_fault("mov dr7,rax with reserved bits 10 and 12 (reads back 0x400)", {0x0F, 0x23, 0xF8, 0xF4}, s);
+    add_no_fault("mov dr7,rax with reserved bits 10 and 12 (reads back 0x400)",
+                 {0x0F, 0x23, 0xF8, 0xF4}, s, FL_ALL & ~mov_dr_undefined_flags);
     s.rax = 0xFFFFFFFF;  // low 32 all ones: the status bits are set, the rest fixed
-    add_no_fault("mov dr6,rax with all low bits set", {0x0F, 0x23, 0xF0, 0xF4}, s);
+    add_no_fault("mov dr6,rax with all low bits set", {0x0F, 0x23, 0xF0, 0xF4},
+                 s, FL_ALL & ~mov_dr_undefined_flags);
     s.rax = 0;
-    add_no_fault("mov dr6,rax with zero (reserved ones stay)", {0x0F, 0x23, 0xF0, 0xF4}, s);
+    add_no_fault("mov dr6,rax with zero (reserved ones stay)",
+                 {0x0F, 0x23, 0xF0, 0xF4}, s, FL_ALL & ~mov_dr_undefined_flags);
   }
 
   // ---- #GP (vector 13): General protection fault ----
