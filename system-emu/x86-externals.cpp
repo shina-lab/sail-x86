@@ -151,6 +151,14 @@ unit Model::z__tlb_flush(unit) {
 
 static std::unordered_map<u32, u64> msr_store;
 
+u64 Model::z__read_cr8(unit) {
+  return (lapic.base_msr & 0x800) ? lapic.read(0x80) >> 4 : zCR8;
+}
+unit Model::z__write_cr8(u64 value) {
+  if (lapic.base_msr & 0x800) lapic.write(0x80, value << 4);
+  return UNIT;
+}
+
 u64 Model::z__rdmsr(u64 addr) {
   u32 msr = (u32)addr;
   if (msr == 0x1B) return lapic.base_msr;

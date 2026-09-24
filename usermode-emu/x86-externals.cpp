@@ -100,6 +100,9 @@ unit Model::z__tlb_flush(unit) { return UNIT; }
 
 static std::unordered_map<u64, u64> msr_store;
 
+u64 Model::z__read_cr8(unit) { return zCR8; }
+unit Model::z__write_cr8(u64) { return UNIT; }
+
 void x86_externals_reset_msrs() { msr_store.clear(); }
 void x86_externals_set_msr(u64 msr, u64 value) { msr_store[msr] = value; }
 

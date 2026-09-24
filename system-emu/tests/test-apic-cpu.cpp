@@ -80,6 +80,36 @@ int main() {
   assert(m.phys_mem.read32(0xFED00030) == 0x50014);
   m.z__wrmsr(0x1B, 0xFED00100);
   assert(m.phys_mem.read32(0xFED00030) == 0xFFFFFFFF);
+
+  // SDM Vol.3A 13.8.6.1: CR8 writes TPR[7:4] and clears TPR[3:0].
+  // Execute MOV CR8 in long mode, including a reserved-bit #GP case.
+  m.z__wrmsr(0x1B, 0xFEE00900);
+  m.zcur_mode = x86::zLongMode;
+  m.zsystem_state = x86::zSysRunning;
+  m.zSegCache.data[x86::SEG_CS].zseg_l = 1;
+  m.zSegCache.data[x86::SEG_CS].zseg_db = 0;
+  m.zCR0 = 0x80010031;
+  m.zCR4 = 0x20;
+  m.zEFER = 0xD01;
+  m.zCR3 = 0x4000;
+  m.phys_mem.write64(0x4000, 0x5003);
+  m.phys_mem.write64(0x5000, 0x6003);
+  m.phys_mem.write64(0x6000, 0x83);
+  const u8 cr8code[] = {0x44,0x0F,0x22,0xC0, 0x44,0x0F,0x20,0xC1};
+  m.phys_mem.write_bytes(0x2000, cr8code, sizeof(cr8code));
+  m.phys_mem.write32(0xFEE00080, 0x5F);
+  m.zGPR.data[0] = 5;
+  m.zRIP = 0x2000;
+  m.zstep(UNIT);
+  assert(!m.zfault_pending && m.lapic.read(0x80) == 0x50);
+  m.phys_mem.write32(0xFEE00080, 0xA7);
+  m.zstep(UNIT);
+  assert(!m.zfault_pending && m.zGPR.data[1] == 10);
+  m.zRIP = 0x2000;
+  m.zGPR.data[0] = 16;
+  m.zstep(UNIT);
+  assert(m.zfault_pending && m.lapic.read(0x80) == 0xA7);
+  assert(m.zfault_vector == 13 && m.zfault_error_code == 0);
   KILL(sail_int)(&irq);
   m.model_fini();
   puts("Sail APIC MMIO, MSRs and PIC/APIC interrupt dispatch: PASS");
