@@ -580,6 +580,17 @@ void add_avx_fp16_tests(std::vector<TestCase> &tests) {
         tests.push_back({std::string("VFPCLASSPH imm=") + std::to_string(imm) + " " + vl_name[ll], cat,
                          e.encode_rr_imm(imm), s, FL_ALL, 0, false});
       }
+      // VFPCLASSSH k1, xmm1, imm (67): the low element only, from a
+      // register and from m16.
+      Evex sh; sh.mm = 3; sh.pp = 0; sh.W = false; sh.opcode = 0x67; sh.LL = 0;
+      sh.reg = 1; sh.vvvv = 0; sh.rm = 1;
+      tests.push_back({std::string("VFPCLASSSH imm=") + std::to_string(imm), cat,
+                       sh.encode_rr_imm(imm), with_vector_inputs(s, 0x2), FL_ALL, 0, false});
+      sh.rm = 7;
+      TestCase tm = {std::string("VFPCLASSSH imm=") + std::to_string(imm) + " [m16]", cat,
+                     sh.encode_rm_mem_imm(imm), with_vector_inputs(s, 0), FL_ALL, 0, false};
+      tm.init_data = half_bytes(0.0f);
+      tests.push_back(std::move(tm));
     }
   }
   // @@END
