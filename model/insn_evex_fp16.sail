@@ -999,7 +999,7 @@ function dispatch_evex_map6(opcode, pfx) = {
     // MAP6 0xBE: VFNMSUB231PH (66, W=0)
     190 => { if mp != MP_66 then raise_UD(); evex_exec_fma16_packed(PT_FNMSub, FMA_231, pfx) },
 
-    // MAP6 0x13: VCVTPH2PSX (66, W=0) / VCVTSH2SS (F3, W=0)
+    // MAP6 0x13: VCVTPH2PSX (66, W=0) / VCVTSH2SS (NP, W=0)
     19 => {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
@@ -1017,13 +1017,14 @@ function dispatch_evex_map6(opcode, pfx) = {
             3 => raise_UD(),
           }
         },
-        MP_F3 => {
-          // VCVTSH2SS: scalar FP16 to FP32
+        MP_NONE => {
+          // VCVTSH2SS: scalar FP16 to FP32 (EVEX.LLIG.NP.MAP6.W0 13)
           let src = modrm_xrm_evex(modrm, pfx, 2);
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           let src2 : word = decode_scalar_src(src);
           let r : dword = __f16_to_f32(src2);
-          write_simd(128, dst, src1[127..32] @ r)
+          // DEST.fp32[0] is under the writemask; DEST[127:32] := SRC1[127:32]
+          evex_write_scalar(dst, src1[127..32] @ r, pfx, 32)
         },
         _ => raise_UD(),
       }

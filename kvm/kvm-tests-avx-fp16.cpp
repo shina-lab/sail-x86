@@ -317,6 +317,16 @@ void add_avx_fp16_tests(std::vector<TestCase> &tests) {
 
 
 
+  // @@BLOCK cvtsh2ss
+  // VCVTSH2SS NP.MAP6.W0 13: dst = src1[127:32] : f32(src2 half), under
+  // the writemask.
+  {
+    ArchState s = make_sh_state(3.0f, -2.75f);
+    Evex e; e.mm = 6; e.pp = 0; e.W = false; e.opcode = 0x13;
+    e.reg = 0; e.vvvv = 1; e.rm = 2;
+    add_scalar(tests, cat, "VCVTSH2SS", e, s, 0x6);
+  }
+  // @@END
 
   // @@BLOCK fma_packed
   // FMA, EVEX.66.MAP6.W0: dst is an input.  Small integers keep every
