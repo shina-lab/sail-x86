@@ -97,15 +97,23 @@ function dispatch_evex_perm(op, pfx) = {
     evex_write(dst, evex_wmask(pfx, vl / 16), broadcast(vl, elem))
   },
 
-  // 0F38 7C: VPBROADCASTD (66 prefix, W=0)
+  // 0F38 7C: VPBROADCASTD (66,W0) r32 / VPBROADCASTQ (66,W1) r64 — from GPR
+  // SDM VPBROADCASTB/W/D/Q: EVEX.W1 7C broadcasts a 64-bit value from a
+  // GPR to all quadwords of the destination, subject to the writemask.
   124 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, 4);
-    let elem : dword = v(src);
     let vl = evex_vl(pfx);
-    evex_write(dst, evex_wmask(pfx, vl / 32), broadcast(vl, elem))
+    if pfx.rex_w then {
+      let src = modrm_rm_evex(modrm, pfx, 8);
+      let elem : qword = v(src);
+      evex_write(dst, evex_wmask(pfx, vl / 64), broadcast(vl, elem))
+    } else {
+      let src = modrm_rm_evex(modrm, pfx, 4);
+      let elem : dword = v(src);
+      evex_write(dst, evex_wmask(pfx, vl / 32), broadcast(vl, elem))
+    }
   },
 
   // 0F38 78: VPBROADCASTB (66,W0) / 0F38 79: VPBROADCASTW (66,W0) — from XMM/mem
@@ -326,13 +334,16 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 8F: VPSHUFBITQMB (66,W0) [BITALG]
+  // SDM: m := SRC2.qword[i].byte[j] & 0x3F; k1[i*8+j] := SRC1.qword[i].bit[m],
+  // where SRC1 is EVEX.vvvv and SRC2 is ModRM:r/m; bits masked off by k2
+  // are zero, as are k1[MAX_KL-1:KL].
   143 => {
     if mp != MP_66 | pfx.rex_w then raise_UD();
     let modrm = fetch(1);
     let dst_k : range(0, 7) = unsigned(modrm[5..3]);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    write_kreg(dst_k, avx_vpshufbitqmb(read_simd(vl, pfx.evex_vvvvv), evex_src(vl, src)))
+    write_kreg(dst_k, avx_vpshufbitqmb(evex_src(vl, src), read_simd(vl, pfx.evex_vvvvv)) & evex_kmask64(pfx))
   },
 
   // =====================================================================
