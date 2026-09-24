@@ -2182,29 +2182,48 @@ u64 Model::z__f16_rndscale(u64 a, u64 imm) {
   u16 r; memcpy(&r, &hr, 2); return r;
 }
 
+// VGETMANTPH, following the SDM's getmant_fp16 pseudocode (Vol. 2C):
+// sign from sign_control[0]; zero and infinity give +/-1.0; a negative
+// source with sign_control[1] set gives QNaN_Indefinite; the exponent is
+// then set to the bias, or to bias-1 by the normalization interval
+// (01: odd unbiased exponent, 10: always, 11: fraction MSB set).
 u64 Model::z__f16_getmant(u64 a, u64 imm) {
-  // Simplified: extract mantissa, return as FP16 in [1,2) or [0.5,1) range
+  const int bias = 15;
   u16 ua = (u16)a;
-  _Float16 ha; memcpy(&ha, &ua, 2);
-  float fa = (float)ha;
-  if (__builtin_isnan(fa)) return ua | 0x0200;
-  if (__builtin_isinf(fa)) return ua | 0x0200;  // QNaN
-  if (fa == 0.0f) return ua;
-  int exp;
-  float mant = frexpf(fabsf(fa), &exp);  // [0.5, 1.0)
-  int norm = (int)(imm & 3);
-  if (norm == 0 || norm == 2) mant *= 2.0f;  // [1.0, 2.0)
-  int sign_ctrl = (int)((imm >> 2) & 3);
-  bool neg;
-  switch (sign_ctrl) {
-  case 0: neg = fa < 0.0f; break;
-  case 1: neg = false; break;
-  case 2: neg = false; break;
-  default: neg = fa < 0.0f; break;
+  unsigned sign = (ua >> 15) & 1;
+  int exp = (ua >> 10) & 0x1F;
+  unsigned frac = ua & 0x3FF;
+  unsigned sign_control = (unsigned)((imm >> 2) & 3);
+  unsigned interval = (unsigned)(imm & 3);
+  unsigned dst_sign = (sign_control & 1) ? 0 : sign;
+  bool zero_operand = (exp == 0) && (frac == 0);
+  bool denorm_operand = (exp == 0) && (frac != 0);
+  bool inf_operand = (exp == 0x1F) && (frac == 0);
+  bool nan_operand = (exp == 0x1F) && (frac != 0);
+  if (nan_operand) return ua | 0x0200;  // QNaN(src)
+  if (zero_operand || inf_operand) return (u16)((dst_sign << 15) | (bias << 10));
+  if (sign && (sign_control & 2)) return 0xFE00;  // QNaN_Indefinite
+  if (denorm_operand) {
+    if (mxcsr_state.mxcsr & 0x40) {  // DAZ: treat as zero
+      frac = 0;
+    } else {
+      exp = 1;
+      while ((frac & 0x200) == 0) { frac <<= 1; exp--; }
+      frac = (frac << 1) & 0x3FF;  // drop the leading one into the implicit bit
+      exp--;
+    }
   }
-  if (neg) mant = -mant;
-  _Float16 hr = (_Float16)mant;
-  u16 r; memcpy(&r, &hr, 2); return r;
+  int unbiased = exp - bias;
+  bool odd_exp = (unbiased & 1) != 0;
+  bool msb = (frac & 0x200) != 0;
+  int dst_exp;
+  switch (interval) {
+  case 0: dst_exp = bias; break;
+  case 1: dst_exp = odd_exp ? bias - 1 : bias; break;
+  case 2: dst_exp = bias - 1; break;
+  default: dst_exp = msb ? bias - 1 : bias; break;
+  }
+  return (u16)((dst_sign << 15) | ((unsigned)dst_exp << 10) | frac);
 }
 
 u64 Model::z__f16_reduce(u64 a, u64 imm) {

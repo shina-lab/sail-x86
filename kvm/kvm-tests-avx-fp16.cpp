@@ -517,6 +517,22 @@ void add_avx_fp16_tests(std::vector<TestCase> &tests) {
 
 
 
+  // @@BLOCK getmant
+  // VGETMANTPH (26) imm 0 (interval [1,2)) and 1 ([1/2,2)); the inputs
+  // include zero and NaN.
+  {
+    ArchState s = map3_state();
+    for (u8 imm : {u8(0x00), u8(0x01)}) {
+      Evex e; e.mm = 3; e.pp = 0; e.W = false; e.opcode = 0x26;
+      e.reg = 0; e.vvvv = 0; e.rm = 1;
+      for (int ll = 0; ll <= 2; ll++) {
+        e.LL = ll;
+        tests.push_back({std::string("VGETMANTPH imm=") + std::to_string(imm) + " " + vl_name[ll], cat,
+                         e.encode_rr_imm(imm), s, FL_ALL, 0, false});
+      }
+    }
+  }
+  // @@END
 
   // @@BLOCK fpclass
   // VFPCLASSPH k1, xmm1, imm (66): 0x81 = QNaN or +0; 0x66 = +/-inf, +/-zero,
