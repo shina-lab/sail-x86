@@ -597,7 +597,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
               },
               RM_mem(m) => {
                 let x : xmmword = zero_extend(read_mem(64, m));
-                write_simd(128, xreg, x)
+                ZMM[xreg][127..0] = x
               },
             }
           },
@@ -784,7 +784,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
-      write_simd(128, xreg, rm_mem(src))
+      ZMM[xreg][127..0] = rm_mem(src)
     },
 
     // 0F F1-F3: PSLLW/D/Q xmm, xmm/m128 (66 prefix)

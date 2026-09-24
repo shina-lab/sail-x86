@@ -566,7 +566,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           let dest = modrm_xrm(modrm, pfx);
           let data : xmmword = read_simd(xreg);
           match dest {
-            XRM_reg(xi) => write_simd(128, xi, zero_extend(data[63..0])),
+            XRM_reg(xi) => ZMM[xi][127..0] = zero_extend(data[63..0]),
             XRM_mem(m) => v(m) = data[63..0],
           }
         },
