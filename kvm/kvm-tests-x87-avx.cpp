@@ -1849,5 +1849,297 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     add_xmm("vex vfmsubadd213ps xmm0,xmm1,xmm2",
             {0xC4, 0xE2, 0x71, 0xA7, 0xC2}, s, 0x7);
   }
+
+  // =====================================================================
+  // x87 forms the differential suite had not exercised (found by measuring
+  // which decoder arms the suite reaches): the register-operand arithmetic
+  // of D8/DC/DE, the remaining memory forms, the environment and state
+  // images, and the reserved encodings.  Operands are exact in binary64, so
+  // results do not depend on rounding unless a test says so.
+  //
+  // Data page layout unless noted: [rdi] = a, [rdi+8] = b (binary64),
+  // results from [rdi+16].  The status word is read through FNSTSW AX.
+  // =====================================================================
+  {
+    auto f64b = [](double d) { std::vector<u8> v(8); memcpy(v.data(), &d, 8); return v; };
+    auto f32b = [](float f) { std::vector<u8> v(4); memcpy(v.data(), &f, 4); return v; };
+    auto i32b = [](int32_t i) { std::vector<u8> v(4); memcpy(v.data(), &i, 4); return v; };
+    auto i16b = [](int16_t i) { std::vector<u8> v(2); memcpy(v.data(), &i, 2); return v; };
+    auto f80b = [](long double d) { std::vector<u8> v(10); memcpy(v.data(), &d, 10); return v; };
+    auto pad = [](std::vector<u8> v, size_t n) { v.resize(n, 0); return v; };
+    auto join = [](std::initializer_list<std::vector<u8>> parts) {
+      std::vector<u8> v;
+      for (auto &p : parts) v.insert(v.end(), p.begin(), p.end());
+      return v;
+    };
+    auto ab = [&](double a, double b) { return join({f64b(a), f64b(b)}); };
+    const double qnan = __builtin_nan("");
+
+    const std::vector<u8> FLD_A = {0xDD, 0x07};          // fld qword [rdi]
+    const std::vector<u8> FLD_B = {0xDD, 0x47, 0x08};    // fld qword [rdi+8]
+    const std::vector<u8> FSTP_16 = {0xDD, 0x5F, 0x10};  // fstp qword [rdi+16]
+    const std::vector<u8> FSTP_24 = {0xDD, 0x5F, 0x18};
+    const std::vector<u8> FSTP_32 = {0xDD, 0x5F, 0x20};
+    const std::vector<u8> FLD1 = {0xD9, 0xE8};
+    const std::vector<u8> FNSTSW_AX = {0xDF, 0xE0};
+
+    ArchState s;
+    s.rdi = DATA_ADDR;
+
+    auto add_ud = [&](const std::string &name, std::vector<u8> code) {
+      TestCase tc;
+      tc.name = name;
+      tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = s;
+      tc.flags_mask = FL_ALL;
+      tc.expect_fault = true;
+      tc.expected_vector = 6;
+      tests.push_back(std::move(tc));
+    };
+
+    cat = "x87 reg";
+    {
+      // D8 C0+i..F8+i: ST(0) := ST(0) op ST(i)
+      struct { const char *name; u8 modrm; } d8[] = {
+        {"fadd st(0),st(1)", 0xC1}, {"fmul st(0),st(1)", 0xC9},
+        {"fsub st(0),st(1)", 0xE1}, {"fsubr st(0),st(1)", 0xE9},
+        {"fdiv st(0),st(1)", 0xF1}, {"fdivr st(0),st(1)", 0xF9},
+      };
+      for (auto &op : d8)
+        add_mem(std::string("fld a; fld b; ") + op.name + "; fstp; fstp",
+                join({FLD_A, FLD_B, {0xD8, op.modrm}, FSTP_16, FSTP_24}),
+                s, FL_ALL, ab(3.0, 1.5), 32);
+      // ST(2) as the source: after fld a; fld b; fld1, ST(2) = a
+      add_mem("fld a; fld b; fld1; fadd st(0),st(2); fstp x3",
+              join({FLD_A, FLD_B, FLD1, {0xD8, 0xC2}, FSTP_16, FSTP_24, FSTP_32}),
+              s, FL_ALL, ab(3.0, 1.5), 40);
+      add_mem("fld a; fld b; fld1; fdivr st(0),st(2); fstp x3",
+              join({FLD_A, FLD_B, FLD1, {0xD8, 0xFA}, FSTP_16, FSTP_24, FSTP_32}),
+              s, FL_ALL, ab(3.0, 1.5), 40);
+
+      // DC C0+i..F8+i: ST(i) := ST(i) op ST(0); the SUB and DIV pairs are
+      // reversed relative to D8 (DC E0+i is FSUBR, DC E8+i is FSUB)
+      struct { const char *name; u8 modrm; } dc[] = {
+        {"fadd st(1),st(0)", 0xC1}, {"fmul st(1),st(0)", 0xC9},
+        {"fsubr st(1),st(0)", 0xE1}, {"fsub st(1),st(0)", 0xE9},
+        {"fdivr st(1),st(0)", 0xF1}, {"fdiv st(1),st(0)", 0xF9},
+      };
+      for (auto &op : dc)
+        add_mem(std::string("fld a; fld b; ") + op.name + "; fstp; fstp",
+                join({FLD_A, FLD_B, {0xDC, op.modrm}, FSTP_16, FSTP_24}),
+                s, FL_ALL, ab(3.0, 1.5), 32);
+      add_mem("fld a; fld b; fld1; fsub st(2),st(0); fstp x3",
+              join({FLD_A, FLD_B, FLD1, {0xDC, 0xEA}, FSTP_16, FSTP_24, FSTP_32}),
+              s, FL_ALL, ab(3.0, 1.5), 40);
+
+      // DE E8+i FSUBP and DE F0+i FDIVRP: ST(i) := ST(i) - ST(0) / ST(0) / ST(i), pop
+      add_mem("fld a; fld b; fsubp st(1),st(0); fstp",
+              join({FLD_A, FLD_B, {0xDE, 0xE9}, FSTP_16}), s, FL_ALL, ab(3.0, 1.5), 24);
+      add_mem("fld a; fld b; fdivrp st(1),st(0); fstp",
+              join({FLD_A, FLD_B, {0xDE, 0xF1}, FSTP_16}), s, FL_ALL, ab(3.0, 1.5), 24);
+      add_mem("fld a; fld b; fld1; fsubp st(2),st(0); fstp; fstp",
+              join({FLD_A, FLD_B, FLD1, {0xDE, 0xEA}, FSTP_16, FSTP_24}),
+              s, FL_ALL, ab(3.0, 1.5), 32);
+      add_mem("fld a; fld b; fld1; fdivrp st(2),st(0); fstp; fstp",
+              join({FLD_A, FLD_B, FLD1, {0xDE, 0xF2}, FSTP_16, FSTP_24}),
+              s, FL_ALL, ab(4.0, 1.5), 32);
+
+      // DE D9 FCOMPP and DA E9 FUCOMPP: condition codes, two pops
+      struct { const char *rel; double a, b; } cmps[] = {
+        {"lt", 3.0, 1.5}, {"eq", 3.0, 3.0}, {"gt", 1.5, 3.0},
+      };
+      for (auto &c : cmps) {
+        add_mem(std::string("fld a; fld b; fcompp; fnstsw ax (b ") + c.rel + " a)",
+                join({FLD_A, FLD_B, {0xDE, 0xD9}, FNSTSW_AX}), s, FL_ALL, ab(c.a, c.b), 0);
+        add_mem(std::string("fld a; fld b; fucompp; fnstsw ax (b ") + c.rel + " a)",
+                join({FLD_A, FLD_B, {0xDA, 0xE9}, FNSTSW_AX}), s, FL_ALL, ab(c.a, c.b), 0);
+      }
+      add_mem("fld a; fld qnan; fucompp; fnstsw ax (unordered)",
+              join({FLD_A, FLD_B, {0xDA, 0xE9}, FNSTSW_AX}), s, FL_ALL, ab(3.0, qnan), 0);
+
+      // DA D0+i FCMOVBE, DA D8+i FCMOVU, DB C8+i FCMOVNE, DB D0+i FCMOVNBE,
+      // DB D8+i FCMOVNU: ST(0) := ST(1) when the condition holds
+      struct { const char *name; u8 op, modrm; u64 flags; bool taken; } moves[] = {
+        {"fcmovbe", 0xDA, 0xD1, FL_CF, true}, {"fcmovbe", 0xDA, 0xD1, FL_ZF, true},
+        {"fcmovbe", 0xDA, 0xD1, 0, false},
+        {"fcmovu", 0xDA, 0xD9, FL_PF, true}, {"fcmovu", 0xDA, 0xD9, 0, false},
+        {"fcmovne", 0xDB, 0xC9, 0, true}, {"fcmovne", 0xDB, 0xC9, FL_ZF, false},
+        {"fcmovnbe", 0xDB, 0xD1, 0, true}, {"fcmovnbe", 0xDB, 0xD1, FL_CF, false},
+        {"fcmovnbe", 0xDB, 0xD1, FL_ZF, false},
+        {"fcmovnu", 0xDB, 0xD9, 0, true}, {"fcmovnu", 0xDB, 0xD9, FL_PF, false},
+      };
+      for (auto &m : moves) {
+        ArchState f = s;
+        f.rflags = initial_flags(FL_CF | FL_ZF | FL_PF, m.flags);
+        add_mem(std::format("fld a; fld b; {} st(0),st(1); fstp ({}, flags {:#x})",
+                            m.name, m.taken ? "taken" : "not taken", m.flags),
+                join({FLD_A, FLD_B, {m.op, m.modrm}, FSTP_16}), f, FL_ALL, ab(3.0, 1.5), 24);
+      }
+
+      // DB F0+i FCOMI: ZF, PF, CF from the comparison
+      for (auto &c : cmps)
+        add_mem(std::string("fld a; fld b; fcomi st(0),st(1) (b ") + c.rel + " a)",
+                join({FLD_A, FLD_B, {0xDB, 0xF1}}), s, FL_ALL, ab(c.a, c.b), 0);
+      add_mem("fld a; fld qnan; fcomi st(0),st(1) (unordered)",
+              join({FLD_A, FLD_B, {0xDB, 0xF1}}), s, FL_ALL, ab(3.0, qnan), 0);
+
+      // D9 C0+i FLD ST(i), DD D0+i FST ST(i), DD C0+i FFREE ST(i), D9 D0 FNOP
+      add_mem("fld a; fld b; fld st(1); fstp x3",
+              join({FLD_A, FLD_B, {0xD9, 0xC1}, FSTP_16, FSTP_24, FSTP_32}),
+              s, FL_ALL, ab(3.0, 1.5), 40);
+      add_mem("fld a; fld b; fst st(1); fstp; fstp",
+              join({FLD_A, FLD_B, {0xDD, 0xD1}, FSTP_16, FSTP_24}), s, FL_ALL, ab(3.0, 1.5), 32);
+      add_mem("fld a; fld b; fst st(2) (empty register); fstp x3",
+              join({FLD_A, FLD_B, {0xDD, 0xD2}, FSTP_16, FSTP_24, FSTP_32}),
+              s, FL_ALL, ab(3.0, 1.5), 40);
+      // FXAM classifies the freed register as empty, with C1 its sign
+      add_mem("fld a; fld b; ffree st(0); fxam; fnstsw ax",
+              join({FLD_A, FLD_B, {0xDD, 0xC0, 0xD9, 0xE5}, FNSTSW_AX}),
+              s, FL_ALL, ab(3.0, -1.5), 0);
+      add_mem("fld a; fld b; ffree st(1); fincstp; fxam; fnstsw ax",
+              join({FLD_A, FLD_B, {0xDD, 0xC1, 0xD9, 0xF7, 0xD9, 0xE5}, FNSTSW_AX}),
+              s, FL_ALL, ab(-3.0, 1.5), 0);
+      add_mem("fld a; fnop; fstp", join({FLD_A, {0xD9, 0xD0}, FSTP_16}),
+              s, FL_ALL, ab(3.0, 1.5), 24);
+    }
+
+    cat = "x87 mem";
+    {
+      // FCOM/FCOMP m32fp (D8 /2 /3), m64fp (DC /2 /3), FICOM/FICOMP m32int
+      // (DA /2 /3), m16int (DE /2 /3): ST(0) = 3.0 against [rdi+8]
+      struct { const char *rel; double b; } rels[] = {{"gt", 1.5}, {"eq", 3.0}, {"lt", 4.5}};
+      struct { const char *name; u8 op, modrm; int kind; } cmps[] = {
+        {"fcom m32", 0xD8, 0x57, 32}, {"fcomp m32", 0xD8, 0x5F, 32},
+        {"fcom m64", 0xDC, 0x57, 64}, {"fcomp m64", 0xDC, 0x5F, 64},
+        {"ficom m32int", 0xDA, 0x57, 132}, {"ficomp m32int", 0xDA, 0x5F, 132},
+        {"ficom m16int", 0xDE, 0x57, 116}, {"ficomp m16int", 0xDE, 0x5F, 116},
+      };
+      for (auto &c : cmps)
+        for (auto &r : rels) {
+          std::vector<u8> src = c.kind == 32 ? f32b((float)r.b) : c.kind == 64 ? f64b(r.b)
+                              : c.kind == 132 ? i32b((int32_t)r.b) : i16b((int16_t)r.b);
+          add_mem(std::string("fld a; ") + c.name + " [rdi+8]; fnstsw ax (a " + r.rel + " b)",
+                  join({FLD_A, {c.op, c.modrm, 0x08}, FNSTSW_AX}), s, FL_ALL,
+                  join({f64b(3.0), src}), 0);
+        }
+
+      // The remaining arithmetic memory forms: ST(0) op [rdi+8] -> [rdi+16]
+      struct { const char *name; u8 op, modrm; int kind; } ariths[] = {
+        {"fisubr m32int", 0xDA, 0x6F, 132}, {"fidivr m32int", 0xDA, 0x7F, 132},
+        {"fimul m16int", 0xDE, 0x4F, 116}, {"fisub m16int", 0xDE, 0x67, 116},
+        {"fisubr m16int", 0xDE, 0x6F, 116}, {"fidiv m16int", 0xDE, 0x77, 116},
+        {"fidivr m16int", 0xDE, 0x7F, 116},
+        {"fsubr m64", 0xDC, 0x6F, 64}, {"fdivr m64", 0xDC, 0x7F, 64},
+      };
+      for (auto &c : ariths) {
+        std::vector<u8> src = c.kind == 64 ? f64b(12.0) : c.kind == 132 ? i32b(12) : i16b(12);
+        add_mem(std::string("fld 3.0; ") + c.name + " [rdi+8] = 12; fstp",
+                join({FLD_A, {c.op, c.modrm, 0x08}, FSTP_16}), s, FL_ALL,
+                pad(join({f64b(3.0), src}), 16), 24);
+        src = c.kind == 64 ? f64b(-0.5) : c.kind == 132 ? i32b(-7) : i16b(-7);
+        add_mem(std::string("fld -1.5; ") + c.name + " [rdi+8] negative; fstp",
+                join({FLD_A, {c.op, c.modrm, 0x08}, FSTP_16}), s, FL_ALL,
+                pad(join({f64b(-1.5), src}), 16), 24);
+      }
+
+      // D9 /2 FST m32fp and DD /2 FST m64fp keep ST(0); a pop follows
+      for (double v : {1.5, -2.25, 0.1})
+        add_mem(std::format("fld {}; fst m32 [rdi+8]; fstp", v),
+                join({FLD_A, {0xD9, 0x57, 0x08}, FSTP_16}), s, FL_ALL, f64b(v), 24);
+      for (float v : {2.5f, -7.75f})
+        add_mem(std::format("fld m32 {}; fst m64 [rdi+8]; fstp", v),
+                join({{0xD9, 0x07}, {0xDD, 0x57, 0x08}, FSTP_16}), s, FL_ALL, f32b(v), 24);
+      // DB /2 FIST m32int rounds to nearest even and keeps ST(0)
+      for (double v : {2.5, 3.5, -2.5, 1234567.0})
+        add_mem(std::format("fld {}; fist m32int [rdi+8]; fstp", v),
+                join({FLD_A, {0xDB, 0x57, 0x08}, FSTP_16}), s, FL_ALL, f64b(v), 24);
+      // DF /3 FISTP m16int
+      for (double v : {1234.5, -7.5, 32767.0, -32768.0})
+        add_mem(std::format("fld {}; fistp m16int [rdi+8]", v),
+                join({FLD_A, {0xDF, 0x5F, 0x08}}), s, FL_ALL, f64b(v), 10);
+      // DB /5 FLD m80fp and DB /7 FSTP m80fp
+      for (long double v : {1.5L, -3.75L, 1.0L / 3.0L})
+        add_mem(std::format("fld m80 {}; fstp m64", (double)v),
+                join({{0xDB, 0x2F}, FSTP_16}), s, FL_ALL, f80b(v), 24);
+      for (double v : {1.5, -3.75, 0.1})
+        add_mem(std::format("fld {}; fstp m80 [rdi+16]", v),
+                join({FLD_A, {0xDB, 0x7F, 0x10}}), s, FL_ALL, f64b(v), 26);
+      // DF /6 FBSTP m80bcd: 18 packed digits and a sign byte, rounded first
+      for (double v : {123456789.0, -42.0, 2.5, 3.5, 0.0})
+        add_mem(std::format("fld {}; fbstp [rdi+8]", v),
+                join({FLD_A, {0xDF, 0x77, 0x08}}), s, FL_ALL, f64b(v), 18);
+      // DD /7 FNSTSW m16
+      add_mem("fld a; fld b; fnstsw m16 [rdi+16]",
+              join({FLD_A, FLD_B, {0xDD, 0x7F, 0x10}}), s, FL_ALL, ab(3.0, 1.5), 18);
+    }
+
+    cat = "x87 env";
+    {
+      // D9 /5 FLDCW, read back with FNSTCW after a rounding operation.  The
+      // f80 externals do not yet apply the rounding and precision controls,
+      // so only control words whose result equals the default's are used.
+      struct { double v; u16 cw; const char *rc; } rcs[] = {
+        {2.7, 0x037F, "nearest"}, {2.5, 0x037F, "nearest even"}, {-2.5, 0x037F, "nearest even, negative"},
+      };
+      for (auto &r : rcs)
+        add_mem(std::format("fldcw {:#06x} ({}); fld {}; frndint; fstp; fnstcw", r.cw, r.rc, r.v),
+                join({{0xD9, 0x6F, 0x08}, FLD_A, {0xD9, 0xFC}, FSTP_16, {0xD9, 0x7F, 0x18}}),
+                s, FL_ALL, pad(join({f64b(r.v), i16b((int16_t)r.cw)}), 16), 26);
+      add_mem("fldcw 0x027f (double precision); fld1; fld 3; fdivp; fstp",
+              join({{0xD9, 0x6F, 0x08}, FLD1, FLD_A, {0xDE, 0xF9}, FSTP_16}),
+              s, FL_ALL, pad(join({f64b(3.0), i16b(0x027F)}), 16), 24);
+
+      // D9 /6 FNSTENV, 32-bit protected-mode layout at [rdi+8].  The control,
+      // status, and tag words are read through GPRs: the pointer fields are
+      // not modeled, and the upper halves of the first three doublewords are
+      // reserved in the SDM's Figure 8-9.
+      const std::vector<u8> ENV_WORDS = {
+        0x0F, 0xB7, 0x47, 0x08,  // movzx eax, word [rdi+8]   (FCW)
+        0x0F, 0xB7, 0x5F, 0x0C,  // movzx ebx, word [rdi+12]  (FSW)
+        0x0F, 0xB7, 0x4F, 0x10,  // movzx ecx, word [rdi+16]  (FTW)
+      };
+      add_mem("fld a; fld b; fnstenv [rdi+8]; read FCW/FSW/FTW",
+              join({FLD_A, FLD_B, {0xD9, 0x77, 0x08}, ENV_WORDS}), s, FL_ALL, ab(3.0, 1.5), 0);
+      add_mem("fld a; fld b; fstp st(1); fnstenv [rdi+8]; read FCW/FSW/FTW",
+              join({FLD_A, FLD_B, {0xDD, 0xD9, 0xD9, 0x77, 0x08}, ENV_WORDS}),
+              s, FL_ALL, ab(3.0, 1.5), 0);
+      // FNSTENV then masks all exceptions in the control word
+      add_mem("fldcw 0x0340; fnstenv [rdi+16]; fnstcw [rdi+48]; read both control words",
+              join({{0xD9, 0x6F, 0x08}, {0xD9, 0x77, 0x10}, {0xD9, 0x7F, 0x30},
+                    {0x0F, 0xB7, 0x47, 0x10,     // movzx eax, word [rdi+16] (image FCW)
+                     0x0F, 0xB7, 0x5F, 0x30}}),  // movzx ebx, word [rdi+48] (FCW after)
+              s, FL_ALL, pad(join({f64b(0), i16b(0x0340)}), 16), 0);
+
+      // D9 /4 FLDENV: RC = truncate, TOP = 5 with C3 and ZE set, all registers
+      // empty; observed through FNSTSW, FNSTCW, and a load/store at the new TOP
+      {
+        std::vector<u8> env(28, 0);
+        u16 cw = 0x0F7F, sw = 0x6804, tw = 0xFFFF;
+        memcpy(&env[0], &cw, 2);
+        memcpy(&env[4], &sw, 2);
+        memcpy(&env[8], &tw, 2);
+        add_mem("fldenv [rdi+8]; fnstsw ax; fnstcw [rdi+40]; fld a; fstp [rdi+48]",
+                join({{0xD9, 0x67, 0x08}, FNSTSW_AX, {0xD9, 0x7F, 0x28}, FLD_A, {0xDD, 0x5F, 0x30}}),
+                s, FL_ALL, join({f64b(2.7), env}), 56);
+      }
+    }
+
+    // Reserved x87 encodings raise #UD.  Not included: DC D0+i, DC D8+i,
+    // DD C8+i, and DE D0+i (i != 1), which the SDM leaves blank but the
+    // processors execute as aliases of FCOM, FCOMP, FXCH, and FCOMP.
+    cat = "x87 invalid";
+    {
+      add_ud("d9 /1 mem (reserved)", {0xD9, 0x0F});
+      add_ud("db /4 mem (reserved)", {0xDB, 0x27});
+      add_ud("db /6 mem (reserved)", {0xDB, 0x37});
+      add_ud("dd /5 mem (reserved)", {0xDD, 0x2F});
+      add_ud("d9 d1 (reserved)", {0xD9, 0xD1});
+      add_ud("db f8 (reserved)", {0xDB, 0xF8});
+      add_ud("dd f1 (reserved)", {0xDD, 0xF1});
+      add_ud("dd f9 (reserved)", {0xDD, 0xF9});
+      add_ud("de d8 (reserved)", {0xDE, 0xD8});
+    }
+  }
 }
 

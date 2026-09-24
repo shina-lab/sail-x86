@@ -141,7 +141,11 @@ function dispatch_x87_d9(modrm, operand, _) = {
         3 => { v(m) = __f80_to_f32(x87_read_st(0)); let _ = x87_pop() },
         4 => x87_load_env(read_mem(m)),
         5 => x87_cw = v(m),
-        6 => write_mem(m, x87_save_env()),
+        // FNSTENV stores the environment, then masks all exceptions
+        6 => {
+          write_mem(m, x87_save_env());
+          x87_cw[5..0] = 0b111111
+        },
         7 => v(m) = x87_cw,
       }
     },
@@ -166,19 +170,26 @@ function dispatch_x87_d9(modrm, operand, _) = {
             225 => x87_write_st(0, __f80_abs(x87_read_st(0))),
             // FTST
             228 => x87_set_sw_cc(fp_compare(x87_read_st(0), __f80_zero())),
-            // FXAM — examine ST(0), set C3/C2/C0 for class, C1 for sign
+            // FXAM — examine ST(0), set C3/C2/C0 for class, C1 for sign.
+            // Empty is the register's tag, not a property of its contents;
+            // C1 is the sign bit whether the register is empty or full.
             229 => {
               let val80 : fp80 = x87_read_st(0);
               var sw : word = x87_sw;
               sw[9] = val80[79];  // C1 = sign bit
-              match __f80_classify(val80) {
-                FP_Unsupported => { sw[14] = 0b0; sw[10] = 0b0; sw[8] = 0b0; },
-                FP_NaN         => { sw[14] = 0b0; sw[10] = 0b0; sw[8] = 0b1;  },
-                FP_Normal      => { sw[14] = 0b0; sw[10] = 0b1; sw[8] = 0b0; },
-                FP_Infinity    => { sw[14] = 0b0; sw[10] = 0b1; sw[8] = 0b1;  },
-                FP_Zero        => { sw[14] = 0b1; sw[10] = 0b0; sw[8] = 0b0; },
-                FP_Empty       => { sw[14] = 0b1; sw[10] = 0b0; sw[8] = 0b1;  },
-                FP_Denormal    => { sw[14] = 0b1; sw[10] = 0b1; sw[8] = 0b0; },
+              let tag : bits(2) = (x87_tw >> (2 * x87_physical(0)))[1..0];
+              if tag == 0b11 then {
+                sw[14] = 0b1; sw[10] = 0b0; sw[8] = 0b1
+              } else {
+                match __f80_classify(val80) {
+                  FP_Unsupported => { sw[14] = 0b0; sw[10] = 0b0; sw[8] = 0b0; },
+                  FP_NaN         => { sw[14] = 0b0; sw[10] = 0b0; sw[8] = 0b1;  },
+                  FP_Normal      => { sw[14] = 0b0; sw[10] = 0b1; sw[8] = 0b0; },
+                  FP_Infinity    => { sw[14] = 0b0; sw[10] = 0b1; sw[8] = 0b1;  },
+                  FP_Zero        => { sw[14] = 0b1; sw[10] = 0b0; sw[8] = 0b0; },
+                  FP_Empty       => { sw[14] = 0b1; sw[10] = 0b0; sw[8] = 0b1;  },
+                  FP_Denormal    => { sw[14] = 0b1; sw[10] = 0b1; sw[8] = 0b0; },
+                }
               };
               x87_sw = sw
             },
@@ -475,8 +486,10 @@ function dispatch_x87_de(modrm, src, _) = {
           let _ = x87_pop();
           x87_write_st(sti - 1, result)
         },
-        // FCOMPP
-        2 => {
+        2 => raise_UD(),
+        // DE D9: FCOMPP — compare ST(0) with ST(1), pop twice; the other
+        // DE D8+i encodings are reserved
+        3 => {
           if modrm_val == 217 then {
             x87_set_sw_cc(fp_compare(x87_read_st(0), x87_read_st(1)));
             let _ = x87_pop();
@@ -485,7 +498,6 @@ function dispatch_x87_de(modrm, src, _) = {
             raise_UD()
           }
         },
-        3 => raise_UD(),
         // FSUBRP — ST(i) = ST(0) - ST(i), pop
         4 => {
           let result = fp_sub(x87_read_st(0), x87_read_st(sti));
