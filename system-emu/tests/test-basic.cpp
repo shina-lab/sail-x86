@@ -1181,6 +1181,84 @@ static void write_gdt_data_desc(x86::Model &model, u64 gdt_base, int index,
   model.phys_mem.write32(offset + 4, hi);
 }
 
+TEST(segment_descriptor_accessed_bits) {
+  // SDM Vol.3A 3.4.5.1: loading a code/data selector sets A in the
+  // descriptor and cache. A=1 avoids another descriptor write.
+  for (bool ldt : {false, true}) for (unsigned seg : {0U, 2U, 3U, 4U, 5U}) {
+    x86::Model m; init_model_32(m);
+    constexpr u64 table = 0x9000;
+    write_gdt_data_desc(m, table, 1, 0, 0xfffff, 0, true, true);
+    m.phys_mem.write8(table + 13, 0x92);
+    m.zGDTR_base = table; m.zGDTR_limit = 15;
+    m.zLDTR_base = table; m.zLDTR_limit = 15; m.zLDTR_valid = true;
+    m.zGPR.data[0] = ldt ? 12 : 8;
+    const u8 code[] = {0x8e, static_cast<u8>(0xc0 | (seg << 3)), 0xf4};
+    ASSERT_EQ(run_code(m, 0x5000, code, sizeof(code)), RUN_HALTED);
+    ASSERT_EQ(m.phys_mem.read8(table + 13), 0x93);
+    ASSERT_EQ(m.zSegCache.data[seg].zseg_type, 3U);
+    m.model_fini();
+  }
+  for (bool accessed : {false, true}) for (bool wp : {false, true}) {
+    x86::Model m; init_model(m);
+    constexpr u64 table = 0x200000;
+    write_gdt_data_desc(m, table, 1, 0, 0xfffff, 3, true, true);
+    m.phys_mem.write8(table + 13, accessed ? 0xf3 : 0xf2);
+    m.phys_mem.write64(0x3000, 0x87); // user code
+    m.phys_mem.write64(0x3008, 0x200081); // supervisor, read-only GDT
+    m.zGDTR_base = table; m.zGDTR_limit = 15; m.zcur_cpl = 3;
+    if (!wp) m.zCR0 &= ~(1ULL << 16);
+    m.zGPR.data[0] = 11;
+    const u8 code[] = {0x8e, 0xe8}; // MOV GS, AX
+    const int result = run_code(m, 0x5000, code, sizeof(code), 1);
+    if (!accessed && wp) {
+      ASSERT_EQ(result, RUN_FAULTED);
+      ASSERT_EQ(m.zfault_vector, 14U);
+      ASSERT_EQ(m.zfault_error_code, 3U); // supervisor write, present
+      ASSERT_EQ(m.zCR2 >> 12, table >> 12);
+      ASSERT_EQ(m.zSegReg.data[x86::SEG_GS], 0U);
+    } else {
+      ASSERT_EQ(result, RUN_OK);
+      ASSERT_EQ(m.phys_mem.read8(table + 13), 0xf3);
+      ASSERT_EQ(m.zSegCache.data[x86::SEG_GS].zseg_type, 3U);
+    }
+    m.model_fini();
+  }
+  // An outer IRETD must not commit CS before a fault setting SS.A.
+  {
+    x86::Model m; init_model(m);
+    m.zcur_mode = x86::zCompatibilityMode;
+    m.zSegCache.data[x86::SEG_CS].zseg_l = 0;
+    m.zSegCache.data[x86::SEG_CS].zseg_db = 1;
+    m.zSegCache.data[x86::SEG_SS].zseg_db = 1;
+    write_gdt_code_desc(m, 0x200000, 1, 0, 0xfffff, 3, true, true);
+    write_gdt_data_desc(m, 0x200000, 2, 0, 0xfffff, 3, true, true);
+    m.phys_mem.write8(0x200015, 0xf2);
+    m.phys_mem.write64(0x3008, 0x200081);
+    m.zGDTR_base = 0x200000; m.zGDTR_limit = 23;
+    const u32 frame[] = {0x6000, 11, 2, 0x8000, 19};
+    m.phys_mem.write_bytes(0x80000, frame, sizeof(frame));
+    const u8 code[] = {0xcf};
+    ASSERT_EQ(run_code(m, 0x5000, code, sizeof(code)), RUN_FAULTED);
+    ASSERT_EQ(m.zfault_vector, 14U);
+    ASSERT_EQ(m.zSegReg.data[x86::SEG_CS], 0U);
+    ASSERT_EQ(m.zSegCache.data[x86::SEG_CS].zseg_dpl, 0U);
+    ASSERT_EQ(m.zGPR.data[4], 0x80000U);
+    ASSERT_EQ(m.zcur_cpl, 0U);
+    m.model_fini();
+  }
+  // A successful far JMP sets A on the destination code descriptor.
+  x86::Model m; init_model_32(m);
+  write_gdt_code_desc(m, 0x9000, 1, 0, 0xfffff, 0, true, true);
+  m.phys_mem.write8(0x900d, 0x9a);
+  m.zGDTR_base = 0x9000; m.zGDTR_limit = 15;
+  const u8 jmp[] = {0xea, 0x00, 0x60, 0, 0, 8, 0};
+  m.phys_mem.write8(0x6000, 0xf4);
+  ASSERT_EQ(run_code(m, 0x5000, jmp, sizeof(jmp)), RUN_HALTED);
+  ASSERT_EQ(m.phys_mem.read8(0x900d), 0x9b);
+  ASSERT_EQ(m.zSegCache.data[x86::SEG_CS].zseg_type, 11U);
+  m.model_fini();
+}
+
 TEST(far_pointer_load_destination_width_and_faults) {
   // SDM Vol.2A LDS/LES/LFS/LGS/LSS and Vol.1 3.4.1.1: the offset
   // updates the operand-sized destination. In particular, r16 preserves
@@ -2881,6 +2959,7 @@ int main() {
   run_test_real_mode_far_call_9a();
 
   printf("\nProtected mode far transfer tests:\n");
+  run_test_segment_descriptor_accessed_bits();
   run_test_far_pointer_load_destination_width_and_faults();
   run_test_legacy_call_gate_privilege_stacks();
   run_test_legacy_call_gate_same_privilege_and_faults();

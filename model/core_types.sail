@@ -36,7 +36,8 @@ type zmmword = bits(512)
 // these bypass the U/S page-protection check regardless of the current
 // CPL, so a CPL=3 `MOV GS, sel` can load a descriptor out of a kernel-
 // mapped GDT without faulting.
-enum PTAccess = { PT_Read, PT_Write, PT_Execute, PT_Implicit }
+// Implicit writes (descriptor accessed bits) also bypass U/S, but obey CR0.WP.
+enum PTAccess = { PT_Read, PT_Write, PT_Execute, PT_Implicit, PT_ImplicitWrite }
 
 // Index into the 16 general-purpose registers (0..15).
 type gpr_idx = range(0, 15)

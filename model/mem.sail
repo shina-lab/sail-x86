@@ -207,6 +207,20 @@ function load_vm86_segment(idx, selector) = {
     seg_base = zero_extend(selector) << 4, seg_dpl = 3}
 }
 
+// SDM Vol.3A 3.4.5.1: every load of a code/data selector sets A in
+// its descriptor. This is an implicit supervisor write, subject to WP;
+// do it before committing the visible selector or hidden cache.
+val access_segment_descriptor : (word, SegDescCache) -> SegDescCache
+function access_segment_descriptor(selector, desc) = {
+  if selector[15..2] != zeros() & desc.seg_s == 0b1 & desc.seg_type[0] == 0b0 then {
+    let addr = descriptor_address(selector) + 5;
+    let access_byte : byte = read_mem_implicit(addr);
+    let paddr = translate_addr(addr, PT_ImplicitWrite);
+    phys_write(paddr, access_byte | 0x01);
+    {desc with seg_type = desc.seg_type | 0x1}
+  } else desc
+}
+
 val load_segment_register : (segreg_idx, word) -> unit
 function load_segment_register(idx, selector) = {
   // Do memory reads (GDT lookup) before writing the segment register,
@@ -231,8 +245,9 @@ function load_segment_register(idx, selector) = {
       // kernel-mapped GDT.
       let desc_lo : dword = read_mem_implicit(desc_addr);
       let desc_hi : dword = read_mem_implicit(desc_addr + 4);
+      let desc = access_segment_descriptor(selector, parse_seg_descriptor(desc_lo, desc_hi));
       write_segreg(idx, selector);
-      SegCache[idx] = parse_seg_descriptor(desc_lo, desc_hi)
+      SegCache[idx] = desc
     },
   }
 }
@@ -482,6 +497,7 @@ function validate_far_jmp_cs(selector) = {
 // Shared by exec_far_jmp and exec_far_call.
 val finish_far_transfer : (SegDescCache, word, qword, {16, 32, 64}) -> unit
 function finish_far_transfer(desc, selector, offset, os) = {
+  let desc = access_segment_descriptor(selector, desc);
   let adj_sel : word = (selector & 0xFFFC) | zero_extend(to_bits(2, cur_cpl));
   write_segreg(CS, adj_sel);
   SegCache[CS] = desc;
@@ -626,16 +642,18 @@ function exec_legacy_call_gate(selector, gate_desc) = {
   let count : range(1, 35) = if inward then params + 4 else 2;
   let new_sp = write_legacy_frame(stack_desc, stack_sp, frame, count, width, level,
                                   if inward then selector_error_code(stack_sel) else 0x00000000);
+  let accessed_target = access_segment_descriptor(target_sel, target);
   if inward then {
+    let accessed_stack = access_segment_descriptor(stack_sel, stack_desc);
     write_segreg(SS, stack_sel);
-    SegCache[SS] = stack_desc;
+    SegCache[SS] = accessed_stack;
     v(32, RSP) = new_sp[31..0]
   } else {
     let sas = stack_addr_size();
     v(RSP) = new_sp[sas - 1 .. 0]
   };
   cur_cpl = level;
-  finish_far_transfer(target, target_sel, offset, width)
+  finish_far_transfer(accessed_target, target_sel, offset, width)
 }
 
 val exec_far_call : (word, qword, {16, 32, 64}) -> unit

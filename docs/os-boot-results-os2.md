@@ -4,6 +4,14 @@ Worktree `sail-x86-os7`, branch `os-boot-os2`, starting at `18e90a9`.
 Session started 2026-09-25 01:19 UTC. Builds and system tests use
 **sail-llvm only**; no official Sail compiler, CMake model target or CTest.
 
+
+Current result at 2026-09-25 04:15 UTC: **native first-stage installation
+completed** on the fresh IDE disk. The checkpoint is
+`build/os-boot/os2-hdd-first-stage.img`. Native IDE boot runs CHKDSK, then
+traps in SINGLEQ$ while cleaning up an earlier initialization failure.
+Full installation and the Workplace Shell have **not** been reached in Sail.
+A separate KVM reference boot of a checkpoint copy reaches graphical Setup.
+
 ## Media and platform
 
 The original `/home/ruiu/os-images/ibm-os2-warp-version-4.iso` is opened
@@ -723,10 +731,9 @@ Attempt 34: **166.082 s**, **417,746,161** instructions, exit `0`.
 At 03:40 UTC, attempt 30 passed the previous SYS3175 stopping point and
 reached [Installing the OS/2 Warp Installation program](os-boot/os2-install-program.png)
 after copying data sets 3–11 and the three boot diskettes. The event trace
-at `1bf91209` has not fired in this clean run. First-stage completion is
-still being checked.
+at `1bf91209` has not fired in this clean run. The completed first stage and its preserved disk are recorded under attempt 30.
 
-### os2-35-phase2 (in progress)
+### os2-35-phase2
 
 Boot the completed first-stage disk copy with no floppy attached. The CD
 remains read-only. Keyboard input will continue the installer.
@@ -739,3 +746,89 @@ python3 system-emu/run-boot.py --name os2-35-phase2 --timeout 1800 -- \
   -hda build/os-boot/os2-phase2-hdd.img \
   -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot c
 ```
+
+CHKDSK finishes with 967 user files (37086 KiB), 40 directories, and
+472056 KiB free. Boot then reproduces the same [SINGLEQ$ trap](os-boot/os2-phase2-singleq.png)
+at `03f8:0971`, ES=0. The [state log](os-boot/os2-phase2-singleq.txt) records
+this stop on the completed first-stage installation. Thus incomplete
+installation of the older diagnostic disk does not explain the remaining
+blocker. The request pointers again read `0003:0000` at linear
+`9bd240c1` and `9bd240c5` (physical `00f4f0c1` and `00f4f0c5`).
+
+Attempt 35: **239.092 s**, **863,822,679** instructions, exit `0`.
+
+### os2-36-packet-watch
+
+Rebuild with sail-llvm after adding CS:RIP to the opt-in physical-write
+trace. Watch physical `00f4f0c1` on another first-stage disk copy and stop
+one instruction after entry at `fe1008f9`. This avoids dependence on an
+instruction count from an earlier run.
+
+The watch identifies `STOSW` at `0140:140c` as the writer of the null
+parameter pointer; the kernel is translating a null argument supplied by
+user space. Attempt 36: **170.670 s**, **423,810,890** instructions, exit `0`.
+
+### os2-37-ioctl-trace and the KVM reference
+
+Trace all segments from instruction 423770000 to 423811130 on another
+first-stage clone, with the same BIOS/IDE tracing settings as attempt 35.
+The raw trace has 41131 snapshots; 2918 use flat user CS=005b.
+Attempt 37: **173.873 s**, **423,811,130** instructions, exit `0`.
+
+The [selected trace and reference state](os-boot/os2-singleq-cleanup-comparison.txt)
+show that `005b:1feab557` deliberately calls DosDevIOCtl with category 3,
+function 0x73 and null parameter/data buffers. This is downstream of
+`1fec0bd8`, an exit-list cleanup callback, through `1fec0c27 -> 1feab3ec`.
+SINGLEQ's initialization flag at DS:004a is still zero; the trap is a
+secondary failure during cleanup. The original reason for exiting remains
+unresolved. Do not bypass the driver's null-segment fault.
+
+For comparison, boot a **copy** of the same first-stage checkpoint under
+QEMU 11.0.2/KVM, with `-cpu pentium3 -m 64`, IDE disk and read-only CD,
+`-L /home/ruiu/bin/qemu/share/qemu`, and `-boot c`. It reaches
+[graphical OS/2 Setup and Installation](os-boot/os2-qemu-reference-phase2.png).
+This verifies the checkpoint's usability; it is not Sail boot success.
+A second reference copy, stopped by GDB at `fe1128f9`, enters SINGLEQ
+first from `005b:1feac0c2` with a **20-byte non-null** parameter buffer
+at `0027:f8b8` (linear `0004f8b8`). The buffer describes the
+`1fd90000` and `1fed0000` regions. This earlier initialization must be
+compared with Sail before changing the driver-facing device behavior.
+
+### Descriptor accessed bits and os2-38-accessed
+
+Comparison of the segment caches exposed a separate architectural error:
+loading a code/data segment did not set the descriptor's accessed bit.
+Intel SDM revision 090, Vol. 3A §3.4.5.1 (pp. 3-12–3-13) specifies this
+side effect; Vol. 3A §4.6 specifies implicit supervisor page accesses and
+CR0.WP. The model now sets A for its implemented descriptor loads, before
+committing the selector/cache. Implicit writes bypass U/S but respect WP,
+report supervisor write page faults, and update page dirty bits. They do
+not create user-accessible TLB entries. RETF, call/interrupt gates, monitor
+entry, and IRET paths apply the same operation. An outer IRETD stack
+descriptor write is prepared before CS changes so a #PF preserves the
+interrupted architectural state.
+
+The [regression log](os-boot/os2-accessed-validation.txt) includes the
+failing-before case (descriptor 0x92 remained unchanged, expected 0x93).
+The final regression covers GDT/LDT loads of five data segments, WP/A-bit
+combinations at CPL 3, the IRETD fault ordering, and a far JMP: 16 cases.
+All **15 system suites pass**, including **86 basic tests**. Two additional
+VM86 monitor tests compare the CS/SS descriptor writes with KVM for
+16/32-bit gates under two initial memory fills. The final model passes
+**484 KVM comparisons, zero failures**, after recompiling the harness
+against the same sail-llvm model object used by the final system tests.
+
+The sail-llvm rebuild is in `build/os-boot/os2-accessed-final-build.log`;
+no official Sail compiler was used. The opt-in physical-write diagnostic
+now prints CS:RIP, validated by `build/os-boot/os2-watch-probe.txt`, which
+made the packet writer above identifiable.
+
+Attempt 38 boots another first-stage clone with the accessed-bit fix.
+It produces the [same SINGLEQ$ stop](os-boot/os2-accessed-singleq.png),
+now with correct cached access types (CS=9b, SS=97, DS=93). This correction
+is independently justified, but does not resolve the original failure.
+Attempt 38: **229.287 s**, **777,438,816** instructions, exit `0`.
+
+The source ISO SHA-256 was rechecked at 04:15 UTC and still equals the
+original value recorded above. All reference boots use separate disk
+copies; the native completed first-stage checkpoint is preserved.

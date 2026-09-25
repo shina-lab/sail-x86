@@ -50,6 +50,7 @@ struct Test {
   u8 kernel_stack_flags = 0xc;
   u32 kernel_sp = KERNEL_SP;
   std::vector<std::pair<u32, Bytes>> patches;
+  bool check_descriptor_accessed = false;
 };
 
 template <typename T> static void store(Bytes &mem, u32 addr, T value) {
@@ -286,6 +287,17 @@ public:
 static std::vector<Test> tests() {
   std::vector<Test> ts;
   ts.push_back({"nop", {0x90}});
+  for (bool wide : {false, true}) {
+    Test t{"descriptor accessed on monitor entry wide=" + std::to_string(wide), {0x90}};
+    t.gate_type = wide ? 0xe : 0x6;
+    t.kernel_stack_access = 0x92;
+    t.kernel_stack_flags = wide ? 0xc : 0;
+    t.kernel_stack_limit = wide ? 0xfffff : 0xffff;
+    t.patches.push_back({GDT + 13, {0x9a}});
+    t.check_descriptor_accessed = true;
+    ts.push_back(t);
+  }
+
   ts.push_back({"VIF/VIP survive monitor entry", {0x90}});
   ts.back().flags |= VIF_FLAG | VIP_FLAG;
   ts.push_back({"16-bit arithmetic", {0xb8,0xff,0x7f, 0x05,0x01,0x00}});
@@ -507,6 +519,15 @@ int main(int argc, char **argv) {
         Result hw = kvm.execute(t, mem, fill);
         ok &= m.gpr == hw.gpr && m.ip == hw.ip && m.flags == hw.flags &&
               m.seg == hw.seg && m.cr2 == hw.cr2;
+        if (t.check_descriptor_accessed) {
+          for (u32 addr : {GDT + 13, GDT + 21}) {
+            if (!(m.mem[addr] & 1) || m.mem[addr] != hw.mem[addr]) {
+              fprintf(stderr, "%s: descriptor[%x] model=%02x hardware=%02x\n",
+                      t.name.c_str(), addr, m.mem[addr], hw.mem[addr]);
+              ok = false;
+            }
+          }
+        }
         // Ignore page-table A/D bits and descriptor-cache accessed bits.
         // Everything the test or exception handler can write is compared.
         for (u32 addr = ENTRY_SP; addr < MEM_SIZE; addr++) {

@@ -31,8 +31,9 @@ static void maybe_trace_phys_write(Model &m, u64 addr, const u8 *buf, i64 nbytes
   if (!cfg.enabled) return;
   if (cfg.target < addr || cfg.target >= addr + (u64)nbytes) return;
   fprintf(stderr,
-          "sail-x86-system: phys-write tsc=%lu addr=%016lx size=%ld target=%016lx bytes=",
-          (u64)m.tsc, addr, (long)nbytes, cfg.target);
+          "sail-x86-system: phys-write tsc=%lu CS:RIP=%04x:%08lx addr=%016lx size=%ld target=%016lx bytes=",
+          (u64)m.tsc, (unsigned)m.zSegReg.data[SEG_CS], (u64)m.zRIP,
+          addr, (long)nbytes, cfg.target);
   for (i64 i = 0; i < nbytes; i++)
     fprintf(stderr, "%02x", buf[i]);
   fprintf(stderr, "\n");

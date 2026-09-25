@@ -1,0 +1,98 @@
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/os2-35-phase2.png
+[655490163] CS:RIP=1000:00003b87 mode=P
+  RAX=000000001bb5010a RBX=000000009bd49cb2 RCX=0000000000000002 RDX=00000000ffe1bb6e
+  RSP=0000000000005668 RBP=000000000004573e RSI=00000000ffe1bb70 RDI=00000000ffe16b36
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=1000 DS=0158 ES=0158 SS=0030 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=000000008001003b CR2=000000001bb5101a CR3=00000000001e1000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000009c7e5000:1fff IDTR=00000000ffe16270:03ff LDTR=0028
+  SEG[0] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=2
+  SEG[1] base=00000000ffe21000 limit=0000cf0f D/B=0 DPL=0 type=a
+  SEG[2] base=00000000ffdd0624 limit=000049db D/B=0 DPL=0 type=6
+  SEG[3] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=2
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=168731797170 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=00 IMR=f8 ISR=00  slave IRR=00 IMR=fe ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=26445 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=0c A=2b B=52 C=00 D=80 time=12:02:48 ticks=5529003 second=168
+  FDC DOR=0c MSR=80 rate=0 cylinder=0 change=1 IRQ=0 delay=0 DMA=0 command=0/1 result=0/0
+    FIFO:
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=c5 at=110799990670 ns status=40 error=00 features=ff count=01 lba=01f70c dh=af nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=507981 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=ff count=01 lba=01f70c dh=af nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a0 at=108063244670 ns status=40 error=00 features=00 count=03 lba=000007 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=2048/2048 block_end=2048 limit=65534 write_lba=0 packet=1 cdb_pos=12 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=fe lba=000007 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+Exception in device driver: SINGLEQ$                                            
+TRAP 000d       ERRCD=0000  ERACC=****  ERLIM=********                          
+EAX=7ad00000  EBX=9bd400b2  ECX=00000020  EDX=0000005b                          
+ESI=9bdc0000  EDI=1b2b0010  EBP=0004573e  FLG=00012296                          
+CS:EIP=03f8:00000971  CSACC=009a  CSLIM=00000b50                                
+SS:ESP=0030:000056d2  SSACC=1096  SSLIM=000049db                                
+DS=0408  DSACC=0092  DSLIM=000000c0  CR0=8001003b                               
+ES=0000  ESACC=****  ESLIM=********  CR2=1bb5101a                               
+FS=0000  FSACC=****  FSLIM=********                                             
+GS=0000  GSACC=****  GSLIM=********                                             
+                                                                                
+The system detected an internal processing error at                             
+location ##0160:fff54c70 - 000d:ac70.                                           
+60000, 9084                                                                     
+                                                                                
+068606e3                                                                        
+Internal revision 9.023, 95/11/07                                               
+                                                                                
+The system is stopped.  Record all of the above information and                 
+contact your service representative.                                            
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+
