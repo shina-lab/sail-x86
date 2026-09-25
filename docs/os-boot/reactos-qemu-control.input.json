@@ -1,0 +1,32 @@
+[
+  {
+    "elapsed": 1.0,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      The list below shows the current device settings.\n\n\n               Computer: ACPI PC Uniprocessor\n                Display: VESA Display (800x600x32)\n               Keyboard: XT-, AT- or extended keyboard (83-105 keys)\n        Keyboard layout: English (USA)\n\n                 Accept: Accept these device settings\n\n\n      You can change the hardware settings by pressing the UP or DOWN keys\n      to select an entry. Then press the ENTER key to select alternative\n      settings.\n\n      When all settings are correct, select \"Accept these device settings\"\n      and press ENTER.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Continue   F3 = Quit"
+  },
+  {
+    "elapsed": 5.04,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      The list below shows existing partitions and unused disk\n      space for new partitions.\n\n           Press UP or DOWN to select a list entry.\n\n           Press ENTER to install ReactOS onto the selected partition.\n\n           Press C to create a primary/logical partition.\n\n           Press E to create an extended partition.\n\n           Press D to delete an existing partition.\n\n\n    1024 MB Harddisk 0 (Port=0, Bus=0, Id=0) [RAW]\n\n             Unpartitioned space                1023 MB\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Install   C = Create Primary   E = Create Extended   F3 = Quit"
+  },
+  {
+    "elapsed": 9.07,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      Setup created a new partition on\n\n      C: * (1) [FAT32]                        1023 MB\n\n      on 1024 MB Harddisk 0 (Port=0, Bus=0, Id=0) [MBR].\n\n      This Partition will be formatted next.\n\n\n      Select a file system from the list below.\n\n           Press UP or DOWN to select a file system.\n\n           Press ENTER to format the partition.\n\n           Press ESC to select another partition.\n\n\n       Format partition as FAT file system (quick format)\n       Format partition as FAT file system\n       Format partition as BTRFS file system (quick format)\n       Format partition as BTRFS file system\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Continue   ESC = Cancel   F3 = Quit"
+  },
+  {
+    "elapsed": 13.1,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      Format partition\n\n      C: * (1) [FAT32]                        1023 MB\n\n      on 1024 MB Harddisk 0 (Port=0, Bus=0, Id=0) [MBR].\n\n\n\n      Setup will now format the partition. Press ENTER to continue.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Continue   ESC=Cancel   F3 = Quit"
+  },
+  {
+    "elapsed": 17.12,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      Please select where Setup should install the bootloader:\n\n\n\n        Install bootloader on the harddisk (MBR and VBR).\n        Install bootloader on the harddisk (VBR only).\n        Install bootloader on a floppy disk.\n        Skip bootloader installation.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Continue   F3 = Quit"
+  },
+  {
+    "elapsed": 21.15,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      Setup installs ReactOS files onto the selected partition. Choose a\n      directory where you want ReactOS to be installed:\n\n        \\ReactOS\n\n\n      To change the suggested directory, press BACKSPACE to delete\n      characters and then type the directory where you want ReactOS to\n      be installed.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Continue   F3 = Quit"
+  }
+]

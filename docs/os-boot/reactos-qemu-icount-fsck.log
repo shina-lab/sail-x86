@@ -1,0 +1,41 @@
+fsck.fat 4.2 (2021-01-31)
+Checking we can access the last sector of the filesystem
+Boot sector contents:
+System ID "MSWIN4.1"
+Media byte 0xf8 (hard disk)
+       512 bytes per logical sector
+      4096 bytes per cluster
+        32 reserved sectors
+First FAT starts at byte 16384 (sector 32)
+         2 FATs, 32 bit entries
+   1045504 bytes per FAT (= 2042 sectors)
+Root directory start at cluster 2 (arbitrary size)
+Data area starts at byte 2107392 (sector 4116)
+    261309 data clusters (1070321664 bytes)
+63 sectors/track, 16 heads
+      2048 hidden sectors
+   2094592 sectors total
+/ReactOS/SYSTEM32/MSCTFIME.IME
+  Contains a free cluster (10682). Assuming EOF.
+/ReactOS/SYSTEM32/MSCTFIME.IME
+  File size is 400384 bytes, cluster chain length is 0 bytes.
+  Truncating file to 0 bytes.
+/ReactOS/SYSTEM32/WBEM/MOF/BAD
+ Start does point to root directory. Deleting dir. 
+/ReactOS/Fonts/SourceSansPro-Regular.ttf
+  Contains a free cluster (56410). Assuming EOF.
+/ReactOS/Fonts/SourceSansPro-Regular.ttf
+  File size is 293956 bytes, cluster chain length is 94208 bytes.
+  Truncating file to 94208 bytes.
+/ReactOS/Resources/Themes
+ Start does point to root directory. Deleting dir. 
+/ReactOS/Web/Wallpaper
+ Start does point to root directory. Deleting dir. 
+Checking for unused clusters.
+Reclaimed 46 unused clusters (188416 bytes).
+Checking free cluster summary.
+Free cluster summary wrong (196631 vs. really 196785)
+  Auto-correcting.
+
+Leaving filesystem unchanged.
+build/os-boot/reactos-qemu-icount-partition.img: 1125 files, 64524/261309 clusters

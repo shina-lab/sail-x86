@@ -2517,3 +2517,53 @@ checkpoint. The primary boot continues to the setup GUI.
 [Graphical setup PNG](os-boot/reactos-installed-first-boot-17-devices.png) ·
 [Serial checkpoint](os-boot/reactos-installed-first-boot-17-devices.serial) ·
 [CPU/timing checkpoint](os-boot/reactos-installed-first-boot-17-devices.json).
+
+#### FAT integrity control runs
+
+Two independent QEMU TCG installations use fresh 1 GiB disk copies, the
+same debug ISO, and the same rebuilt SeaBIOS/SeaVGABIOS images. Both
+reach the text-setup success screen and exit on the subsequent guest
+reboot (`-no-reboot`). The controls are diagnostic runs, not Sail results.
+
+| Control | Result after guest shutdown flush |
+|---|---|
+| Ordinary QEMU virtual time | All **990** cabinet-file instances match; read-only fsck reports no filesystem defects |
+| QEMU `-icount shift=8,align=off,sleep=off` (256 ns/instruction, approximately 3.91 MIPS) | **984** readable instances match; `msctfime.ime` and `SourceSansPro-Regular.ttf` have incomplete FAT chains; three directories have zero start clusters; four theme copies fail with `C0000001` |
+
+This reproduces the **same class** of filesystem damage without executing
+the Sail model and makes the result dependent on virtual timing. It
+supports a timing-sensitive ReactOS filesystem/cache problem; it does
+not establish an SDM violation in the model or prove that every Sail
+filesystem defect has the same cause. The guest disks are left unchanged
+by the checks.
+
+The QMP driving portions last **78.399 s** and **88.977 s**, respectively;
+the ordinary run also spent time at setup menus before the final driving
+script started. QEMU instruction counts are not collected.
+
+```sh
+cp --reflink=auto --sparse=always build/os-boot/reactos-blank-20260925.img build/os-boot/reactos-qemu-control-disk.img
+/usr/bin/qemu-system-i386 -machine pc,accel=tcg -m 128 -smp 1 -bios build/bios.bin -display none -vga none -device VGA,romfile=/home/ruiu/sail-x86-os/build/vgabios.bin -nic none -no-hpet -drive file=build/os-boot/reactos-qemu-control-disk.img,format=raw,if=ide,index=0 -cdrom build/os-boot/reactos-debug.iso -boot d -serial file:build/os-boot/reactos-qemu-control.serial -qmp unix:build/os-boot/reactos-qemu-control.qmp,server=on,wait=off -no-reboot -rtc base=2024-01-01T12:00:00
+python3 docs/os-boot/reactos-qemu-control.py reactos-qemu-control
+
+cp --reflink=auto --sparse=always build/os-boot/reactos-blank-20260925.img build/os-boot/reactos-qemu-icount-disk.img
+/usr/bin/qemu-system-i386 -machine pc,accel=tcg,hpet=off -icount shift=8,align=off,sleep=off -m 128 -smp 1 -bios build/bios.bin -display none -vga none -device VGA,romfile=/home/ruiu/sail-x86-os/build/vgabios.bin -nic none -drive file=build/os-boot/reactos-qemu-icount-disk.img,format=raw,if=ide,index=0 -cdrom build/os-boot/reactos-debug.iso -boot d -serial file:build/os-boot/reactos-qemu-icount.serial -qmp unix:build/os-boot/reactos-qemu-icount.qmp,server=on,wait=off -no-reboot -rtc base=2024-01-01T12:00:00
+python3 docs/os-boot/reactos-qemu-control.py reactos-qemu-icount
+```
+
+Run each QMP helper in a separate terminal while its VM is running.
+[QMP helper](os-boot/reactos-qemu-control.py) and
+[read-only cabinet comparison helper](os-boot/reactos-verify-fat-cabinet.py).
+The comparison uses the existing extracted source cabinet directory; it
+handles the distinct `fusion.dll` source variants by their installation paths.
+
+Ordinary control: [success PNG](os-boot/reactos-qemu-control-success.png),
+[serial](os-boot/reactos-qemu-control.serial),
+[driver result](os-boot/reactos-qemu-control.result.json),
+[fsck](os-boot/reactos-qemu-control-fsck.log),
+[file comparison](os-boot/reactos-qemu-control-cabinet-verification.json).
+Timed control: [success PNG](os-boot/reactos-qemu-icount-success.png),
+[serial](os-boot/reactos-qemu-icount.serial),
+[driver result](os-boot/reactos-qemu-icount.result.json),
+[fsck](os-boot/reactos-qemu-icount-fsck.log),
+[file comparison](os-boot/reactos-qemu-icount-cabinet-verification.json).
