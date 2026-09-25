@@ -1732,6 +1732,37 @@ private:
       status = 0x48;  // DRDY | DRQ, no interrupt for the first block
       break;
     }
+    case 0x40: case 0x41: {  // READ VERIFY SECTORS, with/without retries
+      if (dev != DISK) { abort_command(); break; }
+      u32 first = get_lba();
+      unsigned count = sector_count ? sector_count : 256;
+      bool valid_chs = (drive_head & 0x40) || (lba_low >= 1 && lba_low <= 63);
+      unsigned done = valid_chs && first < total_sectors()
+                    ? std::min<u64>(count, total_sectors() - first) : 0;
+      // On success report the last verified sector, on failure the first
+      // unverified one (ATA non-data command protocol, READ VERIFY).
+      u32 last = done == count ? first + count - 1 : first + done;
+      if (valid_chs) {
+        if (drive_head & 0x40) {
+          lba_low = last;
+          lba_mid = last >> 8;
+          lba_high = last >> 16;
+          drive_head = (drive_head & 0xF0) | ((last >> 24) & 15);
+        } else {
+          lba_low = last % 63 + 1;
+          drive_head = (drive_head & 0xF0) | ((last / 63) % 16);
+          u32 cylinder = last / (16 * 63);
+          lba_mid = cylinder;
+          lba_high = cylinder >> 8;
+        }
+      }
+      sector_count = count - done;
+      xfer = XFER_NONE;
+      error = done == count ? 0 : 0x10; // IDNF
+      status = done == count ? 0x50 : 0x51; // DRDY | DSC [| ERR]
+      raise_irq();
+      break;
+    }
     case 0x91:  // INITIALIZE DEVICE PARAMETERS
     case 0xE7:  // FLUSH CACHE
     case 0xEA:  // FLUSH CACHE EXT
