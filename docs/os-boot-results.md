@@ -14,7 +14,7 @@ planar VGA. It has no HPET or additional CPUs.
 | Linux i386 | Serial `sail#` shell | None for the requested boot |
 | Linux amd64 | `sail#` through BIOS/ISO with ACPI and I/O APIC, and by direct bzImage boot | Neither command line needs `noapic nolapic` |
 | Haiku | COM1 output and graphical kernel debugger at 1024x768 | Boot-volume panic: PCI-ATA requires the missing bus-master IDE BAR/registers; no desktop |
-| ReactOS | Fresh sail-llvm install completed file copy and is importing the registry; OUTS workaround removed with regressions passing; previously corrupted cabinet files match their sources | Active text setup configuration; completion and installed-disk first boot still pending |
+| ReactOS | Fresh text-mode installation completed successfully and rebooted; installed-disk boot reaches graphics mode | Graphical second stage in progress; offline FAT check found a damaged DirectX-file chain and directory metadata issues |
 | FreeBSD | CD Loader 1.2 and BTX entry | Fails before loader prompt; virtual-8086 boot path remains unsupported |
 | Windows 3.1 | Express Setup, first-stage copy, protected-mode DOSX startup | LMSW bug fixed; next #GP is an unsupported 16-bit call gate; no graphical screen |
 | Windows 95 | ScanDisk repair UI; `SETUP /IS` copies startup files and enters protected-mode DOSX | R6002 (XLAT) and keyboard bugs fixed; same unsupported 16-bit call gate as Windows 3.1 blocks graphics; subsequent ScanDisk size reports remain unclassified |
@@ -2442,3 +2442,58 @@ a direct FAT reader encounters an incomplete chain. The live disk has
 not yet received setup's final shutdown flush. Bulk verification is
 deferred to the stopped disk; the earlier two-file byte-for-byte checks
 remain valid. No model change is inferred from this snapshot.
+
+#### Text-mode installation completed; first disk boot started
+
+Setup displayed **“The basic components of ReactOS have been installed
+successfully”**, installed FAT32 VBR and MBR boot code, flushed the cache,
+and rebooted. The observer stopped the emulator after SeaBIOS restarted,
+using Ctrl-a x. **Wall time: 6731.085 seconds**
+(112.18 minutes); exit status **0**. The last pre-reset sampled instruction
+count is **18,933,388,052**. The runner's final **3,960,832** count
+is for the new BIOS boot, because the emulator resets its counter on reset;
+it is not the complete installation instruction count.
+
+[Success PNG](os-boot/reactos-sailc-fixed-install-16-success.png) ·
+[Reboot-stop PNG](os-boot/reactos-sailc-fixed-install-16-reboot.png) ·
+[Complete serial log](os-boot/reactos-sailc-fixed-install-16.serial) ·
+[Runner result](os-boot/reactos-sailc-fixed-install-16.json) ·
+[Final control input](os-boot/reactos-sailc-fixed-install-16.input.json).
+
+The completed text-install disk is retained unchanged at
+`build/os-boot/reactos-sailc-fixed-disk.img`. Its copy,
+`build/os-boot/reactos-sailc-fixed-installed.img`, is used for the installed
+system's first boot. `freeldr.ini` defaults to `ReactOS_Debug`, with COM1
+at 115200 baud.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 python3 system-emu/run-boot.py --name reactos-installed-first-boot-17 --timeout 14400 --send '2:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-sailc-fixed-installed.img -cdrom build/os-boot/reactos-debug.iso -boot c
+```
+
+Setup also logged hive-shrink, work-queue, volume-lock, and shutdown
+warnings. Boot-code installation returned `STATUS_SUCCESS`, and setup
+reached its success screen and reboot. The full serial log preserves the
+warnings; no assertion was ignored.
+
+#### Offline installation integrity
+
+The stopped, flushed disk still has filesystem defects; the live-snapshot
+anomalies were not all transient. Both FAT copies agree.
+**989 readable cabinet-file instances match their expected sources**.
+The source cabinet contains four entries named `fusion.dll` for different
+.NET versions; the two initial apparent mismatches match their corresponding
+ISO paths exactly (`9b0201aa6bd64d2255712602c6aa3aa56d5121f21a10aeff01880dbcb1d89247`).
+They are not corruption.
+
+`ReactOS/system32/d3dx9_40.dll` declares 1,126,912 bytes but its FAT chain
+reaches a free entry at cluster 22529 after 131,072 allocated bytes.
+The empty `spool/drivers/w32x86/3` directory has start cluster zero, and
+`Microsoft.NET/Framework/v2.0.50727` has missing dot entries. Read-only
+`fsck.fat -n -v` also reports 119 orphan clusters and an incorrect free
+cluster summary. It **leaves the filesystem unchanged**. No cause has
+yet been established, so no speculative model or guest-disk repair is
+applied. The installed system is booted from the exact completed disk copy.
+
+[Cabinet comparison](os-boot/reactos-sailc-fixed-offline-cabinet-verification.json) ·
+[Read-only fsck log](os-boot/reactos-sailc-fixed-offline-fsck.log) ·
+[Installed boot configuration](os-boot/reactos-sailc-fixed-offline-freeldr.ini).
