@@ -302,6 +302,15 @@ static std::vector<Test> tests() {
   ts.back().sp = 0xabcd0000;
   ts.push_back({"MOVS", {0xbe,0,1, 0xbf,0,2, 0xfc, 0xa5}});
   ts.push_back({"REP MOVS", {0xbe,0,1, 0xbf,0,2, 0xb9,2,0, 0xfc, 0xf3,0xa5}});
+  for (u8 op : {0xa4, 0xa5, 0xaa, 0xab, 0xac, 0xad})
+  for (bool wide : {false, true}) for (bool backward : {false, true}) {
+    Test t{"F2 string opcode=" + std::to_string(op) +
+           " wide=" + std::to_string(wide) + " DF=" + std::to_string(backward),
+           {0xbe,0,1, 0xbf,0,2, 0xb9,3,0, u8(backward ? 0xfd : 0xfc)}};
+    if (wide) t.code.push_back(0x66);
+    t.code.insert(t.code.end(), {0xf2, op});
+    ts.push_back(t);
+  }
   ts.push_back({"CS selector zero", {0x90}});
   ts.back().cs = 0;
   ts.push_back({"far jump", {0xea,0x00,0x04,0x01,0x20}});

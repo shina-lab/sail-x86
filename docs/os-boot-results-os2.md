@@ -503,3 +503,79 @@ It also checks fault restart, unchanged operands and adjacent bytes. The
 288-case regression fails before the fix.
 All 15 system suites pass after rebuilding (83 basic tests).
 [Validation](os-boot/os2-tests-opcode82.txt).
+
+
+### os2-23-opcode82
+
+Restarted from `os2-hdd-formatted.img`, booted all three installation diskettes,
+and repeated Advanced Installation with the existing HPFS format and default
+PS/2 device. The installer passes the former SYS3176 stop and begins
+[copying system files from the CD](os-boot/os2-copying-system-files.png).
+Exception tracing is still enabled; no #UD has occurred.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_ADDRESS=0xfff5388c system-emu/run-boot.py --name os2-23-opcode82 --timeout 2400 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-install-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+After copying numbered sets 3–11 and the boot-disk files, installation stopped
+with [SYS3175](os-boot/os2-installer-3175.png). A RAM-resident exception record
+identifies `C0000005`, `EIP=1bf91209`, an attempted read from `00000120`.
+The instruction is `CMP ECX,[EAX]` in the exception-chain unlink routine;
+its chain has become invalid. This does not by itself identify where the
+corruption occurred. The failed disk is preserved as `os2-hdd-3175.img`.
+
+Wall: **1295.735 s**. Instructions: **2,945,519,648**. Exit `0`.
+Serial: two form feeds only.
+
+### F2 string repetition
+
+Resident OS/2 code includes `F2 MOVSB` at linear `1bfa33dd`, `F2 MOVSW`
+at `1bfa880a`, and `F2 STOSW` at `1bfb93a4`. The current model ignores
+F2 on these opcodes and executes a single element. Intel SDM rev.090
+Vol.2A §2.1.1 defines both F2/F3 repeat prefixes for string and I/O
+instructions; Vol.1 §7.3.9.2 limits ZF-conditioned repetition to CMPS/SCAS.
+
+Reviewed and imported the existing fix and regressions from repository
+commit `115a374`. Its real-mode matrix fails against this branch's old
+sail-llvm object, including the zero-count case executing a forbidden element.
+The connection to SYS3175 remains a hypothesis until a fixed-model retry.
+All 15 system suites pass after rebuilding (84 basic tests); all 416 VM86
+comparisons against KVM pass. [Validation](os-boot/os2-tests-f2.txt).
+
+### os2-24-access (in progress)
+
+A diagnostic repeat on the partially populated disk uses
+`SAIL_X86_TRACE_EVENT_ADDRESS=0x1bf91209` to capture the invalid chain's
+last execution path. It uses the **pre-F2-fix** emulator, the same three
+boot diskettes and Advanced Installation with no reformatting.
+
+### os2-25-partial-ide
+
+An independent copy of the failed disk boots from IDE far enough to run
+[HPFS CHKDSK](os-boot/os2-partial-ide-chkdsk.png). It has not completed
+installation. This diagnostic also uses the pre-F2-fix emulator and was
+stopped before a retry with the corrected model.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_ADDRESS=0xfff5388c system-emu/run-boot.py --name os2-25-partial-ide --timeout 600 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda build/os-boot/os2-partial-boot-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot c
+```
+
+Wall: **156.218 s**. Instructions: **368,027,496**. Exit `0`.
+
+
+### os2-26-f2-ide (in progress)
+
+Booting an independent copy of the SYS3175 disk with the F2-corrected model,
+from IDE, with the CD attached read-only. This is a recovery/diagnostic path;
+installation did not finish in the earlier attempt.
+
+### os2-27-f2-install (in progress)
+
+Repeating the complete installation from the clean HPFS snapshot using the
+F2-corrected model, a separate private floppy image and IDE disk. The original
+CD and all extracted source diskettes remain unchanged. Select Advanced,
+accept C:, retain HPFS and select the default PS/2 pointing device.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_EVENT_ADDRESS=0x1bf91209 system-emu/run-boot.py --name os2-27-f2-install --timeout 4500 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-f2-floppy.img -hda build/os-boot/os2-f2-install-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```

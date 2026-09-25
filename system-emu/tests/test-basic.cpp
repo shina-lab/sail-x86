@@ -953,6 +953,61 @@ static void init_model_16(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
   model.zKERNEL_GS_BASE = 0;
 }
 
+TEST(f2_string_repetition) {
+  // SDM Vol.2A 2.1.1: F2 and F3 repeat string and I/O instructions.
+  // Only CMPS/SCAS condition repetition on ZF (Vol.1 7.3.9.2).
+  // MS-DOS FORMAT uses F2 MOVSB to copy its BPB; its MBR uses F2 MOVSW.
+  for (u8 op : {0xa4, 0xa5, 0xaa, 0xab, 0xac, 0xad, 0x6c, 0x6d, 0x6e, 0x6f})
+  for (unsigned wide : {0U, 1U}) for (unsigned df : {0U, 1U})
+  for (unsigned zf : {0U, 1U}) for (unsigned count : {0U, 3U}) {
+    x86::Model model;
+    init_model_16(model);
+    model.zload_segment_register(x86::SEG_DS, 0x2000);
+    model.zload_segment_register(x86::SEG_ES, 0x3000);
+    const unsigned size = !(op & 1) ? 1 : wide ? 4 : 2;
+    const bool source = op == 0xa4 || op == 0xa5 || op == 0xac ||
+                        op == 0xad || op == 0x6e || op == 0x6f;
+    const bool dest = op == 0xa4 || op == 0xa5 || op == 0xaa ||
+                      op == 0xab || op == 0x6c || op == 0x6d;
+    model.zGPR.data[0] = 0x76543210;
+    model.zGPR.data[1] = 0xabcd0000 | count;
+    model.zGPR.data[2] = 0x80;
+    model.zGPR.data[6] = 0x100;
+    model.zGPR.data[7] = 0x200;
+    model.zDF = df;
+    model.zZF = zf;
+    for (unsigned i = 0; i < 32; ++i) {
+      model.phys_mem.write8(0x200f0 + i, 0x40 + i);
+      model.phys_mem.write8(0x301f0 + i, 0xcc);
+    }
+    const u8 code[] = {0x66, 0xf2, op, 0xf4};
+    ASSERT_EQ(run_code(model, 0x5000, code + !wide, sizeof(code) - !wide), RUN_HALTED);
+    ASSERT_EQ((u64)model.zGPR.data[1], 0xabcd0000UL);
+    const int delta = (df ? -1 : 1) * int(size * count);
+    ASSERT_EQ((u64)model.zGPR.data[6], 0x100U + (source ? delta : 0));
+    ASSERT_EQ((u64)model.zGPR.data[7], 0x200U + (dest ? delta : 0));
+    ASSERT_EQ((u64)model.zZF, zf);
+    for (unsigned i = 0; i < count; ++i) {
+      const int off = (df ? -1 : 1) * int(i * size);
+      for (unsigned b = 0; b < size; ++b) {
+        unsigned expected = 0xcc;
+        if (op == 0xa4 || op == 0xa5) expected = model.phys_mem.read8(0x20100 + off + b);
+        if (op == 0xaa || op == 0xab) expected = (0x76543210U >> (b * 8)) & 0xff;
+        if (op == 0x6c || op == 0x6d) expected = b == 0 ? 0xff : 0;
+        ASSERT_EQ(model.phys_mem.read8(0x30200 + off + b), expected);
+      }
+    }
+    if (!count) ASSERT_EQ(model.phys_mem.read32(0x30200), 0xccccccccU);
+    if (count && (op == 0xac || op == 0xad)) {
+      const int off = (df ? -1 : 1) * int((count - 1) * size);
+      const u64 mask = (1ULL << (size * 8)) - 1;
+      ASSERT_EQ((u64)model.zGPR.data[0] & mask,
+                model.phys_mem.read32(0x20100 + off) & mask);
+    }
+    model.model_fini();
+  }
+}
+
 TEST(real_mode_mov_ax_hlt) {
   // Basic 16-bit real mode: mov ax, 0x1234; hlt
   x86::Model model;
@@ -2761,6 +2816,7 @@ int main() {
   run_test_seg_limit_ss_fault();
 
   printf("\nReal mode tests:\n");
+  run_test_f2_string_repetition();
   run_test_real_mode_mov_ax_hlt();
   run_test_legacy_opcode82_group1();
   run_test_xlat_segmented_table();
