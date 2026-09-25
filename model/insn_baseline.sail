@@ -1810,13 +1810,15 @@ function dispatch_2byte_gpr(op, pfx) = {
       match src {
         RM_mem(m) => {
           let (far_offset, selector) = read_far_pointer(os, m);
-          v(reg) = far_offset;
           let seg : segreg_idx = match op {
             178 => SS,
             180 => FS,
             181 => GS,
           };
-          load_data_segment_register(seg, selector)
+          load_data_segment_register(seg, selector);
+          // The destination width follows the operand size, not the qword
+          // used by read_far_pointer to represent the offset.
+          v(reg) = far_offset[os - 1 .. 0]
         },
         RM_reg(_) => raise_UD(),
       }

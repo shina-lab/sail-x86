@@ -1506,8 +1506,10 @@ function decode_execute() = {
             match src {
               RM_mem(m) => {
                 let (far_offset, selector) = read_far_pointer(os, m);
-                v(reg) = far_offset;
-                load_data_segment_register(ES, selector)
+                load_data_segment_register(ES, selector);
+                // SDM LDS/LES/LFS/LGS/LSS: commit only the operand-sized
+                // offset after validating the selector (r16 preserves high bits).
+                v(reg) = far_offset[os - 1 .. 0]
               },
               RM_reg(_) => raise_UD(),  // unreachable: mod=11 handled above
             }
@@ -1531,8 +1533,8 @@ function decode_execute() = {
             match src {
               RM_mem(m) => {
                 let (far_offset, selector) = read_far_pointer(os, m);
-                v(reg) = far_offset;
-                load_data_segment_register(DS, selector)
+                load_data_segment_register(DS, selector);
+                v(reg) = far_offset[os - 1 .. 0]
               },
               RM_reg(_) => raise_UD(),
             }

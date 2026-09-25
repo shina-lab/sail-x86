@@ -1126,6 +1126,66 @@ static void write_gdt_data_desc(x86::Model &model, u64 gdt_base, int index,
   model.phys_mem.write32(offset + 4, hi);
 }
 
+TEST(far_pointer_load_destination_width_and_faults) {
+  // SDM Vol.2A LDS/LES/LFS/LGS/LSS and Vol.1 3.4.1.1: the offset
+  // updates the operand-sized destination. In particular, r16 preserves
+  // the high bits that OS/2 keeps live across 16-bit LDS/LES calls.
+  struct Op { u8 opcode; unsigned segment; bool escaped; };
+  const Op ops[] = {{0xc4, x86::SEG_ES, false}, {0xc5, x86::SEG_DS, false},
+      {0xb2, x86::SEG_SS, true}, {0xb4, x86::SEG_FS, true},
+      {0xb5, x86::SEG_GS, true}};
+  for (const auto &op : ops) for (unsigned mode : {16, 32, 64}) {
+    if (mode == 64 && !op.escaped) continue;
+    for (unsigned width : {16, 32, 64}) {
+      if (width == 64 && mode != 64) continue;
+      for (bool bad_selector : {false, true}) {
+        x86::Model model;
+        if (mode == 64) init_model(model);
+        else {
+          init_model_16(model);
+          model.zcur_mode = x86::zProtectedMode;
+          model.zCR0 |= 1;
+          model.zSegCache.data[x86::SEG_CS].zseg_db = mode == 32;
+        }
+        model.zGDTR_base = 0x4000;
+        model.zGDTR_limit = 0x0f;
+        write_gdt_data_desc(model, 0x4000, 1, 0x9000, 0xffff, 0, true, false);
+        const u64 initial = 0x12345678abcd5e40ULL;
+        const u64 offset = 0x987654329abc3456ULL;
+        model.zGPR.data[7] = initial;
+        model.zGPR.data[3] = 0x6000;
+        model.phys_mem.write64(0x6000, offset);
+        model.phys_mem.write16(0x6000 + width / 8, bad_selector ? 0x18 : 8);
+        std::vector<u8> code;
+        if ((width == 16) != (mode == 16)) code.push_back(0x66);
+        if (mode == 16) code.push_back(0x67); // [EBX], independent of operand size
+        if (width == 64) code.push_back(0x48);
+        if (op.escaped) code.push_back(0x0f);
+        code.push_back(op.opcode);
+        code.push_back(0x3b); // destination DI/EDI/RDI, memory source [BX/EBX/RBX]
+        const auto old_segment = model.zSegReg.data[op.segment];
+        const auto old_base = model.zSegCache.data[op.segment].zseg_base;
+        const int result = run_code(model, 0x8000, code.data(), code.size(), 1);
+        if (bad_selector) {
+          ASSERT_EQ(result, RUN_FAULTED);
+          ASSERT_EQ((u64)model.zGPR.data[7], initial);
+          ASSERT_EQ(model.zSegReg.data[op.segment], old_segment);
+          ASSERT_EQ(model.zSegCache.data[op.segment].zseg_base, old_base);
+          ASSERT_EQ((u64)model.zRIP, 0x8000UL);
+        } else {
+          ASSERT_EQ(result, RUN_OK);
+          const u64 expected = width == 16 ? (initial & ~0xffffULL) | (offset & 0xffff)
+              : width == 32 ? u32(offset) : offset;
+          ASSERT_EQ((u64)model.zGPR.data[7], expected);
+          ASSERT_EQ((u64)model.zSegReg.data[op.segment], 8UL);
+          ASSERT_EQ((u64)model.zSegCache.data[op.segment].zseg_base, 0x9000UL);
+        }
+        model.model_fini();
+      }
+    }
+  }
+}
+
 static void init_call_gate(x86::Model &model, bool tss32, bool gate32,
                           unsigned params, unsigned target_dpl = 0) {
   init_model_16(model);
@@ -2649,6 +2709,7 @@ int main() {
   run_test_real_mode_far_call_9a();
 
   printf("\nProtected mode far transfer tests:\n");
+  run_test_far_pointer_load_destination_width_and_faults();
   run_test_legacy_call_gate_privilege_stacks();
   run_test_legacy_call_gate_same_privilege_and_faults();
   run_test_legacy_privilege_stack_descriptor_faults();

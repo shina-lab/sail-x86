@@ -316,3 +316,55 @@ invalid opcodes return `80h` immediately. This follows the Intel
 The regression fails before the fix and passes afterward, checking MSR,
 response, no IRQ and correct framing of following SPECIFY/SEEK commands.
 [Validation](os-boot/os2-test-version.txt).
+
+### os2-15-rebuilt
+
+Unmodified diskettes and fresh 512 MiB IDE disk, using the newly rebuilt
+emulator. Reproduces the same drive error; FDC command framing is the
+next confirmed defect. [PNG](os-boot/os2-15-rebuilt.png).
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 system-emu/run-boot.py --name os2-15-rebuilt --timeout 600 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-resume-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **111.246 s**. Instructions: **396,923,941**.
+Result: `exit`, exit `0`. Serial: two form feeds only.
+
+### os2-16-version
+
+FDC VERSION succeeds; CONFIGURE and LOCK are issued. Native floppy reads begin after Diskette 2. The drive error is replaced by TRAP 000e at 0160:fff53343, CR2=00005e58: EDI lost its high bits across a 16-bit LDS.
+[PNG](os-boot/os2-16-trap000e.png).
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 system-emu/run-boot.py --name os2-16-version --timeout 1200 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-resume-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **101.834 s**. Instructions: **322,851,633**.
+Result: `exit`, exit `0`. Serial: two form feeds only.
+
+### os2-17-trap-entry
+
+An event-triggered trace confirms the failing pointer came from 16-bit LDS in the kernel, followed by LEA EDX,[EDI+16h]. read_far_pointer returns a qword and the instruction writes all 64 bits, clearing EDI[31:16].
+[PNG](os-boot/os2-17-trap-entry.png).
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_EVENT_ADDRESS=0xfff53343 system-emu/run-boot.py --name os2-17-trap-entry --timeout 300 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-resume-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **116.645 s**. Instructions: **419,926,205**.
+Result: `exit`, exit `0`. Serial: two form feeds only.
+
+### Far-pointer load destination width
+
+`LDS`, `LES`, `LFS`, `LGS`, and `LSS` must commit only the operand-sized
+offset, after selector validation (Intel SDM rev.090 Vol.2A pp.3-540–3-542;
+Vol.1 §3.4.1.1). The common memory helper deliberately returns a qword for
+far-control transfers, but using it directly as the GPR write erased the
+high bits on 16-bit loads. Slice to the decoded operand width.
+The instruction regression covers all five opcodes in 16/32-bit code and
+LSS/LFS/LGS in 64-bit code, including all valid destination widths and
+invalid-selector restart with unchanged GPR/segment state (58 cases).
+
+The regression fails before the fix; all 15 sail-llvm system suites pass
+afterward (82 basic tests). [Validation](os-boot/os2-tests-far-load.txt).
+[Exception trace](os-boot/os2-far-load-trace.txt).
