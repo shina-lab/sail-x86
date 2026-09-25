@@ -8,6 +8,16 @@ are read only. Each full boot attempt has a 2,400-second wall limit.
 The initial session budget was about two hours; the resumed session has
 an approximately 90-minute budget.
 
+**Result:** alpine-06 reached the normal serial login, accepted `root`
+without a password, and ran `uname -a`, `id` and `mount`. It reports
+Alpine **3.24.2**, kernel **6.18.52-0-virt**, UID 0, a tmpfs live root,
+and the original CD mounted read-only. The kernel's squashfs/XZ modloop
+mount still fails; this is a nonfatal, unresolved issue, and the module
+tree is unavailable. See the final attempt and its diagnostics below.
+
+[Root-session PNG](os-boot/alpine-06-root.png) ·
+[Complete successful-attempt serial log](os-boot/alpine-06-unsigned.serial)
+
 ## Platform and reproduction
 
 The existing `build/llvm/sail-x86-system`, SeaBIOS `build/bios.bin`, and
@@ -151,7 +161,8 @@ was reached before interruption.
 The resumed session has an approximately 90-minute budget. Its first
 build was `system-emu/build-llvm.sh`, using the corrected sail-llvm
 checkout at `54a10b8` (polymorphic argument widths from extern parameter
-types). No official Sail compiler or CMake/CTest model build was used.
+types). Model generation and system-test builds use sail-llvm only;
+the separate compiler-test selection mistake is disclosed below.
 The ISO and firmware hashes still match those recorded above, and the
 CD-ROM device opens the ISO with `O_RDONLY`.
 
@@ -357,4 +368,107 @@ and seven IDE cases pass:
 SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 python3 docs/os-boot/alpine-console.py --name alpine-06-unsigned --mirror-vga --bootline '/boot/vmlinuz-virt initrd=/boot/initramfs-virt console=ttyS0,115200 modules=loop,squashfs,sd-mod,usb-storage noapic nolapic tsc=reliable nokaslr debug_init' -- build/llvm-unsigned/sail-x86-system -m 512 -ips 20 -b build/bios.bin -cdrom /home/ruiu/os-images/alpine-virt-3.24.2-x86_64.iso -boot d
 ```
 
-In progress. This is a fresh boot with normal APK signature verification.
+**Reached the normal serial login and logged in as root.** APK accepted
+the repository and installed all 28 live-system packages with normal
+signature verification. The guest executed `switch_root` into its tmpfs
+root and completed OpenRC startup. The first root login input was sent
+at **1,571.740 s** of emulator wall time (about **26 min 12 s**).
+
+The input controller was paused before login so the commands and the
+nonfatal modloop diagnostics could be collected manually. The exact
+inputs and UTC timestamps are retained. After the checks, the guest
+printed `ALPINE_BOOT_VERIFIED`; the runner captured the final framebuffer
+and CPU/RAM state and exited normally. The controller was resumed and
+also exited 0. Total attempt: **1,891.500 s / 6,255,700,650 instructions**,
+reason `expected output`, emulator exit **0**. This total includes the
+post-login diagnostics; no boot process was left running.
+
+Actual serial results:
+
+```text
+localhost login: root
+Welcome to Alpine!
+localhost:~# uname -a
+Linux localhost 6.18.52-0-virt #1-Alpine SMP PREEMPT_DYNAMIC 2026-09-15 05:37:48 x86_64 Linux
+localhost:~# id
+uid=0(root) gid=0(root) groups=0(root),0(root),1(bin),2(daemon),3(sys),4(adm),6(disk),10(wheel),11(floppy),20(dialout),26(tape),27(video)
+localhost:~# cat /etc/alpine-release
+3.24.2
+```
+
+`mount` completed successfully. Its complete output is in the serial
+log; the live root and CD entries are:
+
+```text
+/dev/sr0 on /media/cdrom type iso9660 (ro,relatime,nojoliet,check=s,map=n,blocksize=2048,iocharset=utf8)
+tmpfs on / type tmpfs (rw,relatime,mode=755,inode64)
+```
+
+The other mounts are sysfs, devtmpfs, proc, devpts, shared-memory tmpfs,
+`/run`, mqueue, securityfs, debugfs, tracefs, pstore and bpf. The final
+PNG is an actual emulator framebuffer: the guest's `uname -a`, UID/GID
+and `mount` output was also written to `/dev/tty1` with `tee`.
+
+[Serial](os-boot/alpine-06-unsigned.serial),
+[root-session PNG](os-boot/alpine-06-root.png),
+[runner VGA PNG](os-boot/alpine-06-unsigned.png),
+[runner record](os-boot/alpine-06-unsigned.json),
+[boot input](os-boot/alpine-06-unsigned.inputs.json),
+[manual inputs including root login](os-boot/alpine-06-unsigned.manual.jsonl),
+[input-controller pause record](os-boot/alpine-06-unsigned.controller-paused.json),
+[final CPU/device state](os-boot/alpine-06-unsigned-state.txt),
+[final hashes](os-boot/alpine-final-sha256.txt).
+The original ISO and firmware hashes are unchanged.
+
+#### Remaining nonfatal modloop failure
+
+OpenRC verifies the module image, but the kernel fails to mount it on
+`/.modloop`. It retries this service three times during startup, and
+module loading consequently reports that `/lib/modules` is unavailable.
+OpenRC also warns about clock skew with the emulated clock. Neither
+condition prevented the normal serial login or the requested commands.
+
+The kernel log identifies the same failing metadata block on each
+mount attempt:
+
+```text
+SQUASHFS error: xz decompression failed, data probably corrupt
+SQUASHFS error: Failed to read block 0x15dd684: -5
+SQUASHFS error: Unable to read metadata cache entry [15dd682]
+SQUASHFS error: Unable to read inode 0x22ec1d06
+```
+
+The read-only ISO's `modloop-virt` is a valid XZ-compressed squashfs 4.0
+image. Host `unsquashfs -s` and its complete directory listing succeed
+([superblock inspection](os-boot/alpine-modloop-host.txt)). The compressed
+metadata payload is **1,912 bytes at offset 22,926,980**; host Python
+`lzma.decompress` produces **7,462 bytes**. A guest `dd` of precisely
+that payload yields the same SHA-256, and guest BusyBox **`unxz -c`
+succeeds**, producing the same output SHA-256 as the host:
+
+```text
+compressed:   5899d8a00e428907fb5af45a1c90d8860ab3fbf0c7c72096376569bdc88f52ac
+decompressed: 08d4417c457e22982afd91668f61830270048b992960b13a6f689fbef2b755d9
+```
+
+[Diagnostic metadata](os-boot/alpine-modloop-diagnosis.json); exact guest
+commands and outputs are in the serial log. BusyBox has `unxz` and
+`xzcat`, but no `xz` applet; the initial `busybox xz` probe returned 127
+before the successful `unxz` test. No packages were added for diagnosis.
+
+This narrows the unresolved error to the kernel loop/squashfs/XZ mount
+path. It has **not** yet been isolated to an incorrect instruction or
+device operation, so no speculative model change was made. A clean
+modloop mount remains further work; the requested serial root login,
+`uname -a` and `mount` are verified independently of that failure.
+
+For another build of the working emulator, retain the isolated compiler
+selection:
+
+```sh
+SAIL_LLVM="$PWD/build/sail-llvm-unsigned" system-emu/build-llvm.sh build/llvm-unsigned
+```
+
+The default shared compiler checkout was not modified. The compiler
+commit and regression are preserved in the patch above for applying to
+another checkout.
