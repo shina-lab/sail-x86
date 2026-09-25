@@ -2,6 +2,13 @@
 
 ## Resumption after 11:58 JST on 2026-09-25
 
+**Outcome:** the Sail-installed Windows 95 completes file copy, enters
+VM86 after its first reboot, finishes native graphical Setup, and boots
+again to its graphical missing-mouse dialog. A usable desktop is **not
+yet verified**. Two SDM-backed model fixes have passing regressions;
+the final short boot stops in ScanDisk at a file-size repair prompt.
+The completed-Setup checkpoint and every stopped attempt are preserved.
+
 The worktree starts at `2447ad0`, with no uncommitted source changes.
 The four reset-related files named in the continuation request are already
 part of that commit. Review confirms that its A20 change is in the platform
@@ -332,6 +339,65 @@ clone has explicit normal-boot options under `[Options]` in MSDOS.SYS:
 BootGUI=1, BootMulti=1, Network=0, BootMenu=0, BootMenuDefault=1,
 BootWarn=0, BootDelay=0, Logo=0. AUTOEXEC contains the Windows path and
 `CD \`, without the old installer bootstrap command.
+
+### Native Setup completed and final restart
+
+The same ordinary Sail run finishes hardware detection, creates
+[Start menu shortcuts](os-boot/b-win95-native-shortcuts.png), and configures
+Help. The [Time Zone dialog](os-boot/b-win95-native-time-zone.png) is accepted
+with its default Pacific setting; the [Add Printer wizard](os-boot/b-win95-native-printer.png)
+is cancelled because no printer is attached. Setup then reports that it
+has [finished configuring Windows 95](os-boot/b-win95-native-configured.png),
+at **1,524,152,914 instructions**, and requests its final restart.
+[COM1](os-boot/b-win95-native-configured.serial).
+
+The disk is checkpointed as `win95-native-configured.img` before accepting
+the restart. The platform resets at **1,540,435,088 instructions**, then
+again after SeaBIOS's 1,571-instruction reset sequence. Windows returns
+to the graphical [missing-mouse notice](os-boot/b-win95-final-reboot-mouse.png).
+The runner deadline is extended briefly for this final reboot; it stops
+normally after **838.077 seconds**, with **113,168,849 instructions since
+the last reset**. This is a time-budget stop at a user-input dialog.
+[Focused state](os-boot/b-win95-final-reboot-mouse.txt),
+[COM1](os-boot/b-win95-final-reboot-mouse.serial). COM1 is empty throughout
+these graphical steps; screenshots are the progress evidence.
+
+All continuation disks and checkpoints remain private under
+`/tmp/sail-x86-os2-win95-20260925/`. No QEMU-written disk is used by any
+of these native configuration or final-restart attempts.
+
+A final **95.345-second / 443,865,346-instruction** boot of the same disk
+invokes ScanDisk after the timed shutdown. It reports a
+[size mismatch in `C:\KERNEL.SYS`](os-boot/b-win95-final-scandisk-kernel.png).
+Fix It is accepted. The [missing floppy notice](os-boot/b-win95-final-scandisk-floppy.png)
+is acknowledged, then Skip Undo is chosen because no floppy is attached
+and a separate disk checkpoint already exists. A further
+[`C:\AUTOEXEC.BAT` size mismatch](os-boot/b-win95-final-scandisk-autoexec.png)
+is also accepted for repair. The timeout stops at the next prompt,
+for [`C:\HIMEM.SYS`](os-boot/b-win95-final-scandisk-stop.png).
+[Focused final state](os-boot/b-win95-final-scandisk-stop.txt),
+[COM1](os-boot/b-win95-final-scandisk-stop.serial).
+The origin of these size mismatches is unclassified; no model change is
+made for them. This run does not establish a usable desktop.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
+  --name b-win95-desktop-final \
+  --out /tmp/sail-x86-os2-win95-20260925 --timeout 95 \
+  --send '33:\n' --send '45:\n' -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-expand-down-fixed.img -boot c
+```
+
+For continuation, `win95-native-configured.img` is the immutable checkpoint
+at Setup's final restart prompt; `win95-expand-down-fixed.img` is the
+latest disk, stopped at the ScanDisk prompt after two accepted repairs.
+The earlier `win95-copy-complete.img` and `win95-installed-cleanboot.img`
+remain available. All session-owned emulator/debugger processes are stopped.
+The final code validation remains **15 system suites, 86 basic cases,
+and 416 VM86 model/KVM comparisons passing**, built only with sail-llvm.
+No new sail-llvm bug is identified and no compiler workaround is added
+to the model. The earlier copy-memory overwrites remain unexplained.
 
 ## Resumption after 10:50 JST on 2026-09-25
 
