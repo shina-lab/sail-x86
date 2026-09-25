@@ -128,5 +128,50 @@ Rebuilt emulator SHA-256:
 SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 python3 docs/os-boot/alpine-console.py --name alpine-03-xadd --bootline '/boot/vmlinuz-virt initrd=/boot/initramfs-virt console=ttyS0,115200 modules=loop,squashfs,sd-mod,usb-storage noapic nolapic tsc=reliable nokaslr debug_init' -- build/llvm/sail-x86-system -m 512 -ips 20 -b build/bios.bin -cdrom /home/ruiu/os-images/alpine-virt-3.24.2-x86_64.iso -boot d
 ```
 
+Interrupted when the preceding session reached its usage limit at
+10:50 JST. Both the input controller and emulator were gone when work
+resumed at 10:52 JST; no final runner JSON was written. The last serial
+output records PID 768 / SEQNUM 766 being reaped, after **96** completed
+`mdev` children, so the corrected XADD had passed the earlier 31-child
+stall. The last available CPU/RAM snapshot is earlier, at **1,773,074,976
+instructions**; it is not a final instruction count. No login or shell
+was reached before interruption.
+
+[Serial](os-boot/alpine-03-xadd.serial),
+[VGA PNG](os-boot/alpine-03-xadd.png),
+[last captured state](os-boot/alpine-03-xadd-state.txt),
+[inputs](os-boot/alpine-03-xadd.inputs.json),
+[controller note](os-boot/alpine-03-xadd.manual.json),
+[progress observation](os-boot/alpine-03-xadd.observations.jsonl).
+
+## Resumed session: 2026-09-25, 10:52 JST
+
+The resumed session has an approximately 90-minute budget. Its first
+build was `system-emu/build-llvm.sh`, using the corrected sail-llvm
+checkout at `54a10b8` (polymorphic argument widths from extern parameter
+types). No official Sail compiler or CMake/CTest model build was used.
+The ISO and firmware hashes still match those recorded above, and the
+CD-ROM device opens the ISO with `O_RDONLY`.
+
+[Build log](os-boot/alpine-resume-build.txt). SHA-256:
+
+```text
+67215b2f00512e38b9a1232165d86ef4eff27153088cba382bf511738686984f  ~/sail-llvm/build/sailc
+bf354a220fbfba4c6847c71a59734b60482f65ce865f41f8058de5f9ce5dc245  build/llvm/sail-x86-system
+```
+
+`python3 docs/os-boot/build-alpine-tests.py` rebuilt and passed all
+**78 basic, 19 paging, and 26 exception cases**, including the XADD
+restart regression for all four operand widths:
+[basic](os-boot/alpine-resume-basic.txt),
+[paging](os-boot/alpine-resume-paging.txt),
+[exceptions](os-boot/alpine-resume-exceptions.txt).
+
+### alpine-04-resume: fresh boot after sail-llvm rebuild
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 python3 docs/os-boot/alpine-console.py --name alpine-04-resume --bootline '/boot/vmlinuz-virt initrd=/boot/initramfs-virt console=ttyS0,115200 modules=loop,squashfs,sd-mod,usb-storage noapic nolapic tsc=reliable nokaslr debug_init' -- build/llvm/sail-x86-system -m 512 -ips 20 -b build/bios.bin -cdrom /home/ruiu/os-images/alpine-virt-3.24.2-x86_64.iso -boot d
+```
+
 In progress with a fresh 2,400-second limit. The guest ISO, firmware,
-kernel command line, RAM size and virtual CPU speed are unchanged.
+kernel command line, RAM size and virtual CPU speed match alpine-03.

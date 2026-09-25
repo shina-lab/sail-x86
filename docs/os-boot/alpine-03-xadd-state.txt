@@ -1,0 +1,94 @@
+[1773074976] RIP=ffffffff81e37a6d mode=L
+  RAX=0000000000000000 RBX=0000000000140cca RCX=0000000000000000 RDX=ffd40000001b1780
+  RSP=ffa0000000067790 RBP=0000000000018004 RSI=0000000000000000 RDI=ff11000006c5f000
+  R8 =ffd40000001b1780 R9 =0000000000000801 R10=0000000000000001 R11=ffd40000001b17c0
+  R12=ff1100001f697340 R13=ffa00000000678c0 R14=ff1100001f697340 R15=ff1100001f697340
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0010 DS=0000 ES=0000 SS=0000 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000080050033 CR2=ff11000003400000 CR3=0000000002a36000 CR4=00000000000416b0 EFER=0000000000000d01
+  CPL=0 GDTR=fffffe0000001000:007f IDTR=fffffe0000000000:0fff LDTR=0000
+  SEG[0] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[1] base=0000000000000000 limit=ffffffff D/B=0 DPL=0 type=b
+  SEG[2] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[3] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=ff1100009b757000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=88746734571 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=f8 ISR=00  slave IRR=00 IMR=fd ISR=00  running
+  IOAPIC id=0 select=01
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=4 count=596 reload=596 gate=1 output=1
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=00 A=26 B=02 C=50 D=80 time=12:01:28 ticks=2908052 second=88
+  IDE channel 1f0 selected=1 IRQ=0 pending=0
+  IDE 1f0.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a0 at=11892092071 ns status=40 error=00 features=00 count=03 lba=080000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=2048/2048 block_end=2048 limit=2048 write_lba=0 packet=1 cdb_pos=12 CDB=28 00 00 00 30 e5 00 00 01 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=080000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)                                
+Booting from DVD/CD...                                                          
+                                                                                
+ISOLINUX 6.04 6.04-pre1 ETCD Copyright (C) 1994-2015 H. Peter Anvin et al       
+boot: /boot/vmlinuz-virt initrd=/boot/initramfs-virt console=ttyS0,115200 module
+s=loop                                                                          
+,squashfs,sd-mod,usb-storage noapic nolapic tsc=reliable nokaslr debug_init     
+Loading /boot/vmlinuz-virt... ok                                                
+Loading /boot/initramfs-virt...ok                                               
+                                                                                
+                                                                                
+KASLR disabled: 'nokaslr' on cmdline.                                           
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
