@@ -104,6 +104,23 @@ SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
   -hda /tmp/sail-x86-os2-win95-20260925/win95-fresh4.img -boot c
 ```
 
+### File copy completed
+
+The traced Safe Recovery retry passes the previous stop
+([93% screen](os-boot/b-win95-write-trace-copy93.png)) and reaches
+[Finishing Setup](os-boot/b-win95-copy-complete.png), ready to restart
+Windows 95. [COM1](os-boot/b-win95-copy-complete.serial). A state capture
+at this page records **12,062,515,715 instructions**. The watched byte
+never changes during the copy, so this run does not reproduce the prior
+overwrite. No model or compiler change was made to obtain this result.
+
+The emulator is briefly paused to preserve `win95-copy-complete.img`
+outside the repository. Its installed `WINDOWS/SYSTEM/MSHTML.DLL` is
+847,632 bytes and matches the original cabinet extraction byte for byte
+(SHA-256 `186f8acc9e4d31cc2f31809b8a423ed34f51038daed0c0122091e2d1f800f488`).
+The hardware watchpoint is detached before the requested reboot so normal
+firmware RAM initialization is not confused with the earlier overwrite.
+
 ## Resumption after 10:50 JST on 2026-09-25
 
 This run starts from `bd5d0b3` and uses only sail-llvm compiler `54a10b8`.
