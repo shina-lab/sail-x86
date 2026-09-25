@@ -1541,6 +1541,94 @@ TEST(lldt_descriptor_validation) {
   }
 }
 
+TEST(far_pointer_load_16_preserves_upper_register) {
+  // SDM Vol.2A LDS/LES/LFS/LGS/LSS: m16:16 loads only r16. Windows 95
+  // executes LES BP in VM86 with a live pointer in EBP's upper half.
+  const u8 opcodes[5][2] = {{0xc4, 0}, {0xc5, 0},
+                           {0x0f, 0xb2}, {0x0f, 0xb4}, {0x0f, 0xb5}};
+  const int segments[] = {x86::SEG_ES, x86::SEG_DS, x86::SEG_SS,
+                          x86::SEG_FS, x86::SEG_GS};
+  for (unsigned mode = 0; mode < 3; ++mode) {
+    for (unsigned op = 0; op < 5; ++op) {
+      x86::Model model;
+      init_model_16(model);
+      if (mode != 0) {
+        model.zCR0 |= 1;
+        model.zcur_mode = mode == 1 ? x86::zProtectedMode : x86::zVirtual8086Mode;
+        model.zcur_cpl = mode == 2 ? 3 : 0;
+        model.zGDTR_base = 0x1000;
+        model.zGDTR_limit = 0x17;
+        model.phys_mem.write64(0x1010, 0x000092000000ffffULL);
+        if (mode == 1) model.zSegReg.data[x86::SEG_DS] = 0x10;
+        if (mode == 2)
+          for (int seg = 0; seg < 6; ++seg) model.zSegCache.data[seg].zseg_dpl = 3;
+      }
+      model.zGPR.data[3] = 0x800;
+      model.zGPR.data[5] = 0xc13c0900;
+      model.phys_mem.write16(0x800, 0x13c0);
+      model.phys_mem.write16(0x802, 0x10);
+      u8 code[] = {opcodes[op][0], opcodes[op][1], 0x2f}; // r16=BP, [BX]
+      if (op < 2) { code[1] = 0x2f; }
+      model.phys_mem.write_bytes(0x200, code, op < 2 ? 2 : 3);
+      model.zRIP = 0x200;
+      model.zstep(UNIT);
+      ASSERT_EQ(model.zfault_pending, false);
+      ASSERT_EQ((u64)model.zGPR.data[5], 0xc13c13c0UL);
+      ASSERT_EQ((u64)model.zSegReg.data[segments[op]], 0x10UL);
+      model.model_fini();
+    }
+  }
+}
+
+TEST(far_pointer_load_32_zero_extends_register) {
+  for (u8 opcode : {u8(0xb4), u8(0xb5)}) {
+    x86::Model model;
+    init_model(model);
+    model.zGPR.data[3] = 0x80000;
+    model.zGPR.data[5] = 0xaabbccddc13c0900ULL;
+    model.phys_mem.write32(0x80000, 0x123413c0);
+    model.phys_mem.write16(0x80004, 0); // null FS/GS selector is permitted
+    const u8 code[] = {0x0f, opcode, 0x2b}; // LFS/LGS EBP,[RBX]
+    model.phys_mem.write_bytes(0x100000, code, sizeof(code));
+    model.zRIP = 0x100000;
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ((u64)model.zGPR.data[5], 0x123413c0UL);
+    model.model_fini();
+  }
+}
+
+TEST(far_pointer_load_fault_preserves_destination) {
+  // The SDM performs segment checks before assigning DEST := Offset(SRC).
+  const u8 opcodes[5][2] = {{0xc4, 0}, {0xc5, 0},
+                           {0x0f, 0xb2}, {0x0f, 0xb4}, {0x0f, 0xb5}};
+  for (unsigned op = 0; op < 5; ++op) {
+    x86::Model model;
+    init_model_16(model);
+    model.zCR0 |= 1;
+    model.zcur_mode = x86::zProtectedMode;
+    model.zGDTR_base = 0x1000;
+    model.zGDTR_limit = 0x17;
+    model.zSegReg.data[x86::SEG_DS] = 0x10;
+    model.phys_mem.write64(0x1010, 0x000092000000ffffULL);
+    model.zGPR.data[3] = 0x800;
+    model.zGPR.data[5] = 0xc13c7f70;
+    model.phys_mem.write16(0x800, 0x13c0);
+    model.phys_mem.write16(0x802, 0x18); // beyond the GDT limit
+    u8 code[] = {opcodes[op][0], opcodes[op][1], 0x2f};
+    if (op < 2) { code[1] = 0x2f; }
+    model.phys_mem.write_bytes(0x200, code, op < 2 ? 2 : 3);
+    model.zRIP = 0x200;
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, true);
+    ASSERT_EQ((u64)model.zfault_vector, 13UL);
+    ASSERT_EQ((u64)model.zfault_error_code, 0x18UL);
+    ASSERT_EQ((u64)model.zGPR.data[5], 0xc13c7f70UL);
+    ASSERT_EQ((u64)model.zRIP, 0x200UL);
+    model.model_fini();
+  }
+}
+
 TEST(protected_mode_far_jmp_ea) {
   // Far JMP (EA) in protected mode:
   // Set up GDT with a flat 32-bit code segment at selector 0x08.
@@ -2766,6 +2854,9 @@ int main() {
   run_test_real_mode_far_call_9a();
 
   printf("\nProtected mode far transfer tests:\n");
+  run_test_far_pointer_load_16_preserves_upper_register();
+  run_test_far_pointer_load_32_zero_extends_register();
+  run_test_far_pointer_load_fault_preserves_destination();
   run_test_legacy_call_gate_privilege_stacks();
   run_test_legacy_call_gate_same_privilege_and_faults();
   run_test_legacy_privilege_stack_descriptor_faults();

@@ -236,6 +236,43 @@ has AX=0. A deliberate 3,000-instruction window stops at
 [COM1](os-boot/b-win95-vm86-call-trace-stop.serial). Investigation is tracing
 that register value backward; no model or compiler fix is inferred yet.
 
+### SDM fix: operand width and fault ordering of far-pointer loads
+
+Backward tracing isolates `LES BP,[ES:DI+45h]` at virtual-8086
+`ff33:cde6`: EBP changes from `c13c0900` to `000013c0`, losing the upper
+half. [Focused evidence](os-boot/b-win95-les-bp-evidence.txt).
+`read_far_pointer` returns a zero-extended qword; all five load-far-pointer
+instructions incorrectly assign that qword directly to the destination GPR.
+This is a model error, not a sail-llvm bug. No compiler workaround is added.
+
+The fix follows SDM rev.090 Vol.2A, LDS/LES/LFS/LGS/LSS, pp.3-540–3-542:
+write the offset using the instruction's operand width, after segment
+validation succeeds. LES/LDS/LSS/LFS/LGS therefore preserve the upper bits
+for a 16-bit destination, retain the 32-bit zero-extension behavior, and
+leave the GPR unchanged when the selector faults. The new regressions
+exercise all five instructions in real, protected and virtual-8086 modes,
+32-bit destinations in long mode, and fault rollback. The width and fault
+regressions both fail against the old LLVM model.
+
+The rebuilt LLVM model passes **84 basic cases, all 15 system suites, and
+416 model/KVM VM86 comparisons**.
+[Validation](os-boot/b-win95-far-load-validation.txt). The ordinary fast
+emulator is rebuilt with `system-emu/build-llvm.sh`; a private clone of
+the Sail-installed disk is booted again as `b-win95-far-load-fixed`.
+
+The additional bounded diagnostic stops are preserved below. They observe
+CPU/memory state only; none edits guest registers, memory or model semantics.
+
+| Attempt | Seconds | Instructions | Artifacts |
+| --- | ---: | ---: | --- |
+| `b-win95-bp-trace` | 10.005 | 38,163,391 | [PNG](os-boot/b-win95-bp-trace-stop.png), [state](os-boot/b-win95-bp-trace-stop.txt), [COM1](os-boot/b-win95-bp-trace-stop.serial) |
+| `b-win95-bp-all-trace` | 11.404 | 38,163,391 | [PNG](os-boot/b-win95-bp-all-trace-stop.png), [state](os-boot/b-win95-bp-all-trace-stop.txt), [COM1](os-boot/b-win95-bp-all-trace-stop.serial) |
+| `b-win95-bp-stack-trace` | 6.803 | 27,880,992 | [PNG](os-boot/b-win95-bp-stack-trace-stop.png), [state](os-boot/b-win95-bp-stack-trace-stop.txt), [COM1](os-boot/b-win95-bp-stack-trace-stop.serial) |
+| `b-win95-nested-trace` | 6.403 | 27,880,992 | [PNG](os-boot/b-win95-nested-trace-stop.png), [state](os-boot/b-win95-nested-trace-stop.txt), [COM1](os-boot/b-win95-nested-trace-stop.serial) |
+| `b-win95-bp-vm-trace` | 6.403 | 27,880,992 | [PNG](os-boot/b-win95-bp-vm-trace-stop.png), [state](os-boot/b-win95-bp-vm-trace-stop.txt), [COM1](os-boot/b-win95-bp-vm-trace-stop.serial) |
+| `b-win95-bp-any-trace` | 6.404 | 27,880,992 | [PNG](os-boot/b-win95-bp-any-trace-stop.png), [state](os-boot/b-win95-bp-any-trace-stop.txt), [COM1](os-boot/b-win95-bp-any-trace-stop.serial) |
+| `b-win95-bp-lost-trace` | 6.203 | 27,880,992 | [PNG](os-boot/b-win95-bp-lost-trace-stop.png), [state](os-boot/b-win95-bp-lost-trace-stop.txt), [COM1](os-boot/b-win95-bp-lost-trace-stop.serial) |
+
 ## Resumption after 10:50 JST on 2026-09-25
 
 This run starts from `bd5d0b3` and uses only sail-llvm compiler `54a10b8`.

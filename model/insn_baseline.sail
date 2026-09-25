@@ -1810,13 +1810,15 @@ function dispatch_2byte_gpr(op, pfx) = {
       match src {
         RM_mem(m) => {
           let (far_offset, selector) = read_far_pointer(os, m);
-          v(reg) = far_offset;
           let seg : segreg_idx = match op {
             178 => SS,
             180 => FS,
             181 => GS,
           };
-          load_data_segment_register(seg, selector)
+          // The GPR changes only after segment validation succeeds, and
+          // a 16-bit destination preserves the rest of the register.
+          load_data_segment_register(seg, selector);
+          v(reg) = far_offset[os - 1 .. 0]
         },
         RM_reg(_) => raise_UD(),
       }
