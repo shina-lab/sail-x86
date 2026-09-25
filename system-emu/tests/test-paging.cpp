@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 static void init_model(x86::Model &model, u64 ram_size = 16 * 1024 * 1024) {
   model.model_init();
@@ -756,6 +757,59 @@ TEST(cross_page_data_faults) {
   }
 }
 
+TEST(xadd_write_fault_restart) {
+  // musl's fork locks live on copy-on-write pages. A faulting XADD must
+  // preserve its source so the kernel can repair the PTE and retry it.
+  // Intel SDM rev.090 Vol.3A 7.5 (fault restart) and Vol.2D XADD.
+  for (unsigned width : {32U, 8U, 16U, 64U}) {
+    x86::Model model;
+    init_model(model);
+    setup_4kb_pages(model.phys_mem, 0x10000, 0x20000,
+                    0x100000, 0x100000, 3);
+    model.zCR3 = 0x10000;
+    const u64 pte = 0x22000 + 0x101 * 8;
+    model.phys_mem.write64(pte, 0x300001); // Present, read-only.
+    const u64 mask = ~0ULL >> (64 - width);
+    const u64 old_memory = (1ULL << (width - 1)) + 1;
+    const u64 addend = (1ULL << (width - 1)) - 1;
+    const u64 original_rax = (0x123456789ABCDEF0ULL & ~mask) | addend;
+    model.phys_mem.write64(0x300008, old_memory);
+    model.zGPR.data[0] = original_rax;
+    model.zGPR.data[7] = 0x101008;
+    model.zCF = 0; model.zPF = 0; model.zAF = 0;
+    model.zZF = 0; model.zSF = 1; model.zOF = 1;
+    // LOCK XADD [RDI], AL/AX/EAX/RAX.
+    std::vector<u8> code = {0xF0};
+    if (width == 16) code.push_back(0x66);
+    if (width == 64) code.push_back(0x48);
+    code.insert(code.end(), {0x0F, u8(width == 8 ? 0xC0 : 0xC1), 0x07});
+    model.phys_mem.write_bytes(0x100000, code.data(), code.size());
+    model.zRIP = 0x100000;
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, true);
+    ASSERT_EQ(model.zfault_vector, 14);
+    ASSERT_EQ(model.zfault_error_code, 3);
+    ASSERT_EQ(model.zCR2, 0x101008UL);
+    ASSERT_EQ(model.zRIP, 0x100000UL);
+    ASSERT_EQ(model.zGPR.data[0], original_rax);
+    ASSERT_EQ(model.phys_mem.read64(0x300008), old_memory);
+    ASSERT_EQ(model.zCF, 0); ASSERT_EQ(model.zPF, 0); ASSERT_EQ(model.zAF, 0);
+    ASSERT_EQ(model.zZF, 0); ASSERT_EQ(model.zSF, 1); ASSERT_EQ(model.zOF, 1);
+    // Repair the copy-on-write protection and restart the same instruction.
+    model.phys_mem.write64(pte, 0x300003);
+    model.z__tlb_flush(UNIT);
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ(model.zRIP, 0x100000UL + code.size());
+    const u64 expected_rax = width == 32 ? old_memory :
+                            (original_rax & ~mask) | old_memory;
+    ASSERT_EQ(model.zGPR.data[0], expected_rax);
+    ASSERT_EQ(model.phys_mem.read64(0x300008), 0UL);
+    ASSERT_EQ(model.zCF, 1); ASSERT_EQ(model.zZF, 1); ASSERT_EQ(model.zOF, 0);
+    model.model_fini();
+  }
+}
+
 int main() {
   printf("Paging tests:\n");
 
@@ -768,6 +822,7 @@ int main() {
   run_test_store_through_paging();
   run_test_cross_page_instruction_fetch_fault();
   run_test_cross_page_data_faults();
+  run_test_xadd_write_fault_restart();
 
   // 5-level paging (LA57) tests
   run_test_la57_identity_map_4kb();

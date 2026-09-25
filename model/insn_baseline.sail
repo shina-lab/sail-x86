@@ -2041,9 +2041,11 @@ function dispatch_2byte_gpr(op, pfx) = {
           let mem_val : byte = v(m);
           let reg_val : byte = v(reg);
           let sum : byte = mem_val + reg_val;
-          update_flags_add(sum, mem_val, reg_val);
+          // A write fault must leave SRC unchanged for restart (SDM
+          // Vol.3A 7.5; Vol.2D XADD). Commit memory before register state.
+          v(m) = sum;
           v(reg) = mem_val;
-          v(m) = sum
+          update_flags_add(sum, mem_val, reg_val)
         },
       }
     },
@@ -2059,9 +2061,9 @@ function dispatch_2byte_gpr(op, pfx) = {
           let mem_val = v(os, dest);
           let reg_val = v(os, reg);
           let sum = mem_val + reg_val;
-          update_flags_add(sum, mem_val, reg_val);
+          v(os, dest) = sum;
           v(reg) = mem_val;
-          v(os, dest) = sum
+          update_flags_add(sum, mem_val, reg_val)
         },
       }
     },
