@@ -308,6 +308,31 @@ suites, 86 basic cases, and 416 VM86 model/KVM comparisons pass**.
 The next ordinary-emulator attempt is `b-win95-expand-down-fixed`, again
 using a private clone of the Sail-installed disk.
 
+### Native graphical configuration reached
+
+With both SDM fixes, `b-win95-expand-down-fixed` reaches the installed
+Windows graphical environment and its [missing-mouse notice](os-boot/b-win95-native-graphical-configuration.png)
+at **104,321,311 instructions**. Enter acknowledges it. Setup then proceeds
+to [hardware and Plug and Play configuration](os-boot/b-win95-native-hardware-configuration.png)
+at **189,348,033 instructions**.
+[COM1](os-boot/b-win95-native-hardware-configuration.serial). These captures
+come from the ordinary LLVM fast emulator running the Sail-installed disk;
+no QEMU-created installation state is used in this continuation.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
+  --name b-win95-expand-down-fixed \
+  --out /tmp/sail-x86-os2-win95-20260925 --timeout 760 -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-expand-down-fixed.img -boot c
+```
+
+The source is the stopped `win95-installed-cleanboot.img`. Its private
+clone has explicit normal-boot options under `[Options]` in MSDOS.SYS:
+BootGUI=1, BootMulti=1, Network=0, BootMenu=0, BootMenuDefault=1,
+BootWarn=0, BootDelay=0, Logo=0. AUTOEXEC contains the Windows path and
+`CD \`, without the old installer bootstrap command.
+
 ## Resumption after 10:50 JST on 2026-09-25
 
 This run starts from `bd5d0b3` and uses only sail-llvm compiler `54a10b8`.
