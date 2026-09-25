@@ -1,0 +1,30 @@
+Windows 95 desktop continuation validation, 2026-09-25.
+
+Start commit: a9cfc8d
+Compiler: sail-llvm 1a102f2, no official Sail used.
+sailc SHA-256: f565714062c03e23dc95844c932bcd35f7b9c691b3427894a41fd136178b0b30
+Configured checkpoint SHA-256: 4b58831823b12383551fe16e3ce25fcdb7e9680ea9c89d2bacf2962b33b2d6e3
+
+sailc: compiling model ...
+clang++: linking emulator ...
+built /home/ruiu/sail-x86-os2/build/llvm/sail-x86-system
+
+All system suites freshly rebuilt and run through build/os-boot/build-tests.py:
+a20 0
+apic 0
+apic_cpu 0
+basic 0
+exceptions 0
+fw_cfg 0
+ide 0
+keyboard 0
+paging 0
+reset 0
+rtc 0
+smm 0
+vbe 0
+vga 0
+vmx 0
+
+Basic: 86 passed, 0 failed
+Freshly relinked VM86/KVM comparison: vm86: 416 passed, 0 failed

@@ -1,5 +1,46 @@
 # Operating-system boots: worktree B
 
+## Resumption after 14:34 JST on 2026-09-25
+
+The worktree resumes clean at `a9cfc8d`. The fast emulator is rebuilt first
+with `system-emu/build-llvm.sh`, using **sail-llvm `1a102f2` only**. All
+15 freshly rebuilt C++ system suites pass, including 86 basic cases;
+the freshly linked VM86 harness passes all 416 model/KVM comparisons.
+[Validation and compiler/checkpoint hashes](os-boot/b-win95-desktop-validation.txt).
+No official Sail compiler or CMake/CTest build is used.
+
+The immutable `win95-native-configured.img` checkpoint is copied to
+`win95-desktop-resume.img`, under `/tmp/sail-x86-os2-win95-20260925/`.
+The first attempt accepts ScanDisk's [KERNEL.SYS](os-boot/b-win95-resumed-scandisk-kernel.png),
+AUTOEXEC.BAT, [HIMEM.SYS](os-boot/b-win95-resumed-scandisk-himem.png),
+FDCONFIG.SYS and installation-source size repairs through keyboard input.
+Tab, Tab, Enter selects Skip Undo; the original disk checkpoint is retained.
+Further source-file size prompts are accepted by a bounded keyboard helper
+that acts only on the same recognized ScanDisk message.
+
+Inspection finds suspicious repair results: ordinary file sizes become
+whole-cluster lengths, and the WIN95 directory size becomes `ffffffff`.
+Further repairs are stopped. A host read-only `fsck.fat -n` of the original
+partition reports only the empty volume label and dirty bit, with no file-size
+errors. An isolated QEMU TCG copy reaches the graphical missing-mouse notice
+without changing those original file sizes. This suggests an execution
+discrepancy, but does not yet identify a model or compiler defect.
+[Comparison](os-boot/b-win95-scandisk-comparison.txt).
+
+The first attempt stops normally after **328.131 seconds / 1,483,292,672
+instructions**. Its [final ScanDisk screen](os-boot/b-win95-resumed-scandisk-stop.png)
+and [COM1](os-boot/b-win95-resumed-scandisk-stop.serial) are retained, along
+with `win95-desktop-scan-partial.img` and raw diagnostics outside the repository.
+The second attempt, `b-win95-scandisk-diagnostic`, uses a fresh copy of the
+original configured checkpoint. It chooses Don't Fix It for KERNEL.SYS,
+then [cancels ScanDisk with Esc](os-boot/b-win95-resumed-scandisk-cancel.png)
+and presses Enter to continue Windows startup. No disk metadata is edited
+on the host to bypass this prompt. No model change is made at this point.
+
+Windows then reaches the [missing-mouse dialog](os-boot/b-win95-resumed-mouse.png).
+Tab, Space, Enter selects Do not show this message in the future and accepts
+the notice, using only the emulator's PS/2 keyboard input.
+
 ## Resumption after 11:58 JST on 2026-09-25
 
 **Outcome:** the Sail-installed Windows 95 completes file copy, enters

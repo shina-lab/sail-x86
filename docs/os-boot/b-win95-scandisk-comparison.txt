@@ -1,0 +1,25 @@
+Original configured checkpoint root-directory file sizes:
+KERNEL.SYS 46485
+AUTOEXEC.BAT 66
+HIMEM.SYS 33191
+FDCONFIG.SYS 88
+WIN95 (directory) 0
+
+After accepting ScanDisk repairs on the first resumed Sail copy:
+KERNEL.SYS 49152
+AUTOEXEC.BAT 8192
+HIMEM.SYS 40960
+FDCONFIG.SYS 8192
+WIN95 (directory) 4294967295
+
+QEMU TCG control of original configured checkpoint reached graphical missing-mouse notice with the original file sizes retained. QEMU disk is isolated.
+
+Host read-only fsck.fat -n of extracted original partition:
+fsck.fat 4.2 (2021-01-31)
+Label '' stored in boot sector is not valid.
+  Auto-removing label from boot sector.
+Dirty bit is set. Fs was not properly unmounted and some data may be corrupt.
+ Automatically removing dirty bit.
+
+Leaving filesystem unchanged.
+/tmp/sail-x86-os2-win95-20260925/win95-configured-partition.img: 3032 files, 30160/65370 clusters
