@@ -72,6 +72,38 @@ host debugger core outside the repository. A new private copy,
 model and a diagnostic-only platform logger for writes covering physical
 `0x6e2b`, including CS:IP, segment bases, string registers and A20 state.
 
+Both follow-up attempts pass their wizards and start file copy:
+[traced recovery](os-boot/b-win95-write-trace-ready.png),
+[fresh installation](os-boot/b-win95-fresh4-ready.png). The fresh run
+uses a private copy of `win95-clean-base.img` and explicitly selects
+**Do not use Safe Recovery**. Both use Compact setup, `Sail Test`, an
+empty company field and default components; the fresh run disables
+optional CD-ROM, network and sound detection.
+
+Host hardware watchpoints record changes to RAM byte `0x6e2b` and save
+the first write's debugger core privately. They do not edit guest state.
+The stopped temporary Setup directory is also compared with host-extracted
+PRECOPY files: 155 files match exactly. Executable/DLL differences are
+limited to the NE expected-version field (header offsets `0x3e–0x3f`);
+four INF files differ. This comparison does not establish the overwrite's
+cause.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_PHYS_WRITE=0x6e2b \
+  python3 system-emu/run-boot.py --name b-win95-write-trace \
+  --out /tmp/sail-x86-os2-win95-20260925 --timeout 6100 \
+  --send '8:\n' --send '40:\n' -- \
+  /tmp/sail-x86-os2-win95-20260925/write-trace-sim \
+  -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-write-trace.img -boot c
+
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
+  --name b-win95-fresh4 --out /tmp/sail-x86-os2-win95-20260925 \
+  --timeout 5200 --send '40:\n' -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-fresh4.img -boot c
+```
+
 ## Resumption after 10:50 JST on 2026-09-25
 
 This run starts from `bd5d0b3` and uses only sail-llvm compiler `54a10b8`.
