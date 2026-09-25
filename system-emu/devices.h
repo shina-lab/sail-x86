@@ -1366,7 +1366,8 @@ private:
 // 0x170-0x177/0x376 (IRQ 15). Each channel can have a master and a slave.
 // An absent device reads as zero so drive probes skip it.
 //
-// Hard disk: READ/WRITE SECTORS, IDENTIFY DEVICE, INITIALIZE DEVICE
+// Hard disk: READ/WRITE SECTORS and MULTIPLE, SET MULTIPLE MODE,
+// IDENTIFY DEVICE, INITIALIZE DEVICE
 // PARAMETERS, SET FEATURES, FLUSH CACHE.  CD-ROM: IDENTIFY PACKET DEVICE,
 // DEVICE RESET and PACKET with the SCSI/MMC commands a BIOS or an OS needs
 // to boot from and mount a disc: TEST UNIT READY, REQUEST SENSE, INQUIRY,
@@ -1565,6 +1566,9 @@ private:
   u8 last_command = 0;
   u64 command_time = 0;
   bool nien = false;
+  // IDENTIFY word 47 advertises a maximum MULTIPLE block of one sector.
+  u8 multiple_count = 0;
+  bool keep_settings_on_reset = false;
 
   // Transfer state
   Xfer xfer = XFER_NONE;
@@ -1598,7 +1602,7 @@ private:
     image_size = st.st_size;
     sector_size = ssize;
     dev = k;
-    reset_device();
+    reset_device(true);
     return true;
   }
 
@@ -1621,7 +1625,9 @@ private:
     drive_head = 0x00;
   }
 
-  void reset_device() {
+  void reset_device(bool power_on = false) {
+    if (power_on) keep_settings_on_reset = false;
+    if (!keep_settings_on_reset) multiple_count = 0;
     xfer = XFER_NONE;
     buf.clear();
     buf_pos = block_end = 0;
@@ -1710,6 +1716,9 @@ private:
       status = 0x40;
       raise_irq();
       break;
+    case 0xC4:              // READ MULTIPLE (one sector per DRQ block)
+      if (!multiple_count) { abort_command(); break; }
+      [[fallthrough]];
     case 0x20: case 0x21: {  // READ SECTORS
       if (dev != DISK) { abort_command(); break; }
       u32 lba = get_lba();
@@ -1721,6 +1730,9 @@ private:
       begin_data_in(512);
       break;
     }
+    case 0xC5:              // WRITE MULTIPLE (one sector per DRQ block)
+      if (!multiple_count) { abort_command(); break; }
+      [[fallthrough]];
     case 0x30: case 0x31: {  // WRITE SECTORS
       if (dev != DISK) { abort_command(); break; }
       current_lba = get_lba();
@@ -1766,7 +1778,20 @@ private:
     case 0x91:  // INITIALIZE DEVICE PARAMETERS
     case 0xE7:  // FLUSH CACHE
     case 0xEA:  // FLUSH CACHE EXT
+      complete_ok();
+      break;
+    case 0xC6:  // SET MULTIPLE MODE (ATA-2 section 8.24)
+      if (dev != DISK) { abort_command(); break; }
+      multiple_count = 0; // unsupported counts disable MULTIPLE too
+      if (sector_count > 1) { abort_command(); break; }
+      multiple_count = sector_count;
+      complete_ok();
+      break;
     case 0xEF:  // SET FEATURES
+      if (dev == DISK) {
+        if (features == 0x66) keep_settings_on_reset = true;
+        if (features == 0xCC) keep_settings_on_reset = false;
+      }
       complete_ok();
       break;
     case 0xE5:  // CHECK POWER MODE
@@ -1832,6 +1857,7 @@ private:
     u32 cur = (u32)id[54] * 16 * 63;
     id[57] = cur & 0xFFFF;
     id[58] = cur >> 16;
+    id[59] = 0x0100 | multiple_count; // valid current MULTIPLE setting
     id[60] = sectors & 0xFFFF;
     id[61] = sectors >> 16;
     id[64] = 0x0003;  // PIO modes 3 and 4

@@ -368,3 +368,33 @@ invalid-selector restart with unchanged GPR/segment state (58 cases).
 The regression fails before the fix; all 15 sail-llvm system suites pass
 afterward (82 basic tests). [Validation](os-boot/os2-tests-far-load.txt).
 [Exception trace](os-boot/os2-far-load-trace.txt).
+
+### os2-18-far-load
+
+The three original diskettes boot to the installer [welcome screen](os-boot/os2-installer-welcome.png).
+Enter continues; Easy Installation is selected. Disk initialization then loops
+on INITIALIZE DEVICE PARAMETERS / SET MULTIPLE MODE, with `C6h count=01h`
+returning ABRT. No sectors have been written to the fresh disk yet.
+[Stopped screen](os-boot/os2-18-set-multiple.png).
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 system-emu/run-boot.py --name os2-18-far-load --timeout 1800 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-resume-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **205.679 s**. Instructions: **188,848,883**.
+Result: `exit`, exit `0`. Serial: two form feeds only.
+
+### ATA multiple-sector commands
+
+The disk advertises maximum block count 1 in IDENTIFY word 47, but did not
+implement C4h/C5h/C6h. Implement enable/disable, reject unsupported settings
+while disabling MULTIPLE, expose the current setting in IDENTIFY word 59,
+and reuse the sector PIO protocol for the advertised one-sector blocks.
+Software reset restores the disabled default unless SET FEATURES 66h has
+disabled reverting to defaults; CCh restores that behavior.
+Reference: [ATA-2 draft §§8.10.21, 8.18, 8.23–8.24, 8.31](https://files.mpoli.fi/unpacked/hardware/hdd/other/ata-2.zip/ata-2.txt).
+
+All 10 IDE tests pass. The new test fails against the prior header and
+checks enable/disable, invalid counts, IDENTIFY, multi-sector reads/writes,
+256-sector reads, interrupt phases, nIEN, reset/default behavior and ATAPI
+rejection. [Validation](os-boot/os2-test-multiple.txt).
