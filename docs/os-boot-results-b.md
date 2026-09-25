@@ -54,6 +54,24 @@ SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
 Later wizard input is sent through the private keyboard helper. This run
 uses the tested `2447ad0` LLVM executable, without diagnostic model changes.
 
+The recovery copy passes [50%](os-boot/b-win95-recovery3-copy50.png) and
+the previous endpoint ([91%](os-boot/b-win95-recovery3-copy91.png)), but
+then [stalls at 92%](os-boot/b-win95-recovery3-copy92-stop.png), before
+the first reboot. It is stopped manually after **2548.113 seconds /
+10,898,686,769 instructions**. [COM1](os-boot/b-win95-recovery3-copy92-stop.serial)
+has no diagnostic; the [focused state and trace](os-boot/b-win95-recovery3-copy92-stop.txt)
+show a two-instruction loop from invalid bytes at real-mode `06e0:002b`
+through the BIOS #UD handler, an IRET at `f000:ff53`.
+
+Physical `[0x5000,0x7000)` contains an exact 8 KiB slice of original
+`MSHTML.DLL`, file offsets `[0x42000,0x44000)`. The write origin is not
+yet established; no model or compiler defect is claimed. The stopped
+disk is preserved as `win95-recovery3-copy92.img`, with raw RAM and a
+host debugger core outside the repository. A new private copy,
+`win95-write-trace.img`, starts `b-win95-write-trace` with the same LLVM
+model and a diagnostic-only platform logger for writes covering physical
+`0x6e2b`, including CS:IP, segment bases, string registers and A20 state.
+
 ## Resumption after 10:50 JST on 2026-09-25
 
 This run starts from `bd5d0b3` and uses only sail-llvm compiler `54a10b8`.
