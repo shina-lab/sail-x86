@@ -1138,7 +1138,7 @@ public:
     return bar & ~0xFu;
   }
   bool ide_busmaster_handles(u16 port) const {
-    return (dev1[4] & 1) && port >= ide_busmaster_base() &&
+    return (dev1[4] & 1) && ide_busmaster_base() != 0 && port >= ide_busmaster_base() &&
            u32(port) - ide_busmaster_base() < 16;
   }
   bool smram_open() const { return (dev0[0x72] & 0x48) == 0x48; }
@@ -1400,13 +1400,26 @@ public:
   bool is_open() const { return fd >= 0; }
   Kind kind() const { return dev; }
 
+  void tick() {
+    if (next_block_pending && clock && *clock >= next_block_at) {
+      next_block_pending = false;
+      begin_in_block();
+    }
+  }
+
   bool handles(u16 port) const {
     return (base <= port && port <= base + 7) || port == ctrl;
   }
   bool is_data_port(u16 port) const { return port == base; }
 
   u8 read(u16 port) {
+    tick();
     if (dev == NONE || slave_selected()) return 0x00;
+    if (trace_phase_status && (port == ctrl || port == base + 7)) {
+      fprintf(stderr, "ide%d: first status after ATAPI phase: %lu ns, status=%02x\n",
+              base == 0x1F0 ? 0 : 1, *clock - completed_block_at, status);
+      trace_phase_status = false;
+    }
     if (port == ctrl) return status;  // alternate status: no IRQ clear
     switch (port - base) {
     case 0: return 0x00;          // data port is 16-bit; see read16
@@ -1450,13 +1463,27 @@ public:
 
   // 16-bit data port read (also used for the halves of a 32-bit read)
   u16 read16() {
+    tick();
+    if (status & 0x80) return 0x0000;
     if (xfer != XFER_IN || dev == NONE || slave_selected()) return 0x0000;
     u16 v = buf[buf_pos];
     if (buf_pos + 1 < block_end) v |= (u16)buf[buf_pos + 1] << 8;
     buf_pos = std::min(buf_pos + 2, block_end);
     if (buf_pos >= block_end) {
       if (buf_pos < buf.size()) {
-        begin_in_block();
+        if (packet && clock) {
+          // A completed ATAPI data phase releases DRQ while the device
+          // prepares the next block. Making the next DRQ visible in this
+          // same data-port access hides that transition from polling hosts.
+          status = 0x80; // BSY, DRQ clear
+          irq_asserted = false;
+          next_block_pending = true;
+          completed_block_at = *clock;
+          trace_phase_status = ide_trace;
+          next_block_at = *clock + 1000000; // 1 ms of device service time
+        } else {
+          begin_in_block();
+        }
       } else {
         xfer = XFER_NONE;
         status = 0x40;  // DRDY
@@ -1545,6 +1572,10 @@ private:
   size_t buf_pos = 0;     // next byte to move
   size_t block_end = 0;   // end of the current DRQ block
   size_t block_limit = 512;
+  bool next_block_pending = false;
+  bool trace_phase_status = false;
+  u64 completed_block_at = 0;
+  u64 next_block_at = 0;
   u32 current_lba = 0;    // next sector of a data-out transfer
 
   // ATAPI state
@@ -1594,6 +1625,7 @@ private:
     xfer = XFER_NONE;
     buf.clear();
     buf_pos = block_end = 0;
+    next_block_pending = false;
     cdb_pos = 0;
     irq_pending = false;
     irq_asserted = false;
@@ -1604,6 +1636,7 @@ private:
   }
 
   void abort_command() {
+    next_block_pending = false;
     xfer = XFER_NONE;
     status = 0x41;  // DRDY | ERR
     error = 0x04;   // ABRT
@@ -1646,6 +1679,7 @@ private:
   }
 
   void execute(u8 cmd) {
+    next_block_pending = false;
     last_command = cmd;
     command_time = now();
     if (ide_trace)
@@ -1968,6 +2002,7 @@ public:
   Kind kind() const { return master.kind(); }
   bool handles(u16 port) const { return master.handles(port); }
   bool is_data_port(u16 port) const { return master.is_data_port(port); }
+  void tick() { master.tick(); slave.tick(); sync_irq(); }
   u8 read(u16 port) {
     u8 value = selected().read(port);
     if (port == base + 7) irq_pending = false;
@@ -2018,9 +2053,9 @@ private:
   u32 bm_prd = 0;
   IDEDevice &selected() { return select_slave ? slave : master; }
   void sync_irq() {
-    // Latch each new INTRQ assertion, including PIO. W1C while the line
-    // remains high must not set the bit again without another assertion.
-    if (master.irq_pending || slave.irq_pending) bm_status |= 4;
+    // W1C while INTRQ remains high must not relatch the same assertion.
+    if ((master.irq_asserted || slave.irq_asserted) && !irq_asserted)
+      bm_status |= 4;
     irq_pending |= master.irq_pending || slave.irq_pending;
     master.irq_pending = slave.irq_pending = false;
     irq_asserted = master.irq_asserted || slave.irq_asserted;

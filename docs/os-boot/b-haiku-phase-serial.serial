@@ -1,0 +1,647 @@
+mapping local apic at 0xffffffff8229c000
+arch_altcodepatch_replace found 2 altcodepatches for tag 3
+arch_altcodepatch_replace found 4 altcodepatches for tag 4
+enable XSAVEC 0x7 832
+found clock speed with CPUID.16h
+setting up apic for CPU 0: apic id 0, version 327700
+CPU 0: logical apic id: 0x1
+x86_init_fpu: CPU has SSE... enabling FXSR and XMM.
+reserve_io_interrupt_vectors: reserved 1 vectors starting from 219
+arch_init_timer: using APIC timer.
+allocate_commpage_entry(2, 16) -> 0x0000000000000200
+scheduler_init: found 1 logical cpu and 0 cache levels
+scheduler switches: single core: true, cpu load tracking: false, core load tracking: false
+scheduler: switching to low latency mode
+msi support enabled
+slab memory manager: created area 0xffffffff80801000 (98)
+allocate_commpage_entry(3, 69) -> 0x0000000000000210
+PCI: pci_module_init
+ACPI: RSDP 0x00000000000F2AF0 000014 (v00 BOCHS )
+ACPI: RSDT 0x000000003FFFE4C0 000030 (v01 BOCHS  BXPCRSDT 00000001 BXPC 00000001)
+ACPI: FACP 0x000000003FFFFF80 000074 (v01 BOCHS  BXPCFACP 00000001 BXPC 00000001)
+ACPI: DSDT 0x000000003FFFE4F0 001135 (v01 BOCHS  BXPCDSDT 00000001 BXPC 00000001)
+ACPI: FACS 0x000000003FFFFF40 000040
+ACPI: SSDT 0x000000003FFFF720 000819 (v01 BOCHS  BXPCSSDT 00000001 BXPC 00000001)
+ACPI: APIC 0x000000003FFFF630 000078 (v01 BOCHS  BXPCAPIC 00000001 BXPC 00000001)
+ACPI: Forced DSDT copy: length 0x01135 copied locally, original unmapped
+ACPI: 2 ACPI AML tables successfully acquired and loaded
+ACPI: Enabled 16 GPEs in block 00 to 0F
+publish device: node 0xffffffff82b60be0, path acpi/namespace, module bus_managers/acpi/namespace/device_v1
+publish device: node 0xffffffff82b60be0, path acpi/call, module bus_managers/acpi/call/device_v1
+registering power button
+PCI: mechanism 1 controller found
+found io-apic with address 0xfec00000, global interrupt base 0, apic-id 0
+mapping io-apic 0 at physical address 0xfec00000
+io-apic 0 has range 0-23, 24 entries, version 0x00170011, apic-id 0
+setting ACPI interrupt model to APIC
+failed to put ACPI into APIC interrupt model, ignoring
+IRQ routing preparation failed, not configuring io-apics
+setting ACPI interrupt model to PIC
+PCI: [dom 0, bus  0] bus   0, device  0, function  0: vendor 8086, device 1237, revision 02
+PCI:   class_base 06, class_function 00, class_api 00
+PCI:   vendor 8086: Intel Corporation
+PCI:   device 1237: 440FX - 82441FX PMC [Natoma]
+PCI:   info: Bridge (Host bridge)
+PCI:   line_size 00, latency 00, header_type 00, BIST 00
+PCI:   ROM base host 00000000, pci 00000000, size 00000000
+PCI:   cardbus_CIS 00000000, subsystem_id 0000, subsystem_vendor_id 0000
+PCI:   interrupt_line 00, interrupt_pin 00, min_grant 00, max_latency 00
+PCI:   base reg 0: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 1: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 2: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 3: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 4: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 5: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   Capabilities: (not supported)
+PCI: [dom 0, bus  0] bus   0, device  1, function  0: vendor 8086, device 7000, revision 00
+PCI:   class_base 06, class_function 01, class_api 00
+PCI:   vendor 8086: Intel Corporation
+PCI:   device 7000: 82371SB PIIX3 ISA [Natoma/Triton II]
+PCI:   info: Bridge (ISA bridge)
+PCI:   line_size 00, latency 00, header_type 80, BIST 00
+PCI:   ROM base host 00000000, pci 00000000, size 00000000
+PCI:   cardbus_CIS 00000000, subsystem_id 0000, subsystem_vendor_id 0000
+PCI:   interrupt_line 00, interrupt_pin 00, min_grant 00, max_latency 00
+PCI:   base reg 0: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 1: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 2: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 3: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 4: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 5: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   Capabilities: (not supported)
+PCI: [dom 0, bus  0] bus   0, device  1, function  1: vendor 8086, device 7010, revision 00
+PCI:   class_base 01, class_function 01, class_api 80
+PCI:   vendor 8086: Intel Corporation
+PCI:   device 7010: 82371SB PIIX3 IDE [Natoma/Triton II]
+PCI:   info: Mass storage controller (IDE interface, ISA Compatibility mode-only controller, supports bus mastering)
+PCI:   line_size 00, latency 00, header_type 00, BIST 00
+PCI:   ROM base host 00000000, pci 00000000, size 00000000
+PCI:   cardbus_CIS 00000000, subsystem_id 0000, subsystem_vendor_id 0000
+PCI:   interrupt_line 00, interrupt_pin 00, min_grant 00, max_latency 00
+PCI:   base reg 0: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 1: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 2: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 3: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 4: host 0000c000, pci 0000c000, size 00000010, flags 01
+PCI:   base reg 5: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   Capabilities: (not supported)
+PCI: [dom 0, bus  0] bus   0, device  1, function  3: vendor 8086, device 7113, revision 03
+PCI:   class_base 06, class_function 80, class_api 00
+PCI:   vendor 8086: Intel Corporation
+PCI:   device 7113: 82371AB/EB/MB PIIX4 ACPI
+PCI:   info: Bridge
+PCI:   line_size 00, latency 00, header_type 00, BIST 00
+PCI:   ROM base host 00000000, pci 00000000, size 00000000
+PCI:   cardbus_CIS 00000000, subsystem_id 0000, subsystem_vendor_id 0000
+PCI:   interrupt_line 00, interrupt_pin 00, min_grant 00, max_latency 00
+PCI:   base reg 0: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 1: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 2: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 3: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 4: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 5: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   Capabilities: (not supported)
+PCI: [dom 0, bus  0] bus   0, device  2, function  0: vendor 1234, device 1111, revision 00
+PCI:   class_base 03, class_function 00, class_api 00
+PCI:   vendor 1234: Unknown
+PCI:   device 1111: Unknown
+PCI:   info: Display controller (VGA compatible controller, VGA controller)
+PCI:   line_size 00, latency 00, header_type 00, BIST 00
+PCI:   ROM base host febf0000, pci febf0000, size 00010000
+PCI:   cardbus_CIS 00000000, subsystem_id 0000, subsystem_vendor_id 0000
+PCI:   interrupt_line 00, interrupt_pin 00, min_grant 00, max_latency 00
+PCI:   base reg 0: host fd000000, pci fd000000, size 01000000, flags 08
+PCI:   base reg 1: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 2: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 3: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 4: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 5: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   Capabilities: (not supported)
+get_boot_partitions(): boot volume message:
+KMessage: buffer: 0xffffffff821c18f8 (size/capacity: 315/315), flags: 0xa
+  field: "booted from image" (BOOL): true
+  field: "partition offset"  (LLNG): 0 (0x0)
+  field: "boot method"       (LONG): 1 (0x1)
+  field: "boot drive number" (LLNG): 0 (0x0)
+  field: "disk identifier"   (RAWT): data at 0xffffffff821c19e4, 79 bytes
+get_boot_partitions(): boot method type: 1
+intel: ep_std_ops(0x1)
+intel: ep_std_ops(0x2)
+intel: pm_std_ops(0x1)
+intel: pm_std_ops(0x2)
+PCI-ATA: Controller in legacy mode: cmd 0x1f0, ctrl 0x3f6, irq 14
+PCI-ATA: enabling bus mastering
+PCI-ATA: pcicmd changed from 0x0103 to 0x0107
+PCI-ATA: init channel...
+PCI-ATA: channel index 0
+PCI-ATA: bus master base 0xc000
+PCI-ATA: init channel done
+ata 0: _DevicePresent: device 0, presence 0
+ata 0: _DevicePresent: device selection failed for device 1
+ata 0: deviceMask 0
+ata 0: ignoring device 0
+ata 0: ignoring device 1
+ata 0 error: target device not present
+ata 0 error: target device not present
+ata 0 error: invalid target device
+Last message repeated 12 times.
+PCI-ATA: Controller in legacy mode: cmd 0x170, ctrl 0x376, irq 15
+PCI-ATA: init channel...
+PCI-ATA: channel index 1
+PCI-ATA: bus master base 0xc008
+PCI-ATA: init channel done
+ata 1: _DevicePresent: device 0, presence 1
+ata 1: _DevicePresent: device selection failed for device 1
+ata 1: deviceMask 1
+ata 1: probing device 0
+ata 1: signature of device 0: 0xeb14
+atapi 1-0: model number: Sail-x86 CD-ROM                         
+atapi 1-0: serial number: SAILCD01            
+atapi 1-0: firmware rev.: 1.0     
+atapi 1-0: DMA not supported by device
+ata 1: identified ATAPI device 0
+ata 1: ignoring device 1
+publish device: node 0xffffffff82c98978, path disk/atapi/1/master/raw, module drivers/disk/scsi/scsi_cd/device_v1
+atapi 1-0 error: invalid target lun 1
+atapi 1-0 error: invalid target lun 2
+atapi 1-0 error: invalid target lun 3
+atapi 1-0 error: invalid target lun 4
+atapi 1-0 error: invalid target lun 5
+atapi 1-0 error: invalid target lun 6
+atapi 1-0 error: invalid target lun 7
+ata 1 error: target device not present
+ata 1 error: invalid target device
+Last message repeated 12 times.
+periph_check_capacity: TRIM: Setting trim support to disabled
+DMAResource@0xffffffff82c988d8: low/high 0/100000000, max segment count 512, align 2, boundary 65536, max transfer 524288, max segment size 134217728
+slab memory manager: created area 0xffffffff85801000 (155)
+slab memory manager: created area 0xffffffff86001000 (156)
+periph_check_capacity: TRIM: Setting trim support to disabled
+intel: ep_std_ops(0x1)
+intel: ep_std_ops(0x2)
+periph_check_capacity: TRIM: Setting trim support to disabled
+raw_command: 
+ata 1 error: command failed, error bit is set. status 0x41, error 0x50
+raw_command: 
+ata 1 error: command failed, error bit is set. status 0x41, error 0x50
+raw_command: 
+ata 1 error: command failed, error bit is set. status 0x41, error 0x50
+raw_command: 
+ata 1 error: command failed, error bit is set. status 0x41, error 0x50
+intel: pm_std_ops(0x1)
+intel: pm_identify_partition(0, 0: 0, 1477246976, 2048)
+identify(0, 0xffffffff8287e198)
+found primary descriptor
+  iso9660_primary_descriptor:
+    volume descriptor type: 1 (primary)
+    standard identifier:    CD001 (valid)
+    version:                1
+    identifier:             'haiku-r1~beta5-x86_64           '
+    size:                   3065
+    set size:               1
+    sequence number:        1
+    logical block size:     2048
+    path table size:        10
+    set identifier:                                     
+    root directory record:
+      length:               34
+      location:             20
+      data length:          2048
+      volume space:         1
+iso9660_info::set_string(0xffffffff8287e198 ('<NULL>'), 'haiku-r1~beta5-x86_64           ', 21)
+intel: pm_scan_partition(0, 0: 0, 1477246976, 2048)
+intel: ep_std_ops(0x1)
+intel: ep_identify_partition(0, 6291456, 1468006400, 2048)
+intel: ep_std_ops(0x2)
+intel: pm_identify_partition(0, 1: 6291456, 1468006400, 2048)
+ata 1 error: device still expects data transfer
+identify(0, 0xffffffff8287e150)
+intel: ep_std_ops(0x1)
+intel: ep_identify_partition(0, 1474297856, 2949120, 2048)
+intel: ep_std_ops(0x2)
+intel: pm_identify_partition(0, 2: 1474297856, 2949120, 2048)
+identify(0, 0xffffffff8287e150)
+Identified anyboot CD.
+periph_check_capacity: TRIM: Setting trim support to disabled
+periph_check_capacity: TRIM: Setting trim support to disabled
+bfs: mounted "Haiku" (root node at 131072, device = /dev/disk/atapi/1/master/0)
+Mounted boot partition: /dev/disk/atapi/1/master/0
+unknown: [236418422:    14] Adding packages from "/boot/system/packages"
+unknown: [236420426:    14] Failed to open packages activation file: No such file or directory
+unknown: [236421585:    14] Loading packages from activation file failed. Loading all packages in packages directory.
+ata 1 error: device still expects data transfer
+slab memory manager: created area 0xffffffff86801000 (193)
+slab memory manager: created area 0xffffffff87001000 (194)
+unknown: [690191449:    14] StringPool usage:
+unknown: [690192221:    14]   total unique strings:       15134,   204316 bytes, overhead: 348082 bytes
+unknown: [690193607:    14]   total strings with dups:   111825,  1319609 bytes
+unknown: [690194756:    14]   unshared strings:            1013
+unknown: [690196052:    14]   bytes saved:               767211
+ata 1 error: device still expects data transfer
+unknown: [693589760:    14] Adding packages from "/boot/home/config/packages"
+unknown: [693591450:    14] Failed to open packages activation file: No such file or directory
+unknown: [693592610:    14] Loading packages from activation file failed. Loading all packages in packages directory.
+unknown: [694072457:    14] StringPool usage:
+unknown: [694073229:    14]   total unique strings:       15134,   204316 bytes, overhead: 348082 bytes
+unknown: [694074615:    14]   total strings with dups:   111836,  1319674 bytes
+unknown: [694075764:    14]   unshared strings:            1009
+unknown: [694078255:    14]   bytes saved:               767276
+module_init_post_boot_device() failed to normalize path of module image 0xffffffff8280f1e0, "write_overlay"
+module: Search for file_cache/launch_speedup/v1 failed.
+smbios_scan
+publish device: node 0xffffffff86b746f0, path disk/virtual/ram/control, module drivers/disk/virtual/ram_disk/control/device_v1
+loaded driver /boot/system/add-ons/kernel/drivers/dev/zero
+usb_modeswitch: init_hardware()
+usb_modeswitch: init_driver()
+usb_modeswitch: trying module bus_managers/usb/v3.1
+usb_modeswitch: publish_devices()
+usb_modeswitch: uninit_driver()
+loaded driver /boot/system/add-ons/kernel/drivers/dev/usb_modeswitch
+loaded driver /boot/system/add-ons/kernel/drivers/dev/tty
+loaded driver /boot/system/add-ons/kernel/drivers/dev/null
+loaded driver /boot/system/add-ons/kernel/drivers/dev/dprintf
+con_init: trying module console/frame_buffer/v1
+loaded driver /boot/system/add-ons/kernel/drivers/dev/console
+[34mufs2:[0m Invalid superblock! Identify failed!!
+raw_command: 
+01. 00:02.00 (length 160:17.37)
+ntfs: error: identify_partition: boot signature doesn't match
+[34mext2:[0m invalid superblock!
+[34mexfat:[0m invalid superblock!
+btrfs: [750000351:    14] invalid superblock!
+intel: ep_std_ops(0x1)
+intel: ep_identify_partition(5, 1474297856, 2949120, 512)
+intel: ep_std_ops(0x2)
+intel: pm_identify_partition(5, 2: 1474297856, 2949120, 512)
+identify(5, 0xffffffff86b7b870)
+[34mufs2:[0m Invalid superblock! Identify failed!!
+raw_command: 
+01. 00:02.00 (length 160:17.37)
+ntfs: error: identify_partition: boot signature doesn't match
+[34mext2:[0m invalid superblock!
+[34mexfat:[0m invalid superblock!
+btrfs: [755606525:    14] invalid superblock!
+allocate_commpage_entry(4, 16) -> 0x0000000000000258
+no valid cpufreq module found
+no valid cpuidle module found
+set MTRRs to:
+  mtrr:  0: base: 0x3fffe000, size:     0x2000, type: 0
+  mtrr:  1: base: 0x80000000, size: 0x80000000, type: 0
+kernel debugger extension "debugger/run_on_exit/v1": loaded
+kernel debugger extension "debugger/usb_keyboard/v1": loaded
+kernel debugger extension "debugger/invalidate_on_exit/v1": loaded
+kernel debugger extension "debugger/hangman/v1": loaded
+kernel debugger extension "debugger/disasm/v1": loaded
+set MTRRs to:
+  mtrr:  0: base: 0x3fffe000, size:     0x2000, type: 0
+  mtrr:  1: base: 0xfe000000, size:  0x2000000, type: 0
+  mtrr:  2: base: 0x80000000, size: 0x80000000, type: 1
+publish device: node 0xffffffff86b826f0, path random, module bus_managers/random/device_v1
+publish device: node 0xffffffff86b826f0, path urandom, module bus_managers/random/device_v1
+publish device: node 0xffffffff86b82510, path power/button/power_fixed, module drivers/power/acpi_button/device_v1
+prevent_allow: 
+periph_simple_exec: 
+libroot __mutex_unlock: mutex was not actually locked!
+REG: Failed to open shadow passwd DB file "/etc/shadow": No such file or directory
+package_daemon: [1285252311:    43] root at "/boot" (device: 3, node: 131072) registered
+debug_server: Thread 41 entered the debugger: General protection fault
+package_daemon: [1285323628:    43] volume at "/boot/system" registered
+package_daemon: [1285461226:    43] volume at "/boot/home/config" registered
+prevent_allow: 
+periph_simple_exec: 
+Test: and [file_exists [/system/bin/FirstBootPrompt], or [not [file_exists [/boot/home/config/settings/Locale settings]], readonly ]] -> 1
+stack trace, current PC 0x1adeb80c720  </boot/system/lib/libbe.so> _ZNK10BMessengereqERKS_ + 0:
+  (0x7ffe020c62d0)  0x16db2237f28  </boot/system/lib/libbnetapi.so> _ZN11BNetworkKit16BNetworkSettings14_StartWatchingEPKcRK10BMessenger + 0x68
+  (0x7ffe020c6330)  0x16db2237f89  </boot/system/lib/libbnetapi.so> _ZN11BNetworkKit16BNetworkSettings15StartMonitoringERK10BMessenger + 0x49
+  (0x7ffe020c6350)  0x1dcfdd30f90  </boot/system/servers/net_server> _ZN9NetServer10ReadyToRunEv + 0x30
+  (0x7ffe020c6390)  0x1adeb7fa187  </boot/system/lib/libbe.so> _ZN12BApplication15DispatchMessageEP8BMessageP8BHandler + 0x467
+  (0x7ffe020c65e0)  0x1adeb801fc4  </boot/system/lib/libbe.so> _ZN7BLooper11task_looperEv + 0x294
+  (0x7ffe020c6630)  0x1adeb7f6f11  </boot/system/lib/libbe.so> _ZN12BApplication3RunEv + 0x21
+  (0x7ffe020c6650)  0x1dcfdd2db82  </boot/system/servers/net_server> main + 0x42
+  (0x7ffe020c69a0)  0x1dcfdd2dcee  </boot/system/servers/net_server> _start + 0x3e
+  (0x7ffe020c69d0)  0x20686560e85  </boot/system/runtime_loader> runtime_loader + 0x115
+loaded driver /boot/system/add-ons/kernel/drivers/dev/input/wacom
+loaded driver /boot/system/add-ons/kernel/drivers/dev/input/usb_hid
+ps2_hid: init_hardware
+ps2_hid: init_driver
+ps2_hid: publish_devices
+ps2_hid: uninit_driver
+loaded driver /boot/system/add-ons/kernel/drivers/dev/input/ps2_hid
+ps2_dev: reset failed: Operation timed out
+ps2: devfs_publish_device input/mouse/ps2/0, status = 0xffffffff
+ps2: devfs_publish_device input/keyboard/at/0, status = 0x00000000
+ps2: keyboard found
+ata 1 error: device still expects data transfer
+ata 1 error: device still expects data transfer
+package_daemon: [1729506565:    60] Failed to get activated packages info from activated packages file. Assuming all package files in package directory are activated.
+package_daemon: [1729614880:    60] active package "ffmpeg6-6.1.1-3-x86_64.hpkg" (dev: 3, node: 393263) not found in packages directory
+package_daemon: [1730635734:    60] Failed to create package (dev: 3, node: 393216, "ffmpeg6-6.1.1-3-x86_64.hpkg"): Bad data
+package_daemon: [1732745178:    60] Failed to create package (dev: 3, node: 393216, "haiku_userguide_uk-2024_09_09-1-any.hpkg"): Bad data
+package_daemon: [1740265965:    60] Failed to create package (dev: 3, node: 393216, "haiku_userguide_en-2024_09_09-1-any.hpkg"): Bad data
+package_daemon: [1767453204:    60] Failed to create package (dev: 3, node: 393216, "haiku_datatranslators-r1~beta5_hrev57937_113-1-x86_64.hpkg"): Bad data
+package_daemon: [1767577438:    60] Volume::InitPackages Requesting delayed first boot processing for packages dir /boot/system/packages.
+package_daemon: [1768040010:    60] Volume::InitialVerify((nil), (nil))
+package_daemon: [1797424923:    60] Volume::InitialVerify(): volume at "/boot/system" has problems:
+package_daemon: [1797429858:    60]   1: nothing provides lib:libz>=1.2.11 needed by zip-3.0-4
+package_daemon: [1798190469:    60]     solution 1:
+package_daemon: [1798209884:    60]       - allow deinstallation of zip-3.0-4
+package_daemon: [1798245143:    60]   2: nothing provides lib:libz>=1.3 needed by wget-1.24.5-2
+package_daemon: [1798280991:    60]     solution 1:
+package_daemon: [1798282706:    60]       - allow deinstallation of wget-1.24.5-2
+package_daemon: [1798311824:    60]   3: nothing provides haiku_datatranslators needed by webpositive-r1~beta5_hrev57937_113-1
+package_daemon: [1798344354:    60]     solution 1:
+package_daemon: [1798362330:    60]       - allow deinstallation of webpositive-r1~beta5_hrev57937_113-1
+package_daemon: [1798398862:    60]   4: nothing provides lib:libjpeg>=62.3.0 needed by tiff-4.6.0-1
+package_daemon: [1798433569:    60]     solution 1:
+package_daemon: [1798437219:    60]       - allow deinstallation of tiff-4.6.0-1
+package_daemon: [1798470290:    60]   5: nothing provides lib:libz>=1.3 needed by sqlite-3.44.2.0-2
+package_daemon: [1798506491:    60]     solution 1:
+package_daemon: [1798523045:    60]       - allow deinstallation of sqlite-3.44.2.0-2
+package_daemon: [1798543766:    60]   6: nothing provides lib:libjpeg>=62.3.0 needed by jasper-2.0.33-1
+package_daemon: [1798589676:    60]     solution 1:
+package_daemon: [1798591180:    60]       - allow deinstallation of jasper-2.0.33-1
+package_daemon: [1798625464:    60]   7: nothing provides lib:libcurl>=4.8.0 needed by haikuwebkit-1.9.14-1
+package_daemon: [1798660061:    60]     solution 1:
+package_daemon: [1798676483:    60]       - allow deinstallation of haikuwebkit-1.9.14-1
+package_daemon: [1798706454:    60]   8: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1798741981:    60]     solution 1:
+package_daemon: [1798743486:    60]       - allow deinstallation of haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1798778968:    60]   9: nothing provides lib:libz>=1.3 needed by file-5.43-2
+package_daemon: [1798811536:    60]     solution 1:
+package_daemon: [1798814529:    60]       - allow deinstallation of file-5.43-2
+package_daemon: [1798844808:    60]   10: nothing provides lib:libz>=1.2.13 needed by bepdf-2.1.4-6
+package_daemon: [1798880616:    60]     solution 1:
+package_daemon: [1798883243:    60]       - allow deinstallation of bepdf-2.1.4-6
+package_daemon: [1798937163:    60]   11: nothing provides lib:libz>=1.2.13 needed by fontconfig-2.13.96-2
+package_daemon: [1798973792:    60]     solution 1:
+package_daemon: [1798989063:    60]       - allow deinstallation of fontconfig-2.13.96-2
+package_daemon: [1799007393:    60]   12: nothing provides lib:libz>=1.3 needed by freetype-2.13.2-1
+package_daemon: [1799040092:    60]     solution 1:
+package_daemon: [1799055048:    60]       - allow deinstallation of freetype-2.13.2-1
+package_daemon: [1799088478:    60]   13: nothing provides lib:libz>=1.2.13 needed by game_music_emu-0.6.3-2
+package_daemon: [1799124541:    60]     solution 1:
+package_daemon: [1799137251:    60]       - allow deinstallation of game_music_emu-0.6.3-2
+package_daemon: [1799158341:    60]   14: nothing provides lib:libz>=1.3 needed by gcc_syslibs-13.3.0_2023_08_10-1
+package_daemon: [1799207448:    60]     solution 1:
+package_daemon: [1799220133:    60]       - allow deinstallation of gcc_syslibs-13.3.0_2023_08_10-1
+package_daemon: [1799240699:    60]   15: nothing provides lib:libgl>=1.0.0 needed by glu-9.0.0-8
+package_daemon: [1799286495:    60]     solution 1:
+package_daemon: [1799288224:    60]       - allow deinstallation of glu-9.0.0-8
+package_daemon: [1799320645:    60]   16: nothing provides lib:libjpeg>=62.3.0 needed by lcms-2.16-1
+package_daemon: [1799356251:    60]     solution 1:
+package_daemon: [1799371479:    60]       - allow deinstallation of lcms-2.16-1
+package_daemon: [1799392277:    60]   17: nothing provides lib:libz>=1.3.1 needed by libass-0.17.3-2
+package_daemon: [1799426737:    60]     solution 1:
+package_daemon: [1799442705:    60]       - allow deinstallation of libass-0.17.3-2
+package_daemon: [1799463039:    60]   18: nothing provides lib:libz>=1.2.13 needed by libicns-0.8.1-9
+package_daemon: [1799498466:    60]     solution 1:
+package_daemon: [1799499841:    60]       - allow deinstallation of libicns-0.8.1-9
+package_daemon: [1799538758:    60]   19: nothing provides lib:libgif>=7.2.0 needed by libjxl-0.6.1-4
+package_daemon: [1799573434:    60]     solution 1:
+package_daemon: [1799576211:    60]       - allow deinstallation of libjxl-0.6.1-4
+package_daemon: [1799609319:    60]   20: nothing provides lib:libz>=1.2.13 needed by libopenmpt-0.7.2-1
+package_daemon: [1799641644:    60]     solution 1:
+package_daemon: [1799657639:    60]       - allow deinstallation of libopenmpt-0.7.2-1
+package_daemon: [1799677628:    60]   21: nothing provides lib:libz>=1.3 needed by libpcre2-10.43-2
+package_daemon: [1799710267:    60]     solution 1:
+package_daemon: [1799725538:    60]       - allow deinstallation of libpcre2-10.43-2
+package_daemon: [1799750803:    60]   22: nothing provides lib:libz>=1.2.13 needed by libpng16-1.6.40-1
+package_daemon: [1799804567:    60]     solution 1:
+package_daemon: [1799806072:    60]       - allow deinstallation of libpng16-1.6.40-1
+package_daemon: [1799887503:    60]   23: nothing provides lib:libjpeg>=62.3.0 needed by libraw-0.20.2-2
+package_daemon: [1799933904:    60]     solution 1:
+package_daemon: [1799953140:    60]       - allow deinstallation of libraw-0.20.2-2
+package_daemon: [1800004979:    60]   24: nothing provides lib:libz>=1.3 needed by libssh2-1.9.0-5
+package_daemon: [1800044978:    60]     solution 1:
+package_daemon: [1800047725:    60]       - allow deinstallation of libssh2-1.9.0-5
+package_daemon: [1800085675:    60]   25: nothing provides lib:libgif>=7.2.0 needed by libwebp-1.4.0-1
+package_daemon: [1800117040:    60]     solution 1:
+package_daemon: [1800128277:    60]       - allow deinstallation of libwebp-1.4.0-1
+package_daemon: [1800148248:    60]   26: nothing provides lib:libz>=1.3 needed by libxml2-2.12.5-3
+package_daemon: [1800198821:    60]     solution 1:
+package_daemon: [1800200536:    60]       - allow deinstallation of libxml2-2.12.5-3
+package_daemon: [1800230667:    60]   27: nothing provides lib:libz>=1.3 needed by libxslt-1.1.39-2
+package_daemon: [1800266344:    60]     solution 1:
+package_daemon: [1800268999:    60]       - allow deinstallation of libxslt-1.1.39-2
+package_daemon: [1800299194:    60]   28: nothing provides lib:libz>=1.2.13 needed by llvm12_libs-12.0.1-8
+package_daemon: [1800338784:    60]     solution 1:
+package_daemon: [1800340288:    60]       - allow deinstallation of llvm12_libs-12.0.1-8
+package_daemon: [1800387269:    60]   29: nothing provides lib:libz>=1.2.11 needed by mandoc-1.14.3-2
+package_daemon: [1800425589:    60]     solution 1:
+package_daemon: [1800441998:    60]       - allow deinstallation of mandoc-1.14.3-2
+package_daemon: [1800461911:    60]   30: nothing provides mesa==22.0.5 needed by mesa_swpipe-22.0.5-3
+package_daemon: [1800523419:    60]     solution 1:
+package_daemon: [1800524929:    60]       - allow deinstallation of mesa_swpipe-22.0.5-3
+package_daemon: [1800544453:    60]   31: nothing provides lib:libz>=1.3 needed by nano-8.1-1
+package_daemon: [1800584481:    60]     solution 1:
+package_daemon: [1800586195:    60]       - allow deinstallation of nano-8.1-1
+package_daemon: [1800617655:    60]   32: nothing provides lib:libz>=1.3 needed by openexr30-3.0.5-2
+package_daemon: [1800654054:    60]     solution 1:
+package_daemon: [1800667018:    60]       - allow deinstallation of openexr30-3.0.5-2
+package_daemon: [1800685240:    60]   33: nothing provides lib:libz>=1.3 needed by openjpeg-2.4.0-3
+package_daemon: [1800720737:    60]     solution 1:
+package_daemon: [1800736631:    60]       - allow deinstallation of openjpeg-2.4.0-3
+package_daemon: [1800751625:    60]   34: nothing provides lib:libz>=1.3 needed by openssh-9.8p1-2
+package_daemon: [1800793312:    60]     solution 1:
+package_daemon: [1800815886:    60]       - allow deinstallation of openssh-9.8p1-2
+package_daemon: [1800835394:    60]   35: nothing provides lib:libz>=1.3.1 needed by openssl3-3.0.14-2
+package_daemon: [1800884824:    60]     solution 1:
+package_daemon: [1800886539:    60]       - allow deinstallation of openssl3-3.0.14-2
+package_daemon: [1800941263:    60]   36: nothing provides lib:libz>=1.3 needed by python3.10-3.10.14-5
+package_daemon: [1800976579:    60]     solution 1:
+package_daemon: [1800991814:    60]       - allow deinstallation of python3.10-3.10.14-5
+package_daemon: [1801048641:    60]   37: nothing provides lib:libz>=1.3.1 needed by openssl3-3.0.14-2
+package_daemon: [1801084206:    60]     solution 1:
+package_daemon: [1801086745:    60]       - allow deinstallation of wpa_supplicant-2.10.haiku.3-3
+package_daemon: [1801119156:    60]   38: nothing provides lib:libgif>=7.2.0 needed by libwebp-1.4.0-1
+package_daemon: [1801153828:    60]     solution 1:
+package_daemon: [1801165833:    60]       - allow deinstallation of libavif1.0-1.1.0-1
+package_daemon: [1801185219:    60]   39: nothing provides lib:libz>=1.3 needed by libpcre2-10.43-2
+package_daemon: [1801240534:    60]     solution 1:
+package_daemon: [1801243527:    60]       - allow deinstallation of grep-3.11-2
+package_daemon: [1801274902:    60]   40: nothing provides lib:libz>=1.3 needed by gcc_syslibs-13.3.0_2023_08_10-1
+package_daemon: [1801308271:    60]     solution 1:
+package_daemon: [1801311008:    60]       - allow deinstallation of libvpx-1.13.1-1
+package_daemon: [1801341256:    60]   41: nothing provides lib:libz>=1.3 needed by gcc_syslibs-13.3.0_2023_08_10-1
+package_daemon: [1801378117:    60]     solution 1:
+package_daemon: [1801379607:    60]       - allow deinstallation of soxr-0.1.3-2
+package_daemon: [1801411739:    60]   42: nothing provides lib:libz>=1.3 needed by freetype-2.13.2-1
+package_daemon: [1801445665:    60]     solution 1:
+package_daemon: [1801457286:    60]       - allow deinstallation of harfbuzz-8.3.0-2
+package_daemon: [1801499222:    60]   43: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1801531607:    60]     solution 1:
+package_daemon: [1801534256:    60]       - allow deinstallation of perl-5.40.0-4
+package_daemon: [1801569475:    60]   44: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1801600360:    60]     solution 1:
+package_daemon: [1801601845:    60]       - allow deinstallation of pe-2.4.5-10
+package_daemon: [1801632605:    60]   45: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1801673893:    60]     solution 1:
+package_daemon: [1801676670:    60]       - allow deinstallation of pdfwriter-1.0-4
+package_daemon: [1801707409:    60]   46: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1801744691:    60]     solution 1:
+package_daemon: [1801747453:    60]       - allow deinstallation of pdflib-5.0.3-4
+package_daemon: [1801782586:    60]   47: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1801814246:    60]     solution 1:
+package_daemon: [1801830432:    60]       - allow deinstallation of p7zip-17.05-1
+package_daemon: [1801855962:    60]   48: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1801888881:    60]     solution 1:
+package_daemon: [1801904091:    60]       - allow deinstallation of opus-1.3.1-2
+package_daemon: [1801925337:    60]   49: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1801973070:    60]     solution 1:
+package_daemon: [1801976059:    60]       - allow deinstallation of nghttp2-1.59.0-1
+package_daemon: [1802012641:    60]   50: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1802032592:    60]     solution 1:
+package_daemon: [1802070549:    60]       - allow deinstallation of netcat-1.10-4
+package_daemon: [1802096121:    60]   51: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1802131738:    60]     solution 1:
+package_daemon: [1802144435:    60]       - allow deinstallation of ncurses6-6.4_20230520-1
+package_daemon: [1802170294:    60]   52: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1802217370:    60]     solution 1:
+package_daemon: [1802218855:    60]       - allow deinstallation of libvorbis-1.3.7-1
+package_daemon: [1802236235:    60]   53: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1802276747:    60]     solution 1:
+package_daemon: [1802301224:    60]       - allow deinstallation of libunistring-1.2-1
+package_daemon: [1802321143:    60]   54: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1802357181:    60]     solution 1:
+package_daemon: [1802360168:    60]       - allow deinstallation of libunibreak-5.1-1
+package_daemon: [1802393375:    60]   55: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1802436017:    60]     solution 1:
+package_daemon: [1802438801:    60]       - allow deinstallation of libtheora-1.1.1-8
+package_daemon: [1802470621:    60]   56: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1802504343:    60]     solution 1:
+package_daemon: [1802507079:    60]       - allow deinstallation of libtasn1-4.18.0-1
+package_daemon: [1802538335:    60]   57: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1802582285:    60]     solution 1:
+package_daemon: [1802584865:    60]       - allow deinstallation of libpsl-0.21.5-1
+package_daemon: [1802621565:    60]   58: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1802693239:    60]     solution 1:
+package_daemon: [1802694749:    60]       - allow deinstallation of libpcre-8.45-3
+package_daemon: [1802719052:    60]   59: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1802765061:    60]     solution 1:
+package_daemon: [1802766565:    60]       - allow deinstallation of libpcap-1.10.5-2
+package_daemon: [1802799746:    60]   60: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1802830821:    60]     solution 1:
+package_daemon: [1802832536:    60]       - allow deinstallation of libogg-1.3.5-2
+package_daemon: [1802862755:    60]   61: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1802897861:    60]     solution 1:
+package_daemon: [1802900626:    60]       - allow deinstallation of libidn2-2.0.5-3
+package_daemon: [1802933282:    60]   62: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1802965359:    60]     solution 1:
+package_daemon: [1802967074:    60]       - allow deinstallation of libiconv-1.17-4
+package_daemon: [1803003814:    60]   63: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803038470:    60]     solution 1:
+package_daemon: [1803041215:    60]       - allow deinstallation of libgpg_error-1.47-2
+package_daemon: [1803072266:    60]   64: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803118146:    60]     solution 1:
+package_daemon: [1803119874:    60]       - allow deinstallation of libffi-3.4.2-2
+package_daemon: [1803140363:    60]   65: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803173500:    60]     solution 1:
+package_daemon: [1803186408:    60]       - allow deinstallation of libexecinfo-1.1-6
+package_daemon: [1803206695:    60]   66: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803241616:    60]     solution 1:
+package_daemon: [1803254638:    60]       - allow deinstallation of libedit-20230828_3.1-1
+package_daemon: [1803288011:    60]   67: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803320137:    60]     solution 1:
+package_daemon: [1803323130:    60]       - allow deinstallation of less-643-1
+package_daemon: [1803359324:    60]   68: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803393203:    60]     solution 1:
+package_daemon: [1803395851:    60]       - allow deinstallation of gutenprint9-5.3.4-2
+package_daemon: [1803426852:    60]   69: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803447917:    60]     solution 1:
+package_daemon: [1803463812:    60]       - allow deinstallation of graphite2-1.3.14-2
+package_daemon: [1803497749:    60]   70: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803532536:    60]     solution 1:
+package_daemon: [1803535132:    60]       - allow deinstallation of gmp-6.3.0-1
+package_daemon: [1803563399:    60]   71: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803598911:    60]     solution 1:
+package_daemon: [1803612616:    60]       - allow deinstallation of gettext_libintl-0.22.5-1
+package_daemon: [1803643908:    60]   72: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803679254:    60]     solution 1:
+package_daemon: [1803680739:    60]       - allow deinstallation of gawk-5.3.0-1
+package_daemon: [1803712410:    60]   73: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803746345:    60]     solution 1:
+package_daemon: [1803747830:    60]       - allow deinstallation of fribidi-1.0.13-1
+package_daemon: [1803779195:    60]   74: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803815096:    60]     solution 1:
+package_daemon: [1803816606:    60]       - allow deinstallation of findutils-4.9.0-2
+package_daemon: [1803847500:    60]   75: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803882244:    60]     solution 1:
+package_daemon: [1803895812:    60]       - allow deinstallation of coreutils-9.3-3
+package_daemon: [1803916075:    60]   76: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1803951183:    60]     solution 1:
+package_daemon: [1803953764:    60]       - allow deinstallation of bzip2-1.0.8-3
+package_daemon: [1803982714:    60]   77: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804017784:    60]     solution 1:
+package_daemon: [1804019159:    60]       - allow deinstallation of brotli-1.1.0-1
+package_daemon: [1804041728:    60]   78: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804085405:    60]     solution 1:
+package_daemon: [1804088021:    60]       - allow deinstallation of dav1d-1.3.0-1
+package_daemon: [1804140224:    60]   79: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804178123:    60]     solution 1:
+package_daemon: [1804190723:    60]       - allow deinstallation of diffutils-3.10-3
+package_daemon: [1804211649:    60]   80: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804267269:    60]     solution 1:
+package_daemon: [1804270055:    60]       - allow deinstallation of expat-2.6.2-1
+package_daemon: [1804300835:    60]   81: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804336867:    60]     solution 1:
+package_daemon: [1804339540:    60]       - allow deinstallation of fdk_aac-2.0.2-4
+package_daemon: [1804379824:    60]   82: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804412175:    60]     solution 1:
+package_daemon: [1804414926:    60]       - allow deinstallation of gzip-1.12-1
+package_daemon: [1804448418:    60]   83: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804482098:    60]     solution 1:
+package_daemon: [1804483609:    60]       - allow deinstallation of icu74-74.1-3
+package_daemon: [1804516609:    60]   84: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804551464:    60]     solution 1:
+package_daemon: [1804566751:    60]       - allow deinstallation of keymapswitcher-1.2.7.16-1
+package_daemon: [1804587146:    60]   85: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804617858:    60]     solution 1:
+package_daemon: [1804634108:    60]       - allow deinstallation of lame-3.100-4
+package_daemon: [1804653932:    60]   86: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804686434:    60]     solution 1:
+package_daemon: [1804701662:    60]       - allow deinstallation of rav1e-0.7.1-1
+package_daemon: [1804728511:    60]   87: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804763527:    60]     solution 1:
+package_daemon: [1804778743:    60]       - allow deinstallation of readline-8.2.001-1
+package_daemon: [1804799077:    60]   88: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804834656:    60]     solution 1:
+package_daemon: [1804849009:    60]       - allow deinstallation of sed-4.8-1
+package_daemon: [1804880772:    60]   89: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804902128:    60]     solution 1:
+package_daemon: [1804916293:    60]       - allow deinstallation of sharutils-4.15.2-3
+package_daemon: [1804948640:    60]   90: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1804983898:    60]     solution 1:
+package_daemon: [1804985382:    60]       - allow deinstallation of snappy-1.1.10-1
+package_daemon: [1805017539:    60]   91: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1805051751:    60]     solution 1:
+package_daemon: [1805068293:    60]       - allow deinstallation of speex-1.2.1-2
+package_daemon: [1805097841:    60]   92: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1805132977:    60]     solution 1:
+package_daemon: [1805134461:    60]       - allow deinstallation of speexdsp-1.2.1-1
+package_daemon: [1805152211:    60]   93: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1805206605:    60]     solution 1:
+package_daemon: [1805208450:    60]       - allow deinstallation of tar-1.35-2
+package_daemon: [1805233459:    60]   94: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1805261086:    60]     solution 1:
+package_daemon: [1805263869:    60]       - allow deinstallation of unzip-6.10c23-5
+package_daemon: [1805289039:    60]   95: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1805313855:    60]     solution 1:
+package_daemon: [1805326708:    60]       - allow deinstallation of vision-0.10.6-2
+package_daemon: [1805343274:    60]   96: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1805375575:    60]     solution 1:
+package_daemon: [1805387135:    60]       - allow deinstallation of which-2.21-6
+package_daemon: [1805403244:    60]   97: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1805429373:    60]     solution 1:
+package_daemon: [1805440464:    60]       - allow deinstallation of woff2-1.0.2-2
+package_daemon: [1805464850:    60]   98: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1805482529:    60]     solution 1:
+package_daemon: [1805494222:    60]       - allow deinstallation of xz_utils-5.6.2-2
+package_daemon: [1805523978:    60]   99: nothing provides cmd:sh needed by haiku-r1~beta5_hrev57937_113-1
+package_daemon: [1805542621:    60]     solution 1:
+package_daemon: [1805543996:    60]       - allow deinstallation of zstd-1.5.6-1
+package_daemon: [1808099338:    60] Failed to get activated packages info from activated packages file. Assuming all package files in package directory are activated.
+package_daemon: [1808118805:    60] The latest volume state is also the currently active one
+package_daemon: [1808174903:    60] Volume::InitPackages Requesting delayed first boot processing for packages dir /boot/home/config/packages.
+package_daemon: [1808217862:    60] Volume::InitialVerify(0x1160192b0a20, (nil))
+slab memory manager: created area 0xffffffff87801000 (5468)
+package_daemon: [1816408736:    60] Volume::InitialVerify(): volume at "/boot/home/config" is consistent

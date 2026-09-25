@@ -196,6 +196,7 @@ public:
   // as libata does after every PIO block.
   void latch_ide_irqs() {
     auto latch = [this](IDEChannel &ide, unsigned irq) {
+      ide.tick();
       if (ide.irq_pending) {
         ide.irq_pending = false;
         set_irq(irq, false);

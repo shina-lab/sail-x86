@@ -254,6 +254,9 @@ function exec_cmps(os, asz, pfx) = {
 
 enum RepPrefix = { REP_none, REP_rep, REP_repe, REP_repne }
 
+// SDM Vol.2A 2.1.1: F2 and F3 repeat string and I/O instructions.
+// The ZF termination conditions apply only to CMPS/SCAS (Vol.1 7.3.9.2);
+// either prefix uses count-only repetition for MOVS/STOS/LODS/INS/OUTS.
 enum StringOp = { STR_movs, STR_stos, STR_lods, STR_cmps, STR_scas, STR_ins, STR_outs }
 
 val exec_rep : (RepPrefix, StringOp, operand_size, address_size, Prefixes) -> unit
@@ -511,6 +514,86 @@ function is_lockable_1byte(op) = {
   }
 }
 
+// IRET uses the privilege before the return to decide which flags can
+// change (SDM Vol.2A, RETURN-TO-SAME/OUTER-PRIVILEGE-LEVEL, pp.3-493,
+// 3-495). In particular a ring-3 IRET cannot clear or raise IOPL.
+val restore_iret_flags : ({16, 32, 64}, qword, cpl_t, bool) -> unit
+function restore_iret_flags(os, image, old_cpl, protected_return) = {
+  var flags : qword = image;
+  if protected_return then {
+    if old_cpl > unsigned(IOPL) then flags[9] = IF_flag;
+    if old_cpl != 0 then flags[13..12] = IOPL
+  };
+  if os == 16 then
+    write_rflags((read_rflags() & 0xFFFFFFFFFFFF0000) | zero_extend(flags[15..0]))
+  else {
+    write_rflags(flags);
+    RF = flags[16];
+    if protected_return & old_cpl == 0 then {
+      VIF = flags[19];
+      VIP = flags[20]
+    }
+  }
+}
+
+// Legacy protected-mode RETF. SDM Vol.2B RET, Protected Mode and
+// RETURN-TO-SAME/OUTER-PRIVILEGE-LEVEL, pp.4-571--4-575. In particular,
+// a not-present return CS must fault before its descriptor is installed.
+val exec_legacy_retf : ({16, 32}, option(word)) -> unit
+function exec_legacy_retf(os, maybe_imm) = {
+  let sas = stack_addr_size();
+  let old_sp : qword = zero_extend(v(sas, RSP));
+  let adjustment : word = match maybe_imm { Some(i) => i, None() => 0x0000 };
+  check_seg_limit(SS, old_sp, 2 * (os / 8));
+  let (ip, cs) = pop_far_pointer(os);
+  if cs[15..2] == zeros() then raise_GP0();
+  let code = read_descriptor(cs);
+  let rpl : cpl_t = unsigned(cs[1..0]);
+  let err = selector_error_code(cs);
+  if code.seg_s == 0b0 | code.seg_type[3] == 0b0 | rpl < cur_cpl then
+    throw Fault(EXN_GP, err);
+  if (code.seg_type[2] == 0b1 & code.seg_dpl > rpl) |
+     (code.seg_type[2] == 0b0 & code.seg_dpl != rpl) then
+    throw Fault(EXN_GP, err);
+  if code.seg_present == 0b0 then throw Fault(EXN_NP, err);
+
+  if rpl > cur_cpl then {
+    check_seg_limit(SS, old_sp, 4 * (os / 8) + unsigned(adjustment));
+    v(sas, RSP) = v(sas, RSP) + zero_extend(adjustment);
+    let (sp, ss) = pop_far_pointer(os);
+    if ss[15..2] == zeros() then raise_GP0();
+    let stack = read_descriptor(ss);
+    let ss_err = selector_error_code(ss);
+    if unsigned(ss[1..0]) != rpl | stack.seg_dpl != rpl |
+       stack.seg_s == 0b0 | stack.seg_type[3] == 0b1 |
+       stack.seg_type[1] == 0b0 then throw Fault(EXN_GP, ss_err);
+    if stack.seg_present == 0b0 then throw Fault(EXN_SS, ss_err);
+    if unsigned(ip) > unsigned(code.seg_limit) then raise_GP0();
+    // All faulting checks precede architectural segment/CPL changes.
+    write_segreg(SS, ss);
+    SegCache[SS] = stack;
+    v(RSP) = sp;
+    cur_cpl = rpl;
+    foreach (seg from 0 to 5) {
+      if seg != CS & seg != SS then {
+        let desc = SegCache[seg];
+        if read_segreg(seg)[15..2] == zeros() |
+           (desc.seg_dpl < rpl &
+            (desc.seg_type[3] == 0b0 | desc.seg_type[2] == 0b0)) then
+          write_segreg(seg, 0x0000)
+      }
+    };
+    let new_sas = stack_addr_size();
+    v(new_sas, RSP) = v(new_sas, RSP) + zero_extend(adjustment)
+  } else {
+    if unsigned(ip) > unsigned(code.seg_limit) then raise_GP0();
+    v(sas, RSP) = v(sas, RSP) + zero_extend(adjustment)
+  };
+  write_segreg(CS, cs);
+  SegCache[CS] = code;
+  next_rip = Some(ip)
+}
+
 // RETF — Far return (opcodes CA, CB).
 // In 64-bit mode, default operand size is 32; REX.W makes it 64.
 // Same-privilege: pop RIP, CS.
@@ -518,6 +601,10 @@ function is_lockable_1byte(op) = {
 // SDM Vol.2 RET — IA-32e Mode Operation.
 val exec_retf : (Prefixes, option(word)) -> unit
 function exec_retf(pfx, maybe_imm) = {
+  if cur_mode == ProtectedMode & EFER[10] == 0b0 then {
+    exec_legacy_retf(if opsize(pfx) == 32 then 32 else 16, maybe_imm);
+    return ()
+  };
   // Operand size: in 64-bit mode, default is 32, REX.W → 64, 66h → 16.
   // In non-64-bit mode, determined by CS.D and 66h prefix.
   let os : {16, 32, 64} = if cur_mode == LongMode then {
@@ -959,7 +1046,7 @@ function decode_execute() = {
       108 => {
         vmx_exit_if_io(v(RDX), 8, true);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_ins, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_ins, 8, asz, pfx)
         else exec_ins(8, asz)
       },
       // 6D: INSW/INSD — Input word/dword from port DX to ES:[RDI]
@@ -967,14 +1054,14 @@ function decode_execute() = {
         let os = opsize(pfx);
         vmx_exit_if_io(v(RDX), os, true);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_ins, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_ins, os, asz, pfx)
         else exec_ins(os, asz)
       },
       // 6E: OUTSB — Output byte from DS:[RSI] to port DX
       110 => {
         vmx_exit_if_io(v(RDX), 8, false);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_outs, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_outs, 8, asz, pfx)
         else exec_outs(8, asz, pfx)
       },
       // 6F: OUTSW/OUTSD — Output word/dword from DS:[RSI] to port DX
@@ -982,7 +1069,7 @@ function decode_execute() = {
         let os = opsize(pfx);
         vmx_exit_if_io(v(RDX), os, false);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_outs, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_outs, os, asz, pfx)
         else exec_outs(os, asz, pfx)
       },
 
@@ -1282,7 +1369,7 @@ function decode_execute() = {
       // A4: MOVSB
       164 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_movs, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_movs, 8, asz, pfx)
         else exec_movs(8, asz, pfx)
       },
 
@@ -1290,7 +1377,7 @@ function decode_execute() = {
       165 => {
         let os = opsize(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_movs, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_movs, os, asz, pfx)
         else exec_movs(os, asz, pfx)
       },
 
@@ -1331,7 +1418,7 @@ function decode_execute() = {
       // AA: STOSB
       170 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_stos, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_stos, 8, asz, pfx)
         else exec_stos(8, asz)
       },
 
@@ -1339,14 +1426,14 @@ function decode_execute() = {
       171 => {
         let os = opsize(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_stos, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_stos, os, asz, pfx)
         else exec_stos(os, asz)
       },
 
       // AC: LODSB
       172 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_lods, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_lods, 8, asz, pfx)
         else exec_lods(8, asz, pfx)
       },
 
@@ -1354,7 +1441,7 @@ function decode_execute() = {
       173 => {
         let os = opsize(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_lods, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_lods, os, asz, pfx)
         else exec_lods(os, asz, pfx)
       },
 
@@ -1590,6 +1677,8 @@ function decode_execute() = {
       // 64-bit mode: always pop RIP, CS, RFLAGS, RSP, SS (SDM Vol.2 IRET).
       207 => {
         let os = opsize(pfx);
+        let iret_cpl = cur_cpl;
+        let protected_return = cur_mode != RealMode;
         if cur_mode == Virtual8086Mode then {
           assert(os == 16 | os == 32);
           iret_in_vm86(os);
@@ -1624,11 +1713,7 @@ function decode_execute() = {
           // 16-bit IRET only modifies lower 16 flags bits; 32-bit replaces all,
           // RF included (SDM IRET: "EFLAGS(RF, AC, ID) := tempEFLAGS"), which
           // is how a debug handler resumes past an instruction breakpoint.
-          let img : qword = zero_extend(new_flags);
-          if os == 16
-            then write_rflags((read_rflags() & 0xFFFFFFFFFFFF0000) | img)
-            else write_rflags(img);
-          RF = img[16]
+          restore_iret_flags(os, zero_extend(new_flags), iret_cpl, protected_return)
         } else {
           let new_rip    = pop(os);
           let new_cs     = pop(os);
@@ -1648,8 +1733,7 @@ function decode_execute() = {
           else cur_mode = CompatibilityMode;
 
           cur_cpl = unsigned(new_cs[1..0]);
-          write_rflags(new_rflags);
-          RF = new_rflags[16];  // IRETQ transfers RF from the image (SDM IRET)
+          restore_iret_flags(os, new_rflags, iret_cpl, protected_return);
           v(RSP) = new_rsp;
           // Load SS selector *and* descriptor cache from the GDT (SDM Vol.2
           // IRET: on return to outer privilege the hidden part of SS —
@@ -1735,16 +1819,18 @@ function decode_execute() = {
 
       // D7: XLAT/XLATB
       215 => {
+        // SDM Vol.2D, XLAT: DS:(E)BX + unsigned AL, with segment
+        // override support. Truncate the effective offset to address size
+        // before adding the segment base (Vol.1, address calculations).
+        let asz = get_address_size(pfx);
         let al : qword = zero_extend(v(8, RAX));
-        let addr : qword = zero_extend(v(get_address_size(pfx), RBX)) + al;
-        // SDM Vol.2D XLAT/XLATB: the table is in DS unless overridden.
-        // Use the ordinary segmented access, including its limit checks.
+        let sum : qword = zero_extend(v(asz, RBX)) + al;
         let seg : segreg_idx = match pfx.seg_override {
           Some(s) => s,
-          None()  => DS,
+          None() => DS,
         };
-        let src : MemRef = struct { seg = seg, addr = addr };
-        v(RAX) = v(8, src)
+        let src : MemRef = struct { seg = seg, addr = zero_extend(sum[asz - 1 .. 0]) };
+        v(RAX) = read_mem(8, src)
       },
 
       // D8-DF: x87 FPU

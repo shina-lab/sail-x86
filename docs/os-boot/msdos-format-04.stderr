@@ -1,0 +1,655 @@
+sail-x86-system: VGA BIOS loaded (39424 bytes, checksum OK)
+sail-x86-system: BIOS=build/bios.bin (131072 bytes), RAM=16MB
+sail-x86-system: reset vector CS:IP=f000:fff0 (linear 0xfffffff0)
+sail-x86-system: HDA=build/os-boot/msdos622-fixed.img
+sail-x86-system: CDROM=build/os-boot/msdos622.iso
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+BUILD: gcc: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 binutils: (GNU Binutils for Ubuntu) 2.42
+Found QEMU fw_cfg
+qemu/e820: fw_cfg file etc/e820 not found
+RamSize: 0x01000000 [cmos]
+Relocating init from 0x000e8fa0 to 0x00fb6320 (size 40000)
+RamSizeOver4G: 0x0000000000000000 [cmos]
+=== PCI bus & bridge init ===
+PCI: pci_bios_init_bus_rec bus = 0x0
+=== PCI device probing ===
+Found 5 PCI devices (max PCI bus is 00)
+=== PCI new allocation pass #1 ===
+PCI: check devices
+=== PCI new allocation pass #2 ===
+PCI: IO: c000 - c00f
+PCI: 32: 0000000080000000 - 00000000fec00000
+PCI: map device bdf=00:01.1  bar 4, addr 0000c000, size 00000010 [io]
+PCI: map device bdf=00:02.0  bar 6, addr febf0000, size 00010000 [mem]
+PCI: map device bdf=00:02.0  bar 0, addr fd000000, size 01000000 [prefmem]
+PCI: init bdf=00:00.0 id=8086:1237
+PCI: init bdf=00:01.0 id=8086:7000
+PIIX3/PIIX4 init: elcr=00 0c
+PCI: init bdf=00:01.1 id=8086:7010
+PCI: init bdf=00:01.3 id=8086:7113
+Using pmtimer, ioport 0xb008
+PCI: init bdf=00:02.0 id=1234:1111
+PCI: Using 00:02.0 for primary VGA
+Found 1 cpu(s) max supported 1 cpu(s)
+Copying MPTABLE from 0x00006e20/fadc20 to 0x000f2b10
+ACPI DSDT=0x00ffe4f0
+Copying ACPI RSDP from 0x00006dfc to 0x000f2af0
+Scan for VGA option rom
+Running option rom at c000:0003
+Start SeaVGABIOS (version 1.16.3-20260925_004617-odyssey)
+VGABUILD: gcc: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 binutils: (GNU Binutils for Ubuntu) 2.42
+enter vga_post:
+   a=00000010  b=0000ffff  c=00000000  d=0000ffff ds=0000 es=f000 ss=0000
+  si=00000000 di=00008d21 bp=00000000 sp=00006da2 cs=f000 ip=d692  f=0000
+VBE DISPI: bdf 00:02.0, bar 0
+VBE DISPI: lfb_addr=fd000000, size 16 MB
+Removing mode 199
+Removing mode 19a
+Removing mode 19b
+Removing mode 19c
+Removing mode 19d
+Removing mode 19e
+Attempting to allocate 512 bytes lowmem via pmm call to f000:d734
+pmm call arg1=0
+VGA stack allocated at ef580
+Turning on vga text mode console
+set VGA mode 3
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+PS2 keyboard initialized
+ATA controller 1 at 1f0/3f4/0 (irq 14 dev 9)
+ata0-0: Sail-x86 Virtual Disk ATA-6 Hard-Disk (128 MiBytes)
+Searching bootorder for: /pci@i0cf8/*@1,1/drive@0/disk@0
+Searching bios-geometry for: /pci@i0cf8/*@1,1/drive@0/disk@0
+ATA controller 2 at 170/374/0 (irq 15 dev 9)
+DVD/CD [ata1-0: Sail-x86 CD-ROM ATAPI-6 DVD/CD]
+Searching bootorder for: /pci@i0cf8/*@1,1/drive@1/disk@0
+Searching bios-geometry for: /pci@i0cf8/*@1,1/drive@1/disk@0
+Searching bootorder for: HALT
+Found 1 serial ports
+Scan for option roms
+Searching bootorder for: HALT
+drive 0x000f2a90: PCHS=260/16/63 translation=none LCHS=260/16/63 s=262144
+Space available for UMB: ca000-ee800, f0000-f2a00
+Returned 253952 bytes of ZoneHigh
+e820 map has 6 items:
+  0: 0000000000000000 - 000000000009fc00 = 1 RAM
+  1: 000000000009fc00 - 00000000000a0000 = 2 RESERVED
+  2: 00000000000f0000 - 0000000000100000 = 2 RESERVED
+  3: 0000000000100000 - 0000000000ffe000 = 1 RAM
+  4: 0000000000ffe000 - 0000000001000000 = 2 RESERVED
+  5: 00000000fffc0000 - 0000000100000000 = 2 RESERVED
+enter handle_19:
+  NULL
+Booting from DVD/CD...
+Booting from 0000:7c00
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/msdos-format-04.png
+[59987255] CS:RIP=0c76:00006858 mode=R
+  RAX=0000000080000008 RBX=0000000000000000 RCX=0000000000000000 RDX=00000000000001f0
+  RSP=00000000000004e0 RBP=000000000000016c RSI=0000000000004bb2 RDI=00000000000f4bb2
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0c76 DS=0c76 ES=0c76 SS=8e81 FS=0000 GS=0000
+  FLAGS CF=1 PF=0 AF=1 ZF=0 SF=1 OF=0 DF=0 IF=1
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000000008f466:002f IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=000000000000c760 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[1] base=000000000000c760 limit=0000ffff D/B=0 DPL=0 type=b
+  SEG[2] base=000000000008e810 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=000000000000c760 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=14996813750 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=2372 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:00:14 ticks=491415 second=14
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=08 at=3584407000 ns status=41 error=04 features=00 count=00 lba=000000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=000000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=08 at=4122279250 ns status=40 error=01 features=00 count=00 lba=000000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=2048 write_lba=0 packet=0 cdb_pos=0 CDB=28 00 00 00 02 78 00 00 01 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=000000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+                                                                                
+  CD-ROM Device Driver for IDE (Four Channels Supported)                        
+  (C)Copyright Oak Technology Inc. 1993-1996                                    
+  Driver Version     : V340                                                     
+  Device Name        : BANANA                                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/msdos-format-04.png
+[115487682] CS:RIP=0019:00009140 mode=R
+  RAX=0000000000000700 RBX=0000000000000000 RCX=0000000000000000 RDX=000000000000004f
+  RSP=0000000000000a92 RBP=00000000000013d0 RSI=000000000000010d RDI=00000000000001fb
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0019 DS=0116 ES=0116 SS=0116 FS=0000 GS=0000
+  FLAGS CF=0 PF=0 AF=0 ZF=0 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000000008f466:002f IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=0000000000001160 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[1] base=0000000000000190 limit=0000ffff D/B=0 DPL=0 type=b
+  SEG[2] base=0000000000001160 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=0000000000001160 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=28871920500 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=30105 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:00:28 ticks=946075 second=28
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=08 at=3584407000 ns status=41 error=04 features=00 count=00 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a0 at=20777730250 ns status=40 error=00 features=00 count=03 lba=080000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=2048/2048 block_end=2048 limit=2048 write_lba=0 packet=1 cdb_pos=12 CDB=28 00 00 00 02 d0 00 00 01 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=080000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+                                                                                
+  CD-ROM Device Driver for IDE (Four Channels Supported)                        
+  (C)Copyright Oak Technology Inc. 1993-1996                                    
+  Driver Version     : V340                                                     
+  Device Name        : BANANA                                                   
+  No drives found, aborting installation                                        
+                                                                                
+                                                                                
+Device driver not found: 'BANANA'.                                              
+No valid CDROM device drivers selected                                          
+A:\>format c: /s                                                                
+                                                                                
+WARNING: ALL DATA ON NON-REMOVABLE DISK                                         
+DRIVE C: WILL BE LOST!                                                          
+Proceed with Format (Y/N)?                                                      
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/msdos-format-04.png
+[262431964] CS:RIP=f000:0000a4db mode=R
+  RAX=0000000000000000 RBX=000000000000ffa8 RCX=000000000000a76f RDX=0000000000000000
+  RSP=000000000000ff90 RBP=0000000000000a6e RSI=0000000000000000 RDI=0000000000000001
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=f000 DS=e000 ES=0040 SS=e000 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=0
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000000008f466:002f IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=0000000000000400 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[1] base=00000000000f0000 limit=0000ffff D/B=0 DPL=0 type=b
+  SEG[2] base=00000000000e0000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=00000000000e0000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=65607991000 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=47641 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:01:05 ticks=2149842 second=65
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=30 at=61491994750 ns status=40 error=00 features=00 count=01 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=1 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a0 at=20777730250 ns status=40 error=00 features=00 count=03 lba=080000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=2048/2048 block_end=2048 limit=2048 write_lba=0 packet=1 cdb_pos=12 CDB=28 00 00 00 02 d0 00 00 01 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=080000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+                                                                                
+  CD-ROM Device Driver for IDE (Four Channels Supported)                        
+  (C)Copyright Oak Technology Inc. 1993-1996                                    
+  Driver Version     : V340                                                     
+  Device Name        : BANANA                                                   
+  No drives found, aborting installation                                        
+                                                                                
+                                                                                
+Device driver not found: 'BANANA'.                                              
+No valid CDROM device drivers selected                                          
+A:\>format c: /s                                                                
+                                                                                
+WARNING: ALL DATA ON NON-REMOVABLE DISK                                         
+DRIVE C: WILL BE LOST!                                                          
+Proceed with Format (Y/N)?y                                                     
+                                                                                
+                                                                                
+Formatting 127.44M                                                              
+Format complete.                                                                
+System transferred                                                              
+                                                                                
+Volume label (11 characters, ENTER for none)?                                   
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/msdos-format-04.png
+[293807104] CS:RIP=0019:000096ac mode=R
+  RAX=0000000000000000 RBX=0000000000001ce8 RCX=000000000000e176 RDX=0000000000001c83
+  RSP=0000000000000916 RBP=00000000000013ac RSI=0000000000000e8c RDI=0000000000001070
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0019 DS=0ce5 ES=0116 SS=0116 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=0
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000000008f466:002f IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=0000000000001160 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[1] base=0000000000000190 limit=0000ffff D/B=0 DPL=0 type=b
+  SEG[2] base=0000000000001160 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=000000000000ce50 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=73451776000 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=11 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=61397 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:01:13 ticks=2401184 second=73
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=73446321000 ns status=40 error=00 features=00 count=01 lba=00005c dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=64 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=00005c dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a0 at=20777730250 ns status=40 error=00 features=00 count=03 lba=080000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=2048/2048 block_end=2048 limit=2048 write_lba=0 packet=1 cdb_pos=12 CDB=28 00 00 00 02 d0 00 00 01 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=080000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+                                                                                
+  CD-ROM Device Driver for IDE (Four Channels Supported)                        
+  (C)Copyright Oak Technology Inc. 1993-1996                                    
+  Driver Version     : V340                                                     
+  Device Name        : BANANA                                                   
+  No drives found, aborting installation                                        
+                                                                                
+                                                                                
+Device driver not found: 'BANANA'.                                              
+No valid CDROM device drivers selected                                          
+A:\>format c: /s                                                                
+                                                                                
+WARNING: ALL DATA ON NON-REMOVABLE DISK                                         
+DRIVE C: WILL BE LOST!                                                          
+Proceed with Format (Y/N)?y                                                     
+                                                                                
+                                                                                
+Formatting 127.44M                                                              
+Format complete.                                                                
+System transferred                                                              
+                                                                                
+Volume label (11 characters, ENTER for none)? MSDOS622                          
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/msdos-format-04.png
+[355160239] CS:RIP=0019:00008657 mode=R
+  RAX=0000000000000700 RBX=000000000000037c RCX=0000000000000586 RDX=0000000000000116
+  RSP=0000000000000a7e RBP=0000000000000000 RSI=0000000000000023 RDI=00000000000001fb
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0019 DS=0070 ES=0116 SS=0116 FS=0000 GS=0000
+  FLAGS CF=0 PF=0 AF=0 ZF=0 SF=1 OF=0 DF=0 IF=1
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000000008f466:002f IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=0000000000001160 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[1] base=0000000000000190 limit=0000ffff D/B=0 DPL=0 type=b
+  SEG[2] base=0000000000001160 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=0000000000000700 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=88790059750 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=46514 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:01:28 ticks=2909472 second=88
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=30 at=78682224500 ns status=40 error=00 features=00 count=01 lba=0003ec dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=1005 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=0003ec dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a0 at=78672172750 ns status=40 error=00 features=00 count=03 lba=080000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=2048/2048 block_end=2048 limit=2048 write_lba=0 packet=1 cdb_pos=12 CDB=28 00 00 00 02 b0 00 00 01 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=080000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+A:AUTOEXEC.BAT                                                                  
+A:MOUSE.@@@                                                                     
+A:CD3.SYS                                                                       
+A:EDIT.EXE                                                                      
+A:EDIT.INI                                                                      
+A:DOSKEY.COM                                                                    
+A:UNFORMAT.COM                                                                  
+A:TREE.COM                                                                      
+A:FIND.EXE                                                                      
+A:RESTORE.EXE                                                                   
+A:SETVER.EXE                                                                    
+A:SCANDISK.EXE                                                                  
+A:SHARE.EXE                                                                     
+A:XCOPY.EXE                                                                     
+A:QBASIC.HLP                                                                    
+A:MOUSE.INI                                                                     
+A:SCANDISK.INI                                                                  
+A:MOUSE.SYS                                                                     
+A:CD4.SYS                                                                       
+A:CD1.SYS                                                                       
+A:FORMAT.COM                                                                    
+A:MOUSE.COM                                                                     
+       40 file(s) copied                                                        
+                                                                                
+A:\>                                                                            
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/msdos-format-04.png
+[513553906] CS:RIP=0019:00005195 mode=R
+  RAX=0000000000008400 RBX=0000000000000392 RCX=00000000000000f9 RDX=000000000000007f
+  RSP=0000000000000a82 RBP=0000000000000000 RSI=0000000000000023 RDI=00000000000001fb
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0019 DS=0070 ES=0116 SS=0116 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000000008f466:002f IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=0000000000001160 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[1] base=0000000000000190 limit=0000ffff D/B=0 DPL=0 type=b
+  SEG[2] base=0000000000001160 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=0000000000000700 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=128388476500 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=57556 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:02:08 ticks=4207033 second=128
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=30 at=118751184500 ns status=40 error=00 features=00 count=01 lba=00023e dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=575 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=00023e dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a0 at=118754097750 ns status=40 error=00 features=00 count=03 lba=080000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=2048/2048 block_end=2048 limit=2048 write_lba=0 packet=1 cdb_pos=12 CDB=28 00 00 00 00 1a 00 00 01 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=080000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+A:QBASIC.HLP                                                                    
+A:MOUSE.INI                                                                     
+A:SCANDISK.INI                                                                  
+A:MOUSE.SYS                                                                     
+A:CD4.SYS                                                                       
+A:CD1.SYS                                                                       
+A:FORMAT.COM                                                                    
+A:MOUSE.COM                                                                     
+       40 file(s) copied                                                        
+                                                                                
+A:\>echo device=c:\dos\himem.sys > c:\config.sys                                
+                                                                                
+A:\>echo dos=high >> c:\config.sys                                              
+                                                                                
+A:\>echo files=30 >> c:\config.sys                                              
+                                                                                
+A:\>echo buffers=20 >> c:\config.sys                                            
+                                                                                
+A:\>echo @echo off > c:\autoexec.bat                                            
+                                                                                
+A:\>echo prompt $p$g >> c:\autoexec.bat                                         
+                                                                                
+A:\>echo path c:\dos >> c:\autoexec.bat                                         
+                                                                                
+A:\>                                                                            
+sail-x86-system: exited after 515875748 instructions

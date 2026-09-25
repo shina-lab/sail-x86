@@ -1,0 +1,98 @@
+sail-x86-system: loading build/os-boot/memtest-v7.20/memtest64.bin
+sail-x86-system: RAM=128MB, entry=0x0
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/memtest-direct-01.png
+[102562183] RIP=000000000011079c mode=L
+  RAX=0000000002d55ed0 RBX=0000000000400000 RCX=0000000000000000 RDX=0000000002d55ec8
+  RSP=0000000000130050 RBP=0000000003affff8 RSI=0000000000000000 RDI=0000000000000000
+  R8 =0000000000400000 R9 =0000000000000000 R10=000000000012ff21 R11=000000000012ff20
+  R12=0000000000000001 R13=0000000002d55ed0 R14=0000000000000000 R15=0000000003affff8
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0010 DS=0018 ES=0018 SS=0018 FS=0018 GS=0018
+  FLAGS CF=0 PF=0 AF=1 ZF=0 SF=0 OF=0 DF=0 IF=0
+  CR0=0000000080000031 CR2=0000000000000000 CR3=000000000011f000 CR4=0000000000000020 EFER=0000000000000500
+  CPL=0 GDTR=00000000001005ac:001f IDTR=0000000000100460:013f LDTR=0000
+  SEG[0] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=2
+  SEG[1] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=a
+  SEG[2] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=2
+  SEG[3] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=2
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=2
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=2
+  APIC SVR=000000ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00010000 LINT1=00010000 clock=25640545750 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=00 IMR=ff ISR=00  slave IRR=00 IMR=ff ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=0 count=0 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=59659 gate=1 output=1
+  RTC index=00 A=26 B=02 C=00 D=80 time=12:00:00 ticks=0 second=0
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=00 lba=000000 dh=00 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=00 lba=000000 dh=00 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=00 lba=000000 dh=00 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=00 lba=000000 dh=00 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+      Memtest86+ v7.20        Sail x86-64 Emulator                              
+CLK/Temp: 1010MHz             Pass  0%                                          
+L1 Cache:   N/A               Test 50% ####################                     
+L2 Cache:   N/A               Test #2  [Address test, own address + window]     
+L3 Cache:   N/A               Testing: 4MB - 59MB [55MB of 58.6MB]              
+Memory  :   59MB              Pattern: own address                              
+                                                                                
+CPU: 1 Cores 1 Threads    SMP: Disabled     Time:  0:00:11  Status: Testing  \  
+Using: Core #0                              Pass:  0        Errors: 0           
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+ <ESC> Exit  <F1> Configuration  <Space> Scroll Lock            7.20.52c6c.x64  
+sail-x86-system: exited after 169091509 instructions

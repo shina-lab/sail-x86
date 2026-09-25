@@ -1,0 +1,230 @@
+
+ISOLINUX 6.04 6.04-pre1  Copyright (C) 1994-2015 H. Peter Anvin et al
+Loading /boot/bzImage... ok
+Loading /boot/initramfs.cpio...ok
+Linux version 6.19.6 (ruiu@odyssey) (gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #1 SMP Fri Sep 25 00:09:10 JST 2026
+Command line: BOOT_IMAGE=/boot/bzImage console=ttyS0,115200 earlyprintk=serial,ttyS0,115200 tsc=reliable nokaslr norandmaps loglevel=7 rdinit=/init initrd=/boot/initramfs.cpio
+x86/CPU: Running old microcode
+BIOS-provided physical RAM map:
+BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
+BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved
+BIOS-e820: [mem 0x00000000000f0000-0x00000000000fffff] reserved
+BIOS-e820: [mem 0x0000000000100000-0x0000000003ffdfff] usable
+BIOS-e820: [mem 0x0000000003ffe000-0x0000000003ffffff] reserved
+BIOS-e820: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
+printk: legacy bootconsole [earlyser0] enabled
+NX (Execute Disable) protection: active
+APIC: Static calls initialized
+tsc: Detected 1000.000 MHz processor
+last_pfn = 0x3ffe max_arch_pfn = 0x10000000000
+x86/PAT: PAT support disabled because CONFIG_X86_PAT is disabled in the kernel.
+x86/PAT: Configuration [0-7]: WB  WT  UC- UC  WB  WT  UC- UC  
+found SMP MP-table at [mem 0x000f2b10-0x000f2b1f]
+RAMDISK: [mem 0x03e4b000-0x03ffdfff]
+ACPI: Early table checksum verification disabled
+ACPI: RSDP 0x00000000000F2AF0 000014 (v00 BOCHS )
+ACPI: RSDT 0x0000000003FFE4C0 000030 (v01 BOCHS  BXPCRSDT 00000001 BXPC 00000001)
+ACPI: FACP 0x0000000003FFFF80 000074 (v01 BOCHS  BXPCFACP 00000001 BXPC 00000001)
+ACPI: DSDT 0x0000000003FFE4F0 001135 (v01 BOCHS  BXPCDSDT 00000001 BXPC 00000001)
+ACPI: FACS 0x0000000003FFFF40 000040
+ACPI: SSDT 0x0000000003FFF720 000819 (v01 BOCHS  BXPCSSDT 00000001 BXPC 00000001)
+ACPI: APIC 0x0000000003FFF630 000078 (v01 BOCHS  BXPCAPIC 00000001 BXPC 00000001)
+ACPI: Reserving FACP table memory at [mem 0x3ffff80-0x3fffff3]
+ACPI: Reserving DSDT table memory at [mem 0x3ffe4f0-0x3fff624]
+ACPI: Reserving FACS table memory at [mem 0x3ffff40-0x3ffff7f]
+ACPI: Reserving SSDT table memory at [mem 0x3fff720-0x3ffff38]
+ACPI: Reserving APIC table memory at [mem 0x3fff630-0x3fff6a7]
+Zone ranges:
+  DMA32    [mem 0x0000000000001000-0x0000000003ffdfff]
+  Normal   empty
+Movable zone start for each node
+Early memory node ranges
+  node   0: [mem 0x0000000000001000-0x000000000009efff]
+  node   0: [mem 0x0000000000100000-0x0000000003ffdfff]
+Initmem setup node 0 [mem 0x0000000000001000-0x0000000003ffdfff]
+On node 0, zone DMA32: 1 pages in unavailable ranges
+On node 0, zone DMA32: 97 pages in unavailable ranges
+On node 0, zone DMA32: 16386 pages in unavailable ranges
+ACPI: PM-Timer IO Port: 0xb008
+ACPI: LAPIC_NMI (acpi_id[0xff] dfl dfl lint[0x1])
+IOAPIC[0]: apic_id 0, version 17, address 0xfec00000, GSI 0-23
+ACPI: INT_SRC_OVR (bus 0 bus_irq 0 global_irq 2 dfl dfl)
+ACPI: INT_SRC_OVR (bus 0 bus_irq 5 global_irq 5 high level)
+ACPI: INT_SRC_OVR (bus 0 bus_irq 9 global_irq 9 high level)
+ACPI: INT_SRC_OVR (bus 0 bus_irq 10 global_irq 10 high level)
+ACPI: INT_SRC_OVR (bus 0 bus_irq 11 global_irq 11 high level)
+ACPI: Using ACPI (MADT) for SMP configuration information
+CPU topo: Max. logical packages:   1
+CPU topo: Max. logical dies:       1
+CPU topo: Max. dies per package:   1
+CPU topo: Max. threads per core:   1
+CPU topo: Num. cores per package:     1
+CPU topo: Num. threads per package:   1
+CPU topo: Allowing 1 present CPUs plus 0 hotplug CPUs
+[mem 0x04000000-0xfffbffff] available for PCI devices
+clocksource: refined-jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645519600211568 ns
+setup_percpu: NR_CPUS:2 nr_cpumask_bits:1 nr_cpu_ids:1 nr_node_ids:1
+percpu: Embedded 36 pages/cpu s117528 r0 d29928 u2097152
+Kernel command line: BOOT_IMAGE=/boot/bzImage console=ttyS0,115200 earlyprintk=serial,ttyS0,115200 tsc=reliable nokaslr norandmaps loglevel=7 rdinit=/init initrd=/boot/initramfs.cpio
+random: crng init done
+printk: log buffer data + meta data: 131072 + 458752 = 589824 bytes
+Dentry cache hash table entries: 8192 (order: 4, 65536 bytes, linear)
+Inode-cache hash table entries: 4096 (order: 3, 32768 bytes, linear)
+Built 1 zonelists, mobility grouping on.  Total pages: 16284
+mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+SLUB: HWalign=64, Order=0-1, MinObjects=0, CPUs=1, Nodes=1
+rcu: Hierarchical RCU implementation.
+rcu: 	RCU restricting CPUs from NR_CPUS=2 to nr_cpu_ids=1.
+rcu: RCU calculated value of scheduler-enlistment delay is 25 jiffies.
+rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=1
+NR_IRQS: 4352, nr_irqs: 48, preallocated irqs: 16
+rcu: srcu_init: Setting srcu_struct sizes based on contention.
+Console: colour VGA+ 80x25
+printk: legacy console [ttyS0] enabled
+printk: legacy console [ttyS0] enabled
+printk: legacy bootconsole [earlyser0] disabled
+printk: legacy bootconsole [earlyser0] disabled
+ACPI: Core revision 20250807
+APIC: Switch to symmetric I/O mode setup
+..TIMER: vector=0x30 apic1=0 pin1=2 apic2=-1 pin2=-1
+clocksource: tsc-early: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
+Calibrating delay loop (skipped), value calculated using timer frequency.. 2000.00 BogoMIPS (lpj=4000000)
+Last level iTLB entries: 4KB 64, 2MB 8, 4MB 8
+Last level dTLB entries: 4KB 64, 2MB 32, 4MB 32, 1GB 4
+mitigations: Enabled attack vectors: SMT mitigations: off
+Speculative Store Bypass: Vulnerable
+SRBDS: Vulnerable: No microcode
+Spectre V2 : Vulnerable
+RETBleed: Vulnerable
+MDS: Vulnerable
+MMIO Stale Data: Vulnerable
+VMSCAPE: Vulnerable
+Spectre V1 : Vulnerable: __user pointer sanitization and usercopy barriers only; no swapgs barriers
+GDS: Vulnerable: No microcode
+x86/fpu: Supporting XSAVE feature 0x001: 'x87 floating point registers'
+x86/fpu: Supporting XSAVE feature 0x002: 'SSE registers'
+x86/fpu: Supporting XSAVE feature 0x004: 'AVX registers'
+x86/fpu: Supporting XSAVE feature 0x020: 'AVX-512 opmask'
+x86/fpu: Supporting XSAVE feature 0x040: 'AVX-512 Hi256'
+x86/fpu: Supporting XSAVE feature 0x080: 'AVX-512 ZMM_Hi256'
+x86/fpu: Supporting XSAVE feature 0x20000: 'AMX Tile config'
+x86/fpu: Supporting XSAVE feature 0x40000: 'AMX Tile data'
+x86/fpu: xstate_offset[2]:  576, xstate_sizes[2]:  256
+x86/fpu: xstate_offset[5]:  832, xstate_sizes[5]:   64
+x86/fpu: xstate_offset[6]:  896, xstate_sizes[6]:  512
+x86/fpu: xstate_offset[7]: 1408, xstate_sizes[7]: 1024
+x86/fpu: xstate_offset[17]: 2432, xstate_sizes[17]:   64
+x86/fpu: xstate_offset[18]: 2496, xstate_sizes[18]: 8192
+x86/fpu: Enabled xstate features 0x600e7, context size is 10688 bytes, using 'compacted' format.
+Freeing SMP alternatives memory: 12K
+pid_max: default: 32768 minimum: 301
+Mount-cache hash table entries: 512 (order: 0, 4096 bytes, linear)
+Mountpoint-cache hash table entries: 512 (order: 0, 4096 bytes, linear)
+smpboot: CPU0: Intel Sail x86-64 Emulator (family: 0x6, model: 0x5e, stepping: 0x3)
+Performance Events: unsupported CPU family 6 model 94 no PMU driver, software events only.
+signal: max sigframe size: 11952
+rcu: Hierarchical SRCU implementation.
+rcu: 	Max phase no-delay instances is 1000.
+smp: Bringing up secondary CPUs ...
+smp: Brought up 1 node, 1 CPU
+smpboot: Total of 1 processors activated (2000.00 BogoMIPS)
+Memory: 48216K/65136K available (4738K kernel code, 802K rwdata, 756K rodata, 736K init, 496K bss, 15980K reserved, 0K cma-reserved)
+devtmpfs: initialized
+clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+thermal_sys: Registered thermal governor 'step_wise'
+cpuidle: using governor ladder
+PCI: Using configuration type 1 for base access
+ACPI: Added _OSI(Module Device)
+ACPI: Added _OSI(Processor Device)
+ACPI: Added _OSI(Processor Aggregator Device)
+ACPI: 2 ACPI AML tables successfully acquired and loaded
+ACPI: Interpreter enabled
+ACPI: PM: (supports S0 S5)
+ACPI: Using IOAPIC for interrupt routing
+PCI: Using host bridge windows from ACPI; if necessary, use "pci=nocrs" and report a bug
+PCI: Using E820 reservations for host bridge windows
+ACPI: Enabled 16 GPEs in block 00 to 0F
+ACPI Error: Aborting method \_SB.PCI0.PCNF due to previous error (AE_AML_LOOP_TIMEOUT) (20250807/psparse-529)
+ACPI Error: Aborting method \_GPE._E01 due to previous error (AE_AML_LOOP_TIMEOUT) (20250807/psparse-529)
+ACPI Error: AE_AML_LOOP_TIMEOUT, while evaluating GPE method [_E01] (20250807/evgpe-511)
+ACPI: PCI Root Bridge [PCI0] (domain 0000 [bus 00-ff])
+acpi PNP0A03:00: _OSC: OS supports [ASPM ClockPM Segments HPX-Type3]
+acpi PNP0A03:00: PCIe port services disabled; not requesting _OSC control
+acpi PNP0A03:00: fail to add MMCONFIG information, can't access extended configuration space under this bridge
+PCI host bridge to bus 0000:00
+pci_bus 0000:00: root bus resource [io  0x0000-0x0cf7 window]
+pci_bus 0000:00: root bus resource [io  0x0d00-0xffff window]
+pci_bus 0000:00: root bus resource [mem 0x000a0000-0x000bffff window]
+pci_bus 0000:00: root bus resource [mem 0x80000000-0xfebfffff window]
+pci_bus 0000:00: root bus resource [bus 00-ff]
+pci 0000:00:00.0: [8086:1237] type 00 class 0x060000 conventional PCI endpoint
+pci 0000:00:01.0: [8086:7000] type 00 class 0x060100 conventional PCI endpoint
+pci 0000:00:01.1: [8086:7010] type 00 class 0x010180 conventional PCI endpoint
+pci 0000:00:01.1: BAR 4 [io  0xc000-0xc00f]
+pci 0000:00:01.1: BAR 0 [io  0x01f0-0x01f7]: legacy IDE quirk
+pci 0000:00:01.1: BAR 1 [io  0x03f6]: legacy IDE quirk
+pci 0000:00:01.1: BAR 2 [io  0x0170-0x0177]: legacy IDE quirk
+pci 0000:00:01.1: BAR 3 [io  0x0376]: legacy IDE quirk
+pci 0000:00:01.3: [8086:7113] type 00 class 0x068000 conventional PCI endpoint
+pci 0000:00:01.3: quirk: [io  0xb000-0xb03f] claimed by PIIX4 ACPI
+pci 0000:00:01.3: quirk: [io  0xb100-0xb10f] claimed by PIIX4 SMB
+pci 0000:00:01.3: 0xffffffff813bfea3 took 27343 usecs
+pci 0000:00:02.0: [1234:1111] type 00 class 0x030000 conventional PCI endpoint
+pci 0000:00:02.0: BAR 0 [mem 0xfd000000-0xfdffffff pref]
+pci 0000:00:02.0: ROM [mem 0xfebf0000-0xfebfffff pref]
+pci 0000:00:02.0: Video device with shadowed ROM at [mem 0x000c0000-0x000dffff]
+pci 0000:00:02.0: 0xffffffff814815a6 took 15625 usecs
+ACPI: PCI: Interrupt link LNKA configured for IRQ 10
+ACPI: PCI: Interrupt link LNKB configured for IRQ 10
+ACPI: PCI: Interrupt link LNKC configured for IRQ 11
+ACPI: PCI: Interrupt link LNKD configured for IRQ 11
+ACPI: PCI: Interrupt link LNKS configured for IRQ 9
+PCI: Using ACPI for IRQ routing
+pci 0000:00:02.0: vgaarb: setting as boot VGA device
+pci 0000:00:02.0: vgaarb: bridge control possible
+pci 0000:00:02.0: vgaarb: VGA device added: decodes=io+mem,owns=io+mem,locks=none
+vgaarb: loaded
+clocksource: Switched to clocksource tsc-early
+ACPI: Failed to create genetlink family for ACPI event
+pnp: PnP ACPI init
+pnp: PnP ACPI: found 4 devices
+clocksource: acpi_pm: mask: 0xffffff max_cycles: 0xffffff, max_idle_ns: 2085701024 ns
+pci_bus 0000:00: resource 4 [io  0x0000-0x0cf7 window]
+pci_bus 0000:00: resource 5 [io  0x0d00-0xffff window]
+pci_bus 0000:00: resource 6 [mem 0x000a0000-0x000bffff window]
+pci_bus 0000:00: resource 7 [mem 0x80000000-0xfebfffff window]
+pci 0000:00:01.0: PIIX3: Enabling Passive Release
+pci 0000:00:00.0: Limiting direct PCI/PCI transfers
+PCI: CLS 0 bytes, default 64
+Unpacking initramfs...
+RAPL PMU: API unit is 2^-32 Joules, 0 fixed counters, 10737418240 ms ovfl timer
+clocksource: tsc: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
+clocksource: Switched to clocksource tsc
+workingset: timestamp_bits=62 max_order=14 bucket_order=0
+input: Power Button as /devices/LNXSYSTM:00/LNXPWRBN:00/input/input0
+ACPI: button: Power Button [PWRF]
+Freeing initrd memory: 1740K
+Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+serial8250: ttyS0 at I/O 0x3f8 (irq = 4, base_baud = 115200) is a 16550A
+i8042: PNP: PS/2 Controller [PNP0303:KBD,PNP0f13:MOU] at 0x60,0x64 irq 1,12
+serio: i8042 KBD port at 0x60,0x64 irq 1
+intel_pstate: CPU model not supported
+input: AT Translated Set 2 keyboard as /devices/platform/i8042/serio0/input/input1
+microcode: Current revision: 0x00000000
+IPI shorthand broadcast: enabled
+sched_clock: Marking stable (104707085268, 72056500)->(44788250518, 59990891250)
+Freeing unused kernel image (initmem) memory: 736K
+Write protecting the kernel read-only data: 8192k
+Freeing unused kernel image (text/rodata gap) memory: 1404K
+Freeing unused kernel image (rodata/data gap) memory: 1292K
+Run /init as init process
+
+========================================
+ Sail x86-64 Emulator - Linux Console
+========================================
+
+Type 'help' for a list of built-in commands.
+Press Ctrl-a x to exit the emulator.
+
+
+sail# [6n

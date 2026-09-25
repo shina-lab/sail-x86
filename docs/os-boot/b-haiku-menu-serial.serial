@@ -1,0 +1,244 @@
+mapping local apic at 0xffffffff8229c000
+arch_altcodepatch_replace found 2 altcodepatches for tag 3
+arch_altcodepatch_replace found 4 altcodepatches for tag 4
+enable XSAVEC 0x7 832
+found clock speed with CPUID.16h
+setting up apic for CPU 0: apic id 0, version 327700
+CPU 0: logical apic id: 0x1
+x86_init_fpu: CPU has SSE... enabling FXSR and XMM.
+reserve_io_interrupt_vectors: reserved 1 vectors starting from 219
+arch_init_timer: using APIC timer.
+allocate_commpage_entry(2, 16) -> 0x0000000000000200
+scheduler_init: found 1 logical cpu and 0 cache levels
+scheduler switches: single core: true, cpu load tracking: false, core load tracking: false
+scheduler: switching to low latency mode
+msi support enabled
+slab memory manager: created area 0xffffffff80801000 (98)
+allocate_commpage_entry(3, 69) -> 0x0000000000000210
+PCI: pci_module_init
+ACPI: RSDP 0x00000000000F2AF0 000014 (v00 BOCHS )
+ACPI: RSDT 0x000000003FFFE4C0 000030 (v01 BOCHS  BXPCRSDT 00000001 BXPC 00000001)
+ACPI: FACP 0x000000003FFFFF80 000074 (v01 BOCHS  BXPCFACP 00000001 BXPC 00000001)
+ACPI: DSDT 0x000000003FFFE4F0 001135 (v01 BOCHS  BXPCDSDT 00000001 BXPC 00000001)
+ACPI: FACS 0x000000003FFFFF40 000040
+ACPI: SSDT 0x000000003FFFF720 000819 (v01 BOCHS  BXPCSSDT 00000001 BXPC 00000001)
+ACPI: APIC 0x000000003FFFF630 000078 (v01 BOCHS  BXPCAPIC 00000001 BXPC 00000001)
+ACPI: Forced DSDT copy: length 0x01135 copied locally, original unmapped
+ACPI: 2 ACPI AML tables successfully acquired and loaded
+ACPI: Enabled 16 GPEs in block 00 to 0F
+publish device: node 0xffffffff82b60be0, path acpi/namespace, module bus_managers/acpi/namespace/device_v1
+publish device: node 0xffffffff82b60be0, path acpi/call, module bus_managers/acpi/call/device_v1
+registering power button
+PCI: mechanism 1 controller found
+found io-apic with address 0xfec00000, global interrupt base 0, apic-id 0
+mapping io-apic 0 at physical address 0xfec00000
+io-apic 0 has range 0-23, 24 entries, version 0x00170011, apic-id 0
+setting ACPI interrupt model to APIC
+failed to put ACPI into APIC interrupt model, ignoring
+IRQ routing preparation failed, not configuring io-apics
+setting ACPI interrupt model to PIC
+PCI: [dom 0, bus  0] bus   0, device  0, function  0: vendor 8086, device 1237, revision 02
+PCI:   class_base 06, class_function 00, class_api 00
+PCI:   vendor 8086: Intel Corporation
+PCI:   device 1237: 440FX - 82441FX PMC [Natoma]
+PCI:   info: Bridge (Host bridge)
+PCI:   line_size 00, latency 00, header_type 00, BIST 00
+PCI:   ROM base host 00000000, pci 00000000, size 00000000
+PCI:   cardbus_CIS 00000000, subsystem_id 0000, subsystem_vendor_id 0000
+PCI:   interrupt_line 00, interrupt_pin 00, min_grant 00, max_latency 00
+PCI:   base reg 0: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 1: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 2: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 3: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 4: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 5: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   Capabilities: (not supported)
+PCI: [dom 0, bus  0] bus   0, device  1, function  0: vendor 8086, device 7000, revision 00
+PCI:   class_base 06, class_function 01, class_api 00
+PCI:   vendor 8086: Intel Corporation
+PCI:   device 7000: 82371SB PIIX3 ISA [Natoma/Triton II]
+PCI:   info: Bridge (ISA bridge)
+PCI:   line_size 00, latency 00, header_type 80, BIST 00
+PCI:   ROM base host 00000000, pci 00000000, size 00000000
+PCI:   cardbus_CIS 00000000, subsystem_id 0000, subsystem_vendor_id 0000
+PCI:   interrupt_line 00, interrupt_pin 00, min_grant 00, max_latency 00
+PCI:   base reg 0: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 1: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 2: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 3: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 4: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 5: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   Capabilities: (not supported)
+PCI: [dom 0, bus  0] bus   0, device  1, function  1: vendor 8086, device 7010, revision 00
+PCI:   class_base 01, class_function 01, class_api 80
+PCI:   vendor 8086: Intel Corporation
+PCI:   device 7010: 82371SB PIIX3 IDE [Natoma/Triton II]
+PCI:   info: Mass storage controller (IDE interface, ISA Compatibility mode-only controller, supports bus mastering)
+PCI:   line_size 00, latency 00, header_type 00, BIST 00
+PCI:   ROM base host 00000000, pci 00000000, size 00000000
+PCI:   cardbus_CIS 00000000, subsystem_id 0000, subsystem_vendor_id 0000
+PCI:   interrupt_line 00, interrupt_pin 00, min_grant 00, max_latency 00
+PCI:   base reg 0: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 1: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 2: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 3: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 4: host 0000c000, pci 0000c000, size 00000010, flags 01
+PCI:   base reg 5: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   Capabilities: (not supported)
+PCI: [dom 0, bus  0] bus   0, device  1, function  3: vendor 8086, device 7113, revision 03
+PCI:   class_base 06, class_function 80, class_api 00
+PCI:   vendor 8086: Intel Corporation
+PCI:   device 7113: 82371AB/EB/MB PIIX4 ACPI
+PCI:   info: Bridge
+PCI:   line_size 00, latency 00, header_type 00, BIST 00
+PCI:   ROM base host 00000000, pci 00000000, size 00000000
+PCI:   cardbus_CIS 00000000, subsystem_id 0000, subsystem_vendor_id 0000
+PCI:   interrupt_line 00, interrupt_pin 00, min_grant 00, max_latency 00
+PCI:   base reg 0: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 1: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 2: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 3: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 4: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 5: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   Capabilities: (not supported)
+PCI: [dom 0, bus  0] bus   0, device  2, function  0: vendor 1234, device 1111, revision 00
+PCI:   class_base 03, class_function 00, class_api 00
+PCI:   vendor 1234: Unknown
+PCI:   device 1111: Unknown
+PCI:   info: Display controller (VGA compatible controller, VGA controller)
+PCI:   line_size 00, latency 00, header_type 00, BIST 00
+PCI:   ROM base host febf0000, pci febf0000, size 00010000
+PCI:   cardbus_CIS 00000000, subsystem_id 0000, subsystem_vendor_id 0000
+PCI:   interrupt_line 00, interrupt_pin 00, min_grant 00, max_latency 00
+PCI:   base reg 0: host fd000000, pci fd000000, size 01000000, flags 08
+PCI:   base reg 1: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 2: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 3: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 4: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 5: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   Capabilities: (not supported)
+get_boot_partitions(): boot volume message:
+KMessage: buffer: 0xffffffff821c18f8 (size/capacity: 315/315), flags: 0xa
+  field: "booted from image" (BOOL): true
+  field: "partition offset"  (LLNG): 0 (0x0)
+  field: "boot method"       (LONG): 1 (0x1)
+  field: "boot drive number" (LLNG): 0 (0x0)
+  field: "disk identifier"   (RAWT): data at 0xffffffff821c19e4, 79 bytes
+get_boot_partitions(): boot method type: 1
+intel: ep_std_ops(0x1)
+intel: ep_std_ops(0x2)
+intel: pm_std_ops(0x1)
+intel: pm_std_ops(0x2)
+PCI-ATA: Controller in legacy mode: cmd 0x1f0, ctrl 0x3f6, irq 14
+PCI-ATA: enabling bus mastering
+PCI-ATA: pcicmd changed from 0x0103 to 0x0107
+PCI-ATA: init channel...
+PCI-ATA: channel index 0
+PCI-ATA: bus master base 0xc000
+PCI-ATA: init channel done
+ata 0: _DevicePresent: device 0, presence 0
+ata 0: _DevicePresent: device selection failed for device 1
+ata 0: deviceMask 0
+ata 0: ignoring device 0
+ata 0: ignoring device 1
+ata 0 error: target device not present
+ata 0 error: target device not present
+ata 0 error: invalid target device
+Last message repeated 12 times.
+PCI-ATA: Controller in legacy mode: cmd 0x170, ctrl 0x376, irq 15
+PCI-ATA: init channel...
+PCI-ATA: channel index 1
+PCI-ATA: bus master base 0xc008
+PCI-ATA: init channel done
+ata 1: _DevicePresent: device 0, presence 1
+ata 1: _DevicePresent: device selection failed for device 1
+ata 1: deviceMask 1
+ata 1: probing device 0
+ata 1: signature of device 0: 0xeb14
+atapi 1-0: model number: Sail-x86 CD-ROM                         
+atapi 1-0: serial number: SAILCD01            
+atapi 1-0: firmware rev.: 1.0     
+atapi 1-0: DMA not supported by device
+ata 1: identified ATAPI device 0
+ata 1: ignoring device 1
+publish device: node 0xffffffff82c98978, path disk/atapi/1/master/raw, module drivers/disk/scsi/scsi_cd/device_v1
+atapi 1-0 error: invalid target lun 1
+atapi 1-0 error: invalid target lun 2
+atapi 1-0 error: invalid target lun 3
+atapi 1-0 error: invalid target lun 4
+atapi 1-0 error: invalid target lun 5
+atapi 1-0 error: invalid target lun 6
+atapi 1-0 error: invalid target lun 7
+ata 1 error: target device not present
+ata 1 error: invalid target device
+Last message repeated 12 times.
+periph_check_capacity: TRIM: Setting trim support to disabled
+DMAResource@0xffffffff82c988d8: low/high 0/100000000, max segment count 512, align 2, boundary 65536, max transfer 524288, max segment size 134217728
+slab memory manager: created area 0xffffffff85801000 (155)
+slab memory manager: created area 0xffffffff86001000 (156)
+periph_check_capacity: TRIM: Setting trim support to disabled
+intel: ep_std_ops(0x1)
+intel: ep_std_ops(0x2)
+periph_check_capacity: TRIM: Setting trim support to disabled
+raw_command: 
+ata 1 error: command failed, error bit is set. status 0x41, error 0x50
+raw_command: 
+ata 1 error: command failed, error bit is set. status 0x41, error 0x50
+raw_command: 
+ata 1 error: command failed, error bit is set. status 0x41, error 0x50
+raw_command: 
+ata 1 error: command failed, error bit is set. status 0x41, error 0x50
+intel: pm_std_ops(0x1)
+intel: pm_identify_partition(0, 0: 0, 1477246976, 2048)
+ata 1 error: device still expects data transfer
+Last message repeated 15 times.
+identify(0, 0xffffffff8287e198)
+found primary descriptor
+  iso9660_primary_descriptor:
+    volume descriptor type: 1 (primary)
+    standard identifier:    CD001 (valid)
+    version:                1
+    identifier:             'haiku-r1~beta5-x86_64           '
+    size:                   3065
+    set size:               1
+    sequence number:        1
+    logical block size:     2048
+    path table size:        10
+    set identifier:                                     
+    root directory record:
+      length:               34
+      location:             20
+      data length:          2048
+      volume space:         1
+iso9660_info::set_string(0xffffffff8287e198 ('<NULL>'), 'haiku-r1~beta5-x86_64           ', 21)
+intel: pm_scan_partition(0, 0: 0, 1477246976, 2048)
+intel: ep_std_ops(0x1)
+intel: ep_identify_partition(0, 6291456, 1468006400, 2048)
+intel: ep_std_ops(0x2)
+intel: pm_identify_partition(0, 1: 6291456, 1468006400, 2048)
+ata 1 error: device still expects data transfer
+Last message repeated 15 times.
+identify(0, 0xffffffff8287e150)
+intel: ep_std_ops(0x1)
+intel: ep_identify_partition(0, 1474297856, 2949120, 2048)
+intel: ep_std_ops(0x2)
+intel: pm_identify_partition(0, 2: 1474297856, 2949120, 2048)
+ata 1 error: device still expects data transfer
+Last message repeated 15 times.
+identify(0, 0xffffffff8287e150)
+Identified anyboot CD.
+periph_check_capacity: TRIM: Setting trim support to disabled
+periph_check_capacity: TRIM: Setting trim support to disabled
+ata 1 error: device still expects data transfer
+Last message repeated 31 times.
+bfs: mounted "Haiku" (root node at 131072, device = /dev/disk/atapi/1/master/0)
+Mounted boot partition: /dev/disk/atapi/1/master/0
+ata 1 error: device still expects data transfer
+Last message repeated 47 times.
+unknown: [363319308:    14] Adding packages from "/boot/system/packages"
+unknown: [363321822:    14] Failed to open packages activation file: No such file or directory
+unknown: [363322982:    14] Loading packages from activation file failed. Loading all packages in packages directory.
+ata 1 error: device still expects data transfer
+Last message repeated 1071 times.
+slab memory manager: created area 0xffffffff86801000 (193)
+ata 1 error: device still expects data transfer

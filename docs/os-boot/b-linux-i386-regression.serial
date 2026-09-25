@@ -1,0 +1,104 @@
+Linux version 6.19.6 (ruiu@odyssey) (gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #1 Thu Sep 24 21:57:30 JST 2026
+x86/CPU: Running old microcode
+BIOS-provided physical RAM map:
+BIOS-88: [mem 0x0000000000000000-0x000000000009efff] usable
+BIOS-88: [mem 0x0000000000100000-0x00000000022fffff] usable
+Notice: NX (Execute Disable) protection cannot be enabled: non-PAE kernel!
+tsc: Detected 1000.000 MHz processor
+last_pfn = 0x2300 max_arch_pfn = 0x100000
+x86/PAT: PAT support disabled because CONFIG_X86_PAT is disabled in the kernel.
+x86/PAT: Configuration [0-7]: WB  WT  UC- UC  WB  WT  UC- UC  
+RAMDISK: [mem 0x0fe4d000-0x0fffffff]
+Allocated new RAMDISK: [mem 0x0214d000-0x022ff7ff]
+Move RAMDISK from [mem 0x0fe4d000-0x0ffff7ff] to [mem 0x0214d000-0x022ff7ff]
+0MB HIGHMEM available.
+35MB LOWMEM available.
+  mapped low ram: 0 - 02300000
+  low ram: 0 - 02300000
+Zone ranges:
+  Normal   [mem 0x0000000000001000-0x00000000022fffff]
+  HighMem  empty
+Movable zone start for each node
+Early memory node ranges
+  node   0: [mem 0x0000000000001000-0x000000000009efff]
+  node   0: [mem 0x0000000000100000-0x00000000022fffff]
+Initmem setup node 0 [mem 0x0000000000001000-0x00000000022fffff]
+On node 0, zone Normal: 1 pages in unavailable ranges
+On node 0, zone Normal: 97 pages in unavailable ranges
+On node 0, zone Normal: 256 pages in unavailable ranges
+[mem 0x02300000-0xffffffff] available for PCI devices
+clocksource: refined-jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645519600211568 ns
+Kernel command line: console=ttyS0 tsc=reliable random.trust_cpu=on rdinit=/init
+random: crng init done
+printk: log buffer data + meta data: 131072 + 409600 = 540672 bytes
+Dentry cache hash table entries: 4096 (order: 2, 16384 bytes, linear)
+Inode-cache hash table entries: 2048 (order: 1, 8192 bytes, linear)
+Built 1 zonelists, mobility grouping on.  Total pages: 8862
+mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+Checking if this processor honours the WP bit even in supervisor mode...Ok.
+SLUB: HWalign=64, Order=0-1, MinObjects=0, CPUs=1, Nodes=1
+NR_IRQS: 16, nr_irqs: 16, preallocated irqs: 16
+Console: colour *CGA 80x25
+printk: legacy console [ttyS0] enabled
+clocksource: tsc-early: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
+Calibrating delay loop (skipped), value calculated using timer frequency.. 2000.00 BogoMIPS (lpj=4000000)
+Last level iTLB entries: 4KB 64, 2MB 8, 4MB 8
+Last level dTLB entries: 4KB 64, 2MB 32, 4MB 32, 1GB 4
+CPU: Intel Sail x86-64 Emulator (family: 0x6, model: 0x5e, stepping: 0x3)
+mitigations: Enabled attack vectors: SMT mitigations: off
+Speculative Store Bypass: Vulnerable
+SRBDS: Vulnerable: No microcode
+Spectre V2 : Vulnerable
+RETBleed: Vulnerable
+MDS: Vulnerable
+MMIO Stale Data: Vulnerable
+VMSCAPE: Vulnerable
+Spectre V1 : Vulnerable: __user pointer sanitization and usercopy barriers only; no swapgs barriers
+L1TF: Kernel not compiled for PAE. No mitigation for L1TF
+GDS: Vulnerable: No microcode
+x86/fpu: Supporting XSAVE feature 0x001: 'x87 floating point registers'
+x86/fpu: Supporting XSAVE feature 0x002: 'SSE registers'
+x86/fpu: Supporting XSAVE feature 0x004: 'AVX registers'
+x86/fpu: Supporting XSAVE feature 0x020: 'AVX-512 opmask'
+x86/fpu: Supporting XSAVE feature 0x040: 'AVX-512 Hi256'
+x86/fpu: Supporting XSAVE feature 0x080: 'AVX-512 ZMM_Hi256'
+x86/fpu: xstate_offset[2]:  576, xstate_sizes[2]:  256
+x86/fpu: xstate_offset[5]:  832, xstate_sizes[5]:   64
+x86/fpu: xstate_offset[6]:  896, xstate_sizes[6]:  512
+x86/fpu: xstate_offset[7]: 1408, xstate_sizes[7]: 1024
+x86/fpu: Enabled xstate features 0xe7, context size is 2432 bytes, using 'compacted' format.
+pid_max: default: 32768 minimum: 301
+Mount-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes, linear)
+Performance Events: unsupported CPU family 6 model 94 no PMU driver, software events only.
+signal: max sigframe size: 3616
+Memory: 29764K/35448K available (1357K kernel code, 557K rwdata, 272K rodata, 196K init, 224K bss, 5388K reserved, 0K cma-reserved, 0K highmem)
+devtmpfs: initialized
+clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+clocksource: pit: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1601818034827 ns
+clocksource: Switched to clocksource tsc-early
+clocksource: tsc: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
+clocksource: Switched to clocksource tsc
+Unpacking initramfs...
+platform rtc_cmos: registered platform RTC device (no PNP device found)
+workingset: timestamp_bits=30 max_order=13 bucket_order=0
+Freeing initrd memory: 1740K
+Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+serial8250: ttyS0 at I/O 0x3f8 (irq = 4, base_baud = 115200) is a 16550A
+serio: i8042 KBD port at 0x60,0x64 irq 1
+microcode: Current revision: 0x00000000
+input: AT Translated Set 2 keyboard as /devices/platform/i8042/serio0/input/input0
+sched_clock: Marking stable (10385335325, 88047000)->(10474783075, -1400750)
+Freeing unused kernel image (initmem) memory: 196K
+Write protecting kernel text and read-only data: 1632k
+Run /init as init process
+
+========================================
+ Sail x86-64 Emulator - Linux Console
+========================================
+
+Type 'help' for a list of built-in commands.
+Press Ctrl-a x to exit the emulator.
+
+
+sail# [6n

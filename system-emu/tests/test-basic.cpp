@@ -953,6 +953,61 @@ static void init_model_16(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
   model.zKERNEL_GS_BASE = 0;
 }
 
+TEST(f2_string_repetition) {
+  // SDM Vol.2A 2.1.1: F2 and F3 repeat string and I/O instructions.
+  // Only CMPS/SCAS condition repetition on ZF (Vol.1 7.3.9.2).
+  // MS-DOS FORMAT uses F2 MOVSB to copy its BPB; its MBR uses F2 MOVSW.
+  for (u8 op : {0xa4, 0xa5, 0xaa, 0xab, 0xac, 0xad, 0x6c, 0x6d, 0x6e, 0x6f})
+  for (unsigned wide : {0U, 1U}) for (unsigned df : {0U, 1U})
+  for (unsigned zf : {0U, 1U}) for (unsigned count : {0U, 3U}) {
+    x86::Model model;
+    init_model_16(model);
+    model.zload_segment_register(x86::SEG_DS, 0x2000);
+    model.zload_segment_register(x86::SEG_ES, 0x3000);
+    const unsigned size = !(op & 1) ? 1 : wide ? 4 : 2;
+    const bool source = op == 0xa4 || op == 0xa5 || op == 0xac ||
+                        op == 0xad || op == 0x6e || op == 0x6f;
+    const bool dest = op == 0xa4 || op == 0xa5 || op == 0xaa ||
+                      op == 0xab || op == 0x6c || op == 0x6d;
+    model.zGPR.data[0] = 0x76543210;
+    model.zGPR.data[1] = 0xabcd0000 | count;
+    model.zGPR.data[2] = 0x80;
+    model.zGPR.data[6] = 0x100;
+    model.zGPR.data[7] = 0x200;
+    model.zDF = df;
+    model.zZF = zf;
+    for (unsigned i = 0; i < 32; ++i) {
+      model.phys_mem.write8(0x200f0 + i, 0x40 + i);
+      model.phys_mem.write8(0x301f0 + i, 0xcc);
+    }
+    const u8 code[] = {0x66, 0xf2, op, 0xf4};
+    ASSERT_EQ(run_code(model, 0x5000, code + !wide, sizeof(code) - !wide), RUN_HALTED);
+    ASSERT_EQ((u64)model.zGPR.data[1], 0xabcd0000UL);
+    const int delta = (df ? -1 : 1) * int(size * count);
+    ASSERT_EQ((u64)model.zGPR.data[6], 0x100U + (source ? delta : 0));
+    ASSERT_EQ((u64)model.zGPR.data[7], 0x200U + (dest ? delta : 0));
+    ASSERT_EQ((u64)model.zZF, zf);
+    for (unsigned i = 0; i < count; ++i) {
+      const int off = (df ? -1 : 1) * int(i * size);
+      for (unsigned b = 0; b < size; ++b) {
+        unsigned expected = 0xcc;
+        if (op == 0xa4 || op == 0xa5) expected = model.phys_mem.read8(0x20100 + off + b);
+        if (op == 0xaa || op == 0xab) expected = (0x76543210U >> (b * 8)) & 0xff;
+        if (op == 0x6c || op == 0x6d) expected = b == 0 ? 0xff : 0;
+        ASSERT_EQ(model.phys_mem.read8(0x30200 + off + b), expected);
+      }
+    }
+    if (!count) ASSERT_EQ(model.phys_mem.read32(0x30200), 0xccccccccU);
+    if (count && (op == 0xac || op == 0xad)) {
+      const int off = (df ? -1 : 1) * int((count - 1) * size);
+      const u64 mask = (1ULL << (size * 8)) - 1;
+      ASSERT_EQ((u64)model.zGPR.data[0] & mask,
+                model.phys_mem.read32(0x20100 + off) & mask);
+    }
+    model.model_fini();
+  }
+}
+
 TEST(real_mode_mov_ax_hlt) {
   // Basic 16-bit real mode: mov ax, 0x1234; hlt
   x86::Model model;
@@ -964,6 +1019,64 @@ TEST(real_mode_mov_ax_hlt) {
   ASSERT_EQ(kind, RUN_HALTED);
   ASSERT_EQ((u64)(model.zGPR.data[0] & 0xFFFF), 0x1234UL);
 
+  model.model_fini();
+}
+
+TEST(xlat_segmented_table) {
+  // SDM Vol.2D, XLAT: the table is DS:(E)BX, with segment overrides.
+  // A nonzero segment base caught ScanDisk's printf lookup reading DOS
+  // memory instead of its character-classification table.
+  for (bool override_es : {false, true}) {
+    x86::Model model;
+    init_model_16(model);
+    model.zSegReg.data[x86::SEG_DS] = 0x2000;
+    model.zSegCache.data[x86::SEG_DS].zseg_base = 0x20000;
+    model.zSegReg.data[x86::SEG_ES] = 0x3000;
+    model.zSegCache.data[x86::SEG_ES].zseg_base = 0x30000;
+    model.zGPR.data[0] = 0x123456789ABC0080;
+    model.zGPR.data[3] = 0x100002000;
+    model.zCF = 1; model.zZF = 1; model.zOF = 1;
+    model.phys_mem.write8(0x2080, 0xEE); // wrong, unsegmented address
+    model.phys_mem.write8(0x22080, 0x42);
+    model.phys_mem.write8(0x32080, 0x73);
+    const u8 code[] = {0x26, 0xD7, 0xF4}; // ES: XLAT; HLT
+    ASSERT_EQ(run_code(model, 0x1000, code + !override_es,
+                       sizeof(code) - !override_es), RUN_HALTED);
+    ASSERT_EQ(model.zGPR.data[0], 0x123456789ABC0000UL | (override_es ? 0x73 : 0x42));
+    ASSERT_EQ(model.zCF, 1u);
+    ASSERT_EQ(model.zZF, 1u);
+    ASSERT_EQ(model.zOF, 1u);
+    model.model_fini();
+  }
+}
+
+TEST(xlat_address_size_and_segment_limit) {
+  for (bool address32 : {false, true}) {
+    x86::Model model;
+    init_model_16(model);
+    model.zSegReg.data[x86::SEG_DS] = 0x2000;
+    model.zSegCache.data[x86::SEG_DS].zseg_base = 0x20000;
+    model.zGPR.data[0] = 2;
+    model.zGPR.data[3] = 0xFFFFFFFF;
+    model.phys_mem.write8(0x20001, 0x5A);
+    const u8 code[] = {0x67, 0xD7, 0xF4};
+    ASSERT_EQ(run_code(model, 0x1000, code + !address32,
+                       sizeof(code) - !address32), RUN_HALTED);
+    ASSERT_EQ(model.zGPR.data[0], 0x5Au);
+    model.model_fini();
+  }
+
+  x86::Model model;
+  init_model_16(model);
+  model.zSegReg.data[x86::SEG_SS] = 0x3000;
+  model.zSegCache.data[x86::SEG_SS].zseg_base = 0x30000;
+  model.zSegCache.data[x86::SEG_SS].zseg_limit = 0x100;
+  model.zGPR.data[0] = 1;
+  model.zGPR.data[3] = 0x100;
+  const u8 code[] = {0x36, 0xD7, 0xF4}; // SS: XLAT beyond the limit
+  ASSERT_EQ(run_code(model, 0x1000, code, sizeof(code)), RUN_FAULTED);
+  ASSERT_EQ(model.zfault_vector, 12u); // #SS
+  ASSERT_EQ(model.zGPR.data[0], 1u);
   model.model_fini();
 }
 
@@ -1066,6 +1179,297 @@ static void write_gdt_data_desc(x86::Model &model, u64 gdt_base, int index,
          | ((base >> 24) << 24);
   model.phys_mem.write32(offset, lo);
   model.phys_mem.write32(offset + 4, hi);
+}
+
+static void init_call_gate(x86::Model &model, bool tss32, bool gate32,
+                          unsigned params, unsigned target_dpl = 0) {
+  init_model_16(model);
+  model.zcur_mode = x86::zProtectedMode;
+  model.zCR0 |= 1;
+  model.zGDTR_base = 0x1000;
+  model.zGDTR_limit = 0x3f;
+  write_gdt_code_desc(model, 0x1000, 1, 0x10000, 0xffff, 3, false, false);
+  write_gdt_code_desc(model, 0x1000, 2, 0x20000, 0xffff, target_dpl, false, false);
+  write_gdt_data_desc(model, 0x1000, 3, 0x30000, 0xffff, 3, false, false);
+  write_gdt_data_desc(model, 0x1000, 4, 0x40000, 0xffff, target_dpl, false, false);
+  // Available 16- or 32-bit TSS at selector 28h, then load it with LTR.
+  model.phys_mem.write64(0x1028, 0x60000000ULL | (tss32 ? 0x67 : 0x2b)
+      | ((u64)(tss32 ? 0x89 : 0x81) << 40));
+  model.zload_segment_register(x86::SEG_CS, 8);
+  model.zRIP = 0x100;
+  const u8 ltr[] = {0xb8, 0x28, 0, 0x0f, 0, 0xd8};
+  model.phys_mem.write_bytes(0x10100, ltr, sizeof(ltr));
+  model.zstep(UNIT);
+  model.zstep(UNIT);
+  const unsigned off = tss32 ? target_dpl * 8 + 4 : target_dpl * 4 + 2;
+  if (tss32) model.phys_mem.write32(0x6000 + off, 0x900);
+  else model.phys_mem.write16(0x6000 + off, 0x900);
+  model.phys_mem.write16(0x6000 + off + (tss32 ? 4 : 2), 0x20 | target_dpl);
+  // DPL3 call gate. High offset bits deliberately nonzero for the 16-bit gate.
+  model.phys_mem.write64(0x1030, 0x0300 | (0x10ULL << 16)
+      | ((u64)params << 32) | ((u64)(gate32 ? 0xec : 0xe4) << 40)
+      | (gate32 ? 0 : 0xabcd000000000000ULL));
+  model.zcur_cpl = 3;
+  model.zload_segment_register(x86::SEG_CS, 0xb);
+  model.zload_segment_register(x86::SEG_SS, 0x1b);
+  model.zGPR.data[4] = 0x800;
+  model.zRIP = 0x100;
+  const u8 call[] = {0x9a, 0xad, 0xde, 0x33, 0};
+  model.phys_mem.write_bytes(0x10100, call, sizeof(call));
+}
+
+TEST(legacy_call_gate_privilege_stacks) {
+  // Gate width and TSS width are independent. Check both TSS layouts,
+  // CPL0/CPL1 targets, nonzero stack bases, copied parameters and ignored
+  // operand offsets (SDM Vol.2A CALL, MORE-PRIVILEGE).
+  for (bool tss32 : {false, true}) for (bool gate32 : {false, true}) {
+    x86::Model model;
+    const unsigned level = tss32 ? 1 : 0;
+    init_call_gate(model, tss32, gate32, 2, level);
+    const unsigned slot = gate32 ? 4 : 2;
+    for (unsigned i = 0; i < 2; ++i) {
+      if (gate32) model.phys_mem.write32(0x30800 + i * slot, 0xabcd1234 + i);
+      else model.phys_mem.write16(0x30800 + i * slot, 0x1234 + i);
+    }
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ((u64)model.zcur_cpl, level);
+    ASSERT_EQ((u64)model.zRIP, 0x300UL);
+    ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], 0x10UL | level);
+    ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], 0x20UL | level);
+    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_base, 0x40000UL);
+    const u64 sp = 0x900 - 6 * slot;
+    ASSERT_EQ((u64)model.zGPR.data[4], sp);
+    const u32 expected[] = {0x105, 0xb, gate32 ? 0xabcd1234U : 0x1234U,
+        gate32 ? 0xabcd1235U : 0x1235U, 0x800, 0x1b};
+    for (unsigned i = 0; i < 6; ++i) {
+      const u32 actual = gate32 ? model.phys_mem.read32(0x40000 + sp + i * slot)
+                               : model.phys_mem.read16(0x40000 + sp + i * slot);
+      ASSERT_EQ(actual, expected[i]);
+    }
+    ASSERT_EQ(model.phys_mem.read16(0x800), 0);
+    model.model_fini();
+  }
+}
+
+TEST(legacy_call_gate_same_privilege_and_faults) {
+  for (unsigned variant = 0; variant < 5; ++variant) {
+    x86::Model model;
+    init_call_gate(model, false, false, 0, variant == 0 ? 3 : 0);
+    if (variant == 0) model.zTR_limit = 0; // Same CPL must not inspect TSS.
+    if (variant == 1) model.phys_mem.write8(0x1035, 0x64); // Gate not present.
+    if (variant == 2) model.phys_mem.write8(0x1035, 0x84); // Gate DPL0.
+    if (variant == 3) model.zTR_limit = 4; // SS0 extends beyond TSS limit.
+    if (variant == 4) model.phys_mem.write16(0x6004, 0x23); // Wrong stack RPL.
+    model.zstep(UNIT);
+    if (variant == 0) {
+      ASSERT_EQ(model.zfault_pending, false);
+      ASSERT_EQ((u64)model.zcur_cpl, 3UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x7fcUL);
+      ASSERT_EQ(model.phys_mem.read16(0x307fc), 0x105);
+      ASSERT_EQ(model.phys_mem.read16(0x307fe), 0xb);
+      // A normal far return recovers the segmented caller stack.
+      model.phys_mem.write8(0x20300, 0xcb);
+      model.zstep(UNIT);
+      ASSERT_EQ((u64)model.zRIP, 0x105UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x800UL);
+    } else {
+      ASSERT_EQ(model.zfault_pending, true);
+      ASSERT_EQ((u64)model.zfault_vector, variant == 1 ? 11UL : variant == 2 ? 13UL : 10UL);
+      ASSERT_EQ((u64)model.zfault_error_code, variant < 3 ? 0x30UL : variant == 3 ? 0x28UL : 0x20UL);
+      ASSERT_EQ((u64)model.zcur_cpl, 3UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x800UL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], 0x1bUL);
+    }
+    model.model_fini();
+  }
+}
+
+TEST(legacy_privilege_stack_descriptor_faults) {
+  // SDM Vol.2A CALL, MORE-PRIVILEGE: an invalid SS descriptor-table
+  // index causes #TS, but paging faults during its implicit read remain #PF.
+  for (bool page_fault : {false, true}) {
+    x86::Model model;
+    init_call_gate(model, true, true, 0);
+    model.phys_mem.write16(0x6008, 0x1000); // SS0 descriptor at linear 0x2000.
+    model.zGDTR_limit = page_fault ? 0x1007 : 0x3f;
+    model.zCR0 |= 1UL << 31;
+    model.zCR4 = 0;
+    model.zCR3 = 0x7000;
+    model.phys_mem.write32(0x7000, 0x8007);
+    for (unsigned i = 0; i < 1024; ++i)
+      model.phys_mem.write32(0x8000 + i * 4, i == 2 ? 0 : (i << 12) | 7);
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, true);
+    ASSERT_EQ((u64)model.zfault_vector, page_fault ? 14UL : 10UL);
+    ASSERT_EQ((u64)model.zfault_error_code, page_fault ? 0UL : 0x1000UL);
+    if (page_fault) ASSERT_EQ((u64)model.zCR2, 0x2000UL);
+    ASSERT_EQ((u64)model.zcur_cpl, 3UL);
+    ASSERT_EQ((u64)model.zRIP, 0x100UL);
+    ASSERT_EQ((u64)model.zGPR.data[4], 0x800UL);
+    ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], 0x1bUL);
+    model.model_fini();
+  }
+}
+
+TEST(legacy_retf_code_validation) {
+  // A Win16 loader returns to a not-present segment to demand-load it.
+  // Check the whole return target, both operand widths and fault atomicity.
+  for (bool wide : {false, true}) for (unsigned variant = 0; variant < 7; ++variant) {
+    x86::Model model;
+    init_call_gate(model, false, false, 0, 3);
+    const unsigned slot = wide ? 4 : 2;
+    const u8 ret[] = {0x66, 0xcb};
+    model.phys_mem.write_bytes(0x10100, ret + !wide, wide ? 2 : 1);
+    const u16 cs = variant == 2 ? 0 : variant == 3 ? 0x43 : 0x13;
+    if (wide) {
+      model.phys_mem.write32(0x30800, 0x300);
+      model.phys_mem.write32(0x30804, cs);
+    } else {
+      model.phys_mem.write16(0x30800, 0x300);
+      model.phys_mem.write16(0x30802, cs);
+    }
+    if (variant == 1) model.phys_mem.write8(0x1015, 0x7b); // NP
+    if (variant == 4) model.phys_mem.write8(0x1015, 0xf3); // Data
+    if (variant == 5) model.phys_mem.write8(0x1015, 0x9b); // DPL0
+    if (variant == 6) model.phys_mem.write16(0x1010, 0x2ff); // Limit
+    model.zstep(UNIT);
+    if (variant == 0) {
+      ASSERT_EQ(model.zfault_pending, false);
+      ASSERT_EQ((u64)model.zRIP, 0x300UL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], 0x13UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x800UL + 2 * slot);
+    } else {
+      ASSERT_EQ(model.zfault_pending, true);
+      ASSERT_EQ((u64)model.zfault_vector, variant == 1 ? 11UL : 13UL);
+      ASSERT_EQ((u64)model.zfault_error_code,
+          variant == 2 || variant == 6 ? 0UL : variant == 3 ? 0x40UL : 0x10UL);
+      ASSERT_EQ((u64)model.zRIP, 0x100UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x800UL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], 0xbUL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], 0x1bUL);
+      ASSERT_EQ((u64)model.zcur_cpl, 3UL);
+    }
+    model.model_fini();
+  }
+}
+
+TEST(legacy_retf_outer_parameters_and_faults) {
+  for (bool wide : {false, true}) for (unsigned variant = 0; variant < 3; ++variant) {
+    x86::Model model;
+    init_call_gate(model, wide, wide, 2, wide ? 1 : 0);
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    const unsigned slot = wide ? 4 : 2;
+    const u8 ret[] = {0x66, 0xca, (u8)(2 * slot), 0};
+    model.phys_mem.write_bytes(0x20300, ret + !wide, wide ? 4 : 3);
+    model.zload_segment_register(x86::SEG_DS, wide ? 0x21 : 0x20);
+    model.zload_segment_register(x86::SEG_ES, 0x1b);
+    if (variant == 1) model.phys_mem.write8(0x101d, 0x73); // Outer SS not present
+    if (variant == 2) model.phys_mem.write8(0x101d, 0xd3); // Outer SS DPL2
+    model.zstep(UNIT);
+    if (variant == 0) {
+      ASSERT_EQ(model.zfault_pending, false);
+      ASSERT_EQ((u64)model.zRIP, 0x105UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x800UL + 2 * slot);
+      ASSERT_EQ((u64)model.zcur_cpl, 3UL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], 0xbUL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], 0x1bUL);
+      ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_base, 0x30000UL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_DS], 0UL);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_ES], 0x1bUL);
+    } else {
+      ASSERT_EQ(model.zfault_pending, true);
+      ASSERT_EQ((u64)model.zfault_vector, variant == 1 ? 12UL : 13UL);
+      ASSERT_EQ((u64)model.zfault_error_code, 0x18UL);
+      ASSERT_EQ((u64)model.zRIP, 0x300UL);
+      ASSERT_EQ((u64)model.zcur_cpl, wide ? 1UL : 0UL);
+      ASSERT_EQ((u64)model.zGPR.data[4], 0x900UL - 6 * slot);
+      ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], wide ? 0x21UL : 0x20UL);
+    }
+    model.model_fini();
+  }
+}
+
+TEST(ldt_cached_descriptor_lookup) {
+  x86::Model model;
+  init_model_16(model);
+  model.zcur_mode = x86::zProtectedMode;
+  model.zCR0 |= 1;
+  model.zGDTR_base = 0x1000;
+  model.zGDTR_limit = 0x17;
+  // GDT selector 10h describes LDT at 5000h, length 16 bytes.
+  model.phys_mem.write64(0x1010, 0x000082005000000fULL);
+  write_gdt_data_desc(model, 0x5000, 1, 0x30000, 0x4567, 0, false, false);
+  model.zGPR.data[0] = 0x10;
+  const u8 lldt[] = {0x0f, 0, 0xd0};
+  model.phys_mem.write_bytes(0x200, lldt, sizeof(lldt));
+  model.zRIP = 0x200;
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ((u64)model.zLDTR, 0x10UL);
+  // Changing the GDT entry cannot change the LDTR's hidden cached base.
+  model.phys_mem.write64(0x1010, 0);
+  model.zGPR.data[0] = 0x0c; // LDT entry 1, RPL0
+  const u8 lookups[] = {
+    0x8e, 0xc0,       // mov es,ax
+    0x0f, 0x02, 0xd8, // lar bx,ax
+    0x0f, 0x03, 0xc8, // lsl cx,ax
+    0x0f, 0x00, 0xe0, // verr ax
+    0x0f, 0x00, 0xe8, // verw ax
+  };
+  model.phys_mem.write_bytes(0x300, lookups, sizeof(lookups));
+  model.zRIP = 0x300;
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_ES].zseg_base, 0x30000UL);
+  for (unsigned i = 0; i < 4; ++i) {
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ((u64)model.zZF, 1UL);
+  }
+  ASSERT_EQ((u64)model.zGPR.data[3], 0x9300UL);
+  ASSERT_EQ((u64)model.zGPR.data[1], 0x4567UL);
+  // LLDT NULL invalidates future LDT references, but not loaded ES.
+  model.zGPR.data[0] = 0;
+  model.zRIP = 0x200;
+  model.zstep(UNIT);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_ES].zseg_base, 0x30000UL);
+  model.zGPR.data[0] = 0xc;
+  model.zRIP = 0x302;
+  model.zstep(UNIT); // LAR reports ZF=0 instead of raising an exception.
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ((u64)model.zZF, 0UL);
+  model.zRIP = 0x300;
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, true);
+  ASSERT_EQ((u64)model.zfault_vector, 13UL);
+  ASSERT_EQ((u64)model.zfault_error_code, 0xcUL);
+  model.model_fini();
+}
+
+TEST(lldt_descriptor_validation) {
+  for (unsigned variant = 0; variant < 5; ++variant) {
+    x86::Model model;
+    init_model_16(model);
+    model.zcur_mode = x86::zProtectedMode;
+    model.zCR0 |= 1;
+    model.zGDTR_base = 0x1000;
+    model.zGDTR_limit = variant == 0 ? 0x16 : 0x17;
+    model.phys_mem.write64(0x1010, 0x000082005000000fULL);
+    if (variant == 1) model.phys_mem.write8(0x1015, 0x92); // data segment
+    if (variant == 2) model.phys_mem.write8(0x1015, 2); // absent LDT
+    if (variant == 4) model.zcur_mode = x86::zRealMode;
+    model.zGPR.data[0] = variant == 3 ? 0x14 : 0x10;
+    const u8 lldt[] = {0x0f, 0, 0xd0};
+    model.phys_mem.write_bytes(0x200, lldt, sizeof(lldt));
+    model.zRIP = 0x200;
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, true);
+    ASSERT_EQ((u64)model.zfault_vector, variant == 2 ? 11UL : variant == 4 ? 6UL : 13UL);
+    ASSERT_EQ((u64)model.zLDTR, 0UL);
+    model.model_fini();
+  }
 }
 
 TEST(protected_mode_far_jmp_ea) {
@@ -1197,100 +1601,44 @@ TEST(real_to_protected_mode_transition) {
 }
 
 TEST(lmsw_enters_protected_mode) {
-  // SDM Vol.2A LMSW and Vol.3A 12.9.1: setting PE enters protected mode;
-  // the following far jump loads CS from the GDT, retaining other caches.
-  for (bool memory_operand : {false, true}) {
+  // SDM Vol.2A LMSW: setting PE enters protected mode. The following
+  // far jump must use the descriptor base, not selector << 4.
+  for (bool memory_source : {false, true}) {
     x86::Model model;
     init_model_16(model);
-    model.zCR0 = 0x10030; // Preserve WP, NE and ET across both LMSW writes.
-    model.zGDTR_base = 0x800;
+    write_gdt_code_desc(model, 0x5000, 1, 0x10000, 0xFFFF, 0, false, false);
+    model.zGDTR_base = 0x5000;
     model.zGDTR_limit = 15;
-    model.phys_mem.write64(0x808, 0x00009B040000FFFFUL); // 16-bit CS at 0x40000
-    model.phys_mem.write16(0x9000, 0x000F);
-    const u8 reg_code[] = {
-      0xB8, 0x0F, 0x00,             // mov ax, 0x000f
-      0x0F, 0x01, 0xF0,             // lmsw ax
-      0xEA, 0x34, 0x12, 0x08, 0x00, // jmp 0008:1234
-    };
-    const u8 mem_code[] = {
-      0xB8, 0x0F, 0x00,
-      0x0F, 0x01, 0x36, 0x00, 0x90, // lmsw word [0x9000]
-      0xEA, 0x34, 0x12, 0x08, 0x00,
-    };
-    const u8 target[] = {
-      0x31, 0xC0,                   // xor ax, ax
-      0x0F, 0x01, 0xF0,             // lmsw ax: PE is sticky; MP/EM/TS clear
-      0xB8, 0xEF, 0xBE,             // mov ax, 0xbeef
-      0xF4,
-    };
-    model.phys_mem.write_bytes(0x41234, target, sizeof(target));
-    ASSERT_EQ(run_code(model, 0x1000, memory_operand ? mem_code : reg_code,
-                       memory_operand ? sizeof(mem_code) : sizeof(reg_code), 2), RUN_OK);
+    model.phys_mem.write16(0x4000, 0xFFF1);
+    model.zGPR.data[0] = 0xFFF1;
+    const u8 reg_code[] = {0x0F, 0x01, 0xF0, 0xEA, 0x00, 0x30, 0x08, 0x00};
+    const u8 mem_code[] = {0x66, 0x0F, 0x01, 0x36, 0x00, 0x40,
+                          0xEA, 0x00, 0x30, 0x08, 0x00};
+    const u8 target[] = {0xB8, 0xEF, 0xBE, 0xF4};
+    model.phys_mem.write_bytes(0x13000, target, sizeof(target));
+    model.phys_mem.write8(0x3080, 0xF4); // old, incorrect real-mode target
+    ASSERT_EQ(run_code(model, 0x2000,
+                       memory_source ? mem_code : reg_code,
+                       memory_source ? sizeof(mem_code) : sizeof(reg_code)), RUN_HALTED);
     ASSERT_EQ(model.zcur_mode, x86::zProtectedMode);
-    ASSERT_EQ((u64)model.zCR0, 0x1003FUL);
-    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0UL);
-    model.zstep(UNIT); // Far JMP must use the descriptor, not selector << 4.
-    ASSERT_EQ(model.zfault_pending, false);
-    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0x40000UL);
-    ASSERT_EQ((u64)model.zRIP, 0x1234UL);
-    for (unsigned i = 0; i < 4; ++i) model.zstep(UNIT);
-    ASSERT_EQ(model.zfault_pending, false);
-    ASSERT_EQ(model.zsystem_state, x86::zSysHalted);
-    ASSERT_EQ((u64)model.zCR0, 0x10031UL);
-    ASSERT_EQ((u64)model.zGPR.data[0], 0xBEEFUL);
+    ASSERT_EQ(model.zCR0, 0x31u); // high source bits leave CR0 unchanged
+    ASSERT_EQ(model.zSegCache.data[x86::SEG_CS].zseg_base, 0x10000u);
+    ASSERT_EQ(model.zGPR.data[0], 0xBEEFu);
     model.model_fini();
   }
 }
 
-TEST(xlat_segmented_table_lookup) {
-  // SDM Vol.2D XLAT/XLATB: use DS by default, honor a segment override,
-  // index with unsigned AL, write only AL and preserve flags.
-  for (unsigned mode : {16u, 32u, 64u}) {
-    for (bool override_fs : {false, true}) {
-      x86::Model model;
-      if (mode == 16) init_model_16(model);
-      else if (mode == 32) init_model_32(model);
-      else init_model(model);
-      model.zSegReg.data[x86::SEG_DS] = mode == 16 ? 0x2000 : 0x10;
-      model.zSegReg.data[x86::SEG_FS] = mode == 16 ? 0x3000 : 0x18;
-      model.zSegCache.data[x86::SEG_DS].zseg_base = 0x20000;
-      model.zSegCache.data[x86::SEG_FS].zseg_base = 0x30000;
-      model.zGPR.data[0] = 0x1122334455667780UL;
-      model.zGPR.data[3] = 0x400;
-      model.zCF = 1; model.zPF = 0; model.zAF = 1;
-      model.zZF = 0; model.zSF = 1; model.zOF = 1;
-      u64 flags = model.zread_rflags(UNIT);
-      model.phys_mem.write8(0x480, 0x37);   // Unsegmented lookup is distinct.
-      model.phys_mem.write8(0x20480, 0xA5);
-      model.phys_mem.write8(0x30480, 0xB6);
-      const u8 code[] = {0x64, 0xD7, 0xF4}; // FS override; or just XLAT; HLT
-      ASSERT_EQ(run_code(model, 0x5000, code + !override_fs,
-                         sizeof(code) - !override_fs), RUN_HALTED);
-      u64 byte = override_fs ? 0xB6 : mode == 64 ? 0x37 : 0xA5;
-      ASSERT_EQ((u64)model.zGPR.data[0], 0x1122334455667700UL | byte);
-      ASSERT_EQ((u64)model.zGPR.data[3], 0x400UL);
-      ASSERT_EQ((u64)model.zread_rflags(UNIT), flags);
-      model.model_fini();
-    }
-  }
-}
-
-TEST(xlat_segment_limit_fault) {
-  for (bool override_ss : {false, true}) {
-    x86::Model model;
-    init_model_32(model);
-    auto seg = override_ss ? x86::SEG_SS : x86::SEG_DS;
-    model.zSegReg.data[seg] = 0x10;
-    model.zSegCache.data[seg].zseg_limit = 0x47F;
-    model.zGPR.data[0] = 0x80;
-    model.zGPR.data[3] = 0x400;
-    const u8 code[] = {0x36, 0xD7, 0xF4};
-    ASSERT_EQ(run_code(model, 0x5000, code + !override_ss,
-                       sizeof(code) - !override_ss), RUN_FAULTED);
-    ASSERT_EQ((u64)model.zfault_vector, override_ss ? 12UL : 13UL);
-    ASSERT_EQ((u64)model.zGPR.data[0], 0x80UL);
-    model.model_fini();
-  }
+TEST(lmsw_preserves_pe_and_long_mode) {
+  x86::Model model;
+  init_model(model);
+  u64 original_cr0 = model.zCR0;
+  // A zero PE source cannot leave protected/IA-32e mode; MP/EM/TS load.
+  model.zGPR.data[0] = 0x000E;
+  const u8 code[] = {0x0F, 0x01, 0xF0, 0xF4};
+  ASSERT_EQ(run_code(model, 0x5000, code, sizeof(code)), RUN_HALTED);
+  ASSERT_EQ(model.zCR0, original_cr0 | 0xEu);
+  ASSERT_EQ(model.zcur_mode, x86::zLongMode);
+  model.model_fini();
 }
 
 // =========================================================================
@@ -1472,6 +1820,70 @@ TEST(protected_mode_iret_same_privilege) {
   ASSERT_EQ((u64)(u32)model.zGPR.data[4], expected_sp);
 
   model.model_fini();
+}
+
+TEST(iret_respects_original_privilege_for_flags) {
+  // SDM Vol.2A IRET, RETURN-TO-SAME/OUTER-PRIVILEGE-LEVEL:
+  // IOPL changes only at the original CPL 0; IF changes only at CPL <=
+  // the original IOPL. DOSX uses a ring-3 IRET with IOPL=0 in its frame.
+  for (unsigned width : {16u, 32u, 64u})
+    for (unsigned cpl : {0u, 1u, 3u})
+      for (unsigned iopl : {0u, 1u, 3u})
+        for (unsigned initial_if : {0u, 1u})
+          for (bool outer : {false, true}) {
+    if (outer && cpl == 3) continue;
+    x86::Model m;
+    if (width == 64) {
+      init_model(m);
+      m.phys_mem.write64(0x1000, 0x2007);
+      m.phys_mem.write64(0x2000, 0x3007);
+      m.phys_mem.write64(0x3000, 0x87);
+    } else {
+      init_model_32(m);
+      m.zCR0 &= ~(1UL << 31);
+    }
+    m.zGDTR_base = 0x5000;
+    m.zGDTR_limit = 0x47;
+    for (unsigned level : {0u, 1u, 3u}) {
+      u64 code = (width == 64 ? 0x00AF9B000000FFFFULL :
+                  width == 32 ? 0x00CF9B000000FFFFULL : 0x00009B000000FFFFULL);
+      m.phys_mem.write64(0x5008 + level * 16, code | (u64(level) << 45));
+      m.phys_mem.write64(0x5010 + level * 16, 0x00CF93000000FFFFULL | (u64(level) << 45));
+    }
+    m.zload_segment_register(x86::SEG_CS, 8 + cpl * 16 + cpl);
+    m.zload_segment_register(x86::SEG_SS, 16 + cpl * 16 + cpl);
+    m.zcur_cpl = cpl;
+    m.zwrite_rflags(2 | (iopl << 12) | (initial_if << 9));
+    m.zVIF = m.zVIP = m.zRF = 0;
+    m.zRIP = 0x100;
+    const u8 insn[] = {0x48, 0xCF};
+    m.phys_mem.write_bytes(0x100, insn + (width != 64), width == 64 ? 2 : 1);
+    const unsigned target_cpl = outer ? 3 : cpl;
+    const u64 image = 3 | ((1 - initial_if) << 9) | ((3 - iopl) << 12) |
+                      (1UL << 16) | (1UL << 18) | (1UL << 19) | (1UL << 20) | (1UL << 21);
+    const u64 frame[] = {0x200, 8 + target_cpl * 16 + target_cpl, image,
+                         0x7000, 16 + target_cpl * 16 + target_cpl};
+    const unsigned count = outer || width == 64 ? 5 : 3;
+    m.zGPR.data[4] = 0x8000;
+    for (unsigned i = 0; i < count; ++i) {
+      u64 addr = 0x8000 + i * (width / 8);
+      if (width == 16) m.phys_mem.write16(addr, frame[i]);
+      else if (width == 32) m.phys_mem.write32(addr, frame[i]);
+      else m.phys_mem.write64(addr, frame[i]);
+    }
+    m.zstep(UNIT);
+    ASSERT_EQ(m.zfault_pending, false);
+    ASSERT_EQ((u64)m.zRIP, 0x200UL);
+    ASSERT_EQ((u64)m.zcur_cpl, u64(target_cpl));
+    ASSERT_EQ((u64)m.zIOPL, u64(cpl == 0 ? 3 - iopl : iopl));
+    ASSERT_EQ((u64)m.zIF_flag, u64(cpl <= iopl ? 1 - initial_if : initial_if));
+    ASSERT_EQ((u64)m.zCF, 1UL);
+    ASSERT_EQ((u64)m.zAC_flag, u64(width != 16));
+    ASSERT_EQ((u64)m.zID, u64(width != 16));
+    ASSERT_EQ((u64)m.zVIF, u64(width != 16 && cpl == 0));
+    ASSERT_EQ((u64)m.zVIP, u64(width != 16 && cpl == 0));
+    m.model_fini();
+  }
 }
 
 TEST(ia32e_iretq_to_compat_loads_ss_descriptor) {
@@ -2126,6 +2538,103 @@ TEST(ide_busmaster_pci_io) {
   model.model_fini();
 }
 
+TEST(lmsw_preserves_cr0_and_cached_segments) {
+  // SDM Vol.2A LMSW and Vol.3A 12.9.1: setting PE enters protected mode;
+  // the following far jump loads CS from the GDT, retaining other caches.
+  for (bool memory_operand : {false, true}) {
+    x86::Model model;
+    init_model_16(model);
+    model.zCR0 = 0x10030; // Preserve WP, NE and ET across both LMSW writes.
+    model.zGDTR_base = 0x800;
+    model.zGDTR_limit = 15;
+    model.phys_mem.write64(0x808, 0x00009B040000FFFFUL); // 16-bit CS at 0x40000
+    model.phys_mem.write16(0x9000, 0x000F);
+    const u8 reg_code[] = {
+      0xB8, 0x0F, 0x00,             // mov ax, 0x000f
+      0x0F, 0x01, 0xF0,             // lmsw ax
+      0xEA, 0x34, 0x12, 0x08, 0x00, // jmp 0008:1234
+    };
+    const u8 mem_code[] = {
+      0xB8, 0x0F, 0x00,
+      0x0F, 0x01, 0x36, 0x00, 0x90, // lmsw word [0x9000]
+      0xEA, 0x34, 0x12, 0x08, 0x00,
+    };
+    const u8 target[] = {
+      0x31, 0xC0,                   // xor ax, ax
+      0x0F, 0x01, 0xF0,             // lmsw ax: PE is sticky; MP/EM/TS clear
+      0xB8, 0xEF, 0xBE,             // mov ax, 0xbeef
+      0xF4,
+    };
+    model.phys_mem.write_bytes(0x41234, target, sizeof(target));
+    ASSERT_EQ(run_code(model, 0x1000, memory_operand ? mem_code : reg_code,
+                       memory_operand ? sizeof(mem_code) : sizeof(reg_code), 2), RUN_OK);
+    ASSERT_EQ(model.zcur_mode, x86::zProtectedMode);
+    ASSERT_EQ((u64)model.zCR0, 0x1003FUL);
+    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0UL);
+    model.zstep(UNIT); // Far JMP must use the descriptor, not selector << 4.
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0x40000UL);
+    ASSERT_EQ((u64)model.zRIP, 0x1234UL);
+    for (unsigned i = 0; i < 4; ++i) model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ(model.zsystem_state, x86::zSysHalted);
+    ASSERT_EQ((u64)model.zCR0, 0x10031UL);
+    ASSERT_EQ((u64)model.zGPR.data[0], 0xBEEFUL);
+    model.model_fini();
+  }
+}
+
+TEST(xlat_segmented_table_lookup) {
+  // SDM Vol.2D XLAT/XLATB: use DS by default, honor a segment override,
+  // index with unsigned AL, write only AL and preserve flags.
+  for (unsigned mode : {16u, 32u, 64u}) {
+    for (bool override_fs : {false, true}) {
+      x86::Model model;
+      if (mode == 16) init_model_16(model);
+      else if (mode == 32) init_model_32(model);
+      else init_model(model);
+      model.zSegReg.data[x86::SEG_DS] = mode == 16 ? 0x2000 : 0x10;
+      model.zSegReg.data[x86::SEG_FS] = mode == 16 ? 0x3000 : 0x18;
+      model.zSegCache.data[x86::SEG_DS].zseg_base = 0x20000;
+      model.zSegCache.data[x86::SEG_FS].zseg_base = 0x30000;
+      model.zGPR.data[0] = 0x1122334455667780UL;
+      model.zGPR.data[3] = 0x400;
+      model.zCF = 1; model.zPF = 0; model.zAF = 1;
+      model.zZF = 0; model.zSF = 1; model.zOF = 1;
+      u64 flags = model.zread_rflags(UNIT);
+      model.phys_mem.write8(0x480, 0x37);   // Unsegmented lookup is distinct.
+      model.phys_mem.write8(0x20480, 0xA5);
+      model.phys_mem.write8(0x30480, 0xB6);
+      const u8 code[] = {0x64, 0xD7, 0xF4}; // FS override; or just XLAT; HLT
+      ASSERT_EQ(run_code(model, 0x5000, code + !override_fs,
+                         sizeof(code) - !override_fs), RUN_HALTED);
+      u64 byte = override_fs ? 0xB6 : mode == 64 ? 0x37 : 0xA5;
+      ASSERT_EQ((u64)model.zGPR.data[0], 0x1122334455667700UL | byte);
+      ASSERT_EQ((u64)model.zGPR.data[3], 0x400UL);
+      ASSERT_EQ((u64)model.zread_rflags(UNIT), flags);
+      model.model_fini();
+    }
+  }
+}
+
+TEST(xlat_segment_limit_fault) {
+  for (bool override_ss : {false, true}) {
+    x86::Model model;
+    init_model_32(model);
+    auto seg = override_ss ? x86::SEG_SS : x86::SEG_DS;
+    model.zSegReg.data[seg] = 0x10;
+    model.zSegCache.data[seg].zseg_limit = 0x47F;
+    model.zGPR.data[0] = 0x80;
+    model.zGPR.data[3] = 0x400;
+    const u8 code[] = {0x36, 0xD7, 0xF4};
+    ASSERT_EQ(run_code(model, 0x5000, code + !override_ss,
+                       sizeof(code) - !override_ss), RUN_FAULTED);
+    ASSERT_EQ((u64)model.zfault_vector, override_ss ? 12UL : 13UL);
+    ASSERT_EQ((u64)model.zGPR.data[0], 0x80UL);
+    model.model_fini();
+  }
+}
+
 int main() {
   printf("System emulator tests:\n");
 
@@ -2179,17 +2688,29 @@ int main() {
   run_test_seg_limit_ss_fault();
 
   printf("\nReal mode tests:\n");
+  run_test_f2_string_repetition();
   run_test_real_mode_mov_ax_hlt();
+  run_test_xlat_segmented_table();
+  run_test_xlat_address_size_and_segment_limit();
   run_test_real_mode_far_jmp_ea();
   run_test_real_mode_far_call_9a();
 
   printf("\nProtected mode far transfer tests:\n");
+  run_test_legacy_call_gate_privilege_stacks();
+  run_test_legacy_call_gate_same_privilege_and_faults();
+  run_test_legacy_privilege_stack_descriptor_faults();
+  run_test_legacy_retf_code_validation();
+  run_test_legacy_retf_outer_parameters_and_faults();
+  run_test_ldt_cached_descriptor_lookup();
+  run_test_lldt_descriptor_validation();
   run_test_protected_mode_far_jmp_ea();
   run_test_protected_mode_far_jmp_ff5();
 
   printf("\nMode transition tests:\n");
   run_test_real_to_protected_mode_transition();
   run_test_lmsw_enters_protected_mode();
+  run_test_lmsw_preserves_cr0_and_cached_segments();
+  run_test_lmsw_preserves_pe_and_long_mode();
   run_test_xlat_segmented_table_lookup();
   run_test_xlat_segment_limit_fault();
 
@@ -2199,6 +2720,7 @@ int main() {
   run_test_real_mode_iret_with_nt();
   run_test_real_mode_int_iret_preserves_regs();
   run_test_protected_mode_iret_same_privilege();
+  run_test_iret_respects_original_privilege_for_flags();
   run_test_ia32e_iretq_to_compat_loads_ss_descriptor();
   run_test_ia32e_sysenter_switches_to_long_mode();
   run_test_mov_gs_at_cpl3_uses_implicit_access();

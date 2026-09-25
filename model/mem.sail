@@ -176,6 +176,18 @@ function pop(n) = {
 // Segment register loading
 // =========================================================================
 
+// The TI bit selects the cached LDT or GDT (SDM Vol.3A sections 3.4.2,
+// 3.5.1; LLDT caches the LDT descriptor, not its constituent descriptors).
+val descriptor_address : word -> qword
+function descriptor_address(sel) =
+  (if sel[2] == 0b1 then LDTR_base else GDTR_base) + zero_extend(sel & 0xFFF8)
+
+val descriptor_in_bounds : word -> bool
+function descriptor_in_bounds(sel) = {
+  let limit : dword = if sel[2] == 0b1 then LDTR_limit else zero_extend(GDTR_limit);
+  (sel[2] == 0b0 | LDTR_valid) & unsigned(sel & 0xFFF8) + 7 <= unsigned(limit)
+}
+
 // Load a segment register with a selector, updating both the visible
 // selector and the hidden descriptor cache (SDM Vol.3A §3.4.5).
 // In real mode: base = selector << 4; limit and attributes are NOT changed.
@@ -211,20 +223,14 @@ function load_segment_register(idx, selector) = {
       // 64-bit mode, the cached values are ignored during address calculation
       // (handled by get_seg_base). For FS/GS, the 32-bit base is loaded
       // (upper bits cleared); WRMSR can then set the full 64-bit base.
-      let ti : bit = selector[2];
-      let index : bits(13) = selector[15..3];
-      let table_base : qword = if ti == 0b1 then {
-        // LDT: TODO — for now treat as GDT
-        GDTR_base
-      } else {
-        GDTR_base
-      };
-      let desc_offset : qword = zero_extend(index @ 0b000);
+      if selector[2] == 0b1 & ~(LDTR_valid) then
+        throw Fault(EXN_GP, zero_extend(selector & 0xFFFC));
+      let desc_addr = descriptor_address(selector);
       // Implicit supervisor access: the CPU's own GDT/LDT reads bypass
       // U/S so a CPL=3 `MOV GS, sel` can load a descriptor out of a
       // kernel-mapped GDT.
-      let desc_lo : dword = read_mem_implicit(table_base + desc_offset);
-      let desc_hi : dword = read_mem_implicit(table_base + desc_offset + 4);
+      let desc_lo : dword = read_mem_implicit(desc_addr);
+      let desc_hi : dword = read_mem_implicit(desc_addr + 4);
       write_segreg(idx, selector);
       SegCache[idx] = parse_seg_descriptor(desc_lo, desc_hi)
     },
@@ -332,25 +338,20 @@ function pop_far_pointer(os) = {
 // Protected-mode far transfer helpers (SDM Vol.2A JMP/CALL — Protected Mode)
 // =========================================================================
 
-// Read a segment descriptor from the GDT (or LDT — TODO: LDT support).
+// Read a segment descriptor from the GDT or cached LDT.
 // Returns the parsed descriptor cache entry.
 // Raises #GP(selector) if the selector index is beyond the table limit.
 val read_descriptor : word -> SegDescCache
 function read_descriptor(selector) = {
-  let ti : bit = selector[2];
-  let index : bits(13) = selector[15..3];
-  let table_base : qword = if ti == 0b1 then GDTR_base  // TODO: LDT base
-                            else GDTR_base;
-  let table_limit : word = GDTR_limit;
-  let desc_offset : qword = zero_extend(index @ 0b000);
   // Descriptor must fit within the table limit (offset + 7 <= limit)
-  if unsigned(desc_offset) + 7 > unsigned(table_limit) then {
+  if ~(descriptor_in_bounds(selector)) then {
     throw Fault(EXN_GP, selector_error_code(selector))
   };
   // Implicit supervisor access (SDM Vol.3A §4.6): descriptor-table reads
   // bypass U/S regardless of CPL.
-  let desc_lo : dword = read_mem_implicit(table_base + desc_offset);
-  let desc_hi : dword = read_mem_implicit(table_base + desc_offset + 4);
+  let desc_addr = descriptor_address(selector);
+  let desc_lo : dword = read_mem_implicit(desc_addr);
+  let desc_hi : dword = read_mem_implicit(desc_addr + 4);
   parse_seg_descriptor(desc_lo, desc_hi)
 }
 
@@ -504,6 +505,131 @@ function exec_far_jmp(selector, offset, os) = match cur_mode {
 // Execute far CALL: push CS:RIP, then load CS:RIP from selector:offset.
 // In protected mode, the descriptor is validated before pushing so that
 // a fault does not modify the stack.
+// Stack selection for a legacy inter-privilege transfer. SDM Vol.2A CALL,
+// MORE-PRIVILEGE; Vol.3A section 10.6, Figure 10-10 (16-bit TSS).
+val read_privilege_stack : cpl_t -> (qword, word)
+function read_privilege_stack(level) = {
+  let is32 : bool = TR_type[3] == 0b1;
+  let off : qword = to_bits(64, if is32 then level * 8 + 4 else level * 4 + 2);
+  let last : int = if is32 then 5 else 3;
+  if unsigned(off) + last > unsigned(TR_limit) then
+    throw Fault(EXN_TS, selector_error_code(TR));
+  if is32 then {
+    let sp : dword = read_mem_implicit(TR_base + off);
+    let ss : word = read_mem_implicit(TR_base + off + 4);
+    (zero_extend(sp), ss)
+  } else {
+    let sp : word = read_mem_implicit(TR_base + off);
+    let ss : word = read_mem_implicit(TR_base + off + 2);
+    (zero_extend(sp), ss)
+  }
+}
+
+val validate_privilege_stack : (word, cpl_t) -> SegDescCache
+function validate_privilege_stack(sel, level) = {
+  let err = selector_error_code(sel);
+  if sel[15..2] == zeros() then throw Fault(EXN_TS, err);
+  let desc : SegDescCache = try { read_descriptor(sel) } catch {
+    Fault(v, e) => {
+      if v == EXN_GP then throw Fault(EXN_TS, err) else throw Fault(v, e);
+      exit()
+    },
+    e => throw e,
+  };
+  if unsigned(sel[1..0]) != level | desc.seg_dpl != level |
+     desc.seg_s == 0b0 | desc.seg_type[3] == 0b1 | desc.seg_type[1] == 0b0 then
+    throw Fault(EXN_TS, err);
+  if desc.seg_present == 0b0 then throw Fault(EXN_SS, err);
+  desc
+}
+
+// Write a checked legacy transfer frame without changing segment registers.
+// The complete destination range is validated before the first write.
+val write_legacy_frame : (SegDescCache, qword, vector(35, dword), range(1, 35), {16, 32}, cpl_t, dword) -> qword
+function write_legacy_frame(desc, sp, frame, count, width, level, err) = {
+  let sas : {16, 32} = if desc.seg_db == 0b1 then 32 else 16;
+  let top = unsigned(sp[sas - 1 .. 0]);
+  let size = count * (width / 8);
+  let bottom = top - size;
+  let expand_down : bool = desc.seg_type[2] == 0b1;
+  if bottom < 0 | (expand_down & bottom <= unsigned(desc.seg_limit)) |
+     (~(expand_down) & top - 1 > unsigned(desc.seg_limit)) then throw Fault(EXN_SS, err);
+  let addr = desc.seg_base + to_bits(64, bottom);
+  let old_cpl = cur_cpl;
+  cur_cpl = level;
+  try {
+    foreach (i from 0 to size - 1) {
+      let _ = translate_addr(addr + to_bits(64, i), PT_Write);
+      ()
+    };
+    foreach (i from 0 to count - 1) {
+      write_mem_linear(width, addr + to_bits(64, i * (width / 8)), frame[i][width - 1 .. 0])
+    }
+  } catch { e => { cur_cpl = old_cpl; throw e } };
+  cur_cpl = old_cpl;
+  to_bits(64, bottom)
+}
+
+// Legacy 16/32-bit call gates (SDM Vol.2A CALL, CALL-GATE,
+// MORE-PRIVILEGE and SAME-PRIVILEGE). The operand's offset is ignored.
+val exec_legacy_call_gate : (word, SegDescCache) -> unit
+function exec_legacy_call_gate(selector, gate_desc) = {
+  let err = selector_error_code(selector);
+  if gate_desc.seg_dpl < cur_cpl | unsigned(selector[1..0]) > gate_desc.seg_dpl then raise_GP(err);
+  if gate_desc.seg_present == 0b0 then throw Fault(EXN_NP, err);
+  let gate : qword = read_mem_implicit(descriptor_address(selector));
+  let target_sel : word = gate[31..16];
+  if target_sel[15..2] == zeros() then raise_GP0();
+  let target = read_descriptor(target_sel);
+  if target.seg_s == 0b0 | target.seg_type[3] == 0b0 | target.seg_dpl > cur_cpl then
+    raise_GP(selector_error_code(target_sel));
+  if target.seg_present == 0b0 then throw Fault(EXN_NP, selector_error_code(target_sel));
+  let width : {16, 32} = if gate_desc.seg_type == 0x4 then 16 else 32;
+  let offset : qword = if width == 16 then zero_extend(gate[15..0]) else zero_extend(gate[63..48] @ gate[15..0]);
+  if unsigned(offset) > unsigned(target.seg_limit) then raise_GP0();
+  let inward : bool = target.seg_type[2] == 0b0 & target.seg_dpl < cur_cpl;
+  let level : cpl_t = if inward then target.seg_dpl else cur_cpl;
+  let old_sp : qword = zero_extend(v(stack_addr_size(), RSP));
+  var stack_desc = SegCache[SS];
+  var stack_sel = read_segreg(SS);
+  var stack_sp = old_sp;
+  let params : range(0, 31) = if inward then unsigned(gate[36..32]) else 0;
+  var frame : vector(35, dword) = [
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000
+  ];
+  frame[0] = decode_pos[31..0];
+  frame[1] = zero_extend(read_segreg(CS));
+  if inward then {
+    let (new_sp, new_ss) = read_privilege_stack(level);
+    stack_desc = validate_privilege_stack(new_ss, level);
+    stack_sel = new_ss;
+    stack_sp = new_sp;
+    foreach (i from 0 to params - 1) {
+      let src : MemRef = struct { seg = SS, addr = old_sp + to_bits(64, i * (width / 8)) };
+      frame[i + 2] = zero_extend(read_mem(width, src))
+    };
+    frame[params + 2] = old_sp[31..0];
+    frame[params + 3] = zero_extend(read_segreg(SS))
+  };
+  let count : range(1, 35) = if inward then params + 4 else 2;
+  let new_sp = write_legacy_frame(stack_desc, stack_sp, frame, count, width, level,
+                                  if inward then selector_error_code(stack_sel) else 0x00000000);
+  if inward then {
+    write_segreg(SS, stack_sel);
+    SegCache[SS] = stack_desc;
+    v(32, RSP) = new_sp[31..0]
+  } else {
+    let sas = stack_addr_size();
+    v(RSP) = new_sp[sas - 1 .. 0]
+  };
+  cur_cpl = level;
+  finish_far_transfer(target, target_sel, offset, width)
+}
+
 val exec_far_call : (word, qword, {16, 32, 64}) -> unit
 function exec_far_call(selector, offset, os) = match cur_mode {
   m if m == RealMode | m == Virtual8086Mode => {
@@ -515,6 +641,13 @@ function exec_far_call(selector, offset, os) = match cur_mode {
     exec_far_jmp(selector, offset, os)
   },
   _ => {
+    if cur_mode == ProtectedMode & selector[15..2] != zeros() then {
+      let gate = read_descriptor(selector);
+      if gate.seg_s == 0b0 & (gate.seg_type == 0x4 | gate.seg_type == 0xC) then {
+        exec_legacy_call_gate(selector, gate);
+        return ()
+      }
+    };
     let desc = validate_far_jmp_cs(selector);
     match os {
       16 => push(32,  read_segreg(CS) @ decode_pos[15..0]),
