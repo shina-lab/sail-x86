@@ -2408,3 +2408,15 @@ separate disk snapshot with partition offset 1,048,576.
 [Checkpoint serial log](os-boot/reactos-sailc-fixed-install-16-25.serial) ·
 [Checkpoint state](os-boot/reactos-sailc-fixed-install-16-25.json) ·
 [File hashes](os-boot/reactos-sailc-fixed-copy-25-verification.json).
+
+#### Half-copy checkpoint
+
+The same fresh attempt reaches **50%**, copying `kernel32.dll`, at
+**3101.84 seconds** and **8,780,232,171 instructions**.
+It is still running. There are no new copy errors, cabinet-error trace
+hits, assertions, or setup-process terminations. The only skipped file
+remains the source CD's missing `kdvbox.dll`.
+
+[50% PNG](os-boot/reactos-sailc-fixed-install-16-50.png) ·
+[Checkpoint serial](os-boot/reactos-sailc-fixed-install-16-50.serial) ·
+[Checkpoint state](os-boot/reactos-sailc-fixed-install-16-50.json).
