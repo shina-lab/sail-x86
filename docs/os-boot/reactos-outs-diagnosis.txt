@@ -1,0 +1,101 @@
+ReactOS initial page-fixed attempt: OUTSD reads beyond the source operand
+
+Stop: building file copy list; repeated MmAccessFault IRQL assertion.
+Faulting instruction: 809416E9: F3 6F (REP OUTSD)
+Saved ESI=AFFAAFFC, ECX=1, EDX=1F0; CR2=AFFAB000.
+IDE write position=4092/4096; last dword is still pending.
+LLVM generated OUTSD calls read_mem_linear specialized for 64 bits.
+Intel SDM revision 090 Vol.2B OUTS, pages 4-173 through 4-176:
+The source operand width is 8, 16, or 32 bits, matching the port transfer.
+
+Snapshot stack:
+afcccda8: 8058637c KdpReadTermKey+10 (ntoskrnl/kd/kdterminal.c:252)
+afcccdc0: 80585d11 KdIoReadLine+b (ntoskrnl/kd/kdprompt.c:68)
+afccce00: 80585498 KdReceivePacket+12 (ntoskrnl/kd/kdio.c:780)
+afccd020: 8057ba49 KdbgReceivePacket+28 (ntoskrnl/kdbg/kdbg.c:168)
+afccd048: 804994cf KdpPromptString+23 (ntoskrnl/kd64/kdprint.c:193)
+afccd0a0: 80499768 KdpPrompt+c (ntoskrnl/kd64/kdprint.c:366)
+afccd540: 80499d8b KdpTrap+3d (ntoskrnl/kd64/kdtrap.c:184)
+afccd580: 80569073 KiDispatchException+31 (ntoskrnl/ke/i386/exp.c:860)
+afccd910: 805695c3 KiDispatchExceptionFromTrapFrame+23 (ntoskrnl/ke/i386/exp.c:1081)
+afccd988: 8056c9c5 KiNpxHandler+0 (ntoskrnl/ke/i386/traphdlr.c:247)
+afccd9b8: 8056f0ca KiSystemServiceHandler+0 (ntoskrnl/ke/i386/traphdlr.c:1724)
+afccd9d8: 80403c16 KiDebugService+96 (:0)
+afccd9e0: 805b2eaf DebugService+0 (sdk/lib/rtl/i386/debug_asm.S:102)
+afccda5c: 80598195 DebugPrompt+13 (sdk/lib/rtl/debug.c:41)
+afccda7c: 805984fc DbgPrompt+12 (sdk/lib/rtl/debug.c:293)
+afccdaa4: 8059551b RtlAssert+18 (sdk/lib/rtl/assert.c:52)
+afccdda4: 805076a6 MmAccessFault+24 (ntoskrnl/mm/ARM3/miarm.h:1318)
+afccdde4: 8056e3c3 KiTrap0EHandler+13 (ntoskrnl/ke/i386/traphdlr.c:1369)
+afccde1c: 804036c7 KiTrap0E+96 (:0)
+afccde24: 809416e9 _image_base__+1416e9 (:0)
+afccde9c: af7e2c7c _image_base__+2efe2c7c (:0)
+afccdebc: af7e2d17 _image_base__+2efe2d17 (:0)
+afccdee4: af7e34d3 _image_base__+2efe34d3 (:0)
+afccdf24: af7e471a _image_base__+2efe471a (:0)
+afccdf5c: 80569771 KiInterruptDispatch+d (ntoskrnl/ke/i386/irqobj.c:214)
+afccdf8c: 80569de2 KiInterruptTemplateHandler+0 (ntoskrnl/ke/i386/irqobj.c:316)
+afccdfac: afcce030 _image_base__+2f4ce030 (:0)
+afccdfb0: 80945fc0 _image_base__+145fc0 (:0)
+
+Before-fix boundary probes:
+OUTS size=1: result=2 fault=1 vector=14 CR2=44000 ESI=43fff ECX=1 RIP=100000
+OUTS size=2: result=2 fault=1 vector=14 CR2=44000 ESI=43ffe ECX=1 RIP=100000
+OUTS size=4: result=2 fault=1 vector=14 CR2=44000 ESI=43ffc ECX=1 RIP=100000
+
+Before-fix regression suite:
+Paging tests:
+  identity_map_2mb                                  PASS
+  non_identity_4kb_mapping                          PASS
+  page_fault_not_present                            PASS
+  accessed_dirty_bits                               PASS
+  write_protect                                     PASS
+  huge_page_1gb                                     PASS
+  store_through_paging                              PASS
+  cross_page_instruction_fetch_fault                PASS
+  cross_page_data_faults                            PASS
+  la57_identity_map_4kb                             PASS
+  la57_non_identity_4kb                             PASS
+  la57_1gb_huge_page                                PASS
+  la57_accessed_dirty                               PASS
+  paging_32bit_identity_4kb                         PASS
+  paging_32bit_4mb_page                             PASS
+  paging_32bit_fault_not_present                    PASS
+  outs_page_boundary_width                          FAIL
+    system-emu/tests/test-paging.cpp:647: kind == 0x2, expected 0x1
+PASS
+  rep_outs_page_fault_restart                       FAIL
+    system-emu/tests/test-paging.cpp:673: model.zGPR.data[6] == 0x43ffc, expected 0x44000
+PASS
+  paging_pae_identity_2mb                           PASS
+  paging_pae_4kb                                    PASS
+
+20 passed, 2 failed
+
+
+After explicit-width fix (sail-llvm only):
+Paging tests:
+  identity_map_2mb                                  PASS
+  non_identity_4kb_mapping                          PASS
+  page_fault_not_present                            PASS
+  accessed_dirty_bits                               PASS
+  write_protect                                     PASS
+  huge_page_1gb                                     PASS
+  store_through_paging                              PASS
+  cross_page_instruction_fetch_fault                PASS
+  cross_page_data_faults                            PASS
+  la57_identity_map_4kb                             PASS
+  la57_non_identity_4kb                             PASS
+  la57_1gb_huge_page                                PASS
+  la57_accessed_dirty                               PASS
+  paging_32bit_identity_4kb                         PASS
+  paging_32bit_4mb_page                             PASS
+  paging_32bit_fault_not_present                    PASS
+  outs_page_boundary_width                          PASS
+  rep_outs_page_fault_restart                       PASS
+  paging_pae_identity_2mb                           PASS
+  paging_pae_4kb                                    PASS
+
+20 passed, 0 failed
+
+Basic suite: 67 passed, 0 failed. Exception suite: 25 passed, 0 failed.

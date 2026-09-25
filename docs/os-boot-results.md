@@ -2267,3 +2267,59 @@ clang++ -std=c++20 -O2 -march=native \
   -o build/os-boot/check-reactos-crossing
 build/os-boot/check-reactos-crossing
 ```
+
+
+## ReactOS installation with the merged page-fault fixes (2026-09-25)
+
+This continuation starts at `3f0d9ba` and uses **only sail-llvm** for
+builds and tests. Its wall budget is 00:04:10–04:34:10 UTC. Every new
+installation attempt uses a fresh sparse 1 GiB disk under `build/os-boot`,
+the existing debug setup ISO, and the keyboard schedule from install-10.
+The runner timeout is 14,400 seconds.
+
+The old cabinet-length diagnostic now correctly reports `#PF(14)`,
+`CR2=44000`, unchanged `EAX=12345678`, and `have_exception=0`.
+All 18 original paging tests pass with the rebuilt merged model.
+End-to-end cabinet verification is recorded with the subsequent attempt.
+
+### reactos-pagefixed-install-14
+
+Stopped at **Building the file copy list**, before extraction. The newly
+propagated page fault reveals a separate over-read in `OUTS`: the generated
+LLVM model reads eight source bytes for each byte/word/dword output.
+ReactOS's `WRITE_PORT_BUFFER_ULONG` executes `REP OUTSD` at `809416E9`
+with `ESI=AFFAAFFC`, `ECX=1`, and `DX=1F0`. Four valid bytes remain, but
+the eight-byte read faults at `AFFAB000` in the storage ISR, at IRQL 13.
+`MmAccessFault` asserts `KeGetCurrentIrql() <= APC_LEVEL`. The IDE device
+has received 4,092 of 4,096 bytes. The assertion was not ignored.
+
+[Stop PNG](os-boot/reactos-pagefixed-install-14-irql.png) ·
+[Full serial log](os-boot/reactos-pagefixed-install-14.serial.txt) ·
+[Diagnosis and failing regressions](os-boot/reactos-outs-diagnosis.txt).
+
+The fix gives each OUTS memory read an explicit 8/16/32-bit width, as
+specified by Intel SDM revision 090, Vol.2B **OUTS/OUTSB/OUTSW/OUTSD**,
+pp.4-173–4-176. Regressions cover byte/word/dword transfers ending at an
+unmapped page and the remaining count/source pointer on a genuine REP
+OUTSD page fault and restart. Both tests fail on the old LLVM object.
+After the fix, all 20 paging, 67 basic, and 25 exception tests pass with
+sail-llvm, and the fast emulator is rebuilt.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_EVENT_ADDRESS=0x80403f2e SAIL_X86_TRACE_ADDRESS=0x4024f8 python3 system-emu/run-boot.py --name reactos-pagefixed-install-14 --timeout 14400 --send '2:\n' --send '110:\n' --send '120:\n' --send '130:\n' --send '140:\n' --send '150:\n' --send '160:\n' --send '170:\n' --send '190:\n' --send '220:\n' --send '250:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-pagefixed-disk.img -cdrom build/os-boot/reactos-debug.iso -boot d
+```
+
+Wall time: **578.988 s**. Instructions: **1,804,902,400**.
+Stopped with Ctrl-a x after diagnosis; exit status `0`.
+Disk: `build/os-boot/reactos-pagefixed-disk.img`.
+RAM at the original assertion: `build/os-boot/reactos-pagefixed-install-14-irql.ram`.
+Additional keyboard/debugger inputs are retained in
+`build/os-boot/reactos-pagefixed-install-14.input.json`.
+
+Last serial output:
+
+```text
+kdb:> .cxr AFCCDAC4
+Command '.cxr AFCCDAC4' is unknown.
+kdb:>
+```
