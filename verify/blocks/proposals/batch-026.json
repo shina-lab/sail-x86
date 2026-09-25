@@ -1,0 +1,82 @@
+{
+  "030ea26793": {
+    "rewrite": null,
+    "why": "Both overlapping DWORD stores contribute required bytes, and the live pointer update and counter decrement already take one instruction each."
+  },
+  "ce17b9087f": {
+    "rewrite": null,
+    "why": "The five-byte copy requires both load/store pairs within the permitted memory range, and both pointer updates and the ZF-producing counter decrement remain necessary."
+  },
+  "8a11bf27d1": {
+    "rewrite": null,
+    "why": "Both overlapping DWORD stores contribute required bytes, and neither the live pointer update nor the counter decrement can be removed."
+  },
+  "c1cada4398": {
+    "rewrite": null,
+    "why": "The six-byte copy needs both load/store pairs without accessing extra bytes, plus the two live pointer updates and counter decrement."
+  },
+  "f41b4f8b28": {
+    "rewrite": null,
+    "why": "Both DWORD stores are necessary to write the seven-byte region, and the pointer update and ZF-producing counter decrement are independently required."
+  },
+  "695ab2e58d": {
+    "rewrite": null,
+    "why": "Combining the seven-byte copy into a QWORD transfer would access an extra byte, while all three scalar updates are live."
+  },
+  "f049bd979d": {
+    "rewrite": null,
+    "why": "The QWORD load and store already form the minimum transfer sequence preserving xmm0, and both pointer updates and the counter decrement are required."
+  },
+  "3f3d43d29b": {
+    "rewrite": null,
+    "why": "The overlapping QWORD and DWORD stores both contribute required bytes, followed by an independently necessary pointer update and counter decrement."
+  },
+  "3a948e73d1": {
+    "rewrite": null,
+    "why": "The nine-byte region requires both load/store pairs under SSE2, and both pointer updates and the ZF-producing counter decrement are live."
+  },
+  "806f556f44": {
+    "rewrite": null,
+    "why": "Both stores are needed for the ten-byte region, and the live pointer update and counter decrement already require only one instruction each."
+  },
+  "867c8c5160": {
+    "rewrite": null,
+    "why": "Both load/store pairs are needed to copy ten bytes within the allowed accesses, and the pointer and counter updates cannot be eliminated."
+  },
+  "fbadf6e31d": {
+    "rewrite": null,
+    "why": "Each overlapping store contributes required bytes to the eleven-byte region, and both scalar updates affect preserved state."
+  },
+  "7dbb73e3c8": {
+    "rewrite": null,
+    "why": "The eleven-byte copy requires both load/store pairs without widening beyond the permitted region, together with all three live scalar updates."
+  },
+  "b65b44b51e": {
+    "rewrite": null,
+    "why": "The adjacent QWORD and DWORD stores are both necessary, as are the live pointer update and ZF-producing counter decrement."
+  },
+  "4a9d28dc54": {
+    "rewrite": null,
+    "why": "The twelve-byte copy needs both QWORD and DWORD load/store pairs under SSE2, and both pointer updates and the counter decrement are required."
+  },
+  "c0ad110d70": {
+    "rewrite": null,
+    "why": "Both overlapping QWORD stores contribute required bytes, and the live pointer update and counter decrement cannot be combined with these stores."
+  },
+  "35b7adf746": {
+    "rewrite": null,
+    "why": "Both QWORD load/store pairs are needed for the thirteen-byte region because a wider transfer would access extra bytes, and all scalar updates are live."
+  },
+  "302784d9ee": {
+    "rewrite": null,
+    "why": "Both QWORD stores are needed to write the fourteen-byte region, and the pointer update and counter decrement independently preserve required state."
+  },
+  "70a5e2cd01": {
+    "rewrite": null,
+    "why": "The fourteen-byte copy requires both QWORD load/store pairs within the permitted memory range, plus the two live pointer updates and counter decrement."
+  },
+  "29eea5f0a7": {
+    "rewrite": null,
+    "why": "Both overlapping QWORD stores are required for the fifteen-byte region, and neither the pointer update nor the ZF-producing counter decrement is redundant."
+  }
+}

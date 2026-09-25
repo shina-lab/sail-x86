@@ -1,0 +1,83 @@
+{
+  "116ee353a0": {
+    "rewrite": null,
+    "why": "The filtering operations, two word stores, scalar extraction, and pointer updates are all required to preserve the specified outputs."
+  },
+  "47babe9b5b": {
+    "rewrite": null,
+    "why": "Both rows require separate shuffles and products, and the final packed shift is needed for the second store and the preserved xmm0 value."
+  },
+  "b12f1ed24a": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required register value, including all three loaded constants."
+  },
+  "15ef1363c7": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and coefficients require four independently saturated products per row, with copies needed by the destructive SSSE3 operations."
+  },
+  "5311328f45": {
+    "rewrite": null,
+    "why": "The overlapping loads do not eliminate any products or shuffles for arbitrary masks and coefficients, and the SSSE3 operations require the input copies."
+  },
+  "e8b9ef2319": {
+    "rewrite": null,
+    "why": "Both updated pointers and their copies are live, as are the extracted byte, decremented counter, and final subtraction flags."
+  },
+  "d5a96760ea": {
+    "rewrite": null,
+    "why": "All four constant loads and both scalar updates produce independently required final register values."
+  },
+  "db44da3be0": {
+    "rewrite": null,
+    "why": "Each row needs three arbitrary shuffles, three saturated products, two additions, and the existing single-instruction rounded scaling before its store."
+  },
+  "fc91fa2c60": {
+    "rewrite": null,
+    "why": "Arbitrary masks and coefficients prevent sharing work between the overlapping input windows, and both filtered results and pointer updates are required."
+  },
+  "d264233c49": {
+    "rewrite": "punpcklwd xmm7,xmm7\npshufd xmm5,xmm7,0x0\npshufd xmm6,xmm7,0x55\npshufd xmm7,xmm7,0xaa\nmovdqa xmm8,XMMWORD PTR [CONST_1]\nimul r10,rdx,0xffffffffffffffff\ncmp ecx,0x4",
+    "saved": 1,
+    "why": "Multiplication by -1 computes the same 64-bit modular negation directly into r10, replacing the copy and negation. The following comparison supplies all required final flags."
+  },
+  "85d7fa184c": {
+    "rewrite": null,
+    "why": "The four instructions independently update four required registers, with the subtraction also providing the required final flags."
+  },
+  "2e159363bb": {
+    "rewrite": null,
+    "why": "Both pointer increments, the zero-extended byte, and the decremented counter are required, with the subtraction determining the final flags."
+  },
+  "504daf8ca7": {
+    "rewrite": null,
+    "why": "The updated pointers and their destination copies must all survive, along with the extracted byte and decremented counter."
+  },
+  "6e95861e9a": {
+    "rewrite": null,
+    "why": "All four rows require independent shuffles and saturated products, followed by the two horizontal reductions, rounded scalings, and stores."
+  },
+  "5910f7545e": {
+    "rewrite": null,
+    "why": "The trailing-zero count, three constant loads, counter shift, and pointer adjustment each produce a distinct required register value."
+  },
+  "f4ec9184be": {
+    "rewrite": null,
+    "why": "The constant load, two distinct broadcasts, and scalar addition each produce required outputs, including every flag from the addition."
+  },
+  "a8df96dc02": {
+    "rewrite": null,
+    "why": "Each row needs four independently saturated products from arbitrary shuffled inputs, and the copies preserve operands across destructive SSSE3 instructions."
+  },
+  "c7ff13d5dc": {
+    "rewrite": null,
+    "why": "Neither overlapping loads nor dead temporaries remove the need for the arbitrary shuffles, independently saturated products, reductions, scalings, and stores."
+  },
+  "c56203cbc6": {
+    "rewrite": null,
+    "why": "Both updated pointers and their copies are required, together with the extracted byte, decremented counter, and subtraction flags."
+  },
+  "f5ec34b72c": {
+    "rewrite": null,
+    "why": "The masked and shifted xmm9 must survive, while forming and extracting both 32-bit sums already uses a tight SSSE3-compatible sequence."
+  }
+}

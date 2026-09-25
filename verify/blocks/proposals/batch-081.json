@@ -1,0 +1,90 @@
+{
+  "a4443d15f9": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+rdx*1]\nmovdqu xmm2,XMMWORD PTR [rsi+rdx*1]\npshufd xmm1,xmm0,0xb1\npshufd xmm3,xmm2,0xb1\npmuldq xmm0,xmm4\npmuldq xmm1,xmm4\npmuldq xmm2,xmm4\npmuldq xmm3,xmm4\npaddq xmm0,xmm5\npaddq xmm1,xmm5\npaddq xmm2,xmm5\npaddq xmm3,xmm5\npsrlq xmm0,0x12\npsllq xmm1,0xe\npsrlq xmm2,0x12\npsllq xmm3,0xe\npblendw xmm0,xmm1,0xcc\npblendw xmm2,xmm3,0xcc\npminsd xmm0,xmm6\npminsd xmm2,xmm6\nmovdqu XMMWORD PTR [rdi+rdx*1],xmm0\nmovdqu XMMWORD PTR [rsi+rdx*1],xmm2\nadd rdx,0x10",
+    "saved": 4,
+    "why": "Shifting the odd-element qwords left by 14 places bits 18..49 directly in the odd dwords. Each blend replaces two output shuffles and an unpack while retaining the clamp and index-update flags."
+  },
+  "9f99573094": {
+    "rewrite": null,
+    "why": "Both broadcasts require a transfer and a replication, and the pointer update must retain the 32-bit shift's truncation before the 64-bit negation."
+  },
+  "2d119906c5": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+rsi*1]\npshufd xmm1,xmm0,0xb1\npmuldq xmm0,xmm2\npmuldq xmm1,xmm2\npaddq xmm0,xmm3\npaddq xmm1,xmm3\npsrlq xmm0,0x12\npsllq xmm1,0xe\npblendw xmm0,xmm1,0xcc\nmovdqu XMMWORD PTR [rdi+rsi*1],xmm0\nadd rsi,0x10",
+    "saved": 2,
+    "why": "A left shift by 14 places the odd results' required bits in the high dwords of their qwords, allowing one blend to replace the two output shuffles and unpack."
+  },
+  "eb8d3d2f07": {
+    "rewrite": null,
+    "why": "The two broadcasts and both pointer additions are necessary, as are the truncating 32-bit shift and subsequent 64-bit negation."
+  },
+  "1fe78711ff": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+rdx*1]\nmovdqu xmm2,XMMWORD PTR [rsi+rdx*1]\npshufd xmm1,xmm0,0xb1\npshufd xmm3,xmm2,0xb1\npmuldq xmm0,xmm4\npmuldq xmm1,xmm4\npmuldq xmm2,xmm4\npmuldq xmm3,xmm4\npaddq xmm0,xmm5\npaddq xmm1,xmm5\npaddq xmm2,xmm5\npaddq xmm3,xmm5\npsrlq xmm0,0x12\npsllq xmm1,0xe\npsrlq xmm2,0x12\npsllq xmm3,0xe\npblendw xmm0,xmm1,0xcc\npblendw xmm2,xmm3,0xcc\nmovdqu XMMWORD PTR [rdi+rdx*1],xmm0\nmovdqu XMMWORD PTR [rsi+rdx*1],xmm2\nadd rdx,0x10",
+    "saved": 4,
+    "why": "Shift the odd results left by 14 and blend their high dwords with the right-shifted even results. This replaces three output-reordering instructions with one for each buffer."
+  },
+  "e39122d333": {
+    "rewrite": null,
+    "why": "AVX2 requires separate GPR transfers and broadcasts, and the zero vector and three scalar length/pointer operations all produce required results."
+  },
+  "5f42eb2fee": {
+    "rewrite": null,
+    "why": "With unrestricted unpack operands, coefficients, and offsets, both multiply-add paths and their shifts and saturating pack are necessary."
+  },
+  "ae1da20fe5": {
+    "rewrite": null,
+    "why": "The constant already takes one load, the GPR broadcasts need two instructions each under AVX2, and the scalar operations preserve required truncation and pointer results."
+  },
+  "16ee966261": {
+    "rewrite": "vpshufd ymm1,YMMWORD PTR [rdi+rsi*1],0xb1\nvpmuldq ymm0,ymm2,YMMWORD PTR [rdi+rsi*1]\nvpmuldq ymm1,ymm1,ymm2\nvpaddq ymm0,ymm0,ymm3\nvpaddq ymm1,ymm1,ymm3\nvpsrlq ymm0,ymm0,0x12\nvpsllq ymm1,ymm1,0xe\nvpblendd ymm0,ymm0,ymm1,0xaa\nvpminsd ymm0,ymm0,ymm4\nvmovdqu YMMWORD PTR [rdi+rsi*1],ymm0\nadd rsi,0x20",
+    "saved": 3,
+    "why": "Fold the input load into the shuffle and even-element multiply, reading only the original bytes. Shifting odd products left by 14 lets one dword blend replace the three output-reordering instructions."
+  },
+  "62839241c8": {
+    "rewrite": null,
+    "why": "Both AVX2 broadcasts, the zero vector, both pointer additions, and the truncating shift followed by 64-bit negation produce required results without redundant instructions."
+  },
+  "2797d61550": {
+    "rewrite": null,
+    "why": "The arbitrary coefficients, unpack operands, and offsets require all four multiply-add paths and their shifts and saturating packs."
+  },
+  "0c77282a68": {
+    "rewrite": null,
+    "why": "The vector setup already uses minimal AVX2 transfers and broadcasts, while both pointer updates and the truncating length transformation remain necessary."
+  },
+  "a3de3e678a": {
+    "rewrite": "vpshufd ymm1,YMMWORD PTR [rdi+rdx*1],0xb1\nvpshufd ymm3,YMMWORD PTR [rsi+rdx*1],0xb1\nvpmuldq ymm0,ymm4,YMMWORD PTR [rdi+rdx*1]\nvpmuldq ymm1,ymm1,ymm4\nvpmuldq ymm2,ymm4,YMMWORD PTR [rsi+rdx*1]\nvpmuldq ymm3,ymm3,ymm4\nvpaddq ymm0,ymm0,ymm5\nvpaddq ymm1,ymm1,ymm5\nvpaddq ymm2,ymm2,ymm5\nvpaddq ymm3,ymm3,ymm5\nvpsrlq ymm0,ymm0,0x12\nvpsllq ymm1,ymm1,0xe\nvpsrlq ymm2,ymm2,0x12\nvpsllq ymm3,ymm3,0xe\nvpblendd ymm0,ymm0,ymm1,0xaa\nvpblendd ymm2,ymm2,ymm3,0xaa\nvpminsd ymm0,ymm0,ymm6\nvpminsd ymm2,ymm2,ymm6\nvmovdqu YMMWORD PTR [rdi+rdx*1],ymm0\nvmovdqu YMMWORD PTR [rsi+rdx*1],ymm2\nadd rdx,0x20",
+    "saved": 6,
+    "why": "Memory operands eliminate both standalone loads. For each buffer, shifting odd products left by 14 and blending dwords replaces the two output shuffles and unpack while preserving the clamp."
+  },
+  "6d5dfcd41d": {
+    "rewrite": null,
+    "why": "Each GPR broadcast needs a transfer and replication under AVX2, and the three scalar operations are necessary for the required pointer and truncated negative length."
+  },
+  "ab6e272518": {
+    "rewrite": "vpshufd ymm1,YMMWORD PTR [rdi+rsi*1],0xb1\nvpmuldq ymm0,ymm2,YMMWORD PTR [rdi+rsi*1]\nvpmuldq ymm1,ymm1,ymm2\nvpaddq ymm0,ymm0,ymm3\nvpaddq ymm1,ymm1,ymm3\nvpsrlq ymm0,ymm0,0x12\nvpsllq ymm1,ymm1,0xe\nvpblendd ymm0,ymm0,ymm1,0xaa\nvmovdqu YMMWORD PTR [rdi+rsi*1],ymm0\nadd rsi,0x20",
+    "saved": 3,
+    "why": "Fold the load into the shuffle and even-element multiply, then combine right-shifted even results and left-shifted odd results with one blend instead of three reordering instructions."
+  },
+  "771e486080": {
+    "rewrite": null,
+    "why": "The two broadcasts and two pointer additions are necessary, and the length requires both a truncating 32-bit shift and a 64-bit negation."
+  },
+  "53b2fadd44": {
+    "rewrite": "vpshufd ymm1,YMMWORD PTR [rdi+rdx*1],0xb1\nvpshufd ymm3,YMMWORD PTR [rsi+rdx*1],0xb1\nvpmuldq ymm0,ymm4,YMMWORD PTR [rdi+rdx*1]\nvpmuldq ymm1,ymm1,ymm4\nvpmuldq ymm2,ymm4,YMMWORD PTR [rsi+rdx*1]\nvpmuldq ymm3,ymm3,ymm4\nvpaddq ymm0,ymm0,ymm5\nvpaddq ymm1,ymm1,ymm5\nvpaddq ymm2,ymm2,ymm5\nvpaddq ymm3,ymm3,ymm5\nvpsrlq ymm0,ymm0,0x12\nvpsllq ymm1,ymm1,0xe\nvpsrlq ymm2,ymm2,0x12\nvpsllq ymm3,ymm3,0xe\nvpblendd ymm0,ymm0,ymm1,0xaa\nvpblendd ymm2,ymm2,ymm3,0xaa\nvmovdqu YMMWORD PTR [rdi+rdx*1],ymm0\nvmovdqu YMMWORD PTR [rsi+rdx*1],ymm2\nadd rdx,0x20",
+    "saved": 6,
+    "why": "Use memory operands for each shuffle and even-element multiply to eliminate the standalone loads. Left-shifting odd results by 14 permits one blend per buffer in place of two output shuffles and an unpack."
+  },
+  "d3da44d1f1": {
+    "rewrite": null,
+    "why": "The sign extension, two pointer updates, negation, and separate copy-and-mask are all required, with the mask also producing the required ZF."
+  },
+  "9ea3f2e944": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nbswap r9d\nmov cl,r9b\nror r9d,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 3,
+    "why": "A dword load, byte swap, and rotate produce the same four output bytes, which one dword store writes to the original destination bytes. Copying the low byte after BSWAP preserves the original final CL, and the final SUB preserves the required flags."
+  },
+  "6e2aba3e69": {
+    "rewrite": null,
+    "why": "The load, arbitrary-mask byte shuffle, store, and flag-producing index update are each necessary under SSSE3."
+  }
+}

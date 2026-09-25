@@ -1,0 +1,92 @@
+{
+  "487060a5c4": {
+    "rewrite": "vpclmullqlqdq xmm11,xmm7,xmm12\nvpshufd xmm8,xmm14,0x4e\nvpshufd xmm11,xmm11,0x4e\nvpxor xmm8,xmm8,xmm12\nvpxor xmm8,xmm8,xmm11\nvpclmulhqhqdq xmm11,xmm8,xmm7\nvpxor xmm15,xmm8,xmm13\nvpxor xmm15,xmm15,xmm11",
+    "saved": 2,
+    "why": "Swapping xmm14's qwords replaces both shifts and eliminates one XOR. The low product depends only on xmm12's low qword, and the high product receives the same high qword as before."
+  },
+  "a5d3e3e11b": {
+    "rewrite": null,
+    "why": "All eight loads produce required vectors, and VZEROUPPER must clear the upper halves of the other live YMM registers."
+  },
+  "c1c4a5d0a6": {
+    "rewrite": null,
+    "why": "All eight stores are required, and VZEROUPPER must clear the upper half of live ymm0."
+  },
+  "24457e80a1": {
+    "rewrite": "movdqa xmm13,xmm0\npunpckldq xmm0,xmm1\npunpckhdq xmm13,xmm1\nmovdqa xmm12,xmm2\npunpckhdq xmm2,xmm3\npunpckldq xmm12,xmm3\nmovdqa xmm1,xmm0\npunpcklqdq xmm0,xmm12\npunpckhqdq xmm1,xmm12\nmovdqa xmm3,xmm13\npunpcklqdq xmm13,xmm2\npunpckhqdq xmm3,xmm2\nmovdqu XMMWORD PTR [rsi],xmm0\nmovdqu XMMWORD PTR [rsi+0x10],xmm1\nmovdqu XMMWORD PTR [rsi+0x20],xmm13\nmovdqu XMMWORD PTR [rsi+0x30],xmm3\nmovdqa xmm13,xmm5\npunpckldq xmm5,xmm6\npunpckhdq xmm13,xmm6\nmovdqa xmm12,xmm7\npunpckhdq xmm7,xmm8\npunpckldq xmm12,xmm8\nmovdqa xmm6,xmm5\npunpcklqdq xmm5,xmm12\npunpckhqdq xmm6,xmm12\nmovdqa xmm8,xmm13\npunpcklqdq xmm13,xmm7\npunpckhqdq xmm8,xmm7\nmovdqu XMMWORD PTR [rax],xmm5\nmovdqu XMMWORD PTR [rax+0x10],xmm6\nmovdqu XMMWORD PTR [rax+0x20],xmm13\nmovdqu XMMWORD PTR [rax+0x30],xmm8",
+    "saved": 2,
+    "why": "Store xmm13 directly for each third output vector, removing two copies into dead registers."
+  },
+  "61caae9f24": {
+    "rewrite": "movdqa xmm13,xmm0\npunpckldq xmm0,xmm1\npunpckhdq xmm13,xmm1\nmovdqa xmm12,xmm2\npunpckhdq xmm2,xmm3\npunpckldq xmm12,xmm3\nmovdqa xmm1,xmm0\npunpcklqdq xmm0,xmm12\npunpckhqdq xmm1,xmm12\nmovdqa xmm3,xmm13\npunpcklqdq xmm13,xmm2\npunpckhqdq xmm3,xmm2\nmovdqu xmm11,XMMWORD PTR [rsi]\npxor xmm0,xmm11\nmovdqu XMMWORD PTR [rsi],xmm0\nmovdqu xmm11,XMMWORD PTR [rsi+0x10]\npxor xmm1,xmm11\nmovdqu XMMWORD PTR [rsi+0x10],xmm1\nmovdqu xmm11,XMMWORD PTR [rsi+0x20]\npxor xmm13,xmm11\nmovdqu XMMWORD PTR [rsi+0x20],xmm13\nmovdqu xmm11,XMMWORD PTR [rsi+0x30]\npxor xmm3,xmm11\nmovdqu XMMWORD PTR [rsi+0x30],xmm3\nmovdqa xmm13,xmm5\npunpckldq xmm5,xmm6\npunpckhdq xmm13,xmm6\nmovdqa xmm12,xmm7\npunpckhdq xmm7,xmm8\npunpckldq xmm12,xmm8\nmovdqa xmm6,xmm5\npunpcklqdq xmm5,xmm12\npunpckhqdq xmm6,xmm12\nmovdqa xmm8,xmm13\npunpcklqdq xmm13,xmm7\npunpckhqdq xmm8,xmm7\nmovdqu xmm11,XMMWORD PTR [rax]\npxor xmm5,xmm11\nmovdqu XMMWORD PTR [rax],xmm5\nmovdqu xmm11,XMMWORD PTR [rax+0x10]\npxor xmm6,xmm11\nmovdqu XMMWORD PTR [rax+0x10],xmm6\nmovdqu xmm11,XMMWORD PTR [rax+0x20]\npxor xmm13,xmm11\nmovdqu XMMWORD PTR [rax+0x20],xmm13\nmovdqu xmm11,XMMWORD PTR [rax+0x30]\npxor xmm8,xmm11\nmovdqu XMMWORD PTR [rax+0x30],xmm8",
+    "saved": 2,
+    "why": "XOR and store each third output vector directly in xmm13, eliminating two copies while retaining the unaligned loads."
+  },
+  "4edde74a2b": {
+    "rewrite": "insertps xmm1,DWORD PTR [rdi+0x10],0x37\nmovdqu xmm0,XMMWORD PTR [rdi]\npshufd xmm0,xmm0,0x1b\nmovdqa xmm7,XMMWORD PTR [CONST_1]",
+    "saved": 1,
+    "why": "INSERTPS places the scalar in lane 3 and zeros lanes 0 through 2 in one instruction."
+  },
+  "d1b5e21c0e": {
+    "rewrite": "mov rbp,rsp\nmov r9,rdi\nmov r10,rsi\nshl rdx,0x6\nlea r11,[rdx+rsi]",
+    "saved": 3,
+    "why": "Omit the stack adjustments, which have no required output, and use LEA to compute r11 directly after the shift."
+  },
+  "5c8e91489b": {
+    "rewrite": "mov rbp,rsp\nmov r9,rdi\nmov r10,rsi\nshl rdx,0x6\nlea r11,[rdx+rsi]",
+    "saved": 3,
+    "why": "Omit the stack adjustments, which have no required output, and use LEA to compute r11 directly after the shift."
+  },
+  "d0f5b2e5d1": {
+    "rewrite": null,
+    "why": "The four loads, four arbitrary-mask byte shuffles, and four lane permutations all feed required outputs."
+  },
+  "97ecd9a9e6": {
+    "rewrite": null,
+    "why": "Each of the four required outputs needs an unaligned load and a register-mask byte shuffle with its upper YMM half cleared."
+  },
+  "a3ed81cc07": {
+    "rewrite": "shl rdx,0x6\nadd rdx,rsi\nmovdqu xmm7,XMMWORD PTR [rdi]\nmovdqu xmm2,XMMWORD PTR [rdi+0x10]\nmovdqa xmm1,xmm2\nshufps xmm1,xmm7,0x11\nshufps xmm2,xmm7,0xbb\nmovdqa xmm8,XMMWORD PTR [CONST_1]",
+    "saved": 2,
+    "why": "Load the first vector into xmm7, copy the second, and use two SHUFPS instructions to form the required reversed dword pairs directly."
+  },
+  "4e5f24cd46": {
+    "rewrite": "movdqa xmm7,xmm1\nshufps xmm1,xmm2,0x11\nshufps xmm7,xmm2,0xbb\nmovdqu XMMWORD PTR [rdi],xmm7\nmovdqu XMMWORD PTR [rdi+0x10],xmm1",
+    "saved": 2,
+    "why": "Two SHUFPS instructions produce the two stored dword arrangements directly after a single copy."
+  },
+  "eb9b127fb6": {
+    "rewrite": "mov rbp,rsp\nmovdqa xmm15,XMMWORD PTR [CONST_1]",
+    "saved": 2,
+    "why": "Keep the incoming stack pointer in rbp and the required constant load, omitting the unobserved stack adjustments."
+  },
+  "a5a08d23bd": {
+    "rewrite": null,
+    "why": "All eight loaded vectors and both advanced buffer pointers are required final values."
+  },
+  "9489312ba4": {
+    "rewrite": null,
+    "why": "All eight live vectors require their own byte shuffle."
+  },
+  "6614502db3": {
+    "rewrite": null,
+    "why": "Each initialization targets a live value, and forming the high-qword length vector requires both a transfer and a lane shift."
+  },
+  "d50a4334a3": {
+    "rewrite": "movdqa xmm5,xmm1\nmovdqa xmm6,xmm3\nshufps xmm1,xmm2,0x11\nshufps xmm3,xmm4,0x11\nshufps xmm5,xmm2,0xbb\nshufps xmm6,xmm4,0xbb\npshufb xmm1,xmm15\npshufb xmm3,xmm15\npshufb xmm5,xmm15\npshufb xmm6,xmm15\nmovdqu XMMWORD PTR [r8+0x10],xmm1\nmovdqu XMMWORD PTR [r9+0x10],xmm3\nmovdqu XMMWORD PTR [r8],xmm5\nmovdqu XMMWORD PTR [r9],xmm6",
+    "saved": 5,
+    "why": "Two SHUFPS operations per pair replace each unpack and shuffle sequence, and the stack pointer write has no required output."
+  },
+  "b8e26f5941": {
+    "rewrite": null,
+    "why": "The four live vector destinations each require a write, and CMP is needed to produce the required CF and ZF."
+  },
+  "0969457a71": {
+    "rewrite": null,
+    "why": "The transpose, four byte reversals, store, and comparison all contribute required outputs."
+  },
+  "22cbadcc03": {
+    "rewrite": null,
+    "why": "Both complete transposes, all eight byte swaps, the broadcast constant, and the address calculation produce required values."
+  }
+}

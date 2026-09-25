@@ -1,0 +1,6 @@
+{
+  "f5b287e61c": {
+    "rewrite": null,
+    "why": "All four instructions are needed to produce the preserved multiplication results, add with incoming OF while preserving CF, update and zero-extend rcx without changing flags, and store the required r8 result."
+  }
+}

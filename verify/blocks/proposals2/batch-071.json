@@ -1,0 +1,84 @@
+{
+  "a1a3faaae2": {
+    "rewrite": null,
+    "why": "The XOR mask is unconstrained, and the averaging results, transformed source registers, stores, pointer updates, and final flags must all be preserved."
+  },
+  "b176924381": {
+    "rewrite": null,
+    "why": "With an unconstrained XOR mask and all vector results live, the SSE2 loads, XORs, averages, stores, and scalar updates have no removable step."
+  },
+  "ff3d923285": {
+    "rewrite": null,
+    "why": "The vertical averages already share their transformed source rows, and all remaining results and updates are required."
+  },
+  "3ccf53a804": {
+    "rewrite": null,
+    "why": "The transformed rows are already reused across adjacent averages, and preserving every final vector register prevents eliminating the remaining operations."
+  },
+  "3340f39e27": {
+    "rewrite": null,
+    "why": "The two bounded loads, byte interleave, and PMADDUBSW compute the eight exact sums, while both constant registers and scalar updates remain live."
+  },
+  "9b15dd68c1": {
+    "rewrite": null,
+    "why": "Both constant registers must be retained, and the two eight-byte loads, interleave, multiply-add, and scalar updates are already tight."
+  },
+  "0b70835358": {
+    "rewrite": null,
+    "why": "SSE2 requires both input halves to be widened before producing the exact word sums, and the zero register, constant register, and scalar updates are live."
+  },
+  "495151151d": {
+    "rewrite": null,
+    "why": "The exact byte-pair sums require the existing widening and addition sequence under SSE2, with both output halves and initialization results preserved."
+  },
+  "bbeb591c5d": {
+    "rewrite": null,
+    "why": "Both PMADDUBSW results and both constant registers are live, and exchanging the unsigned input bytes with the signed multiplier operand would change the sums."
+  },
+  "2ef98d5a36": {
+    "rewrite": null,
+    "why": "Broadcasting the low word from EDX requires the three SSE2 operations, and preserving doubled ECX and the masked zero flag requires both scalar operations."
+  },
+  "31ea29674e": {
+    "rewrite": null,
+    "why": "XMM1 and XMM3 must retain their loaded values, so SSE2 memory-operand additions would require replacement copies and save no instructions."
+  },
+  "f850d06986": {
+    "rewrite": null,
+    "why": "The original destination vectors in XMM1 and XMM3 are live, and destructive SSE2 additions cannot eliminate the source loads without adding copies."
+  },
+  "bfdbeae857": {
+    "rewrite": null,
+    "why": "AVX2 needs a separate GPR-to-vector move before the word broadcast, while the doubled counter and masked zero flag require separate operations."
+  },
+  "7a7e971242": {
+    "rewrite": "vmovdqa ymm1,YMMWORD PTR [rdi+rcx*1]\nvmovdqa ymm3,YMMWORD PTR [rdi+rcx*1+0x20]\nvpaddw ymm0,ymm1,YMMWORD PTR [rsi+rcx*1]\nvpaddw ymm2,ymm3,YMMWORD PTR [rsi+rcx*1+0x20]\nvpand ymm0,ymm0,ymm4\nvpand ymm2,ymm2,ymm4\nvmovdqa YMMWORD PTR [rdi+rcx*1],ymm0\nvmovdqa YMMWORD PTR [rdi+rcx*1+0x20],ymm2\nadd rcx,0x40",
+    "saved": 2,
+    "why": "Fold the two source loads into the three-operand VPADDW instructions, using addition's commutativity. YMM1 and YMM3 retain their original loaded values, and the stores and final flags are unchanged."
+  },
+  "1df3311874": {
+    "rewrite": "vmovdqu ymm1,YMMWORD PTR [rdi+rcx*1]\nvmovdqu ymm3,YMMWORD PTR [rdi+rcx*1+0x20]\nvpaddw ymm0,ymm1,YMMWORD PTR [rsi+rcx*1]\nvpaddw ymm2,ymm3,YMMWORD PTR [rsi+rcx*1+0x20]\nvpand ymm0,ymm0,ymm4\nvpand ymm2,ymm2,ymm4\nvmovdqu YMMWORD PTR [rdi+rcx*1],ymm0\nvmovdqu YMMWORD PTR [rdi+rcx*1+0x20],ymm2\nadd rcx,0x40",
+    "saved": 2,
+    "why": "AVX2 VPADDW accepts the unaligned source memory operands directly, eliminating two explicit loads. The loaded destination vectors, masked sums, stores, counter, and final flags are preserved."
+  },
+  "b765ec70d1": {
+    "rewrite": null,
+    "why": "The two prefix-sum stages must preserve XMM2's intermediate result, and folding a repeated unaligned load into legacy SSE2 PADDB would introduce an alignment requirement."
+  },
+  "df5b40fec8": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required GPR result, and NEG also supplies the required final flags."
+  },
+  "079af5d832": {
+    "rewrite": null,
+    "why": "XMM1 and XMM3 must retain the subtrahends, so folding their loads into PSUBW would still require separate loads to preserve those final registers."
+  },
+  "dfa6de4770": {
+    "rewrite": null,
+    "why": "Both loaded subtrahends remain live, and the unaligned loads, differences, masks, stores, and index update have no removable instruction."
+  },
+  "1762bbc18a": {
+    "rewrite": null,
+    "why": "The three pointer additions and index negation produce four independently required register values, with NEG supplying the final flags."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "44cfcac39b": {
+    "rewrite": null,
+    "why": "The initial low product supplies a required carry, and both carry chains, the final memory update, and the live register and flag results prevent removing an instruction."
+  },
+  "78e98aa49c": {
+    "rewrite": null,
+    "why": "Both independent carry chains contribute to required results, and the products, stores, multiplier change, and final state updates leave no removable instruction."
+  },
+  "f82591cf9e": {
+    "rewrite": null,
+    "why": "The product accumulation needs both ADX carry chains and their final merge, while the stores and remaining register and flag updates are required."
+  },
+  "40cc0fab5f": {
+    "rewrite": null,
+    "why": "Every multiply and carry step contributes to a preserved register or store, and the final carry extraction and pointer and counter updates remain necessary."
+  },
+  "40ee73bfa3": {
+    "rewrite": null,
+    "why": "The two carry chains, multiplier transfer, required stores, and final register and flag updates leave no instruction that can be eliminated."
+  },
+  "6e6d635f87": {
+    "rewrite": null,
+    "why": "The unrolled product accumulation requires both carry chains and all stores, with no redundant setup or final state update."
+  },
+  "8851922ddd": {
+    "rewrite": null,
+    "why": "Loading the operand, computing both product halves without changing flags, and storing two qwords already require these four instructions."
+  },
+  "a94111cead": {
+    "rewrite": null,
+    "why": "The three full-width products, carry propagation, four stores, and preserved intermediate register values leave no removable operation."
+  },
+  "84901b0d08": {
+    "rewrite": "mov rdx,QWORD PTR [rsi]\nmulx r11,r10,QWORD PTR [rsi+0x8]\nmulx r9,r8,QWORD PTR [rsi+0x10]\nadd r8,r11\nmulx rcx,rdx,rdx\nmov QWORD PTR [rdi],rdx\nmov rdx,QWORD PTR [rsi+0x8]\nmulx r11,rax,QWORD PTR [rsi+0x10]\nadc r9,rax\nadc r11,0x0\ntest ebx,ebx\nmulx rbx,rax,rdx\nmov rdx,QWORD PTR [rsi+0x10]\nmulx rdx,rsi,rdx\nadcx r10,r10\nadcx r8,r8\nadcx r9,r9\nadcx r11,r11\nadox rcx,r10\nadox rax,r8\nadox rbx,r9\nadox rsi,r11\nmov r8d,0x0\nadox rdx,r8\nadcx rdx,r8\nmov QWORD PTR [rdi+0x8],rcx\nmov QWORD PTR [rdi+0x10],rax\nmov QWORD PTR [rdi+0x18],rbx\nmov QWORD PTR [rdi+0x20],rsi\nmov QWORD PTR [rdi+0x28],rdx",
+    "saved": 2,
+    "why": "Compute each of the first two limb squares while its operand is already in RDX, eliminating two reloads. Using RDX for the first square's low half leaves the original EBX intact for TEST, and the moved MULX and store preserve the pending carry."
+  },
+  "f12d508acd": {
+    "rewrite": null,
+    "why": "Both incoming carry flags affect the stored sum, and the required r8 result, address update, and ECX/ZF result prevent eliminating the remaining operations."
+  },
+  "c36b7220d3": {
+    "rewrite": null,
+    "why": "The products and accumulation require both independent carry chains, explicit stores, and the flag-preserving pointer update."
+  },
+  "60b393d5be": {
+    "rewrite": null,
+    "why": "Each multiply and addition feeds a required store or preserved result, and both carry flags must survive the pointer update."
+  },
+  "18cf746973": {
+    "rewrite": null,
+    "why": "Although final r9 is dead, its high product feeds the last ADCX, and the other operations supply required stores, carries, or register updates."
+  },
+  "f43aead9b7": {
+    "rewrite": null,
+    "why": "All product and carry operations feed required stores or preserved register values, and neither independent carry chain can be discarded."
+  },
+  "ad65aa50b7": {
+    "rewrite": null,
+    "why": "All product halves feed preserved registers or required stores, and the ECX and RSI updates must preserve both active carry chains."
+  },
+  "012d42185c": {
+    "rewrite": null,
+    "why": "The accumulated limbs and both carry chains are required, while each store and the pointer update supplies an independently required effect."
+  },
+  "f5b287e61c": {
+    "rewrite": null,
+    "why": "Both product halves, the accumulated r8 and OF, the store, and the updated ECX are required while CF must remain unchanged."
+  },
+  "25c543fb95": {
+    "rewrite": null,
+    "why": "All five independently updated registers are live, with final CF supplied by the last ADD and the other required flags supplied by DEC."
+  },
+  "ebb582e17a": {
+    "rewrite": null,
+    "why": "All five independently updated registers are live, with final CF supplied by the last ADD and the other required flags supplied by DEC."
+  },
+  "dc0a93dd70": {
+    "rewrite": "add cl,r15b\nmov ebx,edx\nshl r12,cl\nmov cl,r15b\nneg cl\nshr ebx,cl\nor rbx,r12\nmovq xmm0,rbx\nbswap rbx\nmov r12,rdx\npcmpeqb xmm0,xmm1\npmovmskb edx,xmm0\nmov QWORD PTR [rax],rbx\nadd r15b,0x40\nadd rax,0x8\ntest edx,edx",
+    "saved": 1,
+    "why": "Copy R15B into CL and negate CL directly, replacing the negate-copy-negate sequence with two instructions. This preserves both shift counts, final RCX and R15, and the final TEST result."
+  }
+}

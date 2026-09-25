@@ -1,0 +1,95 @@
+{
+  "ba8626a465": {
+    "rewrite": null,
+    "why": "The load, word shift, store, index update, and flag-producing comparison are all required."
+  },
+  "97d04ab9ee": {
+    "rewrite": null,
+    "why": "SSE2 needs both shifted byte-swap halves and the final scaling shift, while xmm7 must retain its unscaled high-byte values."
+  },
+  "59e640769c": {
+    "rewrite": null,
+    "why": "The load, word shift, store, index update, and flag-producing comparison are all required."
+  },
+  "7eeb92c4ae": {
+    "rewrite": null,
+    "why": "SSE2 needs both shifted byte-swap halves and the final scaling shift, while xmm7 must retain its unscaled high-byte values."
+  },
+  "9da092dc7f": {
+    "rewrite": null,
+    "why": "The vector copy needs a load and store, and the preserved index and comparison flags require both scalar instructions."
+  },
+  "10ab3ee53d": {
+    "rewrite": null,
+    "why": "The SSE2 byte swap requires the copy, two shifts, and merge, and the intermediate xmm7 value is also preserved."
+  },
+  "aaa61a906f": {
+    "rewrite": null,
+    "why": "Each instruction establishes a distinct required output: xmm8, xmm9, r8, or r9."
+  },
+  "80e80bf6c1": {
+    "rewrite": "movq xmm10,QWORD PTR [rcx]\npshufd xmm11,xmm10,0x55\npshufd xmm10,xmm10,0x0\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r10d,0x80100\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One qword load supplies the first two coefficient broadcasts, replacing two scalar loads without reading any additional bytes."
+  },
+  "c25df7e097": {
+    "rewrite": "movq xmm10,QWORD PTR [rcx]\npshufd xmm11,xmm10,0x55\npshufd xmm10,xmm10,0x0\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r10d,0x100200\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One qword load supplies the first two coefficient broadcasts, replacing two scalar loads without reading any additional bytes."
+  },
+  "4cd17cc29d": {
+    "rewrite": "movq xmm10,QWORD PTR [rcx]\npshufd xmm11,xmm10,0x55\npshufd xmm10,xmm10,0x0\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r10d,0x100200\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One qword load supplies the first two coefficient broadcasts, replacing two scalar loads without reading any additional bytes."
+  },
+  "d55c9d805a": {
+    "rewrite": "movq xmm10,QWORD PTR [rcx]\npshufd xmm11,xmm10,0x55\npshufd xmm10,xmm10,0x0\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r10d,0x200400\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One qword load supplies the first two coefficient broadcasts, replacing two scalar loads without reading any additional bytes."
+  },
+  "c3dabd970b": {
+    "rewrite": "movq xmm10,QWORD PTR [rcx]\npshufd xmm11,xmm10,0x55\npshufd xmm10,xmm10,0x0\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r10d,0x200400\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One qword load supplies the first two coefficient broadcasts, replacing two scalar loads without reading any additional bytes."
+  },
+  "d6cd848043": {
+    "rewrite": "movq xmm10,QWORD PTR [rcx]\npshufd xmm11,xmm10,0x55\npshufd xmm10,xmm10,0x0\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r10d,0x801000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One qword load supplies the first two coefficient broadcasts, replacing two scalar loads without reading any additional bytes."
+  },
+  "369f7a67e5": {
+    "rewrite": "movq xmm10,QWORD PTR [rcx]\npshufd xmm11,xmm10,0x55\npshufd xmm10,xmm10,0x0\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r10d,0x801000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One qword load supplies the first two coefficient broadcasts, replacing two scalar loads without reading any additional bytes."
+  },
+  "2ce86d252d": {
+    "rewrite": "movq xmm10,QWORD PTR [rcx]\npshufd xmm11,xmm10,0x55\npshufd xmm10,xmm10,0x0\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r10d,0x2004000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One qword load supplies the first two coefficient broadcasts, replacing two scalar loads without reading any additional bytes."
+  },
+  "094ea54775": {
+    "rewrite": "movq xmm10,QWORD PTR [rcx]\npshufd xmm11,xmm10,0x55\npshufd xmm10,xmm10,0x0\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r10d,0x2004000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One qword load supplies the first two coefficient broadcasts, replacing two scalar loads without reading any additional bytes."
+  },
+  "013a5540e4": {
+    "rewrite": "movq xmm10,QWORD PTR [rcx]\npshufd xmm11,xmm10,0x55\npshufd xmm10,xmm10,0x0\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r10d,0x8004000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One qword load supplies the first two coefficient broadcasts, replacing two scalar loads without reading any additional bytes."
+  },
+  "03dd984711": {
+    "rewrite": "movq xmm10,QWORD PTR [rcx]\npshufd xmm11,xmm10,0x55\npshufd xmm10,xmm10,0x0\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r10d,0x8004000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One qword load supplies the first two coefficient broadcasts, replacing two scalar loads without reading any additional bytes."
+  },
+  "83abdce7ad": {
+    "rewrite": "movq xmm10,QWORD PTR [rcx]\npshufd xmm11,xmm10,0x55\npshufd xmm10,xmm10,0x0\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm8,XMMWORD PTR [CONST_1]\nmovdqu xmm7,XMMWORD PTR [CONST_2]\nmov r10d,0x8004000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One qword load supplies the first two coefficient broadcasts, replacing two scalar loads without reading any additional bytes."
+  },
+  "efdf625444": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\npxor xmm9,xmm9\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r11d,0x400100\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "An unaligned 16-byte load and a qword load supply all six coefficient broadcasts, replacing six scalar loads while reading exactly the original 24 bytes."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "fb7c30ffe8": {
+    "rewrite": null,
+    "why": "The two row-pair loads, independent word products, bias subtraction, shift, store, and live pointer and counter updates have no redundant instruction."
+  },
+  "e58fd3e518": {
+    "rewrite": null,
+    "why": "Both rows require their independent products, bias subtraction, shift, and store, and the loads are already folded into the multiplies."
+  },
+  "03baa0bfa9": {
+    "rewrite": null,
+    "why": "The loads are already folded into the four multiplies, and both stored results and the flag-producing index decrement remain necessary."
+  },
+  "c4d7be2a2d": {
+    "rewrite": "vpmullw xmm0,xmm4,XMMWORD PTR [rsi]\nvpalignr xmm1,xmm5,XMMWORD PTR [rsi],0x2\nvpmullw xmm1,xmm1,xmm5\nvpsubw xmm0,xmm0,xmm3\nvpaddw xmm0,xmm0,xmm1\nvpsraw xmm0,xmm0,0x2\nvpbroadcastq ymm0,xmm0",
+    "saved": 1,
+    "why": "Fold the input load into the multiply and byte alignment, using the same memory operand twice. The alignment's differing top word is discarded by the final qword broadcast."
+  },
+  "51b352dd9d": {
+    "rewrite": null,
+    "why": "The two memory-source multiplies, modular bias adjustment and sum, arithmetic shift, and duplication all contribute to the live result."
+  },
+  "630ed5ab9f": {
+    "rewrite": null,
+    "why": "Both loads are already folded into independent word multiplies, followed by the required subtraction, addition, and arithmetic shift."
+  },
+  "ca7c3e168e": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle and coefficient registers require both row computations, and the horizontal sum, saturation, clamp, stores, and scalar updates remain live."
+  },
+  "f16e000ed5": {
+    "rewrite": null,
+    "why": "Both constant vectors are live, and the three remaining instructions produce two distinct full-width broadcasts from interior input dwords."
+  },
+  "4b18063970": {
+    "rewrite": null,
+    "why": "Both shuffled products and bias additions contribute to the output, while extraction and packing are needed to combine the two lanes before the clamp and stores."
+  },
+  "6fa246a733": {
+    "rewrite": null,
+    "why": "The unpack and shift sign-extend bytes independently in each 128-bit lane, so a single vpmovsxbw would not preserve the three live full-width broadcasts."
+  },
+  "4f3f82b0a8": {
+    "rewrite": null,
+    "why": "The arbitrary masks and coefficients keep all six multiply-add results and their shuffles live, with no removable operation in the rounding, packing, stores, or scalar updates."
+  },
+  "cb2ce41651": {
+    "rewrite": null,
+    "why": "Each loaded window feeds required shuffles and products, and AVX2 provides no fused operation for the remaining independent sums, shifts, saturation, and clamp."
+  },
+  "78734825dd": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required register result, and the final subtraction also supplies the required flags."
+  },
+  "43f7822eaa": {
+    "rewrite": null,
+    "why": "The three shuffles produce distinct live vector results, and the comparison is needed for the final zero flag."
+  },
+  "1a0e9e15ff": {
+    "rewrite": "vpmaddwd xmm5,xmm8,xmm1\nvmovdqa xmm1,xmm2\nvpmaddwd xmm2,xmm9,xmm2\nvpaddd xmm5,xmm5,xmm6\nvpaddd xmm5,xmm5,xmm2\nvmovdqa xmm2,xmm3\nvpmaddwd xmm3,xmm10,xmm3\nvpaddd xmm5,xmm5,xmm3\nvinsertps xmm3,xmm0,DWORD PTR [rdx],0x10\nvpbroadcastd xmm0,DWORD PTR [rdx+rcx*1]\nvinsertps xmm4,xmm0,DWORD PTR [rdx],0x0\nlea rdx,[rdx+rcx*2]\nvpunpcklwd xmm3,xmm3,xmm4\nvpmaddwd xmm4,xmm11,xmm3\nvpaddd xmm5,xmm5,xmm4\nvpsrad xmm5,xmm5,0x6\nvpackusdw xmm5,xmm5,xmm5\nvpminsw xmm5,xmm5,xmm7\nvmovd DWORD PTR [rdi],xmm5\nvpextrd DWORD PTR [rdi+rsi*1],xmm5,0x1\nlea rdi,[rdi+rsi*2]\nsub r9d,0x2",
+    "saved": 1,
+    "why": "Two memory-source vinsertps instructions replace the initial broadcast and two blends by constructing the low two dwords consumed by the unpack. The pointer update follows both reads from the original row address, preserving the live vector results and stores."
+  },
+  "9e563ff2b1": {
+    "rewrite": null,
+    "why": "The live history copies, full-width row broadcast and unpack, independent products, and extraction before packing all remain necessary."
+  },
+  "f04ce1dc48": {
+    "rewrite": null,
+    "why": "The history registers are live, and saturation followed by an unsigned rounded average cannot be collapsed into an ordinary shift for arbitrary input sums."
+  },
+  "96a2849e1e": {
+    "rewrite": null,
+    "why": "Both constant masks and all four broadcasts are live, and the lane-local byte sign extension cannot be replaced by a single widening instruction across the full YMM register."
+  },
+  "d4e0e4e81b": {
+    "rewrite": null,
+    "why": "All shuffled inputs and eight multiply-add results contribute to the two output groups, with no redundant operation under arbitrary mask and coefficient values."
+  },
+  "1b6045e043": {
+    "rewrite": null,
+    "why": "The three input windows and all eight multiply-add results are needed, and the final sums, shifts, packing, clamp, store, and flag-producing decrement are live."
+  }
+}

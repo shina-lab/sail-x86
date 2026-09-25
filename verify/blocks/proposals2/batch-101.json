@@ -1,0 +1,83 @@
+{
+  "a0db2411ef": {
+    "rewrite": null,
+    "why": "Both pointer updates, the index negation, and the constant load produce required final register values, each with one instruction."
+  },
+  "ddba5f0910": {
+    "rewrite": null,
+    "why": "Both pointer updates, the index negation, and the constant load produce required final register values, each with one instruction."
+  },
+  "142fc4a132": {
+    "rewrite": null,
+    "why": "The differently scaled pointer updates, index negation, and constant load each directly produce a required final register value."
+  },
+  "5e422b4bc6": {
+    "rewrite": null,
+    "why": "The differently scaled pointer updates, index negation, and constant load each directly produce a required final register value."
+  },
+  "1e1bc5b0a5": {
+    "rewrite": null,
+    "why": "All three updated pointers, the negated index, and the loaded constant are live, with one instruction per result."
+  },
+  "1b69957f04": {
+    "rewrite": null,
+    "why": "All three updated pointers, the negated index, and the loaded constant are live, with one instruction per result."
+  },
+  "56aba11f40": {
+    "rewrite": null,
+    "why": "All three updated pointers, the negated index, and the loaded constant are live, with one instruction per result."
+  },
+  "abcc27ef3d": {
+    "rewrite": null,
+    "why": "All three updated pointers, the negated index, and the loaded constant are live, with one instruction per result."
+  },
+  "97bfecd838": {
+    "rewrite": null,
+    "why": "The three pointer updates, index negation, and two distinct constant loads each produce a required final register value."
+  },
+  "53d1a8382d": {
+    "rewrite": null,
+    "why": "The three pointer updates, index negation, and two distinct constant loads each produce a required final register value."
+  },
+  "029ecdc417": {
+    "rewrite": null,
+    "why": "The three pointer updates, index negation, and two distinct constant loads each produce a required final register value."
+  },
+  "acee7f484b": {
+    "rewrite": null,
+    "why": "The three pointer updates, index negation, and two distinct constant loads each produce a required final register value."
+  },
+  "9a4d5b07a0": {
+    "rewrite": null,
+    "why": "The saved count, loaded pointers, five pointer differences, and constant are all live, and SSE2 cannot combine these scalar loads and subtractions into fewer instructions."
+  },
+  "7d186d5fe9": {
+    "rewrite": null,
+    "why": "Each of the five subtractions and the constant load independently produces a required final register value."
+  },
+  "8978886666": {
+    "rewrite": null,
+    "why": "The saved count, loaded pointers, five pointer differences, and constant are all live, and SSE2 cannot combine these scalar loads and subtractions into fewer instructions."
+  },
+  "8cb5135660": {
+    "rewrite": null,
+    "why": "Each of the five subtractions and the constant load independently produces a required final register value."
+  },
+  "7742ca208b": {
+    "rewrite": null,
+    "why": "All loaded pointers and seven derived offsets are live, and forming these scalar differences through SSE2 vectors would add extraction instructions."
+  },
+  "9f7feb1615": {
+    "rewrite": null,
+    "why": "All transpose results and the remaining intermediate are live, and folding the unaligned loads into legacy SSE2 unpack instructions would impose an unsupported alignment requirement."
+  },
+  "d5ec0cc4c7": {
+    "rewrite": null,
+    "why": "All seven independent pointer differences are required, and each already takes just one subtraction."
+  },
+  "cfcaacb230": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi]\nmovdqa xmm2,XMMWORD PTR [rsi+r8*1]\nmovdqa xmm4,XMMWORD PTR [rsi+rax*1]\nmovdqa xmm6,XMMWORD PTR [rsi+r11*1]\nmovdqa xmm8,xmm0\npunpckldq xmm0,XMMWORD PTR [rsi+rcx*1]\npunpckhdq xmm8,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm1,xmm2\npunpckldq xmm2,XMMWORD PTR [rsi+r9*1]\npunpckhdq xmm1,XMMWORD PTR [rsi+r9*1]\nmovdqa xmm3,xmm4\npunpckldq xmm4,XMMWORD PTR [rsi+r10*1]\npunpckhdq xmm3,XMMWORD PTR [rsi+r10*1]\nmovdqa xmm5,xmm6\npunpckldq xmm6,XMMWORD PTR [rsi+rbx*1]\npunpckhdq xmm5,XMMWORD PTR [rsi+rbx*1]\nmovdqa xmm7,xmm0\npunpcklqdq xmm0,xmm2\npunpckhqdq xmm7,xmm2\nmovdqa xmm2,xmm8\npunpcklqdq xmm8,xmm1\npunpckhqdq xmm2,xmm1\nmovdqa xmm1,xmm4\npunpcklqdq xmm4,xmm6\npunpckhqdq xmm1,xmm6\nmovdqa xmm6,xmm3\npunpcklqdq xmm3,xmm5\npunpckhqdq xmm6,xmm5\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm4\nmovdqa XMMWORD PTR [rdi+0x20],xmm7\nmovdqa XMMWORD PTR [rdi+0x30],xmm1\nmovdqa XMMWORD PTR [rdi+0x40],xmm8\nmovdqa XMMWORD PTR [rdi+0x50],xmm3\nmovdqa XMMWORD PTR [rdi+0x60],xmm2\nmovdqa XMMWORD PTR [rdi+0x70],xmm6\nadd rsi,0x10\nsub rdi,0xffffffffffffff80\nsub edx,0x4",
+    "saved": 4,
+    "why": "Fold four aligned channel loads into their two unpack consumers, removing four explicit loads while accessing only the original addresses. All final XMM values, stores, pointer updates, and counter flags are preserved."
+  }
+}

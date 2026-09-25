@@ -1,0 +1,86 @@
+{
+  "4190238f3c": {
+    "rewrite": null,
+    "why": "The vector comparison, scalar mask extraction, ZF calculation, and pointer adjustment each produce a required result."
+  },
+  "866fca55c1": {
+    "rewrite": null,
+    "why": "The four live XMM registers need separate zeroing, and the pointer copies, page-offset mask, and comparison are all required."
+  },
+  "a48245d3ba": {
+    "rewrite": null,
+    "why": "Preserving xmm0 while forming xmm4's comparison result, extracting the live edx mask, and setting the flags still requires four instructions under SSE4.1."
+  },
+  "cc2a1c8bbc": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rax+0x40]\npminud xmm0,XMMWORD PTR [rax+0x50]\npminud xmm0,XMMWORD PTR [rax+0x60]\npminud xmm0,XMMWORD PTR [rax+0x70]\npcmpeqd xmm0,xmm3\nptest xmm0,xmm0",
+    "saved": 1,
+    "why": "The equality result contains only zero or all-one dword lanes, so ptest sets the same ZF directly. The extracted edx mask is not live."
+  },
+  "fc2fa080e8": {
+    "rewrite": null,
+    "why": "The comparison vectors and auxiliary scalar masks are live, and the mask assembly, bit scan, and final address arithmetic have no removable instruction."
+  },
+  "3bd9910f0a": {
+    "rewrite": null,
+    "why": "The loaded vector, both resulting comparison vectors, extracted scalar mask, and length-comparison flags are all live."
+  },
+  "4630b1e48b": {
+    "rewrite": null,
+    "why": "The loaded vector, nonzero mask, masked equality result, scalar mask, and comparison flags are all required outputs."
+  },
+  "a723ef7bdd": {
+    "rewrite": null,
+    "why": "Both mask registers and the adjusted ecx value are live, while computing r9 requires combining the shifted incoming value with ecx before the bit count and comparison."
+  },
+  "1a043883ec": {
+    "rewrite": null,
+    "why": "Each instruction updates a distinct live general-purpose register, and the final subtraction also supplies the required flags."
+  },
+  "cd9222444c": {
+    "rewrite": null,
+    "why": "The scaled rsi, indexed bit insertion, trailing-zero count, division by four, and clearing of the live vector upper halves are all required."
+  },
+  "9b45aea5a6": {
+    "rewrite": null,
+    "why": "The address difference and arithmetic shift produce live rcx, while the vector comparison and final subtraction independently produce live ymm1, rsi, and CF."
+  },
+  "bfffa8c0d8": {
+    "rewrite": "inc rdi\nmov ecx,0x502\nbextr ecx,edi,ecx\nor rdi,0x7f\nadd rsi,rcx",
+    "saved": 1,
+    "why": "BEXTR with control 0x502 extracts bits 2 through 6 of the incremented pointer, replacing the copy, mask, and shift with two instructions. No flags need preservation."
+  },
+  "a7bd621116": {
+    "rewrite": null,
+    "why": "The live vector comparison result, scalar trailing-zero count, and final comparison flags require all four instructions."
+  },
+  "855ef18815": {
+    "rewrite": null,
+    "why": "The arbitrary incoming eax requires 32-bit wrapping and zero-extension before the 64-bit addition, so folding the additions into lea would change results."
+  },
+  "f7ecc6c460": {
+    "rewrite": null,
+    "why": "The arbitrary incoming eax requires a wrapping 32-bit increment before the 64-bit addition, preventing a correct single-lea replacement."
+  },
+  "133f4385b2": {
+    "rewrite": null,
+    "why": "The masked rsi, comparison vector, extracted rax mask, and ZF are all live, so none of the four instructions can be dropped."
+  },
+  "0148a9f003": {
+    "rewrite": null,
+    "why": "The live vector comparison result, scalar trailing-zero count, and final comparison flags require all four instructions."
+  },
+  "30ceb8aa7d": {
+    "rewrite": null,
+    "why": "The arbitrary incoming eax requires 32-bit wrapping and zero-extension before the 64-bit addition, so folding the additions into lea would change results."
+  },
+  "edb42a8bcc": {
+    "rewrite": "tzcnt eax,eax\nsub rdi,rdx\nlea rax,[rdi+rax*1+0x1]\nshr rax,0x2\nvzeroupper",
+    "saved": 1,
+    "why": "TZCNT produces a zero-extended value from 0 through 32, so the increment cannot wrap at 32 bits and can merge with the 64-bit addition in lea. The final shift receives the same value."
+  },
+  "c1d2083008": {
+    "rewrite": "tzcnt eax,eax\nsub rdi,rdx\nlea rax,[rdi+rax*1+0x21]\nshr rax,0x2\nvzeroupper",
+    "saved": 1,
+    "why": "TZCNT produces a zero-extended value from 0 through 32, so adding 0x21 cannot wrap at 32 bits and can merge with the 64-bit addition in lea. The final shift receives the same value."
+  }
+}

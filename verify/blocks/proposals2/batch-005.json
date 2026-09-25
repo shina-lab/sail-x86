@@ -1,0 +1,83 @@
+{
+  "a42649b5dc": {
+    "rewrite": null,
+    "why": "The four required 256-bit stores and the live pointer and counter updates already use one instruction each."
+  },
+  "04d2c57436": {
+    "rewrite": null,
+    "why": "AVX2 cannot combine the eight required 256-bit stores, and both scalar updates and the final subtraction flags must be preserved."
+  },
+  "19c3156fd9": {
+    "rewrite": null,
+    "why": "The variable shift must produce the live rax value, and the unsigned high-word multiply followed by division by two cannot be combined for arbitrary input words."
+  },
+  "62b72cbf84": {
+    "rewrite": null,
+    "why": "All four broadcast results are live, requiring an instruction to write each destination register."
+  },
+  "498c224f81": {
+    "rewrite": null,
+    "why": "The eight full-width AVX2 stores and the two required scalar updates contain no removable instructions."
+  },
+  "7780426b71": {
+    "rewrite": null,
+    "why": "The four memory broadcasts produce live vector results, and all four stores and three scalar updates are required."
+  },
+  "18ce482e7e": {
+    "rewrite": null,
+    "why": "Each live broadcast result, row store, and scalar update already takes a single instruction."
+  },
+  "fcb5d1fa8c": {
+    "rewrite": null,
+    "why": "The four live 256-bit broadcasts, four separate row stores, and three scalar updates cannot be reduced under AVX2."
+  },
+  "dc1a6a99f7": {
+    "rewrite": null,
+    "why": "The broadcasts already fold their loads, while all eight full-width stores and three scalar updates are required."
+  },
+  "ee2be119f9": {
+    "rewrite": null,
+    "why": "The two live broadcasts, eight 256-bit stores, and three live scalar updates have no redundant work."
+  },
+  "30a0371a13": {
+    "rewrite": null,
+    "why": "Both loaded vectors, the word difference, and its absolute value are separate live results already produced with one instruction each."
+  },
+  "1a270dbc1e": {
+    "rewrite": null,
+    "why": "All six loaded, subtracted, and absolute-value vectors are live, so none of their producing instructions can be eliminated."
+  },
+  "0133dd1f31": {
+    "rewrite": null,
+    "why": "All twelve vector results are live, and AVX2 provides no operation that combines the required loads, differences, and absolute values while retaining each result."
+  },
+  "c7cfd35c3e": {
+    "rewrite": null,
+    "why": "AVX2 cannot place the memory operand in the minuend position, and preparing a shared negated subtrahend costs as many instructions as folding these two loads saves."
+  },
+  "71d498ca6f": {
+    "rewrite": null,
+    "why": "The broadcasts already include their loads, and AVX2 cannot fuse the rounded word multiplications with the subsequent additions or required stores."
+  },
+  "6d169e6f3e": {
+    "rewrite": "vpxor ymm0,ymm0,ymm0\nvpsubw ymm0,ymm0,ymm5\nvpaddw ymm3,ymm0,YMMWORD PTR [rdx+0x2]\nvpaddw ymm4,ymm0,YMMWORD PTR [rdx+0x22]\nvpaddw ymm6,ymm0,YMMWORD PTR [rdx+0x42]\nvpaddw ymm7,ymm0,YMMWORD PTR [rdx+0x62]",
+    "saved": 2,
+    "why": "Compute the word-wise negation of ymm5 once in dead ymm0, then fold each original load into vpaddw. Addition of that negation equals the original subtraction modulo 65536 in every lane."
+  },
+  "04ab3e0953": {
+    "rewrite": null,
+    "why": "Every rounded product and addition feeds a required store, and both scalar updates are needed to preserve the final registers and flags."
+  },
+  "bba5b2311b": {
+    "rewrite": null,
+    "why": "The broadcast, arbitrary byte shuffle, and word arithmetic are necessary, while the live upper-lane extraction and four independently addressed stores cannot be removed."
+  },
+  "ec4044881b": {
+    "rewrite": null,
+    "why": "Both vector computations are required, and the upper-lane extractions are already folded into stores at their separate row addresses."
+  },
+  "fbf8db589d": {
+    "rewrite": null,
+    "why": "The subtraction before the shuffles depends on arbitrary ymm5 lanes, preventing replacement with simple word broadcasts, and all four subsequent products, sums, and stores are required."
+  }
+}

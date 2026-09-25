@@ -1,0 +1,85 @@
+{
+  "d8b16c708c": {
+    "rewrite": null,
+    "why": "Each unpack produces a distinct required ZMM result, so none can be removed or combined."
+  },
+  "f556dd63cc": {
+    "rewrite": null,
+    "why": "All four full-width stores and the index subtraction with its flags are required."
+  },
+  "8634466370": {
+    "rewrite": null,
+    "why": "The four byte permutations and the dword shift each produce a distinct required register value."
+  },
+  "0755b782d9": {
+    "rewrite": null,
+    "why": "The pointer addition and its flags are required, as are all four independently computed rounded products."
+  },
+  "76109abb73": {
+    "rewrite": null,
+    "why": "All four rounded products and both unpack results are live and already use one instruction per result."
+  },
+  "6ff50be6f0": {
+    "rewrite": "vmovdqa32 ymm18,YMMWORD PTR [rdi]\nvinserti32x8 zmm18,zmm18,YMMWORD PTR [rdi+rsi*8],0x1\nvmovdqa32 ymm25,YMMWORD PTR [rdi+rsi*1]\nvinserti32x8 zmm25,zmm25,YMMWORD PTR [rdi+rax*1],0x1\nvpaddw zmm16,zmm16,zmm18\nvpaddw zmm17,zmm17,zmm25\nvpmaxsw zmm16,zmm16,zmm30\nvpmaxsw zmm17,zmm17,zmm30\nvpminsw zmm16,zmm16,zmm31\nvpminsw zmm17,zmm17,zmm31\nvmovdqa32 YMMWORD PTR [rdi],ymm16\nvextracti32x8 YMMWORD PTR [rdi+rsi*8],zmm16,0x1\nvmovdqa32 YMMWORD PTR [rdi+rsi*1],ymm17\nvextracti32x8 YMMWORD PTR [rdi+rax*1],zmm17,0x1",
+    "saved": 1,
+    "why": "The final LEA only changes rdi, whose final value is not required. Removing it leaves every load, calculation, and store unchanged."
+  },
+  "083061483a": {
+    "rewrite": null,
+    "why": "All sixteen unpack destinations are required, with one instruction already producing each result."
+  },
+  "817ef97daa": {
+    "rewrite": null,
+    "why": "All eight unpack results are required and each already takes a single instruction."
+  },
+  "2fa4ca2250": {
+    "rewrite": null,
+    "why": "The four distinct full-width stores and the required index and flag update cannot be removed."
+  },
+  "1b1ecf0c45": {
+    "rewrite": null,
+    "why": "All four rounded products are required, and vzeroupper must reproduce the cleared upper bits of zmm0 through zmm15."
+  },
+  "192599e321": {
+    "rewrite": null,
+    "why": "The intermediate arithmetic shifts impose separate rounding steps, while the store, ECX update, final RAX value, and both vector results are required."
+  },
+  "efcce3ba00": {
+    "rewrite": null,
+    "why": "Both stored results need the signed saturating addition and unsigned saturating subtraction, and the pointer, counter, and required flags must also match."
+  },
+  "0d21ca95ab": {
+    "rewrite": "vpsubd zmm0,zmm23,zmm25\nvpmaxsd zmm0,zmm0,zmm30\nvpminsd zmm0,zmm0,zmm31",
+    "saved": 45,
+    "why": "Only zmm0 is a required vector result, and its subtraction and two clamps depend solely on unchanged input registers. All other vector calculations are dead."
+  },
+  "78f26af701": {
+    "rewrite": null,
+    "why": "All sixteen clamped sum and difference results are required, and arbitrary bounds prevent replacing the max/min pairs with fixed saturation."
+  },
+  "ca3cb59af6": {
+    "rewrite": null,
+    "why": "The pointer addition and its flags are required, as are all four independently computed rounded products."
+  },
+  "aadf716153": {
+    "rewrite": null,
+    "why": "All eight unpack results and the copied zmm26 value are required, with one instruction per destination."
+  },
+  "178571dac2": {
+    "rewrite": null,
+    "why": "All sixteen signed saturating sums and differences are required and already use one instruction per result."
+  },
+  "341fd0627a": {
+    "rewrite": "vpunpcklqdq zmm0,zmm21,zmm0",
+    "saved": 15,
+    "why": "Only zmm0 is a required vector result, and its unpack reads the unchanged initial values of zmm21 and zmm0. Every other unpack result is dead."
+  },
+  "4e4f4c1061": {
+    "rewrite": null,
+    "why": "Every unpack result is live, and the zero source is needed to interleave zero words into zmm25."
+  },
+  "4ed861b6c3": {
+    "rewrite": null,
+    "why": "All unpack results and the zmm16 copy are live, while the shared zero source is needed for both zero-interleaving unpacks."
+  }
+}

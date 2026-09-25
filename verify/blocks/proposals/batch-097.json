@@ -1,0 +1,84 @@
+{
+  "868c80f76c": {
+    "rewrite": null,
+    "why": "Each live XOR result requires its load, byte swap, and XOR, with no fused load-and-byte-swap instruction available at baseline x86-64."
+  },
+  "854dbce0f1": {
+    "rewrite": "cmp DWORD PTR [rdi+0x110],0x10\nmov r8d,0x20\nmov eax,0x18",
+    "saved": 1,
+    "why": "vzeroupper changes only unobserved vector registers; retaining cmp and both moves preserves all required registers and flags."
+  },
+  "6025ab07fd": {
+    "rewrite": "cmp DWORD PTR [rdi+0x110],0x10\nmov r8d,0x20\nmov eax,0x18",
+    "saved": 2,
+    "why": "Omitting the stack adjustment leaves rsp untouched as required, and vzeroupper affects only unobserved vector registers. The comparison and both constant assignments preserve every required output."
+  },
+  "a26e1689a8": {
+    "rewrite": null,
+    "why": "The AND/rotate/XOR and OR/shift/XOR updates all feed live outputs, and baseline instructions do not combine their required operations."
+  },
+  "deb4e0a44f": {
+    "rewrite": null,
+    "why": "The key XOR, rotate-and-byte-swap conversions, two stores, and r12 assignment are all required, with no shorter baseline conversion available."
+  },
+  "26e2d421cc": {
+    "rewrite": null,
+    "why": "The key XOR, rotate-and-byte-swap conversions, memory XORs, and r12 assignment all contribute required results."
+  },
+  "265344757e": {
+    "rewrite": null,
+    "why": "Both independent pairs of nonlinear updates feed live registers, and sharing the key loads requires additional copies without reducing the instruction count."
+  },
+  "e6304be6e7": {
+    "rewrite": null,
+    "why": "All four conversions and stores, both key XORs, and the r12 assignment are required, while sharing the key load would add an instruction."
+  },
+  "772d4f11bc": {
+    "rewrite": null,
+    "why": "All four conversions and memory XORs, both key XORs, and the r12 assignment are required, while sharing the key load would add an instruction."
+  },
+  "cafdfaf42f": {
+    "rewrite": null,
+    "why": "The addition, high-half shift, OR with unconstrained r8, and byte extraction each contribute to a required result."
+  },
+  "4e3fafd757": {
+    "rewrite": null,
+    "why": "The scalar sum must be shifted and ORed with unconstrained r10 before packing both qwords into live ymm8, and the byte extraction is also required."
+  },
+  "79a46b5f02": {
+    "rewrite": null,
+    "why": "Both packed sums and shift/OR computations feed live GPR outputs, their shift counts are unconstrained, and the preceding packing and vector XORs are also required."
+  },
+  "6f580875c6": {
+    "rewrite": null,
+    "why": "The packing, vector updates, count setup, shifts, and extractions all produce or feed required outputs, with no shorter AVX-only replacement for the shift/OR computations."
+  },
+  "a0387acb99": {
+    "rewrite": null,
+    "why": "The memory XOR, high-half shift, OR with unconstrained r8, and byte extraction each contribute to a required result."
+  },
+  "cb0e204a25": {
+    "rewrite": null,
+    "why": "The scalar XOR result must be shifted and ORed with unconstrained r10 before packing both qwords into live ymm8, and the byte extraction is also required."
+  },
+  "693912b674": {
+    "rewrite": null,
+    "why": "Both packed XOR and shift/OR computations feed live GPR outputs, their shift counts are unconstrained, and the preceding packing and vector updates are also required."
+  },
+  "e0c6bc1fc7": {
+    "rewrite": null,
+    "why": "The packing, vector updates, count setup, packed subtractions, shifts, and extractions all produce or feed required outputs without an available AVX-only fusion."
+  },
+  "11a27ab8e6": {
+    "rewrite": null,
+    "why": "The subtraction, high-half shift, OR with unconstrained r8, and byte extraction each contribute to a required result."
+  },
+  "2a8d6b59ce": {
+    "rewrite": null,
+    "why": "The scalar difference must be shifted and ORed with unconstrained r10 before packing both qwords into live ymm8, and the byte extraction is also required."
+  },
+  "68d97f5b5b": {
+    "rewrite": null,
+    "why": "Both packed differences and shift/OR computations feed live GPR outputs, their shift counts are unconstrained, and the preceding packing and vector XORs are also required."
+  }
+}

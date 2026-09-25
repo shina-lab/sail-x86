@@ -1,0 +1,88 @@
+{
+  "a00a8fec16": {
+    "rewrite": null,
+    "why": "The live shuffle mask, 16-byte broadcast load, byte shuffle, and saturated multiply-add each require a separate instruction."
+  },
+  "f4e0684a1b": {
+    "rewrite": null,
+    "why": "The mask is live, and folding the 32-byte broadcast load into a full-width byte permutation would read beyond the original load."
+  },
+  "b7e70206f0": {
+    "rewrite": null,
+    "why": "Both loads are already folded into permutations, and the live mask and two saturated multiply-add results require all five instructions."
+  },
+  "20883c98e0": {
+    "rewrite": null,
+    "why": "The three independent vector outputs and the required comparison flags each need their existing instruction."
+  },
+  "c15a17e9fd": {
+    "rewrite": "imul r11,rcx,0xffffffffffffffff\nvpunpcklbw ymm16,ymm16,ymm17\nvpsraw ymm16,ymm16,0x2\nvpshufd ymm27,ymm16,0x0\nvpshufd ymm28,ymm16,0x55\nvpshufd ymm29,ymm16,0xaa\ncmp r8d,0x4",
+    "saved": 1,
+    "why": "Multiplication by -1 computes the same 64-bit negation in one instruction without changing rcx. The final comparison supplies the required ZF."
+  },
+  "3379a2d727": {
+    "rewrite": "imul r11,rcx,0xffffffffffffffff\nvpunpcklbw zmm16,zmm16,zmm17\nvpsraw zmm16,zmm16,0x2\nvpshufd zmm29,zmm16,0x0\nvpshufd zmm30,zmm16,0x55\nvpshufd zmm31,zmm16,0xaa\ncmp r8d,0x8",
+    "saved": 1,
+    "why": "Multiplication by -1 replaces the copy and negation while preserving rcx and the wrapped 64-bit result. The final comparison restores the required ZF."
+  },
+  "8d9424a2c9": {
+    "rewrite": "vmovdqa32 zmm22,ZMMWORD PTR [CONST_1]\nvpaddd zmm23,zmm22,DWORD PTR [CONST_2]{1to16}\nvpaddd zmm24,zmm23,DWORD PTR [CONST_2]{1to16}",
+    "saved": 1,
+    "why": "Adding the broadcast dword 0x04040404 twice cannot carry between bytes because every original byte is at most 46. Dword additions with broadcast memory operands reproduce the byte additions and eliminate the separate broadcast instruction."
+  },
+  "1f0f719c2d": {
+    "rewrite": null,
+    "why": "Arbitrary shuffle masks and coefficients, live accumulator results, and required saturation and flags leave no removable step."
+  },
+  "8cf4d99995": {
+    "rewrite": null,
+    "why": "All four instructions produce distinct required register values, and the final subtraction must also supply the preserved flags."
+  },
+  "09a0d014ea": {
+    "rewrite": null,
+    "why": "The two pointer updates, byte extraction, and flag-producing subtraction each produce a required result."
+  },
+  "bed68fa307": {
+    "rewrite": null,
+    "why": "The byte truncation, vector broadcast, scalar constant, and pointer decrement are four independent required outputs."
+  },
+  "abd0423e39": {
+    "rewrite": "vmovdqa32 zmm21,ZMMWORD PTR [CONST_1]\nvpaddd zmm22,zmm21,DWORD PTR [CONST_2]{1to16}\nvpaddd zmm23,zmm22,DWORD PTR [CONST_2]{1to16}",
+    "saved": 1,
+    "why": "Every constant byte is at most 30, so adding 0x04040404 twice as dwords produces exactly the same bytes without carries between them. Broadcast memory operands eliminate the separate broadcast instruction."
+  },
+  "244a864f60": {
+    "rewrite": "vmovdqa32 zmm21,ZMMWORD PTR [CONST_1]\nsub rsi,rax\nvpaddd zmm22,zmm21,DWORD PTR [CONST_2]{1to16}\nvpaddd zmm23,zmm22,DWORD PTR [CONST_2]{1to16}",
+    "saved": 1,
+    "why": "The constant bytes remain below 256 after both additions, so dword additions of broadcast 0x04040404 exactly replace the byte additions. Folding the constant into both additions removes its standalone broadcast and preserves the scalar subtraction."
+  },
+  "bc1ae3d7df": {
+    "rewrite": "vpermb zmm26,zmm21,ZMMWORD PTR [rsi+r9*1]\nvpermb zmm27,zmm21,ZMMWORD PTR [rsi+r9*1+0x20]\nvpermb zmm28,zmm22,ZMMWORD PTR [rsi+r9*1]\nvpermb zmm29,zmm22,ZMMWORD PTR [rsi+r9*1+0x20]\nvpermb zmm30,zmm23,ZMMWORD PTR [rsi+r9*1]\nvpermb zmm31,zmm23,ZMMWORD PTR [rsi+r9*1+0x20]\nvmovdqa32 zmm16,zmm20\nvpdpbusd zmm16,zmm26,zmm24\nvmovdqa32 zmm18,zmm20\nvpdpbusd zmm18,zmm28,zmm24\nvmovdqa32 zmm17,zmm20\nvpdpbusd zmm17,zmm27,zmm24\nvmovdqa32 zmm19,zmm20\nvpdpbusd zmm19,zmm29,zmm24\nvpdpbusd zmm16,zmm28,zmm25\nvpdpbusd zmm18,zmm30,zmm25\nvpdpbusd zmm17,zmm29,zmm25\nvpdpbusd zmm19,zmm31,zmm25\nvpackssdw zmm16,zmm16,zmm18\nvpackssdw zmm17,zmm17,zmm19\nvpsraw zmm16,zmm16,0x2\nvpsraw zmm17,zmm17,0x2\nvmovdqa32 ZMMWORD PTR [rdi],zmm16\nvmovdqa32 ZMMWORD PTR [rdi+0x40],zmm17\nsub rdi,0xffffffffffffff80\nadd r9,0x40",
+    "saved": 2,
+    "why": "Fold the two source loads into the six byte permutations, rereading only the same original addresses before any stores. The loaded temporaries are subsequently overwritten, so all required final registers, stores, and flags remain unchanged."
+  },
+  "64787f08c4": {
+    "rewrite": null,
+    "why": "Each instruction updates a different live scalar register, and the scaled pointer update already uses one LEA."
+  },
+  "33000c156c": {
+    "rewrite": null,
+    "why": "The three constant increments and the scaled pointer update produce four independent required register values."
+  },
+  "39489d729f": {
+    "rewrite": null,
+    "why": "All four scalar updates are required, and none has a redundant intermediate instruction."
+  },
+  "bb602de121": {
+    "rewrite": null,
+    "why": "Each of the four live scalar outputs is already computed by a single instruction."
+  },
+  "bb203c26bf": {
+    "rewrite": null,
+    "why": "The separate row accesses, live vector outputs, saturated arithmetic, pointer updates, and final subtraction flags require the existing operations."
+  },
+  "6879deb94c": {
+    "rewrite": null,
+    "why": "The independent row loads and stores and live vector outputs prevent load or pack elimination, while the pointer updates and subtraction flags remain required."
+  }
+}

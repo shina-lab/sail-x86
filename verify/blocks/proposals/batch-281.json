@@ -1,0 +1,94 @@
+{
+  "62876d8061": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov rcx,QWORD PTR [rsi+0xe]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov QWORD PTR [rdi+0xe],rcx\nmov BYTE PTR [rdi+0x16],0x0",
+    "saved": 1,
+    "why": "Store the terminator as an immediate zero, eliminating xor ch,ch because neither rcx nor flags must be preserved."
+  },
+  "d96bc86df3": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov rcx,QWORD PTR [rsi+0xf]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov QWORD PTR [rdi+0xf],rcx\nmov BYTE PTR [rdi+0x17],0x0",
+    "saved": 1,
+    "why": "Store the terminator as an immediate zero, eliminating xor ch,ch because neither rcx nor flags must be preserved."
+  },
+  "be1f2a0126": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov rcx,QWORD PTR [rsi+0x10]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov QWORD PTR [rdi+0x10],rcx\nmov BYTE PTR [rdi+0x18],0x0",
+    "saved": 1,
+    "why": "Store the terminator as an immediate zero, eliminating xor ch,ch because neither rcx nor flags must be preserved."
+  },
+  "9e7ed1797e": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov rdx,QWORD PTR [rsi+0x10]\nmov cl,BYTE PTR [rsi+0x18]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov QWORD PTR [rdi+0x10],rdx\nmov BYTE PTR [rdi+0x18],cl\nmov BYTE PTR [rdi+0x19],0x0",
+    "saved": 1,
+    "why": "An immediate zero store replaces clearing and storing ch, while retaining every original memory access and the required rdx and xmm0 results."
+  },
+  "24ebd91cb2": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov rdx,QWORD PTR [rsi+0x10]\nmov cx,WORD PTR [rsi+0x18]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov QWORD PTR [rdi+0x10],rdx\nmov WORD PTR [rdi+0x18],cx\nmov BYTE PTR [rdi+0x1a],0x0",
+    "saved": 1,
+    "why": "An immediate zero store replaces clearing and storing ch, while retaining every original memory access and the required rdx and xmm0 results."
+  },
+  "75f1baf189": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov rdx,QWORD PTR [rsi+0x10]\nmov ecx,DWORD PTR [rsi+0x17]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov QWORD PTR [rdi+0x10],rdx\nmov DWORD PTR [rdi+0x17],ecx\nmov BYTE PTR [rdi+0x1b],0x0",
+    "saved": 1,
+    "why": "An immediate zero store replaces clearing and storing ch, while retaining every original memory access and the required rdx and xmm0 results."
+  },
+  "c49f65ad9e": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov rdx,QWORD PTR [rsi+0x10]\nmov ecx,DWORD PTR [rsi+0x18]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov QWORD PTR [rdi+0x10],rdx\nmov DWORD PTR [rdi+0x18],ecx\nmov BYTE PTR [rdi+0x1c],0x0",
+    "saved": 1,
+    "why": "An immediate zero store replaces clearing and storing ch, while retaining every original memory access and the required rdx and xmm0 results."
+  },
+  "7c902185de": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmovdqu xmm2,XMMWORD PTR [rsi+0xd]\nmovdqu XMMWORD PTR [rdi],xmm0\nmovdqu XMMWORD PTR [rdi+0xd],xmm2\nmov BYTE PTR [rdi+0x1d],0x0",
+    "saved": 1,
+    "why": "Store the terminator as an immediate zero, eliminating xor ch,ch because neither rcx nor flags must be preserved."
+  },
+  "9c611662c2": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmovdqu xmm2,XMMWORD PTR [rsi+0xe]\nmovdqu XMMWORD PTR [rdi],xmm0\nmovdqu XMMWORD PTR [rdi+0xe],xmm2\nmov BYTE PTR [rdi+0x1e],0x0",
+    "saved": 1,
+    "why": "Store the terminator as an immediate zero, eliminating xor ch,ch because neither rcx nor flags must be preserved."
+  },
+  "f6a6e7dbd1": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmovdqu xmm2,XMMWORD PTR [rsi+0xf]\nmovdqu XMMWORD PTR [rdi],xmm0\nmovdqu XMMWORD PTR [rdi+0xf],xmm2\nmov BYTE PTR [rdi+0x1f],0x0",
+    "saved": 1,
+    "why": "Store the terminator as an immediate zero, eliminating xor ch,ch because neither rcx nor flags must be preserved."
+  },
+  "1ca0121f78": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmovdqu xmm2,XMMWORD PTR [rsi+0x10]\nmovdqu XMMWORD PTR [rdi],xmm0\nmovdqu XMMWORD PTR [rdi+0x10],xmm2\nmov BYTE PTR [rdi+0x20],0x0",
+    "saved": 1,
+    "why": "Store the terminator as an immediate zero, eliminating xor ch,ch because neither rcx nor flags must be preserved."
+  },
+  "5ec92e9c97": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmovdqu xmm2,XMMWORD PTR [rsi+0x10]\nmov cl,BYTE PTR [rsi+0x20]\nmovdqu XMMWORD PTR [rdi],xmm0\nmovdqu XMMWORD PTR [rdi+0x10],xmm2\nmov BYTE PTR [rdi+0x20],cl\nmov BYTE PTR [rdi+0x21],0x0",
+    "saved": 1,
+    "why": "Store the terminator as an immediate zero, eliminating xor ch,ch because neither rcx nor flags must be preserved."
+  },
+  "82721871d1": {
+    "rewrite": null,
+    "why": "The required ymm0 load, two independent byte comparisons against unconstrained inputs, mask combination and extraction, and final CF/ZF comparison have no redundant instruction."
+  },
+  "137f5b90b8": {
+    "rewrite": null,
+    "why": "Both unsigned byte loads and the subtraction are needed for the full eax difference, and vzeroupper must clear the preserved ymm0 upper half."
+  },
+  "4db3361d2d": {
+    "rewrite": null,
+    "why": "Both unsigned byte loads and the subtraction are needed for the full eax difference, and vzeroupper must clear the preserved ymm0 upper half."
+  },
+  "b9b21429b9": {
+    "rewrite": null,
+    "why": "The alignment and both dependent pointer adjustments require all four operations to preserve rdi, rsi, and rdx for arbitrary inputs."
+  },
+  "7a2b11d34f": {
+    "rewrite": null,
+    "why": "The byte difference and subsequent xor/sub transformation depend on arbitrary r8d, and vzeroupper is required for the preserved ymm0 result."
+  },
+  "6a2f9b1f24": {
+    "rewrite": null,
+    "why": "The byte difference and subsequent xor/sub transformation depend on arbitrary r8d, and vzeroupper is required for the preserved ymm0 result."
+  },
+  "e16a9382f2": {
+    "rewrite": null,
+    "why": "The byte difference and subsequent xor/sub transformation depend on arbitrary r8d, and vzeroupper is required for the preserved ymm0 result."
+  },
+  "29afe671ab": {
+    "rewrite": null,
+    "why": "Each instruction updates a distinct required register, and the final subtraction also supplies the required CF and ZF values."
+  }
+}

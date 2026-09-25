@@ -1,0 +1,84 @@
+{
+  "55f29b6bad": {
+    "rewrite": "vpbroadcastd ymm10,DWORD PTR [CONST_1]\nvpcmpgtw ymm9,ymm11,ymm15\nvpaddw ymm15,ymm15,ymm9\nvpmulhrsw ymm15,ymm15,ymm10\nvpaddw ymm4,ymm15,ymm4\nvpminsw ymm4,ymm4,ymm7\nvpmaxsw ymm4,ymm8,ymm4\nvpackuswb ymm4,ymm4,ymm4\nvextracti128 xmm5,ymm4,0x1\nvmovd DWORD PTR [rdi],xmm4\nvpextrd DWORD PTR [rdi+rsi*1],xmm4,0x1\nvmovd DWORD PTR [rdi+rsi*2],xmm5\nvpextrd DWORD PTR [rdi+r10*1],xmm5,0x1",
+    "saved": 1,
+    "why": "The final rsp value is not required, so the trailing mov rsp,rbp can be omitted, leaving rsp untouched as instructed. All required registers, flags, and stores remain identical."
+  },
+  "cf1a147afb": {
+    "rewrite": "vpcmpgtw ymm9,ymm11,ymm15\nvpaddw ymm15,ymm15,ymm9\nvpmulhrsw ymm15,ymm15,ymm1\nvpaddw ymm4,ymm15,ymm4\nvpackuswb ymm4,ymm4,ymm4\nvextracti128 xmm5,ymm4,0x1\nvmovd DWORD PTR [rdi],xmm4\nvpextrd DWORD PTR [rdi+rsi*1],xmm4,0x1\nvmovd DWORD PTR [rdi+rsi*2],xmm5\nvpextrd DWORD PTR [rdi+r10*1],xmm5,0x1",
+    "saved": 1,
+    "why": "The final rsp value is not required, so the trailing mov rsp,rbp can be omitted, leaving rsp untouched as instructed. All required registers, flags, and stores remain identical."
+  },
+  "7f7bc227c3": {
+    "rewrite": null,
+    "why": "The extrema reductions and masked saturating arithmetic feed required outputs, and the unpreserved zmm17 remains necessary for the lower clamp."
+  },
+  "e41dab8543": {
+    "rewrite": null,
+    "why": "Each independently indexed masked permutation needs its mask and a copy of the arbitrary fallback vector to supply inactive bytes."
+  },
+  "6b832cffa1": {
+    "rewrite": null,
+    "why": "Both required results need a separate index addition and byte permutation, with each broadcast load already folded into its addition."
+  },
+  "1b18704404": {
+    "rewrite": null,
+    "why": "The two index vectors are already shared, while each of the four required results needs its own mask, fallback initialization, and permutation."
+  },
+  "b7ae8216c6": {
+    "rewrite": null,
+    "why": "Two shared index additions and four byte permutations directly produce the four required output vectors."
+  },
+  "ddf84c05db": {
+    "rewrite": null,
+    "why": "All eight masked results are required, and each permutation needs either fallback initialization or a subsequent blend to retain the correct inactive bytes."
+  },
+  "0cfdfa1313": {
+    "rewrite": null,
+    "why": "The two index additions are already shared across the eight permutations, each of which produces a distinct required output."
+  },
+  "8851b448fa": {
+    "rewrite": null,
+    "why": "The scalar initialization, vector zeroing, load, and two copies each establish a distinct required register value."
+  },
+  "48141d6591": {
+    "rewrite": null,
+    "why": "The sign mask and arithmetic intermediates are required outputs, and the clamp, packing, store, and three scalar updates have no removable step."
+  },
+  "3c189e443c": {
+    "rewrite": null,
+    "why": "The sign mask and arithmetic intermediates must be retained alongside the packed result, store, pointer updates, and decrement flags."
+  },
+  "a0f16787b1": {
+    "rewrite": null,
+    "why": "The separated memory operands require two loads, and the scalar initialization, zero vector, and both vector copies are required outputs."
+  },
+  "06d14500e9": {
+    "rewrite": null,
+    "why": "All arithmetic intermediates are required, and replacing the shift and second store with pextrd would lose the required final shifted xmm4 value."
+  },
+  "2de08f7a16": {
+    "rewrite": null,
+    "why": "The two separated loads, scalar initialization, and vector zeroing are all necessary to establish the required outputs."
+  },
+  "494c8f9aca": {
+    "rewrite": null,
+    "why": "The mask, arithmetic results, and shifted xmm4 must all be preserved, so an extracting store cannot eliminate the shift."
+  },
+  "b2ec7fce93": {
+    "rewrite": null,
+    "why": "Each instruction initializes a distinct required scalar or vector register, including both copies of the loaded vector."
+  },
+  "4826225f9b": {
+    "rewrite": null,
+    "why": "SSSE3 cannot shorten the sign-mask construction while preserving both its source and result, and the remaining arithmetic, store, and scalar updates are required."
+  },
+  "d969d8706d": {
+    "rewrite": null,
+    "why": "The required sign mask and arithmetic results prevent eliminating temporaries, while the store, pointer updates, and decrement remain necessary."
+  },
+  "65cd4980ea": {
+    "rewrite": null,
+    "why": "The noncontiguous loads require two instructions, and the scalar initialization, zeroing, and two copies all produce required register values."
+  }
+}

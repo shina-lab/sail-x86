@@ -1,0 +1,83 @@
+{
+  "e4b4ea5886": {
+    "rewrite": null,
+    "why": "Both comparison vectors and extracted masks are live, and the pointer update and final zero test are also required."
+  },
+  "96ba15ac48": {
+    "rewrite": null,
+    "why": "AVX2 needs both instructions to broadcast ESI, and the page-offset comparison requires the copy, mask, and comparison to preserve CF and ZF."
+  },
+  "86fecc3774": {
+    "rewrite": null,
+    "why": "All four comparison vectors and both OR intermediates are live, and AVX2 cannot combine the remaining mask extraction and zero test."
+  },
+  "d456b41bc2": {
+    "rewrite": null,
+    "why": "The comparison vector, extracted mask, shifted count, adjusted pointer, and final ZF each require their existing instruction."
+  },
+  "3af881c32b": {
+    "rewrite": null,
+    "why": "RCX must retain the full 64-bit BZHI mask, so directly masking EAX with BZHI cannot eliminate the mask construction."
+  },
+  "32a4d3d42c": {
+    "rewrite": null,
+    "why": "The vector comparison, mask extraction, live RCX shift, and final AND producing the required flags are all necessary."
+  },
+  "358bce0935": {
+    "rewrite": null,
+    "why": "The broadcast is already one instruction, while the live page offset in RAX and required comparison flags need all three scalar instructions."
+  },
+  "cb673c7d8e": {
+    "rewrite": "add rdi,0xa0\nrorx ecx,edi,0x2\nand rdi,0xffffffffffffff80\nand ecx,0x1f\nadd rdx,rcx\nvmovdqa64 ymm0,ymm16",
+    "saved": 1,
+    "why": "The original copy, subtraction, and shift extract bits 2 through 6 of the adjusted pointer; RORX followed by AND extracts the same bits in two instructions. The pointer alignment, RDX update, and vector copy are preserved."
+  },
+  "f2abb18df8": {
+    "rewrite": null,
+    "why": "The live mask and comparison vectors require the four comparisons, followed by the existing ternary combination, mask extraction, and flag-setting increment."
+  },
+  "7ff0b4ef48": {
+    "rewrite": null,
+    "why": "The comparison, pointer adjustment, mask transfer, and VZEROUPPER each produce a required part of the final state."
+  },
+  "ed47329e59": {
+    "rewrite": null,
+    "why": "The live mask register, scalar mask, adjusted pointer, and required ZF need the comparison, transfer, update, and test."
+  },
+  "a6e2124ae4": {
+    "rewrite": null,
+    "why": "The comparison mask and constructed RCX mask are both live, and the final AND is needed to produce RAX and the required flags."
+  },
+  "3f8e624b4f": {
+    "rewrite": null,
+    "why": "The live comparison mask, scalar result, shifted RCX, and final AND flags prevent eliminating any of the four instructions."
+  },
+  "036c269f89": {
+    "rewrite": null,
+    "why": "SSE2 needs separate load and comparison instructions while preserving XMM1, followed by extraction of the live scalar mask and its zero test."
+  },
+  "931ed26c50": {
+    "rewrite": null,
+    "why": "Pointer alignment and RCX bit extraction each require two instructions, and the RDX addition and subtraction must also preserve the final subtraction's CF and ZF."
+  },
+  "a36541f3ed": {
+    "rewrite": null,
+    "why": "Both the bit index in RAX and its shifted copy in RSI are live, and the final subtraction must preserve RDX and its flags."
+  },
+  "81bf85a5e0": {
+    "rewrite": null,
+    "why": "Computing the live unsigned shifted value of 16 minus RCX needs the existing three operations before the required RDX subtraction."
+  },
+  "8a03ca2796": {
+    "rewrite": null,
+    "why": "Preserving XMM1 requires the separate SSE2 load and comparison, and the live scalar mask and ZF require extraction and testing."
+  },
+  "3091e08d0f": {
+    "rewrite": null,
+    "why": "The load and comparison preserve XMM1 while producing live XMM2, and the mask extraction and test are needed for RAX and all required flags."
+  },
+  "7247763747": {
+    "rewrite": null,
+    "why": "The load and comparison preserve XMM1 while producing live XMM3, and the mask extraction and test are needed for RAX and all required flags."
+  }
+}

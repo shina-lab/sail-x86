@@ -1,0 +1,89 @@
+{
+  "205e3f7026": {
+    "rewrite": null,
+    "why": "With arbitrary incoming bounds and case masks, the comparisons and Boolean operations are needed to preserve every live vector intermediate under SSE2."
+  },
+  "4258e2cdc4": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xc\nlea r10,[rdi+0xc]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. No final flags need to match."
+  },
+  "49d2fe7325": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm4,XMMWORD PTR [rdi+rcx*1]\npsrldq xmm3,0xc\npshufd xmm2,xmm4,0x90\nmovss xmm2,xmm3\nmovdqa xmm8,xmm1\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm8,xmm5\npcmpgtb xmm9,xmm1\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm8,xmm9\npand xmm10,xmm11\npand xmm8,xmm7\npand xmm10,xmm7\npor xmm1,xmm8\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Load the retained original vector directly into xmm4, then use pshufd to place its first three dwords in xmm2's upper three dwords. Register-source movss inserts xmm3's low dword while preserving those upper dwords, replacing the copy, left shift, and OR with two instructions."
+  },
+  "3bc60d53cb": {
+    "rewrite": null,
+    "why": "All case-conversion masks and vector results are live, so the three-byte shift and the comparisons and Boolean operations cannot be shortened with the available SSE2 instructions."
+  },
+  "14b88209da": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xd\nlea r10,[rdi+0xd]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "OR with the sign-extended value -0x1000 produces the same result as masking to 12 bits and subtracting 0x1000. Final flags are unrestricted."
+  },
+  "645d157e50": {
+    "rewrite": null,
+    "why": "SSE2 requires the shifts and merge for this three-byte alignment, and the original loaded vector, shifted predecessor, and case-conversion intermediates all remain live."
+  },
+  "18eb45d4a6": {
+    "rewrite": null,
+    "why": "The two-byte shift and each case-conversion operation contribute to live outputs, with arbitrary incoming bounds and no SSE2 instruction to fuse the required operations."
+  },
+  "02ea725d80": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xe\nlea r10,[rdi+0xe]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "Setting every bit above bit 11 is equivalent to masking to 12 bits and subtracting 0x1000. The changed flags are not live."
+  },
+  "1ddcebf78c": {
+    "rewrite": null,
+    "why": "The two-byte concatenation needs both shifts and a merge under SSE2, while the original vector, shifted predecessor, and every case-conversion mask must be retained."
+  },
+  "cd608f6e16": {
+    "rewrite": null,
+    "why": "The one-byte shift, arbitrary-bound comparisons, masks, and final scalar operations all contribute to required register values or ZF."
+  },
+  "469d497d63": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xf\nlea r10,[rdi+0xf]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "Replace the mask and subtraction with an OR that preserves the low 12 bits and sets all higher bits. This gives the identical r10 value, and flags are unrestricted."
+  },
+  "4c522f5358": {
+    "rewrite": null,
+    "why": "The one-byte concatenation cannot use SSSE3 palignr at this ISA level, and the retained source vectors and comparison masks prevent removing their setup operations."
+  },
+  "167108726d": {
+    "rewrite": null,
+    "why": "Every vector intermediate and the complemented scalar mask are live, while arbitrary incoming bounds and xmm0 prevent simplifying the comparisons or byte subtraction."
+  },
+  "8e463fce1f": {
+    "rewrite": null,
+    "why": "Both masked scalar copies, all three constant vectors, and the final CF/ZF comparison are live, with no permitted instruction combining these operations."
+  },
+  "68b9cad387": {
+    "rewrite": null,
+    "why": "Arbitrary incoming bound and case-mask registers require the full comparisons and masking, and every intermediate vector plus the zero-byte mask and scalar result must be preserved."
+  },
+  "72b6215052": {
+    "rewrite": null,
+    "why": "All seven register updates are live, and the final comparison is needed to produce the required CF and ZF."
+  },
+  "ca96f0d796": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi]\nlea r9,[rax+0xf]\nsub r9,rcx",
+    "saved": 1,
+    "why": "The load into xmm2 has no uses and xmm2 is not a required final register, so the load can be removed."
+  },
+  "eb0b6f277e": {
+    "rewrite": null,
+    "why": "The incoming comparison operands are unconstrained and all vector intermediates are live, while both scalar shifts and the subtraction are needed for the retained r9, rdx, and ZF values."
+  },
+  "ab0915f099": {
+    "rewrite": null,
+    "why": "The shifted vector still feeds comparisons against arbitrary incoming bounds, and all comparison masks, transformed data, scalar results, and ZF remain live."
+  },
+  "1a7e299c24": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0x1\nlea r10,[rdi+0x1]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "The mask followed by subtraction is equivalent to setting all bits above bit 11 with one OR. No final flags are required."
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "b0aa8e1d9c": {
+    "rewrite": null,
+    "why": "Both interleaving paths, pairwise products, additions, shifts, and saturation are required with arbitrary coefficients and all vector outputs preserved."
+  },
+  "6ce2f690c4": {
+    "rewrite": null,
+    "why": "Each instruction updates a distinct required register, and the final subtraction must also produce the required flags."
+  },
+  "032a733067": {
+    "rewrite": null,
+    "why": "The two byte-interleaving paths and their saturating products, additions, shifts, and packing are needed with arbitrary input vectors and preserved intermediate registers."
+  },
+  "6aed511483": {
+    "rewrite": null,
+    "why": "Both word-interleaving paths and their products, additions, shifts, and packing contribute to required register values and the stored result."
+  },
+  "7aa2852f74": {
+    "rewrite": null,
+    "why": "The copy, shift, address calculation, and vector zeroing each produce a separate required register value."
+  },
+  "39550c13ff": {
+    "rewrite": null,
+    "why": "The three register updates and the final comparison flags are independently required."
+  },
+  "cce443a0a4": {
+    "rewrite": null,
+    "why": "The copy, shift, address calculation, and vector zeroing each produce a separate required register value."
+  },
+  "1770568d6c": {
+    "rewrite": null,
+    "why": "Each source vector needs a load, multiplication, and store, while broadcasting the low word of edx requires the existing three instructions under SSE2."
+  },
+  "68748db696": {
+    "rewrite": "movdqa xmm4,xmm8\nmovdqa xmm3,xmm0\npsraw xmm3,0x2\nmovdqa xmm1,XMMWORD PTR [CONST_1]\npmulhw xmm1,xmm0\nmovdqa xmm2,XMMWORD PTR [CONST_2]\npmulhw xmm2,xmm0\npmulhw xmm0,xmm12\nmovdqa xmm6,xmm9\npsubw xmm2,xmm1\npsubw xmm4,xmm3\nmovdqa xmm7,XMMWORD PTR [rdx+0x10]\npsubw xmm1,xmm3\nmovdqa XMMWORD PTR [rdx+0x70],xmm4\npsubw xmm0,xmm1\npaddw xmm2,xmm0\npaddw xmm3,xmm8\npaddw xmm3,XMMWORD PTR [rdx]\nmovdqa XMMWORD PTR [rdx],xmm3\npaddw xmm7,xmm6\npsubw xmm6,xmm1\nmovdqa xmm4,XMMWORD PTR [rdx+0x20]\npaddw xmm7,xmm1\nmovdqa XMMWORD PTR [rdx],xmm3\nmovdqa xmm3,xmm10\npaddw xmm4,xmm3\nmovdqa XMMWORD PTR [rdx+0x60],xmm6\npsubw xmm3,xmm0\nmovdqa xmm5,XMMWORD PTR [rdx+0x50]\npaddw xmm4,xmm0\nmovdqa xmm6,XMMWORD PTR [rdx+0x30]\npaddw xmm5,xmm3\nmovdqa xmm0,xmm11\nmovdqa XMMWORD PTR [rdx+0x10],xmm7\npaddw xmm6,xmm0\nmovdqa XMMWORD PTR [rdx+0x20],xmm4\npaddw xmm0,xmm2\nmovdqa xmm7,XMMWORD PTR [rdx+0x40]\npsubw xmm6,xmm2\nmovdqa XMMWORD PTR [rdx+0x50],xmm5\npaddw xmm7,xmm0\nmovdqa XMMWORD PTR [rdx+0x30],xmm6\nmovdqa XMMWORD PTR [rdx+0x40],xmm7\nadd rdx,0x20\nsub ecx,0x2",
+    "saved": 1,
+    "why": "After both subtractions consume the shifted value in xmm3, reuse it to accumulate xmm8 and the memory operand for both stores to [rdx]. Delaying the copy from xmm10 preserves every final register value while eliminating one instruction."
+  },
+  "bd598c1a92": {
+    "rewrite": "movdqa xmm3,xmm5\npsubw xmm5,xmm1\npaddw xmm3,xmm1\nmovdqa xmm2,xmm0\npsubw xmm0,xmm6\nmovdqa xmm1,xmm5\npsllw xmm1,0x1\npmulhw xmm1,XMMWORD PTR [CONST_1]\npaddw xmm5,xmm0\npmulhw xmm5,XMMWORD PTR [CONST_2]\npaddw xmm2,xmm6\npmulhw xmm0,XMMWORD PTR [CONST_3]\nmovdqa xmm7,xmm2\npsubw xmm2,xmm3\npaddw xmm7,xmm3\npmulhw xmm2,xmm12\nmovdqa xmm6,xmm8\npsraw xmm7,0x2\npsubw xmm6,xmm7\nmovdqa xmm3,xmm9\nmovdqa XMMWORD PTR [rdx+0x70],xmm6\npaddw xmm1,xmm5\npsubw xmm1,xmm7\npaddw xmm7,xmm8\npaddw xmm7,XMMWORD PTR [rdx]\nmovdqa XMMWORD PTR [rdx],xmm7\nmovdqa xmm7,xmm10\npsubw xmm0,xmm5\nmovdqa xmm6,xmm11\nmovdqa xmm5,xmm3\npaddw xmm3,XMMWORD PTR [rdx+0x10]\npsubw xmm5,xmm1\npsubw xmm2,xmm1\npaddw xmm3,xmm1\nmovdqa XMMWORD PTR [rdx+0x60],xmm5\nmovdqa xmm4,xmm7\npaddw xmm7,XMMWORD PTR [rdx+0x20]\npsubw xmm4,xmm2\npaddw xmm4,XMMWORD PTR [rdx+0x50]\npaddw xmm7,xmm2\nmovdqa XMMWORD PTR [rdx+0x10],xmm3\npaddw xmm0,xmm2\nmovdqa XMMWORD PTR [rdx+0x20],xmm7\nmovdqa xmm1,xmm6\npaddw xmm6,XMMWORD PTR [rdx+0x40]\npsubw xmm1,xmm0\npaddw xmm1,XMMWORD PTR [rdx+0x30]\npaddw xmm6,xmm0\nmovdqa XMMWORD PTR [rdx+0x50],xmm4\nmovdqa XMMWORD PTR [rdx+0x40],xmm6\nmovdqa XMMWORD PTR [rdx+0x30],xmm1\nadd rdx,0x20\nsub ecx,0x2",
+    "saved": 1,
+    "why": "Once both subtractions have consumed the shifted sum in xmm7, accumulate xmm8 and [rdx] into it for the first output. This eliminates the initial copy into xmm4 while retaining the same stores and final register values."
+  },
+  "bd11a2620d": {
+    "rewrite": "vmovss DWORD PTR [rbp+r11*4+0x0],xmm15\nvpshufd ymm15,ymm15,0x39\nadd r11,rsi\nsar r14,1\ntest r14,0x1",
+    "saved": 2,
+    "why": "Only ZF is needed and rbx is dead, so TEST on the shifted r14 replaces the copy, mask, and comparison."
+  },
+  "940adbf250": {
+    "rewrite": "vmovss DWORD PTR [rbp+r11*4+0x0],xmm15\nadd r11,rsi\nsar r14,1",
+    "saved": 1,
+    "why": "ymm15 is dead after its scalar store, so the shuffle can be removed."
+  },
+  "276207c974": {
+    "rewrite": "vextractf128 xmm15,ymm3,0x1\nmov rbx,r14\nand rbx,0x1",
+    "saved": 1,
+    "why": "AND already sets ZF according to the masked value, making the comparison with zero redundant."
+  },
+  "4b79d17570": {
+    "rewrite": null,
+    "why": "The three broadcasts and separate scaling, pointer addition, and negation are required, including the 32-bit truncation and zero extension performed by the shift."
+  },
+  "d09096b119": {
+    "rewrite": null,
+    "why": "Each broadcast supplies a required full ymm result, and the scalar operations separately implement 32-bit scaling, 64-bit pointer addition, and negation."
+  },
+  "7e2f119700": {
+    "rewrite": null,
+    "why": "Each broadcast supplies a distinct required zmm result, and combining the scalar operations would lose the shift's 32-bit truncation and zero extension."
+  },
+  "274790befa": {
+    "rewrite": null,
+    "why": "The word broadcast needs both shuffle stages at this ISA level, and the zero vector and two loaded vectors are required outputs."
+  },
+  "0991afd854": {
+    "rewrite": null,
+    "why": "The arithmetic depends on arbitrary incoming xmm4 through xmm7 values, while the final xmm0 through xmm2 results and index-update flags are all required."
+  },
+  "2e8c16acb7": {
+    "rewrite": null,
+    "why": "Sign extension, masking into rcx, zeroing r8, loading the shuffle vector, and the final comparison all produce required results."
+  },
+  "e5feb39998": {
+    "rewrite": null,
+    "why": "The shuffle-vector load, doubling of edx, separate masked rcx value, zeroing of r8, and comparison flags leave no removable instruction."
+  }
+}

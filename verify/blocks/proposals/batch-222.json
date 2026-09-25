@@ -1,0 +1,89 @@
+{
+  "a481938de7": {
+    "rewrite": null,
+    "why": "Both subtraction and shift chains, packing, stores, and the counter update are required, and preserving xmm7 requires both copies."
+  },
+  "b6077a04b2": {
+    "rewrite": null,
+    "why": "Preserving xmm7 and the final xmm1 and xmm3 values requires both copies and subtraction/shift chains before the two stores."
+  },
+  "0da3825893": {
+    "rewrite": null,
+    "why": "Preserving xmm7 and the final xmm1 and xmm3 values requires both copies and subtraction/shift chains before the two stores."
+  },
+  "178e6e4777": {
+    "rewrite": null,
+    "why": "Both subtraction and shift chains, packing, stores, and the counter update are required, and preserving xmm7 requires both copies."
+  },
+  "d52831a84d": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx+rcx*1]\nmovdqa xmm1,XMMWORD PTR [rdx+rcx*1+0x10]\npsubw xmm0,XMMWORD PTR [rdx]\npsubw xmm1,XMMWORD PTR [rdx+0x10]\npabsw xmm5,xmm0\nmovdqa xmm2,xmm8\npsubusw xmm2,xmm5\npsrlw xmm2,0x8\npsllw xmm2,0xa\npmulhw xmm0,xmm2\npabsw xmm5,xmm1\npaddw xmm0,XMMWORD PTR [rdx]\npsubusw xmm8,xmm5\npsrlw xmm8,0x8\npsllw xmm8,0xa\npmulhw xmm1,xmm8\npaddw xmm1,XMMWORD PTR [rdx+0x10]\npmulhrsw xmm0,xmm6\npmulhrsw xmm1,xmm6\npackuswb xmm0,xmm1\nadd rdx,0x20",
+    "saved": 5,
+    "why": "Remove the dead horizontal sum and two copies by shifting xmm2 and consuming xmm8 in place. Folding the base-vector loads into subtraction and addition removes two more instructions, with the rdx increment delayed until all loads finish."
+  },
+  "f1a9d51efb": {
+    "rewrite": null,
+    "why": "The packed mask, copied minuend, byte subtraction, rounded average, two stores, and counter update all contribute required results and cannot be combined under SSSE3."
+  },
+  "5d4fbfca9b": {
+    "rewrite": null,
+    "why": "The packed mask, copied minuend, byte subtraction, rounded average, two stores, and decrement all contribute required results and cannot be combined under SSSE3."
+  },
+  "d8a01d16a3": {
+    "rewrite": null,
+    "why": "The packed mask and averaged result are both live, preserving xmm7 requires the copy, and both stores are necessary."
+  },
+  "20c611d6d8": {
+    "rewrite": null,
+    "why": "The packed mask, copied minuend, byte subtraction, rounded average, two stores, and decrement all contribute required results and cannot be combined under SSSE3."
+  },
+  "6c8e4cea8a": {
+    "rewrite": null,
+    "why": "The packed mask and averaged result are both live, preserving xmm7 requires the copy, and both stores are necessary."
+  },
+  "0a052a2369": {
+    "rewrite": null,
+    "why": "The packed mask and averaged result are both live, preserving xmm7 requires the copy, and both stores are necessary."
+  },
+  "e5f6972359": {
+    "rewrite": null,
+    "why": "The packed mask, copied minuend, byte subtraction, rounded average, two stores, and decrement all contribute required results and cannot be combined under SSSE3."
+  },
+  "475059273a": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx+rcx*1]\nmovdqa xmm1,XMMWORD PTR [rdx+rcx*1+0x10]\npsubw xmm0,XMMWORD PTR [rdx]\npsubw xmm1,XMMWORD PTR [rdx+0x10]\npabsw xmm5,xmm0\nmovdqa xmm2,xmm6\npsubusw xmm2,xmm5\npsrlw xmm2,0x8\nmovdqa xmm5,xmm2\npsllw xmm5,0xa\npmulhw xmm0,xmm5\npabsw xmm5,xmm1\npaddw xmm0,XMMWORD PTR [rdx]\npsubusw xmm6,xmm5\npsrlw xmm6,0x8\npackuswb xmm2,xmm6\npsllw xmm6,0xa\npmulhw xmm1,xmm6\npsubb xmm8,xmm2\npaddw xmm1,XMMWORD PTR [rdx+0x10]\npmulhrsw xmm0,xmm7\npmulhrsw xmm1,xmm7\nmovdqa XMMWORD PTR [rax],xmm8\nadd rax,0x10\npackuswb xmm0,xmm1\nadd rdx,0x20",
+    "saved": 4,
+    "why": "Fold the base-vector loads into subtraction and addition, delaying the rdx increment until those loads finish. Consume xmm6 and xmm8 in place on their last uses to remove two copies."
+  },
+  "b3b4cdc509": {
+    "rewrite": "movq xmm0,QWORD PTR [r9]\nmovd xmm1,DWORD PTR [rdi]\nmovd xmm6,DWORD PTR [rdi+rsi*1]\npunpckldq xmm1,xmm6\nmovq xmm6,QWORD PTR [rdx]\nmovdqa xmm2,xmm4\npsubb xmm2,xmm0\npunpcklbw xmm2,xmm0\npunpcklbw xmm1,xmm6\npmaddubsw xmm1,xmm2\npmulhrsw xmm1,xmm5\npackuswb xmm1,xmm0\nmovd DWORD PTR [rdi],xmm1\npsrlq xmm1,0x20\nmovd DWORD PTR [rdi+rsi*1],xmm1\nadd r9,0x8\nadd rdx,0x8\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Build and unpack the weights directly in xmm2; xmm3 is dead, so the intermediate copy is unnecessary."
+  },
+  "f31f3110c7": {
+    "rewrite": "movq xmm0,QWORD PTR [rdi]\nmovhps xmm1,QWORD PTR [rdi+rsi*1]\nmovdqa xmm3,xmm4\npsubb xmm3,XMMWORD PTR [r9]\nmovdqa xmm2,xmm3\npunpcklbw xmm2,XMMWORD PTR [r9]\npunpckhbw xmm3,XMMWORD PTR [r9]\npunpcklbw xmm0,XMMWORD PTR [rdx]\npunpckhbw xmm1,XMMWORD PTR [rdx]\npmaddubsw xmm0,xmm2\npmaddubsw xmm1,xmm3\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npackuswb xmm0,xmm1\nmovq QWORD PTR [rdi],xmm0\nmovhps QWORD PTR [rdi+rsi*1],xmm0\nadd r9,0x10\nadd rdx,0x10\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 3,
+    "why": "Fold the full-width mask and source loads into their arithmetic operands. Loading the two destination rows directly into xmm0's low half and xmm1's high half also removes the copy."
+  },
+  "7caa58b9d4": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi]\nmovdqa xmm1,xmm0\nmovdqa xmm3,xmm4\npsubb xmm3,XMMWORD PTR [r9]\nmovdqa xmm2,xmm3\npunpcklbw xmm2,XMMWORD PTR [r9]\npunpckhbw xmm3,XMMWORD PTR [r9]\npunpcklbw xmm0,XMMWORD PTR [rdx]\npunpckhbw xmm1,XMMWORD PTR [rdx]\npmaddubsw xmm0,xmm2\npmaddubsw xmm1,xmm3\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npackuswb xmm0,xmm1\nmovdqa XMMWORD PTR [rdi],xmm0\nadd r9,0x10\nadd rdx,0x10\nadd rdi,rsi\ndec r8d",
+    "saved": 2,
+    "why": "Fold the full-width mask and source loads into the subtraction and unpack instructions; the reloaded buffers are unchanged before the store."
+  },
+  "449d848e61": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi]\nmovdqa xmm1,xmm0\nmovdqa xmm3,xmm4\npsubb xmm3,XMMWORD PTR [r9]\nmovdqa xmm2,xmm3\npunpcklbw xmm2,XMMWORD PTR [r9]\npunpckhbw xmm3,XMMWORD PTR [r9]\npunpcklbw xmm0,XMMWORD PTR [rdx]\npunpckhbw xmm1,XMMWORD PTR [rdx]\npmaddubsw xmm0,xmm2\npmaddubsw xmm1,xmm3\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npackuswb xmm0,xmm1\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa xmm0,XMMWORD PTR [rdi+0x10]\nmovdqa xmm1,xmm0\nmovdqa xmm3,xmm4\npsubb xmm3,XMMWORD PTR [r9+0x10]\nmovdqa xmm2,xmm3\npunpcklbw xmm2,XMMWORD PTR [r9+0x10]\npunpckhbw xmm3,XMMWORD PTR [r9+0x10]\npunpcklbw xmm0,XMMWORD PTR [rdx+0x10]\npunpckhbw xmm1,XMMWORD PTR [rdx+0x10]\npmaddubsw xmm0,xmm2\npmaddubsw xmm1,xmm3\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npackuswb xmm0,xmm1\nmovdqa XMMWORD PTR [rdi+0x10],xmm0\nadd r9,0x20\nadd rdx,0x20\nadd rdi,rsi\ndec r8d",
+    "saved": 4,
+    "why": "For each group of sixteen pixels, fold the mask and source loads into the subtraction and unpack instructions. This removes two explicit loads per group while preserving both stores and all address updates."
+  },
+  "0779183f08": {
+    "rewrite": null,
+    "why": "The narrow loads, live upper half of the packed xmm0 result, and separate word stores require the existing preparation and extraction operations under SSSE3."
+  },
+  "075b25feb0": {
+    "rewrite": null,
+    "why": "The discontiguous dword loads and stores require the unpack and shift, while the dword insertion and extraction instructions that could shorten them require SSE4.1."
+  },
+  "532b4fed38": {
+    "rewrite": "movq xmm0,QWORD PTR [rdi]\nmovhps xmm1,QWORD PTR [rdi+rsi*1]\npunpcklbw xmm0,XMMWORD PTR [rdx]\npunpckhbw xmm1,XMMWORD PTR [rdx]\npmaddubsw xmm0,xmm3\npmaddubsw xmm1,xmm3\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npackuswb xmm0,xmm1\nmovq QWORD PTR [rdi],xmm0\nmovhps QWORD PTR [rdi+rsi*1],xmm0\nadd rdx,0x10\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 2,
+    "why": "Load the rows directly into xmm0's low half and xmm1's high half, eliminating the copy. Fold the source load into both byte-unpack memory operands."
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "f26e1c0295": {
+    "rewrite": null,
+    "why": "Each of the four live destinations requires its own rounded packed-word multiplication."
+  },
+  "218437840b": {
+    "rewrite": "vpsubd ymm0,ymm15,YMMWORD PTR [rax-0x80]",
+    "saved": 16,
+    "why": "Only ymm0 is live among the vector outputs, and its value is the original ymm15 minus the vector at [rax-0x80]."
+  },
+  "244f2bae87": {
+    "rewrite": null,
+    "why": "The live multiply-round-multiply result, broadcast, ECX update, and store require the existing seven instructions."
+  },
+  "c884f8d00f": {
+    "rewrite": null,
+    "why": "All eight vectors require both signed clamp bounds, and all three broadcast results are live."
+  },
+  "1f3cc9bf95": {
+    "rewrite": null,
+    "why": "AVX2 packing operates within 128-bit lanes, so the four required cross-lane reorderings cannot be folded into the eight live packs."
+  },
+  "6ad11fb2c6": {
+    "rewrite": null,
+    "why": "The four distinct live permuted results already require one instruction each."
+  },
+  "fe06fbedc9": {
+    "rewrite": null,
+    "why": "All eight saturating pack results are live, and AVX2 requires separate permutations for the four reordered results."
+  },
+  "078e593fc7": {
+    "rewrite": null,
+    "why": "The broadcast value is live, and each of the four other outputs requires its own rounded multiply."
+  },
+  "20012a26de": {
+    "rewrite": null,
+    "why": "The multiply, rounding adjustment, shift, broadcast, store, and ECX update all contribute to required outputs."
+  },
+  "47906a782b": {
+    "rewrite": "vpsubd ymm15,ymm0,YMMWORD PTR [rax-0x80]\nvpaddd ymm0,ymm0,YMMWORD PTR [rax-0x80]\nvpsubd ymm14,ymm1,YMMWORD PTR [rax-0x60]\nvpaddd ymm1,ymm1,YMMWORD PTR [rax-0x60]\nvpsubd ymm13,ymm2,YMMWORD PTR [rax-0x40]\nvpaddd ymm2,ymm2,YMMWORD PTR [rax-0x40]\nvpsubd ymm12,ymm3,YMMWORD PTR [rax-0x20]\nvpaddd ymm3,ymm3,YMMWORD PTR [rax-0x20]\nvpsubd ymm11,ymm4,YMMWORD PTR [rax]\nvpaddd ymm4,ymm4,YMMWORD PTR [rax]\nvpsubd ymm10,ymm5,YMMWORD PTR [rax+0x20]\nvpaddd ymm5,ymm5,YMMWORD PTR [rax+0x20]\nvpsubd ymm9,ymm6,YMMWORD PTR [rax+0x40]\nvpaddd ymm6,ymm6,YMMWORD PTR [rax+0x40]\nvpsubd ymm8,ymm7,YMMWORD PTR [rax+0x60]\nvpaddd ymm7,ymm7,YMMWORD PTR [rax+0x60]\nsub rax,0x100\nvpsrad ymm0,ymm0,0x2\nvpsrad ymm1,ymm1,0x2\nvpsrad ymm2,ymm2,0x2\nvpsrad ymm3,ymm3,0x2\nvpsrad ymm4,ymm4,0x2\nvpsrad ymm5,ymm5,0x2\nvpsrad ymm6,ymm6,0x2\nvpsrad ymm7,ymm7,0x2\nvpsrad ymm8,ymm8,0x2\nvpsrad ymm9,ymm9,0x2\nvpsrad ymm10,ymm10,0x2\nvpsrad ymm11,ymm11,0x2\nvpsrad ymm12,ymm12,0x2\nvpsrad ymm13,ymm13,0x2\nvpsrad ymm14,ymm14,0x2\nvpsrad ymm15,ymm15,0x2",
+    "saved": 7,
+    "why": "Fold the seven explicit vector loads into the corresponding add and subtract memory operands, retaining the same addresses, final vectors, and scalar flags."
+  },
+  "0a7471a47d": {
+    "rewrite": "vpsrld ymm10,ymm11,0xa\nvpaddd ymm0,ymm10,ymm0",
+    "saved": 7,
+    "why": "Only ymm0 is live among the vector outputs, so the seven additions producing ymm1 through ymm7 are dead."
+  },
+  "a020ca6bd3": {
+    "rewrite": null,
+    "why": "All sixteen adjusted vectors and their shifts are live, and AVX2 cannot fuse these wrapping dword adds or subtracts with arithmetic right shifts."
+  },
+  "1b397f4608": {
+    "rewrite": null,
+    "why": "Every output is live, and the copy preserves the shifted bias across the mutually dependent updates of ymm15 and ymm0."
+  },
+  "99f21c1569": {
+    "rewrite": "vmovdqa YMMWORD PTR [rdx],ymm15\nvmovdqa YMMWORD PTR [rdx+0x20],ymm0\nvpbroadcastd ymm15,DWORD PTR [CONST_1]\nvpmulhrsw ymm0,ymm15,ymm1\nvpaddsw ymm1,ymm1,ymm1\nvpaddsw ymm1,ymm1,ymm0\nvpmulhrsw ymm0,ymm15,ymm2\nvpaddsw ymm2,ymm2,ymm2\nvpaddsw ymm2,ymm2,ymm0\nvpmulhrsw ymm0,ymm15,ymm3\nvpaddsw ymm3,ymm3,ymm3\nvpaddsw ymm3,ymm3,ymm0\nvpmulhrsw ymm0,ymm15,ymm4\nvpaddsw ymm4,ymm4,ymm4\nvpaddsw ymm4,ymm4,ymm0\nvpmulhrsw ymm0,ymm15,ymm5\nvpaddsw ymm5,ymm5,ymm5\nvpaddsw ymm5,ymm5,ymm0\nvpmulhrsw ymm0,ymm15,ymm6\nvpaddsw ymm6,ymm6,ymm6\nvpaddsw ymm6,ymm6,ymm0\nvpmulhrsw ymm0,ymm15,ymm7\nvpaddsw ymm7,ymm7,ymm7\nvpaddsw ymm7,ymm7,ymm0\nvpmulhrsw ymm0,ymm15,ymm8\nvpaddsw ymm8,ymm8,ymm8\nvpaddsw ymm8,ymm8,ymm0\nvpmulhrsw ymm0,ymm15,ymm9\nvpaddsw ymm9,ymm9,ymm9\nvpaddsw ymm9,ymm9,ymm0\nvpmulhrsw ymm0,ymm15,ymm10\nvpaddsw ymm10,ymm10,ymm10\nvpaddsw ymm10,ymm10,ymm0\nvpmulhrsw ymm0,ymm15,ymm11\nvpaddsw ymm11,ymm11,ymm11\nvpaddsw ymm11,ymm11,ymm0\nvpmulhrsw ymm0,ymm15,ymm12\nvpaddsw ymm12,ymm12,ymm12\nvpaddsw ymm12,ymm12,ymm0\nvpmulhrsw ymm0,ymm15,ymm13\nvpaddsw ymm13,ymm13,ymm13\nvpaddsw ymm13,ymm13,ymm0\nvpmulhrsw ymm0,ymm15,ymm14\nvpaddsw ymm14,ymm14,ymm14\nvpaddsw ymm14,ymm14,ymm0\nvpmulhrsw ymm0,ymm15,YMMWORD PTR [rdx+0x20]\nvpaddsw ymm0,ymm0,YMMWORD PTR [rdx+0x20]\nvpaddsw ymm0,ymm0,YMMWORD PTR [rdx+0x20]\nvmovdqa YMMWORD PTR [rdx+0x20],ymm1\nvpmulhrsw ymm15,ymm15,YMMWORD PTR [rdx]\nvpaddsw ymm15,ymm15,YMMWORD PTR [rdx]\nvpaddsw ymm15,ymm15,YMMWORD PTR [rdx]",
+    "saved": 3,
+    "why": "Fold the two spilled inputs into multiply/add memory operands and retain ymm1, eliminating three reloads while preserving all stores. The saturating additions can be regrouped because the rounded product has the input's sign."
+  },
+  "59f3a8228a": {
+    "rewrite": null,
+    "why": "The multiply, rounding adjustment, shift, broadcast, store, and ECX update all contribute to required outputs."
+  },
+  "4badfbb610": {
+    "rewrite": null,
+    "why": "Both broadcasts and the stack-pointer save are live, and the alignment and subtraction also determine required flags."
+  },
+  "d3489360c6": {
+    "rewrite": null,
+    "why": "All four stores, both live broadcast constants, the eight clamp operations, and the final flag-setting test are required."
+  },
+  "a5bc1cbdde": {
+    "rewrite": null,
+    "why": "Four required zeroed YMM registers need four writes because VZEROALL would also destroy preserved registers."
+  },
+  "907820eb4c": {
+    "rewrite": null,
+    "why": "Each of the four live vectors needs both signed bound operations, and the final test supplies the required flags."
+  },
+  "efb974cebb": {
+    "rewrite": null,
+    "why": "Each of the four live vectors requires both signed bound operations, with its load already folded into the maximum."
+  }
+}

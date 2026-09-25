@@ -87,6 +87,7 @@ function dispatch_vex_0f38(opcode, pfx) = {
 // peeked at to distinguish VEX from LES/LDS).
 val dispatch_vex_with_byte2 : (byte, byte) -> unit
 function dispatch_vex_with_byte2(first_byte, b1) = {
+  if cur_mode == Virtual8086Mode then raise_UD();
   // NOTE: avx_enabled() is NOT checked here.  VEX-encoded GPR-only
   // instructions (BMI1/BMI2) do not require CR4.OSXSAVE or XCR0[AVX].
   // The check is deferred to sub-dispatchers that handle SIMD instructions.

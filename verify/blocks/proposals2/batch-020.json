@@ -1,0 +1,84 @@
+{
+  "75247c296e": {
+    "rewrite": null,
+    "why": "Both rounded multiplies, the packing operation, the store, and the flag-setting decrement produce required results."
+  },
+  "397d45bc1f": {
+    "rewrite": null,
+    "why": "The three vector additions and pointer update have distinct live destinations, and the comparison supplies the required SF and OF."
+  },
+  "3867d812bc": {
+    "rewrite": null,
+    "why": "Both filtering chains, the packed store, the vector index updates, and the scalar updates contribute to preserved results."
+  },
+  "7124f2c598": {
+    "rewrite": null,
+    "why": "The broadcast feeds the XOR/max permutation index, while rcx, zmm25, the permuted result, and the test's ZF are all live."
+  },
+  "4b7e4d6b2d": {
+    "rewrite": null,
+    "why": "The scalar index transformation, broadcast, maximum, permutation, and test each produce a required value or flag."
+  },
+  "d22e8fdcb5": {
+    "rewrite": null,
+    "why": "The scalar arithmetic forms the negated sum modulo 64, and the load, broadcast, maximum, and comparison all have live results."
+  },
+  "0f7cb1b2f1": {
+    "rewrite": null,
+    "why": "The mask and its scalar source are both preserved, and the loads, shifted pack, and masked shuffle produce distinct live vector results."
+  },
+  "6a06e3089e": {
+    "rewrite": null,
+    "why": "The broadcasts, masked permutations, dot-product initializations, and packing stages feed live outputs, while the masks and scalar updates are also preserved."
+  },
+  "77b4c903ed": {
+    "rewrite": null,
+    "why": "The shifted saturated words, packed bytes, and masked shuffle destination are all live, so none of the four stages is removable."
+  },
+  "f57be0745b": {
+    "rewrite": null,
+    "why": "The two memory operations build preserved zmm3, and the masked permutation must retain bytes produced by the preceding shuffle."
+  },
+  "7c714c602e": {
+    "rewrite": null,
+    "why": "The copy of ymm21 retains its old value for packing while ymm21 receives its required shifted result, and the remaining instructions feed live arithmetic, stores, or scalar updates."
+  },
+  "01c0974e64": {
+    "rewrite": null,
+    "why": "Both dot-product accumulators require the original xmm22 addend, and the broadcast, second accumulator, packed result, and pointer update remain live."
+  },
+  "6b4d5372cb": {
+    "rewrite": null,
+    "why": "The shuffle is needed for preserved zmm2 as well as the second store, and all remaining operations produce live values, stores, or flags."
+  },
+  "effaa157b2": {
+    "rewrite": null,
+    "why": "The narrow load and each vector arithmetic operation contribute to live xmm0 or xmm1, while the comparison supplies required flags."
+  },
+  "f033dc431d": {
+    "rewrite": "pshufd xmm1,xmm0,0xee\npaddw xmm0,xmm1\nmovdqa xmm1,xmm0\npsrlq xmm1,0x20\npaddw xmm0,xmm1\npsrlw xmm0,0x2\nmov eax,0x5556\nmov edx,0x3334\ntest r8d,0x8",
+    "saved": 1,
+    "why": "PSHUFD with immediate 0xee duplicates the upper qword, replacing the initial copy and PUNPCKHQDQ with one instruction."
+  },
+  "a6fa05fd2e": {
+    "rewrite": null,
+    "why": "The unknown stride and index prevent combining the four stores, and both scalar updates remain required."
+  },
+  "d3c1e232f5": {
+    "rewrite": null,
+    "why": "The byte broadcast requires preparing its shuffle mask, and all four vector destinations must retain the broadcast."
+  },
+  "5d586ebcb6": {
+    "rewrite": null,
+    "why": "The two shuffle and multiply-add chains need separate sources, and the row extractions also establish preserved intermediate registers before the required stores and scalar updates."
+  },
+  "f697292080": {
+    "rewrite": null,
+    "why": "The two byte shuffles and multiply-add chains produce distinct live results, followed by necessary packing, separate row stores, and scalar updates."
+  },
+  "e5c8f41a56": {
+    "rewrite": "movdqu xmm3,XMMWORD PTR [rdx+0x1]\nmovdqa xmm2,xmm3\npunpcklbw xmm2,xmm5\npunpckhbw xmm3,xmm5\nmovdqa xmm4,xmm2\npmaddubsw xmm4,xmm0\nmovdqa xmm5,xmm3\npmaddubsw xmm5,xmm0\npaddw xmm4,xmm2\npaddw xmm5,xmm3\npaddw xmm4,xmm1\npaddw xmm5,xmm1",
+    "saved": 1,
+    "why": "Word addition is associative modulo 65536, so the shared original xmm1 addend can be added directly to both products. Since final xmm0 and xmm1 are unconstrained, this removes the copy into xmm0."
+  }
+}

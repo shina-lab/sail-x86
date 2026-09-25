@@ -1,0 +1,82 @@
+{
+  "e246221953": {
+    "rewrite": null,
+    "why": "Both 64-bit loads are needed without widening memory accesses, followed by the dword comparison, exact mask extraction, and flag-setting subtraction."
+  },
+  "6f3c1355fc": {
+    "rewrite": null,
+    "why": "The load, packed comparison, mask extraction, and subtraction are all needed for the exact RAX result and ZF."
+  },
+  "78da7e9e82": {
+    "rewrite": null,
+    "why": "The variable lane mask, masked memory accesses, mask transfer, and zero test are needed to preserve RAX, ZF, and the original load addresses."
+  },
+  "c40ccbbf25": {
+    "rewrite": null,
+    "why": "The load and comparison produce the mismatch mask, and both its transfer to EAX and the explicit ZF test remain necessary."
+  },
+  "961a28489b": {
+    "rewrite": null,
+    "why": "The comparison already folds one memory operand, while the other load, exact mask transfer, and ZF test remain necessary."
+  },
+  "dd8740d30b": {
+    "rewrite": null,
+    "why": "Producing the required RAX mismatch mask and ZF needs the load, memory comparison, mask transfer, and zero test."
+  },
+  "8d3ea256e2": {
+    "rewrite": null,
+    "why": "The required RCX mismatch mask and ZF need separate mask transfer and testing after the load and comparison."
+  },
+  "abcf796aea": {
+    "rewrite": null,
+    "why": "Computing RDX and RSI takes one instruction each, while aligning and advancing RDI requires two more."
+  },
+  "95f8e0a807": {
+    "rewrite": null,
+    "why": "The indexed load and comparison are necessary, and mask extraction does not set the required ZF, so the zero test cannot be removed."
+  },
+  "bd4f69971c": {
+    "rewrite": null,
+    "why": "The indexed load, memory comparison, mask extraction, and zero test each contribute to the required RAX or ZF result."
+  },
+  "d512cac993": {
+    "rewrite": null,
+    "why": "The live R11 copy, addition, carry mask, store, and RCX increment producing SF each require an instruction."
+  },
+  "af91e2ba49": {
+    "rewrite": null,
+    "why": "The three pointer updates and the copied, masked R10 result with its ZF require all five instructions at the baseline ISA."
+  },
+  "3c1cc526a1": {
+    "rewrite": null,
+    "why": "Capturing incoming CF, adding two values with both carries accumulated in RBP, and updating R9 with its ZF require all six instructions."
+  },
+  "02aa5c9abd": {
+    "rewrite": null,
+    "why": "RBX and RBP must both be zeroed, and the R8 address update and R9 negation are independently live."
+  },
+  "26b02640ed": {
+    "rewrite": null,
+    "why": "Saving incoming CF in AL, updating the two-limb accumulator, and advancing R9 with the required ZF require all four instructions."
+  },
+  "f2b6b4562a": {
+    "rewrite": null,
+    "why": "The AL shift, three MOV loads, R13 zeroing, and carry-dependent memory addition all contribute required register or carry results."
+  },
+  "9b1923a3f6": {
+    "rewrite": null,
+    "why": "Each of the four additions needs its carry accumulated in RBP, and the AL update, both stores, R8 adjustment, and R9 increment are also required."
+  },
+  "4d0f24a2a5": {
+    "rewrite": null,
+    "why": "All four cleared registers, the R9 subtraction, three pointer updates, and the low-bit test supplying ZF are required."
+  },
+  "f7c906626e": {
+    "rewrite": null,
+    "why": "Four independent stored qwords and the masked, zero-extended RAX result require all five instructions."
+  },
+  "30efdb2cfd": {
+    "rewrite": null,
+    "why": "The copy, RCX shift, RAX mask, and final bit test each establish a required register or flag result."
+  }
+}

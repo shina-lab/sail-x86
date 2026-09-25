@@ -1,0 +1,22 @@
+=== 792 test functions for 396 blocks -> /home/ruiu/sail-x86/verify/blocks/blocks_tests.sail
+=== Isla IR: 3 chunk(s), 6 in parallel
+    chunk1.ir: 13,969,072 bytes, 453s
+    chunk0.ir: 13,245,540 bytes, 456s
+    chunk2.ir: 12,625,442 bytes, 487s
+=== Isla traces (60 parallel)
+    100/792 traces, 45s
+    200/792 traces, 90s
+    300/792 traces, 114s
+    400/792 traces, 158s
+    500/792 traces, 200s
+    600/792 traces, 229s
+    700/792 traces, 269s
+=== Z3 (60 parallel, 60s each)
+
+  ffmpeg         original not executable      12
+  ffmpeg         query error                  55
+  ffmpeg         rewrite not executable       5
+  ffmpeg         sat                          15
+  ffmpeg         timeout                      16
+  ffmpeg         unsat                        293
+wrote results/w1.json

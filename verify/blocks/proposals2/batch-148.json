@@ -1,0 +1,82 @@
+{
+  "19703c5ac7": {
+    "rewrite": null,
+    "why": "The loaded copy, both shifted vectors, merged vector, comparison results, scalar result and ZF are all required, leaving no removable instruction under SSE2."
+  },
+  "719039cb1b": {
+    "rewrite": null,
+    "why": "The byte comparison and subtraction must produce the preserved xmm1 value, and extracting and complementing its sign bits requires both scalar-result instructions."
+  },
+  "1032d1d41a": {
+    "rewrite": null,
+    "why": "Both independent masked copies must be preserved, and the final comparison is needed to produce CF and ZF for the comparison with 0x30."
+  },
+  "72db34328d": {
+    "rewrite": null,
+    "why": "The loaded xmm2, zero-byte mask in xmm0, byte subtraction result in xmm1 and adjusted mask in rdx are all preserved, preventing load folding or removal of the mask-building steps."
+  },
+  "d8b46bb5fa": {
+    "rewrite": null,
+    "why": "The memory comparison is already folded, and the preserved vector results, separately shifted scalar values and final subtraction leave no removable instruction."
+  },
+  "02bc72178c": {
+    "rewrite": null,
+    "why": "The 15-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "54e93af282": {
+    "rewrite": null,
+    "why": "The 14-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "34ebb51d7e": {
+    "rewrite": null,
+    "why": "The 13-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "ac28cefc5a": {
+    "rewrite": null,
+    "why": "The 12-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "8a903e9e32": {
+    "rewrite": null,
+    "why": "The 11-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "58ba6b20ea": {
+    "rewrite": null,
+    "why": "The 10-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "4264333e8f": {
+    "rewrite": null,
+    "why": "The 9-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "24577c4ca3": {
+    "rewrite": null,
+    "why": "The 8-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "b1bce84104": {
+    "rewrite": null,
+    "why": "The 7-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "5f4373023a": {
+    "rewrite": null,
+    "why": "The 6-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "4171d59bd1": {
+    "rewrite": null,
+    "why": "The 5-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "f1abc8ac9b": {
+    "rewrite": null,
+    "why": "The 4-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "2786fbddd9": {
+    "rewrite": null,
+    "why": "The 3-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "8661810b5d": {
+    "rewrite": null,
+    "why": "The 2-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  },
+  "133462567e": {
+    "rewrite": null,
+    "why": "The 1-byte shift, comparison and subtraction are required for the preserved xmm2, while extraction, two independent variable shifts and subtraction produce the required r9, rdx and ZF."
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "81b765ed75": {
+    "rewrite": null,
+    "why": "The store, pointer increment, count decrement, and live vector shift each require a separate instruction."
+  },
+  "0766288645": {
+    "rewrite": null,
+    "why": "The store, pointer increment, count decrement, and live vector shift each require a separate instruction."
+  },
+  "b0b4edddc8": {
+    "rewrite": null,
+    "why": "The store and all three register updates are required, and combining the store with a string-instruction pointer update would require establishing the direction flag."
+  },
+  "12994cac0d": {
+    "rewrite": null,
+    "why": "Both stores, both live vector copies, and both scalar updates are required under SSE2."
+  },
+  "acb2afc63a": {
+    "rewrite": null,
+    "why": "The store, live vector copy, pointer increment, and count decrement are independent required operations."
+  },
+  "e720f5d5f7": {
+    "rewrite": null,
+    "why": "The store, pointer increment, count decrement, and live vector shift each require a separate instruction."
+  },
+  "fdc9e84bfa": {
+    "rewrite": "vmovdqu ymm7,YMMWORD PTR [rsi]\nvpsllw ymm6,ymm7,0x8\nvpsrlw ymm6,ymm6,0x8\nvpsrlw ymm7,ymm7,0x8\nvpaddw ymm1,ymm0,ymm7\nvpaddw ymm0,ymm0,ymm6\nvpackuswb ymm0,ymm0,ymm1\nvpaddw ymm3,ymm2,ymm7\nvpaddw ymm2,ymm2,ymm6\nvpackuswb ymm2,ymm2,ymm3\nvpaddw ymm5,ymm4,ymm7\nvpaddw ymm4,ymm4,ymm6\nvpackuswb ymm4,ymm4,ymm5\nvpsrldq ymm1,ymm0,0x8\nvpunpckhbw ymm3,ymm2,ymm4\nvpunpcklbw ymm0,ymm0,ymm2\nvpunpcklbw ymm4,ymm4,ymm1\nvpsrldq ymm7,ymm0,0x2\nvpunpckhwd ymm6,ymm0,ymm4\nvpunpcklwd ymm0,ymm0,ymm4\nvpsrldq ymm4,ymm4,0x2\nvpsrldq ymm1,ymm3,0x2\nvpunpckhwd ymm2,ymm3,ymm7\nvpunpcklwd ymm3,ymm3,ymm7\nvpunpckhwd ymm5,ymm4,ymm1\nvpunpcklwd ymm4,ymm4,ymm1\nvpshufd ymm7,ymm0,0x4e\nvpunpckldq ymm0,ymm0,ymm3\nvpunpckhdq ymm3,ymm3,ymm4\nvpunpckldq ymm4,ymm4,ymm7\nvpshufd ymm7,ymm6,0x4e\nvpunpckldq ymm6,ymm6,ymm2\nvpunpckhdq ymm2,ymm2,ymm5\nvpunpckldq ymm5,ymm5,ymm7\nvpunpcklqdq ymm7,ymm0,ymm4\nvpunpcklqdq ymm6,ymm3,ymm6\nvpunpcklqdq ymm2,ymm5,ymm2\nvperm2i128 ymm0,ymm7,ymm6,0x20\nvperm2i128 ymm3,ymm2,ymm7,0x30\nvperm2i128 ymm5,ymm6,ymm2,0x31\ncmp rcx,0x20",
+    "saved": 6,
+    "why": "Two shifts extract the low bytes and three-operand additions eliminate the three input copies. Packing each even/odd pair together replaces six packs with three, with one extra shift supplying the cross-pair unpack."
+  },
+  "ac050d297f": {
+    "rewrite": "vmovdqu ymm7,YMMWORD PTR [rsi]\nvpsllw ymm6,ymm7,0x8\nvpsrlw ymm6,ymm6,0x8\nvpsrlw ymm7,ymm7,0x8\nvpaddw ymm1,ymm0,ymm7\nvpaddw ymm0,ymm0,ymm6\nvpackuswb ymm0,ymm0,ymm1\nvpaddw ymm3,ymm2,ymm7\nvpaddw ymm2,ymm2,ymm6\nvpackuswb ymm2,ymm2,ymm3\nvpaddw ymm5,ymm4,ymm7\nvpaddw ymm4,ymm4,ymm6\nvpackuswb ymm4,ymm4,ymm5\nvpcmpeqb ymm6,ymm6,ymm6\nvpunpckhbw ymm1,ymm0,ymm2\nvpunpcklbw ymm0,ymm0,ymm2\nvpunpckhbw ymm5,ymm4,ymm6\nvpunpcklbw ymm4,ymm4,ymm6\nvpunpckhwd ymm2,ymm0,ymm4\nvpunpcklwd ymm0,ymm0,ymm4\nvpunpckhwd ymm6,ymm1,ymm5\nvpunpcklwd ymm1,ymm1,ymm5\nvpunpckhdq ymm4,ymm0,ymm1\nvpunpckldq ymm1,ymm0,ymm1\nvpunpckhdq ymm5,ymm2,ymm6\nvpunpckldq ymm6,ymm2,ymm6\nvperm2i128 ymm0,ymm1,ymm4,0x20\nvperm2i128 ymm3,ymm6,ymm5,0x20\nvperm2i128 ymm2,ymm1,ymm4,0x31\nvperm2i128 ymm7,ymm6,ymm5,0x31\ncmp rcx,0x20",
+    "saved": 8,
+    "why": "Use shifts for low-byte extraction and three-operand additions to remove the input copies, then combine each even/odd pair in one pack. High and low byte unpacks recover the original intermediates while sharing one all-ones alpha mask."
+  },
+  "4875f11a8a": {
+    "rewrite": null,
+    "why": "The store, pointer update, full-width lane swap, and count update each produce a required effect."
+  },
+  "a3ad61aa99": {
+    "rewrite": "vmovdqu ymm7,YMMWORD PTR [rsi]\nvpsllw ymm6,ymm7,0x8\nvpsrlw ymm6,ymm6,0x8\nvpsrlw ymm7,ymm7,0x8\nvpaddw ymm1,ymm0,ymm7\nvpaddw ymm0,ymm0,ymm6\nvpackuswb ymm0,ymm0,ymm1\nvpaddw ymm3,ymm2,ymm7\nvpaddw ymm2,ymm2,ymm6\nvpackuswb ymm2,ymm2,ymm3\nvpaddw ymm5,ymm4,ymm7\nvpaddw ymm4,ymm4,ymm6\nvpackuswb ymm4,ymm4,ymm5\nvpsrldq ymm5,ymm4,0x8\nvpunpckhbw ymm3,ymm2,ymm0\nvpunpcklbw ymm4,ymm4,ymm2\nvpunpcklbw ymm0,ymm0,ymm5\nvpsrldq ymm7,ymm4,0x2\nvpunpckhwd ymm6,ymm4,ymm0\nvpunpcklwd ymm4,ymm4,ymm0\nvpsrldq ymm0,ymm0,0x2\nvpsrldq ymm5,ymm3,0x2\nvpunpckhwd ymm2,ymm3,ymm7\nvpunpcklwd ymm3,ymm3,ymm7\nvpunpckhwd ymm1,ymm0,ymm5\nvpunpcklwd ymm0,ymm0,ymm5\nvpshufd ymm7,ymm4,0x4e\nvpunpckldq ymm4,ymm4,ymm3\nvpunpckhdq ymm3,ymm3,ymm0\nvpunpckldq ymm0,ymm0,ymm7\nvpshufd ymm7,ymm6,0x4e\nvpunpckldq ymm6,ymm6,ymm2\nvpunpckhdq ymm2,ymm2,ymm1\nvpunpckldq ymm1,ymm1,ymm7\nvpunpcklqdq ymm7,ymm4,ymm0\nvpunpcklqdq ymm6,ymm3,ymm6\nvpunpcklqdq ymm2,ymm1,ymm2\nvperm2i128 ymm4,ymm7,ymm6,0x20\nvperm2i128 ymm3,ymm2,ymm7,0x30\nvperm2i128 ymm1,ymm6,ymm2,0x31\ncmp rcx,0x20",
+    "saved": 6,
+    "why": "Two shifts extract the low bytes and three-operand additions eliminate the three input copies. Packing each even/odd pair together replaces six packs with three, with one extra shift supplying the cross-pair unpack."
+  },
+  "9ee99f0de5": {
+    "rewrite": "vmovdqu ymm7,YMMWORD PTR [rsi]\nvpsllw ymm6,ymm7,0x8\nvpsrlw ymm6,ymm6,0x8\nvpsrlw ymm7,ymm7,0x8\nvpaddw ymm1,ymm0,ymm7\nvpaddw ymm0,ymm0,ymm6\nvpackuswb ymm0,ymm0,ymm1\nvpaddw ymm3,ymm2,ymm7\nvpaddw ymm2,ymm2,ymm6\nvpackuswb ymm2,ymm2,ymm3\nvpaddw ymm5,ymm4,ymm7\nvpaddw ymm4,ymm4,ymm6\nvpackuswb ymm4,ymm4,ymm5\nvpcmpeqb ymm6,ymm6,ymm6\nvpunpckhbw ymm5,ymm4,ymm2\nvpunpcklbw ymm4,ymm4,ymm2\nvpunpckhbw ymm1,ymm0,ymm6\nvpunpcklbw ymm0,ymm0,ymm6\nvpunpckhwd ymm2,ymm4,ymm0\nvpunpcklwd ymm4,ymm4,ymm0\nvpunpckhwd ymm6,ymm5,ymm1\nvpunpcklwd ymm5,ymm5,ymm1\nvpunpckhdq ymm0,ymm4,ymm5\nvpunpckldq ymm5,ymm4,ymm5\nvpunpckhdq ymm1,ymm2,ymm6\nvpunpckldq ymm6,ymm2,ymm6\nvperm2i128 ymm4,ymm5,ymm0,0x20\nvperm2i128 ymm3,ymm6,ymm1,0x20\nvperm2i128 ymm2,ymm5,ymm0,0x31\nvperm2i128 ymm7,ymm6,ymm1,0x31\ncmp rcx,0x20",
+    "saved": 8,
+    "why": "Use shifts for low-byte extraction and three-operand additions to remove the input copies, then combine each even/odd pair in one pack. High and low byte unpacks recover the original intermediates while sharing one all-ones alpha mask."
+  },
+  "7c11518c3d": {
+    "rewrite": "vmovdqu ymm7,YMMWORD PTR [rsi]\nvpsllw ymm6,ymm7,0x8\nvpsrlw ymm6,ymm6,0x8\nvpsrlw ymm7,ymm7,0x8\nvpaddw ymm1,ymm0,ymm7\nvpaddw ymm0,ymm0,ymm6\nvpackuswb ymm0,ymm0,ymm1\nvpaddw ymm3,ymm2,ymm7\nvpaddw ymm2,ymm2,ymm6\nvpackuswb ymm2,ymm2,ymm3\nvpaddw ymm5,ymm4,ymm7\nvpaddw ymm4,ymm4,ymm6\nvpackuswb ymm4,ymm4,ymm5\nvpcmpeqb ymm6,ymm6,ymm6\nvpunpckhbw ymm7,ymm6,ymm4\nvpunpcklbw ymm6,ymm6,ymm4\nvpunpckhbw ymm3,ymm2,ymm0\nvpunpcklbw ymm2,ymm2,ymm0\nvpunpckhwd ymm4,ymm6,ymm2\nvpunpcklwd ymm6,ymm6,ymm2\nvpunpckhwd ymm0,ymm7,ymm3\nvpunpcklwd ymm7,ymm7,ymm3\nvpunpckhdq ymm2,ymm6,ymm7\nvpunpckldq ymm7,ymm6,ymm7\nvpunpckhdq ymm3,ymm4,ymm0\nvpunpckldq ymm0,ymm4,ymm0\nvperm2i128 ymm6,ymm7,ymm2,0x20\nvperm2i128 ymm5,ymm0,ymm3,0x20\nvperm2i128 ymm4,ymm7,ymm2,0x31\nvperm2i128 ymm1,ymm0,ymm3,0x31\ncmp rcx,0x20",
+    "saved": 8,
+    "why": "Use shifts for low-byte extraction and three-operand additions to remove the input copies, then combine each even/odd pair in one pack. High and low byte unpacks recover the original intermediates while sharing one all-ones alpha mask."
+  },
+  "51362c83c1": {
+    "rewrite": "vmovdqu ymm7,YMMWORD PTR [rsi]\nvpsllw ymm6,ymm7,0x8\nvpsrlw ymm6,ymm6,0x8\nvpsrlw ymm7,ymm7,0x8\nvpaddw ymm1,ymm0,ymm7\nvpaddw ymm0,ymm0,ymm6\nvpackuswb ymm0,ymm0,ymm1\nvpaddw ymm3,ymm2,ymm7\nvpaddw ymm2,ymm2,ymm6\nvpackuswb ymm2,ymm2,ymm3\nvpaddw ymm5,ymm4,ymm7\nvpaddw ymm4,ymm4,ymm6\nvpackuswb ymm4,ymm4,ymm5\nvpcmpeqb ymm6,ymm6,ymm6\nvpunpckhbw ymm7,ymm6,ymm0\nvpunpcklbw ymm6,ymm6,ymm0\nvpunpckhbw ymm3,ymm2,ymm4\nvpunpcklbw ymm2,ymm2,ymm4\nvpunpckhwd ymm0,ymm6,ymm2\nvpunpcklwd ymm6,ymm6,ymm2\nvpunpckhwd ymm4,ymm7,ymm3\nvpunpcklwd ymm7,ymm7,ymm3\nvpunpckhdq ymm2,ymm6,ymm7\nvpunpckldq ymm7,ymm6,ymm7\nvpunpckhdq ymm3,ymm0,ymm4\nvpunpckldq ymm4,ymm0,ymm4\nvperm2i128 ymm6,ymm7,ymm2,0x20\nvperm2i128 ymm1,ymm4,ymm3,0x20\nvperm2i128 ymm0,ymm7,ymm2,0x31\nvperm2i128 ymm5,ymm4,ymm3,0x31\ncmp rcx,0x20",
+    "saved": 8,
+    "why": "Use shifts for low-byte extraction and three-operand additions to remove the input copies, then combine each even/odd pair in one pack. High and low byte unpacks recover the original intermediates while sharing one all-ones alpha mask."
+  },
+  "3f61f15d5d": {
+    "rewrite": "movdqa xmm7,XMMWORD PTR [rsi]\npcmpeqw xmm6,xmm6\npsrlw xmm6,0x8\npand xmm6,xmm7\npsrlw xmm7,0x8\nmovdqa xmm1,xmm0\nmovdqa xmm3,xmm2\nmovdqa xmm5,xmm4\npaddw xmm0,xmm6\npaddw xmm1,xmm7\npackuswb xmm0,xmm1\npaddw xmm2,xmm6\npaddw xmm3,xmm7\npackuswb xmm2,xmm3\npaddw xmm4,xmm6\npaddw xmm5,xmm7\npackuswb xmm4,xmm5\nmovdqa xmm3,xmm2\npunpckhbw xmm3,xmm4\nmovhlps xmm1,xmm0\npunpcklbw xmm0,xmm2\npunpcklbw xmm4,xmm1\nmovdqa xmm6,xmm0\nmovdqa xmm7,xmm0\npunpcklwd xmm0,xmm4\npunpckhwd xmm6,xmm4\npsrldq xmm7,0x2\npsrldq xmm4,0x2\nmovdqa xmm2,xmm3\nmovdqa xmm1,xmm3\npunpcklwd xmm3,xmm7\npunpckhwd xmm2,xmm7\npsrldq xmm1,0x2\nmovdqa xmm5,xmm4\npunpcklwd xmm4,xmm1\npunpckhwd xmm5,xmm1\npshufd xmm7,xmm0,0x4e\npunpckldq xmm0,xmm3\npunpckhdq xmm3,xmm4\npunpckldq xmm4,xmm7\npshufd xmm7,xmm6,0x4e\nmovdqa xmm1,xmm5\npunpckldq xmm6,xmm2\npunpckldq xmm5,xmm7\npunpckhdq xmm2,xmm1\npunpcklqdq xmm0,xmm4\npunpcklqdq xmm3,xmm6\npunpcklqdq xmm5,xmm2\ncmp rcx,0x10",
+    "saved": 2,
+    "why": "Combined even/odd packs, a high-byte unpack, and MOVHLPS shorten the byte interleave stage by one instruction. Scheduling the high-dword unpack before its source is overwritten removes another copy while retaining the required final xmm1 value."
+  },
+  "888844bea2": {
+    "rewrite": "movdqa xmm7,XMMWORD PTR [rsi]\npcmpeqw xmm6,xmm6\npsrlw xmm6,0x8\npand xmm6,xmm7\npsrlw xmm7,0x8\nmovdqa xmm1,xmm0\nmovdqa xmm3,xmm2\nmovdqa xmm5,xmm4\npaddw xmm0,xmm6\npaddw xmm1,xmm7\npackuswb xmm0,xmm1\npaddw xmm2,xmm6\npaddw xmm3,xmm7\npackuswb xmm2,xmm3\npaddw xmm4,xmm6\npaddw xmm5,xmm7\npackuswb xmm4,xmm4\npackuswb xmm5,xmm5\npcmpeqb xmm6,xmm6\nmovdqa xmm1,xmm0\npunpcklbw xmm0,xmm2\npunpcklbw xmm4,xmm6\npunpckhbw xmm1,xmm2\npunpcklbw xmm5,xmm6\nmovdqa xmm2,xmm0\npunpcklwd xmm0,xmm4\npunpckhwd xmm2,xmm4\nmovdqa xmm6,xmm1\npunpcklwd xmm1,xmm5\npunpckhwd xmm6,xmm5\nmovdqa xmm3,xmm0\npunpckldq xmm0,xmm1\npunpckhdq xmm3,xmm1\nmovdqa xmm7,xmm2\npunpckldq xmm2,xmm6\npunpckhdq xmm7,xmm6\ncmp rcx,0x10",
+    "saved": 2,
+    "why": "Combining the red and green even/odd packs lets low and high byte unpacks replace two packs with one copy. Both alpha interleaves share xmm6, eliminating the second all-ones comparison."
+  },
+  "f9f6a79db1": {
+    "rewrite": "movdqa xmm7,XMMWORD PTR [rsi]\npcmpeqw xmm6,xmm6\npsrlw xmm6,0x8\npand xmm6,xmm7\npsrlw xmm7,0x8\nmovdqa xmm1,xmm0\nmovdqa xmm3,xmm2\nmovdqa xmm5,xmm4\npaddw xmm0,xmm6\npaddw xmm1,xmm7\npackuswb xmm0,xmm1\npaddw xmm2,xmm6\npaddw xmm3,xmm7\npackuswb xmm2,xmm3\npaddw xmm4,xmm6\npaddw xmm5,xmm7\npackuswb xmm4,xmm5\nmovdqa xmm3,xmm2\npunpckhbw xmm3,xmm0\nmovhlps xmm5,xmm4\npunpcklbw xmm4,xmm2\npunpcklbw xmm0,xmm5\nmovdqa xmm6,xmm4\nmovdqa xmm7,xmm4\npunpcklwd xmm4,xmm0\npunpckhwd xmm6,xmm0\npsrldq xmm7,0x2\npsrldq xmm0,0x2\nmovdqa xmm2,xmm3\nmovdqa xmm5,xmm3\npunpcklwd xmm3,xmm7\npunpckhwd xmm2,xmm7\npsrldq xmm5,0x2\nmovdqa xmm1,xmm0\npunpcklwd xmm0,xmm5\npunpckhwd xmm1,xmm5\npshufd xmm7,xmm4,0x4e\npunpckldq xmm4,xmm3\npunpckhdq xmm3,xmm0\npunpckldq xmm0,xmm7\npshufd xmm7,xmm6,0x4e\npunpckldq xmm6,xmm2\npunpckhdq xmm2,xmm1\npunpckldq xmm1,xmm7\npunpcklqdq xmm4,xmm0\npunpcklqdq xmm3,xmm6\npunpcklqdq xmm1,xmm2\ncmp rcx,0x10",
+    "saved": 3,
+    "why": "Combined even/odd packs, a high-byte unpack, and MOVHLPS shorten the byte interleave stage by one instruction. Scheduling each high-dword unpack before its source is overwritten removes two more copies whose destination is not preserved."
+  },
+  "9326405539": {
+    "rewrite": "movdqa xmm7,XMMWORD PTR [rsi]\npcmpeqw xmm6,xmm6\npsrlw xmm6,0x8\npand xmm6,xmm7\npsrlw xmm7,0x8\nmovdqa xmm1,xmm0\nmovdqa xmm3,xmm2\nmovdqa xmm5,xmm4\npaddw xmm0,xmm6\npaddw xmm1,xmm7\npackuswb xmm0,xmm0\npackuswb xmm1,xmm1\npaddw xmm2,xmm6\npaddw xmm3,xmm7\npackuswb xmm2,xmm3\npaddw xmm4,xmm6\npaddw xmm5,xmm7\npackuswb xmm4,xmm5\npcmpeqb xmm6,xmm6\nmovdqa xmm5,xmm4\npunpcklbw xmm4,xmm2\npunpcklbw xmm0,xmm6\npunpckhbw xmm5,xmm2\npunpcklbw xmm1,xmm6\nmovdqa xmm2,xmm4\npunpcklwd xmm4,xmm0\npunpckhwd xmm2,xmm0\nmovdqa xmm6,xmm5\npunpcklwd xmm5,xmm1\npunpckhwd xmm6,xmm1\nmovdqa xmm3,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm3,xmm5\nmovdqa xmm7,xmm2\npunpckldq xmm2,xmm6\npunpckhdq xmm7,xmm6\ncmp rcx,0x10",
+    "saved": 2,
+    "why": "Combining the blue and green even/odd packs lets low and high byte unpacks replace two packs with one copy. Both alpha interleaves share xmm6, eliminating the second all-ones comparison."
+  },
+  "72769da8ec": {
+    "rewrite": "movdqa xmm7,XMMWORD PTR [rsi]\npcmpeqw xmm6,xmm6\npsrlw xmm6,0x8\npand xmm6,xmm7\npsrlw xmm7,0x8\nmovdqa xmm1,xmm0\nmovdqa xmm3,xmm2\nmovdqa xmm5,xmm4\npaddw xmm0,xmm6\npaddw xmm1,xmm7\npackuswb xmm0,xmm1\npaddw xmm2,xmm6\npaddw xmm3,xmm7\npackuswb xmm2,xmm3\npaddw xmm4,xmm6\npaddw xmm5,xmm7\npackuswb xmm4,xmm5\npcmpeqb xmm6,xmm6\npcmpeqb xmm7,xmm7\nmovdqa xmm3,xmm2\npunpcklbw xmm6,xmm4\npunpcklbw xmm2,xmm0\npunpckhbw xmm7,xmm4\npunpckhbw xmm3,xmm0\nmovdqa xmm4,xmm6\npunpcklwd xmm6,xmm2\npunpckhwd xmm4,xmm2\nmovdqa xmm0,xmm7\npunpcklwd xmm7,xmm3\npunpckhwd xmm0,xmm3\nmovdqa xmm5,xmm6\npunpckldq xmm6,xmm7\npunpckhdq xmm5,xmm7\nmovdqa xmm1,xmm4\npunpckldq xmm4,xmm0\npunpckhdq xmm1,xmm0\ncmp rcx,0x10",
+    "saved": 2,
+    "why": "Pack each even/odd color pair together and select the proper halves with low and high byte unpacks. Three self-packs disappear, and only one replacement copy is needed to preserve both green/red interleaves."
+  },
+  "598bae753e": {
+    "rewrite": "movdqa xmm7,XMMWORD PTR [rsi]\npcmpeqw xmm6,xmm6\npsrlw xmm6,0x8\npand xmm6,xmm7\npsrlw xmm7,0x8\nmovdqa xmm1,xmm0\nmovdqa xmm3,xmm2\nmovdqa xmm5,xmm4\npaddw xmm0,xmm6\npaddw xmm1,xmm7\npackuswb xmm0,xmm1\npaddw xmm2,xmm6\npaddw xmm3,xmm7\npackuswb xmm2,xmm3\npaddw xmm4,xmm6\npaddw xmm5,xmm7\npackuswb xmm4,xmm5\npcmpeqb xmm6,xmm6\npcmpeqb xmm7,xmm7\nmovdqa xmm3,xmm2\npunpcklbw xmm6,xmm0\npunpcklbw xmm2,xmm4\npunpckhbw xmm7,xmm0\npunpckhbw xmm3,xmm4\nmovdqa xmm0,xmm6\npunpcklwd xmm6,xmm2\npunpckhwd xmm0,xmm2\nmovdqa xmm4,xmm7\npunpcklwd xmm7,xmm3\npunpckhwd xmm4,xmm3\nmovdqa xmm1,xmm6\npunpckldq xmm6,xmm7\npunpckhdq xmm1,xmm7\nmovdqa xmm5,xmm0\npunpckldq xmm0,xmm4\npunpckhdq xmm5,xmm4\ncmp rcx,0x10",
+    "saved": 2,
+    "why": "Pack each even/odd color pair together and select the proper halves with low and high byte unpacks. Three self-packs disappear, and only one replacement copy is needed to preserve both green/blue interleaves."
+  },
+  "b5b2fabe19": {
+    "rewrite": null,
+    "why": "The masked load and both rounding operations produce required values, while the comparison separately establishes the required CF and ZF."
+  }
+}

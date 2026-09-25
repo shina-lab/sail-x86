@@ -1,0 +1,82 @@
+{
+  "0f7e07194d": {
+    "rewrite": null,
+    "why": "Both shuffled inputs and the masked xmm2 result are live, and SSSE3 has no blend instruction to shorten the required compare-and-mask sequence."
+  },
+  "2b334026db": {
+    "rewrite": null,
+    "why": "Both scalar loads, both stores, both pointer updates and the flag-setting counter subtraction are required, with the loaded registers also live."
+  },
+  "04a2446fdb": {
+    "rewrite": null,
+    "why": "The independently addressed qword transfers require both loads and stores, while both loaded registers, both updated pointers and the counter flags are live."
+  },
+  "6098156d04": {
+    "rewrite": null,
+    "why": "The two independently addressed vector transfers and three scalar updates are required, including the loads' zeroing of the upper halves of ymm0 and ymm1."
+  },
+  "bdff7cd751": {
+    "rewrite": null,
+    "why": "Each independently addressed 256-bit transfer already uses one load and one store, and both pointer updates and the flag-setting counter subtraction remain required."
+  },
+  "a0b3e825d9": {
+    "rewrite": null,
+    "why": "The four live vectors require four loads and four stores at AVX2 width, in addition to the required pointer and counter updates."
+  },
+  "2327303307": {
+    "rewrite": null,
+    "why": "All four vector transfers and scalar updates are live, including CF from the destination-pointer addition that DEC preserves."
+  },
+  "7b2867266f": {
+    "rewrite": null,
+    "why": "The two qword loads, lane shift and arbitrary word products feed live vector results, and the additions, output shift, stores and scalar updates offer no removable instruction."
+  },
+  "11f7755b87": {
+    "rewrite": null,
+    "why": "Constructing both shifted row pairs requires four qword loads, and their arbitrary products, bias addition, shift, stores and live scalar updates cannot be shortened here."
+  },
+  "7aa5d73ee4": {
+    "rewrite": null,
+    "why": "The independent row addresses require the loads and inserts, while arbitrary coefficients and live vector results prevent reducing the remaining arithmetic and stores."
+  },
+  "07ff6211b8": {
+    "rewrite": null,
+    "why": "All four loads are already folded into multiplies, and the arbitrary word sums, shifts, stores, scalar updates and final ymm2 product remain required."
+  },
+  "fce41005c6": {
+    "rewrite": null,
+    "why": "The loads are already folded into multiplies, and all output arithmetic, stores and scalar updates are live, including CF from ADD preserved by DEC."
+  },
+  "1ca16c8463": {
+    "rewrite": null,
+    "why": "Both indexed output vectors and the final ymm2 product are live, and AVX2 cannot fuse these arbitrary word products, bias additions and shifts."
+  },
+  "2b505e5ccb": {
+    "rewrite": null,
+    "why": "All six instructions produce distinct required register results, and the final subtraction also supplies the required flags."
+  },
+  "2ac8dd005e": {
+    "rewrite": null,
+    "why": "The broadcast and qword shift generate distinct inputs for arbitrary coefficients, leaving no shorter AVX2 combination of the products, bias addition and logical shift."
+  },
+  "d201ca13f8": {
+    "rewrite": null,
+    "why": "Both loads are already folded into independent word multiplies, leaving two required wrapping additions and the logical shift."
+  },
+  "d79ef78987": {
+    "rewrite": null,
+    "why": "The weighted sum already uses folded loads and minimal separate arithmetic, and the insert is needed to duplicate the result into the live upper half of ymm0."
+  },
+  "ce86d6657c": {
+    "rewrite": null,
+    "why": "The two memory-source multiplies, two wrapping word additions and logical shift are all required for arbitrary coefficient and bias values."
+  },
+  "542333e9b8": {
+    "rewrite": null,
+    "why": "Each 256-bit output requires its folded multiply, subtraction and store, and both pointer updates and the flag-setting counter subtraction are live."
+  },
+  "8f7b7b8afc": {
+    "rewrite": null,
+    "why": "The four folded multiplies, subtractions and stores are required, along with the live pointer updates and decrement that preserves CF from the rdi subtraction."
+  }
+}

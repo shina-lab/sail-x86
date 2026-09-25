@@ -1,0 +1,82 @@
+{
+  "5decf70222": {
+    "rewrite": null,
+    "why": "Both carry-dependent additions, both stores, and the final carry-consuming update of eax are required."
+  },
+  "d0479288e7": {
+    "rewrite": null,
+    "why": "The third input load, three carry-dependent additions, three stores, and partial-register carry result are all required."
+  },
+  "db51d5f63f": {
+    "rewrite": null,
+    "why": "All pointer updates and limb stores are live, while inc/dec zero-extend eax and establish ZF without disturbing the required carry flag."
+  },
+  "7674a8276b": {
+    "rewrite": null,
+    "why": "The stored intermediate difference and subsequent borrow-dependent subtraction are required, and the full unsigned product still needs an accumulator load and mul."
+  },
+  "a2c6fae188": {
+    "rewrite": null,
+    "why": "The stored intermediate difference and subsequent borrow-dependent subtraction are required, and the full unsigned product still needs an accumulator load and mul."
+  },
+  "1031aef8d7": {
+    "rewrite": null,
+    "why": "The stored intermediate difference and subsequent borrow-dependent subtraction are required, and the full unsigned product still needs an accumulator load and mul."
+  },
+  "bcf01b2a96": {
+    "rewrite": null,
+    "why": "The intermediate store, borrow-adjusted r8, and index update with its required ZF each depend on the existing operations."
+  },
+  "a768d02ba2": {
+    "rewrite": null,
+    "why": "Both register copies, clearing rcx, and extracting the original low bit into CF produce separate required results."
+  },
+  "d6584c2399": {
+    "rewrite": null,
+    "why": "All copied values and the load are live, and folding the r10 copy and decrement into lea would lose the required ZF."
+  },
+  "81c87d125f": {
+    "rewrite": null,
+    "why": "The two pointer calculations, index negation, and independent zero test all produce required outputs."
+  },
+  "4871db80b9": {
+    "rewrite": null,
+    "why": "The product high half, loaded difference, and sum of two borrows must be computed while preserving the original ebx bits above bl."
+  },
+  "93665d2e18": {
+    "rewrite": null,
+    "why": "A shorter shrd replacement would miss the OR when the masked shift count is zero, and the original also clears the upper halves of rcx and rbx."
+  },
+  "7055d4515e": {
+    "rewrite": null,
+    "why": "The shifted load, rcx negation, OR, product high half, and two separately accumulated borrows all contribute to required results."
+  },
+  "78bbbdb4db": {
+    "rewrite": null,
+    "why": "The product and store, shifted load, rcx negation, and index increment with its required ZF are all live."
+  },
+  "e3907548e5": {
+    "rewrite": null,
+    "why": "Both halves of the initial product must survive, and the stored result requires both subtractions and the subsequent multiplication."
+  },
+  "0bfc50f616": {
+    "rewrite": null,
+    "why": "The nonzero mask, three pointer updates, negated index, and masked eax result with its ZF each require the existing operations."
+  },
+  "4704740354": {
+    "rewrite": null,
+    "why": "All masked source registers remain live, so their loads and masks must survive alongside the carry chain, stores, carry result, and index update."
+  },
+  "e3a5d062a7": {
+    "rewrite": null,
+    "why": "All masked source registers remain live, so their loads and masks must survive alongside the borrow chain, stores, borrow result, and index update."
+  },
+  "94cc0b9a57": {
+    "rewrite": null,
+    "why": "Both masked source registers remain live, and the two-limb carry chain, stores, carry result, and index update leave no removable operation."
+  },
+  "a70e5477f7": {
+    "rewrite": null,
+    "why": "Both masked source registers remain live, and the two-limb borrow chain, stores, borrow result, and index update leave no removable operation."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "88ca17ecc5": {
+    "rewrite": null,
+    "why": "The word broadcast and two saturated products need their current two-operand setup, and both the shifted intermediate and packed result are live."
+  },
+  "35b21baa94": {
+    "rewrite": null,
+    "why": "The two saturated arithmetic chains and four DWORD stores require their extraction steps, with the resulting vector registers also preserved."
+  },
+  "3dd4199adb": {
+    "rewrite": null,
+    "why": "Both unpacked halves feed distinct saturated arithmetic, and the two QWORD stores plus pointer, counter, and flag updates are required."
+  },
+  "ede5178f06": {
+    "rewrite": null,
+    "why": "Both vector loads are live, and computing rdx minus r8 minus one still requires two scalar instructions without a known input carry."
+  },
+  "6345762fbc": {
+    "rewrite": null,
+    "why": "The byte broadcast needs its shuffle mask, and the low and high arithmetic chains cannot be combined for arbitrary coefficients with saturation."
+  },
+  "59cb8b05f6": {
+    "rewrite": null,
+    "why": "Each shared unsigned operand feeds two distinct saturated products, so the copies and subsequent arithmetic remain necessary."
+  },
+  "123eb22f0f": {
+    "rewrite": null,
+    "why": "The doubled xmm6, the original and doubled halves in xmm5, and the independent subtraction are all live and require the copy and three operations."
+  },
+  "2dbef2155b": {
+    "rewrite": null,
+    "why": "The two separately addressed stores and the preserved pointer and counter updates each require an instruction."
+  },
+  "3aa751943e": {
+    "rewrite": null,
+    "why": "Both vector loads are live, and the byte broadcast requires the scalar transfer, shuffle-mask initialization, and shuffle at this ISA level."
+  },
+  "04abc7719a": {
+    "rewrite": null,
+    "why": "Both arbitrary byte shuffles of each source are needed, so destructive SSSE3 operations require the copies alongside the four saturated products."
+  },
+  "f87fec4f58": {
+    "rewrite": null,
+    "why": "The live index calculation and DWORD store require all stages of the saturated multiply, rounded scaling, and unsigned packing."
+  },
+  "1d4291d9c5": {
+    "rewrite": null,
+    "why": "The two byte broadcasts share one necessary shuffle mask, and subtracting rcx from zero-extended eax still requires both scalar instructions."
+  },
+  "5d2d28704c": {
+    "rewrite": null,
+    "why": "The preserved counter update and DWORD store require all stages of the saturated multiply, rounded scaling, and unsigned packing."
+  },
+  "0fe28b3e50": {
+    "rewrite": null,
+    "why": "All four products are live, the copies support separate low and high unpacks, and folding the unaligned loads into legacy SSE unpacks would introduce alignment requirements."
+  },
+  "1a39e90df7": {
+    "rewrite": null,
+    "why": "Both low and high product pairs and their additions are required, while the final temporaries and test flags must also be preserved."
+  },
+  "b074ed4e65": {
+    "rewrite": null,
+    "why": "The duplicated bytes feed four arbitrary saturated products, and all accumulators and resulting temporaries are live."
+  },
+  "bdab6a7b80": {
+    "rewrite": null,
+    "why": "Four independently rounded products, two packed results, and both stores are required, with the intermediate registers also preserved."
+  },
+  "80deecfd31": {
+    "rewrite": null,
+    "why": "Both unpack and multiply pairs are required, and preserving xmm0 requires the copy into xmm2 with two-operand SSSE3 instructions."
+  },
+  "5403fc1333": {
+    "rewrite": null,
+    "why": "Both unpack and multiply pairs are required, and preserving xmm0 requires the copy into xmm1 with two-operand SSSE3 instructions."
+  },
+  "ab53ae9b46": {
+    "rewrite": null,
+    "why": "The shuffled masks and both signed comparisons are live, and pmovmskb needs a separate test to produce the required flags."
+  }
+}

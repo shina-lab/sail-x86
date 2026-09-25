@@ -9,22 +9,55 @@ int main() {
   pci.write_addr(0x8000080C); assert(pci.read_data() & 0x00800000); // multifunction
   pci.write_addr(0x80000900); assert(pci.read_data() == 0x70108086);
   pci.write_addr(0x80000B00); assert(pci.read_data() == 0x71138086);
+  // SeaBIOS ACPI COM1._STA reads CAEN, while COM2._STA reads CBEN.
+  // Reflect the one UART actually present so an OS can attach its tty.
+  pci.write_addr(0x80000B64);
+  assert((pci.read_data() & 0x88000000) == 0x08000000);
   pci.write_addr(0x80000940); assert(pci.read_data() == 0x80008000);
-  // PIIX IDE BMIBA is a 16-byte I/O BAR with a 16-bit base.
-  pci.write_addr(0x80000920); assert(pci.read_data() == 1);
-  assert(!pci.ide_bus_master_handles(0));
-  pci.write_data(0xFFFFFFFF); assert(pci.read_data() == 0xFFF1);
-  pci.write_data(0x1234C12F); assert(pci.read_data() == 0xC121);
-  assert(pci.ide_bus_master_base() == 0xC120);
-  assert(pci.ide_bus_master_handles(0xC120));
-  assert(pci.ide_bus_master_handles(0xC12F));
-  assert(!pci.ide_bus_master_handles(0xC130));
-  pci.write_addr(0x80000904); pci.write_data(4); // I/O decode disabled
-  assert(!pci.ide_bus_master_handles(0xC120));
-  pci.write_data(5);
-  pci.write_addr(0x80000920); pci.write_data(0xD001);
-  assert(!pci.ide_bus_master_handles(0xC120));
-  assert(pci.ide_bus_master_handles(0xD00F));
+  {
+    PCIConfigSpace pci;
+    // Exercise the original relocation/decode cases with the QEMU-style BAR.
+    pci.write_addr(0x80000920); assert(pci.read_data() == 1);
+    assert(!pci.ide_busmaster_handles(0));
+    pci.write_data(0xFFFFFFFF); assert(pci.read_data() == 0xFFFFFFF1);
+    pci.write_data(0x1234C12F); assert(pci.read_data() == 0x1234C121);
+    assert(!pci.ide_busmaster_handles(0xC120));
+    pci.write_data(0xC12F);
+    assert(pci.ide_busmaster_base() == 0xC120);
+    pci.write_addr(0x80000904); pci.write_data(1); // Enable I/O decoding.
+    assert(pci.ide_busmaster_handles(0xC120));
+    assert(pci.ide_busmaster_handles(0xC12F));
+    assert(!pci.ide_busmaster_handles(0xC130));
+    pci.write_addr(0x80000904); pci.write_data(4); // I/O decode disabled
+    assert(!pci.ide_busmaster_handles(0xC120));
+    pci.write_data(5);
+    pci.write_addr(0x80000920); pci.write_data(0xD001);
+    assert(!pci.ide_busmaster_handles(0xC120));
+    assert(pci.ide_busmaster_handles(0xD00F));
+  }
+  {
+    PCIConfigSpace pci;
+    // PIIX3 BAR4 must exist even for PIO devices: FreeBSD resets its DMA
+    // registers during channel probing. Probe, align, relocate and gate I/O.
+    pci.write_addr(0x80000920); assert(pci.read_data() == 1);
+    assert(!pci.ide_busmaster_handles(0));
+    pci.write_data(0xFFFFFFFF); assert(pci.read_data() == 0xFFFFFFF1);
+    assert(~(pci.read_data() & ~3u) + 1 == 16); // firmware BAR sizing
+    pci.write_data(0x1234C123); assert(pci.read_data() == 0x1234C121);
+    pci.write_addr(0x80000904); pci.write_data(5);
+    assert(!pci.ide_busmaster_handles(0xC120)); // no truncation to 16 bits
+    pci.write_data(0);
+    pci.write_addr(0x80000920); pci.write_data(0xC123);
+    assert(pci.ide_busmaster_base() == 0xC120);
+    assert(!pci.ide_busmaster_handles(0xC120));
+    pci.write_addr(0x80000904); pci.write_data(5);
+    assert(pci.ide_busmaster_handles(0xC120) && pci.ide_busmaster_handles(0xC12F));
+    assert(!pci.ide_busmaster_handles(0xC11F) && !pci.ide_busmaster_handles(0xC130));
+    pci.write_addr(0x80000920); pci.write_data(0xD001);
+    assert(!pci.ide_busmaster_handles(0xC120) && pci.ide_busmaster_handles(0xD000));
+    pci.write_addr(0x80000904); pci.write_data(4);
+    assert(!pci.ide_busmaster_handles(0xD000));
+  }
   // PIIX4 PM has no standard BARs or option ROM.
   for (unsigned reg = 0x10; reg <= 0x30; reg += 4) {
     pci.write_addr(0x80000B00 | reg);

@@ -1,0 +1,17 @@
+=== 226 test functions for 114 blocks -> /home/ruiu/sail-x86/verify/blocks/blocks_tests.sail
+=== Isla IR: 1 chunk(s), 4 in parallel
+    chunk0.ir: 11,466,210 bytes, 197s
+=== Isla traces (60 parallel)
+    100/226 traces, 49s
+    200/226 traces, 90s
+=== Z3 (60 parallel, 60s each)
+
+  dav1d          assembler error              1
+  dav1d          original not executable      2
+  dav1d          sat                          4
+  dav1d          timeout                      1
+  dav1d          unsat                        74
+  linux          sat                          4
+  linux          timeout                      5
+  linux          unsat                        23
+wrote results/w3.json

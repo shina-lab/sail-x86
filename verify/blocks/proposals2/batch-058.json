@@ -1,0 +1,84 @@
+{
+  "f228170117": {
+    "rewrite": null,
+    "why": "The separate dword loads, interleaving, weighted arithmetic, stores, and pointer updates are all needed, including the shift that produces the required final xmm0."
+  },
+  "06cc687399": {
+    "rewrite": "movd xmm4,DWORD PTR [r9+r8*2]\npunpcklwd xmm4,xmm4\npshufd xmm3,xmm4,0x0\npshufd xmm4,xmm4,0x55\nmovq xmm0,QWORD PTR [rdi]\nmovhps xmm1,QWORD PTR [rdi+rsi*1]\nmovdqa xmm2,XMMWORD PTR [rdx]\npunpcklbw xmm0,xmm2\npunpckhbw xmm1,xmm2\npmaddubsw xmm0,xmm3\npmaddubsw xmm1,xmm4\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npackuswb xmm0,xmm1\nmovq QWORD PTR [rdi],xmm0\nmovhps QWORD PTR [rdi+rsi*1],xmm0\nlea rdi,[rdi+rsi*2]\nadd rdx,0x10\nadd r8,0x2",
+    "saved": 1,
+    "why": "Load the first row directly into xmm0 to remove the copy from xmm1. The high unpack reads only the second row loaded by movhps, so xmm1's untouched low half is irrelevant."
+  },
+  "b255c0998e": {
+    "rewrite": null,
+    "why": "Broadcasting the loaded low word requires both shuffle stages at this ISA level without a known byte-shuffle mask, and the ecx assignment is independently required."
+  },
+  "3080c9cb6d": {
+    "rewrite": null,
+    "why": "Both unpacked halves and the loaded xmm2 value must be preserved through the weighted blend, leaving no removable copy or arithmetic operation in this two-operand sequence."
+  },
+  "d559a30761": {
+    "rewrite": null,
+    "why": "The vector load and store, index increment, and comparison each provide a required memory, register, or flag result."
+  },
+  "2df1ce0730": {
+    "rewrite": null,
+    "why": "Updating r15, loading and shuffling four bytes with an arbitrary mask, and clearing rcx require the four existing operations."
+  },
+  "5c29c30692": {
+    "rewrite": null,
+    "why": "The address calculation, four-byte load, arbitrary byte shuffle, and rcx clearing each produce an independently required result."
+  },
+  "c220846a13": {
+    "rewrite": null,
+    "why": "The two shifts have live results, and SSSE3 has no instruction combining the signed word multiply-add with accumulation into xmm6."
+  },
+  "2d9233e3b3": {
+    "rewrite": "movq rbx,xmm3\nmovsxd r11,ebx\nsar rbx,0x20\npunpckhqdq xmm3,xmm3\nmovq r14,xmm3\nmovsxd rbp,r14d\nsar r14,0x20\npsrlq xmm3,0x20",
+    "saved": 3,
+    "why": "Extract each pair of dwords with one 64-bit move, sign-extend its low dword, and arithmetically shift out its signed high dword. Retaining the high-qword duplication and logical shift reproduces the required final xmm3."
+  },
+  "2a894866ec": {
+    "rewrite": null,
+    "why": "Each arbitrary shuffle mask needs its own byte addition before the corresponding shuffle, and SSSE3 cannot combine these operations."
+  },
+  "6e58f8edd3": {
+    "rewrite": null,
+    "why": "The multiply-adds, distinct wrapping and saturating reductions, rounded scaling, packing, store, and live register and flag updates have no redundant stage."
+  },
+  "a3a6aee3c7": {
+    "rewrite": null,
+    "why": "The load, unsigned-by-signed multiply-add, saturation pack, store, and three live scalar updates are all required for arbitrary input values."
+  },
+  "4e64c1d49d": {
+    "rewrite": null,
+    "why": "Both multiply-adds feed the packed store, xmm1's intermediate result is live, and all three scalar updates must be retained."
+  },
+  "43431fd6b8": {
+    "rewrite": null,
+    "why": "Both multiply-adds and the pack are required, as are the store, pointer increments, and flag-producing counter subtraction."
+  },
+  "efd59a7548": {
+    "rewrite": null,
+    "why": "SSSE3 requires two stores for these 32 bytes, followed by the independently required pointer and counter updates."
+  },
+  "e5e4db080a": {
+    "rewrite": null,
+    "why": "The two multiply-adds, packed store, pointer increments, and flag-producing decrement all contribute required outputs."
+  },
+  "854af612e6": {
+    "rewrite": null,
+    "why": "The permitted ISA needs four 128-bit stores for these 64 bytes, and both scalar updates have required final results."
+  },
+  "e92a1cbff1": {
+    "rewrite": null,
+    "why": "The copy preserves the input for two destructive shuffles, and both multiply-adds and packs are needed to produce the two live vector results."
+  },
+  "7ca5eedb9f": {
+    "rewrite": null,
+    "why": "The copy supplies separate multiply-add and shuffle paths, and every arithmetic and packing stage contributes to a required final vector value."
+  },
+  "0150d71e1b": {
+    "rewrite": null,
+    "why": "Both multiply-add results are consumed by the pack before xmm1 is reloaded, and the two loads and comparison independently produce required outputs."
+  }
+}

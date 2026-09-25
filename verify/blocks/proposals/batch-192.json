@@ -1,0 +1,87 @@
+{
+  "23f2fd34bd": {
+    "rewrite": null,
+    "why": "The broadcast, full-width load, alignment, and byte shuffle each supply distinct bytes needed in the preserved ymm4 result."
+  },
+  "60701313d2": {
+    "rewrite": null,
+    "why": "The distinct shuffled products feed required outputs, and arbitrary input values prevent combining the wrapping and saturating additions."
+  },
+  "74e68917eb": {
+    "rewrite": null,
+    "why": "All shuffled products and center terms feed preserved results or stores, and their wrapping and saturating arithmetic cannot be merged for arbitrary inputs."
+  },
+  "50ef328490": {
+    "rewrite": "vmovd xmm2,ebp\nvmovdqa ymm0,YMMWORD PTR [CONST_1]\nvpbroadcastb ymm2,xmm2\nvpsubb ymm0,ymm0,ymm2\nvpminub ymm0,ymm0,YMMWORD PTR [CONST_2]",
+    "saved": 1,
+    "why": "The final shuffle only changes the unrestricted ymm5, so it can be removed while preserving ymm0."
+  },
+  "83298bf5b2": {
+    "rewrite": null,
+    "why": "Both vector results and the pointer increment are required, and the alignment cannot absorb the load in its first source operand."
+  },
+  "2cbfaf3a24": {
+    "rewrite": null,
+    "why": "The sum, unpacked products, and squared results are all live, with no redundant operation under arbitrary shuffle masks and ymm6."
+  },
+  "58e7281fbb": {
+    "rewrite": null,
+    "why": "The stores require both the doubled intermediate and the completed weighted sums, so none of the arithmetic is dead."
+  },
+  "a4e619faf2": {
+    "rewrite": "mov rbp,r12\nxchg r12,r15",
+    "saved": 2,
+    "why": "Keep the required copy into rbp and exchange r12 with r15 directly; the rdi addition and its flags are unrestricted."
+  },
+  "e677a78087": {
+    "rewrite": null,
+    "why": "Each dot-product chain needs its own copy of the preserved zmm26 bias, and all shuffles, packing, and shifts contribute to required stores."
+  },
+  "20a798044a": {
+    "rewrite": null,
+    "why": "Both copies and both additions produce required register values, and the final addition also supplies the required flags."
+  },
+  "6620fe8944": {
+    "rewrite": "vpshufb zmm18,zmm0,zmm22\nvmovdqa32 zmm16,zmm26\nvpdpbusd zmm16,zmm18,zmm27\nvpshufb zmm18,zmm0,zmm23\nvpdpbusd zmm26,zmm18,zmm27\nvpshufb zmm18,zmm0,zmm24\nvpdpbusd zmm16,zmm18,zmm28\nvpshufb zmm0,zmm0,zmm25\nvpdpbusd zmm26,zmm0,zmm28\nvpackssdw zmm16,zmm16,zmm26\nvpsraw zmm16,zmm16,0x3\nvmovdqa32 ZMMWORD PTR [r10],zmm16",
+    "saved": 1,
+    "why": "After copying the initial bias into zmm16, use the unrestricted zmm26 as the second accumulator and eliminate its copy into zmm17."
+  },
+  "c9fe93f8fe": {
+    "rewrite": null,
+    "why": "The word sum, two dot-product accumulators, and final unpack are all preserved, and the arbitrary zmm20 input prevents treating the square-extension unpacks as zero extension."
+  },
+  "0a0589f356": {
+    "rewrite": null,
+    "why": "All arithmetic contributes to the three required stores, including the doubled intermediate, and the index addition must retain its flags."
+  },
+  "bae86ff9e2": {
+    "rewrite": "mov rbp,r12\nxchg r12,r15",
+    "saved": 2,
+    "why": "Keep the required copy into rbp and exchange r12 with r15 directly; the rdi addition and its flags are unrestricted."
+  },
+  "bef7d77b52": {
+    "rewrite": null,
+    "why": "Each vector instruction produces a separate preserved register value, and the test is needed for the preserved flags."
+  },
+  "66652812ad": {
+    "rewrite": null,
+    "why": "All five copied register values and the decremented r9 value are required, including the decrement's flag behavior."
+  },
+  "b4b829a801": {
+    "rewrite": "punpcklbw xmm2,xmm2\npshuflw xmm2,xmm2,0x0\npunpcklqdq xmm2,xmm2\npandn xmm0,xmm2",
+    "saved": 5,
+    "why": "Only xmm0 is preserved among the modified vector registers, so retain its byte broadcast and PANDN while removing the five operations producing unused results."
+  },
+  "33bdc23ecf": {
+    "rewrite": null,
+    "why": "SSE2 needs both unpack stages to replicate the first byte, while the dword shuffle and scalar merge preserve the remaining twelve output bytes."
+  },
+  "336c45117f": {
+    "rewrite": null,
+    "why": "All three copies and the decrement produce required register values, and the decrement must preserve its specified flag behavior."
+  },
+  "001aa257fd": {
+    "rewrite": null,
+    "why": "The addition supplies required rdi and flags, and all three moves propagate distinct required register values."
+  }
+}

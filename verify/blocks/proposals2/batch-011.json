@@ -1,0 +1,82 @@
+{
+  "f1c36d4466": {
+    "rewrite": null,
+    "why": "All four stores, the pointer update, and the counter subtraction with its required flags are necessary."
+  },
+  "b6019ae0aa": {
+    "rewrite": null,
+    "why": "SSSE3 cannot combine these eight 128-bit stores, and both scalar updates and the subtraction flags are required."
+  },
+  "2f7db0e115": {
+    "rewrite": null,
+    "why": "Broadcasting an arbitrary low word requires two instructions here, followed by three copies to required output registers."
+  },
+  "1f6134a59b": {
+    "rewrite": null,
+    "why": "The eight stores contain independently specified vectors, and the pointer and counter updates must also be preserved."
+  },
+  "e9ae533a7e": {
+    "rewrite": null,
+    "why": "The eight stores already use the maximum SSSE3 vector width, and the addition and decrement supply required register values and flags."
+  },
+  "2df39c81ae": {
+    "rewrite": null,
+    "why": "Each of the eight independent vectors must be stored, and both scalar updates contribute required values and flags."
+  },
+  "f46c39147e": {
+    "rewrite": null,
+    "why": "The word broadcast needs both vector instructions, while the scalar instructions compute the required doubled count, pointer difference, masked count, and ZF."
+  },
+  "661e55cc53": {
+    "rewrite": null,
+    "why": "The loaded vector, signed difference, and absolute difference are all live, so the destructive SSSE3 subtraction requires the copy."
+  },
+  "9f14c36cb1": {
+    "rewrite": null,
+    "why": "The word expansion, distance minimum, and two selections must handle arbitrary inputs while preserving all four working vector outputs, leaving no redundant copy or mask step."
+  },
+  "188294cdc3": {
+    "rewrite": null,
+    "why": "Each instruction directly produces a distinct required final register value."
+  },
+  "c5039906cc": {
+    "rewrite": null,
+    "why": "The loaded vector, difference, absolute difference, old pointer, and advanced pointer are all required, so the copies and updates cannot be dropped."
+  },
+  "9f5c58785a": {
+    "rewrite": null,
+    "why": "The shuffle mask and prediction inputs are unconstrained, and preserving the minimum and all working vector outputs prevents shortening the two SSSE3 selections."
+  },
+  "8865a38043": {
+    "rewrite": null,
+    "why": "Both expanded vectors need their own rounded multiplication and addition, and all four stores and both scalar updates are required."
+  },
+  "7c2ba05bd9": {
+    "rewrite": null,
+    "why": "The four scalar assignments or updates and the vector load and subtraction all contribute required final values."
+  },
+  "7715a8aaa5": {
+    "rewrite": null,
+    "why": "Arbitrary per-lane subtraction and multiplier inputs require the existing expansion and arithmetic, followed by four distinct stores and live scalar updates."
+  },
+  "ffe536fc6f": {
+    "rewrite": null,
+    "why": "Each of the four instructions produces a distinct required final register value."
+  },
+  "180223dcf4": {
+    "rewrite": null,
+    "why": "The unpack consumes the incoming xmm6 value before its required zeroing, and both loaded vectors are live."
+  },
+  "4661ab320a": {
+    "rewrite": null,
+    "why": "Each of the six instructions computes a separate required register result."
+  },
+  "f21d32d08f": {
+    "rewrite": null,
+    "why": "Both unpacked halves and both weight vectors are live, so SSSE3 needs the three loads, the unpack copy, both unpacks, and both pointer operations."
+  },
+  "34362b51de": {
+    "rewrite": null,
+    "why": "The shuffle mask is arbitrary, both the doubled and combined vectors are live, and the scalar difference requires the specified 32-bit zero-extension semantics."
+  }
+}

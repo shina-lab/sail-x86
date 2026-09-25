@@ -1,0 +1,85 @@
+{
+  "0388e64bdb": {
+    "rewrite": null,
+    "why": "All scaled transpose results and remaining temporaries are live, and the lane-dependent multipliers prevent eliminating the surrounding unpack stages."
+  },
+  "7639f25461": {
+    "rewrite": null,
+    "why": "Both scalar loads, the rounded multiplication, the store, and the flag-producing OR each supply a required output."
+  },
+  "eeb1b22d42": {
+    "rewrite": "",
+    "saved": 18,
+    "why": "Every instruction writes only unpreserved vector registers, and there are no stores or required flags. The entire block can be removed."
+  },
+  "f6b4c005b8": {
+    "rewrite": "mov r10,rsp\ncmp ecx,0x6a",
+    "saved": 2,
+    "why": "The stack adjustments affect only unlisted rsp and flags overwritten by cmp. Keeping the initial r10 copy and final comparison preserves all listed outputs while leaving rsp untouched."
+  },
+  "56a42299e0": {
+    "rewrite": null,
+    "why": "Both loaded vectors, the multiplication result, the store, and the updated ecx and flags must all be preserved."
+  },
+  "d33c42488a": {
+    "rewrite": null,
+    "why": "The successive rounded multiplications cannot be combined, and folding the scalar coefficient loads into vector memory operands would read additional bytes."
+  },
+  "5eb7bd7975": {
+    "rewrite": null,
+    "why": "With arbitrary initial ymm0 and ymm3, both unpacks and wrapping word additions are needed before saturation, followed by the required store and integer updates."
+  },
+  "49f6cadcc4": {
+    "rewrite": null,
+    "why": "Each live output combines two separated memory chunks, and the eight full-width zero stores plus the live zero vector are already produced without redundant instructions."
+  },
+  "4427013ace": {
+    "rewrite": null,
+    "why": "Every rounded product feeds a required store, and the widening, wrapping additions, saturating packs, and lane permutations are needed for arbitrary inputs."
+  },
+  "2b504591f3": {
+    "rewrite": null,
+    "why": "The eight instructions produce eight distinct required vector results, with one instruction per destination."
+  },
+  "09d942f67d": {
+    "rewrite": null,
+    "why": "Both loaded vectors remain live, both rounded multiplication stages matter, and the store and OR produce required memory, register, and flag outputs."
+  },
+  "c897371e88": {
+    "rewrite": null,
+    "why": "The two separately rounded multiplications and both live scalar loads are necessary, as are the store and flag-producing OR."
+  },
+  "f5f4294e28": {
+    "rewrite": null,
+    "why": "Four AVX2-width stores and two independent integer updates are required, including the subtraction's carry flag preserved by dec."
+  },
+  "e79f71536e": {
+    "rewrite": null,
+    "why": "The pointer update, vector zeroing, integer constant assignment, and comparison each provide an independent required result."
+  },
+  "900dbf7d9b": {
+    "rewrite": null,
+    "why": "The four stores already use the maximum permitted vector width, and both integer updates must remain to preserve their results and the final flags."
+  },
+  "989b0455c1": {
+    "rewrite": null,
+    "why": "Each of the five instructions produces a distinct required vector, memory, integer, or flag result."
+  },
+  "c5d836c318": {
+    "rewrite": "sub r10,0x300\nvzeroall",
+    "saved": 7,
+    "why": "Vzeroall clears ymm0 through ymm15, so it supplies all eight required zero vectors while changing only additional unpreserved registers. It leaves ymm16 through ymm31 and the subtraction's flags unchanged."
+  },
+  "66bf2ee34c": {
+    "rewrite": null,
+    "why": "All four separate 32-byte stores and both live integer updates are required, with the final subtraction supplying the requested flags."
+  },
+  "653bf675e6": {
+    "rewrite": null,
+    "why": "Four maximum-width stores and the independent pointer and counter updates leave no removable instruction."
+  },
+  "7a1e43dfa9": {
+    "rewrite": null,
+    "why": "Both loaded vectors, the rounded product, the original-value store, and the updated ecx and flags are required."
+  }
+}

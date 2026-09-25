@@ -1,0 +1,82 @@
+{
+  "fbc66b8a81": {
+    "rewrite": null,
+    "why": "The doubled limb, shift-carry mask, borrow input and output, store, and three pointer updates are all required."
+  },
+  "fc7852443e": {
+    "rewrite": null,
+    "why": "Both limb results, the separate shift and addition carry chains, their output masks, and all pointer updates must be preserved."
+  },
+  "7361d2c526": {
+    "rewrite": null,
+    "why": "Both limb results, the shift carry and subtraction borrow chains, their output masks, and all pointer updates must be preserved."
+  },
+  "758dabe98d": {
+    "rewrite": null,
+    "why": "The three-limb shift and addition require distinct carry chains, and every load, result, store, mask, and pointer update is live."
+  },
+  "a1b4eec1b4": {
+    "rewrite": null,
+    "why": "The three-limb shift and subtraction require distinct carry and borrow chains, and every load, result, store, mask, and pointer update is live."
+  },
+  "210f5c85d3": {
+    "rewrite": null,
+    "why": "The initial EAX and EBP doublings supply independent carry inputs, and the four limb results, final carry masks, stores, and pointer updates are required."
+  },
+  "bbdfa22a28": {
+    "rewrite": null,
+    "why": "The initial EAX and EBP doublings supply the shift and subtraction inputs, and the four limb results, final masks, stores, and pointer updates are required."
+  },
+  "547e7dd19d": {
+    "rewrite": null,
+    "why": "Each pointer needs its own update, and XOR is required to zero R11 and clear the preserved CF."
+  },
+  "14925ebbaf": {
+    "rewrite": null,
+    "why": "The R11 copy, three independent pointer updates, and R10 zeroing are all live, with XOR also supplying the required clear CF."
+  },
+  "cd72de704e": {
+    "rewrite": null,
+    "why": "Each pointer needs its own update, and XOR is required to zero R11 and clear the preserved CF."
+  },
+  "be10be3048": {
+    "rewrite": null,
+    "why": "The R11 copy, three independent pointer updates, and R10 zeroing are all live, with XOR also supplying the required clear CF."
+  },
+  "a21117d909": {
+    "rewrite": null,
+    "why": "The first ADC supplies both the stored value and the carry consumed after SHRX, while the final ADC must preserve RAX and all listed flags."
+  },
+  "060473b131": {
+    "rewrite": null,
+    "why": "The first SBB supplies both the stored value and the borrow consumed after SHRX, while the final SBB must preserve RAX and all listed flags."
+  },
+  "67dd566e86": {
+    "rewrite": null,
+    "why": "The R10 load, carry-producing addition, RSI update, R11 shift, and result store each contribute required effects."
+  },
+  "d79a9e3e11": {
+    "rewrite": null,
+    "why": "The R10 load, borrow-producing subtraction, RSI update, R11 shift, and result store each contribute required effects."
+  },
+  "98993e4065": {
+    "rewrite": null,
+    "why": "The R11 copy, three independent pointer decrements, and R10 zeroing are all live, with XOR also supplying the required clear CF."
+  },
+  "a086e49036": {
+    "rewrite": null,
+    "why": "Each pointer needs its own decrement, and XOR is required to zero R11 and clear the preserved CF."
+  },
+  "476fbdf2f3": {
+    "rewrite": null,
+    "why": "The R11 copy, three distinct pointer adjustments, and R10 zeroing are all live, with XOR also supplying the required clear CF."
+  },
+  "1917d5a8d5": {
+    "rewrite": null,
+    "why": "All six product halves are required, and although RAX is dead, XOR must still clear CF because MULX leaves flags unchanged."
+  },
+  "825430d103": {
+    "rewrite": null,
+    "why": "All product halves and carry-propagation results are live, and the final SUB supplies both the required RCX value and CF/ZF."
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "2848411443": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 value requires the load and shift at the prescribed address, while the string index, r10 update, and final carry comparison each require their remaining instruction."
+  },
+  "20181439e3": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x4\nlea r10,[rdi+0x4]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to setting bits 12 through 63 with OR, and no flags must match."
+  },
+  "1ebfbd9667": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 value requires the load and shift at the prescribed address, while the string index, r10 update, and final carry comparison each require their remaining instruction."
+  },
+  "d2c19227c4": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x5\nlea r10,[rdi+0x5]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to setting bits 12 through 63 with OR, and no flags must match."
+  },
+  "ccc3aeee01": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 value requires the load and shift at the prescribed address, while the string index, r10 update, and final carry comparison each require their remaining instruction."
+  },
+  "4a282836cb": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x6\nlea r10,[rdi+0x6]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to setting bits 12 through 63 with OR, and no flags must match."
+  },
+  "c65d02c2f0": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 value requires the load and shift at the prescribed address, while the string index, r10 update, and final carry comparison each require their remaining instruction."
+  },
+  "0bb46abb78": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x7\nlea r10,[rdi+0x7]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to setting bits 12 through 63 with OR, and no flags must match."
+  },
+  "77912183e2": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 value requires the load and shift at the prescribed address, while the string index, r10 update, and final carry comparison each require their remaining instruction."
+  },
+  "f993effc65": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x8\nlea r10,[rdi+0x8]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to setting bits 12 through 63 with OR, and no flags must match."
+  },
+  "f88fcc44ab": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 value requires the load and shift at the prescribed address, while the string index, r10 update, and final carry comparison each require their remaining instruction."
+  },
+  "57f7ecb58d": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x9\nlea r10,[rdi+0x9]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to setting bits 12 through 63 with OR, and no flags must match."
+  },
+  "b566f86106": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 value requires the load and shift at the prescribed address, while the string index, r10 update, and final carry comparison each require their remaining instruction."
+  },
+  "b08b61d392": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0xa\nlea r10,[rdi+0xa]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to setting bits 12 through 63 with OR, and no flags must match."
+  },
+  "976eb2ccec": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 value requires the load and shift at the prescribed address, while the string index, r10 update, and final carry comparison each require their remaining instruction."
+  },
+  "daf669a6a4": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0xb\nlea r10,[rdi+0xb]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to setting bits 12 through 63 with OR, and no flags must match."
+  },
+  "da1760ae53": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 value requires the load and shift at the prescribed address, while the string index, r10 update, and final carry comparison each require their remaining instruction."
+  },
+  "fab76482b6": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0xc\nlea r10,[rdi+0xc]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to setting bits 12 through 63 with OR, and no flags must match."
+  },
+  "249015902b": {
+    "rewrite": null,
+    "why": "The live shifted xmm0 value requires the load and shift at the prescribed address, while the string index, r10 update, and final carry comparison each require their remaining instruction."
+  },
+  "4c181b81ec": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0xd\nlea r10,[rdi+0xd]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "Masking to 12 bits and subtracting 0x1000 is equivalent to setting bits 12 through 63 with OR, and no flags must match."
+  }
+}

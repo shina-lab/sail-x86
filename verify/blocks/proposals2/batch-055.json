@@ -1,0 +1,84 @@
+{
+  "d62ef03f2e": {
+    "rewrite": null,
+    "why": "The four separately addressed loads, two shuffles, two saturated multiply-adds, stores and pointer/counter updates all contribute to preserved outputs."
+  },
+  "cc7e970588": {
+    "rewrite": null,
+    "why": "Each vector requires its own load, arbitrary byte shuffle, saturated multiply-add and store, and all pointer/counter updates remain live."
+  },
+  "8e64b95db1": {
+    "rewrite": null,
+    "why": "Overlapping loads do not eliminate any independently masked vector computation, and all results, stores and pointer/counter updates must be preserved."
+  },
+  "dedcb3f102": {
+    "rewrite": null,
+    "why": "The four arbitrary shuffle-and-multiply computations and their stores are required, as are both pointer/index updates and the final arithmetic flags."
+  },
+  "2c698b7cb5": {
+    "rewrite": null,
+    "why": "Both updated pointers and their copies are live, along with the zero-extended byte and the counter subtraction that supplies the required flags."
+  },
+  "d3077da7ba": {
+    "rewrite": null,
+    "why": "The pointer increments, pointer copies, byte extraction and counter subtraction each produce a distinct required register value."
+  },
+  "0c9e564ae6": {
+    "rewrite": null,
+    "why": "Each of the three constant loads and two scalar operations directly produces a distinct preserved output."
+  },
+  "701c64dcf9": {
+    "rewrite": null,
+    "why": "The shared word unpack and three dword shuffles efficiently broadcast three independent words under SSSE3, and the counter subtraction remains required."
+  },
+  "37b83ed584": {
+    "rewrite": null,
+    "why": "The arbitrary masks and coefficients require separate source copies, shuffles and saturated multiply-adds, followed by the live sums, shifts, packing and stores."
+  },
+  "009e44f081": {
+    "rewrite": null,
+    "why": "The overlapping inputs still require independent arbitrary shuffles and saturated multiply-adds, and no copy or arithmetic result is unused."
+  },
+  "15399ee3e5": {
+    "rewrite": "movdqa xmm8,XMMWORD PTR [CONST_1]\npunpcklwd xmm7,xmm7\npshufd xmm5,xmm7,0x0\nimul r11,rcx,0xffffffffffffffff\npshufd xmm6,xmm7,0x55\npshufd xmm7,xmm7,0xaa\ncmp r8d,0x4",
+    "saved": 1,
+    "why": "Multiplication by -1 combines the copy and negation of RCX into R11, with identical 64-bit wraparound; the final CMP supplies all required flags."
+  },
+  "c11a3de998": {
+    "rewrite": null,
+    "why": "The two pointer increments, zero-extended byte extraction and flag-producing subtraction each compute a distinct required output."
+  },
+  "1060968c30": {
+    "rewrite": "imul r11,rcx,0xffffffffffffffff\npunpcklbw xmm0,xmm0\npsraw xmm0,0x8\npshufd xmm8,xmm0,0x0\npshufd xmm9,xmm0,0x55\npshufd xmm10,xmm0,0xaa\ncmp r8d,0x4",
+    "saved": 1,
+    "why": "Multiplication by -1 replaces MOV followed by NEG while preserving R11 for every input, and the final CMP preserves the required ZF value."
+  },
+  "f424ca7f1b": {
+    "rewrite": null,
+    "why": "All four instructions produce independently required register values, and the final subtraction also supplies the required flags."
+  },
+  "116ee353a0": {
+    "rewrite": null,
+    "why": "The filter operations remain necessary for arbitrary inputs, and SSSE3 lacks a direct word extraction to memory that could shorten the stores while preserving RAX and XMM0."
+  },
+  "47babe9b5b": {
+    "rewrite": null,
+    "why": "Both filter results are live, and the shift is required both to select the second stored dword and to produce the preserved final XMM0 value."
+  },
+  "b12f1ed24a": {
+    "rewrite": null,
+    "why": "The three constant vectors, shifted EAX and adjusted RDX are distinct required outputs already produced in one instruction each."
+  },
+  "15ef1363c7": {
+    "rewrite": null,
+    "why": "The source copies support distinct arbitrary shuffles and saturated multiply-adds, and the subsequent additions, horizontal sums, shifts, packing and stores remain necessary."
+  },
+  "5311328f45": {
+    "rewrite": null,
+    "why": "Arbitrary masks and independently saturating multiply-adds prevent combining the filter paths, and all final vector values, the store and index update remain live."
+  },
+  "e8b9ef2319": {
+    "rewrite": null,
+    "why": "The updated pointers, their copies, byte extraction and counter subtraction each produce a separate preserved register value."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "f656dcaa1f": {
+    "rewrite": null,
+    "why": "Both sign-extending loads, both vector zeroings, and the register copy produce separately required live outputs."
+  },
+  "1e7d1006b5": {
+    "rewrite": null,
+    "why": "The arbitrary bytes in xmm3 prevent folding the loads and unpacks into zero-extension instructions, and both multiply-accumulate chains, pointer updates, and comparison remain necessary."
+  },
+  "1d3a56f775": {
+    "rewrite": null,
+    "why": "The unpacks must incorporate arbitrary xmm3 bytes, while both accumulators, the xmm0 product, pointer updates, and comparison flags are live."
+  },
+  "ef558140e5": {
+    "rewrite": null,
+    "why": "The two horizontal additions, arithmetic shift, signed minimum, store, and two register updates each supply required results and have no shorter SSE4.1 combination."
+  },
+  "58dcb47d1d": {
+    "rewrite": null,
+    "why": "Each independent accumulation already uses one load, one memory-source multiply-add, and one addition, followed by required pointer updates and comparison."
+  },
+  "726e38b8f5": {
+    "rewrite": null,
+    "why": "Both load/multiply-add/accumulate chains are necessary, including the live xmm0 product, and the pointer updates and final comparison cannot be removed."
+  },
+  "f4211a8bfd": {
+    "rewrite": null,
+    "why": "The horizontal reduction, arithmetic shift, signed clamp, store, and live register updates already use separate necessary SSE4.1 and scalar operations."
+  },
+  "063242e4eb": {
+    "rewrite": null,
+    "why": "Two horizontal additions are needed for the reductions, and the shift, signed minimum, store, and register updates cannot be folded into fewer permitted instructions."
+  },
+  "fe50409bb8": {
+    "rewrite": null,
+    "why": "The complete xmm4 result is live, requiring both horizontal additions, the arithmetic shift and signed minimum, in addition to the store and register updates."
+  },
+  "f7d06e57fb": {
+    "rewrite": null,
+    "why": "The reduction, shift, and signed minimum each perform distinct required work, while the store and both register updates are also observable."
+  },
+  "1b91bd563f": {
+    "rewrite": null,
+    "why": "Both paths require loading, subtracting arbitrary xmm6 words, multiplying and accumulating, and SSE4.1 cannot fuse these operations or eliminate the live pointer updates and comparison."
+  },
+  "609be09e79": {
+    "rewrite": null,
+    "why": "The arbitrary word subtraction and signed multiply-add cannot be fused, and both accumulators, xmm0, pointer updates, and final comparison flags must be preserved."
+  },
+  "c3a6126513": {
+    "rewrite": null,
+    "why": "Both horizontal additions and the arbitrary xmm7 addition must precede the arithmetic shift and signed clamp, with the store and register updates also required."
+  },
+  "8adab4f0ac": {
+    "rewrite": null,
+    "why": "The two loads and five independent zero results are live, and vzeroall would destroy other vector registers that must retain their initial values."
+  },
+  "46c221da9f": {
+    "rewrite": null,
+    "why": "Both horizontal sums require shifting before saturating packing, the arbitrary ymm15 permutation must remain, and the store, pointer updates, and comparison are required."
+  },
+  "3065218a37": {
+    "rewrite": null,
+    "why": "The load and three independent zero results are all live, including the VEX-cleared upper halves, and vzeroall would clobber preserved registers."
+  },
+  "eaa8486c69": {
+    "rewrite": null,
+    "why": "The horizontal sum, arithmetic shift, saturating pack, and store cannot be fused under AVX2, and both pointer updates and comparison flags remain necessary."
+  },
+  "dc84fecf9e": {
+    "rewrite": null,
+    "why": "SSE3 lacks packed qword rotation and byte shuffles, so the independent 24-bit right rotations require retaining the input, shifting both ways, and combining the results."
+  },
+  "c61205640b": {
+    "rewrite": null,
+    "why": "All four arbitrary signed-word inputs must be shifted before unsigned saturation, and the two stores, scalar load, register copy, index update, and carry-producing comparison are required."
+  },
+  "c4c5d46882": {
+    "rewrite": null,
+    "why": "AVX2 requires separate shifts, saturating packs, and lane permutations for these stores, while the scalar load, register copy, index update, and final carry flag are also live."
+  }
+}

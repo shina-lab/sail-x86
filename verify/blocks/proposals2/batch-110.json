@@ -1,0 +1,82 @@
+{
+  "fcf09b514a": {
+    "rewrite": null,
+    "why": "The five loads, two dimension subtractions, two scaled offsets, and two pointer adjustments all produce required final values and cannot be combined into fewer instructions."
+  },
+  "8668b670b3": {
+    "rewrite": null,
+    "why": "The zero-extending qword load, variable byte shuffle, store, and two live index increments are necessary, with the final increment also supplying ZF."
+  },
+  "698d180b1d": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct live register value, while the second multiply supplies the required CF and the decrement supplies the remaining required flags."
+  },
+  "f66880c6be": {
+    "rewrite": null,
+    "why": "All five loaded values, both dimension differences, both negative scaled offsets, and both adjusted pointers are live, leaving no removable or foldable instruction."
+  },
+  "0eb12da5e3": {
+    "rewrite": null,
+    "why": "The dword load must zero the remaining vector bytes before the variable shuffle, and the store and both index increments are required, including the final ZF."
+  },
+  "aa192757b0": {
+    "rewrite": null,
+    "why": "The two pointer additions, two scaled offsets, and counter decrement each produce required values, and the multiply/decrement flag behavior must also be retained."
+  },
+  "fb731a483f": {
+    "rewrite": null,
+    "why": "The common negative offset is already computed once and reused, while all loads, dimension differences, and adjusted pointers remain live."
+  },
+  "6905b0dd13": {
+    "rewrite": null,
+    "why": "SSE PSHUFB cannot fold its data load because its memory operand supplies shuffle controls, so the load, shuffle, store, and live index increment are all needed."
+  },
+  "5f8f59abda": {
+    "rewrite": null,
+    "why": "Both pointer sums, the negative scaled offset, and the decremented counter are live, with CF coming from IMUL and the other required flags from DEC."
+  },
+  "0b7fd67500": {
+    "rewrite": null,
+    "why": "The independent loads, dimension subtractions, negative scaled offsets, and pointer adjustments all contribute required outputs with no instruction-count reduction available."
+  },
+  "efc236b55d": {
+    "rewrite": null,
+    "why": "The variable shuffle requires a separate data load, and its result, memory store, both index increments, and the final increment's ZF are all required."
+  },
+  "eef0279568": {
+    "rewrite": null,
+    "why": "All five instructions update distinct live registers, and the final multiply and decrement also establish the required flags."
+  },
+  "6148641be3": {
+    "rewrite": null,
+    "why": "Although the scaled offsets differ by a factor of two, each needs its own instruction, and all loads, dimension differences, and pointer adjustments are live."
+  },
+  "f34ba3527b": {
+    "rewrite": null,
+    "why": "The qword load's zero extension is needed for arbitrary shuffle controls, and the shuffle, store, two index updates, and final ZF cannot be omitted."
+  },
+  "a8d906cea5": {
+    "rewrite": null,
+    "why": "Both scaled offsets and both pointer sums must be produced separately, and the decrement must preserve the second multiply's CF while setting the other required flags."
+  },
+  "c34191ff40": {
+    "rewrite": null,
+    "why": "All loaded values and arithmetic results are required, and computing the two negative offsets already takes one instruction apiece."
+  },
+  "ab21df577c": {
+    "rewrite": null,
+    "why": "The data load cannot be folded into legacy PSHUFB, and the store and two distinct live index increments are necessary, including the last increment's ZF."
+  },
+  "f88f18adc9": {
+    "rewrite": null,
+    "why": "Each instruction produces a required register result, with the second multiply and final decrement jointly determining the required flags."
+  },
+  "0b378cd7fe": {
+    "rewrite": null,
+    "why": "The shared negative offset is already computed once for both pointer adjustments, and every load and dimension subtraction produces a required final value."
+  },
+  "933613593f": {
+    "rewrite": null,
+    "why": "The load, variable shuffle, store, and shared index increment are individually necessary, and the increment also supplies the required ZF."
+  }
+}

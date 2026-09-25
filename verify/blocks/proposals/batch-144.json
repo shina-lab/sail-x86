@@ -1,0 +1,82 @@
+{
+  "6e65f23c43": {
+    "rewrite": null,
+    "why": "All four output dwords are preserved, so the reduction's distinct partial sums and variable shifts cannot be replaced by a scalar horizontal sum."
+  },
+  "7cd9ec19da": {
+    "rewrite": null,
+    "why": "The four independently indexed stores and both preserved scalar updates are required."
+  },
+  "af347149ae": {
+    "rewrite": null,
+    "why": "Both loaded vectors and the accumulator are preserved, leaving neither load nor either dot-product accumulation removable."
+  },
+  "b5b05bd430": {
+    "rewrite": null,
+    "why": "The unsigned dot-product inputs cannot be folded into the signed memory-operand position, and every dword of the subsequent reduction is preserved."
+  },
+  "b0668cdf57": {
+    "rewrite": null,
+    "why": "The variable-shifted constant must remain in rax and supply the vector multiplication, requiring its construction, transfer, and multiplication."
+  },
+  "734b47aa5d": {
+    "rewrite": null,
+    "why": "The four independently indexed stores and both preserved scalar updates are required."
+  },
+  "6265663ca2": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask requires the loaded and zero-extended input, and the shuffled vector, four stores, and scalar updates are observable."
+  },
+  "165d6ea5e5": {
+    "rewrite": null,
+    "why": "Both arbitrary shuffles supply distinct stored data, while the shared load, four indexed stores, and scalar updates remain necessary."
+  },
+  "7c8b69a1b4": {
+    "rewrite": null,
+    "why": "The unknown shuffle controls require duplication and byte selection, followed by four distinct indexed stores and both scalar updates."
+  },
+  "432c8ea89b": {
+    "rewrite": null,
+    "why": "The two arbitrary masks supply separate output rows, leaving no redundant broadcast, shuffle, store, or scalar update."
+  },
+  "15f653bf3a": {
+    "rewrite": null,
+    "why": "The three independently loaded broadcasts and the zero vector are all preserved outputs."
+  },
+  "04e95b2159": {
+    "rewrite": null,
+    "why": "Each arbitrary incoming mask contributes to a distinct store, so all four shuffles, their shared broadcast, the stores, and scalar updates remain necessary."
+  },
+  "4ba4fd5f07": {
+    "rewrite": null,
+    "why": "Both loaded vectors are preserved, and the three-instruction unsigned absolute difference cannot safely use a wrapping subtract followed by signed absolute value."
+  },
+  "1842c15bf8": {
+    "rewrite": null,
+    "why": "The arbitrary incoming vectors prevent simplifying the saturated distance and selection arithmetic, whose full result vector, stores, and counter flags are required."
+  },
+  "365d95f1b7": {
+    "rewrite": null,
+    "why": "The broadcast and duplicated constant are preserved, and the unsigned absolute difference needs full-range byte arithmetic."
+  },
+  "566782e352": {
+    "rewrite": null,
+    "why": "The distance and selection arithmetic uses arbitrary inputs, and the complete result, all three extracted vectors, stores, and counter flags are preserved."
+  },
+  "6ad79cfbc9": {
+    "rewrite": null,
+    "why": "The broadcast and duplicated constant are preserved, and the unsigned absolute difference needs full-range byte arithmetic."
+  },
+  "f1330c1a81": {
+    "rewrite": null,
+    "why": "Arbitrary incoming vectors prevent simplifying the distance and selection arithmetic, and every selected byte is required by the four indexed stores."
+  },
+  "4c112ae035": {
+    "rewrite": null,
+    "why": "The broadcast, vector copy with upper-half zeroing, and full-range unsigned absolute difference each produce preserved results."
+  },
+  "ed17574ad0": {
+    "rewrite": null,
+    "why": "The arbitrary-input distance and selection arithmetic supplies every byte of the two stores, and both scalar updates and their required flags remain live."
+  }
+}

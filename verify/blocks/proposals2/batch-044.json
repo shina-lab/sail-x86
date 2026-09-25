@@ -1,0 +1,82 @@
+{
+  "90a3124e64": {
+    "rewrite": null,
+    "why": "The two strided loads and stores, rounded word blend, and three required scalar updates leave no removable instruction."
+  },
+  "512921941f": {
+    "rewrite": null,
+    "why": "Both row loads and stores are necessary, and the blend intermediate, final vector, pointer updates, counter, and flags must all be preserved."
+  },
+  "7f07fac0cf": {
+    "rewrite": null,
+    "why": "The two separately addressed rows require their load and store operations, while the rounded blend and all scalar updates produce required results."
+  },
+  "278940e71d": {
+    "rewrite": null,
+    "why": "The clamp, both arithmetic shifts, masked fractional value, k5 result, and final ZF are all required, with no redundant operation."
+  },
+  "fd807e36c5": {
+    "rewrite": null,
+    "why": "Each of the four instructions produces a distinct required shuffle result from arbitrary input vectors and shuffle masks."
+  },
+  "f53abdc477": {
+    "rewrite": null,
+    "why": "Each copy assigns a different required mask register, so all four mask moves are necessary."
+  },
+  "a1c8b4e5a9": {
+    "rewrite": null,
+    "why": "The dot products require their initial accumulator value, and arbitrary permutation indices and signed minimum operands prevent simplifying the packing sequence."
+  },
+  "683134a0f8": {
+    "rewrite": null,
+    "why": "Both scalar loads and stores are required, as are the two pointer updates and the counter subtraction that supplies the final flags."
+  },
+  "1aee672967": {
+    "rewrite": null,
+    "why": "The two qword transfers also establish required xmm0 and xmm1 values, and every scalar update remains live."
+  },
+  "8c4fcc4a8c": {
+    "rewrite": null,
+    "why": "Each row already uses one full-width SSSE3-compatible load and store, followed by required pointer and counter updates."
+  },
+  "a8f35900f6": {
+    "rewrite": null,
+    "why": "All four 128-bit loads and stores are needed under the SSSE3 limit, and the pointer and counter updates must be preserved."
+  },
+  "a063f8f199": {
+    "rewrite": null,
+    "why": "The four vector transfers and three scalar updates are required, including the carry flag from the destination-pointer addition that DEC preserves."
+  },
+  "286a6988f4": {
+    "rewrite": null,
+    "why": "Every load supplies a required store, including those before the vector registers are overwritten, and all pointer updates and final flags remain required."
+  },
+  "22501c8c55": {
+    "rewrite": null,
+    "why": "The coefficient copy preserves xmm4, and the shifted product, duplicated final xmm0, two stores, and scalar updates are all required under SSSE3."
+  },
+  "9d1b573fe4": {
+    "rewrite": null,
+    "why": "The four qword loads supply distinct required inputs, and arbitrary word coefficients prevent replacing the modular products and additions with rounded or saturating arithmetic."
+  },
+  "56ebfa3e9f": {
+    "rewrite": null,
+    "why": "Both rows require their separate products, bias additions, shifts, and stores, while the coefficients and final product in xmm2 must also be preserved."
+  },
+  "b766bec6a4": {
+    "rewrite": null,
+    "why": "The two output vectors and final xmm2 product require the existing SSSE3 arithmetic, and the indexed stores and flag-producing index update remain necessary."
+  },
+  "42e367224f": {
+    "rewrite": null,
+    "why": "All six instructions establish required scalar results, including both incremented pointers and their copies, with the final subtraction also determining the required flags."
+  },
+  "62ab433f21": {
+    "rewrite": null,
+    "why": "Although xmm1 is disposable afterward, its shuffled product contributes to xmm0, and arbitrary coefficients prevent collapsing the two modular products, bias, and shift."
+  },
+  "ab5ed5e59c": {
+    "rewrite": null,
+    "why": "The two overlapping qword loads supply different samples, and arbitrary coefficients require both modular products, both additions, and the final shift."
+  }
+}

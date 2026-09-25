@@ -1,0 +1,90 @@
+{
+  "c0b5e2d4e5": {
+    "rewrite": null,
+    "why": "Both 256-bit differences, their stores, and the flag-setting index increment are required, and AVX-512 is unavailable."
+  },
+  "7dc2f2d694": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rsi+r8*1]\nvpsubb ymm0,ymm0,YMMWORD PTR [rdx+r8*1]\nvmovdqu YMMWORD PTR [rdi+r8*1],ymm0\nvextracti128 xmm1,ymm0,0x1\nvmovdqa xmm0,xmm0\nadd r8,0x20",
+    "saved": 1,
+    "why": "Compute and store the adjacent byte differences together at AVX2 width, then restore the two required 128-bit results with zeroed upper halves. Unaligned moves avoid imposing stronger alignment requirements."
+  },
+  "092baace4a": {
+    "rewrite": null,
+    "why": "The byte load, subtraction, store, and index increment are all necessary to preserve r8, rcx, and the required flags."
+  },
+  "21e471c533": {
+    "rewrite": null,
+    "why": "Each 256-bit result already uses one load, one memory-source subtraction, and one store, with a required index increment."
+  },
+  "819a796f12": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rsi+r8*1]\nvpsubb ymm0,ymm0,YMMWORD PTR [rdx+r8*1]\nvmovdqu YMMWORD PTR [rdi+r8*1],ymm0\nvextracti128 xmm1,ymm0,0x1\nvmovdqa xmm0,xmm0\nadd r8,0x20",
+    "saved": 1,
+    "why": "Combine the adjacent differences and stores at AVX2 width, then extract the second result and clear the first result's upper half. The unaligned store needs no stronger alignment than the original stores."
+  },
+  "24c8e6cb74": {
+    "rewrite": null,
+    "why": "The two differences already use the widest allowed integer vectors and folded memory operands, and both stores and the index update are required."
+  },
+  "ff59626f4c": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rsi+r8*1]\nvpsubb ymm0,ymm0,YMMWORD PTR [rdx+r8*1]\nvmovdqu YMMWORD PTR [rdi+r8*1],ymm0\nvextracti128 xmm1,ymm0,0x1\nvmovdqa xmm0,xmm0\nadd r8,0x20",
+    "saved": 1,
+    "why": "One 256-bit load, subtraction, and store replace the two 128-bit chains; extraction and an XMM move restore both required registers, including their zero upper halves."
+  },
+  "b575d8cc1f": {
+    "rewrite": null,
+    "why": "The predictor, minimum, median, residual, and comparison flags are all live, leaving no removable copy or arithmetic operation within SSE2."
+  },
+  "f3290a6345": {
+    "rewrite": null,
+    "why": "The constant vector, masked byte insertion, pointer updates, and both negated-index outputs each require the existing operations."
+  },
+  "083e181f8f": {
+    "rewrite": null,
+    "why": "Both loaded vectors and difference vectors are live, and AVX cannot combine these integer operations at 256-bit width."
+  },
+  "a4cb695e9c": {
+    "rewrite": null,
+    "why": "All widened operands, squared differences, accumulation, pointer updates, and subtraction flags are required, with no SSE2 operation combining the remaining steps."
+  },
+  "00566c198a": {
+    "rewrite": null,
+    "why": "The original source copies and all four squared-vector results remain live, preventing removal of the absolute-difference and widening steps."
+  },
+  "1b118bbf80": {
+    "rewrite": "pxor xmm0,xmm0\npsubw xmm0,XMMWORD PTR [rdi]\npmaxsw xmm0,XMMWORD PTR [rdi]\npxor xmm1,xmm1\npsubw xmm1,XMMWORD PTR [rdi+0x10]\npmaxsw xmm1,XMMWORD PTR [rdi+0x10]\npxor xmm6,xmm6\npsubw xmm6,XMMWORD PTR [rdi+0x20]\npmaxsw xmm6,XMMWORD PTR [rdi+0x20]\npaddusw xmm0,xmm6\npxor xmm6,xmm6\npsubw xmm6,XMMWORD PTR [rdi+0x30]\npmaxsw xmm6,XMMWORD PTR [rdi+0x30]\npaddusw xmm1,xmm6\npxor xmm2,xmm2\npsubw xmm2,XMMWORD PTR [rdi+0x40]\npmaxsw xmm2,XMMWORD PTR [rdi+0x40]\npaddusw xmm0,xmm2\npxor xmm3,xmm3\npsubw xmm3,XMMWORD PTR [rdi+0x50]\npmaxsw xmm3,XMMWORD PTR [rdi+0x50]\npaddusw xmm1,xmm3\npxor xmm4,xmm4\npsubw xmm4,XMMWORD PTR [rdi+0x60]\npmaxsw xmm4,XMMWORD PTR [rdi+0x60]\npaddusw xmm0,xmm4\nmovdqa xmm5,XMMWORD PTR [rdi+0x70]\npxor xmm6,xmm6\npsubw xmm6,xmm5\npmaxsw xmm5,xmm6\npaddusw xmm1,xmm5\npaddusw xmm0,xmm1\nmovhlps xmm1,xmm0\npaddusw xmm0,xmm1\npshuflw xmm1,xmm0,0xe\npaddusw xmm0,xmm1\npshuflw xmm1,xmm0,0x1\npaddusw xmm0,xmm1\nmovd eax,xmm0\nand eax,0xffff",
+    "saved": 11,
+    "why": "Fold eligible loads into the negate/max pairs and initialize each accumulator directly with its first absolute value. Preserve the final negation in xmm6 and the original reduction and flag-setting AND."
+  },
+  "180a6d64d5": {
+    "rewrite": "pabsw xmm0,XMMWORD PTR [rdi]\npabsw xmm1,XMMWORD PTR [rdi+0x10]\npabsw xmm4,XMMWORD PTR [rdi+0x20]\npaddusw xmm0,xmm4\npabsw xmm5,XMMWORD PTR [rdi+0x30]\npaddusw xmm1,xmm5\npabsw xmm2,XMMWORD PTR [rdi+0x40]\npaddusw xmm0,xmm2\npabsw xmm3,XMMWORD PTR [rdi+0x50]\npaddusw xmm1,xmm3\npabsw xmm4,XMMWORD PTR [rdi+0x60]\npaddusw xmm0,xmm4\npabsw xmm5,XMMWORD PTR [rdi+0x70]\npaddusw xmm1,xmm5\npaddusw xmm0,xmm1\nmovhlps xmm1,xmm0\npaddusw xmm0,xmm1\npshuflw xmm1,xmm0,0xe\npaddusw xmm0,xmm1\npshuflw xmm1,xmm0,0x1\npaddusw xmm0,xmm1\nmovd eax,xmm0\nand eax,0xffff",
+    "saved": 12,
+    "why": "Fold all eight loads into PABSW and initialize the two accumulators directly, removing their zeroing and first additions. The final vector values, saturating reduction, and flags remain unchanged."
+  },
+  "956b6dcbde": {
+    "rewrite": "movdqa xmm4,XMMWORD PTR [CONST_1]\nmovdqa xmm5,XMMWORD PTR [CONST_2]\nsub edx,0x2\nmovq xmm1,QWORD PTR [rdi]\nmovdqa xmm2,xmm1\npshufb xmm2,xmm5\npshufb xmm1,xmm4\npsubw xmm1,xmm2\nmovq xmm3,QWORD PTR [rdi+rsi*1]\nmovdqa xmm2,xmm3\npshufb xmm2,xmm5\npshufb xmm3,xmm4\npsubw xmm3,xmm2\nlea rdi,[rdi+rsi*2]\npsubw xmm1,xmm3\npabsw xmm0,xmm1",
+    "saved": 2,
+    "why": "Write the absolute difference directly into xmm0, eliminating its zeroing and addition to zero because xmm1 is not a required final output."
+  },
+  "5a943fa482": {
+    "rewrite": null,
+    "why": "The shuffle masks are arbitrary inputs and all resulting vector temporaries are live, so the two difference and accumulation chains have no removable step."
+  },
+  "f0a2c176e5": {
+    "rewrite": null,
+    "why": "The complete xmm0 and xmm1 outputs must match, including upper lanes affected by MOVHLPS, so replacing the reduction with horizontal adds would change required values."
+  },
+  "dc0827ab3a": {
+    "rewrite": "pxor xmm4,xmm4\nsub edx,0x2\npcmpeqw xmm0,xmm0\npsrlw xmm0,0x7\nmovdqu xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,xmm2\npsrldq xmm1,0x1\npslldq xmm2,0x1\npsrldq xmm2,0x1\nmovdqa xmm5,xmm1\npunpcklbw xmm1,xmm2\npunpckhbw xmm5,xmm2\npmaddubsw xmm1,xmm0\npmaddubsw xmm5,xmm0\nmovdqu xmm2,XMMWORD PTR [rdi+rsi*1]\nmovdqa xmm3,xmm2\npsrldq xmm3,0x1\npslldq xmm2,0x1\npsrldq xmm2,0x1\nmovdqa xmm6,xmm3\npunpcklbw xmm3,xmm2\npunpckhbw xmm6,xmm2\npmaddubsw xmm3,xmm0\npmaddubsw xmm6,xmm0\nlea rdi,[rdi+rsi*2]\npsubw xmm1,xmm3\npsubw xmm5,xmm6\npabsw xmm0,xmm1\npabsw xmm5,xmm5\npaddw xmm0,xmm5",
+    "saved": 6,
+    "why": "Interleave each next/current byte pair and use PMADDUBSW with repeated signed coefficients (-1,+1) to compute exact word differences without saturation. Reuse the coefficient register for the final absolute-value sum, removing the zero accumulator and its final addition."
+  },
+  "dbf15d4434": {
+    "rewrite": "pcmpeqw xmm7,xmm7\npsrlw xmm7,0x7\nmovdqu xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,xmm2\npsrldq xmm1,0x1\npslldq xmm2,0x1\npsrldq xmm2,0x1\nmovdqa xmm5,xmm1\npunpcklbw xmm1,xmm2\npunpckhbw xmm5,xmm2\npmaddubsw xmm1,xmm7\npmaddubsw xmm5,xmm7\npsubw xmm3,xmm1\npsubw xmm6,xmm5\npabsw xmm3,xmm3\npabsw xmm6,xmm6\npaddw xmm3,xmm6\npaddw xmm0,xmm3\nmovdqu xmm3,XMMWORD PTR [rdi+rsi*1]\nmovdqa xmm2,xmm3\npslldq xmm3,0x1\npsrldq xmm2,0x1\npsrldq xmm3,0x1\nmovdqa xmm6,xmm3\nmovdqa xmm7,xmm2\npunpcklbw xmm3,xmm7\npunpcklbw xmm2,xmm7\npunpckhbw xmm6,xmm7\npunpckhbw xmm7,xmm7\npsubw xmm3,xmm2\npsubw xmm6,xmm7\nlea rdi,[rdi+rsi*2]\npsubw xmm1,xmm3\npsubw xmm5,xmm6\npabsw xmm1,xmm1\npabsw xmm5,xmm5\npaddw xmm1,xmm5\npaddw xmm0,xmm1\nsub edx,0x2",
+    "saved": 1,
+    "why": "Compute the first row's differences with PMADDUBSW on next/current byte pairs and repeated coefficients (-1,+1). Keeping the second row's original sequence restores the required xmm2 and xmm7 values and preserves all final outputs."
+  },
+  "a48dc56389": {
+    "rewrite": null,
+    "why": "The arbitrary xmm4 input and complete xmm0 and xmm1 outputs make every widening, shuffle, and addition significant."
+  }
+}

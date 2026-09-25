@@ -1,0 +1,102 @@
+{
+  "a4308b2746": {
+    "rewrite": "mov dx,WORD PTR [rsi]\nmov WORD PTR [rdi],dx\nmov BYTE PTR [rdi+0x2],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. The copy and final RDX value are unchanged."
+  },
+  "315749a67d": {
+    "rewrite": "mov cx,WORD PTR [rsi]\nmov dl,BYTE PTR [rsi+0x2]\nmov WORD PTR [rdi],cx\nmov BYTE PTR [rdi+0x2],dl\nmov BYTE PTR [rdi+0x3],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. All loads, stores, and the partial update of RDX are preserved."
+  },
+  "2375b54354": {
+    "rewrite": "mov edx,DWORD PTR [rsi]\nmov DWORD PTR [rdi],edx\nmov BYTE PTR [rdi+0x4],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. The copy and zero-extended RDX value are unchanged."
+  },
+  "8ad5ffa610": {
+    "rewrite": "mov ecx,DWORD PTR [rsi]\nmov dl,BYTE PTR [rsi+0x4]\nmov DWORD PTR [rdi],ecx\nmov BYTE PTR [rdi+0x4],dl\nmov BYTE PTR [rdi+0x5],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. All loads, stores, and the partial update of RDX are preserved."
+  },
+  "b83c1ca537": {
+    "rewrite": "mov ecx,DWORD PTR [rsi]\nmov dx,WORD PTR [rsi+0x4]\nmov DWORD PTR [rdi],ecx\nmov WORD PTR [rdi+0x4],dx\nmov BYTE PTR [rdi+0x6],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. All loads, stores, and the partial update of RDX are preserved."
+  },
+  "5f0787c3de": {
+    "rewrite": "mov ecx,DWORD PTR [rsi]\nmov edx,DWORD PTR [rsi+0x3]\nmov DWORD PTR [rdi],ecx\nmov DWORD PTR [rdi+0x3],edx\nmov BYTE PTR [rdi+0x7],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. The overlapping copies and zero-extended RDX value are unchanged."
+  },
+  "9df0efab2f": {
+    "rewrite": "mov rdx,QWORD PTR [rsi]\nmov QWORD PTR [rdi],rdx\nmov BYTE PTR [rdi+0x8],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. The copy and final RDX value are unchanged."
+  },
+  "8dddce0f6b": {
+    "rewrite": "mov rcx,QWORD PTR [rsi]\nmov dl,BYTE PTR [rsi+0x8]\nmov QWORD PTR [rdi],rcx\nmov BYTE PTR [rdi+0x8],dl\nmov BYTE PTR [rdi+0x9],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. All loads, stores, and the partial update of RDX are preserved."
+  },
+  "6438030c02": {
+    "rewrite": "mov rcx,QWORD PTR [rsi]\nmov dx,WORD PTR [rsi+0x8]\nmov QWORD PTR [rdi],rcx\nmov WORD PTR [rdi+0x8],dx\nmov BYTE PTR [rdi+0xa],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. All loads, stores, and the partial update of RDX are preserved."
+  },
+  "9f0970bf1e": {
+    "rewrite": "mov rcx,QWORD PTR [rsi]\nmov edx,DWORD PTR [rsi+0x7]\nmov QWORD PTR [rdi],rcx\nmov DWORD PTR [rdi+0x7],edx\nmov BYTE PTR [rdi+0xb],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. The overlapping copies and zero-extended RDX value are unchanged."
+  },
+  "8a5c0660e6": {
+    "rewrite": "mov rcx,QWORD PTR [rsi]\nmov edx,DWORD PTR [rsi+0x8]\nmov QWORD PTR [rdi],rcx\nmov DWORD PTR [rdi+0x8],edx\nmov BYTE PTR [rdi+0xc],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. The copies and zero-extended RDX value are unchanged."
+  },
+  "21a7c11001": {
+    "rewrite": "mov rcx,QWORD PTR [rsi]\nmov rdx,QWORD PTR [rsi+0x5]\nmov QWORD PTR [rdi],rcx\nmov QWORD PTR [rdi+0x5],rdx\nmov BYTE PTR [rdi+0xd],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. The overlapping copies and final RDX value are unchanged."
+  },
+  "e8cd5dd3f0": {
+    "rewrite": "mov rcx,QWORD PTR [rsi]\nmov rdx,QWORD PTR [rsi+0x6]\nmov QWORD PTR [rdi],rcx\nmov QWORD PTR [rdi+0x6],rdx\nmov BYTE PTR [rdi+0xe],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. The overlapping copies and final RDX value are unchanged."
+  },
+  "8a6d28f64a": {
+    "rewrite": "mov rcx,QWORD PTR [rsi]\nmov rdx,QWORD PTR [rsi+0x7]\nmov QWORD PTR [rdi],rcx\nmov QWORD PTR [rdi+0x7],rdx\nmov BYTE PTR [rdi+0xf],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. The overlapping copies and final RDX value are unchanged."
+  },
+  "9da6e65972": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov BYTE PTR [rdi+0x10],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. The copy and final XMM0 value are unchanged."
+  },
+  "44594e4546": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov cl,BYTE PTR [rsi+0x10]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov BYTE PTR [rdi+0x10],cl\nmov BYTE PTR [rdi+0x11],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. All loads, stores, and the final XMM0 value are preserved."
+  },
+  "0f33a1db5f": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov cx,WORD PTR [rsi+0x10]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov WORD PTR [rdi+0x10],cx\nmov BYTE PTR [rdi+0x12],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. All loads, stores, and the final XMM0 value are preserved."
+  },
+  "6d928c3d24": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov ecx,DWORD PTR [rsi+0xf]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov DWORD PTR [rdi+0xf],ecx\nmov BYTE PTR [rdi+0x13],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. The overlapping copies and final XMM0 value are unchanged."
+  },
+  "591d4f743a": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov ecx,DWORD PTR [rsi+0x10]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov DWORD PTR [rdi+0x10],ecx\nmov BYTE PTR [rdi+0x14],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. All loads, stores, and the final XMM0 value are preserved."
+  },
+  "099ff0f547": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov ecx,DWORD PTR [rsi+0x10]\nmov dl,BYTE PTR [rsi+0x14]\nmovdqu XMMWORD PTR [rdi],xmm0\nmov DWORD PTR [rdi+0x10],ecx\nmov BYTE PTR [rdi+0x14],dl\nmov BYTE PTR [rdi+0x15],0x0",
+    "saved": 1,
+    "why": "Store the zero terminator directly, eliminating xor ch,ch because RCX and flags need not be preserved. All memory accesses and final RDX and XMM0 values are preserved."
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "b4f3f99b7b": {
+    "rewrite": null,
+    "why": "The broadcasts, rounded multiplies, additions, stores, and pointer updates all contribute to required final values."
+  },
+  "4eda8014a4": {
+    "rewrite": null,
+    "why": "Each distinct rounded product and offset sum is needed for a store, and the source difference and pointer updates are also preserved."
+  },
+  "3a6abc2f5a": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and weights require the separate unpack, multiply, shift, pack, and average operations, with their final intermediate registers also preserved."
+  },
+  "af0c6f7bff": {
+    "rewrite": "vpbroadcastw ymm0,WORD PTR [rdx]\nvmovdqu ymm7,YMMWORD PTR [rdx+r8*2+0x2]\nvmovdqu ymm8,YMMWORD PTR [rax-0x42c]\nvperm2i128 ymm9,ymm8,YMMWORD PTR [rax-0x40c],0x31\nvperm2i128 ymm8,ymm8,YMMWORD PTR [rax-0x40c],0x20\nvpunpcklwd ymm6,ymm7,ymm0\nvpunpckhwd ymm7,ymm7,ymm0",
+    "saved": 1,
+    "why": "A 256-bit load and two lane permutations replace the four 128-bit load/insert operations. The permutations reconstruct both required vectors while reading only bytes loaded by the original block."
+  },
+  "2ded239a4f": {
+    "rewrite": null,
+    "why": "The two rows use distinct sample pairs and arbitrary weights, and the preserved intermediate vectors prevent removing their separate arithmetic."
+  },
+  "61bfcd1803": {
+    "rewrite": null,
+    "why": "Every interpolation operation contributes to a stored or preserved vector, and the scalar updates must also retain the carry from the r9 addition."
+  },
+  "e484c2aa17": {
+    "rewrite": null,
+    "why": "The three copies and the zeroing instruction each establish a distinct required scalar output."
+  },
+  "d22840288a": {
+    "rewrite": null,
+    "why": "The broadcasts and separate weighted sums feed both stores and preserved vector intermediates, while all three scalar updates remain required."
+  },
+  "e8f51437fe": {
+    "rewrite": null,
+    "why": "The four scalar assignments are independently required, and the final bit test produces flags that the preceding addition cannot substitute."
+  },
+  "5f0cdb1774": {
+    "rewrite": null,
+    "why": "The broadcasts, additions, and blends construct four distinct wrapped multiples and the index-adjusted ramp while preserving the separate fourfold multiple and scalar outputs."
+  },
+  "34aaead126": {
+    "rewrite": null,
+    "why": "All three overlapping loads have distinct preserved vector outputs, and the comparison independently supplies the required zero flag."
+  },
+  "20f01315d2": {
+    "rewrite": null,
+    "why": "Both broadcasts and both loaded vectors are live, so folding the ymm2 load into the multiply would lose a required output."
+  },
+  "008055a7fb": {
+    "rewrite": null,
+    "why": "The doubled vector, blend of the two multiples, constant ramp, and broadcast index offset all contribute to preserved outputs."
+  },
+  "b092e69e4c": {
+    "rewrite": null,
+    "why": "The unknown stride requires two separate stores, followed by the independently required pointer and counter updates."
+  },
+  "c22b395608": {
+    "rewrite": null,
+    "why": "The duplicated boundary word, wrapped additions, unsigned average, and subsequent loads all feed required vector outputs, with memory operands already folded where possible."
+  },
+  "2c0eac7904": {
+    "rewrite": null,
+    "why": "Both boundary blends feed the result, and the rounded average followed by wrapping additions and a logical shift cannot be collapsed into nested averages for arbitrary words."
+  },
+  "26153f327f": {
+    "rewrite": null,
+    "why": "The two distinct shuffles are needed by the average and sum, whose wrapping and rounding behavior prevents combining the remaining arithmetic."
+  },
+  "7716a9ad52": {
+    "rewrite": null,
+    "why": "Every broadcast, loaded vector, and product has a preserved final value, preventing further load folding or removal of intermediate calculations."
+  },
+  "84d55799aa": {
+    "rewrite": null,
+    "why": "Both results require truncation followed by rounded unsigned halving, and the zero vector is already shared between the two averages."
+  },
+  "3663277d59": {
+    "rewrite": null,
+    "why": "Both the original scalar broadcast and the index-adjusted ramp are live, so computing the difference before broadcasting would not reduce the instruction count."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "b54df5756e": {
+    "rewrite": null,
+    "why": "The nonzero test and masked equality comparison both contribute to the required k1 and rcx values, and the final comparison supplies the required CF and ZF."
+  },
+  "282e296267": {
+    "rewrite": null,
+    "why": "The aligned rdi, adjusted rsi, and adjusted rdx are all required, and computing rsi from both the original and aligned rdi leaves no removable operation."
+  },
+  "b8673bd4b2": {
+    "rewrite": null,
+    "why": "Both mask operations, the wrapping 32-bit increment, and the concatenation with the original low 32 bits of r9 are needed before the trailing-zero count and final flag comparison."
+  },
+  "19505001d0": {
+    "rewrite": null,
+    "why": "Both byte loads and their full-width difference are needed, and arbitrary r8d values prevent simplifying the subsequent XOR and subtraction."
+  },
+  "7f5352c4d0": {
+    "rewrite": null,
+    "why": "Both indexed byte loads and their full-width difference are needed, and arbitrary r8d values prevent simplifying the subsequent XOR and subtraction."
+  },
+  "57d297d70a": {
+    "rewrite": null,
+    "why": "Each instruction updates a distinct required register, and the final subtraction also supplies the required CF and ZF."
+  },
+  "fd6931806a": {
+    "rewrite": null,
+    "why": "Preserving rsi and rdi requires separate copies and masks for rcx and rax, while the r11 copy and final flag comparison are also required."
+  },
+  "312ed69d46": {
+    "rewrite": null,
+    "why": "Preserving rsi and rdi requires separate copies and masks for rcx and rax, while the r11 copy and final flag comparison are also required."
+  },
+  "8092661269": {
+    "rewrite": null,
+    "why": "Both loaded vectors are required outputs, and producing edx and the required flags additionally needs the byte comparison, mask extraction, and scalar comparison."
+  },
+  "2e2427fe17": {
+    "rewrite": null,
+    "why": "The store, byte comparison, mask extraction into edx, and scalar flag comparison each provide a required effect."
+  },
+  "5c0adf1e87": {
+    "rewrite": null,
+    "why": "The word load must produce the required zero-extended rdx as well as feed the store, and the r8 and rdi updates are separately required."
+  },
+  "e4e0abc6c0": {
+    "rewrite": null,
+    "why": "The word copy and terminating byte require distinct stores without writing extra bytes, followed by the required r8 and rdi updates."
+  },
+  "63678a50c9": {
+    "rewrite": null,
+    "why": "The dword load must produce the required zero-extended rdx as well as feed the store, and the r8 and rdi updates are separately required."
+  },
+  "6bd0f5dd5d": {
+    "rewrite": null,
+    "why": "The unknown rdx requires both addressed copies, and subtracting rdx plus one while updating rdi and preserving rdx and ZF has no shorter sequence identified."
+  },
+  "bebc36c627": {
+    "rewrite": null,
+    "why": "The unknown rdx requires both addressed copies, and subtracting rdx plus one while updating rdi and preserving rdx and ZF has no shorter sequence identified."
+  },
+  "c71e874445": {
+    "rewrite": null,
+    "why": "The unknown rdx prevents merging the two vector copies, and the required r8 and rdi updates already use three arithmetic instructions while preserving rdx and ZF."
+  },
+  "008a9d70d1": {
+    "rewrite": null,
+    "why": "The unknown rdx prevents merging the two vector copies, and the required r8 and rdi updates already use three arithmetic instructions while preserving rdx and ZF."
+  },
+  "69954d7431": {
+    "rewrite": null,
+    "why": "The unknown r8 requires both addressed word copies, the second load must leave zero-extended rdx, and vzeroupper must clear the required ymm0 upper half."
+  },
+  "a1fe321137": {
+    "rewrite": null,
+    "why": "The unknown r8 requires both addressed dword copies, the second load must leave zero-extended rdx, and vzeroupper must clear the required ymm0 upper half."
+  },
+  "5cb8ce9985": {
+    "rewrite": null,
+    "why": "The unknown r8 requires both addressed qword copies, the second load must produce the required rdx, and vzeroupper must clear the required ymm0 upper half."
+  }
+}

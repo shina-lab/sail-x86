@@ -1,0 +1,94 @@
+{
+  "674a6c6200": {
+    "rewrite": "mov r15,r8\nneg r8\nlea rbx,[r8+r8*1]\nneg rbp\nand r15,0x7f",
+    "saved": 2,
+    "why": "Doubling the already-negated r8 with LEA replaces the copy, doubling, and separate negation of rbx; the final AND preserves ZF."
+  },
+  "74459a6138": {
+    "rewrite": null,
+    "why": "The four independent additions, three required register copies, shift, and flag-producing decrement all contribute to live outputs."
+  },
+  "4d4d5c8d52": {
+    "rewrite": null,
+    "why": "The two sign-extending loads, two independent vector zeroes, and scalar copy each produce a required output."
+  },
+  "ef613881ee": {
+    "rewrite": null,
+    "why": "SSE2 requires both byte-interleave and multiply-accumulate paths, and the pointer updates and comparison remain live."
+  },
+  "b12b2a8a18": {
+    "rewrite": null,
+    "why": "Both SSE2 byte-interleave and multiply-accumulate paths are required, including the live xmm0 product, pointer updates, and comparison flags."
+  },
+  "6227a8f6b0": {
+    "rewrite": "lea r8,[r8+rax*2]\nmovdqa xmm1,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm1,xmm5\npaddd xmm4,xmm1\nmovhlps xmm0,xmm4\npaddd xmm0,xmm4\npsrad xmm0,0x7\npackssdw xmm0,xmm0\nmovd DWORD PTR [rsi+rdx*2],xmm0\nadd rdx,0x2",
+    "saved": 1,
+    "why": "Dword interleaves produce the same lane sums as the qword interleaves followed by PSHUFD, eliminating that shuffle while preserving the full vector results."
+  },
+  "4699e98446": {
+    "rewrite": null,
+    "why": "Both independent SSE2 multiply-accumulate paths and the live pointer updates and comparison are required."
+  },
+  "afbac97c35": {
+    "rewrite": null,
+    "why": "Each SSE2 multiply-accumulate path is necessary, and xmm0, both updated pointers, and the comparison flags must be preserved."
+  },
+  "9d9a6fdd3b": {
+    "rewrite": "lea r8,[r8+rax*2]\nmovdqa xmm1,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm1,xmm5\npaddd xmm4,xmm1\nmovhlps xmm0,xmm4\npaddd xmm0,xmm4\npsrad xmm0,0x8\npackssdw xmm0,xmm0\nmovd DWORD PTR [rsi+rdx*2],xmm0\nadd rdx,0x2",
+    "saved": 1,
+    "why": "Dword interleaves produce the same lane sums as the qword interleaves followed by PSHUFD, eliminating that shuffle while preserving the full vector results."
+  },
+  "59f54574b4": {
+    "rewrite": "lea r8,[r8+rax*2]\nmovdqa xmm1,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm1,xmm5\npaddd xmm4,xmm1\nmovhlps xmm0,xmm4\npaddd xmm0,xmm4\npsrad xmm0,0x9\npackssdw xmm0,xmm0\nmovd DWORD PTR [rsi+rdx*2],xmm0\nadd rdx,0x2",
+    "saved": 1,
+    "why": "Dword interleaves produce the same lane sums as the qword interleaves followed by PSHUFD, eliminating that shuffle while preserving the full vector results."
+  },
+  "f2d6232345": {
+    "rewrite": "lea r8,[r8+rax*2]\nmovdqa xmm1,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm1,xmm5\npaddd xmm4,xmm1\nmovhlps xmm0,xmm4\npaddd xmm0,xmm4\npsrad xmm0,0xb\npackssdw xmm0,xmm0\nmovd DWORD PTR [rsi+rdx*2],xmm0\nadd rdx,0x2",
+    "saved": 1,
+    "why": "Dword interleaves produce the same lane sums as the qword interleaves followed by PSHUFD, eliminating that shuffle while preserving the full vector results."
+  },
+  "27d560518e": {
+    "rewrite": "lea r8,[r8+rax*2]\nmovdqa xmm1,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm1,xmm5\npaddd xmm4,xmm1\nmovhlps xmm0,xmm4\npaddd xmm0,xmm4\npsrad xmm0,0xd\npackssdw xmm0,xmm0\nmovd DWORD PTR [rsi+rdx*2],xmm0\nadd rdx,0x2",
+    "saved": 1,
+    "why": "Dword interleaves produce the same lane sums as the qword interleaves followed by PSHUFD, eliminating that shuffle while preserving the full vector results."
+  },
+  "32c56defb8": {
+    "rewrite": null,
+    "why": "Each path needs its load, word subtraction, multiplication, and accumulation under SSE2, followed by the required pointer updates and comparison."
+  },
+  "f8300edefa": {
+    "rewrite": null,
+    "why": "Both word-subtract and multiply-accumulate paths are necessary under SSE2, with xmm0, updated pointers, and comparison flags also live."
+  },
+  "ce4a043a3b": {
+    "rewrite": "lea r8,[r8+rax*2]\nmovdqa xmm1,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm1,xmm5\npaddd xmm4,xmm1\nmovhlps xmm0,xmm4\npaddd xmm0,xmm4\npaddd xmm0,xmm7\npsrad xmm0,0xf\npackssdw xmm0,xmm0\nmovd DWORD PTR [rsi+rdx*2],xmm0\nadd rdx,0x2",
+    "saved": 1,
+    "why": "Dword interleaves produce the same lane sums as the qword interleaves followed by PSHUFD, eliminating that shuffle while preserving the full vector results."
+  },
+  "db09dbcc55": {
+    "rewrite": "lea r8,[r8+rax*2]\nmovdqa xmm1,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm1,xmm5\npaddd xmm4,xmm1\nmovhlps xmm0,xmm4\npaddd xmm0,xmm4\npsrad xmm0,0x3\nmovdqa xmm4,xmm2\npcmpgtd xmm4,xmm0\npxor xmm0,xmm2\npand xmm0,xmm4\npxor xmm0,xmm2\nmovq QWORD PTR [rsi+rdx*4],xmm0\nadd rdx,0x2",
+    "saved": 1,
+    "why": "Dword interleaves produce the same lane sums without PSHUFD, preserving the subsequent shift, comparison mask, and selection in every lane."
+  },
+  "d6747799af": {
+    "rewrite": "lea r8,[r8+rax*2]\nmovdqa xmm1,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm1,xmm5\npaddd xmm4,xmm1\nmovhlps xmm0,xmm4\npaddd xmm0,xmm4\npsrad xmm0,0x4\nmovdqa xmm4,xmm2\npcmpgtd xmm4,xmm0\npxor xmm0,xmm2\npand xmm0,xmm4\npxor xmm0,xmm2\nmovq QWORD PTR [rsi+rdx*4],xmm0\nadd rdx,0x2",
+    "saved": 1,
+    "why": "Dword interleaves produce the same lane sums without PSHUFD, preserving the subsequent shift, comparison mask, and selection in every lane."
+  },
+  "6226cb4c28": {
+    "rewrite": "lea r8,[r8+rax*2]\nmovdqa xmm1,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm1,xmm5\npaddd xmm4,xmm1\nmovhlps xmm0,xmm4\npaddd xmm0,xmm4\npsrad xmm0,0x5\nmovdqa xmm4,xmm2\npcmpgtd xmm4,xmm0\npxor xmm0,xmm2\npand xmm0,xmm4\npxor xmm0,xmm2\nmovq QWORD PTR [rsi+rdx*4],xmm0\nadd rdx,0x2",
+    "saved": 1,
+    "why": "Dword interleaves produce the same lane sums without PSHUFD, preserving the subsequent shift, comparison mask, and selection in every lane."
+  },
+  "a4ffbc73b4": {
+    "rewrite": "lea r8,[r8+rax*2]\nmovdqa xmm1,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm1,xmm5\npaddd xmm4,xmm1\nmovhlps xmm0,xmm4\npaddd xmm0,xmm4\npsrad xmm0,0x7\nmovdqa xmm4,xmm2\npcmpgtd xmm4,xmm0\npxor xmm0,xmm2\npand xmm0,xmm4\npxor xmm0,xmm2\nmovq QWORD PTR [rsi+rdx*4],xmm0\nadd rdx,0x2",
+    "saved": 1,
+    "why": "Dword interleaves produce the same lane sums without PSHUFD, preserving the subsequent shift, comparison mask, and selection in every lane."
+  },
+  "cfcbbeca57": {
+    "rewrite": "lea r8,[r8+rax*2]\nmovdqa xmm1,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm1,xmm5\npaddd xmm4,xmm1\nmovhlps xmm0,xmm4\npaddd xmm0,xmm4\npsrad xmm0,0x9\nmovdqa xmm4,xmm2\npcmpgtd xmm4,xmm0\npxor xmm0,xmm2\npand xmm0,xmm4\npxor xmm0,xmm2\nmovq QWORD PTR [rsi+rdx*4],xmm0\nadd rdx,0x2",
+    "saved": 1,
+    "why": "Dword interleaves produce the same lane sums without PSHUFD, preserving the subsequent shift, comparison mask, and selection in every lane."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "e6e335e41a": {
+    "rewrite": null,
+    "why": "All seven XOR results and eight stores are required, and combining stores would require additional packing while preserving the individual YMM register values."
+  },
+  "41b7ac6788": {
+    "rewrite": null,
+    "why": "The loads, copies, and counter adjustment produce required values, and vzeroupper must still clear the otherwise untouched upper halves of ymm12 through ymm15."
+  },
+  "80ec4c90d5": {
+    "rewrite": "vpaddd ymm0,ymm0,ymm1\nvpxor ymm3,ymm3,ymm0\nvpshufb ymm3,ymm3,ymm5\nvpaddd ymm2,ymm2,ymm3\nvpxor ymm1,ymm1,ymm2\nvpslld ymm6,ymm1,0xc\nvpsrld ymm1,ymm1,0x14\nvpor ymm1,ymm1,ymm6\nvpaddd ymm0,ymm0,ymm1\nvpxor ymm3,ymm3,ymm0\nvpshufb ymm3,ymm3,ymm4\nvpaddd ymm2,ymm2,ymm3\nvpxor ymm1,ymm1,ymm2\nvpslld ymm7,ymm1,0x7\nvpsrld ymm1,ymm1,0x19\nvpor ymm1,ymm1,ymm7\nvpshufd ymm1,ymm1,0x39\nvpshufd ymm2,ymm2,0x4e\nvpshufd ymm3,ymm3,0x93\nvpaddd ymm0,ymm0,ymm1\nvpxor ymm3,ymm3,ymm0\nvpshufb ymm3,ymm3,ymm5\nvpaddd ymm2,ymm2,ymm3\nvpxor ymm1,ymm1,ymm2\nvpslld ymm6,ymm1,0xc\nvpsrld ymm1,ymm1,0x14\nvpor ymm1,ymm1,ymm6\nvpaddd ymm0,ymm0,ymm1\nvpxor ymm3,ymm3,ymm0\nvpshufb ymm3,ymm3,ymm4\nvpaddd ymm2,ymm2,ymm3\nvpxor ymm1,ymm1,ymm2\nvpslld ymm7,ymm1,0x7\nvpsrld ymm1,ymm1,0x19\nvpor ymm1,ymm1,ymm7\nvpshufd ymm1,ymm1,0x93\nvpshufd ymm2,ymm2,0x4e\nvpshufd ymm3,ymm3,0x39\nsub r8d,0x2",
+    "saved": 4,
+    "why": "Each VEX left shift can read ymm1 directly, eliminating its preceding vmovdqa instruction. All computed register values, including the required final ymm6 value, and ZF remain unchanged."
+  },
+  "ce076175a7": {
+    "rewrite": null,
+    "why": "The memory XOR, required store, high-lane extraction, live ymm7 sum, and flag-setting comparison each require a separate instruction."
+  },
+  "9dcb873136": {
+    "rewrite": null,
+    "why": "The memory XOR, required store, high-lane extraction into xmm1, live ymm7 sum, and comparison all produce required outputs."
+  },
+  "af21c6b7af": {
+    "rewrite": null,
+    "why": "The memory XOR, required store, high-lane extraction into xmm2, live ymm7 sum, and comparison cannot be combined into fewer AVX2 instructions."
+  },
+  "55d4497a15": {
+    "rewrite": null,
+    "why": "The XOR and store, high-lane extraction, xmm7 copy with upper-half zeroing, and comparison each have a required effect."
+  },
+  "43afbda5cc": {
+    "rewrite": null,
+    "why": "The XOR result, store, xmm7 copy with upper-half zeroing, and SF/OF comparison are all required and cannot be fused."
+  },
+  "b28b249e64": {
+    "rewrite": null,
+    "why": "The XOR result, store, xmm7 copy with upper-half zeroing, and SF/OF comparison are all required and cannot be fused."
+  },
+  "528a3164d9": {
+    "rewrite": null,
+    "why": "The XOR result, store, xmm7 copy with upper-half zeroing, and all five specified comparison flags must be retained."
+  },
+  "fe7076f36f": {
+    "rewrite": "vbroadcasti128 ymm0,XMMWORD PTR [rdi]\nvbroadcasti128 ymm1,XMMWORD PTR [rdi+0x10]\nvbroadcasti128 ymm2,XMMWORD PTR [rdi+0x20]\nvbroadcasti128 ymm3,XMMWORD PTR [rdi+0x30]\nvmovdqa ymm4,ymm0\nvmovdqa ymm5,ymm1\nvmovdqa ymm6,ymm2\nvpaddd ymm7,ymm3,YMMWORD PTR [CONST_2]\nvpaddd ymm3,ymm3,YMMWORD PTR [CONST_1]\nvmovdqa ymm11,ymm0\nvmovdqa ymm12,ymm1\nvmovdqa ymm13,ymm2\nvmovdqa ymm14,ymm3\nvmovdqa ymm15,ymm7\nvmovdqa ymm8,YMMWORD PTR [CONST_3]\nvmovdqa ymm9,YMMWORD PTR [CONST_4]\nmov rax,rcx",
+    "saved": 2,
+    "why": "Every live YMM register affected by vzeroupper is subsequently overwritten, so it is redundant. Computing ymm7 directly from the unadjusted broadcast in ymm3 also eliminates the copy."
+  },
+  "0e2512ea65": {
+    "rewrite": null,
+    "why": "The memory XOR and store, live ymm10 sum, and required SF/OF comparison cannot be combined into fewer AVX2 instructions."
+  },
+  "134538ae8a": {
+    "rewrite": null,
+    "why": "The XOR, store, high-lane extraction into xmm4, live ymm10 sum, and comparison each produce a required effect."
+  },
+  "5813b4d0b6": {
+    "rewrite": null,
+    "why": "The XOR, store, high-lane extraction into xmm5, live ymm10 sum, and comparison each produce a required effect."
+  },
+  "e3c9709fe0": {
+    "rewrite": null,
+    "why": "The XOR, store, high-lane extraction into xmm6, live ymm10 sum, and comparison each produce a required effect."
+  },
+  "b797a76020": {
+    "rewrite": null,
+    "why": "The XOR and store, high-lane extraction, xmm10 copy with upper-half zeroing, and comparison each have a required effect."
+  },
+  "fe371a8615": {
+    "rewrite": null,
+    "why": "The XOR result, store, xmm10 copy with upper-half zeroing, and SF/OF comparison are all required and cannot be fused."
+  },
+  "3999839cd8": {
+    "rewrite": null,
+    "why": "The XOR result, store, xmm10 copy with upper-half zeroing, and SF/OF comparison are all required and cannot be fused."
+  },
+  "de8ba63340": {
+    "rewrite": null,
+    "why": "The XOR result, store, xmm10 copy with upper-half zeroing, and all five specified comparison flags must be retained."
+  },
+  "06b37e97cd": {
+    "rewrite": null,
+    "why": "Although the XOR result in ymm0 is later overwritten, it is needed by the store, and both permutations and the comparison produce required outputs."
+  }
+}

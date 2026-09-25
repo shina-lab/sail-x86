@@ -1,0 +1,88 @@
+{
+  "03d8006c6f": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\npslld xmm1,0x10\npaddw xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,xmm1\npshufb xmm1,xmm3\npaddw xmm1,xmm2\npshufb xmm0,xmm5\npaddw xmm0,xmm1\npshufb xmm1,xmm4\npaddw xmm0,xmm1\npand xmm0,xmm6\nmovdqu XMMWORD PTR [rdi+rcx*1],xmm0\nadd rcx,0x10",
+    "saved": 2,
+    "why": "Fold the initial copy into PADDW's memory operand at the original aligned load address. Associativity of wrapping word addition also allows accumulating the final two summands directly into xmm0, eliminating another copy."
+  },
+  "8b6c15d02a": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,xmm1\npslld xmm1,0x10\npaddw xmm1,xmm2\nmovdqa xmm2,xmm1\npshufb xmm1,xmm3\npaddw xmm1,xmm2\npshufb xmm0,xmm5\npaddw xmm0,xmm1\npshufb xmm1,xmm4\npaddw xmm0,xmm1\npand xmm0,xmm6\nmovdqu XMMWORD PTR [rdi+rcx*1],xmm0\nadd rcx,0x10",
+    "saved": 1,
+    "why": "Associativity of wrapping word addition allows adding the unshuffled and shuffled values directly into xmm0, eliminating the final temporary copy."
+  },
+  "4352def1bd": {
+    "rewrite": null,
+    "why": "The byte broadcast needs a zero shuffle mask under SSSE3, and both vector results and all three scalar updates are live."
+  },
+  "2f17080db2": {
+    "rewrite": "vmovdqa xmm0,XMMWORD PTR [CONST_1]\nvpbroadcastb xmm1,BYTE PTR [rdi-0x1]\nadd rdi,rdx\nneg rdx\nneg rsi",
+    "saved": 1,
+    "why": "Broadcast the byte directly from memory, eliminating VMOVD while preserving the zero upper half of ymm1."
+  },
+  "094f2e9c65": {
+    "rewrite": null,
+    "why": "All four scalar results are live, and the alignment test is separately required to produce ZF."
+  },
+  "1c43074d17": {
+    "rewrite": null,
+    "why": "The second source may be unaligned, so legacy PSUBB cannot absorb its MOVDQU loads; both stores and the flag-producing index update are required."
+  },
+  "50bde0f9aa": {
+    "rewrite": null,
+    "why": "The byte load, subtraction, store, and flag-producing index increment each perform a required operation."
+  },
+  "925507e0b0": {
+    "rewrite": null,
+    "why": "The sources may be unaligned, so legacy PSUBB cannot absorb their MOVDQU loads; both stores and the flag-producing index update are required."
+  },
+  "48e1e0d3cc": {
+    "rewrite": null,
+    "why": "The sources may be unaligned, so legacy PSUBB cannot absorb their MOVDQU loads; both stores and the flag-producing index update are required."
+  },
+  "a6366ecb87": {
+    "rewrite": null,
+    "why": "All four scalar results are live, and the alignment test is separately required to produce ZF."
+  },
+  "c0b5e2d4e5": {
+    "rewrite": null,
+    "why": "Each 32-byte result already uses a single load, a memory-source subtraction, and a store, followed by the required index update."
+  },
+  "7dc2f2d694": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rsi+r8*1]\nvpsubb ymm0,ymm0,YMMWORD PTR [rdx+r8*1]\nvmovdqa XMMWORD PTR [rdi+r8*1],xmm0\nvextracti128 XMMWORD PTR [rdi+r8*1+0x10],ymm0,0x1\nvmovdqa xmm0,xmm0\nadd r8,0x20",
+    "saved": 1,
+    "why": "Compute both adjacent chunks with one AVX2 load and subtraction, retaining the two original stores. The final 128-bit VEX move restores the required zero upper half of ymm0."
+  },
+  "092baace4a": {
+    "rewrite": null,
+    "why": "The byte load, subtraction, store, and flag-producing index increment each perform a required operation."
+  },
+  "21e471c533": {
+    "rewrite": null,
+    "why": "Each 32-byte result already uses a single load, a memory-source subtraction, and a store, followed by the required index update."
+  },
+  "819a796f12": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rsi+r8*1]\nvpsubb ymm0,ymm0,YMMWORD PTR [rdx+r8*1]\nvmovdqa XMMWORD PTR [rdi+r8*1],xmm0\nvextracti128 XMMWORD PTR [rdi+r8*1+0x10],ymm0,0x1\nvmovdqa xmm0,xmm0\nadd r8,0x20",
+    "saved": 1,
+    "why": "Compute both adjacent chunks with one AVX2 load and subtraction, retaining the two original stores. The final 128-bit VEX move restores the required zero upper half of ymm0."
+  },
+  "24c8e6cb74": {
+    "rewrite": null,
+    "why": "Each 32-byte result already uses a single load, a memory-source subtraction, and a store, followed by the required index update."
+  },
+  "ff59626f4c": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rsi+r8*1]\nvpsubb ymm0,ymm0,YMMWORD PTR [rdx+r8*1]\nvmovdqu XMMWORD PTR [rdi+r8*1],xmm0\nvextracti128 XMMWORD PTR [rdi+r8*1+0x10],ymm0,0x1\nvmovdqa xmm0,xmm0\nadd r8,0x20",
+    "saved": 1,
+    "why": "Compute both adjacent chunks with one AVX2 load and subtraction, retaining the two original stores. The final 128-bit VEX move restores the required zero upper half of ymm0."
+  },
+  "b575d8cc1f": {
+    "rewrite": null,
+    "why": "The median needs the candidate, minimum, and maximum, with copies retaining their inputs under destructive SSE2 operations, while the index update and comparison are both live."
+  },
+  "f3290a6345": {
+    "rewrite": null,
+    "why": "The live scalar updates, constant vector, and insertion of the separately decremented and masked index each require their existing operations."
+  },
+  "083e181f8f": {
+    "rewrite": null,
+    "why": "Both loaded vectors are live, and AVX requires separate 128-bit alignments, byte subtractions, and stores for the two outputs before the index update."
+  }
+}

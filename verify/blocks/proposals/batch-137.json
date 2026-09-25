@@ -1,0 +1,83 @@
+{
+  "a77ddd2944": {
+    "rewrite": null,
+    "why": "The saturated packed output and separate live dword sum require retaining both the original sums and the replicated last lane, leaving no removable operation."
+  },
+  "c771a81167": {
+    "rewrite": null,
+    "why": "Both arbitrary-coefficient PMADDWD results must be formed and added, and the final comparison supplies required flags."
+  },
+  "bd2917b66f": {
+    "rewrite": null,
+    "why": "The two loads, two arbitrary-coefficient PMADDWD operations, and dword addition are necessary because adding words before multiplication would lose overflow information."
+  },
+  "45c465e883": {
+    "rewrite": null,
+    "why": "The two loads, two arbitrary-coefficient PMADDWD operations, and dword addition cannot be shortened by combining the inputs in wrapping word arithmetic."
+  },
+  "6b2a867560": {
+    "rewrite": null,
+    "why": "Each independent memory vector needs its own PMADDWD result before the dword sum, with no known coefficient or input restrictions enabling fewer instructions."
+  },
+  "739e0917b3": {
+    "rewrite": null,
+    "why": "The copy retains unpacked values needed for the live dword sum while destructive packing produces both required stored vectors."
+  },
+  "5592afec18": {
+    "rewrite": null,
+    "why": "All four 128-bit stores, the accumulator addition, and both scalar updates are required under the SSSE3 limit."
+  },
+  "bfe8230f72": {
+    "rewrite": "sub r9,rdi\ntzcnt esi,r9d\nsub esi,0x2\nmovd xmm0,esi\nphaddd xmm4,xmm4\nphaddd xmm4,xmm4\npsrld xmm4,xmm0\npxor xmm2,xmm2\npavgw xmm2,xmm4\npackssdw xmm2,xmm2",
+    "saved": 2,
+    "why": "Two PHADDD instructions replace the four-instruction horizontal sum with the same broadcast sum modulo 2^32. Averaging into zeroed xmm2 produces the required output without copying the reduced vector."
+  },
+  "c5930c56ba": {
+    "rewrite": null,
+    "why": "Each stored vector requires its load and word subtraction, and the index addition also supplies required final flags."
+  },
+  "68e70f9cdf": {
+    "rewrite": null,
+    "why": "All four multiply-add results feed required packing or live accumulators, and the fully preserved register state leaves no redundant temporary computation."
+  },
+  "d62a4a231a": {
+    "rewrite": null,
+    "why": "The duplication, shift, accumulator update, four stores, and flag-producing pointer update each contribute required final state."
+  },
+  "cd6fee73a5": {
+    "rewrite": null,
+    "why": "The copy is needed to retain the second pair's unpacked dword sum while packing its output, and all remaining arithmetic and stores contribute required results."
+  },
+  "f3f3a07f1a": {
+    "rewrite": null,
+    "why": "The replicated lanes feed both saturated packing and required dword accumulators, so their shuffles and the copy cannot be eliminated under the live-register constraints."
+  },
+  "35f221f7ee": {
+    "rewrite": null,
+    "why": "The live xmm6 partial sum and xmm2 total require the copy and all additions alongside both destructive packs and stores."
+  },
+  "ee50f148f4": {
+    "rewrite": null,
+    "why": "The four separate qword loads, lane shifts, stores, and accumulations are required, including the copy that preserves xmm1 and xmm5 during multiplication."
+  },
+  "b2c6d54ce3": {
+    "rewrite": null,
+    "why": "The two duplications, dword shift, accumulation, four stores, and pointer update all affect required results and cannot be fused by SSSE3 instructions."
+  },
+  "2d5735aa96": {
+    "rewrite": null,
+    "why": "Both shifted vectors must be stored and accumulated, and the multiplication copy is needed because xmm1 and xmm5 must retain their values."
+  },
+  "65b288799b": {
+    "rewrite": null,
+    "why": "Each highest-word broadcast needs two shuffle operations at SSSE3 without a known byte-shuffle mask, while both source vectors must remain intact."
+  },
+  "1a380127de": {
+    "rewrite": null,
+    "why": "The two vector loads and immediate word shifts are required, and TEST supplies the required ZF value."
+  },
+  "544e9b8cf9": {
+    "rewrite": null,
+    "why": "Both independent vectors require a load followed by an immediate word shift, which SSSE3 cannot combine into one instruction."
+  }
+}

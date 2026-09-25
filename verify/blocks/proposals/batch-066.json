@@ -1,0 +1,89 @@
+{
+  "a0cb1611d4": {
+    "rewrite": "pmovzxbw xmm0,QWORD PTR [r10]\nmovdqa xmm8,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nadd r10,0x8\nmovdqa xmm1,xmm0\npsllw xmm1,0x8\npsrlw xmm0,0x4\npand xmm1,xmm8\npor xmm0,xmm1\nadd rsi,0x20",
+    "saved": 1,
+    "why": "Fold MOVQ and register-source PMOVZXBW into memory-source PMOVZXBW, loading the same eight bytes. The vector results, pointer updates, and final flags are preserved."
+  },
+  "16c2570d2b": {
+    "rewrite": "movd xmm0,DWORD PTR [r10]\nmovdqa xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,XMMWORD PTR [CONST_2]\nmovdqa xmm10,XMMWORD PTR [CONST_3]\nmov r8,QWORD PTR [rsi]\nadd r10,0x2\npshufb xmm0,xmm8\npand xmm0,xmm9\npminub xmm0,xmm10\nadd rsi,0x20",
+    "saved": 1,
+    "why": "After PAND with the nonzero one-bit masks, each byte is zero or a power of two, so PMINUB with the vector of 0x01 bytes produces the same 0/1 bytes as PCMPEQB followed by PAND."
+  },
+  "c0694a4bba": {
+    "rewrite": null,
+    "why": "The shifted and shuffled xmm0 and constant xmm8 are required outputs, while the mask extraction, four-byte store, r8 load, and flag-setting pointer update are all necessary."
+  },
+  "06cc9a4a93": {
+    "rewrite": null,
+    "why": "The constant in xmm8 is itself a required output, so folding its load into the comparison would not remove an instruction."
+  },
+  "37cb3441ac": {
+    "rewrite": null,
+    "why": "Both shifts, both ORs, the r8 load, and the flag-setting rsi update are required under the SSE4.1 limit."
+  },
+  "e15840c4d8": {
+    "rewrite": null,
+    "why": "Both shifts and both ORs contribute to the required vector results, and the scalar load and pointer update must also remain."
+  },
+  "4383c0cfb2": {
+    "rewrite": null,
+    "why": "SSE4.1 cannot combine these distinct shifts and ORs into fewer instructions while preserving xmm1, and the r8 load and final ADD are required."
+  },
+  "0d04e0314b": {
+    "rewrite": null,
+    "why": "The copies preserve independent extraction sources, and all three masked results plus the scalar load and pointer-update flags are required."
+  },
+  "186d17d1ef": {
+    "rewrite": null,
+    "why": "The three required byte fields need separate copies, shifts, and masks with the available SSE4.1 instructions."
+  },
+  "3ce6a70308": {
+    "rewrite": null,
+    "why": "All three masked field results are required, and the destructive SSE4.1 operations need the existing source copies and extraction steps."
+  },
+  "cfebb662d4": {
+    "rewrite": null,
+    "why": "SSE4.1 needs a load and shuffle for this dword broadcast; folding the load into PSHUFD would read bytes the original never loads."
+  },
+  "c9c88e0744": {
+    "rewrite": null,
+    "why": "The dword broadcast requires its load and shuffle under SSE4.1, and a memory-source PSHUFD would exceed the original load footprint."
+  },
+  "911dd1456c": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nmovq xmm0,QWORD PTR [rsi+0x10]\npshufd xmm1,xmm0,0x55\npshufd xmm0,xmm0,0x0\nadd rsi,0x20",
+    "saved": 1,
+    "why": "A single MOVQ loads exactly the two adjacent dwords already read, and two PSHUFD instructions broadcast its low and high dwords to the required registers."
+  },
+  "e120f175d6": {
+    "rewrite": null,
+    "why": "SSE4.1 has no scalar dword broadcast, so the load and shuffle are necessary without reading additional memory."
+  },
+  "68a687089f": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nmovq xmm1,QWORD PTR [rsi+0x14]\npshufd xmm2,xmm1,0x55\npshufd xmm1,xmm1,0x0\nadd rsi,0x20",
+    "saved": 1,
+    "why": "Load the two adjacent dwords together with MOVQ and broadcast each with PSHUFD, preserving both vector outputs and the exact memory footprint."
+  },
+  "3aafbe603d": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nmovq xmm2,QWORD PTR [rsi+0x18]\npshufd xmm3,xmm2,0x55\npshufd xmm2,xmm2,0x0\nadd rsi,0x20",
+    "saved": 1,
+    "why": "One MOVQ replaces the two adjacent MOVD loads, and the two shuffles broadcast its dwords into xmm2 and xmm3 without any additional memory access."
+  },
+  "da3271c9e2": {
+    "rewrite": null,
+    "why": "A wider load spanning both inputs would read the intervening unaccessed dword, and separate SSE4.1 dword broadcasts each need a load and shuffle."
+  },
+  "aa8cbf0f1c": {
+    "rewrite": null,
+    "why": "The inputs are separated by an unread dword, preventing a shared wider load, while SSE4.1 requires a load and shuffle for each broadcast."
+  },
+  "976caf4904": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nmovd xmm1,DWORD PTR [rsi+0x14]\nmovq xmm2,QWORD PTR [rsi+0x18]\npshufd xmm1,xmm1,0x0\npshufd xmm3,xmm2,0x55\npshufd xmm2,xmm2,0x0\nadd rsi,0x20",
+    "saved": 1,
+    "why": "Combine the adjacent loads at 0x18 and 0x1c into one MOVQ and broadcast its two dwords separately, preserving the remaining broadcast and the final ADD flags."
+  },
+  "3408a61c33": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nmovd xmm0,DWORD PTR [rsi+0x10]\nmovq xmm2,QWORD PTR [rsi+0x18]\npshufd xmm0,xmm0,0x0\npshufd xmm3,xmm2,0x55\npshufd xmm2,xmm2,0x0\nadd rsi,0x20",
+    "saved": 1,
+    "why": "Combine the adjacent loads at 0x18 and 0x1c into one MOVQ and broadcast its two dwords separately, preserving the remaining broadcast and the final ADD flags."
+  }
+}

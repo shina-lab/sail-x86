@@ -154,6 +154,124 @@ function read_idt_gate_32(vec) = {
   }
 }
 
+// Read ESP0 and SS0 from the 32-bit TSS (for privilege-level changes).
+// ESP0 is at offset 4, SS0 is at offset 8 (low 16 bits).
+val read_tss_esp0_32 : unit -> (dword, word)
+function read_tss_esp0_32() = {
+  let esp0 : dword = read_mem_implicit(TR_base + 4);
+  let ss0  : word  = read_mem_implicit(TR_base + 8);
+  (esp0, ss0)
+}
+
+// Protected mode interrupt delivery (SDM Vol.3A §6.12).
+// Reads 8-byte IDT gate, pushes 32-bit or 16-bit interrupt frame.
+// Virtual-8086 delivery always enters a ring-0, nonconforming code segment
+// and saves all six segment selectors (SDM Vol.3B §23.3.1.1; Vol.2 INT,
+// INTERRUPT-FROM-VIRTUAL-8086-MODE). Validate before changing the mode or
+// caches, so a fault in delivery can still build the virtual-8086 frame.
+val deliver_exception_vm86 : (exception_vector, dword, EventKind) -> unit
+function deliver_exception_vm86(vec, err_code, kind) = {
+  let old_ip : qword = match sw_return_rip { Some(ip) => ip, None() => RIP };
+  sw_return_rip = None();
+  let ext : dword = if kind == EV_SoftwareInt then 0x00000000 else 0x00000001;
+  let idt_err : dword = to_bits(32, vec * 8 + 2) | ext;
+  if vec * 8 + 7 > unsigned(IDTR_limit) then raise_GP(idt_err);
+  let gate = read_idt_gate_32(vec);
+  if gate.gate_type != 0x6 & gate.gate_type != 0x7 &
+     gate.gate_type != 0xE & gate.gate_type != 0xF then raise_GP(idt_err);
+  if kind == EV_SoftwareInt & gate.gate_dpl < 3 then raise_GP(idt_err);
+  if ~(gate.gate_present) then throw Fault(EXN_NP, idt_err);
+
+  let cs_err = selector_error_code(gate.gate_sel) | ext;
+  if gate.gate_sel[15..2] == zeros() then raise_GP(ext);
+  let code_desc = read_descriptor(gate.gate_sel);
+  if code_desc.seg_s == bitzero | code_desc.seg_type[3] == bitzero |
+     code_desc.seg_type[2] == bitone | code_desc.seg_dpl != 0 then raise_GP(cs_err);
+  if code_desc.seg_present == bitzero then throw Fault(EXN_NP, cs_err);
+  let is_32bit = gate.gate_type[3] == bitone;
+  let target = if is_32bit then gate.gate_offset else zero_extend(gate.gate_offset[15..0]);
+  if unsigned(target) > unsigned(code_desc.seg_limit) then raise_GP(ext);
+
+  if unsigned(TR_limit) < 9 then throw Fault(EXN_TS, selector_error_code(TR) | ext);
+  let (esp0, ss0) = read_tss_esp0_32();
+  let ss_err = selector_error_code(ss0) | ext;
+  if ss0[15..2] == zeros() then throw Fault(EXN_TS, ext);
+  let stack_desc : SegDescCache = try { read_descriptor(ss0) } catch {
+    Fault(v, e) => {
+      if v == EXN_GP then throw Fault(EXN_TS, e | ext) else throw Fault(v, e);
+      exit()
+    }
+  };
+  if ss0[1..0] != 0b00 | stack_desc.seg_dpl != 0 |
+     stack_desc.seg_s == bitzero | stack_desc.seg_type[3] == bitone |
+     stack_desc.seg_type[1] == bitzero then throw Fault(EXN_TS, ss_err);
+  if stack_desc.seg_present == bitzero then throw Fault(EXN_SS, ss_err);
+
+  let with_error = kind == EV_Exception & has_error_code(vec);
+  let frame_bytes = (if is_32bit then 4 else 2) * (if with_error then 10 else 9);
+  let sp : dword = if stack_desc.seg_db == bitone then esp0 else zero_extend(esp0[15..0]);
+  let bottom : dword = sp - frame_bytes;
+  // An empty stack may use SP=0 to denote the top of its address range.
+  // Expand-down segments accept offsets above, rather than below, limit.
+  let top : int = if sp == zeros() then
+                    (if stack_desc.seg_db == bitone then 4294967296 else 65536)
+                  else unsigned(sp);
+  let outside_limit : bool = if stack_desc.seg_type[2] == bitone then
+                               top - frame_bytes <= unsigned(stack_desc.seg_limit)
+                             else top - 1 > unsigned(stack_desc.seg_limit);
+  if top < frame_bytes | outside_limit then
+    throw Fault(EXN_SS, ss_err);
+  let flags = read_rflags();
+  let old_sp : dword = v(RSP);
+  var addr : qword = stack_desc.seg_base + top;
+
+  // The new stack is an implicit supervisor access, even though the
+  // interrupted virtual-8086 program was running at CPL 3.
+  cur_cpl = 0;
+  try {
+    foreach (j from 0 to 4) {
+      let i : segreg_idx = match j { 0 => GS, 1 => FS, 2 => DS, 3 => ES, _ => SS };
+      if is_32bit then addr = push_to_stack(addr, zero_extend(32, read_segreg(i)))
+      else addr = push_to_stack(addr, read_segreg(i))
+    };
+    if is_32bit then {
+      addr = push_to_stack(addr, old_sp);
+      addr = push_to_stack(addr, flags[31..0]);
+      addr = push_to_stack(addr, zero_extend(32, read_segreg(CS)));
+      addr = push_to_stack(addr, old_ip[31..0]);
+      if with_error then addr = push_to_stack(addr, err_code)
+    } else {
+      addr = push_to_stack(addr, old_sp[15..0]);
+      addr = push_to_stack(addr, flags[15..0]);
+      addr = push_to_stack(addr, read_segreg(CS));
+      addr = push_to_stack(addr, old_ip[15..0]);
+      if with_error then addr = push_to_stack(addr, err_code[15..0])
+    }
+  } catch {
+    Fault(v, e) => { cur_cpl = 3; throw Fault(v, e) }
+  };
+
+  sw_return_rip = None();
+  cur_mode = ProtectedMode;
+  SegCache[CS] = code_desc;
+  SegCache[SS] = stack_desc;
+  write_segreg(CS, gate.gate_sel & 0xFFFC);
+  write_segreg(SS, ss0);
+  // A 16-bit monitor stack replaces SP only, preserving the interrupted
+  // ESP's high half (confirmed on AMD and Intel).
+  v(32, RSP) = if stack_desc.seg_db == bitone then bottom else old_sp[31..16] @ bottom[15..0];
+  foreach (j from 0 to 3) {
+    let i : segreg_idx = match j { 0 => ES, 1 => DS, 2 => FS, _ => GS };
+    write_segreg(i, 0x0000);
+    SegCache[i] = {default_seg_desc_cache() with seg_present = bitzero, seg_limit = zeros()}
+  };
+  RIP = target;
+  if gate.gate_type == 0xE | gate.gate_type == 0x6 then IF_flag = bitzero;
+  TF = bitzero;
+  NT = bitzero;
+  RF = bitzero
+}
+
 // Legacy protected-mode interrupt/trap gates. SDM Vol.3A section 7.12.1
 // and Vol.2A INT, INTER/INTRA-PRIVILEGE-LEVEL-INTERRUPT: the target code
 // descriptor chooses CPL, and every frame is relative to the selected SS.
@@ -175,7 +293,7 @@ function deliver_exception_inner_32(vec, err_code, kind) = {
   if gate.gate_type != 0x6 & gate.gate_type != 0x7 &
      gate.gate_type != 0xE & gate.gate_type != 0xF then throw Fault(EXN_GP, idt_err);
   if kind == EV_SoftwareInt & gate.gate_dpl < old_cpl then throw Fault(EXN_GP, idt_err);
-  if ~gate.gate_present then throw Fault(EXN_NP, idt_err);
+  if ~(gate.gate_present) then throw Fault(EXN_NP, idt_err);
   if gate.gate_sel[15..2] == zeros() then raise_GP0();
   let target = read_descriptor(gate.gate_sel);
   if target.seg_s == 0b0 | target.seg_type[3] == 0b0 | target.seg_dpl > old_cpl then
@@ -183,7 +301,7 @@ function deliver_exception_inner_32(vec, err_code, kind) = {
   if target.seg_present == 0b0 then throw Fault(EXN_NP, selector_error_code(gate.gate_sel));
   let width : {16, 32} = if gate.gate_type[3] == 0b1 then 32 else 16;
   let offset : qword = zero_extend(gate.gate_offset[width - 1 .. 0]);
-  if offset > zero_extend(target.seg_limit) then raise_GP0();
+  if unsigned(offset) > unsigned(target.seg_limit) then raise_GP0();
   let inward : bool = target.seg_type[2] == 0b0 & target.seg_dpl < old_cpl;
   let level : cpl_t = if inward then target.seg_dpl else old_cpl;
   var stack_desc = SegCache[SS];
@@ -216,6 +334,7 @@ function deliver_exception_inner_32(vec, err_code, kind) = {
                                   if inward then selector_error_code(stack_sel) else 0x00000000);
   if inward then {
     write_segreg(SS, stack_sel);
+    // SDM Vol.3A 3.4.3/7.12.1: implicit SS loads replace its hidden cache.
     SegCache[SS] = stack_desc;
     v(32, RSP) = new_sp[31..0]
   } else {
@@ -275,6 +394,10 @@ function deliver_exception_inner(vec, err_code, kind) = {
   // Dispatch by mode
   if cur_mode == RealMode then {
     deliver_exception_real(vec);
+    return ()
+  };
+  if cur_mode == Virtual8086Mode then {
+    deliver_exception_vm86(vec, err_code, kind);
     return ()
   };
   if EFER[10] != 0b1 then {
@@ -396,6 +519,7 @@ function deliver_exception(vec, err_code, kind) = {
   // the MOV SS/POP SS shadow (SDM Vol.3A §7.8.3).
   event_delivered = true;
   ss_shadow = 0;
+  sti_shadow = 0;
 
   // RF in the pushed RFLAGS image (SDM Vol.3B §20.3.1.1): 1 for a fault-
   // class exception, otherwise the current value (traps, software and

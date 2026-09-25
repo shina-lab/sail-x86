@@ -1,0 +1,82 @@
+{
+  "d96332eeb1": {
+    "rewrite": null,
+    "why": "Both multishift-and-shuffle paths feed required stores, and the pointer updates and flag-producing counter subtraction are all live."
+  },
+  "d758a93c15": {
+    "rewrite": null,
+    "why": "The constant vector and minimum result must both be preserved, while the eight-byte source requires its broadcast and shuffle and the comparison supplies the required CF."
+  },
+  "980b968f93": {
+    "rewrite": null,
+    "why": "The lookup, saturating arithmetic, and packing all affect the preserved zmm16, and the four indexed stores require the additional lane extraction."
+  },
+  "db3999b6bc": {
+    "rewrite": null,
+    "why": "The original byte broadcast, masked-and-offset rcx, constant vector, clamped indices, shuffled data, and final ZF are all required outputs."
+  },
+  "c86425746d": {
+    "rewrite": null,
+    "why": "The two interpolation paths require distinct duplicated coefficient halves, and their arithmetic, packing, lane extraction, stores, and live updates have no removable intermediate."
+  },
+  "6109f80d26": {
+    "rewrite": null,
+    "why": "Both broadcasts and the scalar mask-and-offset operations produce required values, and folding the 32-byte load into the full-width permutation would enlarge the memory access."
+  },
+  "6551de85ac": {
+    "rewrite": null,
+    "why": "Both interpolation paths contribute to the four required stores, their common shuffle and coefficient lookup are already shared, and the position update remains live."
+  },
+  "7aff1c29a7": {
+    "rewrite": null,
+    "why": "The word-test mask controls a byte-wise merge, so it cannot be folded into the word-masked multiply while preserving zmm0 and the untouched bytes of zmm24."
+  },
+  "27ba4be931": {
+    "rewrite": null,
+    "why": "Every loaded or computed destination is preserved, including both broadcast copies, and the scale-by-64 subtraction cannot be expressed by a single LEA."
+  },
+  "fc91417111": {
+    "rewrite": null,
+    "why": "Computing rcx requires both the offset and scale-by-64 operations, while r9 and the final TEST flags are independently required."
+  },
+  "ac01cd0ad7": {
+    "rewrite": null,
+    "why": "The byte subtraction result, masked comparison result, and scalar mask copy are all preserved, and VPSUBB cannot absorb the dword broadcast."
+  },
+  "4c8946e5c4": {
+    "rewrite": null,
+    "why": "The sign mask selects between independent saturated dot products, and the subsequent rounding, narrowing, four stores, and counter update all contribute to required results."
+  },
+  "9bafd4979c": {
+    "rewrite": null,
+    "why": "Each instruction updates a distinct preserved destination, and the scalar addition also supplies the required SF and OF."
+  },
+  "20860153ce": {
+    "rewrite": null,
+    "why": "The full narrowed zmm0 and updated zmm20 are preserved, and storing its four qwords at independent indexed addresses requires the upper-lane extraction."
+  },
+  "455486b713": {
+    "rewrite": null,
+    "why": "The broadcast, subtraction, comparison, and mask copy produce required register values, and a separate flag-setting instruction is necessary for ZF."
+  },
+  "2132d720dd": {
+    "rewrite": null,
+    "why": "Both dot-product results and both pre-permutation sign masks are preserved, with the shared shuffle and coefficient lookup already computed only once."
+  },
+  "8ad0e396ca": {
+    "rewrite": null,
+    "why": "Both rounded products feed the required packed vector and four indexed stores, while the counter subtraction supplies the preserved r8 and ZF."
+  },
+  "bb1e4e8d22": {
+    "rewrite": null,
+    "why": "The three vector updates and pointer update each produce a preserved value, and the comparison independently supplies the required SF and OF."
+  },
+  "fd2ce13ce6": {
+    "rewrite": null,
+    "why": "Both permutation-and-interpolation paths feed the preserved packed vector and four stores, and both index-vector updates and both scalar updates remain live."
+  },
+  "6c57f52207": {
+    "rewrite": null,
+    "why": "All four updated destinations are preserved, and the final comparison is required to reproduce SF and OF."
+  }
+}

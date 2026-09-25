@@ -1,0 +1,90 @@
+{
+  "8458a30e05": {
+    "rewrite": null,
+    "why": "The unaligned loads, saturating add, store, and flag-producing index update are required; folding a load into legacy PADDUSB would introduce an alignment requirement."
+  },
+  "476981da45": {
+    "rewrite": null,
+    "why": "The unconstrained xmm5 bias and wrapping word arithmetic prevent replacing the widening, addition, subtraction, and packing with simple byte saturation."
+  },
+  "2cbe78ae92": {
+    "rewrite": null,
+    "why": "The unconstrained xmm4 and xmm5 inputs require preserving the widened multiplication, wrapping additions, and normalization before packing."
+  },
+  "1a849887a5": {
+    "rewrite": null,
+    "why": "The unconstrained xmm4, xmm5, and xmm6 inputs prevent simplifying the word XORs, multiplication, wrapping additions, and normalization into byte operations."
+  },
+  "6365f214f2": {
+    "rewrite": null,
+    "why": "The arbitrary xmm3 input requires the byte minimum, maximum, and saturating subtraction, with copies needed by the destructive SSE2 operations."
+  },
+  "81ec6e0a73": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+r11*1]\nmovdqu xmm1,XMMWORD PTR [rdx+r11*1]\nmovdqa xmm3,xmm0\npminub xmm3,xmm1\npmaxub xmm0,xmm1\npsubb xmm0,xmm3\nmovdqu XMMWORD PTR [r8+r11*1],xmm0\nadd r11,0x10",
+    "saved": 11,
+    "why": "The identical high bytes supplied by xmm2 cancel in each word subtraction, leaving the exact signed byte difference. Unsigned byte maximum minus minimum therefore produces the same absolute differences."
+  },
+  "1dc0c2da1e": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+r11*1]\nmovdqu xmm1,XMMWORD PTR [rdx+r11*1]\nmovdqa xmm5,xmm0\npunpckhbw xmm5,xmm2\npunpcklbw xmm0,xmm2\nmovdqa xmm6,xmm1\npunpckhbw xmm6,xmm2\npunpcklbw xmm1,xmm2\npaddw xmm0,xmm1\npaddw xmm5,xmm6\npsubw xmm0,xmm4\npsubw xmm5,xmm4\npxor xmm1,xmm1\npxor xmm6,xmm6\npsubw xmm1,xmm0\npsubw xmm6,xmm5\npmaxsw xmm0,xmm1\npmaxsw xmm5,xmm6\npackuswb xmm0,xmm5\nmovdqu XMMWORD PTR [r8+r11*1],xmm0\nadd r11,0x10",
+    "saved": 2,
+    "why": "Adding each widened pair before subtracting xmm4 eliminates two copies. The resulting word difference is the negation of the original, so the signed maximum of the two opposite values is unchanged."
+  },
+  "acda7d899b": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+r11*1]\nmovdqu xmm1,XMMWORD PTR [rdx+r11*1]\nmovdqa xmm5,xmm0\npunpckhbw xmm5,xmm2\npunpcklbw xmm0,xmm2\nmovdqa xmm6,xmm1\npunpckhbw xmm6,xmm2\npunpcklbw xmm1,xmm2\npaddw xmm0,xmm1\npaddw xmm5,xmm6\npsubw xmm0,xmm4\npsubw xmm5,xmm4\npxor xmm1,xmm1\npxor xmm6,xmm6\npsubw xmm1,xmm0\npsubw xmm6,xmm5\npminsw xmm0,xmm1\npminsw xmm5,xmm6\npaddw xmm0,xmm4\npaddw xmm5,xmm4\npackuswb xmm0,xmm5\nmovdqu XMMWORD PTR [r8+r11*1],xmm0\nadd r11,0x10",
+    "saved": 4,
+    "why": "Accumulate each widened pair and subtract xmm4, then add xmm4 to the signed minimum of that difference and its negation. This equals subtracting the original signed maximum modulo 16 bits, including the 0x8000 case, and eliminates four copies."
+  },
+  "93b28debcf": {
+    "rewrite": null,
+    "why": "The unaligned loads, saturating add, store, and flag-producing index update are required; folding a load into legacy PADDUSW would introduce an alignment requirement."
+  },
+  "eb24433760": {
+    "rewrite": null,
+    "why": "The three-operand sequence already avoids copies, and unconstrained ymm4 and ymm5 inputs prevent replacing its wrapping word arithmetic with a narrow multiplication shortcut."
+  },
+  "6d95d583c3": {
+    "rewrite": "pshufd xmm4,XMMWORD PTR [rdx],0x50\npshufd xmm0,XMMWORD PTR [rdx],0xfa\npshufd xmm5,XMMWORD PTR [rcx],0x50\npshufd xmm1,XMMWORD PTR [rcx],0xfa\nshl r8d,0x3\nadd rdi,r8\nadd rsi,r8\nneg r8",
+    "saved": 4,
+    "why": "Memory-source PSHUFD directly constructs each duplicated pair, replacing each four-instruction load/copy/unpack group with two instructions. The loads use the original addresses and retain the original alignment requirement."
+  },
+  "6147136952": {
+    "rewrite": null,
+    "why": "Each vector load and each offset or pointer update produces a required value, and the 32-bit shift must retain its truncation before the 64-bit arithmetic."
+  },
+  "1f16521912": {
+    "rewrite": "mov r8,rsi\nlea r9,[r8+0x2600]\nmov eax,ecx",
+    "saved": 1,
+    "why": "LEA combines the constant initialization and addition to r9, and no arithmetic flags need to match."
+  },
+  "be62eb4b07": {
+    "rewrite": "mov r8,rdi\nlea r9,[r8+0x2600]\nmov eax,ecx",
+    "saved": 1,
+    "why": "LEA combines the constant initialization and addition to r9, and no arithmetic flags need to match."
+  },
+  "6882284ed5": {
+    "rewrite": "pshufd xmm3,XMMWORD PTR [rsi],0xd8\npshufd xmm4,XMMWORD PTR [rsi+rcx*1],0xd8\nmovaps xmm1,xmm3\nunpcklps xmm1,xmm4\nunpckhps xmm3,xmm4",
+    "saved": 3,
+    "why": "Shuffle each loaded vector into dword order 0,2,1,3, then interleave its low and high halves with the other vector. This directly produces the required even and odd outputs in xmm1 and xmm3."
+  },
+  "777e904c4d": {
+    "rewrite": null,
+    "why": "The two stores and four independent register updates are required, including the final SUB that sets the live flags."
+  },
+  "ffe4111f51": {
+    "rewrite": "vbroadcastf128 ymm0,XMMWORD PTR [CONST_1]\nlea rsi,[rsi+rdx*4]\nlea rdi,[rdi+rdx*4]\nimul rdx,rdx,0xfffffffffffffffc",
+    "saved": 1,
+    "why": "Scaled LEAs update both pointers from the original rdx, while multiplication by -4 combines the shift and negation modulo 64 bits. No flags need to match."
+  },
+  "ceec77a25f": {
+    "rewrite": null,
+    "why": "The vector initialization, two pointer loads, and offset updates are all live, and the 32-bit shift must retain its truncation before the 64-bit negation."
+  },
+  "b45d864114": {
+    "rewrite": null,
+    "why": "All four loaded pointers and their additions are required, as are xmm4 initialization and the truncated offset calculation followed by 64-bit negation."
+  },
+  "62c64f6106": {
+    "rewrite": null,
+    "why": "Both halves require their own load, variable shift, memory OR, and store, and the final index addition must also preserve its flags."
+  }
+}

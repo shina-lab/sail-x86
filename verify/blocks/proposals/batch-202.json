@@ -1,0 +1,87 @@
+{
+  "ef98e393b6": {
+    "rewrite": null,
+    "why": "The store, three broadcasts, and comparison each produce a separate required effect."
+  },
+  "fffed14510": {
+    "rewrite": null,
+    "why": "The row loads, shuffles, accumulations, permutation, store, and scalar updates are needed with arbitrary coefficient, bias, and shuffle registers."
+  },
+  "5809a0308b": {
+    "rewrite": null,
+    "why": "Both independently biased accumulations and their shuffles feed the required store, while the pointer updates and final flags must also be preserved."
+  },
+  "4ea3d1d792": {
+    "rewrite": null,
+    "why": "All register results, the store, and the flags from negation are live, preventing removal of the copy or substitution of a multiply for the copy and negation."
+  },
+  "539fe927d1": {
+    "rewrite": null,
+    "why": "The five memory fragments, mask setup, constant load, alignment, and unpack all contribute to required zmm16, zmm17, zmm20, or k1 values."
+  },
+  "f605200a72": {
+    "rewrite": null,
+    "why": "The five row fragments, two constant loads, mask setup, and two permutations are needed to produce the preserved raw and permuted vectors."
+  },
+  "13bb251ba8": {
+    "rewrite": "sub rsi,0x2\nshr r9d,0xb\nimul rax,rdx,0xffffffffffffffff",
+    "saved": 1,
+    "why": "Multiplication by -1 produces the same 64-bit negation of rdx in one instruction without changing rdx, and no flags are live."
+  },
+  "772798200b": {
+    "rewrite": "sub rsi,0x4\nshr r9d,0xb\nimul rax,rdx,0xffffffffffffffff",
+    "saved": 1,
+    "why": "Multiplication by -1 replaces the copy and negation while preserving rdx; the differing flags are not live."
+  },
+  "9e2a60effb": {
+    "rewrite": null,
+    "why": "Both stores, the word shift, all six broadcasts, and the final comparison produce required effects."
+  },
+  "a13537cb5b": {
+    "rewrite": null,
+    "why": "All four row loads, both coefficient shuffles and accumulations, the bias copy, permutation, store, and scalar updates contribute to required effects."
+  },
+  "80de1dcda7": {
+    "rewrite": null,
+    "why": "The store, four independent broadcast outputs, and comparison already require separate instructions."
+  },
+  "9979ab026d": {
+    "rewrite": null,
+    "why": "The shared shuffled operands already serve both accumulations, and the preserved bias requires separate accumulator initialization before the final permutation and store."
+  },
+  "c9962df718": {
+    "rewrite": null,
+    "why": "The word shift, two stores, eight distinct broadcast outputs, and comparison all have required effects."
+  },
+  "b40b98cc47": {
+    "rewrite": null,
+    "why": "The shifted intermediate zmm18 is live, and the addition, multishift, and double shift are needed to produce the required zmm17."
+  },
+  "b352fa0627": {
+    "rewrite": null,
+    "why": "The four independently addressed stores require the upper-lane extraction, and the comparison must still establish the live flags."
+  },
+  "0cb58e7e8b": {
+    "rewrite": "sub rdx,0xffffffffffffff80",
+    "saved": 11,
+    "why": "All vector results and rcx are dead, and there are no stores or live flags, so only the rdx increment must remain."
+  },
+  "e9bea1f1e1": {
+    "rewrite": "sub rdx,0xffffffffffffff80",
+    "saved": 25,
+    "why": "All loaded and computed vector values and the rcx update are dead, leaving only the required rdx increment."
+  },
+  "d413df7f92": {
+    "rewrite": "vmovdqa32 zmm20,ZMMWORD PTR [CONST_1]\nvpermt2b zmm18,zmm20,zmm19\nvpdpbusd zmm30,zmm18,DWORD BCST [CONST_2]\nvpermb zmm19,zmm31,zmm30\nvmovq QWORD PTR [rdi],xmm16\nvmovhps QWORD PTR [rdi+rsi*1],xmm16\nvextracti32x4 xmm18,ymm16,0x1\nvmovq QWORD PTR [rdi+rsi*2],xmm18\nvmovhps QWORD PTR [rdi+r10*1],xmm18\nvmovdqa32 XMMWORD PTR [rax],xmm19\ncmp r9d,0x8",
+    "saved": 1,
+    "why": "The final value of zmm30 is dead, so accumulate directly into it and permute that result into zmm19, eliminating the accumulator copy."
+  },
+  "7362e11a48": {
+    "rewrite": null,
+    "why": "The preserved zmm30 requires the accumulator copy, and both permutations, the dot product, five stores, and counter update have required effects."
+  },
+  "64ace857bf": {
+    "rewrite": null,
+    "why": "All vector results are live, the accumulator source must remain unchanged, and the five independently addressed stores and counter update are required."
+  }
+}

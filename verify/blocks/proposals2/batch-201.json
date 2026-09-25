@@ -1,0 +1,83 @@
+{
+  "8dedce231e": {
+    "rewrite": null,
+    "why": "The required r14d zeroing, r12d copy, and two-source XOR into esi already need four instructions with the permitted ISA."
+  },
+  "994e4d3441": {
+    "rewrite": "pshufd xmm2,xmm2,0xb1\npshufd xmm3,xmm1,0x1b\nshufps xmm1,xmm2,0xeb\npalignr xmm2,xmm3,0x8\nmovups XMMWORD PTR [r8],xmm6\nmovdqu XMMWORD PTR [r9],xmm1\nmovdqu XMMWORD PTR [r9+0x10],xmm2",
+    "saved": 1,
+    "why": "SHUFPS with immediate 0xeb replaces the xmm1 shuffle and high-qword unpack, selecting original xmm1 dwords 3 and 2 and shuffled xmm2 dwords 2 and 3. All final registers, stores, and flags are preserved."
+  },
+  "52725599f5": {
+    "rewrite": null,
+    "why": "The AES round, eax decrement with its flags, next-key load, and rdx advance each produce a required result."
+  },
+  "f86772fbbd": {
+    "rewrite": null,
+    "why": "The final AES encryption round and output store are required, as are the three distinct XMM register clears."
+  },
+  "ebbc0051a3": {
+    "rewrite": null,
+    "why": "The AES decryption round, eax decrement with its flags, next-key load, and rdx advance each produce a required result."
+  },
+  "e3cbef072f": {
+    "rewrite": null,
+    "why": "The final AES decryption round and output store are required, as are the three distinct XMM register clears."
+  },
+  "5de893ab21": {
+    "rewrite": null,
+    "why": "Both loads, both live register copies, and the independent test producing ZF are necessary."
+  },
+  "a53fa45304": {
+    "rewrite": null,
+    "why": "Each of the eight stores, two register copies, and two scalar updates has a required effect that cannot be combined under SSE2."
+  },
+  "e24963786a": {
+    "rewrite": null,
+    "why": "Both loaded vectors remain live, while the XOR result and rcx advance are also required."
+  },
+  "3b479d7e42": {
+    "rewrite": null,
+    "why": "The eight stores and eight live XMM clears are required, along with two register copies and two scalar updates."
+  },
+  "dca320c8d3": {
+    "rewrite": null,
+    "why": "The seven output stores and eight required XMM clears cannot be combined under SSE2."
+  },
+  "330cda5f0f": {
+    "rewrite": null,
+    "why": "Both original vectors must be stored and both live XMM registers cleared, requiring four SSE2 instructions."
+  },
+  "fb564d23eb": {
+    "rewrite": null,
+    "why": "All three original vectors must be stored and all three live XMM registers cleared, requiring six SSE2 instructions."
+  },
+  "a4d43716fb": {
+    "rewrite": null,
+    "why": "All four original vectors must be stored and all four live XMM registers cleared, requiring eight SSE2 instructions."
+  },
+  "6ff63f8af9": {
+    "rewrite": null,
+    "why": "All five stores and six XMM clears have required effects, and SSE2 cannot combine a store with a register clear."
+  },
+  "c77354ebaf": {
+    "rewrite": null,
+    "why": "All six original vectors must be stored and all six live XMM registers cleared, requiring twelve SSE2 instructions."
+  },
+  "e50e972759": {
+    "rewrite": null,
+    "why": "The shared key load feeds both XOR paths, and folding it into legacy SSE XOR memory operands would impose an alignment requirement absent from MOVUPS."
+  },
+  "e00186d27a": {
+    "rewrite": null,
+    "why": "All six XMM clears and the store of the original xmm3 value are required, and SSSE3 cannot combine these effects."
+  },
+  "fd5ce7e146": {
+    "rewrite": null,
+    "why": "The AES round, live eax decrement producing ZF, next-key load, and rcx advance each require an instruction."
+  },
+  "ed19e3f178": {
+    "rewrite": null,
+    "why": "The XOR, store, and both scalar updates are required, while preserving xmm6 requires a separate copy before the destructive PSHUFB."
+  }
+}

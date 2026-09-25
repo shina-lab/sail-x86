@@ -1,0 +1,82 @@
+{
+  "af48924e61": {
+    "rewrite": null,
+    "why": "The XOR and store, both live lane permutations, and the comparison producing SF and OF are all required."
+  },
+  "58124a12f6": {
+    "rewrite": null,
+    "why": "The XOR and store, both live lane permutations, and the comparison producing SF and OF are all required."
+  },
+  "2c027d872d": {
+    "rewrite": null,
+    "why": "The XOR and store, both live lane permutations, and the comparison producing SF and OF are all required."
+  },
+  "0098253f2a": {
+    "rewrite": null,
+    "why": "The XOR and store, live ymm15 permutation, required ymm0 copy, and comparison producing SF and OF cannot be combined."
+  },
+  "0827449f49": {
+    "rewrite": null,
+    "why": "The XOR and store require two instructions, while the required final zmm0 value and comparison flags each require another instruction."
+  },
+  "16015c9476": {
+    "rewrite": null,
+    "why": "The XOR and store require two instructions, while the required final zmm0 value and comparison flags each require another instruction."
+  },
+  "d28c27505b": {
+    "rewrite": null,
+    "why": "The XOR and store require two instructions, while the required final zmm0 value and comparison flags each require another instruction."
+  },
+  "7e834e538f": {
+    "rewrite": null,
+    "why": "The XOR and store require two instructions, while the required final zmm0 value and comparison flags each require another instruction."
+  },
+  "2c0f59f6d0": {
+    "rewrite": null,
+    "why": "The XOR and store require two instructions, while the required final zmm0 value and comparison flags each require another instruction."
+  },
+  "8557094a47": {
+    "rewrite": null,
+    "why": "The XOR and store require two instructions, while the required final zmm0 value and comparison flags each require another instruction."
+  },
+  "755ae94e20": {
+    "rewrite": null,
+    "why": "The XOR and store require two instructions, while the required final zmm0 value and comparison flags each require another instruction."
+  },
+  "7af4d7e262": {
+    "rewrite": null,
+    "why": "The state updates, lane permutations, and counter decrement are live, and SSSE3 lacks a packed dword rotate to shorten the copy/shift/OR sequences."
+  },
+  "e6b1c31bd3": {
+    "rewrite": null,
+    "why": "Folding the unaligned load into legacy PXOR would require an unspecified alignment guarantee, and the store, live sum, result copy, and comparison are required."
+  },
+  "9d3a0ac8af": {
+    "rewrite": null,
+    "why": "Folding the unaligned load into legacy PXOR would require an unspecified alignment guarantee, and the store, live sum, result copy, and comparison are required."
+  },
+  "a231e8f91f": {
+    "rewrite": null,
+    "why": "Folding the unaligned load into legacy PXOR would require an unspecified alignment guarantee, and the store, live sum, result copy, and comparison are required."
+  },
+  "2cf8a7446e": {
+    "rewrite": null,
+    "why": "Folding the unaligned load into legacy PXOR would require an unspecified alignment guarantee, while the store, final xmm0 copy, and comparison are all required."
+  },
+  "1717c0ce6a": {
+    "rewrite": null,
+    "why": "Folding the unaligned load into legacy PXOR would require an unspecified alignment guarantee, while the store, final xmm0 copy, and comparison are all required."
+  },
+  "2fca6c9be8": {
+    "rewrite": null,
+    "why": "Folding the unaligned load into legacy PXOR would require an unspecified alignment guarantee, while the store, final xmm0 copy, and comparison are all required."
+  },
+  "40aa3d62e1": {
+    "rewrite": null,
+    "why": "Folding the unaligned load into legacy PXOR would require an unspecified alignment guarantee, while the store, final xmm0 copy, and comparison are all required."
+  },
+  "9e7bdf8ef3": {
+    "rewrite": null,
+    "why": "Folding the unaligned load into legacy PXOR would require an unspecified alignment guarantee, while the store, final xmm0 copy, and comparison are all required."
+  }
+}

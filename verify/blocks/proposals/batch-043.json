@@ -1,0 +1,92 @@
+{
+  "f87ad6d282": {
+    "rewrite": null,
+    "why": "All four multiply-add pairs feed the preserved xmm0, and the qword destination load must retain its zero upper half through the clamp and average."
+  },
+  "c9ec2d4095": {
+    "rewrite": null,
+    "why": "Both filter sums must be packed and interleaved, and SSE2 cannot fold the unaligned source loads into non-destructive multiply-adds while preserving the coefficient registers."
+  },
+  "04b495b59b": {
+    "rewrite": null,
+    "why": "The two filter sums require separate shifts and packing before interleaving, and the final average already folds its memory load."
+  },
+  "19dede79f5": {
+    "rewrite": "vpmaddwd ymm0,ymm7,YMMWORD PTR [rdx-0x6]\nvpmaddwd ymm1,ymm7,YMMWORD PTR [rdx-0x4]\nvpmaddwd ymm2,ymm8,YMMWORD PTR [rdx-0x2]\nvpmaddwd ymm3,ymm8,YMMWORD PTR [rdx]\nvpmaddwd ymm4,ymm9,YMMWORD PTR [rdx+0x2]\nvpaddd ymm0,ymm0,ymm2\nvpaddd ymm1,ymm1,ymm3\nvpaddd ymm0,ymm0,ymm4\nvpmaddwd ymm2,ymm9,YMMWORD PTR [rdx+0x4]\nvpmaddwd ymm3,ymm10,YMMWORD PTR [rdx+0x6]\nvpmaddwd ymm4,ymm10,YMMWORD PTR [rdx+0x8]\nadd rdx,rcx\nvpaddd ymm1,ymm1,ymm2\nvpaddd ymm0,ymm0,ymm3\nvpaddd ymm1,ymm1,ymm4\nvpaddd ymm0,ymm0,ymm6\nvpaddd ymm1,ymm1,ymm6\nvpsrad ymm0,ymm0,0x7\nvpsrad ymm1,ymm1,0x7\nvpackusdw ymm0,ymm0,ymm0\nvpackusdw ymm1,ymm1,ymm1\nvpunpcklwd ymm0,ymm0,ymm1\nvpminsw ymm0,ymm0,ymm5\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 8,
+    "why": "Fold all eight source loads into commutative VPMADDWD memory operands. Delay the rdx increment until those loads finish, preserving every address and the final flags."
+  },
+  "e081ce42ac": {
+    "rewrite": "vpmaddwd ymm0,ymm7,YMMWORD PTR [rdx-0x6]\nvpmaddwd ymm1,ymm7,YMMWORD PTR [rdx-0x4]\nvpmaddwd ymm2,ymm8,YMMWORD PTR [rdx-0x2]\nvpmaddwd ymm3,ymm8,YMMWORD PTR [rdx]\nvpmaddwd ymm4,ymm9,YMMWORD PTR [rdx+0x2]\nvpaddd ymm0,ymm0,ymm2\nvpaddd ymm1,ymm1,ymm3\nvpaddd ymm0,ymm0,ymm4\nvpmaddwd ymm2,ymm9,YMMWORD PTR [rdx+0x4]\nvpmaddwd ymm3,ymm10,YMMWORD PTR [rdx+0x6]\nvpmaddwd ymm4,ymm10,YMMWORD PTR [rdx+0x8]\nadd rdx,rcx\nvpaddd ymm1,ymm1,ymm2\nvpaddd ymm0,ymm0,ymm3\nvpaddd ymm1,ymm1,ymm4\nvpaddd ymm0,ymm0,ymm6\nvpaddd ymm1,ymm1,ymm6\nvpsrad ymm0,ymm0,0x7\nvpsrad ymm1,ymm1,0x7\nvpackusdw ymm0,ymm0,ymm0\nvpackusdw ymm1,ymm1,ymm1\nvpunpcklwd ymm0,ymm0,ymm1\nvpminsw ymm0,ymm0,ymm5\nvpavgw ymm0,ymm0,YMMWORD PTR [rdi]\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 8,
+    "why": "Fold all eight source loads into VPMADDWD memory operands and advance rdx after the last source access. The packing, clamp, destination average and final flags remain identical."
+  },
+  "f59c7fd0fc": {
+    "rewrite": null,
+    "why": "All eight qword loads contribute to the four unpack-and-multiply pairs, and the preserved xmm0 requires the packing and both clamps."
+  },
+  "6830970e06": {
+    "rewrite": null,
+    "why": "The eight source loads and four unpack-and-multiply pairs are needed, and the qword average operand cannot become a full-width memory operand without changing xmm0 or reading extra bytes."
+  },
+  "90cb24ba76": {
+    "rewrite": null,
+    "why": "Both halves of every source pair contribute to the result, while SSE2 needs the copies for destructive low/high unpacks and cannot safely replace these unaligned loads with aligned memory operands."
+  },
+  "0f97eed799": {
+    "rewrite": null,
+    "why": "The two SSE2 unpack paths require their copies and unaligned loads, and the final average already uses a memory operand."
+  },
+  "364ed49f7b": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdx]\nvmovdqu ymm2,YMMWORD PTR [rdx+rcx*2]\nvmovdqu ymm4,YMMWORD PTR [rax]\nvpunpckhwd ymm6,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpcklwd ymm0,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpckhwd ymm1,ymm2,YMMWORD PTR [rdx+r10*1]\nvpunpcklwd ymm2,ymm2,YMMWORD PTR [rdx+r10*1]\nadd rdx,rcx\nvpmaddwd ymm0,ymm0,ymm7\nvpmaddwd ymm6,ymm6,ymm7\nvpmaddwd ymm2,ymm8,ymm2\nvpmaddwd ymm1,ymm8,ymm1\nvpaddd ymm0,ymm0,ymm2\nvpaddd ymm6,ymm6,ymm1\nvmovdqu ymm1,YMMWORD PTR [rax+rcx*2]\nvpunpckhwd ymm3,ymm4,YMMWORD PTR [rax+rcx*1]\nvpunpcklwd ymm4,ymm4,YMMWORD PTR [rax+rcx*1]\nvpmaddwd ymm4,ymm9,ymm4\nvpmaddwd ymm3,ymm9,ymm3\nvpaddd ymm0,ymm0,ymm4\nvpaddd ymm6,ymm6,ymm3\nvpunpckhwd ymm2,ymm1,YMMWORD PTR [rax+r10*1]\nvpunpcklwd ymm1,ymm1,YMMWORD PTR [rax+r10*1]\nadd rax,rcx\nvpmaddwd ymm1,ymm10,ymm1\nvpmaddwd ymm2,ymm10,ymm2\nvpaddd ymm0,ymm0,ymm1\nvpaddd ymm6,ymm6,ymm2\nvpaddd ymm0,ymm11,ymm0\nvpaddd ymm6,ymm11,ymm6\nvpsrad ymm0,ymm0,0x7\nvpsrad ymm6,ymm6,0x7\nvpackusdw ymm0,ymm0,ymm6\nvpminsw ymm0,ymm0,ymm5\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 4,
+    "why": "Replace four explicit loads with memory operands on both corresponding unpacks, rereading only the original locations. Advance each source pointer after its unpacks to preserve the effective addresses."
+  },
+  "0d48c13b68": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdx]\nvmovdqu ymm2,YMMWORD PTR [rdx+rcx*2]\nvmovdqu ymm4,YMMWORD PTR [rax]\nvpunpckhwd ymm6,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpcklwd ymm0,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpckhwd ymm1,ymm2,YMMWORD PTR [rdx+r10*1]\nvpunpcklwd ymm2,ymm2,YMMWORD PTR [rdx+r10*1]\nadd rdx,rcx\nvpmaddwd ymm0,ymm0,ymm7\nvpmaddwd ymm6,ymm6,ymm7\nvpmaddwd ymm2,ymm8,ymm2\nvpmaddwd ymm1,ymm8,ymm1\nvpaddd ymm0,ymm0,ymm2\nvpaddd ymm6,ymm6,ymm1\nvmovdqu ymm1,YMMWORD PTR [rax+rcx*2]\nvpunpckhwd ymm3,ymm4,YMMWORD PTR [rax+rcx*1]\nvpunpcklwd ymm4,ymm4,YMMWORD PTR [rax+rcx*1]\nvpmaddwd ymm4,ymm9,ymm4\nvpmaddwd ymm3,ymm9,ymm3\nvpaddd ymm0,ymm0,ymm4\nvpaddd ymm6,ymm6,ymm3\nvpunpckhwd ymm2,ymm1,YMMWORD PTR [rax+r10*1]\nvpunpcklwd ymm1,ymm1,YMMWORD PTR [rax+r10*1]\nadd rax,rcx\nvpmaddwd ymm1,ymm10,ymm1\nvpmaddwd ymm2,ymm10,ymm2\nvpaddd ymm0,ymm0,ymm1\nvpaddd ymm6,ymm6,ymm2\nvpaddd ymm0,ymm11,ymm0\nvpaddd ymm6,ymm11,ymm6\nvpsrad ymm0,ymm0,0x7\nvpsrad ymm6,ymm6,0x7\nvpackusdw ymm0,ymm0,ymm6\nvpminsw ymm0,ymm0,ymm5\nvpavgw ymm0,ymm0,YMMWORD PTR [rdi]\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 4,
+    "why": "Fold four source loads into the paired low/high unpacks, using exactly the original memory addresses. Delayed source-pointer increments leave all required registers, the destination average and final flags unchanged."
+  },
+  "d2ff70accc": {
+    "rewrite": "pshufd xmm0,XMMWORD PTR [rdi+0x30],0x44\npshufd xmm1,XMMWORD PTR [rdi+0x30],0x11\npmaddwd xmm0,XMMWORD PTR [CONST_1]\npmaddwd xmm1,XMMWORD PTR [CONST_2]\npshufd xmm2,XMMWORD PTR [rdi+0x30],0xbb\npshufd xmm3,XMMWORD PTR [rdi+0x30],0xee\npmaddwd xmm2,XMMWORD PTR [CONST_3]\npmaddwd xmm3,XMMWORD PTR [CONST_4]\npaddd xmm0,xmm1\npaddd xmm2,xmm3\npaddd xmm0,XMMWORD PTR [CONST_5]\nmovdqa xmm3,xmm2\npaddd xmm2,xmm0\npsubd xmm0,xmm3\npsrad xmm2,0xb\npsrad xmm0,0xb\npackssdw xmm2,xmm0\npshufhw xmm4,xmm2,0x1b",
+    "saved": 2,
+    "why": "Four memory-source PSHUFD instructions directly form the four required word-pair arrangements. They replace the original input load, copy and four shuffles/unpacks without changing any arithmetic."
+  },
+  "7df6957249": {
+    "rewrite": null,
+    "why": "The zeroed vectors, constant vectors, three extracted integer values and final ZF are all live, and the two consecutive signed packs perform distinct saturations."
+  },
+  "45052da1c7": {
+    "rewrite": "pmulhw xmm13,xmm4\npaddsw xmm13,xmm4\nmovdqa xmm3,xmm6\npmulhw xmm14,xmm6\npsubsw xmm3,xmm4\npaddsw xmm4,xmm6\nmovdqa xmm6,xmm14\npsubsw xmm14,xmm13\npaddsw xmm13,xmm6\nmovdqa xmm6,xmm3\npsubsw xmm3,xmm13\npaddsw xmm13,xmm6\npmulhw xmm3,XMMWORD PTR [CONST_1]\npmulhw xmm13,XMMWORD PTR [CONST_1]\npaddsw xmm13,xmm13\npaddsw xmm3,xmm3\nmovdqa xmm5,XMMWORD PTR [CONST_2]\npmulhw xmm5,xmm9\nmovdqa xmm6,xmm8\npsubsw xmm6,xmm9\npaddsw xmm9,xmm8\nmovdqa xmm12,xmm8\npsubsw xmm8,xmm5\npaddsw xmm5,xmm12\nmovdqa xmm12,xmm5\npsubsw xmm5,xmm13\npaddsw xmm13,xmm12\nmovdqa xmm12,xmm8\npsubsw xmm8,xmm3\npaddsw xmm3,xmm12\npsraw xmm5,0x6\npsraw xmm8,0x6\npsraw xmm13,0x6\npsraw xmm3,0x6\nmovdqa XMMWORD PTR [rdi+0x10],xmm13\nmovdqa XMMWORD PTR [rdi+0x20],xmm3\nmovdqa XMMWORD PTR [rdi+0x50],xmm8\nmovdqa XMMWORD PTR [rdi+0x60],xmm5\nmovdqa xmm0,xmm9\nmovdqa xmm1,xmm6\npsubsw xmm9,xmm4\npsubsw xmm6,xmm14\npaddsw xmm4,xmm0\npaddsw xmm14,xmm1\npsraw xmm4,0x6\npsraw xmm9,0x6\npsraw xmm14,0x6\npsraw xmm6,0x6\nmovdqa XMMWORD PTR [rdi],xmm4\nmovdqa XMMWORD PTR [rdi+0x30],xmm14\nmovdqa XMMWORD PTR [rdi+0x40],xmm6\nmovdqa XMMWORD PTR [rdi+0x70],xmm9",
+    "saved": 2,
+    "why": "Fold CONST_1 into both PMULHW operands, freeing xmm4 to hold the first saturated sum and eliminating its copy to xmm1. Reuse xmm1 for the later butterfly temporary while preserving xmm0 and all eight stores."
+  },
+  "c003f7ee05": {
+    "rewrite": "pshufd xmm0,XMMWORD PTR [rdi+0x40],0x44\npshufd xmm1,XMMWORD PTR [rdi+0x40],0x11\npmaddwd xmm0,XMMWORD PTR [CONST_1]\npmaddwd xmm1,XMMWORD PTR [CONST_2]\npshufd xmm2,XMMWORD PTR [rdi+0x40],0xbb\npshufd xmm3,XMMWORD PTR [rdi+0x40],0xee\npmaddwd xmm2,XMMWORD PTR [CONST_3]\npmaddwd xmm3,XMMWORD PTR [CONST_4]\npaddd xmm0,xmm1\npaddd xmm2,xmm3\nmovdqa xmm3,xmm2\npaddd xmm2,xmm0\npsubd xmm0,xmm3\npsrad xmm2,0xb\npsrad xmm0,0xb\npackssdw xmm2,xmm0\npshufhw xmm10,xmm2,0x1b",
+    "saved": 2,
+    "why": "Use four memory-source PSHUFD instructions to reproduce the low/high qword duplication and the two existing dword shuffles, removing the separate load and copy."
+  },
+  "1644e060d8": {
+    "rewrite": "pshufd xmm0,XMMWORD PTR [rdi+0x50],0x44\npshufd xmm1,XMMWORD PTR [rdi+0x50],0x11\npmaddwd xmm0,XMMWORD PTR [CONST_1]\npmaddwd xmm1,XMMWORD PTR [CONST_2]\npshufd xmm2,XMMWORD PTR [rdi+0x50],0xbb\npshufd xmm3,XMMWORD PTR [rdi+0x50],0xee\npmaddwd xmm2,XMMWORD PTR [CONST_3]\npmaddwd xmm3,XMMWORD PTR [CONST_4]\npaddd xmm0,xmm1\npaddd xmm2,xmm3\npaddd xmm0,XMMWORD PTR [CONST_5]\nmovdqa xmm3,xmm2\npaddd xmm2,xmm0\npsubd xmm0,xmm3\npsrad xmm2,0xb\npsrad xmm0,0xb\npackssdw xmm2,xmm0\npshufhw xmm5,xmm2,0x1b\ntest ecx,ecx",
+    "saved": 2,
+    "why": "Form all four input arrangements with memory-source PSHUFD, eliminating the separate input load and copy. Keep the arithmetic and final TEST to preserve xmm5 and ZF."
+  },
+  "e1959b6313": {
+    "rewrite": "pshufd xmm0,XMMWORD PTR [rdi+0x60],0x44\npshufd xmm1,XMMWORD PTR [rdi+0x60],0x11\npmaddwd xmm0,XMMWORD PTR [CONST_1]\npmaddwd xmm1,XMMWORD PTR [CONST_2]\npshufd xmm2,XMMWORD PTR [rdi+0x60],0xbb\npshufd xmm3,XMMWORD PTR [rdi+0x60],0xee\npmaddwd xmm2,XMMWORD PTR [CONST_3]\npmaddwd xmm3,XMMWORD PTR [CONST_4]\npaddd xmm0,xmm1\npaddd xmm2,xmm3\npaddd xmm0,XMMWORD PTR [CONST_5]\nmovdqa xmm3,xmm2\npaddd xmm2,xmm0\npsubd xmm0,xmm3\npsrad xmm2,0xb\npsrad xmm0,0xb\npackssdw xmm2,xmm0\npshufhw xmm11,xmm2,0x1b",
+    "saved": 2,
+    "why": "Replace the input load, copy and four rearrangements with four memory-source PSHUFD instructions; immediates 0x44 and 0xee reproduce the qword duplications exactly."
+  },
+  "46be8a59e6": {
+    "rewrite": "pshufd xmm0,XMMWORD PTR [rdi+0x70],0x44\npshufd xmm1,XMMWORD PTR [rdi+0x70],0x11\npmaddwd xmm0,XMMWORD PTR [CONST_1]\npmaddwd xmm1,XMMWORD PTR [CONST_2]\npshufd xmm2,XMMWORD PTR [rdi+0x70],0xbb\npshufd xmm3,XMMWORD PTR [rdi+0x70],0xee\npmaddwd xmm2,XMMWORD PTR [CONST_3]\npmaddwd xmm3,XMMWORD PTR [CONST_4]\npaddd xmm0,xmm1\npaddd xmm2,xmm3\npaddd xmm0,XMMWORD PTR [CONST_5]\nmovdqa xmm3,xmm2\npaddd xmm2,xmm0\npsubd xmm0,xmm3\npsrad xmm2,0xb\npsrad xmm0,0xb\npackssdw xmm2,xmm0\npshufhw xmm7,xmm2,0x1b",
+    "saved": 2,
+    "why": "Four memory-source PSHUFD instructions provide the same four input arrangements while eliminating the separate load and copy, leaving the complete saturated transform unchanged."
+  },
+  "5c27d872ca": {
+    "rewrite": null,
+    "why": "The three independent pointer updates and the shift plus 64-bit negation are all required, including the 32-bit truncation and zero extension performed by SHL ecx."
+  },
+  "e199250ba5": {
+    "rewrite": null,
+    "why": "Each of the three pointers needs its own update, and forming the final rcx requires both the truncated 32-bit shift and the subsequent 64-bit negation."
+  }
+}

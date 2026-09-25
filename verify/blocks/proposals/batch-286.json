@@ -1,0 +1,91 @@
+{
+  "e1100808a6": {
+    "rewrite": null,
+    "why": "The live rcx calculation needs both scalar instructions, while the vector comparison and final subtraction separately produce the required mask, rsi, and CF."
+  },
+  "f70c393ef1": {
+    "rewrite": "add rsi,rdi\nand rdi,0xffffffffffffff80\nsub rsi,rdi",
+    "saved": 1,
+    "why": "Adding the original pointer and subtracting its aligned value adds exactly its low seven bits modulo 2^64. The aligned rdi is preserved and no flags are required."
+  },
+  "025a4945c2": {
+    "rewrite": null,
+    "why": "Both minimum computations feed required comparison masks, and the loaded ymm19, pointer update, and final ZF test are also live."
+  },
+  "71adf68fea": {
+    "rewrite": null,
+    "why": "The rsi masking, byte comparison, scalar mask extraction, and ZF calculation each produce a required result."
+  },
+  "950ef7ea73": {
+    "rewrite": null,
+    "why": "The comparison and mask transfer are needed to obtain the trailing-zero count, and the final comparison independently supplies the required CF."
+  },
+  "8d7f44db97": {
+    "rewrite": "mov eax,edx\nor eax,0xffffffe0\nneg eax\ncmp rsi,rax",
+    "saved": 1,
+    "why": "OR with 0xffffffe0 followed by 32-bit negation produces exactly 32 minus the low five bits of edx, including 32 when those bits are zero. The unchanged 64-bit comparison preserves CF and ZF."
+  },
+  "b386eb520a": {
+    "rewrite": "lea r11,[rsi+rdi]\nmov r10,r11\nand r10,0xffffffffffffffc0\npxor xmm0,xmm0\npxor xmm1,xmm1\npxor xmm2,xmm2\npxor xmm3,xmm3\nmov rax,rdi\nmov rcx,rdi\nand rcx,0xfff\ncmp rcx,0xfcf",
+    "saved": 1,
+    "why": "Since rsi is not live at the end, LEA can compute the sum directly into r11 and eliminate one copy. The aligned sum, vector zeros, rax, and final comparison are unchanged."
+  },
+  "036d73be69": {
+    "rewrite": null,
+    "why": "All four memory inputs contribute to the minimum, and the comparison vector, scalar mask, and zero flag are all required."
+  },
+  "ff9a6a630a": {
+    "rewrite": null,
+    "why": "SSE2 requires the four byte comparisons and mask extractions here, together with assembly of the complete 64-bit mask and preservation of xmm0."
+  },
+  "c1fd385422": {
+    "rewrite": null,
+    "why": "The sentinel insertion and bit scan are both needed for rdx, and the two following arithmetic operations incorporate independent values into rax."
+  },
+  "cfb014d8d9": {
+    "rewrite": null,
+    "why": "AVX2 needs the scalar-to-vector move before byte broadcast, while the zero vector, masked rcx, and final comparison are all live."
+  },
+  "5f210b8e1b": {
+    "rewrite": "vpcmpeqb ymm2,ymm0,YMMWORD PTR [rdi]\nvpcmpeqb ymm3,ymm4,YMMWORD PTR [rdi]\nvpmovmskb ecx,ymm2\nvpmovmskb eax,ymm3\nadd rdi,0x20\ntest eax,eax",
+    "saved": 1,
+    "why": "Both comparisons can load directly from the original address, eliminating the load into dead ymm1. The scalar masks, pointer increment, and final ZF are unchanged."
+  },
+  "33663627cb": {
+    "rewrite": "vpcmpeqb ymm2,ymm0,YMMWORD PTR [rdi]\nvpcmpeqb ymm3,ymm4,YMMWORD PTR [rdi]\nvpmovmskb ecx,ymm2\nvpmovmskb eax,ymm3\nadd rdi,0x20\nor ecx,eax",
+    "saved": 1,
+    "why": "Folding the load into both comparisons removes the dead ymm1 temporary; both accesses occur before updating rdi. The live ymm2 and rax values and the final union-zero flag are preserved."
+  },
+  "ac55b2b401": {
+    "rewrite": "lea r8d,[rcx-0x1]\nxor r8d,ecx\nand eax,r8d",
+    "saved": 2,
+    "why": "LEA replaces the copy and decrement while computing the same 32-bit value. AND already sets ZF exactly as the removed TEST would."
+  },
+  "df05a0041e": {
+    "rewrite": null,
+    "why": "The broadcast and zeroing already take one instruction each, and the live masked rcx plus CF and ZF require the remaining scalar operations."
+  },
+  "b5c5a3b758": {
+    "rewrite": "vpcmpeqb k0,ymm16,YMMWORD PTR [rdi]\nvpcmpeqb k1,ymm17,YMMWORD PTR [rdi]\nkmovd ecx,k0\nkmovd eax,k1\nadd rdi,0x20\ntest eax,eax",
+    "saved": 1,
+    "why": "Equality is commutative, so both comparisons can use the original memory operand directly and eliminate the dead ymm18 load. Both scalar masks, rdi, and ZF remain unchanged."
+  },
+  "274f1c170c": {
+    "rewrite": "vpcmpeqb k0,ymm16,YMMWORD PTR [rdi]\nvpcmpeqb k1,ymm17,YMMWORD PTR [rdi]\nkmovd eax,k1\nadd rdi,0x20\nkortestd k0,k1",
+    "saved": 2,
+    "why": "Folding the load into both comparisons removes one instruction. KORTESTD computes the same union-zero condition without extracting k0 into the dead rcx, while preserving k0 and rax."
+  },
+  "04345f8eb0": {
+    "rewrite": "lea r8d,[rcx-0x1]\nxor r8d,ecx\nand eax,r8d",
+    "saved": 2,
+    "why": "LEA combines the copy and decrement without requiring BMI1. The final AND supplies the same ZF as the redundant TEST."
+  },
+  "27a73ce6e6": {
+    "rewrite": null,
+    "why": "The SSE2 byte broadcast needs the move and three replication operations, while the independent masked-address comparison supplies the required CF and ZF."
+  },
+  "4c453d2f10": {
+    "rewrite": null,
+    "why": "The two destructive SSE2 comparisons need separate input copies, and both scalar masks, the comparison in xmm0, zeroed xmm2, and final ZF are required."
+  }
+}

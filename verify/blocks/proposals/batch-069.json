@@ -1,0 +1,86 @@
+{
+  "ea20ad66d0": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nmovq xmm1,QWORD PTR [rsi+0x14]\nmovd xmm3,DWORD PTR [rsi+0x1c]\npshufd xmm2,xmm1,0x55\npshufd xmm1,xmm1,0x0\npshufd xmm3,xmm3,0x0\nmovdqa xmm5,xmm1\nmovdqa xmm6,xmm2\nmovdqa xmm7,xmm3\nadd rsi,0x20",
+    "saved": 1,
+    "why": "One QWORD load replaces the adjacent DWORD loads at offsets 0x14 and 0x18, reading exactly the same bytes. Separate shuffles broadcast its two dwords before the required copies."
+  },
+  "40b67264dc": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nmovd xmm0,DWORD PTR [rsi+0x10]\nmovq xmm2,QWORD PTR [rsi+0x18]\npshufd xmm0,xmm0,0x0\npshufd xmm3,xmm2,0x55\npshufd xmm2,xmm2,0x0\nmovdqa xmm4,xmm0\nmovdqa xmm6,xmm2\nmovdqa xmm7,xmm3\nadd rsi,0x20",
+    "saved": 1,
+    "why": "One QWORD load replaces the adjacent DWORD loads at offsets 0x18 and 0x1c, reading exactly the same bytes. Broadcasting its high dword before its low dword preserves both results and their copies."
+  },
+  "319180be2a": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nmovq xmm0,QWORD PTR [rsi+0x10]\nmovd xmm3,DWORD PTR [rsi+0x1c]\npshufd xmm1,xmm0,0x55\npshufd xmm0,xmm0,0x0\npshufd xmm3,xmm3,0x0\nmovdqa xmm4,xmm0\nmovdqa xmm5,xmm1\nmovdqa xmm7,xmm3\nadd rsi,0x20",
+    "saved": 1,
+    "why": "One QWORD load replaces the adjacent DWORD loads at offsets 0x10 and 0x14, reading exactly the same bytes. Separate shuffles recover both broadcasts while retaining all required final values."
+  },
+  "4e72a944ff": {
+    "rewrite": null,
+    "why": "Every vector move supplies a distinct required final register value, including xmm8 and xmm12, and the scalar load and pointer update are also required."
+  },
+  "becbf4d5ad": {
+    "rewrite": null,
+    "why": "The two register cycles already use one move per changed vector register, including the required saved values in xmm8 and xmm12."
+  },
+  "9473a2c5e4": {
+    "rewrite": null,
+    "why": "Both swaps require their temporary copies, and xmm8 and xmm12 must retain those copies as final outputs."
+  },
+  "590b1d2a75": {
+    "rewrite": null,
+    "why": "The four independent vector swaps require temporary saves, and the final copies in xmm8 and xmm12 prevent eliminating their last assignments."
+  },
+  "23c60eea0a": {
+    "rewrite": null,
+    "why": "Each of the four vector copies writes a required destination, and the remaining instructions produce the required scalar load, pointer value, and flags."
+  },
+  "8dc5876514": {
+    "rewrite": null,
+    "why": "The six vector moves each produce a distinct required final value, leaving no redundant copy to remove."
+  },
+  "c6d5ea3dad": {
+    "rewrite": null,
+    "why": "All eight vector destinations change, and the existing eight moves preserve the original values needed by the permutation and duplication."
+  },
+  "3a18465306": {
+    "rewrite": null,
+    "why": "Each independent vector requires its byte shuffle, and the loaded mask in xmm8, scalar load, pointer update, and flags must also be preserved."
+  },
+  "7e2d6bf884": {
+    "rewrite": null,
+    "why": "The eight independent vectors each need one byte shuffle, with no removable mask load or scalar operation because their results are preserved."
+  },
+  "077f956952": {
+    "rewrite": null,
+    "why": "Both loads and both independent pointer increments produce required final values, and the last increment supplies the required flags."
+  },
+  "e666dcdab6": {
+    "rewrite": null,
+    "why": "The three loads and three independent pointer increments are all required, with no available instruction combining these operations."
+  },
+  "adfe8ade02": {
+    "rewrite": null,
+    "why": "The load, store, pointer increment, and vzeroupper each have required effects, including the upper halves of preserved YMM registers."
+  },
+  "7adc43a589": {
+    "rewrite": null,
+    "why": "Both stores and pointer updates are required, as are the scalar load and vzeroupper's effects on preserved YMM registers."
+  },
+  "9a985a707c": {
+    "rewrite": null,
+    "why": "The shuffled values in ymm8 and ymm9 and the mask in ymm12 are required outputs, while each deinterleaved result still needs both a two-source unpack and a cross-lane permutation."
+  },
+  "6e244c2812": {
+    "rewrite": null,
+    "why": "The split loads assemble noncontiguous halves for the byte shuffles, and the preserved shuffled and unpacked intermediates leave no redundant transpose operation."
+  },
+  "640e755760": {
+    "rewrite": "vbroadcasti128 ymm12,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nvpermq ymm0,ymm0,0xd8\nvpermq ymm1,ymm1,0xd8\nvpunpcklbw ymm8,ymm0,ymm1\nvpunpckhbw ymm9,ymm0,ymm1\nvmovdqu YMMWORD PTR [rax],ymm8\nvmovdqu YMMWORD PTR [rax+0x20],ymm9\nadd rax,0x40\nvzeroupper",
+    "saved": 2,
+    "why": "Byte unpacks directly produce the interleaving implemented by each quadword unpack followed by the constant byte shuffle. The input permutations, mask load, stores, pointer update, and vzeroupper remain to preserve every required final value."
+  },
+  "c58f5fc7b2": {
+    "rewrite": null,
+    "why": "The four transposed vectors and four shuffled vectors are all required final values, and the overlapping stores and vzeroupper effects must also be retained."
+  }
+}

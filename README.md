@@ -16,7 +16,8 @@ The specification covers the general-purpose, SSE, SSE2, SSE3, SSSE3,
 SSE4.1, SSE4.2, AES-NI, AVX/AVX2, AVX-512/EVEX, and x87 FPU
 instruction sets, plus the system level: segmentation, paging
 (32-bit/PAE/4-level/5-level with EPT), exceptions and interrupts,
-real and compatibility modes, SMM, and VMX virtualization (Linux/KVM
+real, [virtual-8086](docs/virtual-8086.md) and compatibility modes, SMM,
+and VMX virtualization (Linux/KVM
 runs as a nested hypervisor on the model's VMX).  SGX, AMX, CET, MPX,
 and TSX are out of scope, as is any concurrency or memory-ordering
 model; see docs/x86-64-completeness-checklist.md for the per-unit

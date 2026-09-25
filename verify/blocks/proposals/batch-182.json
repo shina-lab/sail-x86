@@ -1,0 +1,83 @@
+{
+  "0ddc9cf661": {
+    "rewrite": null,
+    "why": "Both scalar rounding stages, the store, and the separately preserved vector and mask results require the existing operations."
+  },
+  "ee705b3540": {
+    "rewrite": null,
+    "why": "Each of the four required vector results is already produced by one instruction that combines its load and permutation."
+  },
+  "5e03ff3bf2": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask and multiplier require separate operations, and the intermediate results in ymm20 and ymm21 must also be preserved."
+  },
+  "04353a54b7": {
+    "rewrite": null,
+    "why": "The five instructions each produce a distinct required vector result."
+  },
+  "82d68a7ebe": {
+    "rewrite": null,
+    "why": "All four instructions combine a required load and permutation directly into a separately preserved destination."
+  },
+  "ef3de52828": {
+    "rewrite": null,
+    "why": "The two word-interleave stages, rounded products, and lane assembly are needed, including the preserved intermediate in ymm20 and the zero-extended broadcast in ymm21."
+  },
+  "c52c0f3749": {
+    "rewrite": null,
+    "why": "The reversed interleaves and rounded products feed required outputs, and widening the operations adds extraction and upper-bit clearing work for the preserved intermediates."
+  },
+  "9954bb8eae": {
+    "rewrite": null,
+    "why": "The xmm broadcast intentionally limits the subtraction to the low half, while all four permutations and both rounded products contribute to preserved results."
+  },
+  "d22b6e2a91": {
+    "rewrite": "vmovdqu32 zmm16,ZMMWORD PTR [rdx]\nvshufi32x4 zmm17,zmm16,ZMMWORD PTR [rdx+0x40],0x88\nvshufi32x4 zmm19,zmm16,ZMMWORD PTR [rdx+0x40],0xdd\nvpunpcklwd zmm16,zmm17,zmm19\nvpunpckhwd zmm20,zmm17,zmm19\nvshufi32x4 zmm18,zmm16,zmm20,0x88\nvshufi32x4 zmm19,zmm16,zmm20,0xdd\nvpunpckldq ymm16,ymm18,ymm19\nvpunpckhdq ymm17,ymm18,ymm19\nvextracti32x8 ymm20,zmm19,0x1\nvextracti32x8 ymm18,zmm18,0x1\nvpunpckhdq ymm19,ymm18,ymm20\nvpunpckldq ymm18,ymm18,ymm20",
+    "saved": 3,
+    "why": "Wider loads and lane shuffles assemble both sets of word interleaves together, reading only the original 128-byte region. The final ymm operations reproduce all five required vector results and clear their upper zmm halves."
+  },
+  "7f96a23813": {
+    "rewrite": null,
+    "why": "The signed load, store, rcx update, multiplication, rounding bias, and flag-producing arithmetic shift each perform necessary work."
+  },
+  "9315378edc": {
+    "rewrite": null,
+    "why": "The operations already use full-width zmm vectors, and the interleave stages, rounded products, broadcast, and intermediate in zmm20 all contribute to preserved results."
+  },
+  "e98327a39b": {
+    "rewrite": null,
+    "why": "The loaded permutation indices are arbitrary, and both the full permuted vectors and their extracted upper halves are separately preserved."
+  },
+  "03b3d06a7b": {
+    "rewrite": null,
+    "why": "Each of the eight interleaves directly produces a different required destination."
+  },
+  "bb45c32ba8": {
+    "rewrite": null,
+    "why": "Both dot products need independent copies of the arbitrary preserved accumulator, and the shifts, signed packing, and saturating butterflies cannot be dropped."
+  },
+  "9a055a3a43": {
+    "rewrite": null,
+    "why": "The arbitrary byte shuffle and multiplier require separate stages, and the subsequent transpose must retain the intermediate vectors in zmm20 and zmm21."
+  },
+  "e5ae34a5e7": {
+    "rewrite": null,
+    "why": "The arithmetic, separate permutation-index fields, final shifted index vector, loads, and address calculation all feed preserved results."
+  },
+  "ba31e0d38b": {
+    "rewrite": null,
+    "why": "Four required two-table permutations use distinct fields of an arbitrary loaded index vector, requiring the load and three shifts."
+  },
+  "2c5e8239fc": {
+    "rewrite": null,
+    "why": "Each of the six instructions directly produces a distinct preserved vector result."
+  },
+  "f1378f76d6": {
+    "rewrite": null,
+    "why": "The rounded products are independently preserved, and the two successive signed-saturating additions cannot be combined for arbitrary inputs and multiplier values."
+  },
+  "a7f2878b5a": {
+    "rewrite": null,
+    "why": "The inserts assemble four independent input quarters while retaining ymm20 and ymm21, and the rounded products and successive interleaves produce required distinct results."
+  }
+}

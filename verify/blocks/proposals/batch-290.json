@@ -1,0 +1,84 @@
+{
+  "cad9c53286": {
+    "rewrite": null,
+    "why": "The load, two comparisons, mask combination, extraction, and subtraction are all needed to preserve xmm0, rdx, and ZF."
+  },
+  "81b7ae92e5": {
+    "rewrite": null,
+    "why": "The load, two comparisons, mask combination, extraction, and subtraction are all needed to preserve xmm0, rdx, and ZF."
+  },
+  "32ae0e8a86": {
+    "rewrite": null,
+    "why": "The load, two comparisons, mask combination, extraction, and subtraction are all needed to preserve xmm0, rdx, and ZF."
+  },
+  "6e7d4f732b": {
+    "rewrite": null,
+    "why": "The load, two comparisons, mask combination, extraction, and subtraction are all needed to preserve xmm0, rdx, and ZF."
+  },
+  "29268706e8": {
+    "rewrite": null,
+    "why": "The load, two comparisons, mask combination, extraction, and subtraction are all needed to preserve xmm0, rdx, and ZF."
+  },
+  "80676857ad": {
+    "rewrite": null,
+    "why": "The load, two comparisons, mask combination, extraction, and subtraction are all needed to preserve xmm0, rdx, and ZF."
+  },
+  "8b34d7a3e9": {
+    "rewrite": null,
+    "why": "The load, two comparisons, mask combination, extraction, and subtraction are all needed to preserve xmm0, rdx, and ZF."
+  },
+  "e78dbb6f3b": {
+    "rewrite": null,
+    "why": "The load, two comparisons, mask combination, extraction, and subtraction are all needed to preserve xmm0, rdx, and ZF."
+  },
+  "d0586dc67c": {
+    "rewrite": null,
+    "why": "The comparison and scalar load produce required register values, and SSE2 needs both mask extraction and a scalar test to obtain ZF."
+  },
+  "de54927757": {
+    "rewrite": null,
+    "why": "Both inputs need unaligned loads, which cannot safely fold into legacy PCMPEQD memory operands, and every remaining operation contributes to a required result."
+  },
+  "5d7f61ae62": {
+    "rewrite": "sub rcx,rdx\nlea rdx,[rdx+0x10]\nand rdx,0xfffffffffffffff0\nadd rcx,rdx\nmov rax,rcx\nand rax,0xf\nmov rsi,0x0",
+    "saved": 1,
+    "why": "Subtract the original rdx from rcx before rounding rdx, then add the rounded value back, eliminating the temporary offset copy. The final mask and zero assignment preserve rax, rsi, and ZF."
+  },
+  "1a95aa34df": {
+    "rewrite": null,
+    "why": "Both loads are needed for the store and live xmm2, while the comparison, mask extraction, pointer update, and test each produce a required result."
+  },
+  "d6ee54017b": {
+    "rewrite": null,
+    "why": "The store, aligned pointer calculation, retained offset in rax, destination adjustment, and rsi assignment all remain necessary."
+  },
+  "46a8c3bea7": {
+    "rewrite": "movaps xmm4,XMMWORD PTR [rcx]\nmovaps xmm5,XMMWORD PTR [rcx+0x10]\nmovaps xmm6,XMMWORD PTR [rcx+0x20]\nmovaps xmm7,XMMWORD PTR [rcx+0x30]\nmovaps xmm2,xmm4\npminub xmm2,xmm5\npminub xmm2,xmm6\npminub xmm2,xmm7\npcmpeqd xmm2,xmm0\npmovmskb eax,xmm2\nlea rdx,[rdx+0x40]\nlea rcx,[rcx+0x40]\ntest rax,rax",
+    "saved": 1,
+    "why": "Unsigned byte minimum is associative, so one accumulator replaces the two partial reductions and removes one copy. Loading directly into xmm4 through xmm7 preserves all four live input vectors and leaves the same comparison result for ZF."
+  },
+  "7ba2463026": {
+    "rewrite": null,
+    "why": "The comparison, mask extraction, store, pointer increment, and flag-setting test each supply a required observable result."
+  },
+  "274e7a271e": {
+    "rewrite": null,
+    "why": "The comparison, mask extraction, store, pointer increment, and flag-setting test each supply a required observable result."
+  },
+  "f9ca46c347": {
+    "rewrite": null,
+    "why": "The store, comparison, mask extraction, pointer increment, and flag-setting test each supply a required observable result."
+  },
+  "7ed46a797a": {
+    "rewrite": null,
+    "why": "The comparison, extracted mask, and vector copy are all live, and mask extraction needs a separate test to set ZF."
+  },
+  "9f53b7c38c": {
+    "rewrite": null,
+    "why": "The aligned store value, loaded values in both xmm1 and xmm2, comparison mask, two pointer updates, and ZF all require the existing operations."
+  },
+  "e86fd30e9a": {
+    "rewrite": null,
+    "why": "The alignment operation supplies the store, and the live loaded vector, comparison mask, two pointer updates, and ZF require every remaining instruction."
+  }
+}

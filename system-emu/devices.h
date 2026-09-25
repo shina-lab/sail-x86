@@ -648,6 +648,14 @@ public:
     }
   }
 
+  void dump(FILE *out) const {
+    for (unsigned i = 0; i < 3; ++i) {
+      const auto &c = channels[i];
+      fprintf(out, "  PIT%u mode=%u count=%u reload=%u gate=%u output=%u\n",
+              i, c.mode, c.count, c.reload, c.gate, c.output);
+    }
+  }
+
 private:
   struct Channel {
     u32 count = 0;
@@ -687,23 +695,27 @@ public:
       //   bit 2 = system flag (POST passed)
       //   bit 3 = command/data (0 = data written to 0x60)
       u8 status = 0x14;  // system flag (bit 2) + keyboard unlocked (bit 4)
-      if (!out_buf.empty() || !scancode_buf.empty())
+      if (has_data())
         status |= 0x01;  // output buffer full
       return status;
     }
     if (port == 0x60) {
       // Serve PS/2 command responses first, then actual scancodes.
       if (!out_buf.empty()) {
-        u8 val = out_buf.front();
+        output_latch = out_buf.front();
         out_buf.pop();
-        return val;
+        return output_latch;
       }
-      if (!scancode_buf.empty()) {
-        u8 val = scancode_buf.front();
+      if (!scancode_buf.empty() && scancode_delay == 0) {
+        output_latch = scancode_buf.front();
         scancode_buf.pop();
-        return val;
+        // A keyboard serial transfer takes time. Do not deliver the next
+        // queued byte during the same interrupt handler's immediate reread.
+        scancode_delay = 2;
       }
-      return 0x00;
+      // UPI-41A/41AH/42/42AH manual, "Reading the DBBOUT Register":
+      // a read clears OBF; the data register retains its contents.
+      return output_latch;
     }
     return 0xFF;
   }
@@ -820,11 +832,17 @@ public:
     scancode_buf.push(sc);
   }
 
+  // Called once per millisecond of virtual time, including during HLT.
+  // Two ticks give at least one full millisecond between received bytes.
+  void tick() {
+    if (scancode_delay) --scancode_delay;
+  }
+
   // Returns true if the output buffer has data (for IRQ 1).
   // Real i8042 raises IRQ 1 whenever the output buffer is full,
   // whether it's a scancode or a command response.
   bool has_data() const {
-    return !out_buf.empty() || !scancode_buf.empty();
+    return !out_buf.empty() || (!scancode_buf.empty() && scancode_delay == 0);
   }
 
   size_t out_buf_size() const { return out_buf.size() + scancode_buf.size(); }
@@ -834,6 +852,8 @@ public:
 private:
   std::queue<u8> out_buf;      // PS/2 command responses (ACKs, IDs, etc.)
   std::queue<u8> scancode_buf; // actual key scancodes from host
+  u8 output_latch = 0;
+  unsigned scancode_delay = 0;
   u8 last_cmd = 0;          // last command written to port 0x64
   u8 last_kbd_cmd = 0;      // last device command (for two-byte sequences)
   u8 config_byte = 0x45;    // default: keyboard interrupt enabled, translation on
@@ -934,6 +954,13 @@ public:
   }
 
   bool has_irq() { update(); return regs[0x0C] & 0x80; }
+
+  // Inspect without acknowledging status C or changing the selected register.
+  void dump(FILE *out) const {
+    fprintf(out, "  RTC index=%02x A=%02x B=%02x C=%02x D=%02x time=%02x:%02x:%02x ticks=%lu second=%lu\n",
+            index, regs[10], regs[11], regs[12], regs[13], regs[4], regs[2], regs[0],
+            last_ticks, last_second);
+  }
 
   bool handles(u16 port) const {
     return port == 0x70 || port == 0x71;
@@ -1043,13 +1070,16 @@ public:
     memset(dev1, 0, sizeof(dev1));
     dev1[0x00] = 0x86; dev1[0x01] = 0x80;  // Vendor: Intel (0x8086)
     dev1[0x02] = 0x10; dev1[0x03] = 0x70;  // Device: PIIX3 IDE (0x7010)
-    dev1[0x04] = 0x01;                      // Command: I/O space enabled
+    dev1[0x04] = 0x00;                      // BM I/O decoding disabled until configured
     dev1[0x08] = 0x00;                      // Revision
-    dev1[0x09] = 0x80;                      // Prog IF: ISA-compat (legacy ports)
+    dev1[0x09] = 0x80;                      // Bus-master interface, legacy task-file ports
     dev1[0x0A] = 0x01;                      // Subclass: IDE
     dev1[0x0B] = 0x01;                      // Class: mass storage
     dev1[0x0E] = 0x00;                      // Header type 0
-    dev1[0x20] = 0x01;                      // BMIBA: 16-byte I/O BAR, unassigned
+    // 16-byte bus-master I/O BAR. Like QEMU's PIIX, expose a 32-bit PCI
+    // I/O BAR so SeaBIOS's PCI allocator can size it. Addresses above
+    // the x86 I/O space do not decode. Even PIO drivers reset this block.
+    dev1[0x20] = 0x01;
     // IDETIM (0x40-0x43): IDE decode enable for both channels.  A BIOS
     // sets these; Linux's ata_piix skips a channel whose bit is clear
     // without a word.
@@ -1089,6 +1119,9 @@ public:
     // PIIX_DEVACTB at offset 0x58: APMC_EN bit not set initially
     dev1f3[0x58] = 0x00; dev1f3[0x59] = 0x00;
     dev1f3[0x5A] = 0x00; dev1f3[0x5B] = 0x00;
+    // SeaBIOS's PIIX4 DSDT reads CAEN (0x67 bit 3) to expose COM1.
+    // Match QEMU's platform configuration: COM1 exists, COM2 does not.
+    dev1f3[0x67] = 0x08;
     // PM I/O base at offset 0x40 (PMBA): we use 0xB000
     dev1f3[0x40] = 0x01; dev1f3[0x41] = 0xB0;  // 0xB001 (bit 0 = I/O space)
   }
@@ -1099,6 +1132,15 @@ public:
     return (u16(dev1f3[0x41]) << 8 | dev1f3[0x40]) & 0xFFC0;
   }
   bool vga_memory_enabled() const { return dev2[4] & 2; }
+  u32 ide_busmaster_base() const {
+    u32 bar;
+    memcpy(&bar, &dev1[0x20], 4);
+    return bar & ~0xFu;
+  }
+  bool ide_busmaster_handles(u16 port) const {
+    return (dev1[4] & 1) && ide_busmaster_base() != 0 && port >= ide_busmaster_base() &&
+           u32(port) - ide_busmaster_base() < 16;
+  }
   bool smram_open() const { return (dev0[0x72] & 0x48) == 0x48; }
   bool apmc_smi_enabled() const { return dev1f3[0x5B] & 2; }
 
@@ -1137,9 +1179,7 @@ public:
     } else if (cfg == dev1isa && reg >= 0x40) {
       memcpy(&cfg[reg], &val, 4);
     } else if (cfg == dev1 && reg == 0x20) {
-      // Intel 82371SB datasheet section 2.3.9: only bits 15:4 are
-      // writable; bit 0 identifies I/O space. Firmware sizes/assigns it.
-      u32 bar = (val & 0xFFF0) | 1;
+      u32 bar = (val & ~0xFu) | 1;
       memcpy(&cfg[reg], &bar, 4);
     } else if (cfg == dev1 && (reg == 4 || reg >= 0x40)) {
       memcpy(&cfg[reg], &val, 4);
@@ -1194,13 +1234,6 @@ private:
   u8 dev2[256];    // 0:2.0 — VGA controller (for option ROM)
   u8 dev1f3[256];  // 0:1.3 — PIIX4 ACPI/PM (for SMM)
 public:
-  u16 ide_bus_master_base() const {
-    return (u16)(dev1[0x20] | (dev1[0x21] << 8)) & 0xFFF0;
-  }
-  bool ide_bus_master_handles(u16 port) const {
-    u16 base = ide_bus_master_base();
-    return (dev1[4] & 1) && base != 0 && port >= base && port - base < 16;
-  }
   u32 vga_lfb_addr = 0xE0000000;
   u32 vga_rom_bar_addr = 0xFEB00000;  // Current ROM BAR address (updated on PCI write)
   u32 vga_rom_size = 0;               // Actual VGA ROM size (for BAR sizing)
@@ -1355,6 +1388,7 @@ inline bool ide_trace = getenv("SAIL_X86_IDE_TRACE") != nullptr;
 class IDEDevice {
 public:
   enum Kind { NONE, DISK, CDROM };
+  const u64 *clock = nullptr;
 
   IDEDevice(u16 base, u16 ctrl, bool slave) : base(base), ctrl(ctrl), slave(slave) {}
   ~IDEDevice() {
@@ -1365,7 +1399,6 @@ public:
   bool open_cdrom(const char *path) { return open_image(path, CDROM, 2048, O_RDONLY); }
   bool is_open() const { return fd >= 0; }
   Kind kind() const { return dev; }
-  u64 *clock = nullptr; // 1 GHz virtual clock; absent in untimed device fixtures
 
   void tick() {
     if (next_block_pending && clock && *clock >= next_block_at) {
@@ -1397,6 +1430,8 @@ public:
     case 5: return lba_high;      // ATAPI: byte count high
     case 6: return drive_head;
     case 7:                       // status: clears the interrupt
+      if (ide_trace && irq_asserted)
+        fprintf(stderr, "ide%d.%d: status ack %02x at %lu ns\n", base == 0x1F0 ? 0 : 1, slave, status, now());
       irq_pending = false;
       irq_asserted = false;
       return status;
@@ -1406,6 +1441,8 @@ public:
 
   void write(u16 port, u8 val) {
     if (port == ctrl) {
+      if (ide_trace && dev != NONE)
+        fprintf(stderr, "ide%d.%d: control %02x at %lu ns\n", base == 0x1F0 ? 0 : 1, slave, val, now());
       nien = (val & 0x02) != 0;
       if (nien) irq_asserted = false;
       if (val & 0x04) reset_device();  // SRST
@@ -1496,6 +1533,17 @@ public:
   bool irq_pending = false;
   bool irq_asserted = false;
 
+  void dump(FILE *out) const {
+    static const char *phases[] = {"idle", "data-in", "data-out", "packet"};
+    fprintf(out, "  IDE %03x.%u kind=%u cmd=%02x at=%lu ns status=%02x error=%02x features=%02x count=%02x lba=%02x%02x%02x dh=%02x nIEN=%u IRQ=%u pending=%u\n",
+            base, slave, dev, last_command, command_time, status, error, features,
+            sector_count, lba_high, lba_mid, lba_low, drive_head, nien, irq_asserted, irq_pending);
+    fprintf(out, "    phase=%s buffer=%zu/%zu block_end=%zu limit=%zu write_lba=%u packet=%u cdb_pos=%d CDB=",
+            phases[xfer], buf_pos, buf.size(), block_end, block_limit, current_lba, packet, cdb_pos);
+    for (u8 byte : cdb) fprintf(out, "%02x ", byte);
+    fputc('\n', out);
+  }
+
 private:
   enum Xfer { XFER_NONE, XFER_IN, XFER_OUT, XFER_CDB };
 
@@ -1514,6 +1562,8 @@ private:
   u8 lba_high = 0;
   u8 drive_head = 0;
   u8 status = 0;
+  u8 last_command = 0;
+  u64 command_time = 0;
   bool nien = false;
 
   // Transfer state
@@ -1536,6 +1586,7 @@ private:
   bool packet = false;  // the current transfer belongs to a PACKET command
 
   bool slave;
+  u64 now() const { return clock ? *clock : 0; }
   bool slave_selected() const { return ((drive_head & 0x10) != 0) != slave; }
 
   bool open_image(const char *path, Kind k, u32 ssize, int flags) {
@@ -1554,6 +1605,9 @@ private:
   u64 total_sectors() const { return (image_size + sector_size - 1) / sector_size; }
 
   void raise_irq() {
+    if (ide_trace)
+      fprintf(stderr, "ide%d.%d: IRQ status=%02x reason=%02x nIEN=%u pos=%zu/%zu at %lu ns\n",
+              base == 0x1F0 ? 0 : 1, slave, status, sector_count, nien, buf_pos, buf.size(), now());
     if (!nien) irq_pending = irq_asserted = true;
   }
 
@@ -1626,10 +1680,12 @@ private:
 
   void execute(u8 cmd) {
     next_block_pending = false;
+    last_command = cmd;
+    command_time = now();
     if (ide_trace)
-      fprintf(stderr, "ide%d: cmd %02x feat=%02x count=%02x lba=%02x%02x%02x dh=%02x nien=%d\n",
+      fprintf(stderr, "ide%d: cmd %02x feat=%02x count=%02x lba=%02x%02x%02x dh=%02x nien=%d at %lu ns\n",
               base == 0x1F0 ? 0 : 1, cmd, features, sector_count, lba_high, lba_mid, lba_low,
-              drive_head, nien);
+              drive_head, nien, now());
     error = 0;
     packet = false;
     switch (cmd) {
@@ -1946,7 +2002,6 @@ public:
   Kind kind() const { return master.kind(); }
   bool handles(u16 port) const { return master.handles(port); }
   bool is_data_port(u16 port) const { return master.is_data_port(port); }
-  void set_clock(u64 *clock) { master.clock = slave.clock = clock; }
   void tick() { master.tick(); slave.tick(); sync_irq(); }
   u8 read(u16 port) {
     u8 value = selected().read(port);
@@ -1962,34 +2017,40 @@ public:
   }
   u16 read16() { u16 value = selected().read16(); sync_irq(); return value; }
   void write16(u16 value) { selected().write16(value); sync_irq(); }
-  // Intel 82371SB sections 2.7.1-2.7.3. The interrupt latch is used by
-  // PCI IDE drivers even for PIO commands. Attached devices advertise
-  // PIO only, so there are no device DMA requests/PRD transfers yet.
-  u8 read_bus_master(unsigned offset) const {
-    if (offset == 0) return bm_command;
-    if (offset == 2) return bm_status;
-    if (offset >= 4 && offset < 8) return bm_prdt >> ((offset - 4) * 8);
+  // PIIX3 datasheet §§2.7.1–2.7.3. These registers are also used for
+  // reset and interrupt acknowledgement with PIO-only devices. Our drives
+  // do not advertise or issue DMA requests; no PRD transfers occur yet.
+  u8 read_busmaster(unsigned reg) const {
+    if (reg == 0) return bm_command;
+    if (reg == 2) return bm_status;
+    if (reg >= 4 && reg < 8) return bm_prd >> ((reg - 4) * 8);
     return 0;
   }
-  void write_bus_master(unsigned offset, u8 value) {
-    if (offset == 0) {
-      bm_command = value & 9;
-      bm_status = (bm_status & ~1u) | (value & 1);
-    } else if (offset == 2) {
-      // Capability bits are software-owned; error/interrupt are W1C.
-      bm_status = (bm_status & 7 & ~(value & 6)) | (value & 0x60);
-    } else if (offset >= 4 && offset < 8) {
-      unsigned shift = (offset - 4) * 8;
-      bm_prdt = ((bm_prdt & ~(0xFFu << shift)) | ((u32)value << shift)) & ~3u;
+  void write_busmaster(unsigned reg, u8 value) {
+    if (reg == 0) {
+      bm_command = value & 0x09;
+      bm_status = (bm_status & ~1) | (bm_command & 1);
+    } else if (reg == 2) {
+      // Capability bits are software-controlled; IRQ/error bits are W1C.
+      bm_status = (bm_status & ~(value & 0x06) & ~0x60) | (value & 0x60);
+    } else if (reg >= 4 && reg < 8) {
+      unsigned shift = (reg - 4) * 8;
+      bm_prd = ((bm_prd & ~(0xFFu << shift)) | (u32(value) << shift)) & ~3u;
     }
   }
   bool irq_pending = false, irq_asserted = false;
+  void set_clock(const u64 *clock) { master.clock = slave.clock = clock; }
+  void dump(FILE *out) const {
+    fprintf(out, "  IDE channel %03x selected=%u IRQ=%u pending=%u\n", base, select_slave, irq_asserted, irq_pending);
+    master.dump(out);
+    slave.dump(out);
+  }
 private:
   IDEDevice master, slave;
   u16 base;
   bool select_slave = false;
   u8 bm_command = 0, bm_status = 0;
-  u32 bm_prdt = 0;
+  u32 bm_prd = 0;
   IDEDevice &selected() { return select_slave ? slave : master; }
   void sync_irq() {
     // W1C while INTRQ remains high must not relatch the same assertion.

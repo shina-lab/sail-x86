@@ -1,0 +1,92 @@
+{
+  "2694f8b1e6": {
+    "rewrite": null,
+    "why": "Both rows require separate low/high byte duplication and saturated multiply-adds, and the stores, accumulations, and pointer updates remain live."
+  },
+  "b6f785994a": {
+    "rewrite": "movd xmm1,DWORD PTR [rsi]\npunpcklbw xmm1,xmm1\npunpcklqdq xmm1,xmm1\npshufhw xmm1,xmm1,0xff\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi],xmm1\npaddw xmm5,xmm1\npunpckhqdq xmm1,xmm1\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\npaddw xmm5,xmm1\nmovd xmm1,DWORD PTR [rsi+rdx*1]\npunpcklbw xmm1,xmm1\npunpcklqdq xmm1,xmm1\npshufhw xmm1,xmm1,0xff\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi+0x20],xmm1\npaddw xmm4,xmm1\npshufd xmm0,xmm1,0xee\nmovdqa XMMWORD PTR [rdi+0x30],xmm0\npaddw xmm4,xmm0\nlea rsi,[rsi+rdx*2]\nadd rdi,0x40\nsub eax,0x2",
+    "saved": 1,
+    "why": "PSHUFD with immediate 0xee duplicates xmm1's high qword into xmm0 directly, replacing the copy and high-qword unpack."
+  },
+  "b9dfe96dcd": {
+    "rewrite": "movq xmm1,QWORD PTR [rsi]\npunpcklbw xmm1,xmm1\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi],xmm1\npaddw xmm5,xmm1\npshufhw xmm1,xmm1,0xff\npunpckhqdq xmm1,xmm1\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\npaddw xmm5,xmm1\nmovq xmm1,QWORD PTR [rsi+rdx*1]\npunpcklbw xmm1,xmm1\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi+0x20],xmm1\npaddw xmm4,xmm1\npshufhw xmm0,xmm1,0xff\npunpckhqdq xmm0,xmm0\nmovdqa XMMWORD PTR [rdi+0x30],xmm0\npaddw xmm4,xmm0\nlea rsi,[rsi+rdx*2]\nadd rdi,0x40\nsub eax,0x2",
+    "saved": 1,
+    "why": "PSHUFHW accepts a separate source register, so it can read xmm1 directly and eliminate the preceding copy into xmm0."
+  },
+  "753aa0be25": {
+    "rewrite": null,
+    "why": "The edge replication and byte duplication remain necessary, and arbitrary xmm2 coefficients prevent moving the replication across the saturated multiply-adds."
+  },
+  "bacc8afda6": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm1,xmm5\npunpcklwd xmm5,xmm0\npunpckhwd xmm1,xmm0\nphaddd xmm5,xmm1\nmovdqa xmm1,xmm4\npunpcklwd xmm4,xmm0\npunpckhwd xmm1,xmm0\nphaddd xmm4,xmm1\npaddd xmm5,xmm4",
+    "saved": 1,
+    "why": "Zero-extend the words and use PHADDD to sum adjacent pairs before adding the two vectors. This preserves unsigned 16-bit inputs without relying on a restricted value range."
+  },
+  "1b6a3524c6": {
+    "rewrite": "tzcnt ecx,ecx\npxor xmm0,xmm0\nmovd xmm5,DWORD PTR [rdx]\npshufb xmm5,xmm0",
+    "saved": 1,
+    "why": "The stack adjustment affects no required final register or flag and supplies no address used by the block, so it can be omitted while leaving rsp untouched."
+  },
+  "7e097152af": {
+    "rewrite": null,
+    "why": "The two directional unsigned saturated differences and their combination handle the full byte range while preserving both input vectors."
+  },
+  "17afb88d18": {
+    "rewrite": null,
+    "why": "The two directional unsigned saturated differences and their combination handle the full byte range while preserving both input vectors."
+  },
+  "08f75a4f95": {
+    "rewrite": null,
+    "why": "The live byte-shuffle result and two independently live multiply-add results require the shuffle, distinct broadcasts, and both multiply-adds."
+  },
+  "19323d2768": {
+    "rewrite": null,
+    "why": "The accumulation, signed shift, unsigned packing, two stores, and final lane permutation all contribute to required outputs."
+  },
+  "9cf8dd91dd": {
+    "rewrite": null,
+    "why": "Both live outputs require distinct broadcasts and saturated multiply-adds with arbitrary coefficients."
+  },
+  "2579423bee": {
+    "rewrite": null,
+    "why": "The live packed result and its insertion into xmm6 require the full accumulation, shift, pack, and unpack sequence."
+  },
+  "7811a640ba": {
+    "rewrite": "paddw xmm0,xmm1\npshufd xmm1,xmm6,0xaa\npmaddubsw xmm1,xmm4\npaddw xmm0,xmm1\npshufd xmm1,xmm6,0xff\npmaddubsw xmm1,xmm5\npaddw xmm0,xmm1\npsraw xmm0,0x4\npackuswb xmm0,xmm0\npunpckldq xmm7,xmm0\nmovq QWORD PTR [rdi],xmm7\npshufd xmm6,xmm7,0xee\nmovq QWORD PTR [rdi+rsi*1],xmm6\nmovd xmm0,DWORD PTR [rdx+r8*1]\npunpckldq xmm0,xmm6\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Interleave directly into dead xmm7, then duplicate its high qword into xmm6 with PSHUFD. This folds the original copy into the later shuffle while preserving both stores and the final vectors."
+  },
+  "faf148c8f9": {
+    "rewrite": "paddw xmm7,xmm1\npshufd xmm1,xmm0,0xaa\npmaddubsw xmm1,xmm4\npaddw xmm7,xmm1\npshufd xmm0,xmm0,0xff\npmaddubsw xmm0,xmm5\npaddw xmm0,xmm7\npsraw xmm0,0x4\npackuswb xmm0,xmm0\nmovd DWORD PTR [rdi],xmm0\npshufd xmm7,xmm0,0x55\npalignr xmm7,xmm6,0x4\nmovsd xmm0,xmm6",
+    "saved": 1,
+    "why": "Finish packing in xmm0 so its high qword already contains the required packed bytes, then fill its low qword with MOVSD. PSHUFD supplies the packed second dword for the unchanged concatenation."
+  },
+  "a5a92b4bf4": {
+    "rewrite": "paddw xmm6,xmm1\npshufd xmm1,xmm0,0xaa\npmaddubsw xmm1,xmm4\npaddw xmm6,xmm1\npshufd xmm0,xmm0,0xff\npmaddubsw xmm0,xmm5\npaddw xmm0,xmm6\npsraw xmm0,0x4\npackuswb xmm0,xmm0\nmovd DWORD PTR [rdi+0x4],xmm0\npshufd xmm6,xmm0,0x55\npalignr xmm6,xmm7,0x4\nmovsd xmm0,xmm7",
+    "saved": 1,
+    "why": "Finish packing in xmm0 so its high qword already contains the required packed bytes, then fill its low qword with MOVSD. PSHUFD supplies the packed second dword for the unchanged concatenation."
+  },
+  "c271724144": {
+    "rewrite": "paddw xmm7,xmm1\npshufd xmm1,xmm0,0xaa\npmaddubsw xmm1,xmm4\npaddw xmm7,xmm1\npshufd xmm0,xmm0,0xff\npmaddubsw xmm0,xmm5\npaddw xmm0,xmm7\npsraw xmm0,0x4\npackuswb xmm0,xmm0\nmovd DWORD PTR [rdi+0x8],xmm0\npshufd xmm7,xmm0,0x55\npalignr xmm7,xmm6,0x4\nmovsd xmm0,xmm6",
+    "saved": 1,
+    "why": "Finish packing in xmm0 so its high qword already contains the required packed bytes, then fill its low qword with MOVSD. PSHUFD supplies the packed second dword for the unchanged concatenation."
+  },
+  "89c21216db": {
+    "rewrite": null,
+    "why": "The arithmetic, two stores, shifted concatenation, next-input load, and pointer updates all feed required outputs without a removable copy."
+  },
+  "626336af17": {
+    "rewrite": null,
+    "why": "The load and both live address results require the existing instructions because LEA cannot subtract the preserved r8 index."
+  },
+  "efa675297a": {
+    "rewrite": "paddw xmm6,xmm1\npshufd xmm1,xmm0,0xaa\npmaddubsw xmm1,xmm4\npaddw xmm6,xmm1\npshufd xmm0,xmm0,0xff\npmaddubsw xmm0,xmm5\npaddw xmm0,xmm6\npsraw xmm0,0x4\npackuswb xmm0,xmm0\nmovdqu xmm1,XMMWORD PTR [r9]\nmovd DWORD PTR [rdi+0xc],xmm0\npshufd xmm6,xmm0,0x55\npalignr xmm6,xmm7,0x4\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm6\npunpckldq xmm7,xmm1\nmovsd xmm0,xmm7",
+    "saved": 2,
+    "why": "Pack into xmm0 and fill its low qword from the interleaved inputs with MOVSD, eliminating a copy. The final assignment to xmm6 is dead and can also be removed."
+  },
+  "179ec3640c": {
+    "rewrite": "paddw xmm7,xmm6\npshufd xmm6,xmm0,0xaa\npmaddubsw xmm6,xmm4\npaddw xmm7,xmm6\npshufd xmm0,xmm0,0xff\npmaddubsw xmm0,xmm5\npaddw xmm0,xmm7\npsraw xmm0,0x4\npackuswb xmm0,xmm0\nmovd DWORD PTR [rdi+0x10],xmm0\npshufd xmm7,xmm0,0x55\npalignr xmm7,xmm1,0x4\nmovsd xmm0,xmm1",
+    "saved": 1,
+    "why": "Finish packing in xmm0 so its high qword already contains the required packed bytes, then fill its low qword with MOVSD. PSHUFD supplies the packed second dword for the unchanged concatenation."
+  }
+}

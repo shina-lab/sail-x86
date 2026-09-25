@@ -1,0 +1,82 @@
+{
+  "21e5503828": {
+    "rewrite": null,
+    "why": "All sixteen products and four subtractions contribute to preserved outputs, and the allowed ISA has no fused packed dword multiply-subtract operation."
+  },
+  "ada242be78": {
+    "rewrite": null,
+    "why": "Each bias operation feeds two required butterfly outputs, and the independent packed dword additions and subtractions cannot be combined."
+  },
+  "ea625f1476": {
+    "rewrite": null,
+    "why": "The two scalar multiplication stages have distinct rounding and overflow behavior, while the store, counter update, vector results, and final carry flag must also be retained."
+  },
+  "26cf3203e3": {
+    "rewrite": null,
+    "why": "The signed saturating additions and unsigned saturating subtractions cannot be combined for arbitrary inputs, and both stores and scalar updates are required."
+  },
+  "1458731da9": {
+    "rewrite": null,
+    "why": "The two lane-transpose networks already share their intermediate shuffles, and all final vectors including zmm24 must be preserved."
+  },
+  "fb0260da48": {
+    "rewrite": null,
+    "why": "All sixteen products and four subtractions are required, and no allowed instruction fuses an arbitrary packed dword multiplication with subtraction from zmm4."
+  },
+  "03bba29f88": {
+    "rewrite": null,
+    "why": "The arbitrary coefficient and bias loads prevent collapsing the multiply-add, shift, and saturation stages, and the final broadcast values in ymm3 and ymm4 are also required."
+  },
+  "489d0915b8": {
+    "rewrite": null,
+    "why": "Each of the three signed rounded multiplications is necessary, and AVX2 cannot fold these scalar coefficient broadcasts into the multiply instructions."
+  },
+  "299969e194": {
+    "rewrite": null,
+    "why": "The two loads, word additions, saturating pack, and stores are required, and the second-row sum in ymm1 must also be preserved."
+  },
+  "a503d186b6": {
+    "rewrite": null,
+    "why": "All transform branches and final sum/difference shuffles feed preserved registers, while arbitrary coefficients and rounding biases prevent collapsing the multiply-add stages."
+  },
+  "e5a2fd0ed4": {
+    "rewrite": null,
+    "why": "The three rounded multiplications, output broadcast, zeroed ymm2, memory store, and carry-producing counter update are all required."
+  },
+  "db48dc5be7": {
+    "rewrite": null,
+    "why": "The unpack source ymm2 is unconstrained, so zero-extension cannot replace the unpacks, and both the packed result and intermediate ymm1 must match."
+  },
+  "9877ef1622": {
+    "rewrite": null,
+    "why": "All coefficient broadcasts feed required products or the final ymm15 value, and both ymm0 and its copy in ymm8 must be produced."
+  },
+  "1f05b163d3": {
+    "rewrite": null,
+    "why": "Every butterfly contributes to preserved outputs, both rounded multiplications are needed, and the final test supplies the required flags."
+  },
+  "ccb6f1a8d0": {
+    "rewrite": null,
+    "why": "The three unpack stages form the word transpose, and all eight output vectors plus the intermediate ymm8 must be preserved."
+  },
+  "6c2a3b2043": {
+    "rewrite": null,
+    "why": "The three rounded multiplications, output broadcast, zeroed ymm4, memory store, and ecx update all contribute to required final state."
+  },
+  "68f73ff727": {
+    "rewrite": null,
+    "why": "The interleaved bytes from ymm4 and the word addends are arbitrary, and preserving ymm2 and ymm3 also requires the high-half computations."
+  },
+  "f531a0c0bc": {
+    "rewrite": null,
+    "why": "The two coefficient-dependent branches require separate multiply-add, shift, and saturation stages, and every final butterfly and flag result is live."
+  },
+  "e17c87c692": {
+    "rewrite": null,
+    "why": "AVX2 requires separate broadcasts for these arbitrary scalar coefficients, and every broadcast feeds a required product or the final ymm15 value."
+  },
+  "857c617cc6": {
+    "rewrite": null,
+    "why": "The four coefficient-dependent branches use arbitrary biases and require their interleave, multiply-add, shift, and signed saturation stages."
+  }
+}

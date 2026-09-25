@@ -1,0 +1,84 @@
+{
+  "f4670b6194": {
+    "rewrite": null,
+    "why": "The four live loaded results, two XORs, zeroed RBP, and two pointer updates have no removable instruction."
+  },
+  "bf0f49fac0": {
+    "rewrite": "movd xmm4,ecx\nneg ecx\nadd ecx,0x40\nmovd xmm5,ecx\nmov rax,QWORD PTR [rsi+rdx*8-0x8]\nshr rax,cl\ncmp rdx,0x3",
+    "saved": 1,
+    "why": "Compute 64 minus the original ECX directly in ECX for XMM5; its low six bits also equal those of the original negated shift count. This removes one setup instruction while preserving both vector counts and the final comparison flags."
+  },
+  "a1f0b7bf63": {
+    "rewrite": null,
+    "why": "Both independently counted shifts, their loads and OR, the store, and the live index decrement are required."
+  },
+  "18d015f423": {
+    "rewrite": null,
+    "why": "SSE2 requires the two vector loads, independently counted shifts, OR, and store for this result."
+  },
+  "0fd9a5df11": {
+    "rewrite": null,
+    "why": "The two input vectors need independent shifts before combining and storing, with no instruction removable under SSE2."
+  },
+  "09a6d7a292": {
+    "rewrite": null,
+    "why": "The two loads, independent shifts, OR, and store cannot be shortened using the allowed SSE2 instructions."
+  },
+  "7927f70b5f": {
+    "rewrite": null,
+    "why": "The vector result needs both loads and shifts plus the OR and store, and the subtraction must preserve the final index and flags."
+  },
+  "6d6156a046": {
+    "rewrite": null,
+    "why": "Constructing the zero-low, input-low-high vector requires two instructions in SSE2, and both independent shifts, the OR, and the store remain necessary."
+  },
+  "60ab305f95": {
+    "rewrite": null,
+    "why": "Both independently counted shifted inputs are needed for the store, and the 32-bit subtraction supplies the required index and flags."
+  },
+  "2d6366f9a0": {
+    "rewrite": null,
+    "why": "The arbitrary independent packed shift counts prevent replacing the two loads, two shifts, OR, and store with a shorter scalar funnel shift."
+  },
+  "d40608aaea": {
+    "rewrite": "movd xmm4,ecx\nneg ecx\nadd ecx,0x40\nmovd xmm5,ecx\nmov rax,QWORD PTR [rsi+rdx*8-0x8]\nshr rax,cl\npcmpeqb xmm3,xmm3\ncmp rdx,0x3",
+    "saved": 1,
+    "why": "Reuse ECX containing 64 minus its original value for both XMM5 and the scalar shift, whose masked count is unchanged. The XMM3 initialization and final comparison are retained."
+  },
+  "c424f7501c": {
+    "rewrite": null,
+    "why": "The live vector result requires both independent shifts, OR, and XOR with arbitrary XMM3, followed by the store and index decrement."
+  },
+  "48627d3bee": {
+    "rewrite": null,
+    "why": "Both loaded vectors and independent shifts are needed, and SSE2 cannot fuse their OR with the subsequent XOR and store."
+  },
+  "739af0c926": {
+    "rewrite": null,
+    "why": "The two loads, independent shifts, OR, arbitrary-mask XOR, and store each contribute to the required memory result."
+  },
+  "657d0588db": {
+    "rewrite": null,
+    "why": "The independent shift counts and arbitrary XMM3 require both loads, both shifts, the OR, the XOR, and the store."
+  },
+  "c75d052c74": {
+    "rewrite": null,
+    "why": "All vector operations contribute to the live result and store, while the subtraction also supplies the required index and flags."
+  },
+  "9f8f4b638e": {
+    "rewrite": null,
+    "why": "SSE2 still needs two instructions to construct the zero-low carry vector, along with the load, independent shifts, OR, XOR, and store."
+  },
+  "f0d2ca8f03": {
+    "rewrite": null,
+    "why": "The store needs both independently shifted inputs and the arbitrary XMM3 XOR, and the 32-bit subtraction must preserve the final index and flags."
+  },
+  "bf4bcb73e6": {
+    "rewrite": null,
+    "why": "The arbitrary shift counts require separate shifts, and the OR and arbitrary XMM3 XOR cannot be combined into one SSE2 instruction."
+  },
+  "4e90b1fbc8": {
+    "rewrite": null,
+    "why": "The load, variable packed shift, XOR with arbitrary XMM3, and store are all required for the live XMM0 value and memory result."
+  }
+}

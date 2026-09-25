@@ -1,0 +1,87 @@
+{
+  "6912ebc938": {
+    "rewrite": null,
+    "why": "The three required stores and the live horizontal word sum already use one instruction each."
+  },
+  "2578584115": {
+    "rewrite": null,
+    "why": "Both memory additions, the horizontal word sum, and all three stores are required, with no dead register results."
+  },
+  "2fdf848956": {
+    "rewrite": null,
+    "why": "The live word sums, bias additions, shifts, packing, stores, and flag-setting counter update have no redundant step."
+  },
+  "0bbe8c7236": {
+    "rewrite": null,
+    "why": "The three required stores and the live horizontal word sum already use one instruction each."
+  },
+  "446b09075f": {
+    "rewrite": null,
+    "why": "Both memory additions, the horizontal word sum, and all three stores are required, with no dead register results."
+  },
+  "1e64158f61": {
+    "rewrite": null,
+    "why": "The input sums and the bias, shift, and packing operations are live, and their arbitrary operands prevent replacing them with a shorter SSSE3 sequence."
+  },
+  "03f07429f0": {
+    "rewrite": null,
+    "why": "Both memory additions, the horizontal word sum, and all three stores are required, with no dead register results."
+  },
+  "8887ad019a": {
+    "rewrite": null,
+    "why": "The live word sums, bias additions, shifts, packing, stores, and flag-setting counter update have no redundant step."
+  },
+  "167319a3e4": {
+    "rewrite": null,
+    "why": "The three required stores and the live horizontal word sum already use one instruction each."
+  },
+  "069e601194": {
+    "rewrite": null,
+    "why": "The input sums and the bias, shift, and packing operations are live, and their arbitrary operands prevent replacing them with a shorter SSSE3 sequence."
+  },
+  "d593a54ff8": {
+    "rewrite": null,
+    "why": "Both memory additions, the horizontal word sum, and all three stores are required, with no dead register results."
+  },
+  "a45d7c642f": {
+    "rewrite": null,
+    "why": "The input sums and the bias, shift, and packing operations are live, and their arbitrary operands prevent replacing them with a shorter SSSE3 sequence."
+  },
+  "91551a0f36": {
+    "rewrite": null,
+    "why": "Both memory additions, the horizontal word sum, and all three stores are required, with no dead register results."
+  },
+  "f9113a149d": {
+    "rewrite": null,
+    "why": "The live word sums, bias additions, shifts, packing, stores, and flag-setting counter update have no redundant step."
+  },
+  "dc100273db": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm2,XMMWORD PTR [rcx]\nmovdqa xmm4,xmm2\npunpcklwd xmm4,xmm0\npunpckhwd xmm2,xmm0\npsubsw xmm0,XMMWORD PTR [rcx]\npabsw xmm0,xmm0\npsubusw xmm8,xmm0\npsrlw xmm8,0xa\npsubw xmm9,xmm8\nmovdqa xmm0,xmm8\npunpcklwd xmm0,xmm9\npunpckhwd xmm8,xmm9\npmaddwd xmm0,xmm4\npmaddwd xmm8,xmm2\npsrad xmm0,0x5\npsrad xmm8,0x5\npackssdw xmm0,xmm8\npmaxsw xmm0,xmm10\npsubsw xmm0,xmm10\npmulhw xmm0,xmm11\nadd rdx,0x20",
+    "saved": 28,
+    "why": "The entire second pixel calculation and the rcx increment are dead. Reusing xmm8 and xmm9 directly and reloading the unchanged [rcx] operand eliminate three more copies."
+  },
+  "6410e8c95b": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm2,XMMWORD PTR [rcx]\nmovdqa xmm4,xmm2\npunpcklwd xmm4,xmm0\npunpckhwd xmm2,xmm0\npsubsw xmm0,XMMWORD PTR [rcx]\npabsw xmm0,xmm0\nmovdqa xmm6,xmm8\npsubusw xmm6,xmm0\npsrlw xmm6,0xa\nmovdqa xmm5,xmm9\npsubw xmm5,xmm6\nmovdqa xmm0,xmm6\npunpcklwd xmm0,xmm5\npunpckhwd xmm6,xmm5\npmaddwd xmm0,xmm4\npmaddwd xmm6,xmm2\npsrad xmm0,0x5\npsrad xmm6,0x5\npackssdw xmm0,xmm6\npmaxsw xmm0,xmm10\npsubsw xmm0,xmm10\npmulhw xmm0,xmm11\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\npsubsw xmm1,XMMWORD PTR [rcx+0x10]\npabsw xmm1,xmm1\npsubusw xmm8,xmm1\npsrlw xmm8,0xa\npsubw xmm9,xmm8\nphaddw xmm5,xmm9\nadd rdx,0x20\npackuswb xmm5,xmm5\npxor xmm3,xmm3\npsubb xmm5,xmm7\npavgb xmm5,xmm3\nmovq QWORD PTR [rax],xmm5\nadd rax,0x8",
+    "saved": 20,
+    "why": "Only the second calculation's mask weights are needed, so its pixel arithmetic and the rcx increment can be removed. Memory-source subtraction and direct reuse of xmm8 and xmm9 remove additional loads and copies while preserving xmm0 and the stored mask."
+  },
+  "3b81559fb4": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm2,XMMWORD PTR [rcx]\nmovdqa xmm4,xmm2\npunpcklwd xmm4,xmm0\npunpckhwd xmm2,xmm0\npsubsw xmm0,XMMWORD PTR [rcx]\npabsw xmm0,xmm0\nmovdqa xmm6,xmm8\npsubusw xmm6,xmm0\npsrlw xmm6,0xa\nmovdqa xmm5,xmm9\npsubw xmm5,xmm6\nmovdqa xmm0,xmm6\npunpcklwd xmm0,xmm5\npunpckhwd xmm6,xmm5\npmaddwd xmm0,xmm4\npmaddwd xmm6,xmm2\npsrad xmm0,0x5\npsrad xmm6,0x5\npackssdw xmm0,xmm6\npmaxsw xmm0,xmm10\npsubsw xmm0,xmm10\npmulhw xmm0,xmm11\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\npsubsw xmm1,XMMWORD PTR [rcx+0x10]\npabsw xmm1,xmm1\npsubusw xmm8,xmm1\npsrlw xmm8,0xa\npsubw xmm9,xmm8\npackuswb xmm5,xmm9\nadd rdx,0x20\nmovdqa XMMWORD PTR [rax],xmm5\nadd rax,0x10",
+    "saved": 20,
+    "why": "Only the second calculation's mask weights are needed, so its pixel arithmetic and the rcx increment can be removed. Memory-source subtraction and direct reuse of xmm8 and xmm9 remove additional loads and copies while preserving xmm0 and the stored mask."
+  },
+  "4ab7955288": {
+    "rewrite": null,
+    "why": "The split qword loads and stores, arbitrary mask arithmetic, required pointer updates, and final counter flags leave no redundant instruction under SSSE3."
+  },
+  "1349bb0d5e": {
+    "rewrite": "movdqa xmm5,XMMWORD PTR [r9]\nmovdqa xmm0,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rdi+rsi*1]\npsubw xmm0,XMMWORD PTR [rdx]\npsubw xmm1,XMMWORD PTR [rdx+0x10]\nadd r9,0x10\nadd rdx,0x20\nmovdqa xmm4,xmm5\npunpcklbw xmm4,xmm6\npunpckhbw xmm5,xmm6\npmullw xmm4,xmm7\npmullw xmm5,xmm7\npmulhrsw xmm0,xmm4\npmulhrsw xmm1,xmm5\npaddw xmm0,XMMWORD PTR [rdi]\npaddw xmm1,XMMWORD PTR [rdi+rsi*1]\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm1\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 2,
+    "why": "Compute the differences directly in xmm0 and xmm1, then fold reloads of the original destination values into paddw to eliminate both register copies. Both reloads precede every store, preserving behavior even when the destination ranges overlap."
+  },
+  "7292f9bc79": {
+    "rewrite": "movdqa xmm5,XMMWORD PTR [r9]\nmovdqa xmm0,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rdi+0x10]\npsubw xmm0,XMMWORD PTR [rdx]\npsubw xmm1,XMMWORD PTR [rdx+0x10]\nadd r9,0x10\nadd rdx,0x20\nmovdqa xmm4,xmm5\npunpcklbw xmm4,xmm6\npunpckhbw xmm5,xmm6\npmullw xmm4,xmm7\npmullw xmm5,xmm7\npmulhrsw xmm0,xmm4\npmulhrsw xmm1,xmm5\npaddw xmm0,XMMWORD PTR [rdi]\npaddw xmm1,XMMWORD PTR [rdi+0x10]\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\nadd rdi,rsi\ndec r8d",
+    "saved": 2,
+    "why": "Compute the differences directly in xmm0 and xmm1, then fold reloads of the original destination values into paddw to eliminate both register copies. The stores, pointer updates, and final counter flags remain identical."
+  }
+}

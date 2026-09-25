@@ -1,0 +1,83 @@
+{
+  "3ddfc13d1f": {
+    "rewrite": null,
+    "why": "Each of the four vector copies defines a required final register value, and the scalar load and pointer update are also required."
+  },
+  "61fc03805f": {
+    "rewrite": null,
+    "why": "All six vector copies produce independently required final values, alongside the required scalar load and flag-setting pointer update."
+  },
+  "96eac01cb8": {
+    "rewrite": null,
+    "why": "All eight vector destinations require their copied values, including the copies retaining the old ymm0 and ymm4 values, so none of these moves is redundant."
+  },
+  "1b54d62f79": {
+    "rewrite": null,
+    "why": "The six independent byte shuffles each require an instruction, and the broadcast mask, scalar load, pointer update, and final flags are all live."
+  },
+  "a959708337": {
+    "rewrite": null,
+    "why": "The eight independent byte shuffles and the required mask load, scalar load, and pointer update have no removable operations."
+  },
+  "a221ca6d58": {
+    "rewrite": null,
+    "why": "The shuffled source vectors and broadcast mask must remain live, while each output still needs both a two-source unpack and a cross-lane permutation."
+  },
+  "c6474c8e1a": {
+    "rewrite": null,
+    "why": "The split-lane loads and three-channel transpose must also preserve the shuffled ymm3, unpacked ymm8 through ymm11, and broadcast mask, leaving no removable intermediates."
+  },
+  "cd55179310": {
+    "rewrite": "vbroadcasti128 ymm12,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nvpermq ymm0,ymm0,0xd8\nvpermq ymm1,ymm1,0xd8\nvpunpcklwd ymm8,ymm0,ymm1\nvpunpckhwd ymm9,ymm0,ymm1\nvmovdqu YMMWORD PTR [rax],ymm8\nvmovdqu YMMWORD PTR [rax+0x20],ymm9\nadd rax,0x40\nvzeroupper",
+    "saved": 2,
+    "why": "Within each 128-bit lane, the constant byte shuffle turns each qword unpack into a word interleave, so VPUNPCKLWD and VPUNPCKHWD each replace an unpack plus VPSHUFB. The permutations, live mask load, stores, flags, and VZEROUPPER effects are preserved."
+  },
+  "586177a30a": {
+    "rewrite": null,
+    "why": "Both the transposed low halves of ymm0 through ymm3 and the shuffled low halves of ymm8 through ymm11 are required, as are all eight overlapping stores and the upper-half clearing."
+  },
+  "59045ea365": {
+    "rewrite": null,
+    "why": "The loaded constant in ymm8 is a required final value, so folding it into the comparison would not eliminate the load."
+  },
+  "a40d825085": {
+    "rewrite": null,
+    "why": "For arbitrary input dwords, the two shifts and two OR operations are necessary, and AVX2 provides no fused three-input OR to shorten them."
+  },
+  "e7ffb8e638": {
+    "rewrite": null,
+    "why": "The two shifts and two OR operations combine arbitrary input bits, so arithmetic substitutions cannot safely reduce the sequence under AVX2."
+  },
+  "7e690fe4b8": {
+    "rewrite": null,
+    "why": "The shifted inputs may overlap for arbitrary dword values, requiring both OR operations in addition to the two shifts and scalar operations."
+  },
+  "5a322d9559": {
+    "rewrite": null,
+    "why": "The two bounded word fields each need a pair of shifts without an available mask, while the upper field and required scalar state already use one instruction each."
+  },
+  "cb0e824882": {
+    "rewrite": null,
+    "why": "Extracting the two five-bit fields requires the existing shift pairs without a supplied mask, and the remaining upper-field shift, load, and pointer update are required."
+  },
+  "fd04fc2f04": {
+    "rewrite": null,
+    "why": "The five-bit and six-bit bounded fields require their shift pairs without a supplied mask, while the upper-field shift and scalar operations are already direct."
+  },
+  "cc01b26d79": {
+    "rewrite": null,
+    "why": "Each of the two required vector results already uses a single byte-to-word widening instruction, alongside the required scalar load and pointer update."
+  },
+  "1bd63294b3": {
+    "rewrite": null,
+    "why": "Each of the three independent vector results already uses one widening instruction, and neither scalar operation is redundant."
+  },
+  "fbcf131a2d": {
+    "rewrite": null,
+    "why": "The four independent widening results, scalar load, and flag-setting pointer update each already require only one instruction."
+  },
+  "12f993e2d9": {
+    "rewrite": null,
+    "why": "AVX2 needs separate widening and byte duplication to expand all sixteen low-half input bytes, and the broadcast shuffle mask is itself a required final value."
+  }
+}

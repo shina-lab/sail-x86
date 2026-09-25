@@ -1,0 +1,85 @@
+{
+  "5f29bc4178": {
+    "rewrite": null,
+    "why": "All broadcasts, mask loads, pointer loads and zero initializations are live, and I found no shorter AVX2 construction for the mixed-word bias 0x02004000."
+  },
+  "51e968b6d9": {
+    "rewrite": null,
+    "why": "All initializations are live, and I found no shorter AVX2 construction for the mixed-word bias 0x08004000 using the available constant."
+  },
+  "c49991925d": {
+    "rewrite": null,
+    "why": "Both masks and all other initializations are live, and I found no shorter AVX2 construction for the mixed-word bias 0x08004000."
+  },
+  "bd944af712": {
+    "rewrite": null,
+    "why": "The floating-point scale, packing mask and other initializations are live, and I found no shorter AVX2 construction for the mixed-word bias 0x08004000."
+  },
+  "1a7456a370": {
+    "rewrite": null,
+    "why": "All coefficient broadcasts, mask and pointer loads, and zero initializations are live, and I found no shorter AVX2 construction for the mixed-word bias 0x00400100."
+  },
+  "e1f547cce9": {
+    "rewrite": null,
+    "why": "All initializations are live, and I found no shorter AVX2 construction for the mixed-word bias 0x00800200 using the available constant."
+  },
+  "ff6e25fb3b": {
+    "rewrite": null,
+    "why": "Both masks and all other initializations are live, and I found no shorter AVX2 construction for the mixed-word bias 0x00800200."
+  },
+  "fcc9aed033": {
+    "rewrite": null,
+    "why": "All initializations are live, and I found no shorter AVX2 construction for the mixed-word bias 0x01000400 using the available constant."
+  },
+  "b694728365": {
+    "rewrite": null,
+    "why": "Both masks and all other initializations are live, and I found no shorter AVX2 construction for the mixed-word bias 0x01000400."
+  },
+  "55774c01a5": {
+    "rewrite": null,
+    "why": "All initializations are live, and I found no shorter AVX2 construction for the mixed-word bias 0x04001000 using the available constant."
+  },
+  "e1ecec51e0": {
+    "rewrite": null,
+    "why": "Both masks and all other initializations are live, and I found no shorter AVX2 construction for the mixed-word bias 0x04001000."
+  },
+  "f5d57cdc89": {
+    "rewrite": null,
+    "why": "All initializations are live, and I found no shorter AVX2 construction for the mixed-word bias 0x10004000 using the available constant."
+  },
+  "ce50dacffe": {
+    "rewrite": null,
+    "why": "Both masks and all other initializations are live, and I found no shorter AVX2 construction for the mixed-word bias 0x10004000."
+  },
+  "0898e7bfe9": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvpxor ymm9,ymm9,ymm9\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nvpbroadcastw ymm6,xmm7\nvpsllw ymm6,ymm6,0x6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 1,
+    "why": "The low word of the loaded packing mask is 0x0100; broadcasting it and shifting left by six produces 0x4000 in every word lane. This replaces the three-instruction scalar constant construction and broadcast with two instructions."
+  },
+  "76c038b02d": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvpxor ymm9,ymm9,ymm9\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nvmovdqu ymm8,YMMWORD PTR [CONST_2]\nvpbroadcastw ymm6,xmm7\nvpsllw ymm6,ymm6,0x6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 1,
+    "why": "Broadcasting the packing mask's low word 0x0100 and shifting left by six builds the repeated 0x40004000 bias in two instructions. The byte-swap mask and all other required final values are preserved."
+  },
+  "c5053d7158": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvpxor ymm9,ymm9,ymm9\nvmovdqu ymm8,YMMWORD PTR [CONST_1]\nvmovdqu ymm7,YMMWORD PTR [CONST_2]\nvpbroadcastw ymm6,xmm7\nvpsllw ymm6,ymm6,0x6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 1,
+    "why": "CONST_2 supplies the low word 0x0100 in ymm7, so a word broadcast followed by a six-bit left shift produces the repeated 0x40004000 bias. This saves one instruction while preserving the floating-point scale and every required final register."
+  },
+  "ae3fb8fb54": {
+    "rewrite": null,
+    "why": "The widening load, word shift, store, index update and flag-setting comparison each perform a required operation that cannot be combined here within AVX2."
+  },
+  "e89ade23f5": {
+    "rewrite": null,
+    "why": "AVX2 immediate word shifts require a register source, and the store, full-width index update and final comparison are all required."
+  },
+  "64505d6909": {
+    "rewrite": null,
+    "why": "The mask load, vector zeroing, pointer load and scalar zeroing each establish a distinct required final register value."
+  },
+  "f961081d03": {
+    "rewrite": null,
+    "why": "The live shuffle mask is unconstrained, VPSHUFB cannot fold a load of its data operand, and the shift, store, index update and comparison are all required."
+  }
+}

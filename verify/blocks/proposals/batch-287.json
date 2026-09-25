@@ -1,0 +1,95 @@
+{
+  "caf4fd5c1c": {
+    "rewrite": "movdqu xmm4,XMMWORD PTR [rdi+0x10]\nmovdqa xmm5,xmm4\nmovdqu xmm3,XMMWORD PTR [rdi+0x20]\npcmpeqb xmm4,xmm1\npcmpeqb xmm5,xmm2\nmovdqu xmm0,XMMWORD PTR [rdi+0x30]\npmovmskb edx,xmm5\nmovdqa xmm5,xmm3\npcmpeqb xmm3,xmm1\npcmpeqb xmm5,xmm2\npcmpeqb xmm2,xmm0\nshl rdx,0x10\npmovmskb r8d,xmm3\npmovmskb eax,xmm5\nshl r8,0x20\nshl rax,0x20\npcmpeqb xmm0,xmm1\nor rax,rdx\npmovmskb edx,xmm2\npmovmskb esi,xmm4\nshl rdx,0x30\nshl rsi,0x10\nor rsi,r8\nor rsi,rcx\npmovmskb ecx,xmm0\nshl rcx,0x30\nor rsi,rcx\nor rax,rdx",
+    "saved": 1,
+    "why": "Extract the final xmm2 mask directly into edx after its earlier value has been consumed, eliminating the copy through rsi. The required register results and final OR's ZF are unchanged."
+  },
+  "5d619baded": {
+    "rewrite": null,
+    "why": "All four loaded vectors and the final comparison vector are live, and the two mask computations require their comparisons, copies, and scalar assembly."
+  },
+  "3db19fc6c8": {
+    "rewrite": null,
+    "why": "The arbitrary-byte broadcasts and masked page-offset comparison have no removable intermediates under SSE2 while preserving CF and ZF."
+  },
+  "df7cdc5176": {
+    "rewrite": "movdqu xmm3,XMMWORD PTR [rdi]\npxor xmm5,xmm5\nmovdqu xmm4,XMMWORD PTR [rdi+0x1]\nmovdqa xmm6,xmm3\npcmpeqb xmm3,xmm1\npcmpeqb xmm4,xmm2\nmovdqu xmm0,XMMWORD PTR [rdi+0x10]\npcmpeqb xmm6,xmm5\npminub xmm4,xmm3\nmovdqu xmm3,XMMWORD PTR [rdi+0x11]\npcmpeqb xmm5,xmm0\npcmpeqb xmm3,xmm2\npor xmm4,xmm6\npcmpeqb xmm0,xmm1\npminub xmm0,xmm3\npor xmm0,xmm5\npmovmskb r8d,xmm4\npmovmskb eax,xmm0\nshl rax,0x10\nor r8,rax",
+    "saved": 1,
+    "why": "Unsigned minimum is commutative, so compute the first combined comparison directly in xmm4 and remove the following copy."
+  },
+  "21bf8f47d1": {
+    "rewrite": "movdqu xmm3,XMMWORD PTR [rdi+0x20]\npxor xmm5,xmm5\nmovdqu xmm4,XMMWORD PTR [rdi+0x21]\nmovdqa xmm6,xmm3\npcmpeqb xmm3,xmm1\npcmpeqb xmm4,xmm2\nmovdqu xmm0,XMMWORD PTR [rdi+0x30]\npcmpeqb xmm6,xmm5\npminub xmm4,xmm3\nmovdqu xmm3,XMMWORD PTR [rdi+0x31]\npcmpeqb xmm5,xmm0\npcmpeqb xmm3,xmm2\npor xmm4,xmm6\npcmpeqb xmm0,xmm1\npminub xmm0,xmm3\npor xmm0,xmm5\npmovmskb eax,xmm4\nshl rax,0x20\npmovmskb r8d,xmm0\nshl r8,0x30\nor r8,rax",
+    "saved": 1,
+    "why": "Compute the commutative unsigned minimum directly in xmm4, eliminating the copy while retaining both shifted masks and final ZF."
+  },
+  "d4dd80fe40": {
+    "rewrite": null,
+    "why": "Each of the four instructions produces a distinct required final register value."
+  },
+  "2ddade029b": {
+    "rewrite": null,
+    "why": "The memory minima, equality predicates, and shifted masks are needed for the preserved scalar outputs, xmm0, and final ZF."
+  },
+  "a86b75690f": {
+    "rewrite": null,
+    "why": "Both arithmetic results are live, forming rax requires the copy and subtraction, and the final comparison is needed to reproduce SF and OF."
+  },
+  "f8a906477f": {
+    "rewrite": null,
+    "why": "AVX2 needs the move and broadcast for esi, and the vector zero and masked page-offset comparison contain no removable instruction with CF and ZF live."
+  },
+  "9992e29dbf": {
+    "rewrite": "vpcmpeqd ymm1,ymm0,YMMWORD PTR [rdi]\nvpcmpeqd ymm2,ymm9,YMMWORD PTR [rdi]\nvpor ymm1,ymm2,ymm1\nvpmovmskb eax,ymm1\ntest eax,eax",
+    "saved": 1,
+    "why": "Fold the temporary vector load into both comparisons at the original address, preserving the combined mask in rax and its zero test."
+  },
+  "e1c596c09c": {
+    "rewrite": "vpcmpeqd ymm1,ymm0,YMMWORD PTR [rdi+0x1]\nvpcmpeqd ymm2,ymm9,YMMWORD PTR [rdi+0x1]\nvpor ymm1,ymm2,ymm1\nvpmovmskb eax,ymm1\ntest eax,eax",
+    "saved": 1,
+    "why": "Use the original memory operand in both comparisons, eliminating the temporary load while preserving rax and ZF."
+  },
+  "b8610f88b1": {
+    "rewrite": "vpcmpeqd ymm1,ymm0,YMMWORD PTR [rdi+0x21]\nvpcmpeqd ymm2,ymm9,YMMWORD PTR [rdi+0x21]\nvpor ymm1,ymm2,ymm1\nvpmovmskb eax,ymm1\ntest eax,eax",
+    "saved": 1,
+    "why": "Fold the load into the two comparisons using the same address, retaining the mask extraction and final zero test."
+  },
+  "ab4fa0a214": {
+    "rewrite": "vpcmpeqd ymm1,ymm0,YMMWORD PTR [rdi+0x41]\nvpcmpeqd ymm2,ymm9,YMMWORD PTR [rdi+0x41]\nvpor ymm1,ymm2,ymm1\nvpmovmskb eax,ymm1\ntest eax,eax",
+    "saved": 1,
+    "why": "Both comparisons can read the original memory operand directly, removing the temporary vector load without changing rax or ZF."
+  },
+  "3360ce3585": {
+    "rewrite": "vpcmpeqd ymm1,ymm0,YMMWORD PTR [rdi+0x61]\nvpcmpeqd ymm2,ymm9,YMMWORD PTR [rdi+0x61]\nvpor ymm1,ymm2,ymm1\nvpmovmskb eax,ymm1\ntest eax,eax",
+    "saved": 1,
+    "why": "Read the same original address in each comparison and eliminate the temporary vector load, preserving the resulting mask and ZF."
+  },
+  "a9ae891bdb": {
+    "rewrite": "vpxor ymm1,ymm0,YMMWORD PTR [rdi]\nvpxor ymm2,ymm0,YMMWORD PTR [rdi+0x20]\nvpxor ymm3,ymm0,YMMWORD PTR [rdi+0x40]\nvpxor ymm4,ymm0,YMMWORD PTR [rdi+0x60]\nvpminud ymm1,ymm1,YMMWORD PTR [rdi]\nvpminud ymm2,ymm2,YMMWORD PTR [rdi+0x20]\nvpminud ymm3,ymm3,YMMWORD PTR [rdi+0x40]\nvpminud ymm4,ymm4,YMMWORD PTR [rdi+0x60]\nvpminud ymm5,ymm2,ymm1\nvpminud ymm6,ymm4,ymm3\nvpminud ymm6,ymm6,ymm5\nvpcmpeqd ymm6,ymm9,ymm6\nvpmovmskb ecx,ymm6\nsub rdi,0xffffffffffffff80\ntest ecx,ecx",
+    "saved": 4,
+    "why": "Fold each of the four temporary loads into its XOR and unsigned minimum using the same original address. The required intermediate vectors, rcx, updated rdi, and final ZF are retained."
+  },
+  "1d19d35997": {
+    "rewrite": null,
+    "why": "The broadcast and vector zero already use one instruction each, and the page-offset comparison needs its copy and mask while preserving rdi and producing CF and ZF."
+  },
+  "184b761cd2": {
+    "rewrite": "vpxorq ymm19,ymm17,YMMWORD PTR [rdi]\nvpminud ymm19,ymm19,YMMWORD PTR [rdi]\nvpcmpeqd k0,ymm19,ymm16\nkmovd eax,k0\ntest eax,eax",
+    "saved": 1,
+    "why": "Fold the temporary load into the XOR and commutative unsigned minimum at the original address, preserving rax and ZF for arbitrary input vectors."
+  },
+  "5a18980bc0": {
+    "rewrite": "vpxorq ymm19,ymm17,YMMWORD PTR [rdi+0x20]\nvpminud ymm19,ymm19,YMMWORD PTR [rdi+0x20]\nvpcmpeqd k0,ymm19,ymm16\nkmovd eax,k0\ntest eax,eax",
+    "saved": 1,
+    "why": "Use memory operands for the XOR and unsigned minimum, eliminating the temporary load while preserving the exact mask and zero test."
+  },
+  "344f252061": {
+    "rewrite": "vpcmpeqd k0,ymm17,YMMWORD PTR [rdi+0x40]\nvpcmpeqd k1,ymm16,YMMWORD PTR [rdi+0x40]\nkortestd k1,k0",
+    "saved": 1,
+    "why": "Fold the temporary vector load into both comparisons at the original address, preserving both mask registers and the final kortestd flags."
+  },
+  "166aaa9735": {
+    "rewrite": "vpxorq ymm19,ymm17,YMMWORD PTR [rdi+0x60]\nvpminud ymm19,ymm19,YMMWORD PTR [rdi+0x60]\nvpcmpeqd k0,ymm19,ymm16\nkmovd eax,k0\ntest eax,eax",
+    "saved": 1,
+    "why": "Read the original memory operand directly in the XOR and unsigned minimum, removing the temporary load without changing rax or ZF."
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "8364dd645e": {
+    "rewrite": null,
+    "why": "The tweak needs its shuffle, sign extraction, doubling and ternary logic, while producing xmm0 and preserving xmm7 still requires two further vector instructions."
+  },
+  "0597ff8629": {
+    "rewrite": null,
+    "why": "The broadcast, both shuffle stages, XOR results, store and flag-producing pointer update are all required."
+  },
+  "c222f7ec8e": {
+    "rewrite": null,
+    "why": "All key-schedule temporaries and both packed store values are live, so the copies and two-operand SSE operations cannot be dropped."
+  },
+  "358a2fa1cf": {
+    "rewrite": null,
+    "why": "The broadcast, shuffle intermediates, shifted copy and both updated key vectors must all be preserved, leaving no removable SSE operations."
+  },
+  "a6f2771801": {
+    "rewrite": null,
+    "why": "The broadcast word and intermediate xmm4 are preserved alongside the updated key, so the SSE shuffle and XOR chain has no redundant instructions."
+  },
+  "1d1582f21c": {
+    "rewrite": null,
+    "why": "xmm0 must retain the loaded value, preventing load folding into AESIMC, and the store, both pointer updates and comparison are also required."
+  },
+  "b929ec8094": {
+    "rewrite": "pxor xmm0,XMMWORD PTR [rdi]\nlea r10,[rdi+0x30]\ncmp r9d,0x18",
+    "saved": 2,
+    "why": "The dead xmm2 load folds into PXOR, and LEA combines the pointer copy and addition. The final comparison still supplies all preserved flags."
+  },
+  "55522c5645": {
+    "rewrite": "pxor xmm0,XMMWORD PTR [rdi]\npxor xmm4,XMMWORD PTR [rdi]\npxor xmm5,XMMWORD PTR [rdi]\npxor xmm6,XMMWORD PTR [rdi]\nlea r10,[rdi+0x30]\ncmp r9d,0x18",
+    "saved": 2,
+    "why": "xmm2 is dead, so each XOR can read the same originally loaded address directly. LEA also combines the pointer copy and addition without changing the final comparison flags."
+  },
+  "b52b2d259f": {
+    "rewrite": null,
+    "why": "Every XOR result, the chaining-register copy, four stores, three pointer or counter updates and the final comparison are required."
+  },
+  "096e1d66fb": {
+    "rewrite": null,
+    "why": "The XOR result, store, chaining-register copy, three scalar updates and final comparison each provide required effects."
+  },
+  "a40480af54": {
+    "rewrite": null,
+    "why": "The reversal mask, reversed vector, scalar extraction and vector constant one are all live, and forming that constant already takes two instructions."
+  },
+  "289184557f": {
+    "rewrite": null,
+    "why": "The unaligned loads cannot safely become legacy PXOR memory operands, and the stored vectors, final xmm1 value, tweak intermediates and scalar updates are all required."
+  },
+  "3b3109c335": {
+    "rewrite": null,
+    "why": "The whitening result, both live tweak values and final flags require the existing shuffle, sign extraction, doubling, logical operations and TEST."
+  },
+  "357bb5c3c5": {
+    "rewrite": "vbroadcasti128 ymm6,XMMWORD PTR [CONST_1]\nvpcmpeqd ymm0,ymm0,ymm0\nvpsrldq ymm0,ymm0,0x8\nvpaddq ymm5,ymm0,ymm0\nvmovdqu xmm3,XMMWORD PTR [r8]\nvpshufb xmm3,xmm3,xmm6\nvmovq r11,xmm3\nvpcmpeqq xmm4,xmm3,xmm0\nvpunpcklqdq xmm4,xmm0,xmm4\nvpsubq xmm7,xmm3,xmm4\nvinserti128 ymm3,ymm3,xmm7,0x1\nvpshufb ymm8,ymm3,ymm6\ncmp r11,0xffffffffffffffdf",
+    "saved": 3,
+    "why": "Extract r11 from the already reversed vector and use xmm3 directly, saving the separate scalar load/byte-swap sequence and vector copy. Unpacking the low-qword equality mask beside an all-ones qword lets one subtraction perform the increment and carry adjustment."
+  },
+  "d66ff9ab58": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required ZMM result, so none of the sixteen additions can be removed."
+  },
+  "7f92923e1d": {
+    "rewrite": null,
+    "why": "Both byte-swapped scalar registers, the carry-chain flags, all sixteen shuffled vectors and both stores must be preserved."
+  },
+  "738fb083b4": {
+    "rewrite": null,
+    "why": "Both backup copies, the counter sum, the constant load and the separately preserved XOR result are required with the two-operand SSSE3 instruction set."
+  },
+  "f5a95ffb4c": {
+    "rewrite": null,
+    "why": "Each three-input XOR requires two operations at this ISA level, and the pointer increment and decrement jointly determine the preserved flags."
+  },
+  "104c730650": {
+    "rewrite": null,
+    "why": "Each of the eight instructions writes a distinct required register result, including the zeroed upper vector lanes and the advanced source pointer."
+  },
+  "786b549253": {
+    "rewrite": null,
+    "why": "All three stores are required, and VZEROUPPER is needed to reproduce the preserved vector registers' upper-lane state."
+  }
+}

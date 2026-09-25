@@ -1,0 +1,83 @@
+{
+  "30eec55a90": {
+    "rewrite": null,
+    "why": "AVX2 requires separate packing and cross-lane permutation for each preserved result, and the scalar load and pointer update are also live."
+  },
+  "2c367e2dcf": {
+    "rewrite": "movq rax,xmm9\nror rax,0x18\nmovq xmm9,rax\npunpcklqdq xmm9,xmm9",
+    "saved": 1,
+    "why": "Rotating the original low qword right by 24 bits and duplicating it produces the same repeated byte sequence. RAX and the arithmetic flags are not required to be preserved."
+  },
+  "a373c8f521": {
+    "rewrite": null,
+    "why": "Both outputs depend on arbitrary bits of xmm6, so the unpack stages, SSE2 destination copy, two shifts, and required r9 zeroing cannot be shortened by zero-extension."
+  },
+  "072029a056": {
+    "rewrite": null,
+    "why": "The two independent arithmetic shifts, two narrowing stages, store, and live counter updates have no shorter SSE2 equivalent."
+  },
+  "39936d8d5f": {
+    "rewrite": null,
+    "why": "The two shifts and packing are needed before clipping against arbitrary xmm6 and 511, followed by the required store and counter updates."
+  },
+  "c177b3a6e8": {
+    "rewrite": null,
+    "why": "The two shifts and packing are needed before clipping against arbitrary xmm6 and 511, followed by the required unaligned store and counter updates."
+  },
+  "ed3076d711": {
+    "rewrite": null,
+    "why": "The two shifts and packing are needed before clipping against arbitrary xmm6 and 1023, followed by the required store and counter updates."
+  },
+  "b2064f3e72": {
+    "rewrite": null,
+    "why": "The two shifts and packing are needed before clipping against arbitrary xmm6 and 1023, followed by the required unaligned store and counter updates."
+  },
+  "1ab7b7519d": {
+    "rewrite": null,
+    "why": "Arbitrary xmm6 bits contribute to both outputs, preventing SSE4.1 zero-extension from replacing the unpack stages, destination copy, and shifts."
+  },
+  "56838732ab": {
+    "rewrite": null,
+    "why": "SSE4.1 provides no instruction combining the independent arithmetic shifts with both narrowing stages, and the store and counter updates remain necessary."
+  },
+  "fd4fe1d356": {
+    "rewrite": null,
+    "why": "Both shifts, unsigned packing, clipping to 511, the store, and the live counter updates are necessary with SSE4.1."
+  },
+  "3791bdf664": {
+    "rewrite": null,
+    "why": "Both shifts, unsigned packing, clipping to 511, the unaligned store, and the live counter updates are necessary with SSE4.1."
+  },
+  "53e33fb3fb": {
+    "rewrite": null,
+    "why": "Both shifts, unsigned packing, clipping to 1023, the store, and the live counter updates are necessary with SSE4.1."
+  },
+  "c3bdb3b0c3": {
+    "rewrite": null,
+    "why": "Both shifts, unsigned packing, clipping to 1023, the unaligned store, and the live counter updates are necessary with SSE4.1."
+  },
+  "47c3a4a6ac": {
+    "rewrite": null,
+    "why": "The two arithmetic shifts, signed saturation, and 0x8000 bias are distinct required operations before the store and live counter updates."
+  },
+  "7568c1e662": {
+    "rewrite": null,
+    "why": "The two arithmetic shifts, signed saturation, and 0x8000 bias are distinct required operations before the unaligned store and live counter updates."
+  },
+  "b7031cd928": {
+    "rewrite": null,
+    "why": "The VEX forms already avoid a destination copy, and arbitrary xmm6 bits require all three unpacks and both shifts to form the two preserved outputs."
+  },
+  "fa7639bba2": {
+    "rewrite": null,
+    "why": "AVX still requires separate 128-bit integer shifts and both narrowing stages, followed by the store and live counter updates."
+  },
+  "9d5b35948f": {
+    "rewrite": null,
+    "why": "AVX cannot combine these independent integer shifts, unsigned packing, and clipping to 511 into fewer instructions, and the store and counter updates are live."
+  },
+  "fd4bbd791d": {
+    "rewrite": null,
+    "why": "AVX cannot combine these independent integer shifts, unsigned packing, and clipping to 511 into fewer instructions, and the unaligned store and counter updates are live."
+  }
+}

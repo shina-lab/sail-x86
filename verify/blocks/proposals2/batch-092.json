@@ -1,0 +1,89 @@
+{
+  "7df6957249": {
+    "rewrite": "pxor xmm5,xmm5\npxor xmm11,xmm11\nmovdqa xmm1,XMMWORD PTR [rdi+0x50]\npacksswb xmm1,XMMWORD PTR [rdi+0x60]\npacksswb xmm1,XMMWORD PTR [rdi+0x70]\nmovq rcx,xmm1\nmov esi,ecx\nshr rcx,0x20\npxor xmm7,xmm7\npsrldq xmm1,0x8\nmovq r8,xmm1\nmovdqa xmm13,XMMWORD PTR [CONST_1]\nmovdqa xmm14,XMMWORD PTR [CONST_2]\ntest edx,edx",
+    "saved": 1,
+    "why": "The second PACKSSWB can produce the original twice-packed data in its low half and the packed words from [rdi+0x70] in its high half. Extracting that high half removes one instruction while preserving all scalar results."
+  },
+  "45052da1c7": {
+    "rewrite": "pmulhw xmm13,xmm4\npaddsw xmm13,xmm4\npmulhw xmm14,xmm6\nmovdqa xmm1,xmm4\npaddsw xmm1,xmm6\npsubsw xmm6,xmm4\nmovdqa xmm3,xmm14\npsubsw xmm14,xmm13\npaddsw xmm13,xmm3\nmovdqa xmm3,xmm6\npsubsw xmm3,xmm13\npaddsw xmm13,xmm6\npmulhw xmm3,XMMWORD PTR [CONST_1]\npmulhw xmm13,XMMWORD PTR [CONST_1]\npaddsw xmm13,xmm13\npaddsw xmm3,xmm3\nmovdqa xmm5,XMMWORD PTR [CONST_2]\npmulhw xmm5,xmm9\nmovdqa xmm6,xmm8\npsubsw xmm6,xmm9\npaddsw xmm9,xmm8\nmovdqa xmm12,xmm8\npsubsw xmm8,xmm5\npaddsw xmm5,xmm12\nmovdqa xmm12,xmm5\npsubsw xmm5,xmm13\npaddsw xmm13,xmm12\nmovdqa xmm12,xmm8\npsubsw xmm8,xmm3\npaddsw xmm3,xmm12\npsraw xmm5,0x6\npsraw xmm8,0x6\npsraw xmm13,0x6\npsraw xmm3,0x6\nmovdqa XMMWORD PTR [rdi+0x10],xmm13\nmovdqa XMMWORD PTR [rdi+0x20],xmm3\nmovdqa XMMWORD PTR [rdi+0x50],xmm8\nmovdqa XMMWORD PTR [rdi+0x60],xmm5\nmovdqa xmm0,xmm9\nmovdqa xmm4,xmm6\npsubsw xmm9,xmm1\npsubsw xmm6,xmm14\npaddsw xmm1,xmm0\npaddsw xmm14,xmm4\npsraw xmm1,0x6\npsraw xmm9,0x6\npsraw xmm14,0x6\npsraw xmm6,0x6\nmovdqa XMMWORD PTR [rdi],xmm1\nmovdqa XMMWORD PTR [rdi+0x30],xmm14\nmovdqa XMMWORD PTR [rdi+0x40],xmm6\nmovdqa XMMWORD PTR [rdi+0x70],xmm9",
+    "saved": 2,
+    "why": "Reusing xmm6 for the first saturated difference removes a copy without changing the saturation order. Folding CONST_1 into both PMULHW instructions removes its temporary load, since xmm4 is overwritten before its next use."
+  },
+  "c003f7ee05": {
+    "rewrite": "pshufd xmm0,XMMWORD PTR [rdi+0x40],0x44\npshufd xmm1,XMMWORD PTR [rdi+0x40],0x11\npmaddwd xmm0,XMMWORD PTR [CONST_1]\npmaddwd xmm1,XMMWORD PTR [CONST_2]\npshufd xmm2,XMMWORD PTR [rdi+0x40],0xbb\npshufd xmm3,XMMWORD PTR [rdi+0x40],0xee\npmaddwd xmm2,XMMWORD PTR [CONST_3]\npmaddwd xmm3,XMMWORD PTR [CONST_4]\npaddd xmm0,xmm1\npaddd xmm2,xmm3\nmovdqa xmm3,xmm2\npaddd xmm2,xmm0\npsubd xmm0,xmm3\npsrad xmm2,0xb\npsrad xmm0,0xb\npackssdw xmm2,xmm0\npshufhw xmm10,xmm2,0x1b",
+    "saved": 2,
+    "why": "Four PSHUFD instructions with memory operands directly construct the four required input permutations. They replace the initial load, copy, two shuffles, and two quadword unpacks while reading only the original sixteen bytes."
+  },
+  "1644e060d8": {
+    "rewrite": "pshufd xmm0,XMMWORD PTR [rdi+0x50],0x44\npshufd xmm1,XMMWORD PTR [rdi+0x50],0x11\npmaddwd xmm0,XMMWORD PTR [CONST_1]\npmaddwd xmm1,XMMWORD PTR [CONST_2]\npshufd xmm2,XMMWORD PTR [rdi+0x50],0xbb\npshufd xmm3,XMMWORD PTR [rdi+0x50],0xee\npmaddwd xmm2,XMMWORD PTR [CONST_3]\npmaddwd xmm3,XMMWORD PTR [CONST_4]\npaddd xmm0,xmm1\npaddd xmm2,xmm3\npaddd xmm0,XMMWORD PTR [CONST_5]\nmovdqa xmm3,xmm2\npaddd xmm2,xmm0\npsubd xmm0,xmm3\npsrad xmm2,0xb\npsrad xmm0,0xb\npackssdw xmm2,xmm0\npshufhw xmm5,xmm2,0x1b\ntest ecx,ecx",
+    "saved": 2,
+    "why": "Four PSHUFD instructions with memory operands replace six instructions that load and permute the same input. All subsequent arithmetic, both live vector results, and the final TEST are preserved."
+  },
+  "e1959b6313": {
+    "rewrite": "pshufd xmm0,XMMWORD PTR [rdi+0x60],0x44\npshufd xmm1,XMMWORD PTR [rdi+0x60],0x11\npmaddwd xmm0,XMMWORD PTR [CONST_1]\npmaddwd xmm1,XMMWORD PTR [CONST_2]\npshufd xmm2,XMMWORD PTR [rdi+0x60],0xbb\npshufd xmm3,XMMWORD PTR [rdi+0x60],0xee\npmaddwd xmm2,XMMWORD PTR [CONST_3]\npmaddwd xmm3,XMMWORD PTR [CONST_4]\npaddd xmm0,xmm1\npaddd xmm2,xmm3\npaddd xmm0,XMMWORD PTR [CONST_5]\nmovdqa xmm3,xmm2\npaddd xmm2,xmm0\npsubd xmm0,xmm3\npsrad xmm2,0xb\npsrad xmm0,0xb\npackssdw xmm2,xmm0\npshufhw xmm11,xmm2,0x1b",
+    "saved": 2,
+    "why": "Four PSHUFD instructions with memory operands replace the initial load, copy, two shuffles, and two quadword unpacks. The arithmetic and both live vector results remain identical."
+  },
+  "46be8a59e6": {
+    "rewrite": "pshufd xmm0,XMMWORD PTR [rdi+0x70],0x44\npshufd xmm1,XMMWORD PTR [rdi+0x70],0x11\npmaddwd xmm0,XMMWORD PTR [CONST_1]\npmaddwd xmm1,XMMWORD PTR [CONST_2]\npshufd xmm2,XMMWORD PTR [rdi+0x70],0xbb\npshufd xmm3,XMMWORD PTR [rdi+0x70],0xee\npmaddwd xmm2,XMMWORD PTR [CONST_3]\npmaddwd xmm3,XMMWORD PTR [CONST_4]\npaddd xmm0,xmm1\npaddd xmm2,xmm3\npaddd xmm0,XMMWORD PTR [CONST_5]\nmovdqa xmm3,xmm2\npaddd xmm2,xmm0\npsubd xmm0,xmm3\npsrad xmm2,0xb\npsrad xmm0,0xb\npackssdw xmm2,xmm0\npshufhw xmm7,xmm2,0x1b",
+    "saved": 2,
+    "why": "Four PSHUFD instructions with memory operands directly produce the input permutations previously formed by six instructions. Both live vector results and every flag are preserved."
+  },
+  "5c27d872ca": {
+    "rewrite": null,
+    "why": "The 32-bit shift must truncate and zero-extend before the three live pointer additions and 64-bit negation, leaving no removable instruction."
+  },
+  "e199250ba5": {
+    "rewrite": null,
+    "why": "The three live pointer additions need the truncated, zero-extended result of the 32-bit shift, and the final 64-bit negation is also required."
+  },
+  "2580041b78": {
+    "rewrite": null,
+    "why": "The three live pointer additions need the truncated, zero-extended result of the 32-bit shift, and the final 64-bit negation is also required."
+  },
+  "6feef9cfda": {
+    "rewrite": "lea r8,[rdx*4+0x0]\nsub rdi,r8\nsub rsi,r8\nxor r8,r8\nlea rdx,[rdx*8+0x4]\nmov rcx,rdx\nand rcx,0xf\nxorps xmm0,xmm0\ncmp rdx,0x10",
+    "saved": 4,
+    "why": "A scaled LEA and two subtractions replace copying, shifting, negating, and adding the pointer offset. Another LEA computes 8*rdx+4 modulo 2^64 in place of three instructions, with the final comparison preserving the required flags."
+  },
+  "debbd58d6d": {
+    "rewrite": null,
+    "why": "Both unpacked halves and their multiply, shift, and pack results are required, with all involved registers and the final subtraction flags preserved."
+  },
+  "0f0e7adaa6": {
+    "rewrite": null,
+    "why": "The product halves, comparison mask, sign correction, and live intermediate registers require the existing SSSE3 sequence."
+  },
+  "5e8b24c219": {
+    "rewrite": null,
+    "why": "Each of the eight live XMM outputs needs a zeroing instruction, and the two live scalar loads and comparison are required."
+  },
+  "c2548885c1": {
+    "rewrite": null,
+    "why": "Each of the eight live XMM outputs needs a zeroing instruction, and the two live scalar loads and comparison are required."
+  },
+  "e39bc41b0c": {
+    "rewrite": null,
+    "why": "All eight zeroed YMM values are live and VZEROALL would destroy other preserved YMM values, while the two scalar loads and comparison are also required."
+  },
+  "b220590a34": {
+    "rewrite": null,
+    "why": "Six independent live address updates and the flag-producing counter decrement each require an instruction."
+  },
+  "970c9952a6": {
+    "rewrite": null,
+    "why": "Six independent live address updates and the flag-producing counter decrement each require an instruction."
+  },
+  "52eb8dabb2": {
+    "rewrite": null,
+    "why": "The three matrix outputs and all intermediate registers are live, requiring the SSE2 unpack, multiply-add, shift, and pack operations and their copies."
+  },
+  "c3acd43076": {
+    "rewrite": null,
+    "why": "The three pointer updates and counter decrement are all live, including the carry from the final ADD and the other flags from DEC."
+  },
+  "19413d5537": {
+    "rewrite": null,
+    "why": "Both updated pointers, the negated r8, and the zeroed xmm1 are live and each needs its own instruction."
+  }
+}

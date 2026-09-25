@@ -1,0 +1,82 @@
+{
+  "b2fd5caf6e": {
+    "rewrite": null,
+    "why": "The byte comparison, mask transfer, pointer decrement, and observable upper-vector clearing all require separate instructions."
+  },
+  "98b7f5ea12": {
+    "rewrite": null,
+    "why": "The mask in k0, trailing-zero count in rax, and final comparison flags are all required, leaving no redundant instruction."
+  },
+  "f44b1df2e2": {
+    "rewrite": null,
+    "why": "The comparison mask, its copy in rax, the rdi advance, and mask-dependent ZF are all required outputs."
+  },
+  "fdabc827aa": {
+    "rewrite": null,
+    "why": "The unmasked comparison in k0, independently required 64-bit prefix mask in rcx, and final AND result and flags prevent collapsing the mask construction into a direct BZHI."
+  },
+  "22f340c712": {
+    "rewrite": null,
+    "why": "The comparison mask, shifted rcx, masked rax, and final AND flags are all required outputs."
+  },
+  "c114d51c05": {
+    "rewrite": null,
+    "why": "SSE2 needs both MOVD and PUNPCKLBW to form the required xmm1 value, while the ecx copy and rdx zero test produce independent required outputs."
+  },
+  "08cc769ae6": {
+    "rewrite": null,
+    "why": "The two SSE2 vector operations produce the required repeated byte-pair pattern, and both the ecx mask and comparison are needed to preserve rcx, CF, and ZF."
+  },
+  "aedf62dc97": {
+    "rewrite": null,
+    "why": "Preserving xmm1 while producing xmm0, rax, and ZF requires the load, destructive SSE2 comparison, mask extraction, and scalar test."
+  },
+  "4331c65d28": {
+    "rewrite": null,
+    "why": "Advancing and aligning rdi and masking ecx are necessary, and folding the rdx addition and subtraction into LEA would lose the required subtraction CF and ZF."
+  },
+  "48aafa068a": {
+    "rewrite": null,
+    "why": "The required xmm0 comparison result, rax mask, ZF, and unchanged xmm1 leave no removable operation in this SSE2 sequence."
+  },
+  "ed9dff6d9e": {
+    "rewrite": null,
+    "why": "The load and destructive comparison are needed to preserve xmm1 and produce xmm2, while mask extraction and TEST separately produce rax and the required flags."
+  },
+  "37cb4de682": {
+    "rewrite": null,
+    "why": "The load and destructive comparison are needed to preserve xmm1 and produce xmm3, while mask extraction and TEST separately produce rax and the required flags."
+  },
+  "92496b00b2": {
+    "rewrite": null,
+    "why": "The xmm4 comparison, rax mask, pointer advance, and TEST flags are all required, and SSE2 cannot fold away the load while preserving xmm1."
+  },
+  "8a461cb06b": {
+    "rewrite": null,
+    "why": "The xmm3 comparison, rax mask, pointer advance, and TEST flags are all required, and SSE2 cannot fold away the load while preserving xmm1."
+  },
+  "8a93190ea2": {
+    "rewrite": null,
+    "why": "Splitting the arbitrary input rdi into its aligned base and six-bit offset, then adding that offset to rdx, requires all four operations at the permitted ISA level."
+  },
+  "41f9f717c3": {
+    "rewrite": null,
+    "why": "All four vector outputs, including the intermediate comparison masks and accumulated masks, are required, and SSE2 still needs mask extraction plus a scalar test to produce ZF."
+  },
+  "4a8642ebd9": {
+    "rewrite": null,
+    "why": "The two distinct byte-comparison results in xmm3 and xmm1, the extracted rax mask, and the TEST flags are all required."
+  },
+  "45ae8abc6b": {
+    "rewrite": null,
+    "why": "The edx update is required, and SSE2 needs separate loading, comparison, mask extraction, and testing while preserving xmm1."
+  },
+  "5dc74c7d1e": {
+    "rewrite": null,
+    "why": "Comparing two memory vectors requires a load and comparison, while the required incremented rax mask and ZF need the extraction and INC."
+  },
+  "97e0617b89": {
+    "rewrite": null,
+    "why": "The two memory operands require separate loading and comparison, and preserving the incremented rax mask and ZF requires both VPMOVMSKB and INC."
+  }
+}

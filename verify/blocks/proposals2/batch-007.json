@@ -1,0 +1,84 @@
+{
+  "b429dd1058": {
+    "rewrite": null,
+    "why": "Both stores, the pointer update, and the counter subtraction are required, including the subtraction's flags."
+  },
+  "a3e9dc9a81": {
+    "rewrite": null,
+    "why": "The loaded vector feeds both the live unpack result and a live sum, while the other addition produces a separate required result."
+  },
+  "692574e030": {
+    "rewrite": null,
+    "why": "Both boundary blends and the wrapping additions, rounded average, shift, store, and required rdx assignment contribute to the result."
+  },
+  "f60eea0189": {
+    "rewrite": null,
+    "why": "The required broadcasts, scalar outputs, and lane-dependent sum need all these operations without an AVX2 general-register broadcast instruction."
+  },
+  "c95e0b932f": {
+    "rewrite": null,
+    "why": "Both stores and both scalar updates are required, with CF coming from the pointer addition and the other flags from the decrement."
+  },
+  "d7f5ac5098": {
+    "rewrite": null,
+    "why": "The initial load supplies both the main sum and the boundary words, and all subsequent arithmetic, boundary blends, and output operations are needed."
+  },
+  "39f58b297e": {
+    "rewrite": null,
+    "why": "The broadcasts, scalar updates, and offset arithmetic are required, and each additional constant vector already takes one instruction to derive."
+  },
+  "cbd36d204f": {
+    "rewrite": null,
+    "why": "AVX2 requires four stores for these 128 bytes, followed by the independently required pointer and counter updates."
+  },
+  "a54314846b": {
+    "rewrite": null,
+    "why": "The three memory operations produce independently required vector values, and the comparison supplies the required ZF."
+  },
+  "41ba4b1831": {
+    "rewrite": null,
+    "why": "With arbitrary input vectors, the broadcast, byte subtraction, mask, signed comparison, and extraction each perform a necessary step."
+  },
+  "7791e8dcd8": {
+    "rewrite": null,
+    "why": "Both broadcast results and the comparison flags are required, and AVX2 cannot fold a scalar memory broadcast into the packed multiplication."
+  },
+  "e3e202c80e": {
+    "rewrite": "vpbroadcastd ymm4,DWORD PTR [rbx+0x148]\nvpaddw ymm1,ymm0,YMMWORD PTR [rdx-0x1e]\nvpshufhw ymm2,YMMWORD PTR [rdx-0x1e],0xff\nvpblendd ymm2,ymm2,YMMWORD PTR [rdx-0x1c],0x7f\nvpunpcklwd xmm3,xmm0,xmm0\nvpaddw ymm2,ymm2,ymm4\nvpblendd ymm4,ymm3,YMMWORD PTR [rdx-0x22],0xfe\nvpblendd ymm3,ymm3,YMMWORD PTR [rdx-0x24],0xfe\nvpaddw ymm1,ymm1,ymm4\nvpavgw ymm2,ymm2,ymm3\nvpaddw ymm1,ymm1,ymm2\nvpsrlw ymm1,ymm1,0x2",
+    "saved": 1,
+    "why": "Only the highest dword of the unpack survives the blend, and VPSHUFHW supplies the same two copies of the last word directly from memory. Folding the original load into VPADDW removes one instruction."
+  },
+  "e42c477b66": {
+    "rewrite": null,
+    "why": "The wrapping arithmetic and rounded division require the existing operations, including an explicit zero vector for the final unsigned average."
+  },
+  "9beceea515": {
+    "rewrite": null,
+    "why": "The independent loads, arbitrary shuffles, interpolation, permutation, and masked blend are all needed, and the product and sign mask must also remain available."
+  },
+  "7a1bf69964": {
+    "rewrite": null,
+    "why": "The arbitrary byte operands require each arithmetic and comparison step before extracting the required 32-bit mask."
+  },
+  "31b881698f": {
+    "rewrite": null,
+    "why": "All four loaded or broadcast vectors are required, and neither the packed multiplication nor the comparison can be eliminated."
+  },
+  "4e6c3648f6": {
+    "rewrite": null,
+    "why": "The vector update, two scalar updates, and two independently addressed stores are all required."
+  },
+  "9b6d547be1": {
+    "rewrite": null,
+    "why": "Every instruction supplies a required register result or store, with the final subtraction also providing ZF."
+  },
+  "30c8002ceb": {
+    "rewrite": null,
+    "why": "The full byte calculation is needed, and preserving both rcx and ZF requires the mask extraction and a separate flag-setting operation."
+  },
+  "e43c1670d0": {
+    "rewrite": "vmovdqa ymm0,YMMWORD PTR [rdx-0x20]\nvpbroadcastd ymm5,DWORD PTR [r15+0x30]\nvpaddw ymm1,ymm0,YMMWORD PTR [rdx-0x1e]\nvpshufhw ymm2,YMMWORD PTR [rdx-0x1e],0xff\nmov ecx,r8d\nvpblendd ymm2,ymm2,YMMWORD PTR [rdx-0x1c],0x7f\nvpackssdw ymm5,ymm5,ymm5\nnot rcx\nvpsubw ymm5,ymm5,YMMWORD PTR [rbx+0x60]\nvpaddw ymm2,ymm2,ymm6\nvpminsw ymm8,ymm11,ymm5",
+    "saved": 1,
+    "why": "A memory VPSHUFHW reproduces the unpack's highest dword, the only part retained by the blend, while VPADDW reads the original vector directly. This removes the separate load and leaves the required flags unchanged."
+  }
+}

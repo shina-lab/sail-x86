@@ -1,0 +1,82 @@
+{
+  "3c0fd1cebb": {
+    "rewrite": null,
+    "why": "Both fixed-address copies need their loads and stores, and vzeroupper is required to clear the upper half of live ymm0."
+  },
+  "d8de5a6886": {
+    "rewrite": null,
+    "why": "The two indexed 32-byte copies require separate loads and stores, and vzeroupper supplies the required final upper half of ymm0."
+  },
+  "f5cc388422": {
+    "rewrite": null,
+    "why": "The fixed-address 32-byte, 32-byte, and one-byte copies each need a load and store, while live ymm0 requires vzeroupper."
+  },
+  "1b1ad742e9": {
+    "rewrite": null,
+    "why": "Both loaded vectors are live, and producing the equality mask in edx and the separate r8 comparison flags requires the remaining instructions."
+  },
+  "73206e5de7": {
+    "rewrite": null,
+    "why": "The store, vector equality comparison, mask transfer into live edx, and independent scalar flag comparison are all necessary."
+  },
+  "c8e8070d73": {
+    "rewrite": null,
+    "why": "The zero-extended load into live rdx, word store, r8 subtraction with matching ZF, and rdi increment each require an instruction."
+  },
+  "04a7e8106e": {
+    "rewrite": null,
+    "why": "The word copy and separate zero-byte store cannot be merged without changing the permitted accesses, and both pointer/count updates are live."
+  },
+  "33105c3233": {
+    "rewrite": null,
+    "why": "The live zero-extended rdx load, dword store, r8 subtraction with matching ZF, and rdi increment leave no removable instruction."
+  },
+  "3e77ff5c59": {
+    "rewrite": null,
+    "why": "Both fixed-address copies are necessary, and subtracting unknown rdx plus one while updating rdi and preserving ZF cannot be shortened with an unconstrained incoming carry."
+  },
+  "ca2ec04268": {
+    "rewrite": null,
+    "why": "The two qword copies require four memory instructions, while the live r8 and rdi updates need all three arithmetic instructions without a known incoming carry."
+  },
+  "ec85e5af21": {
+    "rewrite": null,
+    "why": "Unknown rdx prevents combining the fixed-address vector copies, and the remaining instructions compute both live scalar results and the required ZF."
+  },
+  "c794218f77": {
+    "rewrite": null,
+    "why": "Both indexed vector copies are required, and the independent rdi update and subtraction of rdx plus one from r8 cannot use fewer instructions with arbitrary incoming flags."
+  },
+  "1d895ff2ec": {
+    "rewrite": null,
+    "why": "Both loaded vectors and the zero-byte comparison vector are live, while SSE2 requires separate zeroing, comparison, mask extraction, and scalar flag comparison."
+  },
+  "dc67b7b971": {
+    "rewrite": null,
+    "why": "The live comparison vector and edx mask, required store, and independent CF/ZF comparison each require their existing instruction."
+  },
+  "3242a18ccf": {
+    "rewrite": null,
+    "why": "The word load must preserve the upper bits of live rdx, and the store, r8 subtraction with matching ZF, and rdi increment are all necessary."
+  },
+  "e7c1010b62": {
+    "rewrite": null,
+    "why": "The word copy and independent dh-byte store require three memory instructions, followed by separate live r8 and rdi updates."
+  },
+  "42591714be": {
+    "rewrite": null,
+    "why": "The zero-extended dword load into live rdx, matching store, count subtraction, and pointer increment are already minimal under the address constraints."
+  },
+  "aa8cb147bd": {
+    "rewrite": null,
+    "why": "The dword copy and separate dh-byte store cannot be combined into a wider access, and both scalar updates are required."
+  },
+  "c3e610b998": {
+    "rewrite": null,
+    "why": "The dword and word copies cannot be widened without accessing extra bytes, the partial rdx result is live, and both scalar updates are necessary."
+  },
+  "2cc8924659": {
+    "rewrite": null,
+    "why": "The two overlapping dword copies cannot become a qword access without touching an extra byte, and the loaded rdx plus both scalar updates are live."
+  }
+}

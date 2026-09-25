@@ -1,0 +1,90 @@
+{
+  "4deb46a5fb": {
+    "rewrite": "add rdx,rcx\nshufps xmm3,xmm0,0x4e\nshufps xmm0,xmm2,0x4e\nshufps xmm2,xmm1,0x4e\npshufb xmm5,xmm14\npmaddwd xmm5,xmm8\nphaddd xmm5,xmm5\npaddd xmm5,xmm11\npsrad xmm5,xmm12\npackssdw xmm5,xmm5\nmovdqa xmm1,xmm5\npalignr xmm1,xmm4,0xc\npshufd xmm4,xmm1,0x44\npunpcklwd xmm1,xmm5",
+    "saved": 2,
+    "why": "PSHUFD duplicates the aligned low quadword into xmm4 without a separate copy and unpack. The low quadword already in xmm1 is sufficient for the final word interleave, so the copy back is unnecessary."
+  },
+  "993c056347": {
+    "rewrite": "movdqu xmm6,XMMWORD PTR [rdx+rcx*1]\nlea rdx,[rdx+rcx*2]\nmovdqa xmm3,xmm0\nmovdqa xmm0,xmm2\npshufb xmm5,xmm14\npshufb xmm6,xmm14\npmaddwd xmm5,xmm8\npmaddwd xmm6,xmm8\nphaddd xmm5,xmm6\npaddd xmm5,xmm11\npsrad xmm5,xmm12\npackssdw xmm1,xmm5\npunpckhqdq xmm4,xmm1\npshufd xmm5,xmm4,0x39\nmovdqa xmm2,xmm4\npunpcklwd xmm2,xmm5\npunpckhwd xmm1,xmm5",
+    "saved": 1,
+    "why": "Packing into xmm1 places the required four words in its high quadword, which also supplies xmm4. The final high-word interleave can then use xmm1 directly, eliminating its copy from xmm4."
+  },
+  "4264257dc0": {
+    "rewrite": null,
+    "why": "The four zero-extended scalar extractions and the preserved vector results require the arithmetic, copy, and lane-selection operations available under SSSE3."
+  },
+  "0271072fcf": {
+    "rewrite": "psrld xmm14,0xa\npaddd xmm14,xmm14\npunpckldq xmm13,xmm2\npunpckldq xmm15,xmm4\npunpcklqdq xmm13,xmm15\npxor xmm2,xmm2\npcmpeqd xmm0,xmm2\npand xmm9,xmm0\npandn xmm0,xmm13\npor xmm0,xmm9\npunpckhbw xmm15,xmm0\npunpcklbw xmm0,xmm0\npsraw xmm15,0x8\npsraw xmm0,0x8\nmovdqa xmm12,xmm14\npshufb xmm12,xmm10\npshufb xmm14,xmm11",
+    "saved": 1,
+    "why": "PUNPCKHBW puts each source byte from xmm0 into the high byte of a destination word. The subsequent arithmetic shift discards the old destination bytes, making the preceding copy unnecessary."
+  },
+  "25411a8852": {
+    "rewrite": "punpcklbw xmm8,xmm8\npsraw xmm8,0x8\npshufb xmm0,xmm14\npshufb xmm1,xmm14\npshufb xmm2,xmm14\npshufb xmm3,xmm14\npmaddwd xmm0,xmm8\npmaddwd xmm1,xmm8\npmaddwd xmm2,xmm8\npmaddwd xmm3,xmm8\npshufb xmm4,xmm14\npshufb xmm5,xmm14\npshufb xmm6,xmm14\npmaddwd xmm4,xmm8\npmaddwd xmm5,xmm8\npmaddwd xmm6,xmm8\nphaddd xmm0,xmm1\nphaddd xmm2,xmm3\nphaddd xmm4,xmm5\nphaddd xmm6,xmm6\npaddd xmm0,xmm11\npaddd xmm2,xmm11\npaddd xmm4,xmm11\npaddd xmm6,xmm11\npsrad xmm0,xmm12\npsrad xmm2,xmm12\npsrad xmm4,xmm12\npsrad xmm6,xmm12\npackssdw xmm0,xmm2\npackssdw xmm4,xmm6\nmovq xmm10,r8\npunpcklbw xmm10,xmm10\npsraw xmm10,0x8\npshufd xmm7,xmm10,0x0\npshufd xmm15,xmm10,0x55\npshufd xmm9,xmm10,0xaa\npshufd xmm10,xmm10,0xff\npshufd xmm1,xmm4,0x99\nmovdqa xmm2,xmm4\npunpcklwd xmm2,xmm1\npalignr xmm4,xmm0,0x4\nmovdqa xmm3,xmm0\npunpcklwd xmm3,xmm4\npunpckhwd xmm0,xmm4",
+    "saved": 1,
+    "why": "Form the final xmm1 and xmm2 values before aligning xmm4. Since xmm4 is not preserved, PALIGNR can then overwrite it directly and eliminate the copy previously needed for alignment."
+  },
+  "feb1fa22ae": {
+    "rewrite": null,
+    "why": "All three results are live, and preserving xmm8 requires a separate copy before the two-operand shift into xmm7."
+  },
+  "ecfff1d8a3": {
+    "rewrite": null,
+    "why": "The sums, coefficient broadcasts, packed results, and both interleavings are live, while SSSE3 lacks shorter sign-extension or three-operand forms."
+  },
+  "8fe53b7591": {
+    "rewrite": null,
+    "why": "The packed-data interleavings and all four signed coefficient broadcasts are live, requiring the existing shifts, shuffles, and copy."
+  },
+  "240f4b1a59": {
+    "rewrite": "movq xmm1,rbp\npunpcklbw xmm1,xmm1\npsraw xmm1,0x8\npshufd xmm4,xmm1,0x0\npshufd xmm5,xmm1,0x55\npmaddwd xmm4,xmm13\npmaddwd xmm5,xmm9\npshufd xmm6,xmm1,0xaa\npshufd xmm1,xmm1,0xff\npmaddwd xmm6,xmm2\npmaddwd xmm1,xmm3\npaddd xmm4,xmm5\npaddd xmm6,xmm1\npaddd xmm4,xmm6",
+    "saved": 4,
+    "why": "Build each coefficient broadcast in its multiplication destination and use PMADDWD commutativity. This eliminates four copies of preserved sample registers."
+  },
+  "6d24e5cabe": {
+    "rewrite": null,
+    "why": "The shift, saturating pack, store, pointer advance, and decrement with its required ZF each perform a necessary operation."
+  },
+  "44158a82e8": {
+    "rewrite": null,
+    "why": "The distinct multiply-add results and preserved source values require the copies imposed by two-operand SSE instructions."
+  },
+  "36b17cb8c0": {
+    "rewrite": null,
+    "why": "Both additions and shifts contribute to preserved results, and the saturating pack and store cannot be combined under SSSE3."
+  },
+  "7689f82c2c": {
+    "rewrite": null,
+    "why": "Both vector computations, the packed store, and the decrement with its required flags remain live."
+  },
+  "84e80a5ce7": {
+    "rewrite": null,
+    "why": "Both arithmetic shifts are observable, and the signed saturation, scaling, clamp, and store each perform a required operation."
+  },
+  "f261c06e3a": {
+    "rewrite": null,
+    "why": "The shifts, saturating pack, signed clamps, scaling, store, and flag-producing decrement all contribute to required results."
+  },
+  "497ec8ea1b": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx]\npaddsw xmm0,XMMWORD PTR [rcx]\nadd rdx,0x20\npmaxsw xmm0,xmm2\npsubsw xmm0,xmm2\npmulhw xmm0,xmm3",
+    "saved": 6,
+    "why": "The entire xmm1 calculation and the rcx increment are dead. Retain only the xmm0 calculation and the required rdx advance."
+  },
+  "d2ea06d0df": {
+    "rewrite": null,
+    "why": "SSSE3 requires a transfer and shuffle to broadcast EAX, and the independent shift and zeroing are both live."
+  },
+  "23cf7aa6f7": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rcx]\nmovdqa xmm3,xmm0\npunpckhwd xmm3,XMMWORD PTR [rdx]\npunpcklwd xmm0,XMMWORD PTR [rdx]\nadd rdx,0x20\npmaddwd xmm3,xmm4\npmaddwd xmm0,xmm4\npaddd xmm3,xmm5\npaddd xmm0,xmm5\npsrad xmm3,0x8\npsrad xmm0,0x8\npackssdw xmm0,xmm3\npminsw xmm0,xmm6\npmaxsw xmm0,xmm7",
+    "saved": 16,
+    "why": "Delete the unused second-vector calculation and rcx increment. Folding the first buffer load into both unpack instructions removes another instruction while reading only the original address."
+  },
+  "9f7e610dc4": {
+    "rewrite": "movq xmm3,QWORD PTR [rax]\nmovdqa xmm0,XMMWORD PTR [rdx]\npxor xmm5,xmm5\npunpcklbw xmm3,xmm5\nmovdqa xmm2,xmm0\npunpckhwd xmm2,XMMWORD PTR [rcx]\npunpcklwd xmm0,XMMWORD PTR [rcx]\npsubw xmm8,xmm3\nmovdqa xmm4,xmm3\npunpckhwd xmm4,xmm8\npunpcklwd xmm3,xmm8\npmaddwd xmm2,xmm4\npmaddwd xmm0,xmm3\nadd rax,0x10\nadd rdx,0x20\npsrad xmm2,0x5\npsrad xmm0,0x5\npackssdw xmm0,xmm2\npmaxsw xmm0,xmm6\npsubsw xmm0,xmm6\npmulhw xmm0,xmm7",
+    "saved": 23,
+    "why": "Delete the unused second-vector calculation and rcx increment, and fold the rcx buffer load into the two unpacks. The coefficient subtraction can overwrite unpreserved xmm8, eliminating its copy as well."
+  },
+  "93e2861caf": {
+    "rewrite": null,
+    "why": "The preserved vector sums, wrapping horizontal arithmetic, packed mask store, pixel stores, and subtraction flags all remain live."
+  }
+}

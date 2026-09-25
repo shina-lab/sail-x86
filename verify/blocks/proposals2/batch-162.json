@@ -1,0 +1,83 @@
+{
+  "bde7931a0e": {
+    "rewrite": null,
+    "why": "The loaded vector, both masks, RCX, and ZF are live, so the load, two mask operations, transfer, and subtraction are all needed."
+  },
+  "30a41aa79c": {
+    "rewrite": null,
+    "why": "The loaded vector, both masks, RCX, and ZF are live, leaving no removable instruction in the five-instruction sequence."
+  },
+  "29ef23bb70": {
+    "rewrite": null,
+    "why": "The loaded vectors, XOR results, minimum results, combined mismatch vector, and masks are all live, and the ternary logic already combines the mismatch reductions."
+  },
+  "7f57d94731": {
+    "rewrite": null,
+    "why": "Both mask results and the scalar mask-minus-255 result are required, and the subtraction also supplies the required ZF."
+  },
+  "98f9bd303c": {
+    "rewrite": null,
+    "why": "The loaded vector and both masks must remain available alongside RCX and ZF, so none of the five instructions can be eliminated."
+  },
+  "0a371762be": {
+    "rewrite": null,
+    "why": "All vector, mask, and scalar results are live, and the comparison already folds the second buffer load into its memory operand."
+  },
+  "5164415f8a": {
+    "rewrite": null,
+    "why": "The indexed vector load, both mask results, and the scalar subtraction result must all be preserved, with the second load already folded into the comparison."
+  },
+  "bb2183bfce": {
+    "rewrite": null,
+    "why": "Although K1 is dead at exit, its nonzero-lane predicate is needed for K0, while the vector minimum and mismatch results are all live."
+  },
+  "0658df0358": {
+    "rewrite": null,
+    "why": "The loaded vector, both masks, RCX, and ZF are required, and the second indexed load is already folded into the comparison."
+  },
+  "a8138d6d8e": {
+    "rewrite": "mov eax,ecx\nxchg rdi,rsi\nmov r8d,0xfffffffc\nxor edx,edx\nsub eax,0x60",
+    "saved": 2,
+    "why": "XCHG replaces the three-move exchange of RDI and RSI because the temporary RCX value is dead. The remaining instructions preserve the scalar results and final ZF, SF, and OF."
+  },
+  "bc9b97f9d4": {
+    "rewrite": null,
+    "why": "The vector load, nonzero mask, masked equality result, and RCX subtraction result are all live, with the subtraction supplying ZF."
+  },
+  "5b1f414254": {
+    "rewrite": null,
+    "why": "All produced vector, mask, and scalar values are required, and the second indexed load is already folded into the equality comparison."
+  },
+  "166806425c": {
+    "rewrite": null,
+    "why": "Both zero-extended vector loads and both masks are live, and producing RCX and ZF still requires the mask transfer and subtraction."
+  },
+  "cf5ed494a5": {
+    "rewrite": null,
+    "why": "SETL must preserve the unknown upper bits of EDX before NEG, and the live negated EDX and separate XOR result in EAX require the remaining copy and XOR."
+  },
+  "60eeb5e026": {
+    "rewrite": null,
+    "why": "The independent RAX and RDX masks, original byte copied into CH, masked CL, preserved upper RCX bits, zeroed XMM0, and final ZF leave no removable operation."
+  },
+  "5113c2c398": {
+    "rewrite": null,
+    "why": "XMM2 must retain its loaded value, both comparison-derived vector results are live, and the mask extraction and subtraction are required for RDX and ZF."
+  },
+  "00e7cbcfe4": {
+    "rewrite": null,
+    "why": "The loaded XMM2, comparison result in XMM0, byte subtraction result in XMM1, and scalar mask-minus-65535 result are all live."
+  },
+  "aa2bf24e8e": {
+    "rewrite": null,
+    "why": "Both loads support required vector outputs, and SSE2 offers no instruction that combines the comparisons, byte subtraction, or scalar mask extraction with the required subtraction."
+  },
+  "6950ac688e": {
+    "rewrite": null,
+    "why": "The vector comparison, independent scalar load, and byte mask are all required, while PMOVMSKB does not set the required ZF."
+  },
+  "cad9c53286": {
+    "rewrite": null,
+    "why": "The first load feeds both required comparisons, the second load is already folded, and the live vector subtraction result, RDX, and ZF require the remaining operations."
+  }
+}

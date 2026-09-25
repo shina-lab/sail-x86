@@ -1,0 +1,90 @@
+{
+  "8402467ac2": {
+    "rewrite": null,
+    "why": "The constant, shifted and masked r9 value, and comparison flags all remain live and require separate instructions."
+  },
+  "9cb11cef6d": {
+    "rewrite": null,
+    "why": "Both distinct 64-bit masks, the four stores, and the final return value are necessary."
+  },
+  "3ef310c3a3": {
+    "rewrite": null,
+    "why": "All loaded values and copies are preserved outputs, and the shifted sum requires both arithmetic instructions."
+  },
+  "7ac57779bc": {
+    "rewrite": "add r14,QWORD PTR [rsi]\nadc rbx,QWORD PTR [rsi+0x8]\nlea rsi,[rsi+0x10]\nadc rbp,rcx\nmul r14\nmov r9,rax\nmov rax,r11\nmov r10,rdx\nmul r14\nmov r14,rax\nmov rax,r11\nmov r8,rdx\nmul rbx\nadd r9,rax\nmov rax,r13\nadc r10,rdx\nmul rbx\nmov rbx,rbp\nadd r14,rax\nadc r8,rdx\nimul rbx,r13\nadd r9,rbx\nmov rbx,r8\nadc r10,0x0\nimul rbp,r11\nadd rbx,r9\nadc r10,rbp\nmov rbp,r10\nshr r10,0x2\nand rbp,0x3\nlea rax,[r10+r10*4]\nadd r14,rax\nadc rbx,0x0\nadc rbp,0x0\nmov rax,r12\ndec r15",
+    "saved": 2,
+    "why": "For unsigned x, (x & -4) + (x >> 2) equals 5*(x >> 2) modulo 2^64, so LEA replaces the mask construction and addition. The following ADD starts the same carry chain, and DEC preserves the required final ZF."
+  },
+  "9a9e5ca82d": {
+    "rewrite": null,
+    "why": "The original and incremented limbs are preserved, while the load and carry into r10 are needed to compute the final ZF."
+  },
+  "b2914cc4c1": {
+    "rewrite": null,
+    "why": "The two additions already fold their loads, and both resulting limbs must be stored."
+  },
+  "612b71d8f6": {
+    "rewrite": "mul r14\nmov r9,rax\nmov rax,r11\nmov r10,rdx\nmul r14\nmov r14,rax\nmov rax,r11\nmov r8,rdx\nmul rbx\nadd r9,rax\nmov rax,r13\nadc r10,rdx\nmul rbx\nmov rbx,rbp\nadd r14,rax\nadc r8,rdx\nimul rbx,r13\nadd r9,rbx\nmov rbx,r8\nadc r10,0x0\nimul rbp,r11\nadd rbx,r9\nadc r10,rbp\nmov rbp,r10\nshr r10,0x2\nand rbp,0x3\nlea rax,[r10+r10*4]\nadd r14,rax\nadc rbx,0x0\nadc rbp,0x0",
+    "saved": 2,
+    "why": "Replace (x & -4) + (x >> 2) with LEA computing 5*(x >> 2) modulo 2^64. This preserves the required rax value and the subsequent carry propagation."
+  },
+  "21124e429d": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct preserved register value, and XOR also establishes the required flags."
+  },
+  "94a7ee0119": {
+    "rewrite": "mov r15,rdx\nmov r8,QWORD PTR [rdi]\nmov r9,QWORD PTR [rdi+0x8]\nmov ebp,DWORD PTR [rdi+0x10]\nmov r11,QWORD PTR [rdi+0x18]\nmov r13,QWORD PTR [rdi+0x20]\nmov r14d,r8d\nand r8,0xffffffff80000000\nmov r12,r9\nmov ebx,r9d\nand r9,0xffffffff80000000\nshr r8,0x6\nshl r12,0x34\nadd r14,r8\nshr rbx,0xc\nshr r9,0x12\nadd r14,r12\nadc rbx,r9\nmov r8,rbp\nshl r8,0x28\nshr rbp,0x18\nadd rbx,r8\nadc rbp,0x0\nmov r8,rbp\nshr r8,0x2\nlea r9,[r8*4+0x0]\nand rbp,0x3\nlea r8,[r8+r8*4]\nadd r14,r8\nadc rbx,0x0\nadc rbp,0x0\nmov r12,r13\nmov rax,r13\nshr r13,0x2\nadd r13,r12\nadd r14,QWORD PTR [rsi]\nadc rbx,QWORD PTR [rsi+0x8]\nlea rsi,[rsi+0x10]\nadc rbp,rcx",
+    "saved": 1,
+    "why": "After forming q = rbp >> 2, LEA computes both the required r9 = 4*q and r8 = 5*q without constructing a mask. The subsequent arithmetic preserves every required register and final flag."
+  },
+  "8a5bcea2e9": {
+    "rewrite": "mov rax,r14\nmov rdx,r14\nshrd r14,rbx,0x34\nshld rbp,rbx,0x18\nshr rdx,0x1a\nand rax,0x3ffffff\nand rdx,0x3ffffff\nshr rbx,0xe\nand r14,0x3ffffff\nand rbx,0x3ffffff\nsub r15,0x10",
+    "saved": 6,
+    "why": "SHRD and SHLD directly form the two cross-register bit fields, eliminating the temporary copies, separate shifts, and ORs. The final SUB produces the same required ZF."
+  },
+  "326cc9e233": {
+    "rewrite": null,
+    "why": "All loads and copies produce preserved values, and the shifted sum and final zero test have separate necessary results."
+  },
+  "8b9066c709": {
+    "rewrite": null,
+    "why": "The three-limb carry chain, pointer advance, and counter subtraction each update a required output."
+  },
+  "b66eda9674": {
+    "rewrite": "mov rax,r14\nmov rdx,r14\nmov r8,rbx\nmov r9,rbx\nshr rdx,0x1a\nand rax,0x3ffffff\nshl r8,0xc\nand rdx,0x3ffffff\nshrd r14,rbx,0x34\nshr rbx,0xe\nshl rbp,0x18\nand r14,0x3ffffff\nshr r9,0x28\nand rbx,0x3ffffff\nor rbp,r9\nvmovd xmm0,eax\nvmovd xmm1,edx\nvmovd xmm2,r14d\nvmovd xmm3,ebx\nvmovd xmm4,ebp\nmov DWORD PTR [rdi+0x14],0x1",
+    "saved": 1,
+    "why": "SHRD replaces the separate shift and OR forming r14 while retaining the required shifted r8 and r9 values. The final OR and all VEX moves remain unchanged, preserving flags and full ymm outputs."
+  },
+  "3a3e1019f3": {
+    "rewrite": null,
+    "why": "Each VEX addition independently computes a preserved vector result and clears its upper half."
+  },
+  "e4025880b3": {
+    "rewrite": null,
+    "why": "All stores and shuffled operands are needed, and AVX provides no fused unsigned 32-bit multiply and 64-bit accumulate to shorten these live sums."
+  },
+  "2d3f90c27f": {
+    "rewrite": "vpsrldq xmm9,xmm14,0x8\nvpsrldq xmm8,xmm13,0x8\nvpsrldq xmm6,xmm11,0x8\nvpsrldq xmm5,xmm10,0x8\nvpsrldq xmm7,xmm12,0x8\nvpaddq xmm13,xmm13,xmm8\nvpaddq xmm14,xmm14,xmm9\nvpaddq xmm10,xmm10,xmm5\nvpaddq xmm11,xmm11,xmm6\nvpaddq xmm12,xmm12,xmm7\nvpsrlq xmm3,xmm13,0x1a\nvpand xmm13,xmm13,xmm15\nvpaddq xmm14,xmm14,xmm3\nvpsrlq xmm0,xmm10,0x1a\nvpand xmm10,xmm10,xmm15\nvpaddq xmm11,xmm11,xmm0\nvpsrlq xmm4,xmm14,0x1a\nvpand xmm14,xmm14,xmm15\nvpsrlq xmm1,xmm11,0x1a\nvpand xmm11,xmm11,xmm15\nvpaddq xmm12,xmm12,xmm1\nvpaddq xmm10,xmm10,xmm4\nvpsllq xmm4,xmm4,0x2\nvpaddq xmm10,xmm10,xmm4\nvpsrlq xmm2,xmm12,0x1a\nvpand xmm12,xmm12,xmm15\nvpaddq xmm13,xmm13,xmm2\nvpsrlq xmm0,xmm10,0x1a\nvpand xmm10,xmm10,xmm15\nvpaddq xmm11,xmm11,xmm0\nvpsrlq xmm3,xmm13,0x1a\nvpand xmm13,xmm13,xmm15\nvpaddq xmm14,xmm14,xmm3\nvmovd DWORD PTR [rdi-0x70],xmm10\nvmovd DWORD PTR [rdi-0x6c],xmm11\nvmovd DWORD PTR [rdi-0x68],xmm12\nvmovd DWORD PTR [rdi-0x64],xmm13\nvmovd DWORD PTR [rdi-0x60],xmm14",
+    "saved": 2,
+    "why": "VEX writes already clear the upper half of the only preserved vector register, ymm0, making VZEROUPPER redundant. The rsp assignment is omitted as required by the rule that rsp must not be touched."
+  },
+  "e082f0a9fa": {
+    "rewrite": "mov eax,DWORD PTR [rdi]\nmov ecx,DWORD PTR [rdi+0x4]\nmov r8d,DWORD PTR [rdi+0x8]\nmov r11d,DWORD PTR [rdi+0xc]\nmov r10d,DWORD PTR [rdi+0x10]\nshl rcx,0x1a\nmov r9,r8\nshl r8,0x34\nadd rax,rcx\nshr r9,0xc\nadd r8,rax\nadc r9,0x0\nshl r11,0xe\nmov rax,r10\nshr r10,0x18\nadd r9,r11\nshl rax,0x28\nadd r9,rax\nadc r10,0x0\nmov rax,r10\nand r10,0x3\nshr rax,0x2\nlea rax,[rax+rax*4]\nadd r8,rax\nadc r9,0x0\nadc r10,0x0\nmov rax,r8\nadd r8,0x5\nmov rcx,r9\nadc r9,0x0\nadc r10,0x0\nshr r10,0x2",
+    "saved": 2,
+    "why": "Compute the reduction term as 5*(r10 >> 2) with LEA, eliminating the temporary masked copy in rcx. The carry chains and final assignments to rax and rcx remain unchanged."
+  },
+  "aec368216d": {
+    "rewrite": null,
+    "why": "Both additions already include their loads, and the two output stores are necessary."
+  },
+  "d5d4be5d23": {
+    "rewrite": "mov r15,rdx\nmov r8,QWORD PTR [rdi]\nmov r9,QWORD PTR [rdi+0x8]\nmov ebp,DWORD PTR [rdi+0x10]\nmov r11,QWORD PTR [rdi+0x18]\nmov r13,QWORD PTR [rdi+0x20]\nmov r14d,r8d\nand r8,0xffffffff80000000\nmov r12,r9\nmov ebx,r9d\nand r9,0xffffffff80000000\nshr r8,0x6\nshl r12,0x34\nadd r14,r8\nshr rbx,0xc\nshr r9,0x12\nadd r14,r12\nadc rbx,r9\nmov r8,rbp\nshl r8,0x28\nshr rbp,0x18\nadd rbx,r8\nadc rbp,0x0\nmov r8,rbp\nshr r8,0x2\nlea r9,[r8*4+0x0]\nand rbp,0x3\nlea r8,[r8+r8*4]\nadd r14,r8\nadc rbx,0x0\nadc rbp,0x0\nmov r12,r13\nmov rax,r13\nshr r13,0x2\nadd r13,r12",
+    "saved": 1,
+    "why": "Use q = rbp >> 2 to form the preserved r9 = 4*q and r8 = 5*q with LEA, saving one instruction in the reduction. All subsequent carry propagation and preserved outputs remain unchanged."
+  },
+  "1e474f0786": {
+    "rewrite": null,
+    "why": "The three carry-dependent additions, pointer advance, and counter subtraction each produce a required result."
+  }
+}

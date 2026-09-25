@@ -1,0 +1,87 @@
+{
+  "1a56452f6f": {
+    "rewrite": "pmovzxbw xmm0,QWORD PTR [r10]\npmovzxbw xmm4,QWORD PTR [r10+0x8]\nmovdqa xmm8,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nadd r10,0x10\nmovdqa xmm1,xmm0\npsllw xmm1,0x8\nmovdqa xmm5,xmm4\npsllw xmm5,0x8\npsrlw xmm0,0x4\npsrlw xmm4,0x4\npand xmm1,xmm8\npand xmm5,xmm8\npor xmm0,xmm1\npor xmm4,xmm5\nadd rsi,0x20",
+    "saved": 2,
+    "why": "Each MOVQ followed by PMOVZXBW can become one memory-source PMOVZXBW reading the same eight bytes. All subsequent vector results, pointer values and final flags are unchanged."
+  },
+  "e6ce12c213": {
+    "rewrite": "movd xmm0,DWORD PTR [r10]\nmovd xmm4,DWORD PTR [r10+0x2]\nmovdqa xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,XMMWORD PTR [CONST_2]\nmovdqa xmm10,XMMWORD PTR [CONST_3]\nmov r8,QWORD PTR [rsi]\nadd r10,0x4\npshufb xmm0,xmm8\npshufb xmm4,xmm8\npand xmm0,xmm9\npand xmm4,xmm9\npminub xmm0,xmm10\npminub xmm4,xmm10\nadd rsi,0x20",
+    "saved": 2,
+    "why": "After PAND with the one-bit masks, each byte is either zero or a positive power of two. PMINUB with the all-one-byte constant produces the same 0-or-1 bytes as PCMPEQB followed by PAND, saving one instruction per vector."
+  },
+  "b27b771cac": {
+    "rewrite": null,
+    "why": "The shifted and shuffled vectors, both movemask results and both overlapping stores are observable, leaving no removable instruction within SSE4.1."
+  },
+  "7b2f17c2c8": {
+    "rewrite": null,
+    "why": "Both comparison outputs, the constant in xmm8, the pointer load and the flag-setting pointer update are required and already take one instruction each."
+  },
+  "eb744059cd": {
+    "rewrite": null,
+    "why": "The shifted xmm1 and xmm5 values must be preserved, and SSE4.1 cannot fuse the other shifts with the OR operations needed for arbitrary input bits."
+  },
+  "c3de227ae0": {
+    "rewrite": null,
+    "why": "Both sets of shifts and OR operations contribute to live outputs, and SSE4.1 provides no fused operation that removes an instruction for arbitrary inputs."
+  },
+  "8791c1feaf": {
+    "rewrite": null,
+    "why": "The four shifted vector values contribute to required results, and the two OR operations per packed output cannot be combined under SSE4.1."
+  },
+  "81150b4e43": {
+    "rewrite": null,
+    "why": "All six extracted vectors are live, and SSE4.1 offers no combined copy, shift and mask operation to shorten these independent field extractions."
+  },
+  "feeae0950c": {
+    "rewrite": null,
+    "why": "All six field outputs must survive, and the masks remain necessary to remove bits shifted across byte boundaries within each dword."
+  },
+  "a6a64f4f93": {
+    "rewrite": null,
+    "why": "Each of the six live outputs needs its own field extraction, with shifts and masks that cannot be fused by the allowed SSE4.1 instructions."
+  },
+  "f1d657f8a3": {
+    "rewrite": null,
+    "why": "Setting both live vectors to all ones, loading r8 and updating rsi with matching flags already requires the four existing instructions."
+  },
+  "3605f11e39": {
+    "rewrite": null,
+    "why": "Zeroing both live vectors, loading r8 and updating rsi with matching flags already requires the four existing instructions."
+  },
+  "a44c33118d": {
+    "rewrite": null,
+    "why": "SSE4.1 needs the scalar load, shuffle and copy to broadcast the permitted four bytes into both live vectors, in addition to the required r8 load and rsi update."
+  },
+  "430269c13a": {
+    "rewrite": null,
+    "why": "Broadcasting the four permitted source bytes into both xmm0 and xmm4 requires the existing load, shuffle and copy under SSE4.1."
+  },
+  "9046ecd35c": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nmovq xmm0,QWORD PTR [rsi+0x10]\npshufd xmm1,xmm0,0x55\npshufd xmm0,xmm0,0x0\nmovdqa xmm4,xmm0\nmovdqa xmm5,xmm1\nadd rsi,0x20",
+    "saved": 1,
+    "why": "One eight-byte load covers exactly the two adjacent four-byte source ranges. Shuffling its second dword into xmm1 before broadcasting its first dword into xmm0 preserves all four final vectors with one fewer load."
+  },
+  "e0c2ea2f62": {
+    "rewrite": null,
+    "why": "The scalar load, broadcast shuffle and copy are all necessary to populate both live vectors without reading additional bytes or using AVX."
+  },
+  "a033362410": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nmovq xmm1,QWORD PTR [rsi+0x14]\npshufd xmm2,xmm1,0x55\npshufd xmm1,xmm1,0x0\nmovdqa xmm5,xmm1\nmovdqa xmm6,xmm2\nadd rsi,0x20",
+    "saved": 1,
+    "why": "The adjacent dword loads can share one MOVQ at the original first displacement without accessing additional bytes. Separate PSHUFD operations broadcast the two loaded dwords and preserve all four vector outputs."
+  },
+  "adf45b6cbc": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nmovq xmm2,QWORD PTR [rsi+0x18]\npshufd xmm3,xmm2,0x55\npshufd xmm2,xmm2,0x0\nmovdqa xmm6,xmm2\nmovdqa xmm7,xmm3\nadd rsi,0x20",
+    "saved": 1,
+    "why": "A single MOVQ reads exactly the two adjacent source dwords. Broadcasting its second dword before overwriting the shared source with the first broadcast preserves xmm2, xmm3, xmm6 and xmm7 while removing one load."
+  },
+  "117371f41d": {
+    "rewrite": null,
+    "why": "The scalar sources are separated by bytes the original does not read, and SSE4.1 still requires separate loads, broadcasts and copies for the four live vector outputs."
+  },
+  "d7935fb4e3": {
+    "rewrite": null,
+    "why": "Combining the separated scalar loads would read additional bytes, while the required broadcasts and copies cannot be shortened within SSE4.1."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "942a6ce9f6": {
+    "rewrite": null,
+    "why": "Both pointer increments and their copies are live, as are the byte extraction and the subtraction that produces the required flags."
+  },
+  "c7ebaa4f11": {
+    "rewrite": null,
+    "why": "The four dword loads require pairing, interleaving with unconstrained xmm4, and shifting before the required stores, with no shorter SSSE3 combination."
+  },
+  "51d2a94155": {
+    "rewrite": null,
+    "why": "Each stored vector requires its load, interleave with unconstrained xmm4, and word shift, and all pointer and counter updates are live."
+  },
+  "6e85bcbdbe": {
+    "rewrite": null,
+    "why": "The destructive SSE unpack operations require copies to produce both halves of each input, and every shifted result is stored."
+  },
+  "839b9cc380": {
+    "rewrite": null,
+    "why": "Both halves of each load need distinct destructive unpack and shift operations, while the stores and both scalar increments remain required."
+  },
+  "d62ef03f2e": {
+    "rewrite": null,
+    "why": "The independently addressed qword loads must be combined before the arbitrary byte shuffles and saturating multiply-adds, and all remaining instructions produce required outputs."
+  },
+  "cc7e970588": {
+    "rewrite": null,
+    "why": "Every stored vector needs its own load, arbitrary byte shuffle, and saturating multiply-add, and the address and counter updates are live."
+  },
+  "8e64b95db1": {
+    "rewrite": null,
+    "why": "The overlapping loads still supply distinct inputs to unconstrained shuffle masks and coefficients, so none of the four load-shuffle-multiply-add paths can be dropped."
+  },
+  "dedcb3f102": {
+    "rewrite": null,
+    "why": "All four overlapping input windows contribute required stored results through arbitrary shuffles and multiply-adds, and both scalar increments are live."
+  },
+  "2c698b7cb5": {
+    "rewrite": null,
+    "why": "The two pointer increments, their live copies, the byte extraction, and the flag-setting counter subtraction each provide a required result."
+  },
+  "64a47f10fa": {
+    "rewrite": null,
+    "why": "The scalar product and its full vector broadcast are both live, requiring multiplication, transfer, and shuffle in this ISA, while the addition supplies a live result and flags."
+  },
+  "d3077da7ba": {
+    "rewrite": null,
+    "why": "Both updated pointers and their copies must be preserved along with the extracted byte and the counter subtraction's result and flags."
+  },
+  "0c9e564ae6": {
+    "rewrite": null,
+    "why": "All three distinct constant vectors and both scalar arithmetic results are live, leaving no redundant instruction."
+  },
+  "701c64dcf9": {
+    "rewrite": null,
+    "why": "The shared word duplication enables three required full-vector broadcasts with one shuffle each, and the counter subtraction is also required."
+  },
+  "37b83ed584": {
+    "rewrite": null,
+    "why": "The unconstrained masks and coefficients require three separate shuffled products per row, and the copies, sums, shifts, packing, stores, and scalar updates all feed required outputs."
+  },
+  "009e44f081": {
+    "rewrite": null,
+    "why": "Each input window needs three independently shuffled and saturated products before summation, shifting, and packing, with no redundant operation under the stated register constraints."
+  },
+  "15399ee3e5": {
+    "rewrite": null,
+    "why": "The constant load, shared word duplication and three broadcasts, copied negation, and final comparison all produce required register values or flags."
+  },
+  "c11a3de998": {
+    "rewrite": null,
+    "why": "The two pointer increments, byte extraction, and counter subtraction each produce a distinct required register value, with the subtraction also supplying the required flags."
+  },
+  "1060968c30": {
+    "rewrite": null,
+    "why": "SSSE3 needs the unpack and arithmetic shift for byte sign extension before the three broadcasts, while the copied negation and independent equality comparison are also required."
+  },
+  "f424ca7f1b": {
+    "rewrite": null,
+    "why": "Both pointer increments, the byte extraction, and the flag-setting subtraction are live and cannot be combined into fewer instructions here."
+  }
+}

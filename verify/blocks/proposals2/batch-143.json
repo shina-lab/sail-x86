@@ -1,0 +1,86 @@
+{
+  "bae797144d": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x30]",
+    "saved": 1,
+    "why": "LEA combines the two additions into one instruction, and no final flags must match."
+  },
+  "36acd4f4ac": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x40]",
+    "saved": 1,
+    "why": "LEA combines the two additions into one instruction, and no final flags must match."
+  },
+  "bcc74e46e0": {
+    "rewrite": null,
+    "why": "The address calculation, copy to rax, masked copy to rcx, and comparison producing CF and ZF all remain necessary."
+  },
+  "97abfd4ec3": {
+    "rewrite": null,
+    "why": "The masked copy requires two baseline instructions, while the preserved rax and r8 values each require their own move."
+  },
+  "567483e8e0": {
+    "rewrite": null,
+    "why": "The load and pointer increment are required, and replacing the copy-plus-add with LEA would lose the required carry flag."
+  },
+  "d1cdc9528e": {
+    "rewrite": null,
+    "why": "AVX2 requires the separate scalar-to-vector move and byte broadcast, while zeroing ymm9 and computing the page-offset comparison flags remain necessary."
+  },
+  "6d5a41fb7b": {
+    "rewrite": null,
+    "why": "The loaded vector, second comparison mask, combined mask, scalar mask, and ZF are all preserved, leaving no removable instruction."
+  },
+  "d4c0bdef80": {
+    "rewrite": null,
+    "why": "The loaded vector, second comparison mask, combined mask, scalar mask, and ZF are all preserved, leaving no removable instruction."
+  },
+  "622f39d26e": {
+    "rewrite": null,
+    "why": "The loaded vector, second comparison mask, combined mask, scalar mask, and ZF are all preserved, leaving no removable instruction."
+  },
+  "219841d18f": {
+    "rewrite": null,
+    "why": "The loaded vector, second comparison mask, combined mask, scalar mask, and ZF are all preserved, leaving no removable instruction."
+  },
+  "f57abc470b": {
+    "rewrite": null,
+    "why": "The loaded vector, second comparison mask, combined mask, scalar mask, and ZF are all preserved, leaving no removable instruction."
+  },
+  "e23bf0bd7d": {
+    "rewrite": "vpxor ymm1,ymm0,YMMWORD PTR [rdi]\nvpxor ymm2,ymm0,YMMWORD PTR [rdi+0x20]\nvmovdqa ymm7,YMMWORD PTR [rdi+0x40]\nvmovdqa ymm8,YMMWORD PTR [rdi+0x60]\nvpxor ymm3,ymm0,ymm7\nvpxor ymm4,ymm0,ymm8\nvpminub ymm1,ymm1,YMMWORD PTR [rdi]\nvpminub ymm2,ymm2,YMMWORD PTR [rdi+0x20]\nvpminub ymm3,ymm7,ymm3\nvpminub ymm4,ymm8,ymm4\nvpminub ymm5,ymm2,ymm1\nvpminub ymm6,ymm4,ymm3\nvpminub ymm6,ymm6,ymm5\nvpcmpeqb ymm6,ymm9,ymm6\nvpmovmskb ecx,ymm6\nsub rdi,0xffffffffffffff80\ntest ecx,ecx",
+    "saved": 2,
+    "why": "The initial loads into ymm5 and ymm6 can be folded into their XOR and unsigned-minimum consumers because both registers are subsequently overwritten. Repeated loads use only the original addresses, and every required final vector value is retained."
+  },
+  "ad5443025a": {
+    "rewrite": null,
+    "why": "The broadcast and zeroing produce separate preserved vectors, and the page-offset comparison still requires copying, masking, and comparing the scalar input."
+  },
+  "c1b2b3f363": {
+    "rewrite": null,
+    "why": "The raw loaded vector, XOR/minimum result, mask register, scalar mask, and ZF must all be retained, so none of the six instructions is redundant."
+  },
+  "70935ebc82": {
+    "rewrite": null,
+    "why": "Both mask-to-scalar transfers are needed for the preserved scalar results, and TZCNT and BZHI compute distinct required results and final flags."
+  },
+  "9c84c34f81": {
+    "rewrite": null,
+    "why": "The raw loaded vector, XOR/minimum result, mask register, scalar mask, and ZF must all be retained, so none of the six instructions is redundant."
+  },
+  "ca478c58e7": {
+    "rewrite": null,
+    "why": "The raw loaded vector and both comparison masks are preserved, and KORTEST is still required to produce the matching PF and ZF."
+  },
+  "cc7f90c11c": {
+    "rewrite": null,
+    "why": "The raw loaded vector, XOR/minimum result, mask register, scalar mask, and ZF must all be retained, so none of the six instructions is redundant."
+  },
+  "d4d898806d": {
+    "rewrite": null,
+    "why": "The raw loaded vector and both comparison masks are preserved, and KORTEST is still required to produce the matching PF and ZF."
+  },
+  "8dbd83fc72": {
+    "rewrite": "vpxorq ymm22,ymm17,YMMWORD PTR [rdi+0x80]\nvpcmpneqb k2,ymm17,YMMWORD PTR [rdi+0xa0]\nvpxorq ymm24,ymm17,YMMWORD PTR [rdi+0xc0]\nvpcmpneqb k4,ymm17,YMMWORD PTR [rdi+0xe0]\nvpminub ymm18,ymm22,YMMWORD PTR [rdi+0x80]\nvpminub ymm20,ymm24,YMMWORD PTR [rdi+0xc0]\nvpminub ymm19{k2}{z},ymm18,YMMWORD PTR [rdi+0xa0]\nvpminub ymm21,ymm20,YMMWORD PTR [rdi+0xe0]\nvpminub ymm21{k4}{z},ymm21,ymm19\nvpcmpeqb k1,ymm21,ymm16\nkmovd ecx,k1\nsub rdi,0xffffffffffffff80\ntest ecx,ecx",
+    "saved": 4,
+    "why": "All four initial loads can be folded into the XOR, comparison, and unsigned-minimum consumers because their destination registers are subsequently overwritten. Commuting comparison and minimum operands preserves every final vector and mask value while loading only from the original addresses."
+  }
+}

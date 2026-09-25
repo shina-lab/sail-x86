@@ -1,0 +1,88 @@
+{
+  "653c77f138": {
+    "rewrite": null,
+    "why": "The subtraction flags and both XMM results are live, so the scalar mask construction, shuffle, and extraction remain necessary."
+  },
+  "2871e8ac3e": {
+    "rewrite": "pshufb xmm0,xmm5\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\npsllw xmm1,0x8\npaddb xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm2,xmm1\npshufb xmm1,xmm3\npaddb xmm2,xmm1\nmovdqa xmm1,xmm2\npshufb xmm1,xmm4\npaddb xmm2,xmm1\npaddb xmm0,xmm2\npshufb xmm2,xmm6\npaddb xmm0,xmm2\nmovdqu XMMWORD PTR [rdi+rdx*1],xmm0\nadd rdx,0x10",
+    "saved": 2,
+    "why": "Rereading the same aligned source through PADDB removes the initial copy. Adding the final unshuffled value into xmm0 before shuffling xmm2 removes another copy while preserving xmm2's required result."
+  },
+  "65285d66be": {
+    "rewrite": "pshufb xmm0,xmm5\nmovdqu xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm2,xmm1\npsllw xmm1,0x8\npaddb xmm1,xmm2\nmovdqa xmm2,xmm1\npshufb xmm1,xmm3\npaddb xmm2,xmm1\nmovdqa xmm1,xmm2\npshufb xmm1,xmm4\npaddb xmm2,xmm1\npaddb xmm0,xmm2\npshufb xmm2,xmm6\npaddb xmm0,xmm2\nmovdqu XMMWORD PTR [rdi+rdx*1],xmm0\nadd rdx,0x10",
+    "saved": 1,
+    "why": "Keep the last unshuffled value in xmm2 and add it into xmm0 before the final shuffle. This removes the final copy while preserving the shuffled result in xmm2 and retaining the unaligned load."
+  },
+  "c9a2a7da23": {
+    "rewrite": null,
+    "why": "All four vector constants, the shifted seed, and the three integer results are live, with no removable setup instruction."
+  },
+  "94a4003aa9": {
+    "rewrite": null,
+    "why": "The AVX2 sequence already avoids copies, and the live vector results, carry propagation, two stores, and final index flags require the remaining operations."
+  },
+  "3fed7a727c": {
+    "rewrite": null,
+    "why": "Both 128-bit results and stores are live, each chunk already folds one load into PADDB, and the index update remains necessary."
+  },
+  "47d22e1d3f": {
+    "rewrite": null,
+    "why": "Both 256-bit results and stores are live, each chunk already folds one load into VPADDB, and the index update remains necessary."
+  },
+  "9a2b6f68df": {
+    "rewrite": "movdqa xmm5,XMMWORD PTR [CONST_1]\nmovdqa xmm4,XMMWORD PTR [CONST_2]\nmovdqa xmm3,XMMWORD PTR [CONST_3]\nmovd xmm0,r8d\npslldq xmm0,0xe\npinsrw xmm6,edx,0x7\npshufb xmm6,xmm5\ntest rsi,0xf",
+    "saved": 1,
+    "why": "Insert dx into word 7 and use the existing 0x0e/0x0f shuffle mask to broadcast that word. This replaces the three-instruction broadcast with two instructions."
+  },
+  "3583d31d70": {
+    "rewrite": null,
+    "why": "The 32-bit doubling must retain its wraparound and zero extension, followed by two independent 64-bit additions and the live 64-bit negation."
+  },
+  "55df41e151": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\npslld xmm1,0x10\npaddw xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,xmm1\npshufb xmm1,xmm3\npaddw xmm1,xmm2\npshufb xmm0,xmm5\nmovdqa xmm2,xmm1\npshufb xmm1,xmm4\npaddw xmm1,xmm2\npaddw xmm0,xmm1\npand xmm0,xmm6\nmovdqa XMMWORD PTR [rdi+rcx*1],xmm0\nadd rcx,0x10",
+    "saved": 1,
+    "why": "Fold the unshifted operand into PADDW by rereading the same aligned source, removing the initial copy. The later assignment to xmm2 preserves its required final value."
+  },
+  "03d8006c6f": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\npslld xmm1,0x10\npaddw xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,xmm1\npshufb xmm1,xmm3\npaddw xmm1,xmm2\npshufb xmm0,xmm5\nmovdqa xmm2,xmm1\npshufb xmm1,xmm4\npaddw xmm1,xmm2\npaddw xmm0,xmm1\npand xmm0,xmm6\nmovdqu XMMWORD PTR [rdi+rcx*1],xmm0\nadd rcx,0x10",
+    "saved": 1,
+    "why": "Fold the unshifted operand into PADDW by rereading the same aligned source, removing the initial copy. The unaligned store and required final xmm2 value remain unchanged."
+  },
+  "8b6c15d02a": {
+    "rewrite": null,
+    "why": "The unaligned source prevents folding the initial copy into PADDW, and the later copies retain operands for destructive shuffles and the required final xmm2 value."
+  },
+  "4352def1bd": {
+    "rewrite": null,
+    "why": "The SSSE3 byte broadcast uses a load, zero-mask construction, and shuffle, while the constant and all three integer updates are live."
+  },
+  "2f17080db2": {
+    "rewrite": "vmovdqa xmm0,XMMWORD PTR [CONST_1]\nvpbroadcastb xmm1,BYTE PTR [rdi-0x1]\nadd rdi,rdx\nneg rdx\nneg rsi",
+    "saved": 1,
+    "why": "Broadcast directly from the byte used by the original DWORD load, combining the load and broadcast. The VEX-encoded 128-bit broadcast also preserves the required zero upper half of ymm1."
+  },
+  "094f2e9c65": {
+    "rewrite": null,
+    "why": "The three independent pointer additions, live counter negation, and alignment test producing ZF each remain necessary."
+  },
+  "1c43074d17": {
+    "rewrite": null,
+    "why": "The subtrahend loads may be unaligned, preventing SSE2 memory-operand folding, and xmm1 must retain the second loaded vector."
+  },
+  "50bde0f9aa": {
+    "rewrite": null,
+    "why": "The byte load, subtraction, store, and index increment are all required, including preservation of r8's upper bytes and the subtraction carry."
+  },
+  "925507e0b0": {
+    "rewrite": null,
+    "why": "The unaligned source loads must remain separate from SSE2 subtraction, and both final vector values, stores, and the index update are live."
+  },
+  "48e1e0d3cc": {
+    "rewrite": null,
+    "why": "The unaligned source loads must remain separate from SSE2 subtraction, and both final vector values, stores, and the index update are live."
+  },
+  "a6366ecb87": {
+    "rewrite": null,
+    "why": "The three independent pointer additions, live counter negation, and alignment test producing ZF each remain necessary."
+  }
+}

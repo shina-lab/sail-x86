@@ -1,0 +1,82 @@
+{
+  "5592afec18": {
+    "rewrite": null,
+    "why": "The four distinct 128-bit stores, live packed addition, and two live scalar updates are all required at SSSE3."
+  },
+  "c5930c56ba": {
+    "rewrite": null,
+    "why": "Both vectors must be loaded, subtracted, and stored separately, and the live index update also supplies the required flags."
+  },
+  "d500317694": {
+    "rewrite": null,
+    "why": "The index expansion, two independent byte-table lookups per half, and output interleaves all feed required stores or live registers, with no shorter SSSE3 form."
+  },
+  "addeb5b547": {
+    "rewrite": null,
+    "why": "The destructive SSSE3 shuffles and unpacks need the existing copies to preserve their sources, and the stores, scalar updates, and resulting flags are live."
+  },
+  "88b1b1362e": {
+    "rewrite": null,
+    "why": "Each loaded index group produces distinct palette outputs, and the repeated copies are needed by the destructive SSSE3 lookups and interleaves."
+  },
+  "66742d6555": {
+    "rewrite": null,
+    "why": "The dword load cannot become a full-width multiply-add memory operand without reading extra bytes, and the live multiply-adds, word arithmetic, and comparison remain necessary."
+  },
+  "2485b90dda": {
+    "rewrite": null,
+    "why": "The four dword stores use potentially noncontiguous addresses, and both scalar updates and the subtraction flags must be retained."
+  },
+  "e67c292ce0": {
+    "rewrite": null,
+    "why": "Materializing and shifting the constant, transferring it to a vector register, and multiplying are each necessary to produce the live scalar and vector results."
+  },
+  "8ef67f51ad": {
+    "rewrite": null,
+    "why": "The broadcast and zero-upper copy are live, and the unsigned byte absolute difference needs both saturated subtraction directions and their combination."
+  },
+  "70876ad3c9": {
+    "rewrite": null,
+    "why": "The loaded vector is live, and wrapped byte subtraction followed by VPABSB cannot replace the three-operation unsigned absolute difference for arbitrary inputs."
+  },
+  "faa0a2b7c1": {
+    "rewrite": null,
+    "why": "Both loaded vectors and unsigned absolute differences are live, and each difference needs the existing three-operation treatment of the full unsigned byte range."
+  },
+  "41fd702c8a": {
+    "rewrite": null,
+    "why": "The unknown shuffle controls and weights require both arithmetic paths, while the shifts, pack, extraction, four stores, and comparison produce required results."
+  },
+  "d639bf0f23": {
+    "rewrite": null,
+    "why": "Both loads and unpacked vectors are live, and the saturating multiply-adds cannot absorb the subsequent modular word additions for arbitrary operands."
+  },
+  "1663415866": {
+    "rewrite": null,
+    "why": "The broadcast, shuffle, two weighted paths, and separate stores are required, including the final shifted ymm1 value and scalar updates with matching flags."
+  },
+  "1129e660ef": {
+    "rewrite": null,
+    "why": "Both unpacked vectors and weighted outputs are live, and folding the modular word additions into the multiply-adds would change saturation behavior for arbitrary coefficients."
+  },
+  "5e9e789b8d": {
+    "rewrite": null,
+    "why": "Both weighted sums and their shift-and-pack conversion are needed, and the final ymm1 value, pointer, counter, and flags are live."
+  },
+  "57abdb06c8": {
+    "rewrite": null,
+    "why": "All four unpacked vectors and weighted outputs are live, and arbitrary coefficients prevent folding their modular word additions into the saturating multiply-adds."
+  },
+  "4c7fd931b8": {
+    "rewrite": null,
+    "why": "Both output vectors must be computed and stored, while the final shifted ymm1, broadcast ymm2, scalar updates, and flags are all live."
+  },
+  "78f630b397": {
+    "rewrite": null,
+    "why": "The two saturating products per half and their modular additions cannot be fused for arbitrary coefficients, and the live intermediate result, extraction, stores, and comparison are required."
+  },
+  "a8dd8bae32": {
+    "rewrite": null,
+    "why": "Both broadcasts and shuffles feed live arithmetic, and the two shifted weighted outputs, separate stores, pointer update, and flagged counter update are required."
+  }
+}

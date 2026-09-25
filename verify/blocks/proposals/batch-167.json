@@ -1,0 +1,86 @@
+{
+  "ea9ada54fa": {
+    "rewrite": null,
+    "why": "The pack, unpack stages, cross-lane shuffles, and four zero results all contribute to preserved ZMM values."
+  },
+  "6733895462": {
+    "rewrite": null,
+    "why": "Both rounded products are live, and the two successive signed-saturating additions cannot be collapsed for arbitrary inputs."
+  },
+  "8d6e4b813c": {
+    "rewrite": null,
+    "why": "Four distinct preserved unpack results require four vector writes, and CMP is needed for the preserved flags."
+  },
+  "c0f37b989c": {
+    "rewrite": null,
+    "why": "Each unpack produces a different preserved ZMM result, leaving no redundant instruction."
+  },
+  "6ae6ff193d": {
+    "rewrite": null,
+    "why": "The word and dword unpack stages form required transpose results, including the preserved intermediate in zmm24."
+  },
+  "09b45a5dcf": {
+    "rewrite": null,
+    "why": "Each of the eight extracts supplies a separate preserved result and clears the upper half of its ZMM destination."
+  },
+  "91ff579417": {
+    "rewrite": null,
+    "why": "Each shuffle updates a different preserved register, including the required clearing of its upper 256 bits."
+  },
+  "63a5d238a5": {
+    "rewrite": null,
+    "why": "Both signed packs, the arbitrary-index byte permutations, the preserved index rotation, and both output unpacks are required."
+  },
+  "c70b79794c": {
+    "rewrite": "vmovdqa32 xmm24,XMMWORD PTR [rdi]\nvinserti32x4 ymm24,ymm24,XMMWORD PTR [rdi+rsi*1],0x1\nvinserti32x4 zmm24,zmm24,XMMWORD PTR [rdi+rsi*2],0x2\nvinserti32x4 zmm24,zmm24,XMMWORD PTR [rdi+rax*1],0x3\nvmovdqa32 xmm25,XMMWORD PTR [rcx+rax*1]\nvinserti32x4 ymm25,ymm25,XMMWORD PTR [rcx+rsi*2],0x1\nvinserti32x4 zmm25,zmm25,XMMWORD PTR [rcx+rsi*1],0x2\nvinserti32x4 zmm25,zmm25,XMMWORD PTR [rcx],0x3\nvpaddw zmm24,zmm24,zmm16\nvpaddw zmm25,zmm25,zmm17\nvpmaxsw zmm24,zmm24,zmm27\nvpmaxsw zmm25,zmm25,zmm27\nvpminsw zmm24,zmm24,zmm28\nvpminsw zmm25,zmm25,zmm28\nvmovdqa32 XMMWORD PTR [rdi],xmm24\nvextracti32x4 XMMWORD PTR [rdi+rsi*1],ymm24,0x1\nvextracti32x4 XMMWORD PTR [rdi+rsi*2],zmm24,0x2\nvextracti32x4 XMMWORD PTR [rdi+rax*1],zmm24,0x3\nvextracti32x4 XMMWORD PTR [rcx],zmm25,0x3\nvextracti32x4 XMMWORD PTR [rcx+rsi*1],zmm25,0x2\nvextracti32x4 XMMWORD PTR [rcx+rsi*2],ymm25,0x1\nvmovdqa32 XMMWORD PTR [rcx+rax*1],xmm25",
+    "saved": 2,
+    "why": "The two LEAs only update rcx and rdi after their final uses, and neither final register value is required. Removing them preserves every load, store, and stored value."
+  },
+  "11b0e2ce0f": {
+    "rewrite": null,
+    "why": "The load-multiply, store of the original ecx, required ecx update, bias addition, and flag-producing arithmetic shift all have necessary effects."
+  },
+  "29b0d744c0": {
+    "rewrite": "",
+    "saved": 8,
+    "why": "All eight instructions write only unpreserved registers and have no memory or flag effects, so the entire block is dead."
+  },
+  "7cb8093584": {
+    "rewrite": null,
+    "why": "All four full-width stores are required, and the final subtraction supplies the required rax and flags."
+  },
+  "c34c849fc3": {
+    "rewrite": null,
+    "why": "Eight distinct preserved ZMM results are produced by eight unpack instructions."
+  },
+  "497bdf35e0": {
+    "rewrite": null,
+    "why": "Each rounded multiply produces one of the four required ZMM results."
+  },
+  "c65b97fb54": {
+    "rewrite": "vpaddw zmm16,zmm16,ZMMWORD PTR [rdi]\nvpaddw zmm17,zmm17,ZMMWORD PTR [rdi+rsi*1]\nvpaddw zmm18,zmm18,ZMMWORD PTR [rdi+rsi*2]\nvpaddw zmm19,zmm19,ZMMWORD PTR [rdi+rcx*1]\nvpmaxsw zmm16,zmm16,zmm28\nvpmaxsw zmm17,zmm17,zmm28\nvpmaxsw zmm18,zmm18,zmm28\nvpmaxsw zmm19,zmm19,zmm28\nvpminsw zmm16,zmm16,zmm29\nvpminsw zmm17,zmm17,zmm29\nvpminsw zmm18,zmm18,zmm29\nvpminsw zmm19,zmm19,zmm29\nvmovdqa32 ZMMWORD PTR [rdi],zmm16\nvmovdqa32 ZMMWORD PTR [rdi+rsi*1],zmm17\nvmovdqa32 ZMMWORD PTR [rdi+rsi*2],zmm18\nvmovdqa32 ZMMWORD PTR [rdi+rcx*1],zmm19",
+    "saved": 1,
+    "why": "The final LEA only updates rdi, whose final value is unconstrained, so it can be removed while preserving every memory operation and stored value."
+  },
+  "49feec36e0": {
+    "rewrite": null,
+    "why": "The load-multiply, store of the original ecx, required ecx update, bias addition, and flag-producing arithmetic shift all have necessary effects."
+  },
+  "2b78e58ff4": {
+    "rewrite": null,
+    "why": "All arithmetic results are needed, the 128-bit pattern broadcast cannot fold into a dword-broadcast multiply, and both zmm16 and its copy zmm18 must be preserved."
+  },
+  "8623113c5a": {
+    "rewrite": null,
+    "why": "Every arithmetic path feeds a preserved butterfly output, and arbitrary per-lane lower and upper bounds require both clipping operations."
+  },
+  "3497139835": {
+    "rewrite": "vpmulld zmm24,zmm2,DWORD BCST [r9-0xb0]\nvpmulld zmm0,zmm0,DWORD BCST [r9-0xc8]\nvpaddd zmm0,zmm0,zmm29\nvpsubd zmm0,zmm0,zmm24\nvpsrad zmm0,zmm0,0xc\nvpmulld zmm25,zmm5,DWORD BCST [r9-0xb0]\nvpmulld zmm1,zmm1,DWORD BCST [r9-0xc8]\nvpsubd zmm25,zmm29,zmm25\nvpsubd zmm1,zmm25,zmm1\nvpsrad zmm1,zmm1,0xc\nvpaddd zmm0,zmm0,zmm1\nvpmaxsd zmm0,zmm0,zmm30\nvpminsd zmm0,zmm0,zmm31",
+    "saved": 47,
+    "why": "Only zmm0 is a required modified register, so retain just its dependency chain and final signed clamp. Fold the two broadcasts into the four remaining multiplies using the same DWORD memory addresses."
+  },
+  "234f46433d": {
+    "rewrite": null,
+    "why": "All sixteen unpack outputs are preserved, and the shared zero is needed for the two zero-interleaving unpacks."
+  }
+}

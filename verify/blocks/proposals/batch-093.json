@@ -1,0 +1,90 @@
+{
+  "2dabab705b": {
+    "rewrite": "vmovdqa64 zmm4,zmm9\nvpternlogd zmm4,zmm12,zmm8,0x96\nvpaddq zmm5,zmm9,zmm10\nvpternlogd zmm5,zmm12,zmm8,0x96\nvpaddq zmm6,zmm9,zmm11\nvpaddq zmm7,zmm6,zmm10\nvpternlogd zmm6,zmm12,zmm8,0x96\nvpternlogd zmm7,zmm12,zmm8,0x96\nmov rax,rdi",
+    "saved": 1,
+    "why": "Write the updated counter directly to zmm6 and derive zmm7 before XORing zmm6, eliminating the intermediate counter copy."
+  },
+  "739da5fad0": {
+    "rewrite": "aesenclast xmm3,XMMWORD PTR [rsi]\npshufb xmm3,XMMWORD PTR [CONST_1]\npshufd xmm0,xmm3,0xd3\npsrad xmm0,0x1f\npaddq xmm3,xmm3\npand xmm0,XMMWORD PTR [CONST_2]\npxor xmm3,xmm0\nmovdqa XMMWORD PTR [rdi+0x180],xmm3\nmovq xmm5,QWORD PTR [CONST_3]\npshufd xmm0,xmm3,0x4e\nmovdqa xmm4,xmm5\npclmullqlqdq xmm4,xmm3\npxor xmm4,xmm0\nmovdqa XMMWORD PTR [rdi+0x1d0],xmm4\npxor xmm0,xmm3\nmovq QWORD PTR [rdi+0x1c8],xmm0\nmovdqa xmm2,xmm3\nmov eax,0x30",
+    "saved": 1,
+    "why": "PSHUFD can read xmm3 directly, so the preceding MOVDQA is redundant."
+  },
+  "6819a32e50": {
+    "rewrite": null,
+    "why": "The carry-less products, reduction, stores and final subtraction are needed, and the live multiplicands prevent eliminating the legacy-SSE source copies."
+  },
+  "0b2e84c923": {
+    "rewrite": null,
+    "why": "Each load defines a distinct live vector register, and the subtraction supplies the live counter and required flags."
+  },
+  "a3fd05fe81": {
+    "rewrite": null,
+    "why": "The input shuffle, carry-less products, reduction and counter updates are needed, with the live multiplicands requiring the legacy-SSE copies."
+  },
+  "7ce89ffe90": {
+    "rewrite": "pshufb xmm0,xmm2\npxor xmm3,xmm0\nmovdqa xmm0,xmm3\npclmulhqlqdq xmm0,xmm4\nmovdqa xmm1,xmm3\npclmullqlqdq xmm1,xmm5\npxor xmm0,xmm1\npclmulhqhqdq xmm4,xmm3\npclmullqhqdq xmm3,xmm5\npxor xmm3,xmm4\npshufd xmm1,xmm0,0x4e\npclmullqlqdq xmm0,xmm6\npxor xmm3,xmm1\npxor xmm3,xmm0",
+    "saved": 1,
+    "why": "Use dead xmm4 as the destination of the commutative high-half product, removing the copy into xmm1."
+  },
+  "5ee9507d51": {
+    "rewrite": "movq xmm0,QWORD PTR [CONST_1]\nmovdqa xmm8,xmm7\npshufb xmm8,xmm6\npxor xmm8,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm9,xmm7\npshufb xmm9,xmm6\npxor xmm9,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm10,xmm7\npshufb xmm10,xmm6\npxor xmm10,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm11,xmm7\npshufb xmm11,xmm6\npxor xmm11,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm12,xmm7\npshufb xmm12,xmm6\npxor xmm12,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm13,xmm7\npshufb xmm13,xmm6\npxor xmm13,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm14,xmm7\npshufb xmm14,xmm6\npxor xmm14,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nmovdqa xmm15,xmm7\npshufb xmm15,xmm6\npxor xmm15,XMMWORD PTR [rdi+0x10]\npaddd xmm7,xmm0\nlea rsi,[rdi+0x20]",
+    "saved": 1,
+    "why": "Fold the round-key load into the eight PXOR memory operands; xmm1 is dead and all repeated loads use the original address."
+  },
+  "c3ac803133": {
+    "rewrite": "xor eax,eax\nmovdqu xmm1,XMMWORD PTR [r8]\npshufb xmm1,xmm6\npxor xmm5,xmm1\npshufd xmm4,xmm5,0x4e\npxor xmm4,xmm5\nmovdqa xmm3,xmm5\npclmullqlqdq xmm3,XMMWORD PTR [rdi+0x110]\npclmulhqhqdq xmm5,XMMWORD PTR [rdi+0x110]\npclmullqlqdq xmm4,XMMWORD PTR [rdi+0x190]",
+    "saved": 1,
+    "why": "Fold the dead xmm0 load into the two PCLMULQDQ memory operands, retaining the original load address and all live products."
+  },
+  "3fbac1f598": {
+    "rewrite": null,
+    "why": "Both reduction stages and their intermediate results are live, while the eight-byte constant cannot safely become a 128-bit memory operand."
+  },
+  "af1fe9925b": {
+    "rewrite": "movq xmm10,QWORD PTR [CONST_1]\npxor xmm3,xmm3\npxor xmm4,xmm4\npxor xmm2,xmm2\nimul eax,r9d,0xffffffff\nand eax,0xfffffff0\nsar eax,1\nadd eax,0x40\nsub r9d,0x10",
+    "saved": 1,
+    "why": "Three-operand IMUL by -1 combines the copy and 32-bit negation; the final SUB still supplies the required flags."
+  },
+  "ef78ffe3a8": {
+    "rewrite": null,
+    "why": "The copy preserves the counter for its live increment, and the shuffle, key XOR, address calculation and comparison each provide required results."
+  },
+  "59be79d7df": {
+    "rewrite": null,
+    "why": "The AES result, two vector loads and saved pointer are live, and replacing the counter copy and subtraction with LEA would lose required flags."
+  },
+  "bf8f634b1a": {
+    "rewrite": null,
+    "why": "The two reduction products and associated shuffles and XORs all contribute to the live final hash, and the constant register must also be retained."
+  },
+  "2a370d1dbe": {
+    "rewrite": null,
+    "why": "Three independent carry-less products feed live accumulators, and the source copy and shuffle/XOR sequence are needed to form their inputs."
+  },
+  "1e53cbe0b4": {
+    "rewrite": "aesenclast xmm3,XMMWORD PTR [rsi]\npshufb xmm3,XMMWORD PTR [CONST_1]\npshufd xmm0,xmm3,0xd3\npsrad xmm0,0x1f\npaddq xmm3,xmm3\npand xmm0,XMMWORD PTR [CONST_2]\npxor xmm3,xmm0\nmovdqa XMMWORD PTR [rdi+0x180],xmm3\nmovq xmm5,QWORD PTR [CONST_3]\npshufd xmm0,xmm3,0x4e\nvpclmullqlqdq xmm4,xmm5,xmm3\npxor xmm4,xmm0\nmovdqa XMMWORD PTR [rdi+0x1d0],xmm4\npxor xmm0,xmm3\nmovq QWORD PTR [rdi+0x1c8],xmm0\nmovdqa xmm2,xmm3\nmov eax,0x30",
+    "saved": 1,
+    "why": "Read xmm3 directly with legacy PSHUFD, removing the copy while preserving the required YMM upper halves."
+  },
+  "606fbd3366": {
+    "rewrite": null,
+    "why": "The existing VEX products already avoid source copies, and the remaining reduction, stores and flag-setting subtraction supply required results."
+  },
+  "d6a19407d7": {
+    "rewrite": null,
+    "why": "Every vector load and the subtraction define required results, with the legacy loads also preserving the live YMM upper halves."
+  },
+  "0b22454789": {
+    "rewrite": null,
+    "why": "The VEX products already eliminate copies, and the input transformation, reduction and counter updates all feed live results."
+  },
+  "7d71d65487": {
+    "rewrite": "movq xmm0,QWORD PTR [rdx]\nmov rax,QWORD PTR [rdx+rcx*1]\nimul ecx,ecx,0xfffffff8\nshr rax,cl\npinsrq xmm0,rax,0x1",
+    "saved": 1,
+    "why": "IMUL by -8 combines the 32-bit negation and left shift, preserving the variable shift count and both original load addresses."
+  },
+  "625de72e81": {
+    "rewrite": null,
+    "why": "The carry-less products already use copy-free VEX forms where possible, and all remaining shuffles and XORs contribute to the two live outputs."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "854b969b8e": {
+    "rewrite": null,
+    "why": "Both arbitrary shuffles and word sums are required, and SSSE3 needs the copy to retain both paths before packing and storing."
+  },
+  "f9f6677fd6": {
+    "rewrite": null,
+    "why": "The copies feed distinct required word sums, and the packed outputs, remaining sums, stores and loop updates must all be preserved."
+  },
+  "51064ed919": {
+    "rewrite": null,
+    "why": "The eight independent word sums require the existing SSSE3 copies, and all packed results, unpacked final sums, stores and loop updates remain live."
+  },
+  "9ff5547f9e": {
+    "rewrite": "vpmovzxbw xmm0,QWORD PTR [rcx]\nvpinsrw xmm2,xmm2,WORD PTR [rcx-0x1],0x0\nvmovdqa xmm3,XMMWORD PTR [CONST_1]\nvmovdqa xmm1,XMMWORD PTR [CONST_2]\nvpshufb xmm2,xmm2,xmm3\nvpsubw xmm0,xmm0,xmm2\nmov ecx,0x3",
+    "saved": 2,
+    "why": "VPMOVZXBW replaces the zeroing, eight-byte load and byte unpack with one instruction reading the same eight bytes. Its VEX encoding preserves the required zero upper YMM half, and the later constant load supplies the final xmm1 value."
+  },
+  "d9d0dce865": {
+    "rewrite": null,
+    "why": "The VEX forms already avoid copies, and both arbitrary shuffles, word sums, packing, stores and loop updates are required."
+  },
+  "169c0def44": {
+    "rewrite": null,
+    "why": "Each shuffle and word sum contributes to a required final register or store, and the VEX instructions already eliminate source copies."
+  },
+  "ea2c5b1f3b": {
+    "rewrite": null,
+    "why": "All eight word sums and four packed outputs are required, with no remaining source copies to eliminate under AVX."
+  },
+  "849eac4531": {
+    "rewrite": null,
+    "why": "SSE2 needs the copies, shifts and ORs for these byte carries between registers, including the required final xmm6 carry."
+  },
+  "bad74d8533": {
+    "rewrite": null,
+    "why": "PALIGNR already implements each byte carry in one instruction, and every store, vector update and scalar update is required."
+  },
+  "12caad5b1c": {
+    "rewrite": null,
+    "why": "Each vector update already uses one VEX instruction, while the four stores and both scalar updates remain necessary."
+  },
+  "137074a8e5": {
+    "rewrite": null,
+    "why": "The arbitrary xmm4 value requires each shift and OR separately, and both the intermediate stored rows and final shifted rows are observable."
+  },
+  "1f4ae4e9b8": {
+    "rewrite": null,
+    "why": "SSE2 requires separate shifts and ORs for these byte carries, and the final xmm6 value and arbitrary xmm4 prevent dropping the carry or fill operations."
+  },
+  "48d54af9e6": {
+    "rewrite": null,
+    "why": "Each arbitrary byte shuffle produces a required stored or final value, and the four stores and loop updates are necessary."
+  },
+  "273ce9fe19": {
+    "rewrite": null,
+    "why": "The destructive SSSE3 alignment needs its copies to retain the separate shuffle inputs and required final xmm6, while all stores remain necessary."
+  },
+  "a1c2ec3658": {
+    "rewrite": null,
+    "why": "VEX already eliminates the alignment copies, leaving only required stores, byte transformations and scalar updates."
+  },
+  "a14939a876": {
+    "rewrite": "movlhps xmm2,xmm1\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm3\nmovdqa xmm6,xmm1\npsrldq xmm6,0xe\nmovdqa xmm4,xmm6\npsrldq xmm4,0x1\npslldq xmm0,0x1\npor xmm4,xmm0\npslldq xmm0,0x1\npor xmm0,xmm6\nmovdqa xmm6,xmm2\npsrldq xmm6,0xe\nmovdqa xmm5,xmm6\npsrldq xmm5,0x1\npslldq xmm3,0x1\npor xmm5,xmm3\npslldq xmm3,0x1\npor xmm3,xmm6\nmovdqa XMMWORD PTR [rdi+rsi*2],xmm4\nmovdqa XMMWORD PTR [rdi+rdx*1],xmm5\nlea rdi,[rdi+rsi*4]\npslldq xmm1,0x2\ndec ecx",
+    "saved": 2,
+    "why": "Extract each two-byte carry once and derive its one-byte carry by shifting a copy, while shifting each row register twice in place. This saves one instruction per row pair and preserves every final register, store and flag."
+  },
+  "5e8ddbdae8": {
+    "rewrite": null,
+    "why": "The four byte carries need separate copies, shifts and ORs under SSE2, and the endpoint shifts and final xmm1 carry are also required."
+  },
+  "bcdbb65800": {
+    "rewrite": null,
+    "why": "PALIGNR already computes each required one-byte or two-byte carry directly, with copies needed to retain both row versions."
+  },
+  "8e8023345c": {
+    "rewrite": null,
+    "why": "Each byte carry already uses one PALIGNR, and the endpoint shifts, ten stores and three scalar updates are all required."
+  },
+  "6737d232f5": {
+    "rewrite": null,
+    "why": "The VEX alignment and shift instructions already implement each required vector update directly, leaving no removable copies or stores."
+  }
+}

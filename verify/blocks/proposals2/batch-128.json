@@ -1,0 +1,82 @@
+{
+  "7676259fc5": {
+    "rewrite": null,
+    "why": "The combined mask and trailing-zero count are needed for rax, while the shifted rcx, adjusted rdi, final addition flags, and cleared upper vector halves are all observable."
+  },
+  "4642dbbc4e": {
+    "rewrite": null,
+    "why": "The trailing-zero count, separate rdi adjustment, flag-producing addition, and upper-vector clearing each provide a required result."
+  },
+  "b8e40fee5e": {
+    "rewrite": null,
+    "why": "The trailing-zero count, separate rdi adjustment, flag-producing addition, and upper-vector clearing each provide a required result."
+  },
+  "5477ba4e6c": {
+    "rewrite": null,
+    "why": "The comparison vectors, their union, k1, both scalar mask results, and adjusted rdi are live, and the three-way union already uses one ternary-logic instruction."
+  },
+  "6f9b637f94": {
+    "rewrite": null,
+    "why": "The byte broadcast needs the SSE2 unpack/shuffle stages, while the separate copy, mask, and comparison preserve rcx and the required CF and ZF values."
+  },
+  "44c337f551": {
+    "rewrite": null,
+    "why": "Zeroing ymm0, copying and masking rsi into rcx, and producing the comparison flags each require the existing instructions."
+  },
+  "b741105bbf": {
+    "rewrite": null,
+    "why": "The store, loaded ymm3, comparison vector, scalar mask, updated index, and zero-test flag are all required outputs."
+  },
+  "1e4f8f577f": {
+    "rewrite": null,
+    "why": "The old ymm2 must be stored and its replacement retained, while the comparison vector, scalar mask, updated index, and zero-test flag are also live."
+  },
+  "b7301a8485": {
+    "rewrite": null,
+    "why": "The loaded ymm3 must remain available alongside the comparison vector, scalar mask, store, updated index, and zero-test flag."
+  },
+  "3efa065b87": {
+    "rewrite": null,
+    "why": "The comparison vector, mask, bit-scan result, three vector stores, and two independent pointer updates are all required."
+  },
+  "5df4ae11ad": {
+    "rewrite": null,
+    "why": "Both loaded vectors remain live, so neither load can be folded away, and the comparison vector, scalar mask, and ZF must also be produced."
+  },
+  "72785e74c8": {
+    "rewrite": null,
+    "why": "The store, comparison vector, scalar mask, and ZF are all required, and extracting the mask does not set ZF."
+  },
+  "b5c2bfba6c": {
+    "rewrite": null,
+    "why": "The bit scan and rsi update are required, and adding 0x20 while subtracting the unknown ecx cannot be combined into one LEA."
+  },
+  "5691e6b5c3": {
+    "rewrite": null,
+    "why": "The bit-scan result, vector store, and two independent pointer increments each require an instruction."
+  },
+  "b7ec275327": {
+    "rewrite": null,
+    "why": "The bit-scan result, two vector stores, and two independent pointer increments are all required."
+  },
+  "caad7edf9c": {
+    "rewrite": null,
+    "why": "The zero-extended word in rdx, word store, returned address, and cleared upper vector halves are separate required results."
+  },
+  "7f0c2c4373": {
+    "rewrite": null,
+    "why": "The loaded word in rcx, two exact-width stores, returned address, and upper-vector clearing are required, and a wider store would overwrite an additional byte."
+  },
+  "7530400831": {
+    "rewrite": null,
+    "why": "The loaded dword in rdx, dword store, returned address, and cleared upper vector halves each require an instruction."
+  },
+  "d54d603051": {
+    "rewrite": null,
+    "why": "The unknown index prevents combining the two copies, and the final rcx, returned address, preserved flags, and cleared upper vector halves must remain unchanged."
+  },
+  "757d53c771": {
+    "rewrite": null,
+    "why": "Both loaded qwords remain live in rcx and r9, and their indexed stores, returned address, and upper-vector clearing are all required."
+  }
+}

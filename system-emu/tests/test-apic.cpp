@@ -111,6 +111,13 @@ int main() {
   assert(a.acknowledge() == 0x31);
   assert(p.read_keyboard(0x60) == 0x1E);
   m.write32(LAPIC + 0xB0, 0);
+  assert(!p.kbd.has_data());
+  p.set_irq(1, p.kbd.has_data());
+  assert(a.pending() == -1);
+  assert(p.read_keyboard(0x60) == 0x1E);
+  p.kbd.tick();
+  p.kbd.tick();
+  assert(p.kbd.has_data());
   p.set_irq(1, true);
   assert(a.acknowledge() == 0x31);
   assert(p.read_keyboard(0x60) == 0x9E);

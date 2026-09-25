@@ -1,0 +1,85 @@
+{
+  "50cc842a23": {
+    "rewrite": null,
+    "why": "The shifted source and all eight independently updated vectors are required, with one instruction already producing each result."
+  },
+  "66d635d435": {
+    "rewrite": "vpsrad ymm0,ymm0,0x4",
+    "saved": 15,
+    "why": "Only ymm0 is a required vector output, so the fifteen independent shifts of other registers are dead."
+  },
+  "ced75d5ad6": {
+    "rewrite": null,
+    "why": "The shifts, saturating packs, blends, and permutations all contribute to required register values, without an applicable fused AVX2 operation."
+  },
+  "4e9e2916c5": {
+    "rewrite": null,
+    "why": "Each required output combines memory and register data and rearranges qwords across 128-bit lanes, requiring the blend and permutation."
+  },
+  "a1dbbcc64e": {
+    "rewrite": null,
+    "why": "Each required output combines memory and register data and rearranges qwords across 128-bit lanes, requiring the blend and permutation."
+  },
+  "a13f8e2a17": {
+    "rewrite": null,
+    "why": "Each required output combines memory and register data and rearranges qwords across 128-bit lanes, requiring the blend and permutation."
+  },
+  "9cb3f3105d": {
+    "rewrite": null,
+    "why": "All four stores, both bound broadcasts, all four two-sided clamps, and the flag-producing test are required."
+  },
+  "682c07026d": {
+    "rewrite": null,
+    "why": "Each required vector needs both comparisons against arbitrary bounds, the loads are already folded into the maxima, and the test supplies required flags."
+  },
+  "a75479edf2": {
+    "rewrite": null,
+    "why": "Each of the four required vectors needs both the maximum and minimum against arbitrary bounds, with its load already folded into the maximum."
+  },
+  "91563d7ab4": {
+    "rewrite": null,
+    "why": "The required register copies and constant vectors are independent, and the stack-derived flag computation offers no valid shortening under the stack restriction."
+  },
+  "b9f311532f": {
+    "rewrite": null,
+    "why": "Each of the six instructions produces a distinct required vector value, including the original values saved before their source registers are overwritten."
+  },
+  "7e8811d864": {
+    "rewrite": null,
+    "why": "The two shuffles, two copies, and four zero outputs are all required, and clearing all vector registers would destroy other required values."
+  },
+  "42c62b5998": {
+    "rewrite": null,
+    "why": "All eight instructions produce distinct required outputs, with memory loads already folded into the applicable shuffles."
+  },
+  "af11dba074": {
+    "rewrite": null,
+    "why": "Both outputs require a qword permutation followed by a rounded signed word multiplication, which AVX2 cannot fuse."
+  },
+  "8de2c23dc3": {
+    "rewrite": null,
+    "why": "The multiply, bias, shift, broadcast, store, and ecx update all contribute to required outputs, with the load already folded into the multiply."
+  },
+  "75fabb7530": {
+    "rewrite": "vpsrld ymm1,ymm11,0xa\nvpaddd ymm0,ymm0,ymm1\nvpaddd ymm0,ymm9,ymm0\nvpsrad ymm0,ymm0,0x2",
+    "saved": 17,
+    "why": "Only ymm0 is a required vector output, so retain its shifted bias, two additions, and final arithmetic shift while dropping the other butterflies."
+  },
+  "c6920c1a8f": {
+    "rewrite": "add rdx,0x20\nvpackssdw ymm0,ymm0,ymm1\nvpackssdw ymm2,ymm2,ymm3\nvpackssdw ymm4,ymm4,ymm5\nvpackssdw ymm6,ymm6,ymm7\nvinserti128 ymm0,ymm0,xmm4,0x1\nvinserti128 ymm2,ymm2,xmm6,0x1\nvinserti128 ymm14,ymm14,xmm14,0x1\nvpshufb ymm0,ymm0,ymm14\nvpshufb ymm2,ymm2,ymm14\nvpunpckldq ymm0,ymm0,ymm2",
+    "saved": 6,
+    "why": "Only the low lanes of the four packed vectors contribute to the required ymm0 result. Combine those lanes first and duplicate the low shuffle mask so two shuffles and one unpack produce the full output."
+  },
+  "b0063e69c7": {
+    "rewrite": null,
+    "why": "All eight products are required, their distinct coefficients need materialization, and the shifted inputs can exceed signed 16-bit range, preventing a direct narrow-lane replacement."
+  },
+  "dcd9e04c7b": {
+    "rewrite": null,
+    "why": "All four rotations and their rounded inputs are live, while the shifted inputs can exceed signed 16-bit range and prevent a direct packed-word multiply-add replacement."
+  },
+  "6dcb6232dd": {
+    "rewrite": null,
+    "why": "All eight products are required, their distinct coefficients need materialization, and the shifted inputs can exceed signed 16-bit range, preventing a direct narrow-lane replacement."
+  }
+}

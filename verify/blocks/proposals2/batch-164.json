@@ -1,0 +1,82 @@
+{
+  "5d647866cf": {
+    "rewrite": null,
+    "why": "Both PALIGNR results feed required stores, and the four stores, two pointer updates, and live xmm1 copy are all necessary."
+  },
+  "4c25ff22b5": {
+    "rewrite": null,
+    "why": "The preserved source vectors, xmm6 minimum, xmm7 copy, and aligned xmm4/xmm5 results require the existing loads and copies, while the reduction, comparison, and mask test supply ZF."
+  },
+  "80d8bb6d7d": {
+    "rewrite": null,
+    "why": "Both PALIGNR results feed required stores, and the four stores, two pointer updates, and live xmm1 copy are all necessary."
+  },
+  "776fa037ac": {
+    "rewrite": null,
+    "why": "The adjusted difference in rdi is live alongside the shifted sum in rax, so the increment remains necessary, as do the flag-producing shift and vzeroupper."
+  },
+  "2c4f9a010b": {
+    "rewrite": null,
+    "why": "The subtraction and 0x21 adjustment must both be reflected in live rdi, while rax independently requires the trailing-zero count, addition, and shift, and vzeroupper supplies required vector results."
+  },
+  "8d423d83a5": {
+    "rewrite": null,
+    "why": "The subtraction and 0x41 adjustment must both be reflected in live rdi, while rax independently requires the trailing-zero count, addition, and shift, and vzeroupper supplies required vector results."
+  },
+  "d4212a5107": {
+    "rewrite": null,
+    "why": "The subtraction and 0x61 adjustment must both be reflected in live rdi, while rax independently requires the trailing-zero count, addition, and shift, and vzeroupper supplies required vector results."
+  },
+  "f173a57925": {
+    "rewrite": null,
+    "why": "The loaded vectors, intermediate minima, comparison result, rcx mask, and advanced rdi are all live, and mask extraction requires a separate test to establish ZF."
+  },
+  "fd9dff7cb0": {
+    "rewrite": null,
+    "why": "The comparison vector, extracted mask, and pointer difference are all required outputs, and mask extraction does not set the required ZF."
+  },
+  "f884a55c48": {
+    "rewrite": null,
+    "why": "The comparison result, shifted rcx, adjusted rdi, shifted sum with matching flags, and cleared vector upper halves are all required, leaving no removable operation."
+  },
+  "2a3066e029": {
+    "rewrite": null,
+    "why": "The adjusted rdi is live, preventing elimination of its subtraction, and the trailing-zero count, addition, flag-producing shift, and vzeroupper each remain necessary."
+  },
+  "3f52ce0ac0": {
+    "rewrite": null,
+    "why": "The adjusted rdi is live, preventing elimination of its subtraction, and the trailing-zero count, addition, flag-producing shift, and vzeroupper each remain necessary."
+  },
+  "23f6b61b9e": {
+    "rewrite": null,
+    "why": "All four vector results, both comparison masks, and the advanced pointer are live, and the mask comparisons require a separate KORTESTD to produce ZF."
+  },
+  "a90c8a170a": {
+    "rewrite": null,
+    "why": "The mask transfer, pointer subtraction, and pointer shift each produce required register values, and the final TEST supplies the required flags from the mask."
+  },
+  "4b1e8b3fa4": {
+    "rewrite": null,
+    "why": "The comparison mask must survive in both k2 and rdx, constructing the TZCNT input requires the shift and merge, and the final ADD must produce the live sum and flags."
+  },
+  "cee6ecf505": {
+    "rewrite": null,
+    "why": "The comparison vector, exact byte mask, zeroed xmm2, and advanced pointer are all live, and SSE2 mask extraction needs the separate TEST to establish ZF."
+  },
+  "90dc7d3906": {
+    "rewrite": null,
+    "why": "The comparison vector, exact byte mask, ZF test, and pointer increment each produce a required result and cannot be combined into fewer SSE2 instructions."
+  },
+  "7c47926455": {
+    "rewrite": null,
+    "why": "The raw vectors in xmm1 and xmm6 and the intermediate minimum in xmm0 are live, so folding loads into minima would require replacement copies, and SSE2 still needs mask extraction plus TEST for ZF."
+  },
+  "1a2d078e85": {
+    "rewrite": null,
+    "why": "The comparison vector, exact byte mask, ZF test, and rcx increment each produce a required result and cannot be combined into fewer SSE2 instructions."
+  },
+  "26e6c6ea08": {
+    "rewrite": null,
+    "why": "The comparison vector, exact byte mask, ZF test, and rcx decrement each produce a required result and cannot be combined into fewer SSE2 instructions."
+  }
+}

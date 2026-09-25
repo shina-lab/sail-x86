@@ -69,6 +69,26 @@ function note_io_access(port, nbytes) = {
   }
 }
 
+// Validate every page before a crossing access enters the external byte-copy
+// helper. Keep faulting translations in Sail: an external callback into
+// translate_addr cannot propagate a Sail exception through every backend's
+// foreign-call ABI. In particular, an instruction fetch must not consume
+// bytes from a failed translation. SDM Vol.3A §§7.5–7.6 and Interrupt 14:
+// #PF preserves the faulting instruction for restart; CR2 identifies its
+// failing linear address. Checking all pages also avoids partial MOV stores.
+val check_crossing_pages : (qword, int, PTAccess) -> unit
+function check_crossing_pages(addr, nbytes, access) = {
+  let _ = translate_addr(addr, access);
+  // Walk the following page starts while they lie inside the access.
+  // (Bitvector arithmetic: the official type checker cannot bound an
+  // integer offset converted with to_bits here.)
+  var page : qword = (addr & 0xFFFFFFFFFFFFF000) + 0x0000000000001000;
+  while unsigned(page - addr) < nbytes do {
+    let _ = translate_addr(page, access);
+    page = page + 0x0000000000001000
+  }
+}
+
 // Read 'n bits from memory at the given virtual address.
 // Goes through address translation when paging is enabled.
 // If the access crosses a 4KB page boundary, each byte is translated
@@ -80,6 +100,7 @@ function read_mem_linear(n, addr, access) = {
     let paddr = translate_addr(addr, access);
     phys_read(n, paddr)
   } else {
+    check_crossing_pages(addr, n / 8, access);
     __mem_read_crossing(addr, n, access)
   }
 }
@@ -103,6 +124,7 @@ function write_mem_linear(n, addr, data) = {
     let paddr = translate_addr(addr, PT_Write);
     phys_write(n, paddr, data)
   } else {
+    check_crossing_pages(addr, n / 8, PT_Write);
     __mem_write_crossing(addr, n, data)
   }
 }
@@ -129,9 +151,11 @@ function stack_addr_size() =
 // Without wrapping, SP=2 minus 4 would produce linear address SS.base-2,
 // which is below the segment — wrong.  It should wrap to SS.base+0xFFFE.
 val push : forall 'n, 8 <= 'n & 'n <= 512. (implicit('n), bits('n)) -> unit
+val check_seg_limit : (segreg_idx, qword, int) -> unit
 function push(n, v) = {
   let sas = stack_addr_size();
   let new_sp = v(sas, RSP) - n / 8;
+  if cur_mode == Virtual8086Mode then check_seg_limit(SS, zero_extend(new_sp), n / 8);
   write_mem(get_seg_base(SS) + zero_extend(new_sp), v);
   v(RSP) = new_sp
 }
@@ -142,6 +166,7 @@ val pop : forall 'n, 8 <= 'n & 'n <= 512. (implicit('n)) -> bits('n)
 function pop(n) = {
   let sas = stack_addr_size();
   let sp = v(sas, RSP);
+  if cur_mode == Virtual8086Mode then check_seg_limit(SS, zero_extend(sp), n / 8);
   let x : bits('n) = read_mem(get_seg_base(SS) + zero_extend(sp));
   v(RSP) = sp + n / 8;
   x
@@ -172,11 +197,22 @@ function descriptor_in_bounds(sel) = {
 //    a 'hidden' part... in real-address mode, only the base is updated.")
 // In protected/compat mode: read 8-byte descriptor from GDT/LDT.
 // In long mode: just store the selector (FS/GS base set via MSR).
+// Virtual-8086 segment loads ignore descriptor tables, including selectors
+// whose low bits look like an RPL or TI. All six caches describe writable
+// 64-KByte segments at selector * 16 with DPL 3 (SDM Vol.3B §23.2).
+val load_vm86_segment : (segreg_idx, word) -> unit
+function load_vm86_segment(idx, selector) = {
+  write_segreg(idx, selector);
+  SegCache[idx] = {default_seg_desc_cache() with
+    seg_base = zero_extend(selector) << 4, seg_dpl = 3}
+}
+
 val load_segment_register : (segreg_idx, word) -> unit
 function load_segment_register(idx, selector) = {
   // Do memory reads (GDT lookup) before writing the segment register,
   // so that a fault during the GDT read leaves the segment unchanged.
   match cur_mode {
+    Virtual8086Mode => load_vm86_segment(idx, selector),
     RealMode => {
       write_segreg(idx, selector);
       SegCache[idx].seg_base = zero_extend(selector) << 4
@@ -187,7 +223,7 @@ function load_segment_register(idx, selector) = {
       // 64-bit mode, the cached values are ignored during address calculation
       // (handled by get_seg_base). For FS/GS, the 32-bit base is loaded
       // (upper bits cleared); WRMSR can then set the full 64-bit base.
-      if selector[2] == 0b1 & ~LDTR_valid then
+      if selector[2] == 0b1 & ~(LDTR_valid) then
         throw Fault(EXN_GP, zero_extend(selector & 0xFFFC));
       let desc_addr = descriptor_address(selector);
       // Implicit supervisor access: the CPU's own GDT/LDT reads bypass
@@ -216,7 +252,6 @@ function selector_error_code(selector) = zero_extend(selector & 0xFFFC)
 // Only checks in non-long mode; 64-bit mode disables limit checking for
 // CS/DS/ES/SS (SDM Vol.3A §6.3.1).
 // For expand-up segments: offset + size - 1 <= effective_limit.
-val check_seg_limit : (segreg_idx, qword, int) -> unit
 function check_seg_limit(seg, offset, access_size) = {
   if cur_mode != LongMode then {
     let limit : dword = SegCache[seg].seg_limit;
@@ -309,7 +344,7 @@ function pop_far_pointer(os) = {
 val read_descriptor : word -> SegDescCache
 function read_descriptor(selector) = {
   // Descriptor must fit within the table limit (offset + 7 <= limit)
-  if ~descriptor_in_bounds(selector) then {
+  if ~(descriptor_in_bounds(selector)) then {
     throw Fault(EXN_GP, selector_error_code(selector))
   };
   // Implicit supervisor access (SDM Vol.3A §4.6): descriptor-table reads
@@ -337,7 +372,7 @@ function read_descriptor(selector) = {
 // far transfers have their own checks.
 val load_data_segment_register : (segreg_idx, word) -> unit
 function load_data_segment_register(idx, selector) = {
-  if cur_mode == RealMode then load_segment_register(idx, selector)
+  if cur_mode == RealMode | cur_mode == Virtual8086Mode then load_segment_register(idx, selector)
   else {
     let rpl : range(0, 3) = unsigned(selector[1..0]);
     let null_selector : bool = selector[15..2] == zeros();
@@ -456,7 +491,8 @@ function finish_far_transfer(desc, selector, offset, os) = {
 // Execute far JMP: load CS:RIP from selector:offset.
 val exec_far_jmp : (word, qword, {16, 32, 64}) -> unit
 function exec_far_jmp(selector, offset, os) = match cur_mode {
-  RealMode => {
+  m if m == RealMode | m == Virtual8086Mode => {
+    if cur_mode == Virtual8086Mode & os == 32 & unsigned(offset[31..0]) > 65535 then raise_GP0();
     load_segment_register(CS, selector);
     next_rip = Some(match os {
       16 => zero_extend(offset[15..0]),
@@ -493,8 +529,11 @@ val validate_privilege_stack : (word, cpl_t) -> SegDescCache
 function validate_privilege_stack(sel, level) = {
   let err = selector_error_code(sel);
   if sel[15..2] == zeros() then throw Fault(EXN_TS, err);
-  let desc = try { read_descriptor(sel) } catch {
-    Fault(EXN_GP, _) => throw Fault(EXN_TS, err),
+  let desc : SegDescCache = try { read_descriptor(sel) } catch {
+    Fault(v, e) => {
+      if v == EXN_GP then throw Fault(EXN_TS, err) else throw Fault(v, e);
+      exit()
+    },
     e => throw e,
   };
   if unsigned(sel[1..0]) != level | desc.seg_dpl != level |
@@ -509,12 +548,12 @@ function validate_privilege_stack(sel, level) = {
 val write_legacy_frame : (SegDescCache, qword, vector(35, dword), range(1, 35), {16, 32}, cpl_t, dword) -> qword
 function write_legacy_frame(desc, sp, frame, count, width, level, err) = {
   let sas : {16, 32} = if desc.seg_db == 0b1 then 32 else 16;
-  let top : int = unsigned(sp[sas - 1 .. 0]);
-  let size : int = count * (width / 8);
-  let bottom : int = top - size;
+  let top = unsigned(sp[sas - 1 .. 0]);
+  let size = count * (width / 8);
+  let bottom = top - size;
   let expand_down : bool = desc.seg_type[2] == 0b1;
   if bottom < 0 | (expand_down & bottom <= unsigned(desc.seg_limit)) |
-     (~expand_down & top - 1 > unsigned(desc.seg_limit)) then throw Fault(EXN_SS, err);
+     (~(expand_down) & top - 1 > unsigned(desc.seg_limit)) then throw Fault(EXN_SS, err);
   let addr = desc.seg_base + to_bits(64, bottom);
   let old_cpl = cur_cpl;
   cur_cpl = level;
@@ -547,7 +586,7 @@ function exec_legacy_call_gate(selector, gate_desc) = {
   if target.seg_present == 0b0 then throw Fault(EXN_NP, selector_error_code(target_sel));
   let width : {16, 32} = if gate_desc.seg_type == 0x4 then 16 else 32;
   let offset : qword = if width == 16 then zero_extend(gate[15..0]) else zero_extend(gate[63..48] @ gate[15..0]);
-  if offset > zero_extend(target.seg_limit) then raise_GP0();
+  if unsigned(offset) > unsigned(target.seg_limit) then raise_GP0();
   let inward : bool = target.seg_type[2] == 0b0 & target.seg_dpl < cur_cpl;
   let level : cpl_t = if inward then target.seg_dpl else cur_cpl;
   let old_sp : qword = zero_extend(v(stack_addr_size(), RSP));
@@ -593,7 +632,8 @@ function exec_legacy_call_gate(selector, gate_desc) = {
 
 val exec_far_call : (word, qword, {16, 32, 64}) -> unit
 function exec_far_call(selector, offset, os) = match cur_mode {
-  RealMode => {
+  m if m == RealMode | m == Virtual8086Mode => {
+    if cur_mode == Virtual8086Mode & os == 32 & unsigned(offset[31..0]) > 65535 then raise_GP0();
     match os {
       16 => push(32, read_segreg(CS) @ decode_pos[15..0]),
       _  => push(64, zero_extend(32, read_segreg(CS)) @ decode_pos[31..0]),

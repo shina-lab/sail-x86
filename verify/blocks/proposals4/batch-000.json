@@ -1,0 +1,62 @@
+{
+  "4831e6319f": {
+    "rewrite": null,
+    "why": "The arbitrary permutation tables require their copies, the masked selections cannot be folded into those destructive permutations, and the interpolation results, duplicated outputs, masks, stores, and scalar updates all remain live."
+  },
+  "a5a27a0008": {
+    "rewrite": null,
+    "why": "Both dot products require initialization from the arbitrary zmm30 accumulator, and the input sums, permuted results, stores, and counter update all have required effects."
+  },
+  "bb9db70134": {
+    "rewrite": null,
+    "why": "All four saturated multiply-add results feed required permutations or remain live, and both stores, both pointer updates, and the flag-producing counter update are necessary."
+  },
+  "7717368329": {
+    "rewrite": null,
+    "why": "The five AES rounds, required xmm5 load and xmm6 copy, message XOR into xmm4, and flag-producing counter update all produce required results."
+  },
+  "72c9596d8b": {
+    "rewrite": null,
+    "why": "The five AES rounds, required xmm5 load and xmm6 copy, message XOR into xmm3, and flag-producing counter update all produce required results."
+  },
+  "216c418784": {
+    "rewrite": null,
+    "why": "The five AES rounds, required xmm5 load and xmm6 copy, message XOR into xmm2, and flag-producing counter update all produce required results."
+  },
+  "0a2c508564": {
+    "rewrite": null,
+    "why": "The five AES rounds, required xmm5 load and xmm6 copy, message XOR into xmm1, and flag-producing counter update all produce required results."
+  },
+  "9ee85240f2": {
+    "rewrite": null,
+    "why": "The five AES rounds, required xmm5 load and xmm6 copy, message XOR into xmm0, and flag-producing counter update all produce required results."
+  },
+  "ea7a472eab": {
+    "rewrite": null,
+    "why": "The ciphertext accumulator and live xmm7 AND result require their copies under legacy two-operand SSE, while the message, saved xmm4 value, five AES results, store, and counter update must also be preserved."
+  },
+  "85566b8e23": {
+    "rewrite": null,
+    "why": "The ciphertext accumulator and live xmm7 AND result require their copies under legacy two-operand SSE, while the message, saved xmm4 value, five AES results, store, and counter update must also be preserved."
+  },
+  "07d7454170": {
+    "rewrite": null,
+    "why": "The ciphertext accumulator and live xmm7 AND result require their copies under legacy two-operand SSE, while the message, saved xmm4 value, five AES results, store, and counter update must also be preserved."
+  },
+  "f7757e7a9c": {
+    "rewrite": null,
+    "why": "The ciphertext accumulator and live xmm7 AND result require their copies under legacy two-operand SSE, while the message, saved xmm4 value, five AES results, store, and counter update must also be preserved."
+  },
+  "f7fb6f07e8": {
+    "rewrite": null,
+    "why": "The ciphertext accumulator and live xmm7 AND result require their copies under legacy two-operand SSE, while the message, saved xmm4 value, five AES results, store, and counter update must also be preserved."
+  },
+  "79569c2e54": {
+    "rewrite": null,
+    "why": "The five AES rounds, live xmm6 copy, message XOR, and five distinct stores are all required, with no wider vector stores available at the permitted ISA level."
+  },
+  "6366c05396": {
+    "rewrite": null,
+    "why": "The plaintext XOR chain, live xmm7 AND result and xmm6 state copy, five AES rounds, message injection, store, and counter update cannot be shortened using the permitted two-operand SSE and AES instructions."
+  }
+}

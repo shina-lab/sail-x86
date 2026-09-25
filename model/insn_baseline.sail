@@ -130,10 +130,10 @@ function cpuid(leaf, subleaf) = {
       if has_f16c       then ecx = ecx | 0x20000000;  // bit 29
       if has_rdrand     then ecx = ecx | 0x40000000;  // bit 30
 
-      // EDX: baseline features (FPU, DE, PSE, TSC, MSR, PAE, MCE, CX8,
+      // EDX: baseline features (FPU, VME, DE, PSE, TSC, MSR, PAE, MCE, CX8,
       //       APIC, SEP, MTRR, PGE, MCA, CMOV, PAT, PSE36, CLFLUSH,
       //       MMX, FXSR, SSE, SSE2)
-      let edx : dword = 0x078BFBFD;
+      let edx : dword = 0x078BFBFF;
       (eax, ebx, ecx, edx)
     },
 
@@ -487,6 +487,9 @@ function exec_umonitor(r, pfx) = {
 
 val dispatch_2byte_gpr : (range(0, 255), Prefixes) -> unit
 function dispatch_2byte_gpr(op, pfx) = {
+  // Descriptor-query/task-register instructions are not recognized in
+  // virtual-8086 mode (SDM Vol.2 SLDT/STR/LLDT/LTR/VERR/VERW/LAR/LSL).
+  if cur_mode == Virtual8086Mode & (op == 0 | op == 2 | op == 3) then raise_UD();
   match op {
     // 0F 00: Group 6 (SLDT, STR, LLDT, LTR, VERR, VERW)
     0 => {
@@ -602,7 +605,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             ZF = 0b0
           } else {
             let desc_addr = descriptor_address(selector);
-            if ~descriptor_in_bounds(selector) then {
+            if ~(descriptor_in_bounds(selector)) then {
               ZF = 0b0
             } else {
               let desc_hi : dword = read_mem_implicit(desc_addr + 4);
@@ -629,7 +632,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             ZF = 0b0
           } else {
             let desc_addr = descriptor_address(selector);
-            if ~descriptor_in_bounds(selector) then {
+            if ~(descriptor_in_bounds(selector)) then {
               ZF = 0b0
             } else {
               let desc_hi : dword = read_mem_implicit(desc_addr + 4);
@@ -862,8 +865,8 @@ function dispatch_2byte_gpr(op, pfx) = {
               new_cr0[3..1] = msw[3..1];
               new_cr0[0] = msw[0] | CR0[0];
               CR0 = new_cr0;
-              // SDM Vol.2A, LMSW: setting PE switches the processor
-              // to protected mode. Existing IA-32e modes are unchanged.
+              // SDM Vol.2A LMSW: setting PE enters protected mode. Retain
+              // segment caches until reloaded (Vol.3A 12.9.1, step 9).
               if cur_mode == RealMode & new_cr0[0] == 0b1 then
                 cur_mode = ProtectedMode
             },
@@ -895,7 +898,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         ZF = 0b0
       } else {
         let desc_addr = descriptor_address(selector);
-        if ~descriptor_in_bounds(selector) then {
+        if ~(descriptor_in_bounds(selector)) then {
           ZF = 0b0
         } else {
           let desc_hi : dword = read_mem_implicit(desc_addr + 4);
@@ -920,7 +923,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         ZF = 0b0
       } else {
         let desc_addr = descriptor_address(selector);
-        if ~descriptor_in_bounds(selector) then {
+        if ~(descriptor_in_bounds(selector)) then {
           ZF = 0b0
         } else {
           let desc_lo : dword = read_mem_implicit(desc_addr);

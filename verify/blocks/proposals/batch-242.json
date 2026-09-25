@@ -1,0 +1,92 @@
+{
+  "69b281c8e6": {
+    "rewrite": "vpcmpeqd ymm7,ymm4,ymm1\nvpcmpeqd ymm11,ymm8,ymm1\nvpcmpeqd ymm15,ymm12,ymm1\nvpaddd ymm4,ymm4,ymm0\nvpaddd ymm8,ymm8,ymm0\nvpaddd ymm12,ymm12,ymm0\nvpand ymm5,ymm7,YMMWORD PTR [rsi]\nvpand ymm6,ymm7,YMMWORD PTR [rsi+0x20]\nvpand ymm9,ymm11,YMMWORD PTR [rsi+0x40]\nvpand ymm10,ymm11,YMMWORD PTR [rsi+0x60]\nvpand ymm13,ymm15,YMMWORD PTR [rsi+0x80]\nvpand ymm14,ymm15,YMMWORD PTR [rsi+0xa0]\nlea rsi,[rsi+0xc0]\nvpxor ymm2,ymm2,ymm5\nvpxor ymm3,ymm3,ymm6\nvpxor ymm2,ymm2,ymm9\nvpxor ymm3,ymm3,ymm10\nvpxor ymm2,ymm2,ymm13\nvpxor ymm3,ymm3,ymm14\ndec rax",
+    "saved": 6,
+    "why": "Fold all six loads into the memory operands of the masked ANDs, using the commutativity of AND. The accumulator updates, index increments, and final ZF are unchanged."
+  },
+  "b2a5fd90c5": {
+    "rewrite": "vpcmpeqd ymm7,ymm4,ymm1\nvpand ymm5,ymm7,YMMWORD PTR [rsi]\nvpand ymm6,ymm7,YMMWORD PTR [rsi+0x20]\nvpxor ymm2,ymm2,ymm5\nvpxor ymm3,ymm3,ymm6\nvmovdqu YMMWORD PTR [rdi],ymm2\nvmovdqu YMMWORD PTR [rdi+0x20],ymm3\nvzeroupper",
+    "saved": 2,
+    "why": "Fold the two loads into the AND instructions. Retain vzeroupper to preserve the required clearing of ymm0's upper half."
+  },
+  "8f374dfb08": {
+    "rewrite": "add r12,QWORD PTR [rbx]\nadc r13,QWORD PTR [rbx+0x8]\nmov rax,r12\nadc r8,QWORD PTR [rbx+0x10]\nadc r9,QWORD PTR [rbx+0x18]\nmov rbp,r13\nsbb r11,r11\nsub r12,0xffffffffffffffff\nmov rcx,r8\nsbb r13,r14\nsbb r8,0x0\nmov r10,r9\nsbb r9,r15\nsbb r11,0x0",
+    "saved": 1,
+    "why": "Capture the addition carry as zero or all ones with sbb, eliminating the initial zeroing. The final sbb borrows exactly when the subtraction borrows and the addition did not carry, for either carry representation."
+  },
+  "45526a7e8e": {
+    "rewrite": null,
+    "why": "Both sets of limb values are required, and the saved subtraction borrow must survive the correction chain to determine final ZF."
+  },
+  "432609a26a": {
+    "rewrite": null,
+    "why": "The original differences and corrected limbs are all required, together with the saved borrow and its final zero test."
+  },
+  "d488aea48f": {
+    "rewrite": "add r12,r12\nadc r13,r13\nmov rax,r12\nadc r8,r8\nadc r9,r9\nmov rbp,r13\nsbb r11,r11\nsub r12,0xffffffffffffffff\nmov rcx,r8\nsbb r13,r14\nsbb r8,0x0\nmov r10,r9\nsbb r9,r15\nsbb r11,0x0",
+    "saved": 1,
+    "why": "Represent the doubling carry with sbb r11,r11 instead of zeroing r11 and incrementing it. The final borrow is identical because both representations are zero exactly when doubling produced no carry."
+  },
+  "3f7b240892": {
+    "rewrite": null,
+    "why": "The four saved limbs, four adjusted limbs, full-width carry result, cleared rsi, and final low-bit zero test are all required."
+  },
+  "2e956f9ddc": {
+    "rewrite": null,
+    "why": "The six independent OR inputs require five binary OR operations, and both vector-to-integer transfers produce required final register values."
+  },
+  "2228140b43": {
+    "rewrite": "add r12,QWORD PTR [rbx]\nadc r13,QWORD PTR [rbx+0x8]\nmov rax,r12\nadc r8,QWORD PTR [rbx+0x10]\nadc r9,QWORD PTR [rbx+0x18]\nmov rbp,r13\nsbb r11,r11\nsub r12,0xffffffffffffffff\nmov rcx,r8\nsbb r13,r14\nsbb r8,0x0\nmov r10,r9\nsbb r9,r15\nsbb r11,0x0",
+    "saved": 2,
+    "why": "Use add and sub to start the two chains without separate carry-clearing instructions, and capture the addition carry with sbb r11,r11. The final sbb produces the same CF from this zero-or-all-ones carry representation."
+  },
+  "ee68cc19f6": {
+    "rewrite": "sub r12,QWORD PTR [rbx]\nsbb r13,QWORD PTR [rbx+0x8]\nmov rax,r12\nsbb r8,QWORD PTR [rbx+0x10]\nsbb r9,QWORD PTR [rbx+0x18]\nmov rbp,r13\nsbb r11,r11\nadd r12,0xffffffffffffffff\nmov rcx,r8\nadc r13,r14\nadc r8,0x0\nmov r10,r9\nadc r9,r15\nbt r11,0x0",
+    "saved": 2,
+    "why": "Start the subtraction and addition chains with sub and add, removing both zeroing instructions. Capture the original borrow directly with sbb r11,r11 so the final bt restores the same CF."
+  },
+  "9d4408dc99": {
+    "rewrite": "sub rax,r12\nsbb rbp,r13\nmov r12,rax\nsbb rcx,r8\nsbb r10,r9\nmov r13,rbp\nsbb r11,r11\nadd rax,0xffffffffffffffff\nmov r8,rcx\nadc rbp,r14\nadc rcx,0x0\nmov r9,r10\nadc r10,r15\nbt r11,0x0",
+    "saved": 2,
+    "why": "Replace the carry-cleared initial sbb and adc with sub and add, eliminating both zeroing instructions. Directly materializing the subtraction borrow with sbb r11,r11 preserves the final bt result."
+  },
+  "e4f3b019b2": {
+    "rewrite": "add r12,r12\nadc r13,r13\nmov rax,r12\nadc r8,r8\nadc r9,r9\nmov rbp,r13\nsbb r11,r11\nsub r12,0xffffffffffffffff\nmov rcx,r8\nsbb r13,r14\nsbb r8,0x0\nmov r10,r9\nsbb r9,r15\nsbb r11,0x0",
+    "saved": 2,
+    "why": "Use add and sub to start the carry chains and replace the initialized carry accumulator with sbb r11,r11. This removes both zeroing instructions while retaining the final borrow condition."
+  },
+  "2c97c80d99": {
+    "rewrite": null,
+    "why": "The four limb products, propagated carries, two reduction steps, and stores are all needed, including the final correction value in rax."
+  },
+  "0ae523fa31": {
+    "rewrite": null,
+    "why": "Arbitrary input limbs require the full addition and both carry-folding steps, with the last correction also required as the final rax value."
+  },
+  "56125377c9": {
+    "rewrite": null,
+    "why": "Both borrow corrections can affect the stored result, and the final correction mask in rax must also be preserved."
+  },
+  "1ba44dfd28": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required vector result, including the upper-half clearing supplied by its VEX encoding."
+  },
+  "b37f581271": {
+    "rewrite": null,
+    "why": "All loads feed required results, the shared mask and increment are reused, and every generated counter including ymm1 must be preserved."
+  },
+  "8aeb2db7a3": {
+    "rewrite": null,
+    "why": "Each instruction produces a required register value, and the loaded key in ymm4 must remain available as a final result as well as feeding the XOR."
+  },
+  "adc5f54361": {
+    "rewrite": "vpaddb xmm10,xmm1,xmm2\nvpaddb xmm11,xmm10,xmm2\nvpxor xmm10,xmm10,xmm4\nvpaddb xmm12,xmm11,xmm2\nvpxor xmm11,xmm11,xmm4\nvpaddb xmm13,xmm12,xmm2\nvpxor xmm12,xmm12,xmm4\nvpaddb xmm14,xmm13,xmm2\nvpxor xmm13,xmm13,xmm4\nvpxor xmm14,xmm14,xmm4",
+    "saved": 1,
+    "why": "Remove the final counter update into xmm1 because ymm1 is not preserved and that updated value has no consumers."
+  },
+  "35d00cbf3f": {
+    "rewrite": "vpshufb xmm6,xmm1,xmm0\nvmovdqu xmm5,XMMWORD PTR [r11+0x30]\nvpaddd xmm10,xmm6,XMMWORD PTR [r11+0x40]\nvpaddd xmm11,xmm6,xmm5\nvpaddd xmm12,xmm10,xmm5\nvpshufb xmm10,xmm10,xmm0\nvpaddd xmm13,xmm11,xmm5\nvpshufb xmm11,xmm11,xmm0\nvpxor xmm10,xmm10,xmm4\nvpaddd xmm14,xmm12,xmm5\nvpshufb xmm12,xmm12,xmm0\nvpxor xmm11,xmm11,xmm4\nvpshufb xmm13,xmm13,xmm0\nvpxor xmm12,xmm12,xmm4\nvpshufb xmm14,xmm14,xmm0\nvpxor xmm13,xmm13,xmm4\nvpxor xmm14,xmm14,xmm4",
+    "saved": 2,
+    "why": "Remove the addition and shuffle that compute the final xmm1 counter, since ymm1 is not preserved and neither result feeds a required output."
+  }
+}

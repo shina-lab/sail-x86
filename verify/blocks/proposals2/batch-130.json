@@ -1,0 +1,82 @@
+{
+  "7b38ab9c83": {
+    "rewrite": null,
+    "why": "The bit-scan result, both 16-byte stores, and both pointer updates are required, and SSE2 cannot combine the stores into one instruction."
+  },
+  "00e57a3d73": {
+    "rewrite": null,
+    "why": "The loaded value and sum must both survive, and replacing the copy and ADD with LEA would lose the required carry flag."
+  },
+  "d3001b9aff": {
+    "rewrite": null,
+    "why": "The store, load, and both pointer updates are required, while the live loaded value and carry flag prevent folding the copy and ADD into LEA."
+  },
+  "db8892dfb1": {
+    "rewrite": null,
+    "why": "The comparison already folds its load, and the vector result, extracted mask, updated counter, and scalar comparison flags are all required."
+  },
+  "a236f97740": {
+    "rewrite": null,
+    "why": "The store, loaded ymm3, comparison vector, extracted mask, and both counter updates are all live, so folding the load would still require reproducing ymm3."
+  },
+  "6d4e27ed8b": {
+    "rewrite": null,
+    "why": "The old ymm2 must be stored and its replacement preserved, while the comparison vector, extracted mask, and both counter updates are also required."
+  },
+  "41c8f12065": {
+    "rewrite": null,
+    "why": "The loaded ymm3 and comparison vector must both survive, and the store, mask extraction, and two counter updates each remain necessary."
+  },
+  "8f6b32e24a": {
+    "rewrite": null,
+    "why": "Both loaded vectors, the comparison vector, the extracted mask, and the scalar comparison flags must survive, preventing any load or operation from being removed."
+  },
+  "ba2f82e70b": {
+    "rewrite": null,
+    "why": "The store, byte-comparison vector, extracted mask, and scalar comparison flags are distinct required effects already produced in four instructions."
+  },
+  "58055c55e4": {
+    "rewrite": null,
+    "why": "The zero-byte store, original destination in rax, incremented rdi, and decremented r8 with matching subtraction flags each require their existing operation."
+  },
+  "0180b5ffbb": {
+    "rewrite": null,
+    "why": "All three additions and the bit scan produce required register values, and the final comparison must independently establish the required carry flag."
+  },
+  "9815748107": {
+    "rewrite": null,
+    "why": "The add/subtract pair cannot become a single LEA because addressing cannot subtract an arbitrary register, and the pointer update, bit scan, and carry-producing comparison remain necessary."
+  },
+  "4aa51751bc": {
+    "rewrite": null,
+    "why": "The zero-extended load, word store, two distinct destination-derived register values, and counter subtraction with matching flags are all required."
+  },
+  "ae01414ebd": {
+    "rewrite": null,
+    "why": "The live zero-extended load, separate word and zero-byte stores, two destination-derived register values, and flag-producing counter subtraction cannot be reduced."
+  },
+  "076edb94d0": {
+    "rewrite": null,
+    "why": "The live dword load, dword store, two distinct destination-derived register values, and counter subtraction with matching flags each require an instruction."
+  },
+  "909a95c119": {
+    "rewrite": null,
+    "why": "Both indexed copies and destination-derived register values are required, and combining the two subtractions would not generally preserve the final decrement's carry and overflow flags."
+  },
+  "c9b0ca7079": {
+    "rewrite": null,
+    "why": "Both loaded registers, both stores, and both destination-derived register values are live, while the final subtraction's flags prevent merging the counter arithmetic."
+  },
+  "494ae52b0a": {
+    "rewrite": null,
+    "why": "Both vector loads and stores are required at their unknown indexed addresses, including zeroed upper halves of ymm2 and ymm3, and merging the counter subtractions would change required flags."
+  },
+  "8b485510df": {
+    "rewrite": null,
+    "why": "Both full-width vector results and stores are required at their unknown indexed addresses, and the destination calculations and flag-sensitive counter subtractions have no removable operation."
+  },
+  "2eec1d8180": {
+    "rewrite": null,
+    "why": "The zero-extended byte load, byte store, return-address calculation, and VZEROUPPER are all observable because full ymm register values must match."
+  }
+}

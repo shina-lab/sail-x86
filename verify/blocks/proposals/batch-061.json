@@ -1,0 +1,100 @@
+{
+  "ae90002159": {
+    "rewrite": "movups xmm10,XMMWORD PTR [r8+0xc]\npshufd xmm11,xmm10,0x55\npshufd xmm12,xmm10,0xaa\npshufd xmm13,xmm10,0xff\npshufd xmm10,xmm10,0x0\nmovq xmm14,QWORD PTR [r8+0x1c]\npshufd xmm15,xmm14,0x55\npshufd xmm14,xmm14,0x0\npxor xmm9,xmm9\nmovdqu xmm8,XMMWORD PTR [CONST_1]\nmovdqu xmm7,XMMWORD PTR [CONST_2]\nmov r11d,0x40004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 4,
+    "why": "Two unaligned-safe loads fetch exactly the original coefficient bytes, and PSHUFD broadcasts each dword into its required register. Sharing the loads removes four instructions without changing any preserved result."
+  },
+  "b282f33ba0": {
+    "rewrite": null,
+    "why": "Each of the five instructions initializes a distinct required output, with no redundant operation to remove."
+  },
+  "fd3d8bf33f": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [rcx]\nvbroadcastss ymm11,DWORD PTR [rcx+0x4]\nvbroadcastss ymm12,DWORD PTR [rcx+0x8]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nmov r10d,0x80100\nvmovq xmm6,r10\nvbroadcastss ymm6,xmm6\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "4d6872cb1a": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [rcx]\nvbroadcastss ymm11,DWORD PTR [rcx+0x4]\nvbroadcastss ymm12,DWORD PTR [rcx+0x8]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nmov r10d,0x100200\nvmovq xmm6,r10\nvbroadcastss ymm6,xmm6\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "c584105db5": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [rcx]\nvbroadcastss ymm11,DWORD PTR [rcx+0x4]\nvbroadcastss ymm12,DWORD PTR [rcx+0x8]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nvmovdqu ymm8,YMMWORD PTR [CONST_2]\nmov r10d,0x100200\nvmovq xmm6,r10\nvbroadcastss ymm6,xmm6\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "2fd96738bf": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [rcx]\nvbroadcastss ymm11,DWORD PTR [rcx+0x4]\nvbroadcastss ymm12,DWORD PTR [rcx+0x8]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nmov r10d,0x200400\nvmovq xmm6,r10\nvbroadcastss ymm6,xmm6\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "1ab6051ce4": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [rcx]\nvbroadcastss ymm11,DWORD PTR [rcx+0x4]\nvbroadcastss ymm12,DWORD PTR [rcx+0x8]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nvmovdqu ymm8,YMMWORD PTR [CONST_2]\nmov r10d,0x200400\nvmovq xmm6,r10\nvbroadcastss ymm6,xmm6\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "31ded4e918": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [rcx]\nvbroadcastss ymm11,DWORD PTR [rcx+0x4]\nvbroadcastss ymm12,DWORD PTR [rcx+0x8]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nmov r10d,0x801000\nvmovq xmm6,r10\nvbroadcastss ymm6,xmm6\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "5bf79e84de": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [rcx]\nvbroadcastss ymm11,DWORD PTR [rcx+0x4]\nvbroadcastss ymm12,DWORD PTR [rcx+0x8]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nvmovdqu ymm8,YMMWORD PTR [CONST_2]\nmov r10d,0x801000\nvmovq xmm6,r10\nvbroadcastss ymm6,xmm6\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "53535d6745": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [rcx]\nvbroadcastss ymm11,DWORD PTR [rcx+0x4]\nvbroadcastss ymm12,DWORD PTR [rcx+0x8]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nmov r10d,0x2004000\nvmovq xmm6,r10\nvbroadcastss ymm6,xmm6\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "5f29bc4178": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [rcx]\nvbroadcastss ymm11,DWORD PTR [rcx+0x4]\nvbroadcastss ymm12,DWORD PTR [rcx+0x8]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nvmovdqu ymm8,YMMWORD PTR [CONST_2]\nmov r10d,0x2004000\nvmovq xmm6,r10\nvbroadcastss ymm6,xmm6\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "51e968b6d9": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [rcx]\nvbroadcastss ymm11,DWORD PTR [rcx+0x4]\nvbroadcastss ymm12,DWORD PTR [rcx+0x8]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nmov r10d,0x8004000\nvmovq xmm6,r10\nvbroadcastss ymm6,xmm6\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "c49991925d": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [rcx]\nvbroadcastss ymm11,DWORD PTR [rcx+0x4]\nvbroadcastss ymm12,DWORD PTR [rcx+0x8]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nvmovdqu ymm8,YMMWORD PTR [CONST_2]\nmov r10d,0x8004000\nvmovq xmm6,r10\nvbroadcastss ymm6,xmm6\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "bd944af712": {
+    "rewrite": null,
+    "why": "Every initialized output is required, including ymm9, and no shorter AVX2 construction is apparent for the broadcast immediate."
+  },
+  "1a7456a370": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nmov r11d,0x400100\nvmovq xmm6,r11\nvbroadcastss ymm6,xmm6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "e1f547cce9": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nmov r11d,0x800200\nvmovq xmm6,r11\nvbroadcastss ymm6,xmm6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "ff6e25fb3b": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nvmovdqu ymm8,YMMWORD PTR [CONST_2]\nmov r11d,0x800200\nvmovq xmm6,r11\nvbroadcastss ymm6,xmm6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "fcc9aed033": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nmov r11d,0x1000400\nvmovq xmm6,r11\nvbroadcastss ymm6,xmm6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "b694728365": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nvmovdqu ymm8,YMMWORD PTR [CONST_2]\nmov r11d,0x1000400\nvmovq xmm6,r11\nvbroadcastss ymm6,xmm6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  },
+  "55774c01a5": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nmov r11d,0x4001000\nvmovq xmm6,r11\nvbroadcastss ymm6,xmm6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 1,
+    "why": "The zeroed ymm9 is never read and its final value is unrestricted, so its VPXOR can be removed."
+  }
+}

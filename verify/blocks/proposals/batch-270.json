@@ -1,0 +1,96 @@
+{
+  "bae797144d": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x30]",
+    "saved": 1,
+    "why": "Combine the two additions into one LEA because no final flags are required."
+  },
+  "36acd4f4ac": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x40]",
+    "saved": 1,
+    "why": "Combine the two additions into one LEA because no final flags are required."
+  },
+  "bcc74e46e0": {
+    "rewrite": null,
+    "why": "The live address calculation, rax copy, masked rcx value, and CF/ZF comparison leave no removable instruction."
+  },
+  "97abfd4ec3": {
+    "rewrite": null,
+    "why": "The two required copies, masked rcx value with ZF, and r8 constant each need their existing instruction."
+  },
+  "567483e8e0": {
+    "rewrite": null,
+    "why": "The loaded value, advanced pointer, sum, and carry are all live, so replacing the copy and addition with LEA would lose the required CF."
+  },
+  "d1cdc9528e": {
+    "rewrite": null,
+    "why": "AVX2 requires the transfer and broadcast instructions, while zeroing ymm9 and computing both page-offset comparison flags require the remaining operations."
+  },
+  "6d5a41fb7b": {
+    "rewrite": "vpcmpeqb ymm1,ymm0,YMMWORD PTR [rdi]\nvpcmpeqb ymm2,ymm9,YMMWORD PTR [rdi]\nvpor ymm1,ymm2,ymm1\nvpmovmskb eax,ymm1\ntest eax,eax",
+    "saved": 1,
+    "why": "Fold the shared load into both comparisons, preserving the combined byte mask and ZF."
+  },
+  "d4c0bdef80": {
+    "rewrite": "vpcmpeqb ymm1,ymm0,YMMWORD PTR [rdi+0x1]\nvpcmpeqb ymm2,ymm9,YMMWORD PTR [rdi+0x1]\nvpor ymm1,ymm2,ymm1\nvpmovmskb eax,ymm1\ntest eax,eax",
+    "saved": 1,
+    "why": "Fold the shared load into both comparisons at the original address, preserving the combined byte mask and ZF."
+  },
+  "622f39d26e": {
+    "rewrite": "vpcmpeqb ymm1,ymm0,YMMWORD PTR [rdi+0x21]\nvpcmpeqb ymm2,ymm9,YMMWORD PTR [rdi+0x21]\nvpor ymm1,ymm2,ymm1\nvpmovmskb eax,ymm1\ntest eax,eax",
+    "saved": 1,
+    "why": "Fold the shared load into both comparisons at the original address, preserving the combined byte mask and ZF."
+  },
+  "219841d18f": {
+    "rewrite": "vpcmpeqb ymm1,ymm0,YMMWORD PTR [rdi+0x41]\nvpcmpeqb ymm2,ymm9,YMMWORD PTR [rdi+0x41]\nvpor ymm1,ymm2,ymm1\nvpmovmskb eax,ymm1\ntest eax,eax",
+    "saved": 1,
+    "why": "Fold the shared load into both comparisons at the original address, preserving the combined byte mask and ZF."
+  },
+  "f57abc470b": {
+    "rewrite": "vpcmpeqb ymm1,ymm0,YMMWORD PTR [rdi+0x61]\nvpcmpeqb ymm2,ymm9,YMMWORD PTR [rdi+0x61]\nvpor ymm1,ymm2,ymm1\nvpmovmskb eax,ymm1\ntest eax,eax",
+    "saved": 1,
+    "why": "Fold the shared load into both comparisons at the original address, preserving the combined byte mask and ZF."
+  },
+  "e23bf0bd7d": {
+    "rewrite": "vpxor ymm1,ymm0,YMMWORD PTR [rdi]\nvpminub ymm1,ymm1,YMMWORD PTR [rdi]\nvpxor ymm2,ymm0,YMMWORD PTR [rdi+0x20]\nvpminub ymm2,ymm2,YMMWORD PTR [rdi+0x20]\nvpxor ymm3,ymm0,YMMWORD PTR [rdi+0x40]\nvpminub ymm3,ymm3,YMMWORD PTR [rdi+0x40]\nvpxor ymm4,ymm0,YMMWORD PTR [rdi+0x60]\nvpminub ymm4,ymm4,YMMWORD PTR [rdi+0x60]\nvpminub ymm5,ymm2,ymm1\nvpminub ymm6,ymm4,ymm3\nvpminub ymm6,ymm6,ymm5\nvpcmpeqb ymm6,ymm9,ymm6\nvpmovmskb ecx,ymm6\nsub rdi,0xffffffffffffff80\ntest ecx,ecx",
+    "saved": 4,
+    "why": "Fold all four loads into their XOR and unsigned-minimum consumers. The live intermediate vectors, mask, pointer update, and ZF remain unchanged."
+  },
+  "ad5443025a": {
+    "rewrite": null,
+    "why": "The broadcast, full-register zeroing, and masked page-offset comparison each contribute required results without a redundant instruction."
+  },
+  "c1b2b3f363": {
+    "rewrite": "vpxorq ymm19,ymm17,YMMWORD PTR [rdi]\nvpminub ymm19,ymm19,YMMWORD PTR [rdi]\nvpcmpeqb k0,ymm19,ymm16\nkmovd eax,k0\ntest eax,eax",
+    "saved": 1,
+    "why": "Fold the load into the XOR and unsigned minimum, preserving the comparison mask and ZF for arbitrary input vectors."
+  },
+  "70935ebc82": {
+    "rewrite": null,
+    "why": "The live trailing-zero count needs its mask transfer and TZCNT, while ZF depends on transferring and truncating the other mask."
+  },
+  "9c84c34f81": {
+    "rewrite": "vpxorq ymm19,ymm17,YMMWORD PTR [rdi+0x20]\nvpminub ymm19,ymm19,YMMWORD PTR [rdi+0x20]\nvpcmpeqb k0,ymm19,ymm16\nkmovd eax,k0\ntest eax,eax",
+    "saved": 1,
+    "why": "Fold the load into the XOR and unsigned minimum at the original address, preserving the comparison mask and ZF."
+  },
+  "ca478c58e7": {
+    "rewrite": "vpcmpeqb k0,ymm17,YMMWORD PTR [rdi+0x40]\nvpcmpeqb k1,ymm16,YMMWORD PTR [rdi+0x40]\nkortestd k1,k0",
+    "saved": 1,
+    "why": "Fold the shared load into both comparisons while retaining both live mask registers and the original ZF test."
+  },
+  "cc7f90c11c": {
+    "rewrite": "vpxorq ymm19,ymm17,YMMWORD PTR [rdi+0x60]\nvpminub ymm19,ymm19,YMMWORD PTR [rdi+0x60]\nvpcmpeqb k0,ymm19,ymm16\nkmovd eax,k0\ntest eax,eax",
+    "saved": 1,
+    "why": "Fold the load into the XOR and unsigned minimum at the original address, preserving the comparison mask and ZF."
+  },
+  "d4d898806d": {
+    "rewrite": "vpcmpeqb k0,ymm17,YMMWORD PTR [rdi+0x80]\nvpcmpeqb k1,ymm16,YMMWORD PTR [rdi+0x80]\nkortestd k1,k0",
+    "saved": 1,
+    "why": "Fold the shared load into both comparisons while retaining both live mask registers and the original ZF test."
+  },
+  "8dbd83fc72": {
+    "rewrite": "vpxorq ymm22,ymm17,YMMWORD PTR [rdi+0x80]\nvpminub ymm18,ymm22,YMMWORD PTR [rdi+0x80]\nvpcmpneqb k2,ymm17,YMMWORD PTR [rdi+0xa0]\nvpminub ymm19{k2}{z},ymm18,YMMWORD PTR [rdi+0xa0]\nvpxorq ymm24,ymm17,YMMWORD PTR [rdi+0xc0]\nvpminub ymm20,ymm24,YMMWORD PTR [rdi+0xc0]\nvpcmpneqb k4,ymm17,YMMWORD PTR [rdi+0xe0]\nvpminub ymm21,ymm20,YMMWORD PTR [rdi+0xe0]\nvpminub ymm21{k4}{z},ymm21,ymm19\nvpcmpeqb k1,ymm21,ymm16\nkmovd ecx,k1\nsub rdi,0xffffffffffffff80\ntest ecx,ecx",
+    "saved": 4,
+    "why": "Fold all four loads into their consumers using commutativity of inequality and unsigned minimum. Preserve the masked results, zeroed upper vector halves, live intermediates, pointer update, and ZF."
+  }
+}

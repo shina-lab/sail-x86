@@ -1,0 +1,85 @@
+{
+  "b6f733e32c": {
+    "rewrite": "mulx rdx,rax,QWORD PTR [r11]\nmov QWORD PTR [rdi],rax\nmov rax,QWORD PTR [rsi+0x8]\nimul rax,QWORD PTR [r11]\nadd rdx,rax\nmov r9,QWORD PTR [r11+0x8]\nmov rcx,QWORD PTR [rsi]\nimul rcx,r9\nadd rdx,rcx\nmov QWORD PTR [rdi+0x8],rdx",
+    "saved": 1,
+    "why": "Fold the initial r9 load into the MULX and IMUL memory operands, since r9 is overwritten before its final use. The distinct buffers make rereading [r11] safe, and the final ADD preserves the required flags."
+  },
+  "2a904beace": {
+    "rewrite": null,
+    "why": "The loaded factors are reused, and the products, carry propagation, stores, and final register values leave no removable instruction."
+  },
+  "923248f4b7": {
+    "rewrite": null,
+    "why": "Each of the four stores and three carry-propagating additions is required, including the final register results and carry."
+  },
+  "d4935ed581": {
+    "rewrite": null,
+    "why": "The low product, incoming carry, two accumulator additions, loads, pointer updates, and parity test all contribute required outputs."
+  },
+  "6d51c24917": {
+    "rewrite": "mov QWORD PTR [rdi+0x8],r11\nadc r13,r10\nadc rbx,r12\nmulx r8,r10,QWORD PTR [rsi]\nadc rbp,rax\nadd rbp,r10\nmov rdx,QWORD PTR [r15]\nmulx r12,r9,QWORD PTR [rsi-0x18]\nmulx rax,r14,QWORD PTR [rsi-0x10]\nadd r14,r12\nadc rax,0x0\nadc r13,r9\nmov QWORD PTR [rdi+0x10],r13\nadc rbx,r14\nmulx r8,r10,QWORD PTR [rsi-0x8]\nadc rbp,rax\nadd rbp,r10\nmov rdx,QWORD PTR [r15+0x8]\nmulx rax,r14,QWORD PTR [rsi-0x18]\nadd rbx,r14\nmov QWORD PTR [rdi+0x18],rbx\nmulx r8,r10,QWORD PTR [rsi-0x10]\nadc rbp,rax\nadd rbp,r10\nmov QWORD PTR [rdi+0x20],rbp",
+    "saved": 1,
+    "why": "Fold the load of [rsi-0x18] directly into MULX because its temporary r8 value is overwritten before any subsequent use. All arithmetic, stores, and final flags remain unchanged."
+  },
+  "d5e6364847": {
+    "rewrite": null,
+    "why": "Both product halves, every carry-chain result, and the index increment are live, so none of the six instructions can be removed."
+  },
+  "7c99c93be6": {
+    "rewrite": null,
+    "why": "The four memory additions already combine each load, arithmetic operation, and store, while INC supplies the required r14 update without changing carry."
+  },
+  "1654091210": {
+    "rewrite": null,
+    "why": "Each instruction updates a distinct required register, and the final subtraction also supplies the required flags."
+  },
+  "b662a25008": {
+    "rewrite": "movd xmm4,ecx\nneg ecx\nlea eax,[rcx+0x40]\nmovd xmm5,eax\nmov rax,QWORD PTR [rsi]\nshl rax,cl\ncmp rdx,0x3",
+    "saved": 1,
+    "why": "Negate ecx first and use LEA to compute 64 minus the original ecx modulo 2^32, replacing the MOV/SUB pair. Both vector counts, the scalar shift, final rcx, and CMP flags are preserved."
+  },
+  "e99ee61e0b": {
+    "rewrite": null,
+    "why": "The doubled limb, two carry masks, subtraction result, store, and three pointer updates are all required and already use direct scalar operations."
+  },
+  "d767632516": {
+    "rewrite": null,
+    "why": "Both doubled limbs remain live, and the shift carry, subtraction borrow, stores, and pointer updates require the existing operations."
+  },
+  "d774c25ad2": {
+    "rewrite": null,
+    "why": "All three doubled limbs, both carry masks, the subtraction chain, and pointer updates are required, with no dead load or copy to eliminate."
+  },
+  "54d5666727": {
+    "rewrite": null,
+    "why": "The initial eax carry feeds four live doubled limbs, and the separate subtraction chain, final masks, stores, and pointer updates are all necessary."
+  },
+  "cec1976d7f": {
+    "rewrite": null,
+    "why": "MULX produces two required values and each LEA updates a different required register while preserving both incoming carry flags."
+  },
+  "7a91b6eea0": {
+    "rewrite": null,
+    "why": "The stored r9 result and the two independent carry contributions to rax require all four instructions, including the final ADC flags."
+  },
+  "297e24defe": {
+    "rewrite": null,
+    "why": "The product, independent carry additions, live rcx decrement, and store each require their existing instruction."
+  },
+  "ddf2b4fe9b": {
+    "rewrite": null,
+    "why": "Both product halves and the r10 sum are live, and the independent CF and OF chains prevent merging the additions or dropping the store."
+  },
+  "f5f585dfae": {
+    "rewrite": null,
+    "why": "The live product halves, pointer update, independent carry additions, and stored r9 result leave no redundant instruction."
+  },
+  "287b643359": {
+    "rewrite": null,
+    "why": "The multiply, two independent carry additions, and store all produce required register, flag, or memory results."
+  },
+  "cc8f8bec45": {
+    "rewrite": null,
+    "why": "The multiply and both carry additions have live results, and storing the updated r9 requires the fourth instruction."
+  }
+}

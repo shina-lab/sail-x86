@@ -1,0 +1,85 @@
+{
+  "906d8c80f0": {
+    "rewrite": null,
+    "why": "The three XOR results, two stores, live register copy and clears, and pointer update each require their existing SSE2 instructions."
+  },
+  "0c7a79a8d4": {
+    "rewrite": null,
+    "why": "Every XOR, store, register transfer, clear, and pointer update contributes to a required final value or memory store."
+  },
+  "e70a03c653": {
+    "rewrite": null,
+    "why": "All seven independently cleared XMM registers are live, and SSE2 cannot clear several of them in one instruction."
+  },
+  "2b63084e8e": {
+    "rewrite": "xorps xmm0,xmm0\npxor xmm1,xmm1\nmov rbp,QWORD PTR [r11-0x8]",
+    "saved": 1,
+    "why": "The flag-neutral LEA writes only rsp, which is absent from the required final values and must not be touched by a rewrite. Removing it preserves both XMM clears, the rbp load, and every required flag."
+  },
+  "d5a9c2559c": {
+    "rewrite": "aesimc xmm0,XMMWORD PTR [rdx]\npxor xmm1,xmm1\nmovups XMMWORD PTR [rdi],xmm0\npxor xmm0,xmm0",
+    "saved": 1,
+    "why": "AESIMC accepts a memory source, so its input load can be folded into the instruction while retaining the store and both required register clears."
+  },
+  "d3641e4d07": {
+    "rewrite": null,
+    "why": "The intermediate three-term prefix XOR in xmm3 is itself live, preventing the shorter prefix construction used when that temporary is disposable."
+  },
+  "b59cd50382": {
+    "rewrite": "pshufd xmm2,xmm0,0xff\npxor xmm3,xmm3\naesenclast xmm2,xmm3\nshufps xmm3,xmm1,0x10\npxor xmm1,xmm3\nshufps xmm3,xmm1,0x8c\npxor xmm1,xmm3\npxor xmm2,xmm1\nmovdqu XMMWORD PTR [rax+0x10],xmm2\nlea rax,[rax+0x20]\nmovdqa xmm1,xmm2",
+    "saved": 3,
+    "why": "With xmm3 still zero after AESENCLAST, two SHUFPS/XOR pairs produce the four dword prefix XORs in four instructions instead of seven. The final value of xmm3 is not required."
+  },
+  "e307ec586f": {
+    "rewrite": null,
+    "why": "All six vector clears are independently observable, and the final addition supplies all five required flags."
+  },
+  "db5835740d": {
+    "rewrite": null,
+    "why": "Both shuffle/XOR stages and the broadcast/XOR stage contribute to live outputs, including the final shuffled value in xmm4."
+  },
+  "6dc83d841c": {
+    "rewrite": null,
+    "why": "The live prefix results and broadcasts require every stage, while the legacy ISA needs a separate copy and shift for the xmm2 contribution."
+  },
+  "7065a27af1": {
+    "rewrite": null,
+    "why": "The two full-width stores, live xmm5 shuffle, two-instruction construction of the second stored vector, and pointer update leave no removable instruction."
+  },
+  "12e23a8a10": {
+    "rewrite": null,
+    "why": "The store and pointer update are required, and all four shuffle/XOR operations plus the broadcast and final XOR contribute to live vector values."
+  },
+  "78b807336c": {
+    "rewrite": null,
+    "why": "Each of the eight live vectors requires its own memory XOR and byte shuffle, followed by the required pointer update."
+  },
+  "216aa4db43": {
+    "rewrite": null,
+    "why": "The rotations and XORs all feed required outputs, and the final copies resolve cyclic register assignments under the legacy two-operand ISA."
+  },
+  "2cb1b72b77": {
+    "rewrite": null,
+    "why": "All seven loaded vectors remain live independently of the XOR results, so their loads cannot be folded away and all seven stores are required."
+  },
+  "02b2248528": {
+    "rewrite": null,
+    "why": "All six loaded vectors are required final values, including xmm14, and the six XOR results and stores are also required."
+  },
+  "ba97d802cd": {
+    "rewrite": null,
+    "why": "The five loaded vectors, five XOR results, and five stores are independently required, leaving no dead load or foldable temporary."
+  },
+  "e1b880e980": {
+    "rewrite": null,
+    "why": "All four loads produce live vector values, while each XOR and store contributes separately to the required results."
+  },
+  "36399ff262": {
+    "rewrite": null,
+    "why": "The three loaded vectors remain live, and all three XOR results and stores must be preserved."
+  },
+  "d1bba2a4b1": {
+    "rewrite": null,
+    "why": "Both loads, both XOR results, and both stores are independently observable, so none of the six instructions can be removed."
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "f4ae933a5b": {
+    "rewrite": "vpcmpeqd ymm2,ymm0,YMMWORD PTR [rdi]\nvpcmpeqd ymm3,ymm4,YMMWORD PTR [rdi]\nvpmovmskb ecx,ymm2\nvpmovmskb eax,ymm3\nadd rdi,0x20\ntest eax,eax",
+    "saved": 1,
+    "why": "Fold the shared load into both equality comparisons because its temporary destination is not live."
+  },
+  "762813f0be": {
+    "rewrite": "vpcmpeqd ymm2,ymm0,YMMWORD PTR [rdi]\nvpcmpeqd ymm3,ymm4,YMMWORD PTR [rdi]\nadd rdi,0x20\nvpmovmskb ecx,ymm2\nvpmovmskb eax,ymm3\nor ecx,eax",
+    "saved": 1,
+    "why": "Fold the load into both comparisons while preserving ymm2, the scalar result, and the final OR flags."
+  },
+  "5a207a66d6": {
+    "rewrite": "and ecx,0x11111111\nand eax,0x11111111\nlea r8d,[rcx-0x1]\nxor r8d,ecx\nand eax,r8d",
+    "saved": 2,
+    "why": "LEA replaces the copy and decrement, and the final AND already produces the required ZF."
+  },
+  "f038d355df": {
+    "rewrite": null,
+    "why": "The live offset, two vector results, and comparison flags require all five instructions."
+  },
+  "268b929edf": {
+    "rewrite": "vpcmpeqd k0,ymm16,YMMWORD PTR [rdi]\nvpcmpeqd k1,ymm17,YMMWORD PTR [rdi]\nkmovd ecx,k0\nkmovd eax,k1\nadd rdi,0x20\ntest eax,eax",
+    "saved": 1,
+    "why": "Both equality comparisons can read the original memory operand directly, eliminating the temporary vector load."
+  },
+  "f4ff0bc273": {
+    "rewrite": "vpcmpeqd k0,ymm16,YMMWORD PTR [rdi]\nvpcmpeqd k1,ymm17,YMMWORD PTR [rdi]\nkmovd eax,k1\nadd rdi,0x20\nkortestw k0,k1",
+    "saved": 2,
+    "why": "Fold the load into both comparisons and replace the dead ecx mask transfer plus OR with KORTESTW. Both comparison masks have zero upper bits, so its ZF matches the scalar OR."
+  },
+  "fc807a7323": {
+    "rewrite": "movq xmm1,rsi\nmov rcx,rdi\npshufd xmm1,xmm1,0x0\npxor xmm2,xmm2\nand rcx,0x3f\ncmp rcx,0x30",
+    "saved": 1,
+    "why": "A single PSHUFD broadcasts the low dword exactly as the two self-unpacks do."
+  },
+  "e4b4ea5886": {
+    "rewrite": null,
+    "why": "SSE2 needs the shared load and both comparisons to preserve the live vector results, followed by both scalar masks, the pointer update, and the flag test."
+  },
+  "96ba15ac48": {
+    "rewrite": null,
+    "why": "The AVX2 broadcast requires two instructions, and extracting the page offset plus producing both comparison flags requires the remaining three."
+  },
+  "86fecc3774": {
+    "rewrite": null,
+    "why": "Four independent comparisons, three binary ORs, scalar mask extraction, and the required ZF test leave no redundant instruction under AVX2."
+  },
+  "d456b41bc2": {
+    "rewrite": null,
+    "why": "The comparison mask, scaled rdx, updated pointer, and mask-dependent ZF all require their existing instructions."
+  },
+  "3af881c32b": {
+    "rewrite": null,
+    "why": "Both the 64-bit prefix mask in rcx and its application to eax are live, so the mask construction cannot be eliminated."
+  },
+  "32a4d3d42c": {
+    "rewrite": null,
+    "why": "Extracting rcx's upper dword is necessary before masking the comparison result and setting ZF."
+  },
+  "358bce0935": {
+    "rewrite": null,
+    "why": "The broadcast, live page offset, and CF/ZF comparison already use one instruction per necessary operation."
+  },
+  "cb673c7d8e": {
+    "rewrite": "add rdi,0xa0\nmov ecx,0x502\nbextr ecx,edi,ecx\nand rdi,0xffffffffffffff80\nadd rdx,rcx\nvmovdqa64 ymm0,ymm16",
+    "saved": 1,
+    "why": "The original subtraction yields the low seven bits of the adjusted pointer, then shifts them right by two. BEXTR extracts bits 2 through 6 directly, replacing three instructions with two."
+  },
+  "f2abb18df8": {
+    "rewrite": null,
+    "why": "The four comparisons, masked ternary combination, scalar mask extraction, and increment all contribute to preserved results or ZF."
+  },
+  "7ff0b4ef48": {
+    "rewrite": null,
+    "why": "The comparison, mask transfer, and pointer update are needed, and VZEROUPPER must retain its clearing of the preserved zmm0 upper bits."
+  },
+  "ed47329e59": {
+    "rewrite": null,
+    "why": "The mask comparison and transfer, pointer update, and independent ZF test are all necessary."
+  },
+  "a6e2124ae4": {
+    "rewrite": null,
+    "why": "The prefix mask in rcx is itself live, requiring its construction in addition to the comparison result and final AND."
+  },
+  "3f8e624b4f": {
+    "rewrite": "vpcmpeqd k0,ymm16,YMMWORD PTR [rdi+0x80]\nkmovd eax,k0\nand al,ch",
+    "saved": 1,
+    "why": "The eight-lane comparison leaves eax confined to its low byte, so AND with the original ch replaces the shift and full-width AND while preserving rax and ZF."
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "a90c8a170a": {
+    "rewrite": null,
+    "why": "The mask transfer, pointer subtraction, shift, and independent zero test are all needed for the required results."
+  },
+  "4b1e8b3fa4": {
+    "rewrite": null,
+    "why": "The comparison mask must remain in rdx, and constructing and scanning the combined mask already requires the remaining instructions."
+  },
+  "cee6ecf505": {
+    "rewrite": null,
+    "why": "The comparison, mask extraction, xmm2 clearing, zero test, and pointer update each produce a required result."
+  },
+  "90dc7d3906": {
+    "rewrite": null,
+    "why": "SSE2 requires separate instructions for the comparison, preserved scalar mask, zero flag, and pointer update."
+  },
+  "7c47926455": {
+    "rewrite": null,
+    "why": "The preserved loaded vectors and intermediate minimum prevent eliminating loads, while SSE2 still needs the mask extraction and zero test."
+  },
+  "1a2d078e85": {
+    "rewrite": null,
+    "why": "The vector comparison, preserved scalar mask, zero flag, and pointer adjustment require separate SSE2 instructions."
+  },
+  "26e6c6ea08": {
+    "rewrite": null,
+    "why": "The comparison and scalar mask are both preserved, and neither the zero test nor pointer adjustment can be removed."
+  },
+  "4190238f3c": {
+    "rewrite": null,
+    "why": "The memory comparison, preserved scalar mask, zero flag, and pointer adjustment already use one instruction each."
+  },
+  "866fca55c1": {
+    "rewrite": null,
+    "why": "All four vector clears and the full pointer copy are required, and the page-offset comparison still needs its copy, mask, and compare."
+  },
+  "a48245d3ba": {
+    "rewrite": null,
+    "why": "Preserving xmm0 requires a separate comparison destination, while the required rdx value prevents replacing mask extraction and testing with PTEST."
+  },
+  "cc2a1c8bbc": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rax+0x40]\npminud xmm0,XMMWORD PTR [rax+0x50]\npminud xmm0,XMMWORD PTR [rax+0x60]\npminud xmm0,XMMWORD PTR [rax+0x70]\npcmpeqd xmm0,xmm3\nptest xmm0,xmm0",
+    "saved": 1,
+    "why": "The comparison produces only zero or all-one lanes, so PTEST gives the same ZF as extracting and testing the byte mask; rdx is dead."
+  },
+  "fc2fa080e8": {
+    "rewrite": "pxor xmm0,xmm0\npcmpeqd xmm0,XMMWORD PTR [rax]\npcmpeqd xmm1,XMMWORD PTR [rax+0x10]\npcmpeqd xmm2,XMMWORD PTR [rax+0x20]\npcmpeqd xmm3,XMMWORD PTR [rax+0x30]\nmovdqa xmm4,xmm0\npackssdw xmm4,xmm1\npackssdw xmm2,xmm3\npacksswb xmm4,xmm2\npmovmskb edx,xmm4\nbsf rdx,rdx\nshl rdx,0x2\nadd rax,rdx\nsub rax,rdi\nshr rax,0x2",
+    "saved": 4,
+    "why": "Signed packing preserves the zero or minus-one comparison lanes and combines all sixteen into one byte mask. Scaling its first-set-bit index by four reproduces the original byte offset while retaining xmm0."
+  },
+  "3bd9910f0a": {
+    "rewrite": null,
+    "why": "AVX2 needs both comparisons and the AND-NOT to construct the required mask, in addition to the preserved load, extraction, and scalar comparison."
+  },
+  "4630b1e48b": {
+    "rewrite": null,
+    "why": "The nonzero mask and masked equality comparison are both needed, as are the required scalar mask transfer and length comparison."
+  },
+  "a723ef7bdd": {
+    "rewrite": "vptestmd k1,ymm21,ymm21\nvpcmpeqd k0{k1},ymm22,ymm16\nkmovd ecx,k0\nshl r9d,0x8\nlea r9d,[r9+rcx*1-0xff]\ntzcnt r9d,r9d\ncmp rdx,r9",
+    "saved": 1,
+    "why": "The mask lies in 0..255: below 255, its biased value has a nonzero low byte, so adding the shifted r9 preserves the same trailing-zero count as OR. At 255 the bias is zero, making both expressions identical."
+  },
+  "1a043883ec": {
+    "rewrite": null,
+    "why": "Each arithmetic instruction updates a distinct required register, and the final subtraction supplies the required flags."
+  },
+  "cd9222444c": {
+    "rewrite": null,
+    "why": "Scaling the bit index, inserting the sentinel, scanning, and converting to a dword count are all needed, as is clearing the preserved ymm0 upper half."
+  },
+  "9b45aea5a6": {
+    "rewrite": null,
+    "why": "The offset computation requires its addition, subtraction, and shift, while the vector comparison and final subtraction supply separate required results."
+  },
+  "bfffa8c0d8": {
+    "rewrite": "inc rdi\nrorx ecx,edi,0x2\nor rdi,0x7f\nand ecx,0x1f\nadd rsi,rcx",
+    "saved": 1,
+    "why": "RORX and a five-bit mask extract bits 2 through 6 of the incremented pointer in two instructions, replacing the original copy, mask, and shift."
+  },
+  "a7bd621116": {
+    "rewrite": null,
+    "why": "The vector comparison, scalar mask extraction, trailing-zero count, and final carry-producing comparison are all required."
+  }
+}

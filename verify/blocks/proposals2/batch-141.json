@@ -1,0 +1,88 @@
+{
+  "4e064a6ab4": {
+    "rewrite": null,
+    "why": "The byte comparison, required movemask result, pointer update, and ZF test each require an instruction."
+  },
+  "c44a844de1": {
+    "rewrite": null,
+    "why": "The byte comparison, required movemask result, pointer update, and ZF test each require an instruction."
+  },
+  "a1c091935f": {
+    "rewrite": null,
+    "why": "Although ymm1 is dead, the required movemask result, pointer update, and ZF still need the comparison and all three scalar instructions."
+  },
+  "74d307f108": {
+    "rewrite": "vmovaps ymm4,YMMWORD PTR [rax]\nvpminub ymm4,ymm4,YMMWORD PTR [rax+0x20]\nvpminub ymm5,ymm4,YMMWORD PTR [rax+0x40]\nvpminub ymm5,ymm5,YMMWORD PTR [rax+0x60]\nadd rax,0x80\nvpcmpeqb ymm5,ymm6,ymm5\nvptest ymm5,ymm5",
+    "saved": 2,
+    "why": "Associativity of unsigned minimum eliminates one instruction while preserving ymm4 and the final comparison in ymm5. Since the comparison bytes are all zero or all ones and rdx is dead, vptest gives the same ZF as movemask followed by test."
+  },
+  "ca2b33e16d": {
+    "rewrite": null,
+    "why": "The comparison vector, movemask result, adjusted pointer, and final ZF are all required and cannot be combined into fewer instructions."
+  },
+  "ceb3e5ff56": {
+    "rewrite": "vpcmpeqb ymm3,ymm6,YMMWORD PTR [rax+0x80]\nvpmovmskb edx,ymm3\nsub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x80]",
+    "saved": 1,
+    "why": "LEA combines the two final additions into one instruction with identical 64-bit arithmetic; no final flags are required."
+  },
+  "ec2ea87237": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x20]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition while preserving the final rax value; flags are dead."
+  },
+  "c313176472": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x40]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition while preserving the final rax value; flags are dead."
+  },
+  "02bb46ed18": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x60]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition while preserving the final rax value; flags are dead."
+  },
+  "ea45c35924": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x80]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition while preserving the final rax value; flags are dead."
+  },
+  "5829206e06": {
+    "rewrite": null,
+    "why": "The required pointer results, masked rcx, zeroed ymm0, and comparison flags leave no removable instruction within the allowed ISA."
+  },
+  "7cebf7a15f": {
+    "rewrite": null,
+    "why": "The word load, word store, separate terminator byte store, and clearing of all applicable vector upper halves are each necessary."
+  },
+  "409d123e58": {
+    "rewrite": null,
+    "why": "The unknown index requires both load/store pairs, and vzeroupper is needed to produce the required vector register values."
+  },
+  "afbc36e873": {
+    "rewrite": null,
+    "why": "Both indexed copy regions and their loaded register values must be preserved, and vzeroupper remains necessary."
+  },
+  "9deb0b0029": {
+    "rewrite": null,
+    "why": "Both load/store pairs are required for the unknown index, and the XMM loads do not replace vzeroupper's clearing of the other vector registers."
+  },
+  "6f1f0a866a": {
+    "rewrite": null,
+    "why": "Both full-width load/store pairs are required, followed by vzeroupper to produce the required final upper halves."
+  },
+  "f7457fdea9": {
+    "rewrite": null,
+    "why": "The required r9 copy, zeroed rax and zmm16, masked rcx, and comparison flags each need their existing operations."
+  },
+  "6d8fc11863": {
+    "rewrite": null,
+    "why": "The required k4 and rdx masks, updated pointer, and ZF require separate comparison, transfer, arithmetic, and test instructions."
+  },
+  "efb29252f1": {
+    "rewrite": null,
+    "why": "The required k4 and rdx masks, updated pointer, and ZF require separate comparison, transfer, arithmetic, and test instructions."
+  },
+  "fcded78b29": {
+    "rewrite": null,
+    "why": "The required k4 and rdx masks, updated pointer, and ZF require separate comparison, transfer, arithmetic, and test instructions."
+  }
+}

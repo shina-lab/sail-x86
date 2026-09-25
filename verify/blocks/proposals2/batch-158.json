@@ -1,0 +1,82 @@
+{
+  "73e1273831": {
+    "rewrite": null,
+    "why": "Both vector loads and stores are required, and the live r8 result and subtraction flags require a separate update from the live rdi increment."
+  },
+  "353354f37a": {
+    "rewrite": null,
+    "why": "The two required 16-byte loads and stores cannot be merged under SSE2, and both scalar updates must preserve their distinct results and the subtraction flags."
+  },
+  "3192c3fae8": {
+    "rewrite": null,
+    "why": "Both loaded vectors and both stores are observable, while the r8 subtraction and rdi increment independently produce required final values."
+  },
+  "529111ce33": {
+    "rewrite": null,
+    "why": "SSE2 requires two vector loads and two stores for these 32 bytes, followed by separate updates of the live r8 and rdi values with the subtraction flags retained."
+  },
+  "ca555792b7": {
+    "rewrite": null,
+    "why": "The two register copies and vector zeroing are live, and isolating the low 12 address bits for the required CF and ZF needs the remaining copy, mask, and comparison."
+  },
+  "0132035615": {
+    "rewrite": null,
+    "why": "The trailing-zero count, adjusted ecx, sum in eax and its flags, and cleared upper vector halves are all required effects."
+  },
+  "13dbdfd4d2": {
+    "rewrite": null,
+    "why": "Both scalar results are live, so the ecx adjustment cannot be folded into the sum, and the final addition flags and vzeroupper effect must remain."
+  },
+  "be889f689a": {
+    "rewrite": null,
+    "why": "Each instruction supplies a required effect: the trailing-zero count, the live ecx adjustment, the sum and its flags, or upper-vector zeroing."
+  },
+  "00bd9c612d": {
+    "rewrite": null,
+    "why": "The live adjusted ecx prevents folding its subtraction into the eax result, and neither the trailing-zero count nor required upper-vector zeroing can be removed."
+  },
+  "dda8c54cb8": {
+    "rewrite": null,
+    "why": "Forming the live rcx difference with its constant offset requires two instructions, while the vector comparison and rsi subtraction with its carry flag are also required."
+  },
+  "bc928cb534": {
+    "rewrite": null,
+    "why": "The live rdi difference, 32-bit wrapping adjustment of eax, final 64-bit sum and flags, and upper-vector zeroing require separate operations."
+  },
+  "5cccca15d4": {
+    "rewrite": null,
+    "why": "The eax increment must wrap at 32 bits before the 64-bit addition, whose flags are live, and the rdi difference and vzeroupper effect must also be preserved."
+  },
+  "48681220a8": {
+    "rewrite": null,
+    "why": "The masked rsi, vector comparison, and extracted mask are all live, and vpmovmskb does not set the required zero flag."
+  },
+  "38941cd0c9": {
+    "rewrite": null,
+    "why": "The live vector comparison and scalar trailing-zero count require comparison, mask extraction, and tzcnt, followed by a separate comparison to produce the required flags."
+  },
+  "93cc4eaf75": {
+    "rewrite": null,
+    "why": "The 32-bit offset addition cannot be merged into the 64-bit sum without losing its wraparound semantics or the required final flags, and the other two effects are live."
+  },
+  "5cda469115": {
+    "rewrite": null,
+    "why": "Although the trailing-zero count bounds the incremented value, folding the increment and final addition into LEA would lose the required addition flags, while rdi and upper-vector results are live."
+  },
+  "11198214eb": {
+    "rewrite": null,
+    "why": "Folding the constant offset into an LEA would discard the required final addition flags, and the trailing-zero count, live rdi difference, and upper-vector zeroing remain necessary."
+  },
+  "1ec4bd557c": {
+    "rewrite": null,
+    "why": "The eax offset must wrap and zero-extend before the 64-bit sum, whose flags are required, and neither the live rdi subtraction nor vzeroupper can be removed."
+  },
+  "2ab61e6e67": {
+    "rewrite": null,
+    "why": "The live r8 copy and full zmm16 zeroing are required, and the remaining copy, mask, and comparison isolate the low 12 address bits and produce the required CF and ZF."
+  },
+  "e1100808a6": {
+    "rewrite": null,
+    "why": "The live rcx difference with its displacement requires two scalar instructions, and the live comparison mask and rsi subtraction with its carry flag require the other two."
+  }
+}

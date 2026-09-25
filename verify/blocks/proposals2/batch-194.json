@@ -1,0 +1,82 @@
+{
+  "8a09c95641": {
+    "rewrite": null,
+    "why": "The loaded xmm1 value, XOR store, final xmm0 copy, and comparison flags are all required, leaving no removable instruction."
+  },
+  "311bcbf37e": {
+    "rewrite": null,
+    "why": "Preserving xmm1 and the final xmm0 value requires both moves in addition to the XOR, store, and comparison."
+  },
+  "be2a07c135": {
+    "rewrite": null,
+    "why": "Positioning the low word of edi in an otherwise zero vector needs both initialization instructions, while the mask load, data load, shuffle, XOR, and comparison remain necessary."
+  },
+  "bc26c7006b": {
+    "rewrite": null,
+    "why": "Each preserved shuffled vector needs its load and shuffle, and the pointer update, length update, and final CF/ZF comparison cannot be combined."
+  },
+  "35f31cd567": {
+    "rewrite": null,
+    "why": "Each fold needs a load, shuffle, copy for the destructive carry-less products, and two XORs, followed by the required pointer and length updates and comparison."
+  },
+  "b9e7f66267": {
+    "rewrite": null,
+    "why": "The preserved multiplier load and two folds require both carry-less products, an input copy, and two XORs per fold, with the final test supplying ZF."
+  },
+  "2164e9596f": {
+    "rewrite": null,
+    "why": "Both folds require separate high and low carry-less products and copies to retain their operands, along with the data loads, shuffles, XORs, and pointer update."
+  },
+  "4538ae3e5f": {
+    "rewrite": null,
+    "why": "The multiplier load, copy, two destructive carry-less products, and two XORs are needed to produce the preserved xmm0, xmm4, and xmm7 values, and the test supplies ZF."
+  },
+  "9b9a9295b0": {
+    "rewrite": null,
+    "why": "The shuffled data and intermediate XOR are both preserved, and the two carry-less products still require the copy and final XOR before the pointer update."
+  },
+  "fa80681f7b": {
+    "rewrite": null,
+    "why": "The reduction needs the copies to retain operands across destructive products, and its shifted contribution, XORs, multiplier load, and word extraction all affect preserved outputs."
+  },
+  "cd1680c9f3": {
+    "rewrite": null,
+    "why": "Initializing the isolated high word with the required zero upper bits needs both vector instructions, and the preserved broadcast and CF comparison are independent requirements."
+  },
+  "a83b6128b5": {
+    "rewrite": null,
+    "why": "The data load cannot fold into the data operand of vpshufb, leaving the shuffle, XOR, pointer update, and preserved multiplier load necessary."
+  },
+  "7e4865b282": {
+    "rewrite": null,
+    "why": "The arbitrary byte shuffle requires a separate data load, followed by the XOR and comparison that produce the preserved vector and CF/ZF values."
+  },
+  "6baf85b4f1": {
+    "rewrite": null,
+    "why": "All three preserved vectors require separate loads and shuffles, while the pointer update, length update, and comparison produce distinct required results."
+  },
+  "de3aa359ac": {
+    "rewrite": null,
+    "why": "Each fold already uses three-operand carry-less products and requires a data load, shuffle, and two XORs, with no removable pointer, length, or flag operation."
+  },
+  "ecc977fe12": {
+    "rewrite": null,
+    "why": "The preserved broadcast, two carry-less products and two XORs per fold, and final ZF test have no redundant instruction under the allowed ISA."
+  },
+  "15341ed3ea": {
+    "rewrite": null,
+    "why": "Both folds already avoid input copies and still need their loads, shuffles, two carry-less products, and two XORs, followed by the required pointer update."
+  },
+  "28a6438608": {
+    "rewrite": null,
+    "why": "The fold needs its preserved multiplier broadcast, two independent carry-less products, two XORs, and final ZF test, with no copy to eliminate."
+  },
+  "5aa72a4fe7": {
+    "rewrite": null,
+    "why": "The data load and shuffle, two carry-less products, two XORs, and pointer update each contribute to required outputs, including the preserved intermediate in ymm5."
+  },
+  "4182636ca7": {
+    "rewrite": null,
+    "why": "The upper-lane extraction supplies an independent XOR input, while the multiplier load, two products, two XORs, and test are needed for the preserved vectors and ZF."
+  }
+}

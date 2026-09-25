@@ -1,0 +1,85 @@
+{
+  "04f4cce2b9": {
+    "rewrite": null,
+    "why": "The preserved SHLD result and the stored shifted product require the initialization, both shifts, multiplication, and store."
+  },
+  "3a1701374c": {
+    "rewrite": null,
+    "why": "Both full-width products, the memory addend, and their carry-propagating accumulation are needed to produce r8:r9."
+  },
+  "f40f8d76dc": {
+    "rewrite": "add rax,r11\nadc r12,rdx\nmul rbx\nmov r9,rax\nmov r8,rdx\nadd r9,QWORD PTR [rdi-0x18]\nadc r8,0x0\nmov rax,QWORD PTR [rdi-0x10]\nmul r10\nadd r9,rax\nadc r8,rdx\nmov rax,r12\nmul rbp\nsub rsi,0x2",
+    "saved": 1,
+    "why": "Compute r11+rax directly in rax and multiply it first, eliminating the later copy from r11. Reordering the two products preserves their 128-bit sum and the final SUB carry."
+  },
+  "3a18820851": {
+    "rewrite": null,
+    "why": "Both loads and both halves of the carry-propagating addition have required final results."
+  },
+  "69b1a92d17": {
+    "rewrite": null,
+    "why": "The full product, incoming addend, carry correction, and required load leave no removable instruction."
+  },
+  "0b51ecc75a": {
+    "rewrite": null,
+    "why": "All loaded values, saved registers, the zeroed r8, and the masked remainder are live, with ZF required from the mask."
+  },
+  "6d8033bceb": {
+    "rewrite": "mov rax,r13\nmul r9\nmov r9,rax\nmov rcx,rdx\nadd r9,QWORD PTR [rdi-0x20]\nadc rcx,0x0\nmov rax,QWORD PTR [rdi-0x18]\nmul r11\nadd r9,rax\nadc rcx,rdx\nmov rax,QWORD PTR [rdi-0x10]\nmul rbx\nadd r9,rax\nadc rcx,rdx\nmov rax,QWORD PTR [rdi-0x8]\nmul rbp\nadd r9,rax\nadc rcx,rdx\nsub rdi,0x20\nmov rax,r12\nmul r8\nmov r8,rcx",
+    "saved": 1,
+    "why": "Multiply by the initial r9 first and accumulate subsequent products directly in r9. This removes the final copy from r10 while preserving the 128-bit sum and final rdx:rax product."
+  },
+  "44b2a10025": {
+    "rewrite": null,
+    "why": "The stored shift, full product, complemented multiplication, updated r12, and final comparison all contribute required effects."
+  },
+  "c8763efda2": {
+    "rewrite": null,
+    "why": "The bit extractions, arbitrary r11 mask, three additions, and required shifted value in rdx leave no removable operation."
+  },
+  "a2149f5d49": {
+    "rewrite": null,
+    "why": "The two carry masks, incoming addition carry, stored result, and three live pointer updates require the existing sequence."
+  },
+  "fc7852443e": {
+    "rewrite": null,
+    "why": "The two-limb shift and addition need their carry chains, both stores, both carry masks, and all three pointer updates."
+  },
+  "758dabe98d": {
+    "rewrite": null,
+    "why": "Each limb needs its load, doubling, carry-propagating addition, and store, while both carry masks and all pointer updates are live."
+  },
+  "210f5c85d3": {
+    "rewrite": null,
+    "why": "The four-limb shift and addition require both incoming carry extractions, both outgoing carry masks, all stores, and the live pointer updates."
+  },
+  "62a38f6779": {
+    "rewrite": "mov r10,QWORD PTR [rdx]\nmov eax,ecx\nshr rcx,0x3\nimul r9,r8,0xffffffffffffffff\nand eax,0x7",
+    "saved": 1,
+    "why": "Three-operand IMUL by -1 computes the negation of r8 directly in r9, replacing XOR and SUB. The final AND sets every required flag identically."
+  },
+  "547e7dd19d": {
+    "rewrite": null,
+    "why": "Each of the three pointer increments is live, and zeroing r11 also establishes the required clear CF."
+  },
+  "14925ebbaf": {
+    "rewrite": null,
+    "why": "The saved r10 value, three pointer increments, and zeroed r10 are all live, and the XOR also clears the required CF."
+  },
+  "cd72de704e": {
+    "rewrite": null,
+    "why": "Each of the three pointer increments is live, and zeroing r11 also establishes the required clear CF."
+  },
+  "be10be3048": {
+    "rewrite": null,
+    "why": "The saved r10 value, three pointer increments, and zeroed r10 are all live, and the XOR also clears the required CF."
+  },
+  "a21117d909": {
+    "rewrite": null,
+    "why": "The first ADC produces the stored sum and the carry needed by the final ADC; the intervening store and variable shift are also necessary."
+  },
+  "67dd566e86": {
+    "rewrite": null,
+    "why": "The load, carry-producing addition, pointer update, variable shift, and store each provide a required effect."
+  }
+}

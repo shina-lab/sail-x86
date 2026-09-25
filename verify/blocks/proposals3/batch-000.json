@@ -1,0 +1,54 @@
+{
+  "97a83f1908": {
+    "rewrite": null,
+    "why": "The word interleaving, accumulator initialization, saturation, variable shifts, and two masked updates all contribute to required final vector values."
+  },
+  "e7759c6fdb": {
+    "rewrite": null,
+    "why": "Both subtractions are required, and the shift pair both scales r10 and discards its original top three bits in the required final value."
+  },
+  "71a69d8cde": {
+    "rewrite": null,
+    "why": "Both subtractions are required, and the shift pair both scales r10 and discards its original top three bits in the required final value."
+  },
+  "b15a35d97d": {
+    "rewrite": null,
+    "why": "Both separated word stores and both zero-extending right-shift results are required, leaving no redundant instruction."
+  },
+  "d20a72bab2": {
+    "rewrite": null,
+    "why": "The four separated word stores need both original low words and both high words, so the two shifts remain necessary even though rsi and rdx are dead afterward."
+  },
+  "fb123924df": {
+    "rewrite": null,
+    "why": "Both separated word stores and both zero-extending right-shift results are required, leaving no redundant instruction."
+  },
+  "7547a8b2c0": {
+    "rewrite": null,
+    "why": "The four separated stores and two shifts each produce required memory, register, or flag results."
+  },
+  "1507fa7b3f": {
+    "rewrite": null,
+    "why": "The distinct signed dot products and live intermediate values require the setup and additions, and SSE2 cannot fuse the arithmetic shifts with the saturating packs."
+  },
+  "6358d9b9b3": {
+    "rewrite": null,
+    "why": "Each distinct signed dot product is live, and two-operand PMADDWD requires separate destination setup to retain the shared inputs."
+  },
+  "40ba84bfdf": {
+    "rewrite": null,
+    "why": "All six additions feed required final vectors, and the three independent arithmetic right shifts cannot be combined within SSSE3."
+  },
+  "65d0bb33d4": {
+    "rewrite": null,
+    "why": "The 12-bit wraparound must precede the constant adjustment, and baseline addressing cannot fold subtraction of the variable amount and the constant into one instruction."
+  },
+  "6a4ab97d25": {
+    "rewrite": null,
+    "why": "The four independently addressed loads, the required r14 update, and the ecx decrement producing ZF each need a separate instruction."
+  },
+  "b8114d2de0": {
+    "rewrite": null,
+    "why": "All four loaded general-purpose register values are live, and the independent TEST is needed to preserve the required ZF."
+  }
+}

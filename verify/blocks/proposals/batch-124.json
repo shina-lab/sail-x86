@@ -1,0 +1,64 @@
+{
+  "34c7b32a7e": {
+    "rewrite": "",
+    "saved": 25,
+    "why": "Every instruction writes only unconstrained vector registers, so the entire block can be removed."
+  },
+  "733da71775": {
+    "rewrite": null,
+    "why": "The comparison supplies the required CF and ZF values, and combining the five independent vector stores would require packing instructions that eliminate no instructions overall."
+  },
+  "1a01bc789c": {
+    "rewrite": "vmovdqu xmm8,XMMWORD PTR [rcx]\nvmovdqa xmm1,XMMWORD PTR [CONST_1]\nvpshufb xmm3,xmm8,xmm1\nvpcmpeqd xmm0,xmm0,xmm0\nvpsrldq xmm0,xmm0,0x8\nvpcmpeqq xmm5,xmm3,xmm0\nvshufpd xmm5,xmm0,xmm5,0x0\nvpsubq xmm3,xmm3,xmm5\nvpshufb xmm9,xmm3,xmm1\nvpcmpeqq xmm5,xmm3,xmm0\nvshufpd xmm5,xmm0,xmm5,0x0\nvpsubq xmm3,xmm3,xmm5\nvpshufb xmm10,xmm3,xmm1\nvpcmpeqq xmm5,xmm3,xmm0\nvshufpd xmm5,xmm0,xmm5,0x0\nvpsubq xmm3,xmm3,xmm5\nvpshufb xmm11,xmm3,xmm1\nvpcmpeqq xmm5,xmm3,xmm0\nvshufpd xmm5,xmm0,xmm5,0x0\nvpsubq xmm3,xmm3,xmm5\nvpshufb xmm12,xmm3,xmm1\nvpcmpeqq xmm5,xmm3,xmm0\nvshufpd xmm5,xmm0,xmm5,0x0\nvpsubq xmm3,xmm3,xmm5\nvpshufb xmm13,xmm3,xmm1\nvpcmpeqq xmm5,xmm3,xmm0\nvshufpd xmm5,xmm0,xmm5,0x0\nvpsubq xmm3,xmm3,xmm5\nvpshufb xmm14,xmm3,xmm1\nvpcmpeqq xmm5,xmm3,xmm0\nvshufpd xmm5,xmm0,xmm5,0x0\nvpsubq xmm3,xmm3,xmm5\nvpshufb xmm15,xmm3,xmm1\nvpcmpeqq xmm5,xmm3,xmm0\nvpsubq xmm3,xmm3,xmm0\nvpslldq xmm5,xmm5,0x8\nvpsubq xmm3,xmm3,xmm5\nvpshufb xmm4,xmm3,xmm1\nvmovdqu XMMWORD PTR [rcx],xmm4",
+    "saved": 7,
+    "why": "For each of the first seven increments, VSHUFPD combines the constant low qword -1 and the overflow comparison mask into one subtrahend, replacing two subtractions and a shift with one shuffle and one subtraction. The last increment is unchanged to preserve the final xmm5 value."
+  },
+  "5e32bed10e": {
+    "rewrite": "vinsertf128 ymm8,ymm8,xmm9,0x1\nvinsertf128 ymm10,ymm10,xmm11,0x1\nvinsertf128 ymm12,ymm12,xmm13,0x1\nvinsertf128 ymm14,ymm14,xmm15,0x1\nvxorps ymm8,ymm8,YMMWORD PTR [rdx]\nvxorps ymm10,ymm10,YMMWORD PTR [rdx+0x20]\nvxorps ymm12,ymm12,YMMWORD PTR [rdx+0x40]\nvxorps ymm14,ymm14,YMMWORD PTR [rdx+0x60]\nvmovups YMMWORD PTR [rsi],ymm8\nvmovups YMMWORD PTR [rsi+0x20],ymm10\nvmovups YMMWORD PTR [rsi+0x40],ymm12\nvmovups YMMWORD PTR [rsi+0x60],ymm14",
+    "saved": 4,
+    "why": "Pack each pair of XMM inputs into a YMM register, then use AVX VXORPS and an unaligned 256-bit store to process the same bytes in three instructions instead of four. All modified vector registers are unconstrained, and the load and store byte ranges are unchanged."
+  },
+  "126b7ad798": {
+    "rewrite": null,
+    "why": "All eight byte-swapped transpose outputs, the broadcast value in ymm2, and the address in rax are live, leaving no removable shuffle, transpose stage, or setup instruction."
+  },
+  "4f716ea2c2": {
+    "rewrite": "",
+    "saved": 25,
+    "why": "Every instruction writes only unconstrained vector registers, so the entire block can be removed."
+  },
+  "b75a3c8549": {
+    "rewrite": "mov rax,QWORD PTR [rcx+0x8]\nbswap rax\nvzeroupper\nvbroadcasti128 ymm6,XMMWORD PTR [CONST_1]\nvpcmpeqd ymm0,ymm0,ymm0\nvpsrldq ymm0,ymm0,0x8\nvpaddq ymm5,ymm0,ymm0\nvmovdqu xmm3,XMMWORD PTR [rcx]\nvpshufb xmm3,xmm3,xmm6\nvpcmpeqq xmm4,xmm3,xmm0\nvpsubq xmm7,xmm3,xmm0\nvpslldq xmm4,xmm4,0x8\nvpsubq xmm7,xmm7,xmm4\nvinserti128 ymm3,ymm3,xmm7,0x1\nvpshufb ymm8,ymm3,ymm6\ncmp rax,0xffffffffffffffef",
+    "saved": 1,
+    "why": "Load and byte-reverse the original counter directly into xmm3, then compute the incremented counter in xmm7, eliminating the copy into xmm3 while retaining all required final values."
+  },
+  "4e8e26b664": {
+    "rewrite": null,
+    "why": "Each live counter output needs its own subtraction and byte shuffle, and the final 128-bit shuffle also supplies the required zero upper half of ymm3."
+  },
+  "4f1240eb6f": {
+    "rewrite": "vpunpckhdq xmm13,xmm2,xmm3\nvpunpckhdq xmm1,xmm0,xmm1\nvpunpcklqdq xmm0,xmm13,xmm1\nvpxor xmm0,xmm12,xmm0",
+    "saved": 20,
+    "why": "Only ymm0 is a live vector output, so retain its three unpack dependencies and final XOR and remove the other transpose and XOR operations."
+  },
+  "3564299ae4": {
+    "rewrite": null,
+    "why": "All six scalar load/XOR results are live, and SSE2 packing and extraction would not reduce the instruction count."
+  },
+  "01c349678f": {
+    "rewrite": null,
+    "why": "Each of the six required stores needs a separately keyed value, while the keyed rax and rbx values must also be retained."
+  },
+  "5aecd501a7": {
+    "rewrite": null,
+    "why": "Each destination requires both key mixing and a read-modify-write XOR, and rax and rbx must retain their keyed values."
+  },
+  "1e319a0f06": {
+    "rewrite": null,
+    "why": "All six loaded, keyed, rotated qwords are live, and SSE2 vectorization with unaligned loads and scalar extraction does not reduce the instruction count."
+  },
+  "13f7df3ca8": {
+    "rewrite": null,
+    "why": "The six required stores each need a rotation and key XOR, with the resulting rax and rbx values also live."
+  }
+}

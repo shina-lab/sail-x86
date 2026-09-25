@@ -1,0 +1,84 @@
+{
+  "d1184dd50e": {
+    "rewrite": null,
+    "why": "Each independent scalar broadcast requires a MOVD and a PSHUFD in SSE2."
+  },
+  "40b29d7779": {
+    "rewrite": null,
+    "why": "SSE4.1 still requires a separate scalar transfer and shuffle for each of these two broadcasts."
+  },
+  "ba7e381541": {
+    "rewrite": null,
+    "why": "Each of the eight live vectors requires a load, signed minimum, signed maximum, and store, and all three scalar updates are required."
+  },
+  "9215ea8605": {
+    "rewrite": null,
+    "why": "Clearing the 128-byte region requires eight SSE2-width stores and one instruction to zero xmm0."
+  },
+  "24160fe256": {
+    "rewrite": null,
+    "why": "Four 256-bit stores and zeroing ymm0 are required, while VZEROUPPER must also reproduce the upper halves of the other live vector registers."
+  },
+  "0fdf22ed19": {
+    "rewrite": null,
+    "why": "The eight stores already use the maximum SSE2 width, and the index update and its flags must be preserved."
+  },
+  "ec758539d6": {
+    "rewrite": null,
+    "why": "The eight stores already use the maximum AVX width, and the index update and its flags must be preserved."
+  },
+  "f98183fa9e": {
+    "rewrite": null,
+    "why": "The unknown row indices prevent combining the four 64-bit stores, and both the pointer and counter updates are required."
+  },
+  "b747a0d031": {
+    "rewrite": null,
+    "why": "The four stores use the maximum SSE2 width at independently indexed addresses, and both scalar updates are required."
+  },
+  "238e644f7e": {
+    "rewrite": null,
+    "why": "The unknown row indices prevent combining the four 64-bit stores even with AVX2, and both scalar updates are required."
+  },
+  "61b458fd6e": {
+    "rewrite": null,
+    "why": "The unknown row indices prevent replacing these four 128-bit stores with wider stores, and both scalar updates are required."
+  },
+  "820e72ce94": {
+    "rewrite": null,
+    "why": "Folding the unaligned loads into legacy SSE2 shuffles would require alignment, and the shifted intermediate vectors as well as the byte-swapped vectors must be preserved."
+  },
+  "860fd48af5": {
+    "rewrite": null,
+    "why": "The unaligned load cannot be folded into a legacy SSE2 shuffle without adding an alignment requirement, and both resulting vectors and pointer updates are live."
+  },
+  "79a596ec7b": {
+    "rewrite": "pshuflw xmm0,XMMWORD PTR [rsi],0xb1\npshuflw xmm1,XMMWORD PTR [rsi+0x10],0xb1\npshufhw xmm0,xmm0,0xb1\npshufhw xmm1,xmm1,0xb1\nmovdqa xmm2,xmm0\nmovdqa xmm3,xmm1\npsllw xmm0,0x8\npsllw xmm1,0x8\npsrlw xmm2,0x8\npsrlw xmm3,0x8\npor xmm2,xmm0\npor xmm3,xmm1\nmovdqa XMMWORD PTR [rdi],xmm2\nmovdqa XMMWORD PTR [rdi+0x10],xmm3\nadd rdi,0x20\nadd rsi,0x20\ndec ecx",
+    "saved": 2,
+    "why": "Fold each aligned MOVDQA load into the following PSHUFLW memory operand, preserving all intermediate vectors, stores, scalar updates, and flags."
+  },
+  "aa9f1207ef": {
+    "rewrite": "pshuflw xmm0,XMMWORD PTR [rsi],0xb1\npshufhw xmm0,xmm0,0xb1\nmovdqa xmm2,xmm0\npsllw xmm0,0x8\npsrlw xmm2,0x8\npor xmm2,xmm0\nmovdqa XMMWORD PTR [rdi],xmm2\nadd rsi,0x10\nadd rdi,0x10",
+    "saved": 1,
+    "why": "Fold the aligned MOVDQA load into PSHUFLW, leaving the remaining operations and all required final values unchanged."
+  },
+  "ac4ddf232b": {
+    "rewrite": null,
+    "why": "The load, BSWAP, store, two pointer updates, and counter decrement are all required under the allowed ISA."
+  },
+  "3fdd2ce007": {
+    "rewrite": null,
+    "why": "The constant load is live, and checking the combined low address bits requires the copy, OR, and TEST while preserving both source registers."
+  },
+  "e853365f4c": {
+    "rewrite": null,
+    "why": "Each vector requires a data load, PSHUFB using the live register mask, and store, followed by the three required scalar updates."
+  },
+  "f3ab063b81": {
+    "rewrite": null,
+    "why": "The data load, register-mask byte shuffle, store, and two pointer updates each perform a required operation."
+  },
+  "fce4fb7517": {
+    "rewrite": null,
+    "why": "PSHUFB takes its data from the destination register, so the aligned data loads cannot be folded into the shuffles, and the stores and scalar updates are required."
+  }
+}

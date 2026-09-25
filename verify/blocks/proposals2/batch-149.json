@@ -1,0 +1,83 @@
+{
+  "87a06a7f8d": {
+    "rewrite": null,
+    "why": "The two register copies, offset mask, vector zeroing, and comparison are all needed to preserve the required outputs and CF/ZF."
+  },
+  "d6af35bb49": {
+    "rewrite": null,
+    "why": "The required pointer copies, masked offset, zeroed zmm16, and comparison flags leave no removable instruction."
+  },
+  "5a28547118": {
+    "rewrite": null,
+    "why": "SSE2 provides no shorter way to copy the pointer, retain the masked offset, and produce the required comparison flags."
+  },
+  "8d427d3128": {
+    "rewrite": null,
+    "why": "The page-offset comparison still needs its copy and mask, while rdx and ymm0 must also receive their required values."
+  },
+  "553168c18b": {
+    "rewrite": null,
+    "why": "Both the adjusted edi and final eax are preserved, along with the final addition flags and the effects of vzeroupper."
+  },
+  "c48673a45e": {
+    "rewrite": null,
+    "why": "The subtraction and constant adjustment are needed for the preserved edi, and the count, final addition flags, and upper-vector clearing remain required."
+  },
+  "243f6ea0aa": {
+    "rewrite": null,
+    "why": "The preserved edi requires both its subtraction and offset adjustment, while the remaining instructions produce the count, addition flags, and cleared upper vector halves."
+  },
+  "6727155cf1": {
+    "rewrite": null,
+    "why": "Preserving edi, eax, the final addition flags, and the effects of vzeroupper prevents folding away any instruction."
+  },
+  "7734175a5c": {
+    "rewrite": null,
+    "why": "All loaded vectors, intermediate minima, the comparison mask, rcx, and the updated pointer are preserved, and ZF requires the final mask test."
+  },
+  "d56190133c": {
+    "rewrite": null,
+    "why": "The vector comparison, scalar mask, pointer difference, and mask-derived ZF are separate required outputs."
+  },
+  "c8766a3a20": {
+    "rewrite": null,
+    "why": "The shifted rcx and adjusted rdi are preserved, so mask assembly and address adjustment cannot be absorbed into the count and final flag-setting addition."
+  },
+  "aafacffe73": {
+    "rewrite": null,
+    "why": "Zeroing zmm16 and computing both comparison flags from the masked page offset require the existing four instructions."
+  },
+  "53b5df7053": {
+    "rewrite": null,
+    "why": "The loaded vectors, minima, both mask registers, and updated pointer are all preserved, with kortestd needed to produce the required ZF."
+  },
+  "f2e38e7dc5": {
+    "rewrite": null,
+    "why": "The preserved k2 and rdx require the comparison and mask transfer, followed by concatenation, trailing-zero count, and the flag-setting addition."
+  },
+  "27a2b684d3": {
+    "rewrite": null,
+    "why": "SSE2 requires separate zeroing of the four preserved vector registers, and the pointer copies, offset mask, and comparison are also required."
+  },
+  "a58a40ac5d": {
+    "rewrite": null,
+    "why": "The minimum reduction and byte comparison are required for xmm0, and SSE2 needs mask extraction plus a scalar test to produce ZF."
+  },
+  "da3536e9b9": {
+    "rewrite": null,
+    "why": "The comparison vectors and extracted masks in rsi, r8, and rcx are preserved, leaving no removable step in mask assembly, scanning, or the final flag-setting arithmetic."
+  },
+  "6d025cd369": {
+    "rewrite": null,
+    "why": "The saved count, both masked pointer offsets, all three vector constants, and comparison flags are required, with no shorter SSE2 combination."
+  },
+  "d833273179": {
+    "rewrite": null,
+    "why": "Each instruction supplies a distinct required output: the saved r9, two scalar constants, and the zeroed xmm0."
+  },
+  "85b9e022bc": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x1\nlea r10,[rdi+0x1]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. No flags must match, so one OR replaces the mask and subtraction."
+  }
+}

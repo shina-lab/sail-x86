@@ -1,0 +1,88 @@
+{
+  "3403a6b51d": {
+    "rewrite": null,
+    "why": "The AND-NOT result needs a full-width reduction before updating al, and all three scalar updates produce required values."
+  },
+  "21f150b799": {
+    "rewrite": "vmovdqu32 zmm18,ZMMWORD PTR [rdx+r10*1]\nvpandd zmm22,zmm22,zmm18\nvpmaxuw zmm17,zmm18,ZMMWORD PTR [rdi+r10*1]\nvpternlogq zmm16,zmm17,zmm18,0xf6\nadd r10,0x40",
+    "saved": 1,
+    "why": "Unsigned maximum is commutative, so the rdi load can be folded into vpmaxuw while retaining zmm18 for both other operations."
+  },
+  "b658bbb07a": {
+    "rewrite": null,
+    "why": "The widening loads, independent products, saturating subtraction, maximum, and boolean accumulation are all needed for arbitrary incoming vector values."
+  },
+  "31c292cec1": {
+    "rewrite": null,
+    "why": "The maximum and subtraction implement unsigned saturating dword subtraction, which has no single-instruction replacement in the allowed ISA, and the remaining results are needed."
+  },
+  "938eb763d5": {
+    "rewrite": null,
+    "why": "All register results are live, and broadcasting the four-byte constant requires both its load and a shuffle at SSE4.1 without reading additional bytes."
+  },
+  "e4cb1e9d8a": {
+    "rewrite": "vbroadcastss zmm16,xmm0\nvbroadcastss zmm17,xmm1\nmovsxd rsi,esi\nmov r8,QWORD PTR [rcx]\nmov r9,QWORD PTR [rcx+0x8]\nmov rax,QWORD PTR [rcx+0x10]\nmov r10,QWORD PTR [rcx+0x18]\nmov rbx,QWORD PTR [rcx+0x28]\nmov rbp,QWORD PTR [rcx+0x30]\nmov r14,QWORD PTR [rcx+0x38]\nmov r15,QWORD PTR [rcx+0x40]\nxor r13,r13\ncmp rsi,0x10",
+    "saved": 2,
+    "why": "The zeroing of zmm22 and the load into r11 have dead results and affect no required flags."
+  },
+  "d5539ae73a": {
+    "rewrite": null,
+    "why": "Both the low-bit remainder in r12 and the rounded-down value in rsi must survive, so the three scalar instructions and the live constant load are needed."
+  },
+  "85bfbc1ca0": {
+    "rewrite": "movd xmm3,edx\nmovd xmm4,ecx\nmovsx r9d,dx\nmovsx eax,cx\npshuflw xmm3,xmm3,0x0\npunpcklqdq xmm3,xmm3\npshuflw xmm4,xmm4,0x0\npunpcklqdq xmm4,xmm4\nxor edx,edx\npxor xmm0,xmm0\nmov ecx,r8d\nand ecx,0xf\nsar r8d,0x4\ncmp r8d,0x1",
+    "saved": 1,
+    "why": "The zeroing of xmm1 has no live result or flag effect and can be removed."
+  },
+  "061fef0c79": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rdi]\nmovdqa xmm2,xmm1\npunpcklbw xmm1,xmm0\npunpckhbw xmm2,xmm0\npsllw xmm1,0x4\npsllw xmm2,0x4\npmulhw xmm1,xmm3\npmulhw xmm2,xmm3\npaddw xmm1,xmm4\npaddw xmm2,xmm4\npackuswb xmm1,xmm2\nmovdqu XMMWORD PTR [rsi],xmm1\nadd rdi,0x10\nadd rsi,0x10\nsub r8d,0x1",
+    "saved": 1,
+    "why": "The subtraction already sets ZF according to whether the updated r8d is zero, making the final comparison redundant when only ZF must match."
+  },
+  "9e1e487a15": {
+    "rewrite": null,
+    "why": "The arithmetic, packed saturation, and transfer back to edx are needed for its live final value, alongside the byte store and three scalar updates."
+  },
+  "28dd187f3b": {
+    "rewrite": null,
+    "why": "Both arithmetic paths are needed for arbitrary coefficients and bias, and folding the unaligned load into legacy unpack memory operands would require unprovided alignment."
+  },
+  "3bf8016934": {
+    "rewrite": null,
+    "why": "Each instruction updates a distinct required scalar register, and the subtraction also supplies the required final flags."
+  },
+  "b0aa8e1d9c": {
+    "rewrite": null,
+    "why": "Both arithmetic paths are needed for arbitrary coefficients and bias, and folding the unaligned load into legacy unpack memory operands would require unprovided alignment."
+  },
+  "6ce2f690c4": {
+    "rewrite": null,
+    "why": "Each instruction updates a distinct required scalar register, and the subtraction also supplies the required final flags."
+  },
+  "032a733067": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdi+r11*1]\nvpunpckhbw ymm4,ymm0,YMMWORD PTR [rdx+r11*1]\nvpunpcklbw ymm0,ymm0,YMMWORD PTR [rdx+r11*1]\nvpmaddubsw ymm0,ymm0,ymm2\nvpmaddubsw ymm4,ymm4,ymm2\nvpaddw ymm0,ymm0,ymm3\nvpaddw ymm4,ymm4,ymm3\nvpsrlw ymm0,ymm0,0x7\nvpsrlw ymm4,ymm4,0x7\nvpackuswb ymm0,ymm0,ymm4\nvmovdqu YMMWORD PTR [r8+r11*1],ymm0\nadd r11,0x20",
+    "saved": 1,
+    "why": "Eliminate the standalone ymm1 load by using memory operands in both VEX unpack instructions, preserving the original address, width, and support for unaligned inputs."
+  },
+  "6aed511483": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdi+r11*1]\nvpunpckhwd ymm4,ymm0,YMMWORD PTR [rdx+r11*1]\nvpunpcklwd ymm0,ymm0,YMMWORD PTR [rdx+r11*1]\nvpmaddwd ymm0,ymm0,ymm2\nvpmaddwd ymm4,ymm4,ymm2\nvpaddd ymm0,ymm0,ymm3\nvpaddd ymm4,ymm4,ymm3\nvpsrld ymm0,ymm0,0xf\nvpsrld ymm4,ymm4,0xf\nvpackusdw ymm0,ymm0,ymm4\nvmovdqu YMMWORD PTR [r8+r11*1],ymm0\nadd r11,0x20",
+    "saved": 1,
+    "why": "Eliminate the standalone ymm1 load by using memory operands in both VEX unpack instructions, preserving the original address, width, and support for unaligned inputs."
+  },
+  "7aa2852f74": {
+    "rewrite": null,
+    "why": "Each of the four instructions independently produces a required final register value."
+  },
+  "28ac3e3db8": {
+    "rewrite": null,
+    "why": "The eight-byte load, unpack with arbitrary xmm1, variable arithmetic shift, and live scalar copy each perform necessary work at SSE2."
+  },
+  "a83d237a6e": {
+    "rewrite": null,
+    "why": "The load, arithmetic, packing, three stores, and three scalar updates are all required, with an unknown index preventing combination of the two xmm1 stores."
+  },
+  "39550c13ff": {
+    "rewrite": null,
+    "why": "All three scalar updates are live, and the comparison against arbitrary r9 is needed for the required SF and OF values."
+  }
+}

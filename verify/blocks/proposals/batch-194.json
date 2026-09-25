@@ -1,0 +1,83 @@
+{
+  "a0b3e825d9": {
+    "rewrite": null,
+    "why": "All four 256-bit loads and stores are needed, along with both live pointer updates and the flag-setting counter update."
+  },
+  "2327303307": {
+    "rewrite": null,
+    "why": "The four required 256-bit copies already use one load and one store each, and both pointer updates and the counter decrement are live."
+  },
+  "7b2867266f": {
+    "rewrite": null,
+    "why": "The row loads, two independent word products, bias addition, product addition, and shift all contribute to the preserved ymm0, while the stores and scalar updates are required."
+  },
+  "11f7755b87": {
+    "rewrite": null,
+    "why": "The four qword loads supply two distinct row pairs, and arbitrary coefficients and bias require the existing arithmetic before the two stores and live scalar updates."
+  },
+  "7aa5d73ee4": {
+    "rewrite": null,
+    "why": "Each input vector already combines two row loads with a memory-source insert, and the independent products, additions, shift, stores, and scalar updates remain necessary."
+  },
+  "07ff6211b8": {
+    "rewrite": null,
+    "why": "All four loads are folded into multiplications, and both rows require their own additions, shift, and store with arbitrary coefficient and bias vectors."
+  },
+  "fce41005c6": {
+    "rewrite": null,
+    "why": "The two output vectors require four memory-source products and separate additions and shifts, while both stores, pointer advances, and the counter decrement are live."
+  },
+  "1ca16c8463": {
+    "rewrite": null,
+    "why": "Both indexed output vectors require the existing memory-source products, additions, shifts, and stores, and the index subtraction must preserve its result and flags."
+  },
+  "f874bd3287": {
+    "rewrite": null,
+    "why": "AVX2 requires separate scalar-to-vector transfer and word broadcast instructions, and the scalar shift and flag-setting addition both produce required results."
+  },
+  "2b505e5ccb": {
+    "rewrite": null,
+    "why": "Both incremented pointers and their copies are live, as are the zero-extended byte and the flag-setting subtraction result."
+  },
+  "2ac8dd005e": {
+    "rewrite": null,
+    "why": "The qword broadcast and shift provide distinct multiplicands, and arbitrary coefficient and bias vectors require both products, both additions, and the final shift."
+  },
+  "d201ca13f8": {
+    "rewrite": null,
+    "why": "Both loads are already folded into word multiplications, and the arbitrary bias and coefficients leave no redundant addition or shift."
+  },
+  "d79ef78987": {
+    "rewrite": null,
+    "why": "The memory-source products, two additions, and shift are needed, and the final insert duplicates the result into the required upper half of ymm0."
+  },
+  "ce86d6657c": {
+    "rewrite": null,
+    "why": "The two memory-source products, bias addition, product addition, and shift each contribute to the required full-width ymm0 result."
+  },
+  "210c0629d4": {
+    "rewrite": "vmovq xmm0,QWORD PTR [rsi]\nvmovhps xmm0,xmm0,QWORD PTR [rsi+rdx*1]\nvmovq xmm1,QWORD PTR [rsi+rdx*2]\nvmovhps xmm1,xmm1,QWORD PTR [rsi+rax*1]\nlea rsi,[rsi+rdx*4]\nvinserti128 ymm0,ymm0,xmm1,0x1\nvpmullw ymm0,ymm0,ymm4\nvpsubw ymm0,ymm0,ymm5\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,0x20\nsub r8d,0x4",
+    "saved": 1,
+    "why": "Load the third and fourth qwords into the two halves of xmm1, then insert that pair into the upper half of ymm0. This replaces two broadcasts and two blends with three instructions while preserving all memory accesses and required results."
+  },
+  "9fb8215061": {
+    "rewrite": null,
+    "why": "The four row loads already use memory-source inserts to form two vectors, and each vector needs its own multiplication, subtraction, and store."
+  },
+  "3c6c877f1a": {
+    "rewrite": null,
+    "why": "Each of the four required output vectors already uses one memory-source multiplication, one subtraction, and one store, with live pointer and counter updates."
+  },
+  "542333e9b8": {
+    "rewrite": null,
+    "why": "All four memory-source products and bias subtractions feed required stores, and the source advance, destination advance, and counter subtraction are live."
+  },
+  "8f7b7b8afc": {
+    "rewrite": null,
+    "why": "The four vector transforms already fold their loads into multiplications, and every subtraction, store, pointer update, and counter decrement is needed."
+  },
+  "ae6f8d6cd6": {
+    "rewrite": null,
+    "why": "The unpack and shifted blend construct distinct word sequences including the fifth word of each row, and both sequences feed necessary arithmetic and the required store."
+  }
+}

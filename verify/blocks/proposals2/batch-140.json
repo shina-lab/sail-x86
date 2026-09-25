@@ -1,0 +1,86 @@
+{
+  "b8c8671e3b": {
+    "rewrite": null,
+    "why": "The fixed load addresses require the alignment sequence, and all comparison masks and transformed vectors must be preserved without AVX."
+  },
+  "884568f2e0": {
+    "rewrite": null,
+    "why": "The counter update, shifted vector, string index, and final CF/ZF comparison all produce required results."
+  },
+  "368c86ff2f": {
+    "rewrite": null,
+    "why": "All comparison masks, transformed vectors, and shifted scalar results are live, leaving no removable operation under the SSE4.2 limit."
+  },
+  "c14af6c87f": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0xc\nlea r10,[rdi+0xc]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. Flags are not live, so one OR replaces the AND and SUB."
+  },
+  "61df81c464": {
+    "rewrite": null,
+    "why": "The fixed load addresses require the alignment sequence, and all comparison masks and transformed vectors must be preserved without AVX."
+  },
+  "e8bb4437f8": {
+    "rewrite": null,
+    "why": "The counter update, shifted vector, string index, and final CF/ZF comparison all produce required results."
+  },
+  "5550bdf5f1": {
+    "rewrite": null,
+    "why": "All comparison masks, transformed vectors, and shifted scalar results are live, leaving no removable operation under the SSE4.2 limit."
+  },
+  "7ea34ab993": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0xd\nlea r10,[rdi+0xd]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. Flags are not live, so one OR replaces the AND and SUB."
+  },
+  "f97eac11e4": {
+    "rewrite": null,
+    "why": "The fixed load addresses require the alignment sequence, and all comparison masks and transformed vectors must be preserved without AVX."
+  },
+  "b7b1b7866a": {
+    "rewrite": null,
+    "why": "The counter update, shifted vector, string index, and final CF/ZF comparison all produce required results."
+  },
+  "37a884a495": {
+    "rewrite": null,
+    "why": "All comparison masks, transformed vectors, and shifted scalar results are live, leaving no removable operation under the SSE4.2 limit."
+  },
+  "9bedc3a064": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0xe\nlea r10,[rdi+0xe]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. Flags are not live, so one OR replaces the AND and SUB."
+  },
+  "ecfe734603": {
+    "rewrite": null,
+    "why": "The fixed load addresses require the alignment sequence, and all comparison masks and transformed vectors must be preserved without AVX."
+  },
+  "35fcf193ad": {
+    "rewrite": null,
+    "why": "The counter update, shifted vector, string index, and final CF/ZF comparison all produce required results."
+  },
+  "57391a27a2": {
+    "rewrite": null,
+    "why": "All comparison masks, transformed vectors, and shifted scalar results are live, leaving no removable operation under the SSE4.2 limit."
+  },
+  "90b930f4ae": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0xf\nlea r10,[rdi+0xf]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000. Flags are not live, so one OR replaces the AND and SUB."
+  },
+  "b8fbcebeeb": {
+    "rewrite": null,
+    "why": "The fixed load addresses require the alignment sequence, and all comparison masks and transformed vectors must be preserved without AVX."
+  },
+  "1aec40f14f": {
+    "rewrite": null,
+    "why": "The string instruction must preserve the zero index, while its flags cannot replace the required comparison against zero."
+  },
+  "ce87ce7106": {
+    "rewrite": null,
+    "why": "The load, all four comparison masks, both transformed vectors, and the final string index and CF are required under the SSE4.2 limit."
+  },
+  "94002912f2": {
+    "rewrite": null,
+    "why": "The pointer copy, scalar and full YMM zeroing, low-seven-bit extraction, and final CF/ZF comparison each contribute a required result."
+  }
+}

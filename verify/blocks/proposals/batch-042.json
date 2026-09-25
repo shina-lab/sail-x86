@@ -1,0 +1,83 @@
+{
+  "1c1c0f6c2e": {
+    "rewrite": null,
+    "why": "Each row already uses one load, one memory-source average, and one store, and both pointer updates and the counter subtraction are required."
+  },
+  "0dd94893b3": {
+    "rewrite": null,
+    "why": "The four SSE2 vectors each require their load, average, and store, while the pointer updates and flag-producing counter subtraction remain live."
+  },
+  "0665ecbaf0": {
+    "rewrite": null,
+    "why": "The four load-average-store sequences already use the widest permitted vectors, and all three scalar updates are required."
+  },
+  "f4e1d54777": {
+    "rewrite": null,
+    "why": "All eight SSE2 load-average-store sequences contribute stored results, and no pointer or counter update is dead."
+  },
+  "7d54f61a3b": {
+    "rewrite": null,
+    "why": "Each independently addressed row already uses one AVX2 load, one memory-source average, and one store, with required scalar updates."
+  },
+  "f00028e8ea": {
+    "rewrite": null,
+    "why": "The four AVX2 vectors already have a minimal load-average-store sequence, and the two pointer updates and counter subtraction are live."
+  },
+  "40f543840d": {
+    "rewrite": null,
+    "why": "The block already processes each 256-bit result with one load, one memory-source average, and one store, followed by required scalar updates."
+  },
+  "bb95be793e": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and accumulator require both dot products, and the signed saturation, shift, packing, and extraction are needed for the four strided stores."
+  },
+  "d32c5ce9cd": {
+    "rewrite": null,
+    "why": "Both independent accumulators and all three shuffles are live, and the unsigned packing, shift, narrowing, and extraction produce the four separately addressed outputs."
+  },
+  "0516aaa1db": {
+    "rewrite": null,
+    "why": "The arbitrary byte permutations feed two required accumulators, and the narrowing sequence already ends in a direct store and an extraction to memory."
+  },
+  "59bd06ca77": {
+    "rewrite": null,
+    "why": "All four accumulators and five shuffles contribute output bytes, and the two required word shifts cannot be moved after byte saturation."
+  },
+  "cecd477920": {
+    "rewrite": null,
+    "why": "Both overlapping loads and all four accumulator chains are live, with the packing sequence producing the full stored vector."
+  },
+  "90145a3341": {
+    "rewrite": null,
+    "why": "Each of the four instructions produces a distinct required register value, and the subtraction also supplies the required flags."
+  },
+  "22f9a9cd85": {
+    "rewrite": null,
+    "why": "The filter conversion and extraction are needed, and combining the two averages would require an additional vector insertion without reducing the instruction count."
+  },
+  "3d4194cdad": {
+    "rewrite": null,
+    "why": "The live filter accumulators and packing stages are required, while combining the two averages would add an insertion that cancels the saving."
+  },
+  "84377b8d64": {
+    "rewrite": null,
+    "why": "The two destination loads are already combined for a single vector average, and the remaining permutations, accumulations, conversions, and stores are live."
+  },
+  "4ef2c3daf0": {
+    "rewrite": null,
+    "why": "The four accumulator chains and both shifts are required, and the destination rows already share a single vector average."
+  },
+  "0318c1374a": {
+    "rewrite": null,
+    "why": "All filter intermediates contribute to the stored vector, and the destination load is already folded into the final average."
+  },
+  "57bc78c509": {
+    "rewrite": null,
+    "why": "Each instruction initializes a different required XMM register, with no redundant load or zeroing operation."
+  },
+  "8025535843": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdx-0x6]\nmovdqu xmm1,XMMWORD PTR [rdx-0x4]\nmovdqa xmm4,xmm0\npunpcklwd xmm0,xmm1\npunpckhwd xmm4,xmm1\npmaddwd xmm0,xmm7\npmaddwd xmm4,xmm9\nmovdqu xmm2,XMMWORD PTR [rdx-0x2]\nmovdqu xmm1,XMMWORD PTR [rdx]\nmovdqa xmm3,xmm2\npunpcklwd xmm2,xmm1\npunpckhwd xmm3,xmm1\npmaddwd xmm2,xmm8\npmaddwd xmm3,xmm10\npaddd xmm0,xmm2\npaddd xmm0,xmm4\npaddd xmm0,xmm3\npaddd xmm0,xmm6\npsrad xmm0,0x7\npackssdw xmm0,xmm0\npminsw xmm0,xmm5\npmaxsw xmm0,xmm11\nmovq QWORD PTR [rdi],xmm0\nadd rdx,rcx\nadd rdi,rsi\ndec r8d",
+    "saved": 2,
+    "why": "Reuse the high words of four widened unaligned loads for the later tap pairs, removing four loads at the cost of two copies. Every loaded byte was read by the original block, and the products, clipping, store, pointer updates, and final flags are preserved."
+  }
+}

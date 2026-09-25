@@ -1,0 +1,47 @@
+{
+  "7cf3c1a2fe": {
+    "rewrite": "xchg rcx,rdx\nmov r8d,ecx\nshr rcx,0x3\nand r8d,0x7",
+    "saved": 2,
+    "why": "XCHG replaces the three moves that swap rcx and rdx through the dead temporary r10. Copying ecx after the swap preserves r8, and the unchanged shift and mask preserve the final flags."
+  },
+  "cec1976d7f": {
+    "rewrite": null,
+    "why": "The multiply and all three independent pointer updates produce required outputs, with LEA preserving the incoming CF and OF."
+  },
+  "7a91b6eea0": {
+    "rewrite": null,
+    "why": "The store requires the OF-dependent sum, and both following additions contribute to rax using distinct carry inputs and an unconstrained rcx."
+  },
+  "297e24defe": {
+    "rewrite": null,
+    "why": "The product, counter update, stored sum, and CF-dependent addition are all required, while both independent carry chains must be preserved."
+  },
+  "ddf2b4fe9b": {
+    "rewrite": null,
+    "why": "Both product halves, the CF-dependent addition, and the OF-dependent register result and store are required, and ADOX has no memory-destination form."
+  },
+  "f5f585dfae": {
+    "rewrite": null,
+    "why": "Every instruction contributes a required product, pointer, carry, or stored result, and the OF-dependent addition cannot be folded into its store."
+  },
+  "287b643359": {
+    "rewrite": null,
+    "why": "The multiply, two independent carry additions, and store all produce required outputs, with no memory-destination ADOX available to combine the last two operations on r10."
+  },
+  "cc8f8bec45": {
+    "rewrite": null,
+    "why": "Both product halves and both carry chains are live, and the required r9 result and store need separate ADOX and MOV instructions."
+  },
+  "01c4d091d9": {
+    "rewrite": null,
+    "why": "Both product halves, the CF-dependent sum, and the OF-dependent r10 result and store are required, preventing an instruction from being removed."
+  },
+  "abb31f0f38": {
+    "rewrite": null,
+    "why": "Both multiplies, the CF-dependent sum, the pointer update, and the OF-dependent store are required even though the first r9 result is overwritten after being stored."
+  },
+  "65bb429ecf": {
+    "rewrite": null,
+    "why": "The multiply, both independent pointer updates, and the carry-dependent addition each produce required outputs, with LEA preserving the carry consumed by ADC."
+  }
+}

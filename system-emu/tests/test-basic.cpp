@@ -1230,6 +1230,33 @@ TEST(legacy_call_gate_same_privilege_and_faults) {
   }
 }
 
+TEST(legacy_privilege_stack_descriptor_faults) {
+  // SDM Vol.2A CALL, MORE-PRIVILEGE: an invalid SS descriptor-table
+  // index causes #TS, but paging faults during its implicit read remain #PF.
+  for (bool page_fault : {false, true}) {
+    x86::Model model;
+    init_call_gate(model, true, true, 0);
+    model.phys_mem.write16(0x6008, 0x1000); // SS0 descriptor at linear 0x2000.
+    model.zGDTR_limit = page_fault ? 0x1007 : 0x3f;
+    model.zCR0 |= 1UL << 31;
+    model.zCR4 = 0;
+    model.zCR3 = 0x7000;
+    model.phys_mem.write32(0x7000, 0x8007);
+    for (unsigned i = 0; i < 1024; ++i)
+      model.phys_mem.write32(0x8000 + i * 4, i == 2 ? 0 : (i << 12) | 7);
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, true);
+    ASSERT_EQ((u64)model.zfault_vector, page_fault ? 14UL : 10UL);
+    ASSERT_EQ((u64)model.zfault_error_code, page_fault ? 0UL : 0x1000UL);
+    if (page_fault) ASSERT_EQ((u64)model.zCR2, 0x2000UL);
+    ASSERT_EQ((u64)model.zcur_cpl, 3UL);
+    ASSERT_EQ((u64)model.zRIP, 0x100UL);
+    ASSERT_EQ((u64)model.zGPR.data[4], 0x800UL);
+    ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], 0x1bUL);
+    model.model_fini();
+  }
+}
+
 TEST(legacy_retf_code_validation) {
   // A Win16 loader returns to a not-present segment to demand-load it.
   // Check the whole return target, both operand widths and fault atomicity.
@@ -2333,6 +2360,162 @@ TEST(push_seg_ud_in_64bit) {
 
 // =========================================================================
 
+TEST(sse_shuffle_rip_relative_immediate) {
+  for (bool packed_double : {true, false}) {
+    x86::Model model;
+    init_model(model);
+    const u64 initial[8] = {0x1111222233334444, 0x5555666677778888,
+                           2, 3, 4, 5, 6, 7};
+    lbits value;
+    CREATE(lbits)(&value);
+    x86::bytes_to_bits(&value, reinterpret_cast<const u8 *>(initial), 64, 512);
+    COPY(lbits)(&model.zZMM.data[0], value);
+    KILL(lbits)(&value);
+    model.phys_mem.write64(0x100040, 0xAAAABBBBCCCCDDDD);
+    model.phys_mem.write64(0x100048, 0xEEEEFFFF00001111);
+    // The RIP base includes imm8. Omitting it makes the aligned operand
+    // appear misaligned and raises #GP, as in FreeBSD init's allocator.
+    const u8 pd[] = {0x66, 0x0F, 0xC6, 0x05, 0x37, 0, 0, 0, 0x02, 0xF4};
+    const u8 ps[] = {0x0F, 0xC6, 0x05, 0xB8, 0xFF, 0xFF, 0xFF, 0x6C, 0xF4};
+    int result = packed_double ? run_code(model, 0x100000, pd, sizeof(pd)) :
+                                 run_code(model, 0x100080, ps, sizeof(ps));
+    ASSERT_EQ(result, RUN_HALTED);
+    u64 actual[8];
+    x86::bits_to_bytes(model.zZMM.data[0], reinterpret_cast<u8 *>(actual), 64);
+    ASSERT_EQ(actual[0], packed_double ? 0x1111222233334444UL : 0x5555666633334444UL);
+    ASSERT_EQ(actual[1], packed_double ? 0xEEEEFFFF00001111UL : 0xAAAABBBB00001111UL);
+    for (unsigned i = 2; i < 8; ++i) ASSERT_EQ(actual[i], initial[i]);
+    model.model_fini();
+  }
+}
+
+TEST(ide_busmaster_pci_io) {
+  x86::Model model;
+  init_model(model);
+  model.z__port_out32(0xCF8, 0x80000920);
+  model.z__port_out32(0xCFC, 0xFFFFFFFF);
+  ASSERT_EQ(model.z__port_in32(0xCFC), 0xFFFFFFF1UL);
+  model.z__port_out32(0xCFC, 0xC001);
+  ASSERT_EQ(model.z__port_in8(0xC000), 0xFFUL); // PCI I/O decode disabled
+  model.z__port_out32(0xCF8, 0x80000904);
+  model.z__port_out16(0xCFC, 5);
+  ASSERT_EQ(model.z__port_in16(0xC000), 0UL);
+  // Both channels, through the real port dispatcher at all access widths.
+  model.z__port_out32(0xC004, 0x1234567B);
+  ASSERT_EQ(model.z__port_in32(0xC004), 0x12345678UL);
+  ASSERT_EQ(model.z__port_in32(0xC00C), 0UL);
+  model.z__port_out16(0xC008, 0xFF09);
+  ASSERT_EQ(model.z__port_in16(0xC008), 9UL);
+  ASSERT_EQ(model.z__port_in8(0xC00A), 1UL);
+  model.z__port_out8(0xC008, 0);
+  ASSERT_EQ(model.z__port_in8(0xC00A), 0UL);
+  model.z__port_out32(0xCF8, 0x80000920);
+  model.z__port_out32(0xCFC, 0xD001);
+  ASSERT_EQ(model.z__port_in32(0xC004), 0xFFFFFFFFUL);
+  ASSERT_EQ(model.z__port_in32(0xD004), 0x12345678UL);
+  model.z__port_out32(0xCF8, 0x80000904);
+  model.z__port_out16(0xCFC, 4);
+  ASSERT_EQ(model.z__port_in8(0xD000), 0xFFUL);
+  model.model_fini();
+}
+
+TEST(lmsw_preserves_cr0_and_cached_segments) {
+  // SDM Vol.2A LMSW and Vol.3A 12.9.1: setting PE enters protected mode;
+  // the following far jump loads CS from the GDT, retaining other caches.
+  for (bool memory_operand : {false, true}) {
+    x86::Model model;
+    init_model_16(model);
+    model.zCR0 = 0x10030; // Preserve WP, NE and ET across both LMSW writes.
+    model.zGDTR_base = 0x800;
+    model.zGDTR_limit = 15;
+    model.phys_mem.write64(0x808, 0x00009B040000FFFFUL); // 16-bit CS at 0x40000
+    model.phys_mem.write16(0x9000, 0x000F);
+    const u8 reg_code[] = {
+      0xB8, 0x0F, 0x00,             // mov ax, 0x000f
+      0x0F, 0x01, 0xF0,             // lmsw ax
+      0xEA, 0x34, 0x12, 0x08, 0x00, // jmp 0008:1234
+    };
+    const u8 mem_code[] = {
+      0xB8, 0x0F, 0x00,
+      0x0F, 0x01, 0x36, 0x00, 0x90, // lmsw word [0x9000]
+      0xEA, 0x34, 0x12, 0x08, 0x00,
+    };
+    const u8 target[] = {
+      0x31, 0xC0,                   // xor ax, ax
+      0x0F, 0x01, 0xF0,             // lmsw ax: PE is sticky; MP/EM/TS clear
+      0xB8, 0xEF, 0xBE,             // mov ax, 0xbeef
+      0xF4,
+    };
+    model.phys_mem.write_bytes(0x41234, target, sizeof(target));
+    ASSERT_EQ(run_code(model, 0x1000, memory_operand ? mem_code : reg_code,
+                       memory_operand ? sizeof(mem_code) : sizeof(reg_code), 2), RUN_OK);
+    ASSERT_EQ(model.zcur_mode, x86::zProtectedMode);
+    ASSERT_EQ((u64)model.zCR0, 0x1003FUL);
+    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0UL);
+    model.zstep(UNIT); // Far JMP must use the descriptor, not selector << 4.
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_CS].zseg_base, 0x40000UL);
+    ASSERT_EQ((u64)model.zRIP, 0x1234UL);
+    for (unsigned i = 0; i < 4; ++i) model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ(model.zsystem_state, x86::zSysHalted);
+    ASSERT_EQ((u64)model.zCR0, 0x10031UL);
+    ASSERT_EQ((u64)model.zGPR.data[0], 0xBEEFUL);
+    model.model_fini();
+  }
+}
+
+TEST(xlat_segmented_table_lookup) {
+  // SDM Vol.2D XLAT/XLATB: use DS by default, honor a segment override,
+  // index with unsigned AL, write only AL and preserve flags.
+  for (unsigned mode : {16u, 32u, 64u}) {
+    for (bool override_fs : {false, true}) {
+      x86::Model model;
+      if (mode == 16) init_model_16(model);
+      else if (mode == 32) init_model_32(model);
+      else init_model(model);
+      model.zSegReg.data[x86::SEG_DS] = mode == 16 ? 0x2000 : 0x10;
+      model.zSegReg.data[x86::SEG_FS] = mode == 16 ? 0x3000 : 0x18;
+      model.zSegCache.data[x86::SEG_DS].zseg_base = 0x20000;
+      model.zSegCache.data[x86::SEG_FS].zseg_base = 0x30000;
+      model.zGPR.data[0] = 0x1122334455667780UL;
+      model.zGPR.data[3] = 0x400;
+      model.zCF = 1; model.zPF = 0; model.zAF = 1;
+      model.zZF = 0; model.zSF = 1; model.zOF = 1;
+      u64 flags = model.zread_rflags(UNIT);
+      model.phys_mem.write8(0x480, 0x37);   // Unsegmented lookup is distinct.
+      model.phys_mem.write8(0x20480, 0xA5);
+      model.phys_mem.write8(0x30480, 0xB6);
+      const u8 code[] = {0x64, 0xD7, 0xF4}; // FS override; or just XLAT; HLT
+      ASSERT_EQ(run_code(model, 0x5000, code + !override_fs,
+                         sizeof(code) - !override_fs), RUN_HALTED);
+      u64 byte = override_fs ? 0xB6 : mode == 64 ? 0x37 : 0xA5;
+      ASSERT_EQ((u64)model.zGPR.data[0], 0x1122334455667700UL | byte);
+      ASSERT_EQ((u64)model.zGPR.data[3], 0x400UL);
+      ASSERT_EQ((u64)model.zread_rflags(UNIT), flags);
+      model.model_fini();
+    }
+  }
+}
+
+TEST(xlat_segment_limit_fault) {
+  for (bool override_ss : {false, true}) {
+    x86::Model model;
+    init_model_32(model);
+    auto seg = override_ss ? x86::SEG_SS : x86::SEG_DS;
+    model.zSegReg.data[seg] = 0x10;
+    model.zSegCache.data[seg].zseg_limit = 0x47F;
+    model.zGPR.data[0] = 0x80;
+    model.zGPR.data[3] = 0x400;
+    const u8 code[] = {0x36, 0xD7, 0xF4};
+    ASSERT_EQ(run_code(model, 0x5000, code + !override_ss,
+                       sizeof(code) - !override_ss), RUN_FAULTED);
+    ASSERT_EQ((u64)model.zfault_vector, override_ss ? 12UL : 13UL);
+    ASSERT_EQ((u64)model.zGPR.data[0], 0x80UL);
+    model.model_fini();
+  }
+}
+
 int main() {
   printf("System emulator tests:\n");
 
@@ -2346,6 +2529,8 @@ int main() {
   run_test_jmp_forward_hlt();
   run_test_loop_counter_hlt();
   run_test_system_regs_initial_values();
+  run_test_ide_busmaster_pci_io();
+  run_test_sse_shuffle_rip_relative_immediate();
 
   printf("\nPrivileged instruction tests:\n");
   run_test_mov_cr0_read_write();
@@ -2393,6 +2578,7 @@ int main() {
   printf("\nProtected mode far transfer tests:\n");
   run_test_legacy_call_gate_privilege_stacks();
   run_test_legacy_call_gate_same_privilege_and_faults();
+  run_test_legacy_privilege_stack_descriptor_faults();
   run_test_legacy_retf_code_validation();
   run_test_legacy_retf_outer_parameters_and_faults();
   run_test_ldt_cached_descriptor_lookup();
@@ -2403,7 +2589,10 @@ int main() {
   printf("\nMode transition tests:\n");
   run_test_real_to_protected_mode_transition();
   run_test_lmsw_enters_protected_mode();
+  run_test_lmsw_preserves_cr0_and_cached_segments();
   run_test_lmsw_preserves_pe_and_long_mode();
+  run_test_xlat_segmented_table_lookup();
+  run_test_xlat_segment_limit_fault();
 
   printf("\nIRET tests:\n");
   run_test_real_mode_iret_no_pop_sp_ss();

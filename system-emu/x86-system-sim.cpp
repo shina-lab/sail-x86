@@ -50,6 +50,7 @@ static void dump_bits_hex(FILE *out, const Bits &bits, int n_words) {
 static void dump_registers(FILE *out, u64 insn_count, const x86::Model &model) {
   const char *mode_str = (model.zcur_mode == x86::zLongMode) ? "L" :
                          (model.zcur_mode == x86::zProtectedMode) ? "P" :
+                         (model.zcur_mode == x86::zVirtual8086Mode) ? "V" :
                          (model.zcur_mode == x86::zRealMode) ? "R" : "C";
   if (model.zcur_mode == x86::zLongMode) {
     fprintf(out, "[%lu] RIP=%016lx mode=%s\n",
@@ -135,6 +136,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  SIGUSR1                       Dump CPU and interrupt-controller state to stderr, continue\n");
   fprintf(stderr, "  SAIL_X86_TRACE_REAL_UD=1       Dump recent execution on real-mode vector-6 handler entry\n");
   fprintf(stderr, "  SAIL_X86_TRACE_ADDRESS        Dump recent execution once at this linear code address\n");
+  fprintf(stderr, "  SAIL_X86_TRACE_ADDRESS_STEPS  Trace this many steps after that address, then stop\n");
 }
 
 // Read a file into a malloc'd buffer. Returns size, or 0 on error.
@@ -1073,6 +1075,7 @@ int main(int argc, char *argv[]) {
   bool trace_real_ud = getenv("SAIL_X86_TRACE_REAL_UD") != nullptr;
   bool trace_address_enabled = getenv("SAIL_X86_TRACE_ADDRESS") != nullptr;
   u64 trace_address = parse_env_u64("SAIL_X86_TRACE_ADDRESS", 0);
+  u64 trace_address_steps = parse_env_u64("SAIL_X86_TRACE_ADDRESS_STEPS", 0);
   bool trace_address_seen = false;
   struct TraceLocation { u64 count, ip, address; u16 cs; bool physical; };
   TraceLocation recent[64] = {};
@@ -1160,10 +1163,20 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "  APIC SVR=%08x TPR=%02x PPR=%02x TIMER=%08x COUNT=%u pending=%d\n",
             model.lapic.read(0xF0), model.lapic.read(0x80), model.lapic.read(0xA0),
             model.lapic.read(0x320), model.lapic.read(0x390), model.lapic.pending());
+    fprintf(stderr, "    initial=%u divide=%x LINT0=%08x LINT1=%08x clock=%lu ns\n",
+            model.lapic.read(0x380), model.lapic.read(0x3E0), model.lapic.read(0x350), model.lapic.read(0x360), model.tsc);
+    for (unsigned group = 0; group < 8; ++group)
+      fprintf(stderr, "    vectors %3u-%3u IRR=%08x ISR=%08x TMR=%08x\n", group * 32, group * 32 + 31,
+              model.lapic.read(0x200 + group * 16), model.lapic.read(0x100 + group * 16), model.lapic.read(0x180 + group * 16));
     fprintf(stderr, "  PIC master IRR=%02x IMR=%02x ISR=%02x  slave IRR=%02x IMR=%02x ISR=%02x  %s\n",
             model.pic_master.get_irr(), model.pic_master.get_imr(), model.pic_master.get_isr(),
             model.pic_slave.get_irr(), model.pic_slave.get_imr(), model.pic_slave.get_isr(),
             model.zsystem_state == x86::zSysHalted ? "halted" : "running");
+    model.ioapic.dump(stderr);
+    model.pit.dump(stderr);
+    model.cmos.dump(stderr);
+    model.ide0.dump(stderr);
+    model.ide1.dump(stderr);
     fprintf(stderr, "  VGA text screen:\n");
     unsigned start = model.vga.start_addr() * 2;
     for (unsigned y = 0; y < model.vga.text_rows(); ++y) {
@@ -1246,6 +1259,14 @@ int main(int argc, char *argv[]) {
                 trace_address, insn_count);
         dump_recent();
         dump_state();
+        if (trace_address_steps) {
+          // Address-triggered windows remain useful when keyboard timing
+          // changes the instruction count before the code of interest.
+          trace_window_enabled = has_trace_end = true;
+          trace_start = insn_count;
+          trace_end = insn_count + std::min(trace_address_steps, UINT64_MAX - insn_count);
+          trace_step = 1;
+        }
       }
     }
     model.zstep(UNIT);
@@ -1389,6 +1410,8 @@ int main(int argc, char *argv[]) {
               model.set_irq(4, model.uart.has_irq());
           }
           model.tsc += TSC_PER_PIT_TICK;
+          model.kbd.tick();
+          model.set_irq(1, model.kbd.has_data());
           if (model.pit.tick(PIT_CYCLES_PER_TICK))
             model.pulse_irq(0);
         }
@@ -1457,6 +1480,7 @@ int main(int argc, char *argv[]) {
 
     // Periodic PIT tick
     if (insn_count >= next_pit_tick) {
+      model.kbd.tick();
       if (model.pit.tick(PIT_CYCLES_PER_TICK)) {
         model.pulse_irq(0);
       }

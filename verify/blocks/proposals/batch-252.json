@@ -1,0 +1,90 @@
+{
+  "5aea612813": {
+    "rewrite": null,
+    "why": "All eight loads and eight stores are required, and both pointer updates plus the flag-producing length subtraction are live."
+  },
+  "03004ceaed": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi-0x10]\nmovdqu xmm1,XMMWORD PTR [rsi-0x20]\nmovdqu xmm2,XMMWORD PTR [rsi-0x30]\nmovdqu xmm3,XMMWORD PTR [rsi-0x40]\nmovntdq XMMWORD PTR [rdi-0x10],xmm0\nmovntdq XMMWORD PTR [rdi-0x20],xmm1\nmovntdq XMMWORD PTR [rdi-0x30],xmm2\nmovntdq XMMWORD PTR [rdi-0x40],xmm3\nsub rdx,0x40",
+    "saved": 2,
+    "why": "The final rsi and rdi values are dead, so both pointer updates can be removed without changing any load or store address."
+  },
+  "575f4d1f96": {
+    "rewrite": null,
+    "why": "The eight vector copies require all sixteen memory instructions, and the three scalar updates preserve required register values and CF."
+  },
+  "754d120807": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi-0x10]\nmovdqu xmm1,XMMWORD PTR [rsi-0x20]\nmovdqu xmm2,XMMWORD PTR [rsi-0x30]\nmovdqu xmm3,XMMWORD PTR [rsi-0x40]\nmovaps XMMWORD PTR [rdi-0x10],xmm0\nmovaps XMMWORD PTR [rdi-0x20],xmm1\nmovaps XMMWORD PTR [rdi-0x30],xmm2\nmovaps XMMWORD PTR [rdi-0x40],xmm3\nsub rdx,0x40",
+    "saved": 2,
+    "why": "Neither updated pointer is live, so the two LEAs can be dropped while retaining all memory operations and the length update."
+  },
+  "db49a79929": {
+    "rewrite": null,
+    "why": "Pointer rounding needs an addition and a mask, while the independent length adjustment needs an addition and a subtraction."
+  },
+  "073752abfd": {
+    "rewrite": null,
+    "why": "The independent pointer rounding and length adjustment each require two scalar operations."
+  },
+  "bee6421ffd": {
+    "rewrite": "vpcmpeqb ymm1,ymm0,YMMWORD PTR [rdi]\nvpcmpeqb ymm2,ymm0,YMMWORD PTR [rdi+0x20]\nvpcmpeqb ymm3,ymm0,YMMWORD PTR [rdi+0x40]\nvpcmpeqb ymm4,ymm0,YMMWORD PTR [rdi+0x60]\nvpor ymm5,ymm2,ymm1\nvpor ymm6,ymm4,ymm3\nvpor ymm5,ymm6,ymm5\nvptest ymm5,ymm5",
+    "saved": 5,
+    "why": "Fold the four loads into the comparisons and replace movemask plus test with vptest. Every comparison byte is zero or 0xff, so testing the combined vector for zero produces the same ZF."
+  },
+  "fb60ee553c": {
+    "rewrite": null,
+    "why": "Mask extraction, bit scanning, address addition, and the required clearing of ymm0's upper half cannot be combined into fewer instructions."
+  },
+  "a9b6c50df2": {
+    "rewrite": null,
+    "why": "The offset addition wraps at 32 bits, and BSR has an undefined destination for zero input, so folding both additions into a 64-bit LEA is not generally safe without a nonzero-input guarantee."
+  },
+  "dfbdfe4c53": {
+    "rewrite": null,
+    "why": "Without a nonzero-input guarantee for BSR, its undefined zero-input result prevents safely folding the wrapping 32-bit offset addition into the 64-bit address addition."
+  },
+  "7b2c1f679b": {
+    "rewrite": "vpcmpeqb ymm1,ymm0,YMMWORD PTR [rdi]\nxor ecx,ecx\nbts rcx,rdx\nlea rdx,[rcx-0x1]\nvpmovmskb eax,ymm1\nand eax,edx",
+    "saved": 2,
+    "why": "Register BTS uses the low six index bits to construct the same shifted bit, reducing mask construction to three instructions. The final AND already sets the required ZF, making TEST redundant."
+  },
+  "bc4eb78a12": {
+    "rewrite": "lea esi,[rcx+rdx*1]\nmov r8d,ecx\nand rdi,0xffffffffffffffe0\nsub esi,0x20",
+    "saved": 1,
+    "why": "LEA combines the copy and 32-bit addition, while the unchanged final subtraction preserves both CF and ZF."
+  },
+  "a147d23461": {
+    "rewrite": "vpcmpeqb ymm1,ymm0,YMMWORD PTR [rdi]\nvpmovmskb eax,ymm1\nsar eax,cl\nxor ecx,ecx\nbts ecx,edx\nlea edx,[rcx-0x1]\nand eax,edx",
+    "saved": 2,
+    "why": "After SAR consumes the original CL, a zeroed ECX and 32-bit BTS construct the same modulo-32 shifted bit with one fewer mask-building instruction. AND supplies the required ZF without a separate TEST."
+  },
+  "69f9f8dada": {
+    "rewrite": null,
+    "why": "The bit-scan result and two independent address terms need two additions, and vzeroupper is required to preserve the specified final ymm0 value."
+  },
+  "6506b2ed37": {
+    "rewrite": "vpcmpeqb ymm1,ymm0,YMMWORD PTR [rdi+0x20]\nxor edx,edx\nbts edx,esi\nsub edx,0x1\nvpmovmskb eax,ymm1\nand eax,edx",
+    "saved": 2,
+    "why": "Zeroing EDX and setting the bit indexed by ESI replaces the move-to-CL, initialization, and shift with two instructions. The final AND also makes TEST redundant."
+  },
+  "eb77dc50dc": {
+    "rewrite": null,
+    "why": "All data operations are necessary, and TEST cannot be removed because a zero effective shift count leaves ZF unchanged."
+  },
+  "b87ef53b02": {
+    "rewrite": null,
+    "why": "Pointer rounding and the independent length adjustment each need two scalar operations, with no common intermediate available to eliminate one."
+  },
+  "152eed7853": {
+    "rewrite": null,
+    "why": "The rounded pointer requires both the addition and mask, and the independent length expression requires both its addition and subtraction."
+  },
+  "83bf780b22": {
+    "rewrite": null,
+    "why": "All four comparison masks are live, and two KOR operations followed by KORTEST already reduce their combined nonzero condition in three instructions."
+  },
+  "75104c0c78": {
+    "rewrite": "vpcmpeqb k1,ymm16,YMMWORD PTR [rdi]\nxor ecx,ecx\nbts rcx,rdx\nlea rdx,[rcx-0x1]\nkmovd eax,k1\nand eax,edx",
+    "saved": 2,
+    "why": "A zeroed RCX and 64-bit BTS reproduce the shift's modulo-64 count while saving one mask-building instruction. AND sets the same ZF as the removed TEST."
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "8441aae804": {
+    "rewrite": null,
+    "why": "Both loads, the zeroing of r9, and the two live register updates are required, with the final subtraction also supplying all required flags."
+  },
+  "cc14ba88b4": {
+    "rewrite": null,
+    "why": "Every limb addition and carry accumulation contributes to a preserved result, and both pointer and count updates remain live."
+  },
+  "a22b36b40f": {
+    "rewrite": null,
+    "why": "The end-around carry propagation and all masked or shifted limb contributions affect the required rax or rdx outputs."
+  },
+  "72746d8a2b": {
+    "rewrite": null,
+    "why": "The two multiplications, carry adjustment, loaded subtraction, partial rcx update, and index increment all contribute to preserved outputs or ZF."
+  },
+  "b13acb75a6": {
+    "rewrite": "mov r8,QWORD PTR [rcx]\nmov r9,QWORD PTR [rcx+0x8]\nmov rax,QWORD PTR [rsi]\nimul r11,rdx,0xffffffffffffffff\nlea rsi,[rsi+rdx*8-0x8]\nlea rdi,[rdi+rdx*8-0x8]\nand edx,0x3",
+    "saved": 1,
+    "why": "Three-operand IMUL by -1 computes the negated copy of rdx directly in r11, replacing MOV and NEG. The final AND still supplies the required ZF."
+  },
+  "d8a05fd6af": {
+    "rewrite": null,
+    "why": "Both full-width products, their live result copies, the load, zeroing, and index update are needed, and the final addition supplies the required CF."
+  },
+  "5ab6b13b1b": {
+    "rewrite": null,
+    "why": "The full product must be copied from its implicit result registers into rbx and rcx, and rbp must independently be zeroed."
+  },
+  "d0e2b2c76c": {
+    "rewrite": null,
+    "why": "Both product halves, all three independently zeroed registers, and the incremented index are preserved outputs."
+  },
+  "02bdce639e": {
+    "rewrite": null,
+    "why": "Both product copies, both zeroed registers, the replacement load into rax, and the index decrement are required."
+  },
+  "fa442b2a1f": {
+    "rewrite": null,
+    "why": "The products and carry chains all contribute to live results or the store, and initializing ebp is necessary to produce a full-register carry value."
+  },
+  "c0eb56db6a": {
+    "rewrite": null,
+    "why": "All three products feed required outputs, the repeated load restores an operand destroyed by MUL, and r10 needs both initialization and carry capture."
+  },
+  "7c5f75e39e": {
+    "rewrite": null,
+    "why": "The repeated load restores the required rax after MUL, while the store, carry accumulation, full-register carry capture, and rcx zeroing are all necessary."
+  },
+  "5ecd6ac2d0": {
+    "rewrite": null,
+    "why": "Both multiplications, the carry-linked additions, the load and store, and the index update supplying SF all remain necessary."
+  },
+  "5ba7af502c": {
+    "rewrite": null,
+    "why": "The product, carry accumulation, both stores, and transfer of the final high sum into rax are all required."
+  },
+  "046d84d9a2": {
+    "rewrite": null,
+    "why": "The block must independently zero rax, negate r8 to generate carry, load the first operand, and add the second operand with matching flags."
+  },
+  "54537b382c": {
+    "rewrite": null,
+    "why": "The block must independently zero rax, negate r8 to generate borrow, load the first operand, and subtract the second operand with matching flags."
+  },
+  "68fe671179": {
+    "rewrite": null,
+    "why": "The carry-aware right shift and full-register bit extraction are required, as are the preserved two-bit count and its comparison supplying ZF."
+  },
+  "824c024249": {
+    "rewrite": null,
+    "why": "The borrow-aware right shift and full-register bit extraction are required, as are the preserved two-bit count and its comparison supplying ZF."
+  },
+  "a5a2466025": {
+    "rewrite": null,
+    "why": "The four-limb carry chain, cross-limb rotations, four stores, final rbx transfer, and live pointer and count updates contain no removable operation."
+  },
+  "0ebcebd485": {
+    "rewrite": null,
+    "why": "The four-limb borrow chain, cross-limb rotations, four stores, final rbx transfer, and live pointer and count updates contain no removable operation."
+  }
+}

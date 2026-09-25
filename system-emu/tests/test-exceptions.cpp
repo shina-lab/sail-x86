@@ -739,6 +739,59 @@ TEST(pm32_trap_gate_preserves_if) {
   model.model_fini();
 }
 
+TEST(pm32_interrupt_reloads_ss_cache) {
+  // SDM Vol.3A §§3.4.3, 7.12.1: an interprivilege INT loads both the
+  // selector and descriptor cache of the TSS's stack segment. FreeBSD
+  // BTX enters from a client whose SS base is 0xA000 into a flat stack.
+  x86::Model model;
+  init_model_32(model);
+  model.zCR0 &= ~(1ULL << 31);  // No paging: isolate segmentation.
+  model.zGDTR_base = 0x6000;
+  model.zGDTR_limit = 0x27;
+  model.phys_mem.write64(0x6008, 0x00CF9A000000FFFFULL); // kernel CS
+  model.phys_mem.write64(0x6010, 0x004092000000FFFFULL); // kernel SS, base 0
+  model.phys_mem.write64(0x6018, 0x00CFFA000000FFFFULL); // user CS
+  model.phys_mem.write64(0x6020, 0x00CFF200A000FFFFULL); // user SS, base 0xA000
+  model.zload_segment_register(x86::SEG_CS, 0x1B);
+  model.zload_segment_register(x86::SEG_SS, 0x23);
+  model.zcur_cpl = 3;
+  model.zIF_flag = 0;
+  constexpr u32 user_esp = 0x94BE0;
+  constexpr u32 kernel_esp = 0x1800;
+  model.zGPR.data[4] = user_esp;
+  model.phys_mem.write32(TSS32_BASE + 4, kernel_esp);
+  model.phys_mem.write16(TSS32_BASE + 8, 0x10);
+  write_idt_gate_32(model.phys_mem, IDT32_BASE, 0x30, 0x200000,
+                    0x08, 0x0E, 3, true);
+
+  // Read the saved ESP through SS, use the handler stack, and return.
+  const u8 handler[] = {0x8B, 0x44, 0x24, 0x0C, // mov eax,[esp+12]
+                        0x16, 0x5B,             // push ss; pop ebx
+                        0xCF};                  // iretd
+  model.phys_mem.write_bytes(0x200000, handler, sizeof(handler));
+  const u8 code[] = {0xCD, 0x30, 0x90};
+  model.phys_mem.write_bytes(CODE_ADDR, code, sizeof(code));
+  model.zRIP = CODE_ADDR;
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ((u64)model.zRIP, 0x200000UL);
+  ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], 0x10UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_base, 0UL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_limit, 0xFFFFUL);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_dpl, 0UL);
+  ASSERT_EQ((u64)model.zGPR.data[4], kernel_esp - 20UL);
+  ASSERT_EQ(model.phys_mem.read32(kernel_esp - 8), user_esp);
+  for (int i = 0; i < 4; ++i) model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ((u64)model.zGPR.data[0], user_esp);
+  ASSERT_EQ((u64)model.zGPR.data[3], 0x10UL);
+  ASSERT_EQ((u64)model.zRIP, CODE_ADDR + 2);
+  ASSERT_EQ((u64)model.zcur_cpl, 3UL);
+  ASSERT_EQ((u64)model.zGPR.data[4], user_esp);
+  ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_base, 0xA000UL);
+  model.model_fini();
+}
+
 // =========================================================================
 // Real mode IVT tests
 // =========================================================================
@@ -892,6 +945,22 @@ TEST(pm32_external_interrupt_vector8_no_error_code) {
   model.model_fini();
 }
 
+TEST(sti_delays_pending_interrupt_one_instruction) {
+  x86::Model model;
+  init_model_32(model);
+  program_pic_base8(model);
+  const u64 handler = 0x200000;
+  model.phys_mem.write8(handler, 0xf4);
+  write_idt_gate_32(model.phys_mem, IDT32_BASE, 8, handler, 8, 0xe, 0, true);
+  model.zIF_flag = 0;
+  model.pic_master.raise_irq(0);
+  const u8 code[] = {0xfb, 0xb8,0x78,0x56,0x34,0x12, 0xf4};
+  ASSERT_EQ(run_code(model, code, sizeof(code)), RUN_HALTED);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0x12345678UL);
+  ASSERT_EQ(model.phys_mem.read32(model.zGPR.data[4]), CODE_ADDR + 6);
+  model.model_fini();
+}
+
 TEST(external_interrupt_vector8_no_error_code) {
   // The same interrupt through a 64-bit gate: SS, RSP, RFLAGS, CS, RIP and
   // no error code.
@@ -942,12 +1011,14 @@ int main() {
   run_test_pm32_divide_error_delivery();
   run_test_pm32_interrupt_gate_clears_if();
   run_test_pm32_trap_gate_preserves_if();
+  run_test_pm32_interrupt_reloads_ss_cache();
 
   // Real mode IVT delivery
   run_test_real_mode_ivt_delivery();
 
   // External interrupts at exception vectors
   run_test_pm32_external_interrupt_vector8_no_error_code();
+  run_test_sti_delays_pending_interrupt_one_instruction();
   run_test_external_interrupt_vector8_no_error_code();
 
   printf("\n  %d passed, %d failed\n", tests_passed, tests_failed);

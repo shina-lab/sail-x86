@@ -1,0 +1,79 @@
+{
+  "6731840d66": {
+    "rewrite": null,
+    "why": "The two permutation and arithmetic chains, live index updates, distinct stores, pointer update, and flag-setting subtraction all remain necessary."
+  },
+  "75247c296e": {
+    "rewrite": null,
+    "why": "Both independently rounded products feed the required packed result and store, and the decrement supplies the required counter and ZF."
+  },
+  "397d45bc1f": {
+    "rewrite": null,
+    "why": "Each instruction produces a required vector value, pointer value, or comparison flag."
+  },
+  "7124f2c598": {
+    "rewrite": null,
+    "why": "The live scalar and broadcast results, arbitrary XOR and unsigned clamp, memory permutation, and final ZF test require separate operations."
+  },
+  "0e0dbc1465": {
+    "rewrite": null,
+    "why": "The permutation, saturated arithmetic, narrowing, live index update, four distinct stores, and counter update have no removable intermediate."
+  },
+  "743450ceb6": {
+    "rewrite": null,
+    "why": "All four instructions produce distinct required vector results, including the broadcast value used by the unsigned minimum."
+  },
+  "a3e5f1f0d6": {
+    "rewrite": null,
+    "why": "All four instructions produce distinct required vector results, including the broadcast value used by the unsigned minimum."
+  },
+  "0f7cb1b2f1": {
+    "rewrite": null,
+    "why": "The mask value must be preserved in full, and the broadcast merge, independent load, shift results, and saturated pack all contribute to required outputs."
+  },
+  "77b4c903ed": {
+    "rewrite": null,
+    "why": "The saturated word pack and subsequent shift form a live result, while the byte pack and masked shuffle produce two further required results."
+  },
+  "f57be0745b": {
+    "rewrite": null,
+    "why": "Both memory operations build the required zmm3 value, and the arbitrary merge mask makes both shuffle results necessary for zmm19."
+  },
+  "7c714c602e": {
+    "rewrite": null,
+    "why": "The dot products need both accumulator initializations, and copying ymm21 is necessary to retain its old value while computing its required replacement for the pack."
+  },
+  "6b4d5372cb": {
+    "rewrite": null,
+    "why": "The shift, pack, and shuffle all produce required vector values, so an extraction store cannot eliminate the shuffle."
+  },
+  "effaa157b2": {
+    "rewrite": null,
+    "why": "The four-byte zero-extending load and asymmetric saturated multiply cannot be folded together, and the remaining arithmetic and comparison determine required outputs."
+  },
+  "f033dc431d": {
+    "rewrite": "pshufd xmm1,xmm0,0xee\npaddw xmm0,xmm1\nmovdqa xmm1,xmm0\npsrlq xmm1,0x20\npaddw xmm0,xmm1\npsrlw xmm0,0x2\nmov eax,0x5556\nmov edx,0x3334\ntest r8d,0x8",
+    "saved": 1,
+    "why": "PSHUFD with immediate 0xee duplicates the input's high quadword, replacing the initial copy and unpack while preserving both final XMM values."
+  },
+  "a6fa05fd2e": {
+    "rewrite": null,
+    "why": "The four stores use independently specified addresses, and both the pointer update and flag-setting counter update are required."
+  },
+  "6f6c0b239f": {
+    "rewrite": null,
+    "why": "The unsigned-byte load, saturated multiply, word reduction, preserved shuffled intermediate, final multiply and shift, and comparison have no removable operation."
+  },
+  "732314923f": {
+    "rewrite": null,
+    "why": "PMADDUBSW requires the loaded unsigned bytes in its destructive destination, so both loads, both saturated products, and their sum remain necessary."
+  },
+  "22c9249ccd": {
+    "rewrite": null,
+    "why": "The two independently saturated products and word reduction feed both live XMM results, and their arbitrary coefficients prevent combining the products before saturation."
+  },
+  "65ff10ac64": {
+    "rewrite": null,
+    "why": "Each load supplies the unsigned destination operand of a separate saturated product, and three additions are needed to combine the four results."
+  }
+}

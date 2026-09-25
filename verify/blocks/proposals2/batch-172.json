@@ -1,0 +1,83 @@
+{
+  "0d185e6a19": {
+    "rewrite": null,
+    "why": "The load, three pointer updates, index negation, and copy-and-mask computation all produce required values, with the mask also supplying ZF."
+  },
+  "8f28caa1fb": {
+    "rewrite": null,
+    "why": "The complemented load, three pointer updates, index negation, and copy-and-mask computation are all needed for the required register values and ZF."
+  },
+  "80fc40d68d": {
+    "rewrite": null,
+    "why": "Baseline instructions cannot fuse this NAND computation, and its store and the required index decrement are independent."
+  },
+  "15edfd5119": {
+    "rewrite": null,
+    "why": "Baseline instructions cannot fuse this NOR computation, and its store and the required index decrement are independent."
+  },
+  "d64670b27c": {
+    "rewrite": null,
+    "why": "The AND and NOT are both needed for the live NAND result, followed by its store and the index increment that supplies the required flags."
+  },
+  "4ae28fb69c": {
+    "rewrite": null,
+    "why": "The OR and NOT are both needed for the live NOR result, followed by its store and the index increment that supplies the required flags."
+  },
+  "04598790d1": {
+    "rewrite": null,
+    "why": "Both NAND results need separate AND and NOT operations and stores, and the second result also requires its source load."
+  },
+  "86ecd5bff3": {
+    "rewrite": null,
+    "why": "Both NOR results need separate OR and NOT operations and stores, and the second result also requires its source load."
+  },
+  "5f6e076137": {
+    "rewrite": "movq mm0,QWORD PTR [rdx+rcx*8+0x8]\nand r8,QWORD PTR [rsi+rcx*8]\npandn mm0,QWORD PTR [rsi+rcx*8+0x8]\nmov QWORD PTR [rdi+rcx*8],r8\nmovq QWORD PTR [rdi+rcx*8+0x8],mm0",
+    "saved": 1,
+    "why": "MMX PANDN combines the second limb's inversion and AND, and its result can be stored directly because r9 is not live. MMX registers and flags are unconstrained, all XMM registers remain unchanged, and the memory accesses retain their original addresses and widths."
+  },
+  "04d51c32a6": {
+    "rewrite": null,
+    "why": "The second result needs a load, inversion, OR, and store, while the first result independently needs its OR and store."
+  },
+  "c323505dc2": {
+    "rewrite": null,
+    "why": "Baseline instructions provide no fused XNOR, so the second result's load and inversion remain necessary alongside both XOR operations and stores."
+  },
+  "e6f5b65513": {
+    "rewrite": null,
+    "why": "The source load, two AND operations, two stores, and flag-setting index update are all required, with both result registers live."
+  },
+  "378ae453d3": {
+    "rewrite": null,
+    "why": "The source load, two OR operations, two stores, and flag-setting index update are all required, with both result registers live."
+  },
+  "045fe569e2": {
+    "rewrite": null,
+    "why": "The source load, two XOR operations, two stores, and flag-setting index update are all required, with both result registers live."
+  },
+  "e5fc288511": {
+    "rewrite": null,
+    "why": "Both live NAND results require separate AND and NOT operations, and the source load, stores, and flag-setting index update cannot be dropped."
+  },
+  "8bd9b202c4": {
+    "rewrite": null,
+    "why": "Both live NOR results require separate OR and NOT operations, and the source load, stores, and flag-setting index update cannot be dropped."
+  },
+  "968638c227": {
+    "rewrite": null,
+    "why": "Using MMX PANDN would require a transfer back to live r9, eliminating its instruction saving while both stores and the flag-setting index update remain necessary."
+  },
+  "31a45160e1": {
+    "rewrite": null,
+    "why": "The load and inversion are needed for the second live result, and both OR operations, both stores, and the flag-setting index update are required."
+  },
+  "56f8d89a63": {
+    "rewrite": null,
+    "why": "The load and inversion are needed for the second live result, and both XOR operations, both stores, and the flag-setting index update are required."
+  },
+  "3ec477c3ab": {
+    "rewrite": null,
+    "why": "The two copies and indexed load produce three independent required register values, and the comparison is needed to produce CF."
+  }
+}

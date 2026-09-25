@@ -1,0 +1,82 @@
+{
+  "7674a8276b": {
+    "rewrite": null,
+    "why": "The stored intermediate, borrow-dependent update of r8, and both halves of the new product require the existing subtraction, store, subtraction, load, and multiply."
+  },
+  "a2c6fae188": {
+    "rewrite": null,
+    "why": "The stored intermediate, borrow-dependent update of r8, and both halves of the new product require the existing subtraction, store, subtraction, load, and multiply."
+  },
+  "1031aef8d7": {
+    "rewrite": null,
+    "why": "The stored intermediate, borrow-dependent update of r8, and both halves of the new product require the existing subtraction, store, subtraction, load, and multiply."
+  },
+  "bcf01b2a96": {
+    "rewrite": null,
+    "why": "Both the intermediate store and final r8 value are required, and the independent r9 increment must also produce the specified flags."
+  },
+  "d6584c2399": {
+    "rewrite": null,
+    "why": "Combining the r10 copy and decrement into LEA would lose the required ZF, while every other move produces a required register value."
+  },
+  "81c87d125f": {
+    "rewrite": null,
+    "why": "Both pointer updates and the index negation are required, while the final test supplies an independent required ZF."
+  },
+  "4871db80b9": {
+    "rewrite": null,
+    "why": "The multiply and load feed two necessary subtractions whose borrows must be accumulated while retaining the original EBX bits 8 through 31."
+  },
+  "93665d2e18": {
+    "rewrite": null,
+    "why": "Replacing the shifts and OR with SHRD changes the result for counts divisible by 64, and zero-extending ECX and clearing RBX are also required."
+  },
+  "7055d4515e": {
+    "rewrite": null,
+    "why": "The product high half, shifted load, negated ECX, and two separately accumulated borrows all contribute to required outputs."
+  },
+  "78bbbdb4db": {
+    "rewrite": null,
+    "why": "The multiply, load, shift, ECX negation, store, and index increment each produce a required effect, including ZF from the increment."
+  },
+  "e3907548e5": {
+    "rewrite": null,
+    "why": "Both halves of MUL remain live, and the two subtractions, final multiplication, and store are all needed to produce the required r9, memory, and flag results."
+  },
+  "0bfc50f616": {
+    "rewrite": null,
+    "why": "The nonzero mask, three pointer updates, negated index, and separate modulo-four result with its ZF require the existing operations."
+  },
+  "4704740354": {
+    "rewrite": null,
+    "why": "All three masked limbs and sum limbs remain live, so folding loads into arithmetic would require replacement copies, while the carry result and index update are also required."
+  },
+  "e3a5d062a7": {
+    "rewrite": null,
+    "why": "All three masked limbs and difference limbs remain live, and the stores, borrow result, and index update leave no redundant operation."
+  },
+  "94cc0b9a57": {
+    "rewrite": null,
+    "why": "Both masked limbs and sum limbs remain live, so folding loads into arithmetic would require replacement copies, while the carry result and index update are also required."
+  },
+  "a70e5477f7": {
+    "rewrite": null,
+    "why": "Both masked limbs and difference limbs remain live, and the stores, borrow result, and index update leave no redundant operation."
+  },
+  "b689b67197": {
+    "rewrite": null,
+    "why": "The masked operand and sum must both remain in their specified registers, and the store, carry mask, and flag-setting index increment are required."
+  },
+  "46d8571aa8": {
+    "rewrite": null,
+    "why": "The masked operand and difference must both remain in their specified registers, and the store, borrow mask, and flag-setting index increment are required."
+  },
+  "e824e90ae0": {
+    "rewrite": null,
+    "why": "All four masked limbs and sum limbs remain live, and extracting the incoming carry, storing every sum, materializing the outgoing carry, and updating the index are necessary."
+  },
+  "8a9c219621": {
+    "rewrite": null,
+    "why": "All four masked limbs and difference limbs remain live, and extracting the incoming borrow, storing every difference, materializing the outgoing borrow, and updating the index are necessary."
+  }
+}

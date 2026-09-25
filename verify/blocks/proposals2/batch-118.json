@@ -1,0 +1,82 @@
+{
+  "f2d6232345": {
+    "rewrite": null,
+    "why": "The SSE2 reduction must preserve the intermediate xmm1 and xmm4 values and the full xmm0 result, leaving no removable shuffle, addition, shift, or packing step."
+  },
+  "27d560518e": {
+    "rewrite": null,
+    "why": "The live intermediate xmm1 and xmm4 values and the dependence on the incoming upper half of xmm0 prevent shortening the SSE2 reduction."
+  },
+  "f8300edefa": {
+    "rewrite": null,
+    "why": "Both loads, word subtractions, multiply-adds, and accumulations remain necessary even though xmm1 is scratch, and the pointer updates and comparison supply required final values."
+  },
+  "ce4a043a3b": {
+    "rewrite": null,
+    "why": "The live SSE2 reduction intermediates, arbitrary xmm7 correction, arithmetic shift, and signed saturation each require their existing operations."
+  },
+  "db09dbcc55": {
+    "rewrite": null,
+    "why": "Preserving xmm1 and the full xmm0 result requires the reduction steps, while SSE2 needs the comparison and selection sequence to produce both the signed minimum and the live xmm4 mask."
+  },
+  "d6747799af": {
+    "rewrite": null,
+    "why": "The reduction and shift remain necessary, and SSE2 has no signed dword minimum instruction to shorten the comparison and selection while retaining the xmm4 mask."
+  },
+  "6226cb4c28": {
+    "rewrite": null,
+    "why": "The live reduction intermediates and arbitrary xmm2 bound require the existing SSE2 reduction, shift, comparison, and selection operations."
+  },
+  "a4ffbc73b4": {
+    "rewrite": null,
+    "why": "The shifted dwords are not confined to signed words, so SSE2 word minimum instructions cannot replace the signed dword comparison and selection, and the reduction intermediates remain live."
+  },
+  "cfcbbeca57": {
+    "rewrite": null,
+    "why": "Neither the shifted dwords nor the arbitrary xmm2 bound permit a word minimum substitution, and the live xmm1 and xmm4 results prevent removing the reduction or comparison steps."
+  },
+  "2dcac76ea6": {
+    "rewrite": null,
+    "why": "The live reduction result, arbitrary xmm7 correction, shift, and SSE2 signed minimum sequence are all needed to preserve xmm0, xmm1, and the xmm4 comparison mask."
+  },
+  "5ef55bf398": {
+    "rewrite": null,
+    "why": "Each instruction independently produces a required result: two sign-extended indices, two zeroed vector registers, and the r11 copy."
+  },
+  "cd52e7604b": {
+    "rewrite": null,
+    "why": "The arbitrary xmm3 bytes and signed word coefficients require both unpack and multiply-add paths, whose results and accumulations are live along with the updated pointers and comparison flags."
+  },
+  "c2312de04d": {
+    "rewrite": null,
+    "why": "Two horizontal additions, an arithmetic shift, and signed packing already implement the reduction compactly, and the store and both integer register updates are required."
+  },
+  "b23128677d": {
+    "rewrite": null,
+    "why": "Both loaded vectors and multiply-add results feed live accumulators, and SSSE3 cannot fuse these operations or the required pointer updates and comparison."
+  },
+  "77845ca507": {
+    "rewrite": null,
+    "why": "The two horizontal additions, shift, and saturating pack are all necessary for arbitrary input dwords, followed by the required store and register updates."
+  },
+  "c43ab902a8": {
+    "rewrite": null,
+    "why": "SSSE3 already reduces both vectors in two horizontal additions, and the required arithmetic shift, saturation, store, and register updates cannot be eliminated."
+  },
+  "e23c8c9baa": {
+    "rewrite": null,
+    "why": "The compact horizontal reduction still needs a separate arithmetic shift and signed pack to preserve the complete xmm4 result and stored values."
+  },
+  "65805eb9c2": {
+    "rewrite": null,
+    "why": "The shifted sums can exceed the signed word range, so packing remains necessary after the two horizontal additions and shift, alongside the required store and register updates."
+  },
+  "a642798c48": {
+    "rewrite": null,
+    "why": "Both arbitrary word subtractions, signed multiply-adds, and accumulations produce live results, and the required pointer updates and comparison cannot be folded into those vector operations."
+  },
+  "1091ea6b86": {
+    "rewrite": null,
+    "why": "The arbitrary xmm7 correction must follow the horizontal sums before shifting and saturation, and SSSE3 provides no shorter sequence preserving the full xmm4 result and required stores and updates."
+  }
+}

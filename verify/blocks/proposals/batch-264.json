@@ -1,0 +1,98 @@
+{
+  "205e3f7026": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0x4\nmovdqa xmm9,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npand xmm1,xmm9\npand xmm1,xmm7\npor xmm1,XMMWORD PTR [rsi]\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm10,xmm11\npand xmm10,xmm7\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Reuse xmm1 for its range mask and fold the original bytes into the final POR memory operand, eliminating one register copy."
+  },
+  "4258e2cdc4": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xc\nlea r10,[rdi+0xc]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are not live."
+  },
+  "49d2fe7325": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm4,XMMWORD PTR [rdi+rcx*1]\nshufps xmm3,xmm4,0xf\nshufps xmm3,xmm4,0x98\nmovdqa xmm9,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npand xmm1,xmm9\npand xmm1,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm10,xmm3\nmovdqa xmm11,xmm6\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm3\npand xmm10,xmm11\npand xmm10,xmm7\npor xmm3,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm3\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 3,
+    "why": "Two SHUFPS instructions construct the old high dword followed by the new low three dwords while keeping the loaded vector in xmm4. Folding the original rsi bytes into POR removes another copy."
+  },
+  "3bc60d53cb": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0x3\nmovdqa xmm9,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npand xmm1,xmm9\npand xmm1,xmm7\npor xmm1,XMMWORD PTR [rsi]\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm10,xmm11\npand xmm10,xmm7\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Reuse xmm1 for its range mask and fold the original bytes into the final POR memory operand, eliminating one register copy."
+  },
+  "14b88209da": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xd\nlea r10,[rdi+0xd]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are not live."
+  },
+  "645d157e50": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0xd\npslldq xmm2,0x3\npor xmm2,xmm3\nmovdqa xmm9,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npand xmm1,xmm9\npand xmm1,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm10,xmm11\npand xmm10,xmm7\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Compute the upper-bound comparison before overwriting xmm1 with its lower-bound mask, then recover the original bytes through POR's memory operand instead of a register copy."
+  },
+  "18eb45d4a6": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0x2\nmovdqa xmm9,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npand xmm1,xmm9\npand xmm1,xmm7\npor xmm1,XMMWORD PTR [rsi]\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm10,xmm11\npand xmm10,xmm7\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Reuse xmm1 for its range mask and fold the original bytes into the final POR memory operand, eliminating one register copy."
+  },
+  "02ea725d80": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xe\nlea r10,[rdi+0xe]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are not live."
+  },
+  "1ddcebf78c": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0xe\npslldq xmm2,0x2\npor xmm2,xmm3\nmovdqa xmm9,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npand xmm1,xmm9\npand xmm1,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm10,xmm11\npand xmm10,xmm7\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Compute the upper-bound comparison before overwriting xmm1 with its lower-bound mask, then recover the original bytes through POR's memory operand instead of a register copy."
+  },
+  "cd608f6e16": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0x1\nmovdqa xmm9,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npand xmm1,xmm9\npand xmm1,xmm7\npor xmm1,XMMWORD PTR [rsi]\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm10,xmm11\npand xmm10,xmm7\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "Reuse xmm1 for its range mask and fold the original bytes into the final POR memory operand, eliminating one register copy."
+  },
+  "469d497d63": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xf\nlea r10,[rdi+0xf]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit value x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are not live."
+  },
+  "4c522f5358": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0xf\npslldq xmm2,0x1\npor xmm2,xmm3\nmovdqa xmm9,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npand xmm1,xmm9\npand xmm1,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm10,xmm11\npand xmm10,xmm7\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Compute the upper-bound comparison before overwriting xmm1 with its lower-bound mask, then recover the original bytes through POR's memory operand instead of a register copy."
+  },
+  "167108726d": {
+    "rewrite": "movdqa xmm8,xmm1\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm3\npcmpgtb xmm8,xmm5\npcmpgtb xmm9,xmm1\npcmpgtb xmm10,xmm5\npcmpgtb xmm6,xmm3\npand xmm8,xmm9\npand xmm10,xmm6\npand xmm8,xmm7\npand xmm10,xmm7\npor xmm1,xmm8\npor xmm3,xmm10\npcmpeqb xmm1,xmm3\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nnot edx",
+    "saved": 1,
+    "why": "The final value of xmm6 is dead, so its second upper-bound comparison can overwrite it directly and eliminate the copy to xmm11."
+  },
+  "8e463fce1f": {
+    "rewrite": null,
+    "why": "Both masked scalar values, all three constant vectors, and the final comparison flags are required, leaving no redundant instruction."
+  },
+  "68b9cad387": {
+    "rewrite": null,
+    "why": "The unaligned inputs need explicit loads, and the arbitrary preserved thresholds require both comparisons and mask applications for each vector."
+  },
+  "72b6215052": {
+    "rewrite": null,
+    "why": "Each register update produces a distinct live value, and the final comparison is needed to establish both CF and ZF."
+  },
+  "ca96f0d796": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi]\nlea r9,[rax+0xf]\nsub r9,rcx",
+    "saved": 1,
+    "why": "The load into xmm2 has no consumer and xmm2 is not a required output."
+  },
+  "eb0b6f277e": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm8,xmm5\nmovdqa xmm10,xmm5\npcmpgtb xmm8,xmm1\npcmpgtb xmm10,xmm2\npcmpgtb xmm1,xmm4\npcmpgtb xmm2,xmm4\npand xmm1,xmm8\npand xmm2,xmm10\npand xmm1,xmm6\npand xmm2,xmm6\npor xmm1,XMMWORD PTR [rsi]\npor xmm2,XMMWORD PTR [rdi]\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb r9d,xmm1\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 2,
+    "why": "Reuse both loaded vectors for their range masks and fold their original bytes into the POR memory operands, removing two register copies."
+  },
+  "ab0915f099": {
+    "rewrite": null,
+    "why": "Both range conversions and the shifted mask subtraction contribute to live outputs, and the arbitrary preserved thresholds prevent simplifying the zero-filled lanes."
+  },
+  "1a7e299c24": {
+    "rewrite": "mov rcx,0x10\nmov r9d,0x1\nlea r10,[rdi+0x1]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 2,
+    "why": "Drop the unused load into xmm3 and replace the page-offset AND and subtraction with an OR that sets all bits above the low twelve."
+  }
+}

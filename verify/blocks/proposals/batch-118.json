@@ -1,0 +1,83 @@
+{
+  "5a8ff9051c": {
+    "rewrite": null,
+    "why": "The unaligned load cannot be folded into legacy PXOR without an alignment assumption, and the XOR, store, xmm0 assignment, and comparison are required."
+  },
+  "61cc706a12": {
+    "rewrite": null,
+    "why": "The unaligned load cannot be folded into legacy PXOR without an alignment assumption, and the XOR, store, xmm0 assignment, and comparison are required."
+  },
+  "088782fe2e": {
+    "rewrite": null,
+    "why": "The unaligned load cannot be folded into legacy PXOR without an alignment assumption, and the XOR, store, xmm0 assignment, and comparison are required."
+  },
+  "f8eb9da5fd": {
+    "rewrite": null,
+    "why": "The unaligned load cannot be folded into legacy PXOR without an alignment assumption, and the XOR, store, xmm0 assignment, and comparison are required."
+  },
+  "1125d64268": {
+    "rewrite": null,
+    "why": "The unaligned load cannot be folded into legacy PXOR without an alignment assumption, and the XOR, store, xmm0 assignment, and comparison are required."
+  },
+  "8a09c95641": {
+    "rewrite": null,
+    "why": "The unaligned load cannot be folded into legacy PXOR without an alignment assumption, and the XOR, store, xmm0 assignment, and comparison are required."
+  },
+  "311bcbf37e": {
+    "rewrite": null,
+    "why": "The unaligned load cannot be folded into legacy PXOR without an alignment assumption, and the XOR, store, xmm0 assignment, and comparison are required."
+  },
+  "be2a07c135": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask must remain in xmm6, while constructing the high-word CRC seed, shuffling the data, XORing it, and setting CF/ZF all contribute to live results."
+  },
+  "bc26c7006b": {
+    "rewrite": null,
+    "why": "All three shuffled loads, both pointer/count updates, and the separate CF/ZF comparison are required."
+  },
+  "35f31cd567": {
+    "rewrite": null,
+    "why": "Each live CRC accumulator needs a shuffled load, a copy for two destructive carry-less products, and two XORs, followed by both scalar updates and the required comparison."
+  },
+  "b9e7f66267": {
+    "rewrite": null,
+    "why": "The loaded polynomial must remain in xmm7, and both output accumulators require two products, a source copy, and two XORs before the required ZF test."
+  },
+  "2164e9596f": {
+    "rewrite": null,
+    "why": "Each accumulator requires a shuffled load, two carry-less products with a preserved source copy, and two XORs, and the pointer update is live."
+  },
+  "4538ae3e5f": {
+    "rewrite": null,
+    "why": "The loaded polynomial must remain in xmm7, so the two destructive products require the source copy, both XORs, and the final ZF test."
+  },
+  "9b9a9295b0": {
+    "rewrite": null,
+    "why": "The shuffled load, source copy, two carry-less products, two XORs, and live pointer update all contribute to the required result."
+  },
+  "fa80681f7b": {
+    "rewrite": "pclmullqhqdq xmm7,xmm0\npslldq xmm0,0x8\npxor xmm0,xmm7\nmovdqa xmm7,XMMWORD PTR [rcx+0x40]\npclmulhqhqdq xmm7,xmm0\npxor xmm7,xmm0\npclmulhqlqdq xmm7,XMMWORD PTR [rcx+0x40]\npxor xmm0,xmm7\npextrw eax,xmm0,0x3",
+    "saved": 2,
+    "why": "Commutativity lets the first carry-less product overwrite dead xmm7 instead of copying xmm0. Reusing xmm7 for the loaded polynomial and reading the same memory operand for the last product eliminates the second copy."
+  },
+  "cd1680c9f3": {
+    "rewrite": null,
+    "why": "Placing edi's low word in bits 112..127 requires both vector instructions, and the broadcast and CF-producing comparison are live."
+  },
+  "a83b6128b5": {
+    "rewrite": null,
+    "why": "VPSHUFB cannot take its data input from memory, so the load, shuffle, XOR, pointer update, and live polynomial load are all required."
+  },
+  "7e4865b282": {
+    "rewrite": null,
+    "why": "The load supplies VPSHUFB's register-only data input, and the subsequent XOR and CF/ZF comparison are both required."
+  },
+  "6baf85b4f1": {
+    "rewrite": null,
+    "why": "All three shuffled loads and both pointer/count updates are live, and the final comparison supplies the required CF and ZF."
+  },
+  "de3aa359ac": {
+    "rewrite": null,
+    "why": "Each accumulator needs a data load, shuffle, two carry-less products, and two XORs, and both scalar updates plus the comparison are required."
+  }
+}

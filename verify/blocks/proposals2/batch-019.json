@@ -1,0 +1,82 @@
+{
+  "7d4e016342": {
+    "rewrite": null,
+    "why": "The unpacked vector and both constant registers are live, and the saturating dot product followed by two wrapping word additions cannot be combined for arbitrary inputs."
+  },
+  "6dd1a88f02": {
+    "rewrite": null,
+    "why": "Both unpacked vectors, both corrected dot products, and the constant registers are preserved, so neither arithmetic path contains a removable intermediate."
+  },
+  "484af7800a": {
+    "rewrite": null,
+    "why": "Both unpacked vectors and corrected dot products are live, and arbitrary coefficients prevent folding the wrapping corrections into the saturating multiplies."
+  },
+  "0970efb9dc": {
+    "rewrite": null,
+    "why": "The loaded constant, both unpacked vectors, and both corrected dot products must survive, with every arithmetic intermediate contributing to those outputs."
+  },
+  "0bb370570d": {
+    "rewrite": null,
+    "why": "Each of the four instructions independently initializes a distinct preserved vector register."
+  },
+  "3ef2f0573e": {
+    "rewrite": null,
+    "why": "All four constant outputs are live, and the required exchange of the middle 128-bit lanes cannot be folded into an immediate memory-source VPERMQ."
+  },
+  "d691d6b050": {
+    "rewrite": null,
+    "why": "Every constant result and the unpacked vector are preserved, while both wrapping additions are needed after the saturating dot product."
+  },
+  "ae9a8c760c": {
+    "rewrite": null,
+    "why": "The constant loads and unpacked vector are live, and the two corrections cannot be absorbed into the saturating dot product for arbitrary inputs."
+  },
+  "d96332eeb1": {
+    "rewrite": null,
+    "why": "Both distinct multishift and shuffle paths feed required registers and stores, and the pointer updates and final subtraction flags are also required."
+  },
+  "d758a93c15": {
+    "rewrite": null,
+    "why": "The constant and clamped controls are preserved, and the eight-byte source requires a separate broadcast before the byte shuffle while the comparison supplies CF."
+  },
+  "db3999b6bc": {
+    "rewrite": null,
+    "why": "The original byte broadcast, normalized ECX, clamped controls, shuffled data, constant vector, and final ZF are all live, leaving no removable operation."
+  },
+  "6109f80d26": {
+    "rewrite": null,
+    "why": "Both broadcasts and normalized ECX are preserved, and the 32-byte source load cannot be folded into a 64-byte memory-source permutation without widening the memory access."
+  },
+  "7aff1c29a7": {
+    "rewrite": null,
+    "why": "The loaded coefficients, dot product, and word-test mask are live, and the byte-masked merge cannot be folded into a word-masked rounded multiply."
+  },
+  "5689e3bb7e": {
+    "rewrite": null,
+    "why": "All scalar results, three memory broadcasts, the doubled word vector, and the vector containing original and doubled halves are required."
+  },
+  "9bafd4979c": {
+    "rewrite": null,
+    "why": "Each instruction updates a separate preserved register, and the scalar addition also supplies the required SF and OF."
+  },
+  "2132d720dd": {
+    "rewrite": null,
+    "why": "Both index paths require distinct masks, permutations, and saturating dot products, while the coefficient permutation and scalar addition produce preserved outputs."
+  },
+  "bb1e4e8d22": {
+    "rewrite": null,
+    "why": "The three independent vector updates and pointer update are live, and the comparison is needed for SF and OF."
+  },
+  "2c2bedb3d5": {
+    "rewrite": null,
+    "why": "Both rounded products are needed for the packed result, the second product remains live, and the two addressed stores and flag-producing subtraction are required."
+  },
+  "6c57f52207": {
+    "rewrite": null,
+    "why": "Each vector and pointer update changes a preserved register, and the final comparison independently supplies the required flags."
+  },
+  "6731840d66": {
+    "rewrite": null,
+    "why": "Both permutation and multiply paths feed required vector results and stores, while the index updates, destination advance, and flag-producing counter subtraction are all live."
+  }
+}

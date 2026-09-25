@@ -1,0 +1,82 @@
+{
+  "0ca5de6d10": {
+    "rewrite": null,
+    "why": "Both loads and stores and the return-address calculation are required, while vzeroupper must clear the upper halves of other live vector registers."
+  },
+  "ea8dd312ba": {
+    "rewrite": null,
+    "why": "Both full-width copies and the return-address calculation are required, and vzeroupper supplies required final upper-half zeros."
+  },
+  "e366fe2a5c": {
+    "rewrite": null,
+    "why": "Producing the masked RCX value requires the copy and mask, and the vector zeroing and final comparison supply separate required results."
+  },
+  "6721b26c56": {
+    "rewrite": null,
+    "why": "The store, loaded vector, comparison mask, scalar mask, index increment, and final zero flag are all required."
+  },
+  "55fac73560": {
+    "rewrite": null,
+    "why": "The old YMM18 must be stored before its replacement is loaded, and the mask outputs, index increment, and final zero flag require the remaining instructions."
+  },
+  "d2abb3fcb8": {
+    "rewrite": null,
+    "why": "The loaded vector and stored data are required independently of the comparison mask, scalar mask, index increment, and final zero flag."
+  },
+  "3dac6e8861": {
+    "rewrite": null,
+    "why": "The vector comparison, mask transfer, bit scan, three distinct stores, and two independent pointer increments all produce required results."
+  },
+  "0fb742f5ec": {
+    "rewrite": null,
+    "why": "Both loaded vectors remain live, and the comparison, mask transfer, and test separately produce the required K0, RDX, and zero flag."
+  },
+  "0cb1c6c7fd": {
+    "rewrite": null,
+    "why": "The store is required, and producing the live comparison mask, scalar mask, and zero flag needs the remaining three instructions."
+  },
+  "c6f160fe5d": {
+    "rewrite": null,
+    "why": "The bit scan and RSI update are required, and adding 0x20 while subtracting arbitrary ECX cannot be combined into a single LEA."
+  },
+  "46b7757fe9": {
+    "rewrite": null,
+    "why": "The bit-scan result, vector store, and two independently updated pointers each require an instruction."
+  },
+  "4f2883490c": {
+    "rewrite": null,
+    "why": "The bit scan, two distinct vector stores, and two independent pointer increments have no removable operation."
+  },
+  "cdfb4e467e": {
+    "rewrite": null,
+    "why": "The loaded XMM3 remains live, and the store, comparison, scalar mask, index update, and zero-flag test are all required."
+  },
+  "ad310b4aea": {
+    "rewrite": null,
+    "why": "SSE2 needs the explicit zeroing for the zero-byte comparison, both vector and scalar masks remain live, and PMOVMSKB does not set the required zero flag."
+  },
+  "168d345281": {
+    "rewrite": null,
+    "why": "Both vector comparisons and both scalar masks are required, and PMOVMSKB cannot replace the final zero-flag test."
+  },
+  "3022577b24": {
+    "rewrite": null,
+    "why": "SSE2 requires the three separate vector stores, and the bit scan and two pointer increments produce independent required results."
+  },
+  "8178c089a0": {
+    "rewrite": null,
+    "why": "Both loaded vectors remain live, and SSE2 requires the zeroing, byte comparison, mask extraction, and explicit zero-flag test."
+  },
+  "45c8fa885f": {
+    "rewrite": null,
+    "why": "The live vector comparison, required store, scalar mask, and final zero flag each need their existing instruction."
+  },
+  "a656421d79": {
+    "rewrite": null,
+    "why": "The bit scan and RSI update are necessary, and the remaining addition and subtraction cannot be folded into one LEA because RCX must be subtracted."
+  },
+  "634aceb04d": {
+    "rewrite": null,
+    "why": "The bit-scan result, required vector store, and two independent pointer increments leave no removable instruction."
+  }
+}

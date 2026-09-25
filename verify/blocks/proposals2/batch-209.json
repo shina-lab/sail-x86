@@ -1,0 +1,87 @@
+{
+  "f162768a82": {
+    "rewrite": null,
+    "why": "The carryless products, reduction shifts, and copies all contribute to required final XMM values, with no shorter SSSE3-compatible replacement identified."
+  },
+  "e9c4299ef6": {
+    "rewrite": "vpalignr xmm5,xmm4,xmm3,0x8\nvmovdqu XMMWORD PTR [rdi-0x10],xmm5\nvpunpckhqdq xmm3,xmm0,xmm0\nvpxor xmm3,xmm3,xmm0\nvpclmulhqhqdq xmm1,xmm0,xmm2\nvpclmullqlqdq xmm0,xmm0,xmm2\nvpclmullqlqdq xmm3,xmm3,xmm6\nvpxor xmm4,xmm1,xmm0\nvpxor xmm3,xmm3,xmm4\nvpslldq xmm4,xmm3,0x8\nvpsrldq xmm3,xmm3,0x8\nvpxor xmm0,xmm0,xmm4\nvpxor xmm1,xmm1,xmm3\nvmovq xmm3,rax\nmovabs rax,0xc200000000000000\nvmovq xmm5,rax\nvmovq rax,xmm3\nvpclmullqlqdq xmm3,xmm0,xmm5\nvpshufd xmm0,xmm0,0x4e\nvpxor xmm0,xmm0,xmm3\nvpclmullqlqdq xmm3,xmm0,xmm5\nvpshufd xmm0,xmm0,0x4e\nvpxor xmm0,xmm0,xmm1\nvpxor xmm0,xmm0,xmm3",
+    "saved": 5,
+    "why": "Two carryless multiplications by 0xc200000000000000 implement the same reduction as the shift/XOR network. The constant is constructed while saving and restoring rax, and only disposable vector temporaries change."
+  },
+  "609fe4b139": {
+    "rewrite": "vmovdqu XMMWORD PTR [rdi],xmm0\nvpshufd xmm3,xmm0,0x4e\nvpxor xmm3,xmm3,xmm0\nvpclmulhqhqdq xmm1,xmm0,xmm2\nvpclmullqlqdq xmm0,xmm0,xmm2\nvpclmullqlqdq xmm5,xmm3,xmm6\nvpxor xmm4,xmm1,xmm0\nvpxor xmm5,xmm5,xmm4\nvpslldq xmm4,xmm5,0x8\nvpsrldq xmm5,xmm5,0x8\nvpxor xmm0,xmm0,xmm4\nvpxor xmm1,xmm1,xmm5\nvpsllq xmm5,xmm0,0x39\nvpsllq xmm4,xmm0,0x3e\nvpxor xmm4,xmm4,xmm5\nvpsllq xmm5,xmm0,0x3f\nvpxor xmm4,xmm4,xmm5\nvpslldq xmm5,xmm4,0x8\nvpsrldq xmm4,xmm4,0x8\nvpxor xmm0,xmm0,xmm5\nvpxor xmm1,xmm1,xmm4\nvpsrlq xmm4,xmm0,0x1\nvpxor xmm1,xmm1,xmm0\nvpxor xmm0,xmm0,xmm4\nvpsrlq xmm4,xmm4,0x5\nvpxor xmm0,xmm0,xmm4\nvpsrlq xmm0,xmm0,0x1\nvpxor xmm0,xmm0,xmm1\nvpshufd xmm4,xmm0,0x4e\nvpxor xmm4,xmm4,xmm0\nvmovdqu XMMWORD PTR [rdi+0x10],xmm0\nlea rdi,[rdi+0x30]\nsub r10,0x1",
+    "saved": 3,
+    "why": "Store the original xmm0 directly and retain its duplicated half-XOR in xmm3 for both the cross product and the final output. Using xmm5 for subsequent temporaries removes the initial copy and the repeated final shuffle/XOR."
+  },
+  "9f29c0448f": {
+    "rewrite": null,
+    "why": "All three loads, three VEX copies, the byte shuffle, and the pointer and count updates produce required outputs."
+  },
+  "2c9904ec31": {
+    "rewrite": null,
+    "why": "Every operation supplies a required product, accumulator, loaded or shuffled value, shifted key, or count and ZF result."
+  },
+  "06e9d38729": {
+    "rewrite": null,
+    "why": "The three products and accumulator updates require the half-XOR preparation, while every load, shuffle, and count update has a preserved result."
+  },
+  "a1e1274aad": {
+    "rewrite": null,
+    "why": "Every operation supplies a required product, accumulator, loaded or shuffled value, shifted key, or count and ZF result."
+  },
+  "9058cddb11": {
+    "rewrite": null,
+    "why": "The three products and accumulator updates require the half-XOR preparation, while every load, shuffle, and count update has a preserved result."
+  },
+  "d547750734": {
+    "rewrite": null,
+    "why": "Every operation supplies a required product, accumulator, loaded or shuffled value, shifted key, or count and ZF result."
+  },
+  "93a30387ea": {
+    "rewrite": null,
+    "why": "The three products and accumulator updates require the half-XOR preparation, while every load, shuffle, and count update has a preserved result."
+  },
+  "0cdd7ad6ac": {
+    "rewrite": null,
+    "why": "The dependent products, XORs, shifts, and final comparison all feed required register or flag outputs, including the reduction intermediates."
+  },
+  "2d23c9f18f": {
+    "rewrite": null,
+    "why": "Zeroing rax, performing the three required stores, and setting flags from rsi each require a separate instruction."
+  },
+  "9cb11cef6d": {
+    "rewrite": null,
+    "why": "Both independent masks must be materialized and applied, all four stores are required, and the final rax value and AND flags must be retained."
+  },
+  "3ef310c3a3": {
+    "rewrite": null,
+    "why": "The five loads and required copies each produce live values, and the shifted-plus-original result in r13 still requires separate shift and add operations."
+  },
+  "7ac57779bc": {
+    "rewrite": "add r14,QWORD PTR [rsi]\nadc rbx,QWORD PTR [rsi+0x8]\nlea rsi,[rsi+0x10]\nadc rbp,rcx\nmul r14\nmov r9,rax\nmov rax,r11\nmov r10,rdx\nmul r14\nmov r14,rax\nmov rax,r11\nmov r8,rdx\nmul rbx\nadd r9,rax\nmov rax,r13\nadc r10,rdx\nmul rbx\nmov rbx,rbp\nadd r14,rax\nadc r8,rdx\nimul rbx,r13\nadd r9,rbx\nmov rbx,r8\nadc r10,0x0\nimul rbp,r11\nadd rbx,r9\nadc r10,rbp\nmov rbp,r10\nshr r10,0x2\nand rbp,0x3\nlea rax,[r10+r10*4]\nadd r14,rax\nadc rbx,0x0\nadc rbp,0x0\nmov rax,r12\ndec r15",
+    "saved": 2,
+    "why": "For the value t before the right shift, (t & -4) + (t >> 2) equals 5 * (t >> 2) modulo 2^64. A scaled LEA replaces the mask construction and addition while preserving the following carry chain and final flags."
+  },
+  "9a9e5ca82d": {
+    "rewrite": null,
+    "why": "The original low limbs and their carry-adjusted versions are all live, so the copies, carry chain, and final shift cannot be dropped."
+  },
+  "b2914cc4c1": {
+    "rewrite": null,
+    "why": "Both additions are needed for the carry chain, and each resulting limb requires its own store."
+  },
+  "612b71d8f6": {
+    "rewrite": "mul r14\nmov r9,rax\nmov rax,r11\nmov r10,rdx\nmul r14\nmov r14,rax\nmov rax,r11\nmov r8,rdx\nmul rbx\nadd r9,rax\nmov rax,r13\nadc r10,rdx\nmul rbx\nmov rbx,rbp\nadd r14,rax\nadc r8,rdx\nimul rbx,r13\nadd r9,rbx\nmov rbx,r8\nadc r10,0x0\nimul rbp,r11\nadd rbx,r9\nadc r10,rbp\nmov rbp,r10\nshr r10,0x2\nand rbp,0x3\nlea rax,[r10+r10*4]\nadd r14,rax\nadc rbx,0x0\nadc rbp,0x0",
+    "saved": 2,
+    "why": "For the value t before the right shift, (t & -4) + (t >> 2) equals 5 * (t >> 2) modulo 2^64. A scaled LEA computes the same rax value without changing the subsequent additions or their final flags."
+  },
+  "8a5bcea2e9": {
+    "rewrite": "mov rax,r14\nmov rdx,r14\nshrd r14,rbx,0x34\nmov r11,rbx\nshr rdx,0x1a\nand rax,0x3ffffff\nshl r11,0xc\nand rdx,0x3ffffff\nshld rbp,rbx,0x18\nshr rbx,0xe\nand r14,0x3ffffff\nand rbx,0x3ffffff\nsub r15,0x10",
+    "saved": 4,
+    "why": "SHRD forms (original r14 >> 52) | (original rbx << 12), and SHLD forms (original rbp << 24) | (original rbx >> 40). This removes the redundant shifts, ORs, and r12 copy while retaining r11 and the final SUB flags."
+  },
+  "3a3e1019f3": {
+    "rewrite": null,
+    "why": "Each of the five independent additions updates a distinct required YMM register, including zeroing its upper half."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "aa793df297": {
+    "rewrite": null,
+    "why": "Both masked register values and their union are required, and the final comparison is needed to reproduce the live flags."
+  },
+  "c22405c132": {
+    "rewrite": null,
+    "why": "The listed entries are data rendered as text rather than valid assembly instructions, so no instruction rewrite can be justified."
+  },
+  "d3cf61247c": {
+    "rewrite": null,
+    "why": "All loaded and shuffled vectors, the saved xmm2 value, and the SHA result are live, and the allowed two-operand instructions require the existing copies and additions."
+  },
+  "977d2d41cf": {
+    "rewrite": null,
+    "why": "Every round, shuffle, message update, pointer update, and saved vector is required, including the copy needed to align xmm7 while preserving xmm6."
+  },
+  "29c7603f51": {
+    "rewrite": null,
+    "why": "The round and message results are all live, and forming xmm7 with PALIGNR requires a copy because xmm3 must also retain its final value."
+  },
+  "22d88f6f4b": {
+    "rewrite": null,
+    "why": "The round and message results are all live, and forming xmm7 with PALIGNR requires a copy because xmm4 must also retain its final value."
+  },
+  "21991edb43": {
+    "rewrite": null,
+    "why": "The round and message results are all live, and forming xmm7 with PALIGNR requires a copy because xmm5 must also retain its final value."
+  },
+  "6e7df983d6": {
+    "rewrite": null,
+    "why": "The round and message results are all live, and forming xmm7 with PALIGNR requires a copy because xmm6 must also retain its final value."
+  },
+  "8935aed08a": {
+    "rewrite": null,
+    "why": "The round and message results are all live, and forming xmm7 with PALIGNR requires a copy because xmm3 must also retain its final value."
+  },
+  "a46abc0fb9": {
+    "rewrite": null,
+    "why": "The round and message results are all live, and forming xmm7 with PALIGNR requires a copy because xmm4 must also retain its final value."
+  },
+  "964225b096": {
+    "rewrite": null,
+    "why": "The round and message results are all live, and forming xmm7 with PALIGNR requires a copy because xmm5 must also retain its final value."
+  },
+  "e58c9277ee": {
+    "rewrite": null,
+    "why": "The round and message results are all live, and forming xmm7 with PALIGNR requires a copy because xmm6 must also retain its final value."
+  },
+  "162936a7b1": {
+    "rewrite": null,
+    "why": "The round and message results are all live, and forming xmm7 with PALIGNR requires a copy because xmm3 must also retain its final value."
+  },
+  "4a698ee9c8": {
+    "rewrite": null,
+    "why": "The round and message results are all live, and forming xmm7 with PALIGNR requires a copy because xmm4 must also retain its final value."
+  },
+  "8a51b855cb": {
+    "rewrite": null,
+    "why": "The temporary message vectors feed later rounds and the final xmm0 sum, while the alignment copy preserves a message still needed by subsequent operations."
+  },
+  "137359a19b": {
+    "rewrite": "movdqa xmm7,xmm1\nshufps xmm1,xmm2,0xbb\nshufps xmm7,xmm2,0x11\nmovdqu XMMWORD PTR [rdi],xmm1\nmovdqu XMMWORD PTR [rdi+0x10],xmm7",
+    "saved": 2,
+    "why": "For initial dword lanes xmm1=[a,b,c,d] and xmm2=[e,f,g,h], the stores contain [d,c,h,g] and [b,a,f,e]. One copy and two SHUFPS instructions construct these values directly."
+  },
+  "386c41f8d6": {
+    "rewrite": null,
+    "why": "The zeroed r14 and copied r12 are live, and the allowed scalar ISA needs a copy plus XOR to compute edi without changing ebx or ecx."
+  },
+  "a844c7a000": {
+    "rewrite": null,
+    "why": "All three loaded register values and the TEST flags are live, requiring the three loads and the flag-producing test."
+  },
+  "a97e3ccfe2": {
+    "rewrite": null,
+    "why": "The zeroed r14 and copied r12 are live, and the allowed scalar ISA needs a copy plus XOR to compute rdi without changing rbx or rcx."
+  },
+  "834a2d0f9e": {
+    "rewrite": "and ecx,DWORD PTR [rdx+0x4a]\nmov eax,eax\nand BYTE PTR [rdx+0x4a],cl\nand dl,bl",
+    "saved": 1,
+    "why": "The identical XORs cancel in eax but clear the upper half of rax; MOV eax,eax reproduces that effect in one instruction. The memory operations and final rdx update are unchanged."
+  }
+}

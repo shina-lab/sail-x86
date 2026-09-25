@@ -1,0 +1,83 @@
+{
+  "f432a6c1c7": {
+    "rewrite": "",
+    "saved": 20,
+    "why": "Every instruction writes only unpreserved vector or mask registers, and there are no stores or required flag changes. The entire block can be removed."
+  },
+  "76c76dd991": {
+    "rewrite": null,
+    "why": "The two shuffles form a word shift with a replicated final word, and both scalar results and the subtraction flags are required."
+  },
+  "9c237524c7": {
+    "rewrite": null,
+    "why": "Both the interleaved ymm20 and the word-offset ymm19 are live, so the unpack, insert, and alignment stages all contribute required data."
+  },
+  "f6b153fb59": {
+    "rewrite": null,
+    "why": "The partial-byte replacement must retain the upper bytes computed by lea, while the vector alignment and comparison flags are independently required."
+  },
+  "2e8c04dd5b": {
+    "rewrite": null,
+    "why": "Both permuted vectors and the masked, shifted coefficient vector are live, and the arbitrary mask cannot be absorbed into either shift or permutation."
+  },
+  "b800ae6f49": {
+    "rewrite": null,
+    "why": "The sign-bit mask drives three independently required masked vector updates, each of which must preserve its inactive words."
+  },
+  "0ceec21372": {
+    "rewrite": null,
+    "why": "The rounded interpolation needs its subtraction, multiplication, and addition, while the four independently addressed stores and live counter update must remain."
+  },
+  "95f3bd1cb9": {
+    "rewrite": null,
+    "why": "Each instruction independently produces a required vector value, pointer value, or comparison flags."
+  },
+  "47cfe47498": {
+    "rewrite": null,
+    "why": "Both permutations feed the rounded interpolation, and the four stores, vector index update, pointer update, and counter update are all required."
+  },
+  "709c26716c": {
+    "rewrite": null,
+    "why": "The complementary word masks select different vector halves, and the alignments, coefficient calculations, and scalar updates all contribute independently required results."
+  },
+  "62519e0638": {
+    "rewrite": null,
+    "why": "The shifts, mask, and permutations feed the required interpolation, while the zmm28 update and scalar subtraction are also live."
+  },
+  "2e7f7670c9": {
+    "rewrite": null,
+    "why": "Both two-table permutations need initialized destinations while preserving their input tables and indices, and their results feed the required masked rounded interpolation."
+  },
+  "6a9e2bec53": {
+    "rewrite": null,
+    "why": "The old zmm21 feeds the interpolation while its replacement value is also live, and both stores and all loop updates must remain."
+  },
+  "31f96de0cd": {
+    "rewrite": null,
+    "why": "All three loaded or permuted vector results are required, as are the flags produced by the independent test."
+  },
+  "1ab2357a25": {
+    "rewrite": null,
+    "why": "The two shifts produce distinct live vectors, the arbitrary zmm30 mask remains necessary, and both scalar destinations are live."
+  },
+  "5a9dbd4ece": {
+    "rewrite": null,
+    "why": "The lookup must preserve both tables and produce both the interpolated store and the replacement zmm18 value, alongside the required vector and scalar loop updates."
+  },
+  "0443419a5a": {
+    "rewrite": null,
+    "why": "Every instruction writes a distinct required destination, including both the shifted zmm20 and the sum that consumes it."
+  },
+  "177167640c": {
+    "rewrite": null,
+    "why": "The broadcast participates in an unsigned maximum with a live full-word result, so its calculation cannot be simplified using only the low permutation-index bits."
+  },
+  "b19b31d790": {
+    "rewrite": null,
+    "why": "The saturated update and rounded interpolation have live vector results, and four separate stores require access to both halves of the low ymm result."
+  },
+  "e84cc886d1": {
+    "rewrite": null,
+    "why": "Both permutations and the unsigned maximum have live results, as do the transformed rcx and the flags from the final test."
+  }
+}

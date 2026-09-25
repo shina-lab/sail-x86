@@ -1,0 +1,83 @@
+{
+  "990fcc2bc6": {
+    "rewrite": null,
+    "why": "The loaded ymm1 and ymm3 values must survive, and both masked differences, stores, and the flag-producing index update are required."
+  },
+  "41e19a0b41": {
+    "rewrite": null,
+    "why": "The loaded ymm1 and ymm3 values must survive, and both masked differences, stores, and the flag-producing index update are required."
+  },
+  "531e158709": {
+    "rewrite": null,
+    "why": "The extrema, masked predictor, source, and residual are all live, and SSE2 requires the copies that preserve operands for these computations."
+  },
+  "28067f939d": {
+    "rewrite": null,
+    "why": "The block already uses three-operand arithmetic, and the live extrema, predictor, source, and masked residual leave no removable load or operation."
+  },
+  "e1034c719d": {
+    "rewrite": null,
+    "why": "Every pointer update and constant load is live, and the 32-bit truncation before the 64-bit negation prevents combining the index operations."
+  },
+  "4d9f40ac8b": {
+    "rewrite": null,
+    "why": "Every pointer update and constant load is live, and the 32-bit truncation before the 64-bit negation prevents combining the index operations."
+  },
+  "fa2047c9ea": {
+    "rewrite": null,
+    "why": "Every pointer update and constant load is live, and the 32-bit truncation before the 64-bit negation prevents combining the index operations."
+  },
+  "db2a86b0c9": {
+    "rewrite": null,
+    "why": "The three pointer updates and the zero-extending 32-bit shift followed by 64-bit negation are all needed for arbitrary initial rcx."
+  },
+  "7e3e34baef": {
+    "rewrite": null,
+    "why": "All four computed vectors and three stores are live, and SSE2 needs the copy to compute the shifted sum while retaining operands for the output additions."
+  },
+  "2a11617fc8": {
+    "rewrite": null,
+    "why": "The three pointer updates and the zero-extending 32-bit shift followed by 64-bit negation are all needed for arbitrary initial rcx."
+  },
+  "c2906e7298": {
+    "rewrite": "vmovdqa ymm1,YMMWORD PTR [rsi+rcx*1]\nvpaddd ymm3,ymm1,YMMWORD PTR [rdx+rcx*1]\nvmovdqa ymm0,YMMWORD PTR [rdi+rcx*1]\nvpsrad ymm3,ymm3,0x2\nvpsubd ymm0,ymm0,ymm3\nvpaddd ymm1,ymm1,ymm0\nvpaddd ymm2,ymm0,YMMWORD PTR [rdx+rcx*1]\nvmovdqa YMMWORD PTR [rsi+rcx*1],ymm0\nvmovdqa YMMWORD PTR [rdx+rcx*1],ymm1\nvmovdqa YMMWORD PTR [rdi+rcx*1],ymm2\nadd rcx,0x20",
+    "saved": 1,
+    "why": "Fold both uses of the original ymm2 load into vpaddd memory operands, preserving its final sum while deleting the standalone load. Both reads precede the stores and use the original address."
+  },
+  "212ba46639": {
+    "rewrite": null,
+    "why": "SSE2 needs the word shuffle and qword duplication to broadcast r8w, and the zeroing and pointer/index updates are all live."
+  },
+  "50aeeea344": {
+    "rewrite": null,
+    "why": "The source vectors, product vectors, accumulator, stores, and index flags are all required, leaving no removable SSE2 copy or load."
+  },
+  "deb03c064f": {
+    "rewrite": null,
+    "why": "Both sign-extended coefficient vectors and all products are live, and folding the high-half extraction into a load would require a different displacement."
+  },
+  "8ff2478a7a": {
+    "rewrite": null,
+    "why": "The required xmm0 and xmm6 include the pshuflw result and upper-lane dependencies, which ordinary phaddd reductions do not preserve."
+  },
+  "a415da9a5d": {
+    "rewrite": null,
+    "why": "The required xmm0 and xmm6 include the pshuflw result and upper-lane dependencies, which ordinary phaddd reductions do not preserve."
+  },
+  "a40e789a60": {
+    "rewrite": null,
+    "why": "The unshifted source, byte differences, and dword load are all live, while SSE2 needs a separate copy for the byte shift before the OR."
+  },
+  "1b9078b42e": {
+    "rewrite": null,
+    "why": "SSE2 needs separate copies for the preserved source and shifted source before the OR and byte subtraction."
+  },
+  "34ef4766f0": {
+    "rewrite": null,
+    "why": "All four constants and ZF are live, and SSSE3 needs both movd and the shift to form xmm0."
+  },
+  "8d2f26b3fa": {
+    "rewrite": null,
+    "why": "The shuffle masks are arbitrary inputs, each shuffle stage needs its original vector for addition, and the final shuffled temporary is also live."
+  }
+}

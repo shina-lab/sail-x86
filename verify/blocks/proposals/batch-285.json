@@ -1,0 +1,88 @@
+{
+  "27b2b5cd2a": {
+    "rewrite": null,
+    "why": "The three fixed-address loads and matching stores are needed, as are the R8/ZF update and RDI advance."
+  },
+  "73e1273831": {
+    "rewrite": null,
+    "why": "Both 16-byte loads and stores are required under SSE2, along with separate updates of R8/ZF and RDI."
+  },
+  "353354f37a": {
+    "rewrite": null,
+    "why": "Both 16-byte loads and stores are required under SSE2, along with separate updates of R8/ZF and RDI."
+  },
+  "3192c3fae8": {
+    "rewrite": null,
+    "why": "Both 16-byte loads and stores are required under SSE2, along with separate updates of R8/ZF and RDI."
+  },
+  "529111ce33": {
+    "rewrite": null,
+    "why": "Both 16-byte loads and stores are required under SSE2, along with separate updates of R8/ZF and RDI."
+  },
+  "ca555792b7": {
+    "rewrite": null,
+    "why": "The two live register copies, YMM0 zeroing, and masked comparison producing CF and ZF require the existing operations."
+  },
+  "0132035615": {
+    "rewrite": "tzcnt eax,eax\nlea eax,[rax+rcx-0x81]\nvzeroupper",
+    "saved": 1,
+    "why": "A 32-bit LEA combines the subtraction and addition with the same modulo-2^32 result because RCX and flags need not be preserved. VZEROUPPER retains the required clearing of YMM0's upper half."
+  },
+  "13dbdfd4d2": {
+    "rewrite": "tzcnt eax,eax\nlea eax,[rax+rcx-0x61]\nvzeroupper",
+    "saved": 1,
+    "why": "A 32-bit LEA combines the subtraction and addition with the same modulo-2^32 result because RCX and flags need not be preserved. VZEROUPPER retains the required clearing of YMM0's upper half."
+  },
+  "be889f689a": {
+    "rewrite": "tzcnt eax,eax\nlea eax,[rax+rcx-0x41]\nvzeroupper",
+    "saved": 1,
+    "why": "A 32-bit LEA combines the subtraction and addition with the same modulo-2^32 result because RCX and flags need not be preserved. VZEROUPPER retains the required clearing of YMM0's upper half."
+  },
+  "00bd9c612d": {
+    "rewrite": "tzcnt eax,eax\nlea eax,[rax+rcx-0x21]\nvzeroupper",
+    "saved": 1,
+    "why": "A 32-bit LEA combines the subtraction and addition with the same modulo-2^32 result because RCX and flags need not be preserved. VZEROUPPER retains the required clearing of YMM0's upper half."
+  },
+  "dda8c54cb8": {
+    "rewrite": null,
+    "why": "The live RCX difference needs two operations, while the vector comparison and RSI subtraction producing CF are independently required."
+  },
+  "bc928cb534": {
+    "rewrite": null,
+    "why": "The 32-bit addition may wrap before the 64-bit difference is added, preventing their fusion into LEA, and VZEROUPPER is required for YMM0."
+  },
+  "5cccca15d4": {
+    "rewrite": null,
+    "why": "The 32-bit increment may wrap before the 64-bit difference is added, preventing their fusion into LEA, and VZEROUPPER is required for YMM0."
+  },
+  "48681220a8": {
+    "rewrite": null,
+    "why": "The preserved RSI mask and RAX byte-comparison mask require the first three instructions, and TEST is needed to produce the required ZF."
+  },
+  "38941cd0c9": {
+    "rewrite": null,
+    "why": "The comparison, mask extraction, and trailing-zero count produce the required RAX, while the final comparison independently supplies CF."
+  },
+  "93cc4eaf75": {
+    "rewrite": null,
+    "why": "The 32-bit addition may wrap before the 64-bit difference is added, preventing their fusion into LEA, and VZEROUPPER is required for YMM0."
+  },
+  "5cda469115": {
+    "rewrite": "tzcnt eax,eax\nsub rdi,rdx\nlea rax,[rax+rdi+0x1]\nvzeroupper",
+    "saved": 1,
+    "why": "TZCNT produces a value from 0 through 32, so the increment cannot wrap at 32 bits and can be folded into the 64-bit LEA. VZEROUPPER preserves the required upper-half clearing."
+  },
+  "11198214eb": {
+    "rewrite": "tzcnt eax,eax\nsub rdi,rdx\nlea rax,[rax+rdi+0x21]\nvzeroupper",
+    "saved": 1,
+    "why": "TZCNT produces a value from 0 through 32, so adding 0x21 cannot wrap at 32 bits and can be folded into the 64-bit LEA. VZEROUPPER preserves the required upper-half clearing."
+  },
+  "1ec4bd557c": {
+    "rewrite": null,
+    "why": "The 32-bit addition may wrap before the 64-bit difference is added, preventing their fusion into LEA, and VZEROUPPER is required for YMM0."
+  },
+  "2ab61e6e67": {
+    "rewrite": null,
+    "why": "The live R8 copy, ZMM16 zeroing, and masked comparison producing CF and ZF require the existing operations."
+  }
+}

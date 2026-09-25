@@ -1,0 +1,83 @@
+{
+  "68f73ff727": {
+    "rewrite": null,
+    "why": "Both rows need their unpack-add-pack computations for arbitrary ymm4 and ymm5, along with the stores and live pointer and counter updates."
+  },
+  "e3df688872": {
+    "rewrite": null,
+    "why": "All four separate stores are required, and the subtraction produces both the live index and required flags."
+  },
+  "7fbd047505": {
+    "rewrite": null,
+    "why": "The eight stores and four independent register updates are all required, including the carry flag from the final addition."
+  },
+  "1bc7078dde": {
+    "rewrite": null,
+    "why": "All eight loaded vectors are live, and the test is needed to produce the required flags."
+  },
+  "948f77a290": {
+    "rewrite": null,
+    "why": "All three updated registers are live, and subtracting r11 while adding an immediate to rdi cannot be expressed by a single LEA."
+  },
+  "f531a0c0bc": {
+    "rewrite": null,
+    "why": "The butterfly and rounded dot-product operations all feed live outputs, and AVX2 cannot fuse the multiply-add results with the arbitrary ymm15 bias."
+  },
+  "e17c87c692": {
+    "rewrite": null,
+    "why": "Every broadcast feeds a live rounded product or is itself live, and AVX2 cannot fold these scalar broadcasts into VPMULHRSW."
+  },
+  "857c617cc6": {
+    "rewrite": "vmovdqa ymm6,YMMWORD PTR [r8-0x20]\nvpunpckhwd ymm1,ymm6,ymm0\nvpunpcklwd ymm6,ymm6,ymm0\nvpbroadcastd ymm0,DWORD PTR [rax+0x18]\nvpmaddwd ymm11,ymm1,ymm0\nvpmaddwd ymm0,ymm0,ymm6\nvpaddd ymm11,ymm11,ymm15\nvpaddd ymm0,ymm15,ymm0\nvpsrad ymm11,ymm11,0xe\nvpsrad ymm0,ymm0,0xe\nvpackssdw ymm0,ymm0,ymm11\nvpbroadcastd ymm11,DWORD PTR [rax+0x14]\nvpmaddwd ymm1,ymm11,ymm1\nvpmaddwd ymm6,ymm11,ymm6\nvpaddd ymm1,ymm15,ymm1\nvpaddd ymm6,ymm15,ymm6\nvpsrad ymm1,ymm1,0xe\nvpsrad ymm6,ymm6,0xe\nvpackssdw ymm6,ymm6,ymm1\nvpunpckhwd ymm1,ymm4,YMMWORD PTR [r8-0x40]\nvpunpcklwd ymm4,ymm4,YMMWORD PTR [r8-0x40]\nvpbroadcastd ymm14,DWORD PTR [rax+0x70]\nvpmaddwd ymm11,ymm14,ymm1\nvpmaddwd ymm14,ymm14,ymm4\nvpaddd ymm11,ymm11,ymm15\nvpaddd ymm14,ymm14,ymm15\nvpsrad ymm11,ymm11,0xe\nvpsrad ymm14,ymm14,0xe\nvpackssdw ymm14,ymm14,ymm11\nvpbroadcastd ymm11,DWORD PTR [rax+0x6c]\nvpmaddwd ymm1,ymm11,ymm1\nvpmaddwd ymm4,ymm11,ymm4\nvpaddd ymm1,ymm15,ymm1\nvpaddd ymm4,ymm15,ymm4\nvpsrad ymm1,ymm1,0xe\nvpsrad ymm4,ymm4,0xe\nvpackssdw ymm4,ymm4,ymm1",
+    "saved": 1,
+    "why": "Fold the load from [r8-0x40] into its two unpack consumers, which read only the original load's bytes. The loaded value of ymm14 is otherwise overwritten by the subsequent broadcast."
+  },
+  "41aa0e3578": {
+    "rewrite": null,
+    "why": "All four products are live and use distinct scalar coefficients that require separate broadcasts under AVX2."
+  },
+  "119b748ebe": {
+    "rewrite": null,
+    "why": "The three rounded multiplies require their intermediate rounding, while the zero store, counter update, and live vector results also require their instructions."
+  },
+  "ef076b7d90": {
+    "rewrite": null,
+    "why": "For arbitrary ymm18 and ymm19, both unpack-add paths are needed for the stored pixels, and the pointer and counter updates are live."
+  },
+  "91f577d3e0": {
+    "rewrite": null,
+    "why": "The three vector loads or broadcasts, mask comparison, and counter subtraction each produce required final values."
+  },
+  "c99929a444": {
+    "rewrite": null,
+    "why": "All byte-shuffle and transpose stages feed required outputs, including the final values of the intermediate shuffle registers."
+  },
+  "09d6af6de3": {
+    "rewrite": null,
+    "why": "Each of the eight unpack instructions produces a distinct required vector result."
+  },
+  "fb19cb178e": {
+    "rewrite": null,
+    "why": "Each live product needs its distinct broadcast coefficient and rounded multiply, and VPMULHRSW does not support folding these broadcasts into its memory operand."
+  },
+  "8fec1ae111": {
+    "rewrite": null,
+    "why": "The dot products require the arbitrary incoming bias, and their shifts, masked byte selections, and saturating packs all feed required outputs."
+  },
+  "0ab75bef9d": {
+    "rewrite": null,
+    "why": "Each instruction already combines a required memory load with the permutation producing a distinct live vector."
+  },
+  "769025156a": {
+    "rewrite": null,
+    "why": "The biased dot products and unpack stages all feed live results, including the final values of every temporary vector register."
+  },
+  "e42789eb12": {
+    "rewrite": null,
+    "why": "Each output needs both biased dot products and the shift plus masked byte selection, with no known bias or mask value allowing an operation to be omitted."
+  },
+  "632c12d4dc": {
+    "rewrite": null,
+    "why": "The sequential rounded multiplies cannot be merged without changing rounding, and the zero store, counter update, and required vector outputs are all live."
+  }
+}

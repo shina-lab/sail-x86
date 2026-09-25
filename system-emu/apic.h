@@ -3,6 +3,7 @@
 #include "integers.h"
 #include <algorithm>
 #include <array>
+#include <cstdio>
 #include <functional>
 
 // Uniprocessor xAPIC. The bus clock is 100 MHz; time is supplied in ns
@@ -195,6 +196,12 @@ public:
         redir[pin] &= ~0x4000ULL;
         service(pin, false);
       }
+  }
+
+  void dump(FILE *out) const {
+    fprintf(out, "  IOAPIC id=%u select=%02x\n", id, select);
+    for (unsigned pin = 0; pin < redir.size(); ++pin)
+      fprintf(out, "    pin=%u redir=%016lx asserted=%u\n", pin, redir[pin], lines[pin]);
   }
 
 private:

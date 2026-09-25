@@ -1,0 +1,88 @@
+{
+  "19dcdc1872": {
+    "rewrite": null,
+    "why": "The horizontal reduction must also preserve xmm5's intermediate pair sums, so PHADDD does not reduce the instruction count."
+  },
+  "49c82c9afc": {
+    "rewrite": null,
+    "why": "The four loads, byte duplications, saturated products, stores, and accumulator updates are required with arbitrary xmm2 coefficients."
+  },
+  "85399dd337": {
+    "rewrite": null,
+    "why": "Each row requires its byte duplication, saturated multiply-add, store, and accumulator update, with no known coefficient identities."
+  },
+  "fba3982e18": {
+    "rewrite": null,
+    "why": "The upper-word broadcast follows saturation with arbitrary coefficients, so the input duplication and output shuffle cannot be collapsed safely."
+  },
+  "77cd6c1f03": {
+    "rewrite": null,
+    "why": "Both stores, both live accumulators, and the two scalar updates require their existing instructions."
+  },
+  "2694f8b1e6": {
+    "rewrite": null,
+    "why": "The destructive SSE byte expansions require separate copies for the low and high halves, and both resulting vectors are live."
+  },
+  "b6f785994a": {
+    "rewrite": "movd xmm1,DWORD PTR [rsi]\npunpcklbw xmm1,xmm1\npunpcklqdq xmm1,xmm1\npshufhw xmm1,xmm1,0xff\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi],xmm1\npaddw xmm5,xmm1\npunpckhqdq xmm1,xmm1\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\npaddw xmm5,xmm1\nmovd xmm1,DWORD PTR [rsi+rdx*1]\npunpcklbw xmm1,xmm1\npunpcklqdq xmm1,xmm1\npshufhw xmm1,xmm1,0xff\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi+0x20],xmm1\npaddw xmm4,xmm1\npshufd xmm0,xmm1,0xee\nmovdqa XMMWORD PTR [rdi+0x30],xmm0\npaddw xmm4,xmm0\nlea rsi,[rsi+rdx*2]\nadd rdi,0x40\nsub eax,0x2",
+    "saved": 1,
+    "why": "PSHUFD with immediate 0xee copies and duplicates the high quadword in one instruction, replacing MOVDQA plus PUNPCKHQDQ."
+  },
+  "b9dfe96dcd": {
+    "rewrite": "movq xmm1,QWORD PTR [rsi]\npunpcklbw xmm1,xmm1\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi],xmm1\npaddw xmm5,xmm1\npshufhw xmm1,xmm1,0xff\npunpckhqdq xmm1,xmm1\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\npaddw xmm5,xmm1\nmovq xmm1,QWORD PTR [rsi+rdx*1]\npunpcklbw xmm1,xmm1\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi+0x20],xmm1\npaddw xmm4,xmm1\npshufhw xmm0,xmm1,0xff\npunpckhqdq xmm0,xmm0\nmovdqa XMMWORD PTR [rdi+0x30],xmm0\npaddw xmm4,xmm0\nlea rsi,[rsi+rdx*2]\nadd rdi,0x40\nsub eax,0x2",
+    "saved": 1,
+    "why": "PSHUFHW can read xmm1 directly into xmm0, eliminating the preceding register copy."
+  },
+  "753aa0be25": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi]\npshufd xmm0,xmm1,0xaa\npunpcklbw xmm1,xmm1\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi],xmm1\npaddw xmm5,xmm1\npunpcklbw xmm0,xmm0\npshufhw xmm0,xmm0,0xff\npmaddubsw xmm0,xmm2\nmovdqa XMMWORD PTR [rdi+0x10],xmm0\npaddw xmm5,xmm0\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\npshufd xmm0,xmm1,0xaa\npunpcklbw xmm1,xmm1\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi+0x20],xmm1\npaddw xmm4,xmm1\npunpcklbw xmm0,xmm0\npshufhw xmm0,xmm0,0xff\npmaddubsw xmm0,xmm2\nmovdqa XMMWORD PTR [rdi+0x30],xmm0\npaddw xmm4,xmm0\nlea rsi,[rsi+rdx*2]\nadd rdi,0x40\nsub eax,0x2",
+    "saved": 2,
+    "why": "Broadcasting source dword 2 while copying to xmm0 lets PUNPCKLBW produce the repeated high pixels, eliminating PUNPCKLQDQ once per row."
+  },
+  "bacc8afda6": {
+    "rewrite": null,
+    "why": "The unsigned word-pair sums and preserved masked xmm4 require the extraction operations, while PMADDWD would incorrectly interpret arbitrary words as signed."
+  },
+  "7e097152af": {
+    "rewrite": null,
+    "why": "Unsigned byte absolute differences require both saturated subtraction directions while xmm5 and xmm6 remain live."
+  },
+  "17afb88d18": {
+    "rewrite": null,
+    "why": "Both inputs remain live, and substituting PABSB after byte subtraction would fail for unsigned differences above 127."
+  },
+  "08f75a4f95": {
+    "rewrite": null,
+    "why": "The shuffled source and both independently weighted broadcast products are live, leaving no removable operation."
+  },
+  "19323d2768": {
+    "rewrite": null,
+    "why": "The saturated products, modular word sums, narrowing, distinct stores, final live shuffle, and scalar flag update all remain necessary."
+  },
+  "9cf8dd91dd": {
+    "rewrite": null,
+    "why": "Each live result requires a different dword broadcast and saturated multiply-add."
+  },
+  "2579423bee": {
+    "rewrite": null,
+    "why": "The live packed xmm7 and merged xmm6 require the complete accumulation, shift, pack, and unpack sequence."
+  },
+  "7811a640ba": {
+    "rewrite": null,
+    "why": "The two interleaved stores and required final xmm0, xmm1, and xmm6 values keep the copy and lane rearrangements live."
+  },
+  "faf148c8f9": {
+    "rewrite": "paddw xmm7,xmm1\npshufd xmm1,xmm0,0xaa\npmaddubsw xmm1,xmm4\npaddw xmm7,xmm1\npshufd xmm1,xmm0,0xff\npmaddubsw xmm1,xmm5\npaddw xmm7,xmm1\npsraw xmm7,0x4\npackuswb xmm7,xmm7\nmovd DWORD PTR [rdi],xmm7\nshufps xmm7,xmm6,0x41\npshufd xmm0,xmm7,0x1e\npalignr xmm7,xmm6,0x4",
+    "saved": 1,
+    "why": "A shared SHUFPS rearrangement lets PSHUFD produce xmm0 and PALIGNR produce xmm7, replacing four register rearrangements with three."
+  },
+  "a5a92b4bf4": {
+    "rewrite": "paddw xmm6,xmm1\npshufd xmm1,xmm0,0xaa\npmaddubsw xmm1,xmm4\npaddw xmm6,xmm1\npshufd xmm1,xmm0,0xff\npmaddubsw xmm1,xmm5\npaddw xmm6,xmm1\npsraw xmm6,0x4\npackuswb xmm6,xmm6\nmovd DWORD PTR [rdi+0x4],xmm6\nshufps xmm6,xmm7,0x41\npshufd xmm0,xmm6,0x1e\npalignr xmm6,xmm7,0x4",
+    "saved": 1,
+    "why": "A shared SHUFPS rearrangement lets PSHUFD produce xmm0 and PALIGNR produce xmm6, replacing four register rearrangements with three."
+  },
+  "c271724144": {
+    "rewrite": "paddw xmm7,xmm1\npshufd xmm1,xmm0,0xaa\npmaddubsw xmm1,xmm4\npaddw xmm7,xmm1\npshufd xmm1,xmm0,0xff\npmaddubsw xmm1,xmm5\npaddw xmm7,xmm1\npsraw xmm7,0x4\npackuswb xmm7,xmm7\nmovd DWORD PTR [rdi+0x8],xmm7\nshufps xmm7,xmm6,0x41\npshufd xmm0,xmm7,0x1e\npalignr xmm7,xmm6,0x4",
+    "saved": 1,
+    "why": "A shared SHUFPS rearrangement lets PSHUFD produce xmm0 and PALIGNR produce xmm7, replacing four register rearrangements with three."
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "6ff5256ba3": {
+    "rewrite": null,
+    "why": "The required final bounds, widths and masked candidates prevent removing the copies or the SSE2 Boolean selection steps."
+  },
+  "922d9d5f75": {
+    "rewrite": null,
+    "why": "The word sums and unpacked neighbors are live, and xmm0 is arbitrary, so byte averages cannot replace the widening and exact shifted sum."
+  },
+  "a9358e662e": {
+    "rewrite": null,
+    "why": "The required averages, saturated differences and selection results need the existing copies and Boolean blends under SSE2."
+  },
+  "3baffac4f2": {
+    "rewrite": null,
+    "why": "Both bounds, the saved neighbor registers and the clamped pixel must survive, leaving no removable copy in the SSE2 min/max network."
+  },
+  "3747297663": {
+    "rewrite": null,
+    "why": "The unpacked neighbors and partial sums are live, and arbitrary xmm0 bytes prohibit assuming zero extension or replacing the exact word accumulation with rounded byte averages."
+  },
+  "1a87452664": {
+    "rewrite": null,
+    "why": "The live word partial sums and rounding-biased center require the existing widening and additions before the unsigned high multiply and saturation."
+  },
+  "91f181b271": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi+r8*1-0x1]\nmovdqu xmm1,XMMWORD PTR [rsi+rdx*1+0x1]\npavgb xmm0,xmm1\nmovdqu xmm2,XMMWORD PTR [rsi+r8*1]\nmovdqu xmm3,XMMWORD PTR [rsi+rdx*1]\npavgb xmm3,xmm2\nmovdqu xmm4,XMMWORD PTR [rsi+r8*1+0x1]\nmovdqu xmm5,XMMWORD PTR [rsi+rdx*1-0x1]\npavgb xmm4,xmm5\nmovdqu xmm6,XMMWORD PTR [rsi-0x1]\nmovdqu xmm7,XMMWORD PTR [rsi+0x1]\npavgb xmm6,xmm7\nmovdqa xmm1,xmm0\nmovdqa xmm5,xmm4\nmovdqa xmm7,xmm6\npminub xmm0,xmm3\npminub xmm4,xmm6\npmaxub xmm1,xmm3\npmaxub xmm5,xmm7\npminub xmm0,xmm4\npmaxub xmm1,xmm5\nmovdqu xmm2,XMMWORD PTR [rsi]\npmaxub xmm2,xmm0\npminub xmm2,xmm1\nmovdqu XMMWORD PTR [rdi],xmm2\nadd rsi,0x10\nadd rdi,0x10\nsub ecx,0x10",
+    "saved": 1,
+    "why": "Compute the second pair's commutative average directly in xmm3 and use it for both bound reductions, eliminating its copy from xmm2. The old xmm2 value is overwritten by the center load."
+  },
+  "d3c643db52": {
+    "rewrite": "imul r8,rdx,0xffffffffffffffff\npxor xmm15,xmm15",
+    "saved": 2,
+    "why": "Multiplication by -1 replaces the copy and negation because no flags must match. The rsp adjustment affects no listed output and is omitted to satisfy the requirement to leave rsp untouched."
+  },
+  "f54907a003": {
+    "rewrite": null,
+    "why": "Each of the five address updates and the counter decrement produces a distinct required register value, and the decrement also supplies the required flags."
+  },
+  "73c7468166": {
+    "rewrite": null,
+    "why": "Each of the five address updates and the counter decrement produces a distinct required register value, and the decrement also supplies the required flags."
+  },
+  "9afa5271db": {
+    "rewrite": null,
+    "why": "AVX2 requires a GPR-to-XMM move before broadcasting ecx, and the remaining instructions independently set required scalar and vector outputs."
+  },
+  "ebb13c17f2": {
+    "rewrite": null,
+    "why": "AVX2 requires a GPR-to-XMM move before broadcasting ecx, and the remaining instructions independently set required scalar and vector outputs."
+  },
+  "d68e3ab5d2": {
+    "rewrite": null,
+    "why": "Both arithmetic shifts, both saturating packs, the store and all three scalar updates are required, including the shifted xmm1 value."
+  },
+  "f74482c625": {
+    "rewrite": "movd xmm1,DWORD PTR [rdx]\npunpcklwd xmm1,xmm1\npshufd xmm0,xmm1,0x0\npshufd xmm1,xmm1,0x55\npxor xmm4,xmm4\nmov r8d,0x0\nmov rdx,QWORD PTR [rsi+0x8]\nmov rsi,QWORD PTR [rsi]",
+    "saved": 1,
+    "why": "Self-unpacking duplicates each input word into a dword, so two PSHUFD instructions produce both word splats with one fewer instruction."
+  },
+  "2091678658": {
+    "rewrite": null,
+    "why": "The widened xmm3 output and both multiply-add results are live, so the byte widening and low/high word interleaves cannot be removed under SSE2."
+  },
+  "05412a29c8": {
+    "rewrite": null,
+    "why": "Folding a shuffle into the qword load would read beyond the allowed eight coefficient bytes, and the remaining instructions produce independent required outputs."
+  },
+  "a1f46d3bdd": {
+    "rewrite": null,
+    "why": "SSE2 needs two shuffles for the word splat, while the separate dword splat, zeroing and six pointer loads all produce required outputs."
+  },
+  "c1d5e5b97b": {
+    "rewrite": null,
+    "why": "The dword splats, word splat and ten pointer loads produce required outputs, and merging the coefficient loads into a full vector load would exceed the permitted twelve bytes."
+  },
+  "dccf701dba": {
+    "rewrite": null,
+    "why": "SSE2 needs the input copy to form both the sum and difference while preserving xmm1, and both stores and the index update are required."
+  },
+  "1ba8406e15": {
+    "rewrite": null,
+    "why": "The initial 32-bit shift truncates and zero-extends before the 64-bit additions and negation, so combining it into scaled addressing or a 64-bit multiply would change results."
+  }
+}

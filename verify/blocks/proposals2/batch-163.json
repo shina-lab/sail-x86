@@ -1,0 +1,83 @@
+{
+  "81b7ae92e5": {
+    "rewrite": null,
+    "why": "Both vector comparison results, the byte subtraction, the full mask in rdx and the final ZF are live, leaving no removable SSE2 instruction."
+  },
+  "32ae0e8a86": {
+    "rewrite": null,
+    "why": "Both vector comparison results, the byte subtraction, the full mask in rdx and the final ZF are live, leaving no removable SSE2 instruction."
+  },
+  "6e7d4f732b": {
+    "rewrite": null,
+    "why": "The load feeds two required comparisons, and the resulting vector, scalar mask subtraction and ZF must all be preserved."
+  },
+  "29268706e8": {
+    "rewrite": null,
+    "why": "The load feeds two required comparisons, and the resulting vector, scalar mask subtraction and ZF must all be preserved."
+  },
+  "80676857ad": {
+    "rewrite": null,
+    "why": "The load feeds two required comparisons, and the resulting vector, scalar mask subtraction and ZF must all be preserved."
+  },
+  "8b34d7a3e9": {
+    "rewrite": null,
+    "why": "The load feeds two required comparisons, and the resulting vector, scalar mask subtraction and ZF must all be preserved."
+  },
+  "e78dbb6f3b": {
+    "rewrite": null,
+    "why": "Both vector comparison results, the byte subtraction, the full mask in rdx and the final ZF are live, leaving no removable SSE2 instruction."
+  },
+  "d0586dc67c": {
+    "rewrite": null,
+    "why": "The comparison, independent scalar load, mask extraction and flag-setting test each produce a required result."
+  },
+  "de54927757": {
+    "rewrite": null,
+    "why": "The loaded xmm2 is itself live, preventing load folding, while the remaining instructions produce required vector results, rdx and ZF."
+  },
+  "5d7f61ae62": {
+    "rewrite": "sub rcx,rdx\nlea rdx,[rdx+0x10]\nand rdx,0xfffffffffffffff0\nadd rcx,rdx\nmov rax,rcx\nand rax,0xf\nmov rsi,0x0",
+    "saved": 1,
+    "why": "Subtracting the original rdx directly from rcx before aligning rdx eliminates the temporary copy into rax. Adding the aligned rdx gives the same rcx modulo 2^64, and the final mask, ZF and zeroed rsi are unchanged."
+  },
+  "1a95aa34df": {
+    "rewrite": null,
+    "why": "Both loaded vectors, the store, comparison result, scalar mask, pointer increment and final ZF are required."
+  },
+  "d6ee54017b": {
+    "rewrite": null,
+    "why": "The store and all four scalar outputs are required, including the saved original rcx needed to produce the live difference in rax."
+  },
+  "46a8c3bea7": {
+    "rewrite": null,
+    "why": "All loaded vectors, saved copies and minimum results are live, and SSSE3 requires separate mask extraction and testing to produce ZF."
+  },
+  "7ba2463026": {
+    "rewrite": null,
+    "why": "The comparison, scalar mask, store, flag-setting test and pointer increment each have a required effect."
+  },
+  "274e7a271e": {
+    "rewrite": null,
+    "why": "The comparison, scalar mask, store, flag-setting test and pointer increment each have a required effect."
+  },
+  "f9ca46c347": {
+    "rewrite": null,
+    "why": "The comparison, scalar mask, store, flag-setting test and pointer increment each have a required effect."
+  },
+  "7ed46a797a": {
+    "rewrite": null,
+    "why": "The comparison result, full scalar mask, xmm3 copy and final ZF are all live, so none of the four instructions can be removed."
+  },
+  "a1a32bde48": {
+    "rewrite": null,
+    "why": "The copies preserve required source vectors and the partial minimum while both alignments remain necessary, and the dead scalar mask still supplies the required ZF."
+  },
+  "91f32ede59": {
+    "rewrite": null,
+    "why": "Both alignments feed required stores, and the four stores, live xmm1 copy and two pointer increments cannot be combined within SSSE3."
+  },
+  "5aa2baacc8": {
+    "rewrite": null,
+    "why": "The copies preserve required source vectors and the partial minimum while both alignments remain necessary, and the dead scalar mask still supplies the required ZF."
+  }
+}

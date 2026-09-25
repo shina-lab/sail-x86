@@ -1,0 +1,89 @@
+{
+  "850e2ca9da": {
+    "rewrite": null,
+    "why": "The six byte unpacks, independently weighted terms, and packed average are needed with arbitrary incoming vectors under SSE2."
+  },
+  "97056bc051": {
+    "rewrite": null,
+    "why": "The filter arithmetic and copies preserve independent weighted terms and all five live history vectors, with no shorter SSE2 sequence apparent."
+  },
+  "253f509102": {
+    "rewrite": null,
+    "why": "The weighted filter, live history-vector copies, and eight-byte destination average have no apparent contraction under SSE2."
+  },
+  "ae5aaede55": {
+    "rewrite": null,
+    "why": "The packed multiply-adds and rounded scaling are already compact, while the copies preserve all five live history vectors."
+  },
+  "c240220c96": {
+    "rewrite": null,
+    "why": "The three arbitrary shuffle masks require separate input copies, and the saturating products and rounded scaling cannot be safely combined."
+  },
+  "af505780ec": {
+    "rewrite": null,
+    "why": "The packed filter and average are already compact, and the copies retain the five required history vectors."
+  },
+  "a9fca24fc9": {
+    "rewrite": null,
+    "why": "The independent shuffles, saturating multiply-adds, rounding, and destination average remain necessary with arbitrary incoming vectors."
+  },
+  "0b23f1dfd6": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [CONST_1]\npxor xmm0,xmm0\nimul rax,r9,0xfffffffffffffff8\nsub rdi,rax\nsub rsi,rax\nsub rdx,rax\nmovd xmm2,ecx\nmovd xmm3,r8d\npshuflw xmm2,xmm2,0x0\npunpcklqdq xmm2,xmm2\npshuflw xmm3,xmm3,0x0\npunpcklqdq xmm3,xmm3",
+    "saved": 2,
+    "why": "Compute the final negative offset directly with IMUL and subtract it from each pointer. This preserves all results modulo 2^64 while eliminating the separate copy, shift, and negation; flags are not live."
+  },
+  "a4d3e9d7c4": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [CONST_1]\npxor xmm0,xmm0\nimul rax,r9,0xfffffffffffffff0\nsub rdi,rax\nsub rsi,rax\nsub rdx,rax\nmovd xmm2,ecx\nmovd xmm3,r8d\npshuflw xmm2,xmm2,0x0\npunpcklqdq xmm2,xmm2\npshuflw xmm3,xmm3,0x0\npunpcklqdq xmm3,xmm3",
+    "saved": 2,
+    "why": "A single IMUL produces the required negative sixteen-times offset, and subtracting it gives the original pointer updates. No flags need to be preserved."
+  },
+  "338ffc0d5b": {
+    "rewrite": null,
+    "why": "The unpack operand, weights, and bias are arbitrary incoming vectors, preventing shortcuts that assume zero extension or particular rounding coefficients."
+  },
+  "dcfc2718d8": {
+    "rewrite": null,
+    "why": "Arbitrary unpack bytes, per-lane weights, and bias require the existing word products, sums, shifts, and packing under SSE2."
+  },
+  "d6ef2b266c": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [CONST_1]\npxor xmm0,xmm0\nimul rax,r9,0xfffffffffffffff8\nsub rdi,rax\nsub rsi,rax\nsub rdx,rax\nmovd xmm2,ecx\nmovd xmm3,r8d\npshuflw xmm2,xmm2,0x0\npunpcklqdq xmm2,xmm2\npshuflw xmm3,xmm3,0x0\npunpcklqdq xmm3,xmm3",
+    "saved": 2,
+    "why": "Compute the final negative eight-times offset with one IMUL and subtract it to perform the three pointer updates. The vector results are unchanged and flags are dead."
+  },
+  "6ede3fe4b9": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [CONST_1]\npxor xmm0,xmm0\nimul rax,r9,0xfffffffffffffff0\nsub rdi,rax\nsub rsi,rax\nsub rdx,rax\nmovd xmm2,ecx\nmovd xmm3,r8d\npshuflw xmm2,xmm2,0x0\npunpcklqdq xmm2,xmm2\npshuflw xmm3,xmm3,0x0\npunpcklqdq xmm3,xmm3",
+    "saved": 2,
+    "why": "Compute the final negative sixteen-times offset with one IMUL and subtract it to perform the three pointer updates. The vector results are unchanged and flags are dead."
+  },
+  "b49e11024e": {
+    "rewrite": null,
+    "why": "The arbitrary incoming unpack operand and coefficients prevent combining the shifts, signed high products, and rounded multiplications safely."
+  },
+  "b3591c41d7": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [CONST_1]\npxor xmm0,xmm0\nimul rax,r9,0xfffffffffffffff8\nsub rdi,rax\nsub rsi,rax\nsub rdx,rax\nmovd xmm3,r8d\npinsrw xmm3,ecx,0x2\npshufb xmm3,xmm1",
+    "saved": 4,
+    "why": "Directly computing the negative offset saves two scalar instructions. PINSRW places CL at byte four, so the existing constant's repeating 0,4 shuffle indices broadcast the required R8B,CL pairs in three vector instructions instead of five."
+  },
+  "8b9b32ac89": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [CONST_1]\npxor xmm0,xmm0\nimul rax,r9,0xfffffffffffffff0\nsub rdi,rax\nsub rsi,rax\nsub rdx,rax\nmovd xmm3,r8d\npinsrw xmm3,ecx,0x2\npshufb xmm3,xmm1",
+    "saved": 4,
+    "why": "Directly computing the negative offset saves two scalar instructions. PINSRW places CL at byte four, so the existing constant's repeating 0,4 shuffle indices broadcast the required R8B,CL pairs in three vector instructions instead of five."
+  },
+  "39441afeca": {
+    "rewrite": "movdqu xmm4,XMMWORD PTR [rsi+rax*1]\nmovdqu xmm5,XMMWORD PTR [rdx+rax*1]\nmovdqa xmm6,xmm4\npunpcklbw xmm4,xmm5\npunpckhbw xmm6,xmm5\npmaddubsw xmm4,xmm3\npmaddubsw xmm6,xmm3\npmulhrsw xmm4,xmm1\npmulhrsw xmm6,xmm1\npackuswb xmm4,xmm6\nmovdqa XMMWORD PTR [rdi+rax*1],xmm4\nadd rax,r9",
+    "saved": 1,
+    "why": "Each unaligned sixteen-byte load covers exactly the two original adjacent eight-byte loads from that buffer. Sharing those vectors between low and high unpacks replaces four loads with two loads and one copy."
+  },
+  "03e4ccbe24": {
+    "rewrite": null,
+    "why": "Both zeroed vectors and the zero-extended, shifted scalar are live, so all four instructions remain necessary under SSE2."
+  },
+  "82de407999": {
+    "rewrite": null,
+    "why": "The reversal and two distinct interleaved outputs require the existing shuffle, copy, and unpacks, while the pointer updates and comparison remain live."
+  },
+  "7c37b84b1c": {
+    "rewrite": null,
+    "why": "Each required sixteen-byte store needs its load and XOR under SSE2, and scalar partial writes would change the required store addresses and widths."
+  }
+}

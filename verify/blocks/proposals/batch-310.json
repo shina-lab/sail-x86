@@ -1,0 +1,84 @@
+{
+  "8851922ddd": {
+    "rewrite": null,
+    "why": "The load, full-width square, and two output stores are all required."
+  },
+  "a94111cead": {
+    "rewrite": "mov rdx,QWORD PTR [rsi]\nmulx r10,r9,QWORD PTR [rsi+0x8]\nmulx r8,rax,rdx\nmov rdx,QWORD PTR [rsi+0x8]\nmulx rdx,r11,rdx\nadd r9,r9\nadc r10,r10\nadc rdx,0x0\nadd r8,r9\nadc r10,r11\nadc rdx,0x0\nmov QWORD PTR [rdi],rax\nmov QWORD PTR [rdi+0x8],r8\nmov QWORD PTR [rdi+0x10],r10\nmov QWORD PTR [rdi+0x18],rdx",
+    "saved": 1,
+    "why": "Fold the second limb's first load into the cross-product MULX and load it directly into RDX for its square, removing the RCX copy."
+  },
+  "84901b0d08": {
+    "rewrite": "mov rdx,QWORD PTR [rsi]\nmulx r11,r10,QWORD PTR [rsi+0x8]\nmulx r9,r8,QWORD PTR [rsi+0x10]\nmulx rcx,rbx,rdx\nmov QWORD PTR [rdi],rbx\nadd r8,r11\nmov rdx,QWORD PTR [rsi+0x8]\nmulx r11,rax,QWORD PTR [rsi+0x10]\nadc r9,rax\nadc r11,0x0\nmulx rbx,rax,rdx\nmov rdx,QWORD PTR [rsi+0x10]\nmulx rdx,rsi,rdx\nadd r10,r10\nadc r8,r8\nadc r9,r9\nadc r11,r11\nadc rdx,0x0\nadd rcx,r10\nadc rax,r8\nadc rbx,r9\nadc rsi,r11\nadc rdx,0x0\nmov QWORD PTR [rdi+0x8],rcx\nmov QWORD PTR [rdi+0x10],rax\nmov QWORD PTR [rdi+0x18],rbx\nmov QWORD PTR [rdi+0x20],rsi\nmov QWORD PTR [rdi+0x28],rdx",
+    "saved": 4,
+    "why": "Compute the first two diagonal squares while their operands remain in RDX, eliminating two reloads. Replace the ADX chains with ADD/ADC chains, applying the doubling carry to RDX first, to eliminate TEST and the zero-register setup."
+  },
+  "e52e6e9fab": {
+    "rewrite": null,
+    "why": "The rounded offset, shifted count, masked remainder, load, and final AND flags each require the existing operations."
+  },
+  "00856f4698": {
+    "rewrite": null,
+    "why": "Both products, the doubled multiplier, the pointer update, and the addition producing the required carry are necessary."
+  },
+  "79eeb8983b": {
+    "rewrite": null,
+    "why": "Both products, the doubling, the store, both pointer updates, and the final carry-producing addition are required."
+  },
+  "56425f6551": {
+    "rewrite": null,
+    "why": "Both products, the doubling, the store, both pointer updates, and the final carry-producing addition are required."
+  },
+  "2c1ca7b13e": {
+    "rewrite": null,
+    "why": "Both products, the doubling, the store, both pointer updates, and the final carry-producing addition are required."
+  },
+  "4899cf6c37": {
+    "rewrite": null,
+    "why": "Both products, the doubling, the store, both pointer updates, and the final carry-producing addition are required."
+  },
+  "76e0e73b79": {
+    "rewrite": null,
+    "why": "Both products, the doubling, the store, both pointer updates, and the final carry-producing addition are required."
+  },
+  "0d555a5f7f": {
+    "rewrite": null,
+    "why": "Both products, the doubling, the store, both pointer updates, and the final carry-producing addition are required."
+  },
+  "fdfc9efc02": {
+    "rewrite": null,
+    "why": "The two stores, full-width multiplication, pointer update, and carry-dependent addition all have required effects."
+  },
+  "cf33eeb8a4": {
+    "rewrite": null,
+    "why": "Both products, the store, the carry-dependent sum, and the decrement producing RCX and ZF are required."
+  },
+  "f12d508acd": {
+    "rewrite": null,
+    "why": "The two independent incoming carries, both RCX additions, both stores, pointer update, and final OR result and ZF are needed."
+  },
+  "c36b7220d3": {
+    "rewrite": null,
+    "why": "All products, stores, and the pointer update are required, and the ADCX and ADOX chains must preserve separate CF and OF outputs."
+  },
+  "60b393d5be": {
+    "rewrite": null,
+    "why": "Every multiplication and carry-chain addition contributes to a stored or preserved result, with both CF and OF required at the end."
+  },
+  "18cf746973": {
+    "rewrite": null,
+    "why": "The products, three stored sums, count and pointer updates, and both final carry flags require the existing operations."
+  },
+  "f43aead9b7": {
+    "rewrite": null,
+    "why": "Every multiplication and carry-chain addition contributes to a stored or preserved result, with both CF and OF required at the end."
+  },
+  "ad65aa50b7": {
+    "rewrite": null,
+    "why": "The products, stored sums, count and pointer updates, and independent CF and OF carry chains all remain live."
+  },
+  "012d42185c": {
+    "rewrite": null,
+    "why": "Every multiplication and carry-chain addition contributes to a stored or preserved result, with both CF and OF required at the end."
+  }
+}

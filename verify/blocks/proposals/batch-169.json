@@ -1,0 +1,84 @@
+{
+  "89d3524d40": {
+    "rewrite": null,
+    "why": "Each of the four unpacks produces a distinct live full-width vector result."
+  },
+  "546a54b0f8": {
+    "rewrite": null,
+    "why": "The four 64-byte stores are all required, along with the ECX subtraction and its flags."
+  },
+  "c6ffa7bcbc": {
+    "rewrite": null,
+    "why": "The shifted vector and all eight zeroed vector destinations are live, while the other vector registers must retain their values."
+  },
+  "302bf9485b": {
+    "rewrite": null,
+    "why": "The multiply, store, ECX bit update, rounding addition, and arithmetic shift all contribute to required outputs."
+  },
+  "ae4b26c7d9": {
+    "rewrite": null,
+    "why": "All eight unpack results and the copied ZMM26 value are independently live."
+  },
+  "1fab3dae60": {
+    "rewrite": "vpunpckhqdq zmm0,zmm21,zmm0",
+    "saved": 15,
+    "why": "Only ZMM0 is live among the vector destinations, and its unpack uses unchanged input values; all other unpacks are dead."
+  },
+  "53417cec1c": {
+    "rewrite": null,
+    "why": "Both separately rounded scalar products, the store and ECX update, and the broadcast and saturated-add vector results are required."
+  },
+  "954b0c6dc6": {
+    "rewrite": null,
+    "why": "Each stored vector requires both signed-add saturation and unsigned-subtract saturation, and the pointer and counter updates are live."
+  },
+  "55f45c0e5b": {
+    "rewrite": null,
+    "why": "Both live vectors require addition of an unconstrained ZMM29 followed by an arithmetic shift."
+  },
+  "94423dc28c": {
+    "rewrite": null,
+    "why": "All four multiplied and rounded results, their four copies, and both broadcast outputs are live."
+  },
+  "4169bf057d": {
+    "rewrite": null,
+    "why": "Each of the four live vectors needs its own wrapping addition and arithmetic shift, with no applicable fused instruction."
+  },
+  "acd5b72d7b": {
+    "rewrite": null,
+    "why": "Each of the eight products feeds a live sum or difference after its own wrapping addition and arithmetic shift, and both broadcasts are live."
+  },
+  "0c28ad4703": {
+    "rewrite": null,
+    "why": "The two address results and two distinct constant broadcasts are all live and each already takes one instruction."
+  },
+  "9b3da58196": {
+    "rewrite": null,
+    "why": "The two rounded multiplications cannot be merged across the intermediate arithmetic shift, and the store, ECX update, and final flags are observable."
+  },
+  "9b0cdcfae3": {
+    "rewrite": null,
+    "why": "All eight unpack results and the memory broadcast result are independently live."
+  },
+  "0954379435": {
+    "rewrite": null,
+    "why": "The scalar arithmetic, high-word broadcast, store, loop count, clamp constant, and zero vector all contribute to required outputs."
+  },
+  "515187d917": {
+    "rewrite": null,
+    "why": "The two loads and stores, wrapping addition, clamps against unconstrained vectors, and live pointer and counter updates are all required."
+  },
+  "fe94cb713a": {
+    "rewrite": null,
+    "why": "The saturating packs and both word-interleave levels produce required values, and the SSE copies preserve operands needed by the complementary unpacks."
+  },
+  "49df3319ef": {
+    "rewrite": "paddd xmm0,xmm2\npmulld xmm0,XMMWORD PTR [CONST_1]\npaddd xmm0,xmm5\npsrad xmm0,0xc\npmulld xmm1,XMMWORD PTR [CONST_2]\npmulld xmm3,XMMWORD PTR [CONST_3]\npaddd xmm1,xmm5\npaddd xmm3,xmm1\npsrad xmm3,0xc\npaddd xmm0,xmm3",
+    "saved": 18,
+    "why": "Only XMM0 is live among the vector results, so the unused difference paths disappear. Distributivity modulo 2^32 combines the equal-coefficient products, and memory operands absorb the constant loads while preserving both arithmetic shifts."
+  },
+  "40685b2d14": {
+    "rewrite": null,
+    "why": "The saturating packs and two interleave levels are required for the three live rearranged vectors, with SSE copies retaining operands for both unpack halves."
+  }
+}

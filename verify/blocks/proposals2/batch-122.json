@@ -1,0 +1,82 @@
+{
+  "4dbd959900": {
+    "rewrite": null,
+    "why": "The live YMM3 comparison result, incremented EAX mask, and ZF require the load, comparison, mask extraction, and increment."
+  },
+  "d7888acc61": {
+    "rewrite": null,
+    "why": "The live YMM4 comparison result, incremented ECX mask, and ZF require all four instructions."
+  },
+  "51125c59f0": {
+    "rewrite": null,
+    "why": "The live RDX end pointer and RSI offset each need their calculation, while aligning and advancing RDI requires two separate operations."
+  },
+  "a7f7d05833": {
+    "rewrite": null,
+    "why": "The live vector comparison and incremented scalar mask require all four instructions, with INC also producing ZF while preserving incoming CF."
+  },
+  "bacf54419f": {
+    "rewrite": null,
+    "why": "The comparison vector, incremented EAX mask, and all specified flags are live, leaving no removable instruction."
+  },
+  "87c2be9f78": {
+    "rewrite": null,
+    "why": "Preserving both source registers while deriving the masked OR and its exact ZF, SF, and OF comparison results requires the copy, OR, mask, and compare."
+  },
+  "9bf85f3b06": {
+    "rewrite": null,
+    "why": "The comparison vector, full incremented mask in EAX, truncated mask in EDX, and final ZF are all required, so BZHI cannot replace an earlier operation."
+  },
+  "f46a7de2b7": {
+    "rewrite": null,
+    "why": "Each 24-bit key needs a zero-extended word load, byte rearrangement, and tail-byte merge, while the tail registers, RCX, subtraction result, and flags must all be preserved."
+  },
+  "38f05b9750": {
+    "rewrite": null,
+    "why": "Both vector outputs and the adjusted scalar mask are live, and folding a QWORD load into VPCMPEQB would read additional bytes outside the original loads."
+  },
+  "1365b3d4ca": {
+    "rewrite": null,
+    "why": "The load and memory-source comparison already avoid a separate second load, and the live vector, adjusted EAX mask, and ZF require the remaining operations."
+  },
+  "e646db811a": {
+    "rewrite": null,
+    "why": "Both 64-bit keys require separate endian-converting head and tail loads plus shift/OR assembly, with RCX, both tail registers, the subtraction result, and flags all live."
+  },
+  "d7abcafe26": {
+    "rewrite": null,
+    "why": "The length mask must remain in both ECX and k2, the merging load and comparison outputs are live, and TEST supplies the required scalar flags."
+  },
+  "6fe26a9b97": {
+    "rewrite": null,
+    "why": "The loaded vector, k1 comparison mask, and EAX mask are all live, and KMOVD does not set the required ZF."
+  },
+  "511b7753d4": {
+    "rewrite": null,
+    "why": "The loaded YMM18 value, k1 comparison mask, EAX mask, and final ZF require all four instructions."
+  },
+  "12ec2b27b1": {
+    "rewrite": null,
+    "why": "The loaded YMM19 value and both mask outputs must be retained, and obtaining ZF requires a separate test after the comparison and mask transfer."
+  },
+  "cb8aeaf2d1": {
+    "rewrite": null,
+    "why": "The loaded YMM20 value, k1 mask, and ECX mask are all live, and the mask transfer does not produce the required ZF."
+  },
+  "c238ea6f2b": {
+    "rewrite": null,
+    "why": "The three live pointer results require separate end-pointer and offset calculations plus both alignment and advancement of RDI."
+  },
+  "e9ebbaebe3": {
+    "rewrite": null,
+    "why": "The indexed load, comparison, mask transfer, and test each produce a required vector, mask, scalar, or flag result."
+  },
+  "35e5d17714": {
+    "rewrite": null,
+    "why": "The vector and both mask outputs are live, and TEST is necessary to reproduce the specified CF, PF, ZF, SF, and OF values."
+  },
+  "000e0e7143": {
+    "rewrite": null,
+    "why": "The loaded XMM0 value, XMM1 comparison, zeroed RAX, adjusted EDX mask, and final ZF are all live, so neither load nor any scalar operation can be removed."
+  }
+}

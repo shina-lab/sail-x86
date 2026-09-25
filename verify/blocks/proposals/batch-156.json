@@ -1,0 +1,88 @@
+{
+  "6872a4cdd3": {
+    "rewrite": null,
+    "why": "All eight shifts produce distinct required YMM results, and AVX2 has no multi-destination shift to combine them."
+  },
+  "fe86ec7c65": {
+    "rewrite": "vmovq xmm4,QWORD PTR [rdi]\nvmovhps xmm4,xmm4,QWORD PTR [rdi+rax*1]\nvmovq xmm5,QWORD PTR [rdi+rsi*1]\nvmovhps xmm5,xmm5,QWORD PTR [rdi+rsi*2]\nvmovdqa YMMWORD PTR [rdx],ymm7\nvmovdqa YMMWORD PTR [rdx+0x20],ymm7\nadd rdx,0x40\nvinserti128 ymm4,ymm4,xmm5,0x1\nvpaddw ymm4,ymm4,ymm0\nvpmaxsw ymm4,ymm4,ymm7\nvpminsw ymm4,ymm8,ymm4\nvextracti128 xmm5,ymm4,0x1\nvmovq QWORD PTR [rdi],xmm4\nvmovq QWORD PTR [rdi+rsi*1],xmm5\nvmovhps QWORD PTR [rdi+rsi*2],xmm5\nvmovhps QWORD PTR [rdi+rax*1],xmm4",
+    "saved": 2,
+    "why": "Build the upper lane with two qword loads and one lane insert instead of two broadcasts and two blends. The final RDI update is dead."
+  },
+  "d6249be94d": {
+    "rewrite": null,
+    "why": "The saturating packs, rounded multiplies, and saturated additions are needed, and the surviving product and constant registers are also live."
+  },
+  "dd7c047f74": {
+    "rewrite": "vmovq xmm1,QWORD PTR [rdi]\nvmovhps xmm1,xmm1,QWORD PTR [rdi+rsi*1]\nvmovq xmm2,QWORD PTR [rdi+rsi*4]\nvmovhps xmm2,xmm2,QWORD PTR [rdi+rax*1]\nvinserti128 ymm1,ymm1,xmm2,0x1\nvmovdqa YMMWORD PTR [rdx],ymm3\nvmovdqa YMMWORD PTR [rdx+0x20],ymm3\nadd rdx,0x40\nvpaddw ymm1,ymm1,ymm0\nvpmaxsw ymm1,ymm1,ymm3\nvpminsw ymm1,ymm1,ymm4\nvextracti128 xmm2,ymm1,0x1\nvmovq QWORD PTR [rdi],xmm1\nvmovhps QWORD PTR [rdi+rsi*1],xmm1\nvmovq QWORD PTR [rdi+rsi*4],xmm2\nvmovhps QWORD PTR [rdi+rax*1],xmm2",
+    "saved": 2,
+    "why": "Build the upper lane with two qword loads and one lane insert instead of two broadcasts and two blends. The final RDI update is dead."
+  },
+  "50ec464c85": {
+    "rewrite": null,
+    "why": "The multiply, rounding add, shift, store, ECX update, and broadcast each contribute required state, including the final shift flags."
+  },
+  "d60d116f77": {
+    "rewrite": null,
+    "why": "The transpose intermediates and clamped outputs are all preserved, and AVX2 provides no single instruction for the signed 18-bit clamp."
+  },
+  "97a756d9b7": {
+    "rewrite": null,
+    "why": "Each input needs its arithmetic shift before signed saturation, and the packed lane permutations, surviving shifted inputs, and constant registers are all live."
+  },
+  "8815f7b17b": {
+    "rewrite": null,
+    "why": "Each of the eight shifts directly produces a required vector result, with no redundant operation to remove."
+  },
+  "e4ec35c7ed": {
+    "rewrite": null,
+    "why": "Clamping arbitrary signed dwords to the 18-bit range requires both bounds, and all eight results and both broadcast constants must be preserved."
+  },
+  "69aa9ff9bf": {
+    "rewrite": "vshufps ymm8,ymm0,ymm1,0x88\nvshufps ymm9,ymm2,ymm3,0x88\nvperm2i128 ymm0,ymm8,ymm9,0x20\nvpshufd ymm0,ymm0,0xd8",
+    "saved": 20,
+    "why": "Only YMM0 is live among the vector results. Two shuffles select the needed even dwords, then a lane concatenation and dword shuffle reproduce its interleaving."
+  },
+  "5649ac65eb": {
+    "rewrite": "vpsrad ymm0,ymm0,0x1",
+    "saved": 24,
+    "why": "Only the arithmetic shift of YMM0 contributes to preserved state; every other vector result is dead."
+  },
+  "4eb46f0898": {
+    "rewrite": null,
+    "why": "All eight arithmetic shifts produce required destination registers and already include the necessary register reassignment."
+  },
+  "70e78ad398": {
+    "rewrite": null,
+    "why": "AVX2 cannot fuse the required dword permutations with arithmetic shifts, and all eight destination registers are live."
+  },
+  "070d4441bf": {
+    "rewrite": null,
+    "why": "The signed clamps prevent arbitrary-input multiplication overflow, while the rounded products, packed outputs, constants, and surviving intermediate registers must all match."
+  },
+  "a79751f980": {
+    "rewrite": null,
+    "why": "The two multiply-and-round stages cannot be merged without changing intermediate truncation or 32-bit wraparound, and the remaining operations produce required state."
+  },
+  "8ac5791186": {
+    "rewrite": null,
+    "why": "The broadcasts, lane rearrangements, and multiply/add/shift stages feed required final vectors, including the surviving loaded temporaries and constants."
+  },
+  "a11ca6d9f2": {
+    "rewrite": null,
+    "why": "The transpose, rounded dot products, and saturated butterflies have no removable intermediate when every final vector register must match."
+  },
+  "63cb859e20": {
+    "rewrite": "vbroadcasti128 ymm4,XMMWORD PTR [CONST_3]\nvpmulld ymm5,ymm0,ymm4\nvpmulld ymm4,ymm4,ymm2\nvbroadcasti128 ymm6,XMMWORD PTR [CONST_4]\nvpmulld ymm0,ymm0,ymm6\nvpmulld ymm2,ymm2,ymm6\nvpaddd ymm5,ymm5,ymm7\nvpaddd ymm2,ymm2,ymm5\nvpaddd ymm0,ymm0,ymm7\nvpsubd ymm0,ymm0,ymm4\nvpsrad ymm2,ymm2,0xc\nvpsrad ymm0,ymm0,0xc\nvpunpckhqdq ymm4,ymm2,ymm0\nvpunpcklqdq ymm2,ymm2,ymm0\nvpaddd ymm0,ymm2,ymm4\nvpmaxsd ymm0,ymm8,ymm0\nvpminsd ymm0,ymm9,ymm0",
+    "saved": 33,
+    "why": "Only the even-input branch and its final clamp contribute to preserved YMM0. Remove the odd-input branch and all other computations that affect only dead vector registers."
+  },
+  "1067a2da4c": {
+    "rewrite": null,
+    "why": "Both blends and both sign operations have live results, and AVX2 cannot fuse the separate dword shuffle into VPSIGND."
+  },
+  "84d8a4deac": {
+    "rewrite": "",
+    "saved": 4,
+    "why": "All four instructions affect only dead vector registers and have no memory or preserved-register effects."
+  }
+}

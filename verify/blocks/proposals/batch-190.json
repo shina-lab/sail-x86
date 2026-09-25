@@ -1,0 +1,91 @@
+{
+  "4bb52099e2": {
+    "rewrite": "vmovd xmm2,ebp\nvpbroadcastd ymm0,DWORD PTR [CONST_1]\nvpbroadcastb ymm2,xmm2\nvpsubb ymm0,ymm0,ymm2\nvpminub ymm0,ymm0,YMMWORD PTR [CONST_3]",
+    "saved": 6,
+    "why": "Only ymm0 is live among the changed vector registers, so discard the other results and fold the CONST_3 load into vpminub."
+  },
+  "1631fe6e8c": {
+    "rewrite": null,
+    "why": "The two loads supply distinct lane contents for the alignment, and the variable byte shuffle is required for the preserved ymm3."
+  },
+  "dcc2686dd6": {
+    "rewrite": null,
+    "why": "The shuffle and multiply chains feed the store or preserved intermediates, and combining the shifts across the saturating pack would change overflow behavior."
+  },
+  "3ca3018eac": {
+    "rewrite": "mov r15,r14\nmov r14,rbx\nmov rbx,r10",
+    "saved": 3,
+    "why": "The updates to r10, r11, and rdi are dead, leaving only the three moves that set preserved registers."
+  },
+  "113beaf035": {
+    "rewrite": "vpbroadcastw ymm0,WORD PTR [rcx-0x2]",
+    "saved": 4,
+    "why": "Only the broadcast into ymm0 is live; both mask loads and both blends can be removed."
+  },
+  "05872357f8": {
+    "rewrite": null,
+    "why": "The broadcast, insertion, load, and alignment assemble the required ymm4 from two buffers, and the rdx update is also live."
+  },
+  "b527ceae43": {
+    "rewrite": null,
+    "why": "The preserved outputs require the five-tap sum, the square sums including the intermediate in ymm3, and the final test's ZF."
+  },
+  "3deb96ee89": {
+    "rewrite": "vmovdqa ymm0,YMMWORD PTR [rdi+rbp*1]\nvpmulhuw ymm1,ymm0,YMMWORD PTR [r15+rbp*1+0x320]\nvpmullw ymm3,ymm0,YMMWORD PTR [r15+rbp*1+0x320]\nvpunpcklwd ymm2,ymm3,ymm1\nvpunpckhwd ymm3,ymm3,ymm1\nvmovdqa ymm4,YMMWORD PTR [r14+rbp*2+0x640]\nvinserti128 ymm1,ymm4,XMMWORD PTR [r14+rbp*2+0x660],0x1\nvperm2i128 ymm4,ymm4,YMMWORD PTR [r14+rbp*2+0x660],0x31\nvpsubd ymm1,ymm1,ymm2\nvpsubd ymm4,ymm4,ymm3\nvpsrad ymm1,ymm1,0x8\nvpsrad ymm4,ymm4,0x8\nvpackssdw ymm1,ymm1,ymm4\nvpmulhrsw ymm1,ymm1,ymm7\nvpaddw ymm0,ymm0,ymm1\nvpmaxsw ymm0,ymm0,ymm6\nvpminsw ymm0,ymm15,ymm0\nvmovdqa YMMWORD PTR [rdi+rbp*1],ymm0\nadd rbp,0x20",
+    "saved": 2,
+    "why": "Fold the coefficient load into both word multiplies and the second r14-buffer load into the insertion and permutation. This removes two explicit loads while preserving the arithmetic, store, addresses, and final flags."
+  },
+  "f00c4787cc": {
+    "rewrite": "vpbroadcastw ymm0,WORD PTR [rcx-0x2]",
+    "saved": 4,
+    "why": "Only the broadcast into ymm0 is live; both mask loads and both blends can be removed."
+  },
+  "35a542115b": {
+    "rewrite": null,
+    "why": "The broadcast, insertion, load, and alignment assemble the required ymm4 from two buffers, and the rdx update is also live."
+  },
+  "0284f5eb8a": {
+    "rewrite": null,
+    "why": "Both copies and both additions update live registers, and the final addition also supplies all required flags."
+  },
+  "43479cc072": {
+    "rewrite": null,
+    "why": "Each copy updates a separate live register, and dec r9d must retain its result and flag effects."
+  },
+  "d52d55dbf0": {
+    "rewrite": null,
+    "why": "The shuffles, sums, and initialized dot-product accumulators feed the store, while combining shifts across the signed saturation would change values."
+  },
+  "b44e607132": {
+    "rewrite": "mov r13,r12\nmov r12,r15\nmov r15,r14\nmov r14,rbx\nmov rbx,r10",
+    "saved": 3,
+    "why": "The updates to r10, r11, and rdi are dead, leaving the five moves that set preserved registers."
+  },
+  "28b69ae9cf": {
+    "rewrite": "mov r13,r12\nmov r12,r15\nmov r15,r14\nmov r14,rbx\nmov rbx,r10",
+    "saved": 1,
+    "why": "The rdi addition and its flags are dead, while all five register moves remain required."
+  },
+  "5f6f84904b": {
+    "rewrite": null,
+    "why": "All three copies set live registers, and the decrement must preserve its result and the specified flags."
+  },
+  "f349507c02": {
+    "rewrite": null,
+    "why": "All three moves and the addition update live registers, and the addition also produces the required flags."
+  },
+  "ae6ade96bb": {
+    "rewrite": null,
+    "why": "Both initialized dot-product chains contribute to the store, and the arithmetic shifts cannot be combined across the saturating pack for arbitrary inputs."
+  },
+  "c3729e4892": {
+    "rewrite": "mov r15,r14\nmov r14,rbx\nmov rbx,r10",
+    "saved": 3,
+    "why": "The updates to r10, r11, and rdi are dead, leaving only the three moves that set preserved registers."
+  },
+  "da623906fb": {
+    "rewrite": "vpalignr zmm18,zmm1,zmm0,0x2\nvpaddw zmm16,zmm0,zmm18\nvpalignr zmm19,zmm1,zmm0,0x6\nvpaddw zmm16,zmm16,zmm19\nvpmaddwd zmm20,zmm0,zmm0\nvpdpwssd zmm20,zmm19,zmm19\nvpmaddwd zmm18,zmm18,zmm18\nvshufpd zmm1,zmm0,zmm1,0x55\nvpaddw zmm16,zmm16,zmm1\nvpdpwssd zmm18,zmm1,zmm1\nvpunpckldq zmm17,zmm20,zmm18\nvpunpckhdq zmm18,zmm20,zmm18\nvshufps zmm0,zmm0,zmm1,0x99\nvpaddw zmm16,zmm16,zmm0\ntest al,0x10",
+    "saved": 2,
+    "why": "Compute square sums for even and odd output positions using adjacent-word dot products, then interleave dwords. This replaces four word unpacks with two dword unpacks while preserving the five-tap sum and ZF."
+  }
+}

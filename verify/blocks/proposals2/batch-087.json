@@ -1,0 +1,85 @@
+{
+  "db66cf1ab1": {
+    "rewrite": null,
+    "why": "Both vectors require their loads, wrapping additions, signed clamps, and stores, while the pointer and counter updates are also live."
+  },
+  "7eb2f395f0": {
+    "rewrite": null,
+    "why": "The byte load, reverse subtraction, stack-pointer copy, and three constant loads all produce required results, with no instruction-count reduction available in SSE2."
+  },
+  "1d36d3e556": {
+    "rewrite": null,
+    "why": "Four distinct 128-bit stores and two independent live register updates already require six instructions at SSE2."
+  },
+  "b47b761614": {
+    "rewrite": null,
+    "why": "All sixteen stores are required at SSE2 width, and the final addition supplies required flags, leaving no removable instruction."
+  },
+  "0662461bbd": {
+    "rewrite": null,
+    "why": "The sign-extending dword load cannot fold into a 64-bit multiply without widening the memory access, and both rounding stages, the zero store, and the word broadcast remain necessary."
+  },
+  "8a651a2a66": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [CONST_1]\nmov rax,rdi\nmovsxd rcx,ecx",
+    "saved": 1,
+    "why": "The stack adjustment affects no listed final register, required flag, or memory access. Removing it preserves all required results and leaves rsp untouched."
+  },
+  "db5773f63b": {
+    "rewrite": null,
+    "why": "The loaded byte, reverse subtraction, stack-pointer copy, and two vector constants are all required, and SSE2 offers no shorter combination."
+  },
+  "18f5b3310b": {
+    "rewrite": "pxor xmm2,xmm2\nimul ecx,DWORD PTR [rdx],0x2d41\nmovd DWORD PTR [rdx],xmm2\nadd ecx,0x2000\nsar ecx,0xe\nimul ecx,ecx,0x2d41\nadd ecx,0x82000\nsar ecx,0x14\nmovd xmm1,ecx\npshuflw xmm1,xmm1,0x0\npunpcklqdq xmm1,xmm1\nmov edx,0x8",
+    "saved": 1,
+    "why": "Fold the dword load into the first 32-bit immediate multiply, keeping that read before the zero store. The product, subsequent rounding, and all required final registers remain identical."
+  },
+  "418337645f": {
+    "rewrite": null,
+    "why": "Each of the four vectors needs its load, wrapping addition, two signed clamps, and store, followed by the required pointer and counter updates."
+  },
+  "cab1a0a1d8": {
+    "rewrite": null,
+    "why": "The byte load and pointer copy are required, and computing four minus the loaded byte while preserving that byte requires the existing two arithmetic setup instructions."
+  },
+  "cfdcd89be7": {
+    "rewrite": null,
+    "why": "SSE2 requires eight separate 128-bit stores, and both the pointer increment and flag-producing counter decrement are live."
+  },
+  "e006a36730": {
+    "rewrite": null,
+    "why": "The signed dword input must be widened before the 64-bit multiplication, and the two rounding stages plus the required zeroing, store, and broadcast admit no shorter SSE2 sequence."
+  },
+  "1f54edf433": {
+    "rewrite": "pxor xmm2,xmm2\nimul ecx,DWORD PTR [rdx],0x2d41\nmovd DWORD PTR [rdx],xmm2\nadd ecx,0x2000\nsar ecx,0xe\nimul ecx,ecx,0x2d41\nadd ecx,0x82000\nsar ecx,0x14\nmovd xmm1,ecx\npshuflw xmm1,xmm1,0x0\npunpcklqdq xmm1,xmm1\nmov edx,0x20",
+    "saved": 1,
+    "why": "The first 32-bit multiply can read the dword directly, eliminating its separate load while retaining the read before the zero store. All subsequent arithmetic and required final values are unchanged."
+  },
+  "8e8f65f1ac": {
+    "rewrite": null,
+    "why": "All four load/add/clamp/store sequences are needed for arbitrary input vectors, and the final pointer and counter updates are also required."
+  },
+  "ba88ac7042": {
+    "rewrite": null,
+    "why": "Preserving the loaded byte and computing eight minus it requires the existing load and two subtraction setup instructions, and the pointer copy is independently live."
+  },
+  "861e2c3663": {
+    "rewrite": null,
+    "why": "The sign-extending load and 64-bit multiply cannot fuse with the permitted dword memory access, and the remaining rounding, zeroing, store, and broadcast operations are required."
+  },
+  "172d01b084": {
+    "rewrite": null,
+    "why": "The scalar load is already folded into its multiply, and both rounding stages, the live broadcasts and saturated sum, the store, and the counter update remain necessary."
+  },
+  "33b5a22e52": {
+    "rewrite": null,
+    "why": "Both loads are already folded into saturated additions, and the unsigned saturated subtractions, stores, pointer update, and flag-preserving decrement cannot be combined further."
+  },
+  "f6e1a93f82": {
+    "rewrite": null,
+    "why": "Every product and adjusted result is live, the memory operands are already folded into multiplication, and both registers holding the final sum must be preserved."
+  },
+  "eca0eac467": {
+    "rewrite": null,
+    "why": "Every butterfly sum and difference either feeds a required result or is itself live, and the allowed instructions cannot fuse these independent packed dword additions and subtractions."
+  }
+}

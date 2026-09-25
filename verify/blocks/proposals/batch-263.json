@@ -1,0 +1,102 @@
+{
+  "7ab575abbd": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x5\nlea r10,[rdi+0x5]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "Setting all bits above bit 11 with or is equivalent to masking to 12 bits and subtracting 0x1000; no flags need to match."
+  },
+  "4aca38e67d": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0x5\npslldq xmm2,0xb\npor xmm2,xmm3\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Compute the interval mask in xmm1 and fold reloading its original bytes from the same address into por, eliminating one register copy."
+  },
+  "9b144017ca": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0xa\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi]\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "After forming the zero-byte mask, compute the interval mask in xmm1 and fold reloading its original bytes into por to eliminate one copy."
+  },
+  "2390f0dc5f": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x6\nlea r10,[rdi+0x6]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "Setting all bits above bit 11 with or is equivalent to masking to 12 bits and subtracting 0x1000; no flags need to match."
+  },
+  "8c5f746266": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0x6\npslldq xmm2,0xa\npor xmm2,xmm3\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Compute the interval mask in xmm1 and fold reloading its original bytes from the same address into por, eliminating one register copy."
+  },
+  "7475540205": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0x9\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi]\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "After forming the zero-byte mask, compute the interval mask in xmm1 and fold reloading its original bytes into por to eliminate one copy."
+  },
+  "5e4d166e04": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x7\nlea r10,[rdi+0x7]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "Setting all bits above bit 11 with or is equivalent to masking to 12 bits and subtracting 0x1000; no flags need to match."
+  },
+  "c2c8597eba": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0x7\npslldq xmm2,0x9\npor xmm2,xmm3\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Compute the interval mask in xmm1 and fold reloading its original bytes from the same address into por, eliminating one register copy."
+  },
+  "02e58b2efc": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0x8\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi]\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "After forming the zero-byte mask, compute the interval mask in xmm1 and fold reloading its original bytes into por to eliminate one copy."
+  },
+  "9d440c1164": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x8\nlea r10,[rdi+0x8]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "Setting all bits above bit 11 with or is equivalent to masking to 12 bits and subtracting 0x1000; no flags need to match."
+  },
+  "a9bfadbf08": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm4,XMMWORD PTR [rdi+rcx*1]\nshufpd xmm3,xmm4,0x1\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm3\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm3\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\npor xmm3,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm3\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 4,
+    "why": "Load directly into xmm4 and use shufpd to concatenate the old xmm3 high quadword with the loaded low quadword, saving three instructions. Computing xmm1's interval mask in place and reloading in por removes another copy."
+  },
+  "8e6cafeee3": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0x7\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi]\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "After forming the zero-byte mask, compute the interval mask in xmm1 and fold reloading its original bytes into por to eliminate one copy."
+  },
+  "2ec975f533": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x9\nlea r10,[rdi+0x9]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "Setting all bits above bit 11 with or is equivalent to masking to 12 bits and subtracting 0x1000; no flags need to match."
+  },
+  "d7f56cd553": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0x9\npslldq xmm2,0x7\npor xmm2,xmm3\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Compute the interval mask in xmm1 and fold reloading its original bytes from the same address into por, eliminating one register copy."
+  },
+  "4bb449b424": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0x6\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi]\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "After forming the zero-byte mask, compute the interval mask in xmm1 and fold reloading its original bytes into por to eliminate one copy."
+  },
+  "0f51dad233": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xa\nlea r10,[rdi+0xa]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "Setting all bits above bit 11 with or is equivalent to masking to 12 bits and subtracting 0x1000; no flags need to match."
+  },
+  "63eb6b69f5": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0xa\npslldq xmm2,0x6\npor xmm2,xmm3\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Compute the interval mask in xmm1 and fold reloading its original bytes from the same address into por, eliminating one register copy."
+  },
+  "3d56b0ea49": {
+    "rewrite": "pxor xmm0,xmm0\nmovdqa xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rsi]\npcmpeqb xmm0,xmm1\npslldq xmm2,0x5\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi]\npor xmm2,xmm10\npcmpeqb xmm2,xmm1\npsubb xmm2,xmm0\npmovmskb r9d,xmm2\nshr edx,cl\nshr r9d,cl\nsub edx,r9d",
+    "saved": 1,
+    "why": "After forming the zero-byte mask, compute the interval mask in xmm1 and fold reloading its original bytes into por to eliminate one copy."
+  },
+  "7259ebdf9f": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xb\nlea r10,[rdi+0xb]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "Setting all bits above bit 11 with or is equivalent to masking to 12 bits and subtracting 0x1000; no flags need to match."
+  },
+  "4a8197269f": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm2,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm4,xmm2\npsrldq xmm3,0xb\npslldq xmm2,0x5\npor xmm2,xmm3\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm9,xmm1\npcmpgtb xmm1,xmm5\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm1,xmm9\npand xmm10,xmm11\npand xmm1,xmm7\npand xmm10,xmm7\npor xmm1,XMMWORD PTR [rsi+rcx*1]\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Compute the interval mask in xmm1 and fold reloading its original bytes from the same address into por, eliminating one register copy."
+  }
+}

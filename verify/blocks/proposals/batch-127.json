@@ -1,0 +1,85 @@
+{
+  "8c4841b532": {
+    "rewrite": null,
+    "why": "Four independent stores and two required scalar updates leave no redundant instruction."
+  },
+  "5d1498f82a": {
+    "rewrite": null,
+    "why": "The trailing-zero count, byte zero-extension, shift by six, and 64-bit addition are all required."
+  },
+  "2ab5f55629": {
+    "rewrite": null,
+    "why": "The four independent dot products, saturation, live extracted vector, stores, and flag-setting counter update leave no removable instruction."
+  },
+  "514b4f9f2b": {
+    "rewrite": null,
+    "why": "All permutation, shift, unpack, blend, and copy results contribute to required final vector values."
+  },
+  "3c29aeaee2": {
+    "rewrite": null,
+    "why": "The blend, two separate stores, pointer update, and flag-setting counter update are each required."
+  },
+  "b954bd406c": {
+    "rewrite": null,
+    "why": "The cross-lane permutation and blend are both necessary before the two stores and required scalar updates."
+  },
+  "065f0b9a10": {
+    "rewrite": "vextracti128 xmm8,ymm9,0x1\nvshufps xmm0,xmm9,xmm8,0xe6\nvpshuflw xmm0,xmm0,0xf4\nvshufps xmm6,xmm8,xmm11,0xf4\nvpsrldq xmm6,xmm6,0x4\nvpblendw xmm0,xmm0,xmm6,0xa\nvpshufb xmm0,xmm0,XMMWORD PTR [rax-0x2b4]\nvinserti128 ymm0,ymm0,xmm0,0x1\nvpshufd ymm6,ymm0,0x0\nvpmaddwd ymm6,ymm6,ymm2\nvpshufd ymm7,ymm0,0x55\nvpmaddwd ymm7,ymm7,ymm3\nvpaddd ymm6,ymm6,ymm1\nvpaddd ymm6,ymm6,ymm7\nvpshufd ymm7,ymm0,0xaa\nvpmaddwd ymm7,ymm7,ymm4\nvpaddd ymm6,ymm6,ymm7\nvpshufd ymm7,ymm0,0xff\nvpmaddwd ymm7,ymm7,ymm5\nvpaddd ymm6,ymm6,ymm7\nvpsrad ymm6,ymm6,0x4\nvpackusdw ymm6,ymm6,ymm6\nvpminsw ymm6,ymm15,ymm6\nvpermq ymm12,ymm13,0x72\nvpblendd ymm12,ymm12,ymm10,0xcc\nvpblendd ymm9,ymm9,ymm6,0xcc\nvmovdqa XMMWORD PTR [rdi],xmm12\nvmovdqa XMMWORD PTR [rdi+0x10],xmm9\nvextracti128 XMMWORD PTR [rdi+rsi*1],ymm12,0x1\nvextracti128 XMMWORD PTR [rdi+rsi*1+0x10],ymm9,0x1",
+    "saved": 2,
+    "why": "The six-instruction gather produces the identical eight-word sequence before the byte shuffle, replacing the original eight-instruction gather."
+  },
+  "181143fb54": {
+    "rewrite": null,
+    "why": "Each permutation and shifted blend contributes to a live vector or one of the two required stores."
+  },
+  "815fcf03ad": {
+    "rewrite": "vextracti128 xmm8,ymm9,0x1\nvshufps xmm0,xmm9,xmm8,0xe6\nvpshuflw xmm0,xmm0,0xf4\nvshufps xmm6,xmm8,xmm11,0xf4\nvpsrldq xmm6,xmm6,0x4\nvpblendw xmm0,xmm0,xmm6,0xa\nvpshufb xmm0,xmm0,XMMWORD PTR [rax-0x2b4]\nvinserti128 ymm8,ymm0,xmm0,0x1\nvpshufd ymm6,ymm8,0x0\nvpmaddwd ymm6,ymm6,ymm2\nvpshufd ymm7,ymm8,0x55\nvpmaddwd ymm7,ymm7,ymm3\nvpaddd ymm6,ymm6,ymm1\nvpaddd ymm6,ymm6,ymm7\nvpshufd ymm7,ymm8,0xaa\nvpmaddwd ymm7,ymm7,ymm4\nvpaddd ymm6,ymm6,ymm7\nvpshufd ymm7,ymm8,0xff\nvpmaddwd ymm7,ymm7,ymm5\nvpaddd ymm6,ymm6,ymm7\nvpsrad ymm6,ymm6,0x4\nvpackusdw ymm6,ymm6,ymm6\nvpminsw ymm6,ymm15,ymm6\nvpermq ymm12,ymm13,0x72\nvpblendd ymm12,ymm12,ymm10,0xcc\nvpblendd ymm9,ymm9,ymm6,0xcc\nvmovdqa XMMWORD PTR [rdi],xmm12\nvmovdqa XMMWORD PTR [rdi+0x10],xmm9\nvextracti128 XMMWORD PTR [rdi+rsi*1],ymm12,0x1\nvextracti128 XMMWORD PTR [rdi+rsi*1+0x10],ymm9,0x1",
+    "saved": 4,
+    "why": "Use a six-instruction gather and duplicate into dead ymm8, leaving the required upper half of ymm0 zero without vzeroupper. Omit the unobserved rsp assignment as required by the block's no-rsp rule."
+  },
+  "d12111d3a9": {
+    "rewrite": "vpshufb ymm8,ymm8,ymm14\nvpermq ymm7,ymm8,0xee\nvpshufd ymm0,ymm7,0xff\nvpmaddwd ymm0,ymm0,ymm5",
+    "saved": 27,
+    "why": "Only ymm0 is a live vector result, and its final value depends solely on the initial byte shuffle, upper-lane duplication, final dword shuffle, and multiply-add."
+  },
+  "76bab0ce7a": {
+    "rewrite": null,
+    "why": "The modular word reductions, unpack with arbitrary xmm6, and preserved xmm1 result prevent replacing the sequence with a simpler horizontal sum."
+  },
+  "045c198977": {
+    "rewrite": null,
+    "why": "The sign operations and rounded multiplication must handle arbitrary words, including -32768, while all four stores and scalar updates remain necessary."
+  },
+  "d5b381c779": {
+    "rewrite": null,
+    "why": "Each input vector needs its own sign handling, magnitude, rounded multiplication, addition, and clamps before the four required stores and scalar updates."
+  },
+  "b51b4de775": {
+    "rewrite": null,
+    "why": "Both vectors require their sign handling, rounded multiplication, addition, and clamps before the two stores and scalar updates."
+  },
+  "1dc731ebec": {
+    "rewrite": null,
+    "why": "The two independent vector transforms and stores are required, as are the live pointer and counter updates."
+  },
+  "02baa504b9": {
+    "rewrite": null,
+    "why": "Unknown row indices require four separate loads, and the live full-width sum and packed result retain every remaining operation."
+  },
+  "060d946852": {
+    "rewrite": null,
+    "why": "The store, live vector accumulation, pointer advance, and flag-setting counter update each require an instruction."
+  },
+  "ca85de0a00": {
+    "rewrite": null,
+    "why": "The loads are already folded into the multiply-adds, and the live sum, packed result, accumulation, and scalar updates require the remaining instructions."
+  },
+  "1f16255438": {
+    "rewrite": null,
+    "why": "The broadcasted final dword is needed both in the stored packed vector and in the live vector sums, so no operation is dead."
+  },
+  "69cd7eccbc": {
+    "rewrite": null,
+    "why": "Both broadcast values and both blended vectors must survive, requiring all four instructions."
+  }
+}

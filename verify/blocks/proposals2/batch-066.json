@@ -1,0 +1,85 @@
+{
+  "1636d3c74a": {
+    "rewrite": null,
+    "why": "All five pointer loads, the three live offsets, and the saved r8d value are required."
+  },
+  "dbf2e252a8": {
+    "rewrite": null,
+    "why": "All seven pointer loads, the five live offsets, and the saved r8d value are required."
+  },
+  "099148eea3": {
+    "rewrite": null,
+    "why": "All nine pointer loads, the seven live offsets, and the saved r8d value are required."
+  },
+  "c5e042209d": {
+    "rewrite": null,
+    "why": "Every pointer load and offset subtraction has a required result, and vmovd must also preserve the saved scalar and zero the upper vector bits."
+  },
+  "e8e19f6586": {
+    "rewrite": null,
+    "why": "Every pointer load and offset subtraction has a required result, and AVX vectorization would require extra setup and extraction instructions."
+  },
+  "b55a41615e": {
+    "rewrite": null,
+    "why": "All scalar pointer results are live, and packing their subtractions into AVX vectors does not save instructions after setup and extraction."
+  },
+  "8e2dbe35af": {
+    "rewrite": null,
+    "why": "The 32-bit shift must truncate and zero-extend before both pointer additions and the 64-bit negation, and the vector broadcast is also live."
+  },
+  "f6736c4321": {
+    "rewrite": null,
+    "why": "Both pointer additions require the truncated, zero-extended shift result, while r8 must retain its full 64-bit negation."
+  },
+  "56fbe2ef4c": {
+    "rewrite": null,
+    "why": "All four independently addressed loads and stores, the live loaded registers, both pointer updates, and the flag-producing decrement must be preserved."
+  },
+  "7748053e94": {
+    "rewrite": null,
+    "why": "The four rows use unknown strides, and all loaded vectors, stores, pointer updates, and decrement flags are live."
+  },
+  "25165a6e84": {
+    "rewrite": null,
+    "why": "Each row already uses a load, a memory-source byte average, and a store, with all vector results and loop updates live."
+  },
+  "c40eb03a17": {
+    "rewrite": null,
+    "why": "The SSE2 unpack, multiply-add, and reduction stages produce required intermediate registers as well as the stored result, preventing their removal."
+  },
+  "04185a3296": {
+    "rewrite": "movdqa xmm5,XMMWORD PTR [CONST_1]\nmov eax,r8d\nshl r8d,0x8\nsub r8,rax\nmov eax,0x8\nadd r8,0x8\nsub eax,r9d\nimul rax,r8\nimul r8d,r9d\nmovd xmm6,r8d\npinsrw xmm6,eax,0x1\npunpcklwd xmm6,xmm6\npshufd xmm7,xmm6,0x55\npshufd xmm6,xmm6,0x0\nmovq xmm0,QWORD PTR [rsi]\nmovq xmm1,QWORD PTR [rsi+0x1]\npunpcklbw xmm0,xmm1",
+    "saved": 1,
+    "why": "Insert both required low words into xmm6, unpack them together, and broadcast each resulting dword. This replaces two separate three-instruction word broadcasts with five instructions."
+  },
+  "27a48f9274": {
+    "rewrite": null,
+    "why": "The preserved multiply-add intermediates and duplicated final row require the copies, while the stores, shifts, and loop flags remain necessary."
+  },
+  "67928f24e1": {
+    "rewrite": null,
+    "why": "The coefficient calculation requires its original 32-bit shift followed by 64-bit arithmetic, and both scalar outputs and the full word broadcast are live."
+  },
+  "01be842e32": {
+    "rewrite": null,
+    "why": "The two rows already use SSSE3 multiply-adds directly, and their loaded vectors, intermediate result, stores, and loop flags are all live."
+  },
+  "32e9a39599": {
+    "rewrite": null,
+    "why": "The copy preserves the middle-row vector while forming a second interpolation, and the remaining arithmetic, stores, and loop updates all have required outputs."
+  },
+  "635e31120b": {
+    "rewrite": "movdqa xmm5,XMMWORD PTR [CONST_1]\nmov eax,r8d\nshl r8d,0x8\nsub r8,rax\nmov eax,0x8\nadd r8,0x8\nsub eax,r9d\nimul rax,r8\nimul r8d,r9d\nmovd xmm6,r8d\npinsrw xmm6,eax,0x1\npunpcklwd xmm6,xmm6\npshufd xmm7,xmm6,0x55\npshufd xmm6,xmm6,0x0\nmovq xmm0,QWORD PTR [rsi]\nmovq xmm1,QWORD PTR [rsi+0x1]\npunpcklbw xmm0,xmm1",
+    "saved": 1,
+    "why": "Insert both required low words into xmm6, unpack them together, and broadcast each resulting dword. This replaces two separate three-instruction word broadcasts with five instructions."
+  },
+  "c45199e7f2": {
+    "rewrite": null,
+    "why": "The coefficient calculation requires its original 32-bit shift followed by 64-bit arithmetic, and both scalar outputs and the full word broadcast are live."
+  },
+  "2090c9c269": {
+    "rewrite": "movdqa xmm5,XMMWORD PTR [CONST_1]\nimul r8d,r8d,0xff\nadd r8d,0x8\nmovd xmm0,DWORD PTR [rsi]\nlea eax,[r9-0x8]\nshl r9d,0x10\nmovd xmm1,DWORD PTR [rsi+0x1]\nsub r9d,eax\nimul r8d,r9d\nadd rsi,rdx\nmovd xmm6,r8d\npunpcklwd xmm6,xmm6\npshufd xmm7,xmm6,0x55\npunpcklbw xmm0,xmm1\npshufd xmm6,xmm6,0x0",
+    "saved": 3,
+    "why": "Replace the first 32-bit coefficient construction with multiplication by 255 plus 8, and compute eax = r9d - 8 directly with lea. All 32-bit wraparound and final scalar values are preserved."
+  }
+}

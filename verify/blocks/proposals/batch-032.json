@@ -1,0 +1,84 @@
+{
+  "dec030b14c": {
+    "rewrite": null,
+    "why": "Both high-half merges and both byte shuffles feed required stores or live register values, and the pointer and counter updates are required."
+  },
+  "004d6bb9ec": {
+    "rewrite": null,
+    "why": "The two-operand PALIGNR needs a temporary while the original xmm1 remains available for PSHUFB, and all stores and scalar updates are required."
+  },
+  "f7783f0a37": {
+    "rewrite": null,
+    "why": "Each merge and shuffle contributes a required stored or final value, including the VEX instructions' clearing of the upper vector halves."
+  },
+  "198dc47483": {
+    "rewrite": null,
+    "why": "Each cross-register byte shift needs the SSE2 copy, shifts, and OR, and the intermediate vectors are required by the stores."
+  },
+  "849eac4531": {
+    "rewrite": null,
+    "why": "All three cross-register byte carries contribute to live outputs, and SSE2 requires their separate extraction, shift, and merge operations."
+  },
+  "d11c1b7c2d": {
+    "rewrite": null,
+    "why": "PALIGNR already implements each cross-register shift in one instruction, and the intermediate stores require both rounds of vector updates."
+  },
+  "bad74d8533": {
+    "rewrite": null,
+    "why": "The four stores, four single-instruction vector updates, pointer increment, and counter decrement all produce required effects."
+  },
+  "c659ec89d2": {
+    "rewrite": null,
+    "why": "Both rounds of alignment and shifting supply required stored or final values, and the AVX forms already avoid temporary copies."
+  },
+  "12caad5b1c": {
+    "rewrite": null,
+    "why": "Every store and vector update is required, and the VEX operations already perform each alignment or shift in one instruction while clearing the upper halves."
+  },
+  "48d54af9e6": {
+    "rewrite": null,
+    "why": "The four stores and four shuffles produce distinct required values for an arbitrary shuffle mask, followed by required pointer and counter updates."
+  },
+  "273ce9fe19": {
+    "rewrite": null,
+    "why": "Each alignment needs a temporary because its original source also feeds a byte shuffle, and the remaining stores and scalar updates are required."
+  },
+  "dc4438a54f": {
+    "rewrite": null,
+    "why": "The intermediate stores and final vectors require all four shuffles for an arbitrary mask, and there are no redundant copies or scalar updates."
+  },
+  "a1c2ec3658": {
+    "rewrite": null,
+    "why": "The AVX alignments already avoid copies, while every store, vector update, pointer increment, and counter decrement contributes a required result."
+  },
+  "a14939a876": {
+    "rewrite": "movlhps xmm2,xmm1\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm3\nmovdqa xmm6,xmm1\npslldq xmm0,0x1\npsrldq xmm6,0xf\npor xmm0,xmm6\nmovdqa xmm6,xmm2\npslldq xmm3,0x1\npsrldq xmm6,0xf\npor xmm3,xmm6\nmovdqa XMMWORD PTR [rdi+rsi*2],xmm0\nmovdqa XMMWORD PTR [rdi+rdx*1],xmm3\nlea rdi,[rdi+rsi*4]\nmovdqa xmm6,xmm1\npslldq xmm0,0x1\npsrldq xmm6,0xe\npor xmm0,xmm6\nmovdqa xmm6,xmm2\npslldq xmm3,0x1\npsrldq xmm6,0xe\npor xmm3,xmm6\npslldq xmm1,0x2\ndec ecx",
+    "saved": 2,
+    "why": "Form the intermediate rows directly in xmm0 and xmm3, removing the copies into xmm4 and xmm5. Shifting those rows by one more byte and ORing the original two-byte carries gives the same final vectors because the carried byte already present is duplicated identically by the OR."
+  },
+  "5e8ddbdae8": {
+    "rewrite": null,
+    "why": "Each cross-register shift contributes to a live vector, and SSE2 requires the separate carry extraction and merge while all stores remain necessary."
+  },
+  "bcdbb65800": {
+    "rewrite": null,
+    "why": "The stored one-byte alignments and final two-byte alignments require distinct results, and SSSE3 lacks a three-operand PALIGNR to eliminate the copies."
+  },
+  "8e8023345c": {
+    "rewrite": null,
+    "why": "Each cross-register shift already uses one PALIGNR, and every store, remaining vector shift, and scalar update is required."
+  },
+  "a633a40ccd": {
+    "rewrite": null,
+    "why": "The four aligned results feed distinct stores or live registers, and the VEX forms already avoid temporary copies."
+  },
+  "6737d232f5": {
+    "rewrite": null,
+    "why": "All stores and final vector updates are required, and the AVX sequence already implements each alignment or shift without a temporary copy."
+  },
+  "a2123b4a1c": {
+    "rewrite": "movdqa XMMWORD PTR [rdi],xmm1\nmovdqa XMMWORD PTR [rdi+rsi*8],xmm0\nmovdqa xmm2,xmm0\npslldq xmm2,0xe\npsrldq xmm1,0x2\npor xmm2,xmm1\npsrldq xmm0,0x2\npor xmm0,xmm3\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm2\nmovdqa XMMWORD PTR [rdi+rdx*1],xmm0\nmovdqa xmm1,xmm0\npslldq xmm1,0xe\npsrldq xmm2,0x2\npor xmm1,xmm2\npsrldq xmm0,0x2\npor xmm0,xmm3\nlea rdi,[rdi+rsi*2]\ndec ecx",
+    "saved": 2,
+    "why": "Shift xmm1 directly after its original value has been stored, and shift xmm2 directly after its intermediate row has been stored. This removes both copies into xmm4 while preserving all stores and final live values."
+  }
+}

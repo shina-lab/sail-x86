@@ -1,0 +1,82 @@
+{
+  "52ae433149": {
+    "rewrite": null,
+    "why": "AVX2 requires the scalar-to-vector transfer before the word broadcast, and the leading-zero count, rotation, and comparison each produce a required result."
+  },
+  "718532c313": {
+    "rewrite": null,
+    "why": "Both vector results, the leading-zero count, the zeroed r9, and the addition result with its SF are independently required."
+  },
+  "b7eef4d2eb": {
+    "rewrite": null,
+    "why": "AVX2 cannot broadcast a general-purpose register directly, and the count, rotation, and memory comparison are all live."
+  },
+  "0af60e7965": {
+    "rewrite": null,
+    "why": "Both extrema must incorporate two arbitrary candidates, and the broadcast produces a separate preserved result."
+  },
+  "afc8814563": {
+    "rewrite": null,
+    "why": "The unsigned minima, signed maxima, adjacent-word reductions, shifted addition, clamp, and truncating pack all contribute to the preserved zmm16 result."
+  },
+  "5bab07bf6e": {
+    "rewrite": null,
+    "why": "The load supplies permutation indices, which cannot occupy vpermb's memory-source operand, while the double shift and addition both affect the selected bytes."
+  },
+  "124651c28c": {
+    "rewrite": null,
+    "why": "The unknown stride requires four separate qword stores, and accessing the upper 128-bit lane requires the extraction."
+  },
+  "503b20fc4f": {
+    "rewrite": null,
+    "why": "Each of the four preserved extrema must incorporate both candidates, and the final broadcast is independently required."
+  },
+  "f059fe5fe9": {
+    "rewrite": null,
+    "why": "The count, rotation, direct scalar broadcast, and comparison each produce a distinct required register or flag result."
+  },
+  "68bd75497a": {
+    "rewrite": null,
+    "why": "Both products and the loaded r9 value are preserved, while test is needed to establish all five required flags."
+  },
+  "e05ce340f6": {
+    "rewrite": null,
+    "why": "The leading-zero count feeds the live addition before r9 is reloaded, and all four independently computed extrema are preserved."
+  },
+  "191e62fbd1": {
+    "rewrite": null,
+    "why": "The scalar load, two products, two broadcasts, and two sums each produce a separate preserved register value."
+  },
+  "ba29ad2fe1": {
+    "rewrite": null,
+    "why": "The scalar load, two doublings, and two accumulations each update a distinct preserved register."
+  },
+  "df3080f421": {
+    "rewrite": null,
+    "why": "Both full-width outputs depend on the word sums, sign corrections, arbitrary rounded products, and clamps using every supplied bound candidate."
+  },
+  "854f982141": {
+    "rewrite": null,
+    "why": "The allowed ISA has no fused packed-word doubling and addition, and the scalar load is also live."
+  },
+  "cd48d2e6dd": {
+    "rewrite": null,
+    "why": "The arbitrary multiplier requires retaining the sign corrections and rounded products, followed by the two independent final word additions."
+  },
+  "a87aedc7c6": {
+    "rewrite": null,
+    "why": "The loaded mask and all six independently merged vector destinations are preserved, requiring each of the seven instructions."
+  },
+  "d3869b68aa": {
+    "rewrite": null,
+    "why": "Each instruction computes a distinct preserved minimum or maximum from arbitrary inputs."
+  },
+  "0c68e61ecc": {
+    "rewrite": null,
+    "why": "All four loads contribute to live vectors, including the separate ymm5 value, while both zeroed vectors, r15, and the copies in ymm7 and ymm8 are also required."
+  },
+  "6ba57787ef": {
+    "rewrite": null,
+    "why": "Both broadcasts are live, and the sign-extended memory value must be loaded separately before the 64-bit addition that produces rbx and the required flags."
+  }
+}

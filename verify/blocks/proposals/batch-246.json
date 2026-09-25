@@ -1,0 +1,87 @@
+{
+  "46dba55772": {
+    "rewrite": null,
+    "why": "Each addition performs a required memory store, so combining additions would change the required stores."
+  },
+  "fd48cbc07a": {
+    "rewrite": null,
+    "why": "Both pointer differences, the saved original count, the shifted count, and the final ZF are required."
+  },
+  "401c609e66": {
+    "rewrite": null,
+    "why": "The constant-minus-register result needs two instructions, and both independent register zeroings are live."
+  },
+  "2f6f165c35": {
+    "rewrite": null,
+    "why": "The shifted three-input XOR, memory store, pointer increment, and final zero comparison each require the existing operations under SSE2."
+  },
+  "9c4a3561c4": {
+    "rewrite": null,
+    "why": "Every pointer update, negated-index copy, and register zeroing contributes to a required final register value."
+  },
+  "3eda1cf506": {
+    "rewrite": "rol rax,0x27\nrol rbx,0x29\nmov r8,rbp\nand rbp,rdx\nnot r8\nxor rbp,rcx\nmov QWORD PTR [rdi+0x5c],rbp\nmov r14,rax\nand rax,r8\nxor rax,rdx\nmov QWORD PTR [rdi+0x3c],rax\nor rdx,rcx\nxor rdx,rbx\nmov QWORD PTR [rdi+0x54],rdx\nand rcx,rbx\nxor rcx,r14\nmov QWORD PTR [rdi+0x4c],rcx\nor rbx,r14\nxor rbx,r8\nmov QWORD PTR [rdi+0x44],rbx\nmov r13,rdx\ntest r15,0xff",
+    "saved": 1,
+    "why": "Compute the first result directly in rbp while holding its complemented input in scratch r8, eliminating the final copy into rbp. All five stores and the final test are preserved."
+  },
+  "479db61bfc": {
+    "rewrite": "not QWORD PTR [rdi-0x5c]\nnot QWORD PTR [rdi-0x54]\nnot QWORD PTR [rdi-0x24]\nnot QWORD PTR [rdi-0x4]\nnot QWORD PTR [rdi+0x24]\nnot QWORD PTR [rdi+0x3c]",
+    "saved": 2,
+    "why": "The final rdi adjustment is dead, and rsp is not a required output and must remain untouched by the rewrite. All six memory updates are retained."
+  },
+  "57a259b581": {
+    "rewrite": "mov rax,rdx\nnot QWORD PTR [rdi-0x5c]\nnot QWORD PTR [rdi-0x54]\nnot QWORD PTR [rdi-0x24]\nnot QWORD PTR [rdi-0x4]\nnot QWORD PTR [rdi+0x24]\nnot QWORD PTR [rdi+0x3c]",
+    "saved": 1,
+    "why": "The rsp adjustment has no required register or flag result and is removed to leave rsp untouched. The required rax value and all six memory updates are preserved."
+  },
+  "177b75553a": {
+    "rewrite": null,
+    "why": "The shifted count and all four copied register values are live, with no instruction combining these independent outputs."
+  },
+  "6779c1a727": {
+    "rewrite": null,
+    "why": "The load, store, two pointer updates, and count subtraction all produce required effects, including rax and the final ZF."
+  },
+  "f5a13de71d": {
+    "rewrite": null,
+    "why": "All results are live, and the destructive SSSE3 instructions require the existing copies and separate Boolean operations."
+  },
+  "aaceef1db0": {
+    "rewrite": "movq xmm8,QWORD PTR [rdi+0x20]\nmovhps xmm8,QWORD PTR [rdi]\nmovq xmm5,QWORD PTR [rdi-0x20]\nmovhps xmm5,QWORD PTR [rdi-0x40]\nmovdqa xmm0,xmm8\nshufps xmm0,xmm5,0x88\nshufps xmm8,xmm5,0xdd\nmovq xmm7,QWORD PTR [rdi+0x40]\npshufd xmm1,xmm7,0x3f\npshufd xmm9,xmm7,0x7f",
+    "saved": 4,
+    "why": "Pair the original qword loads in reverse source order, then use two SHUFPS instructions to select the even and odd dwords directly into their final order. This removes four unpacking and reversal instructions while preserving the two zero-padded outputs."
+  },
+  "e94c348a7e": {
+    "rewrite": null,
+    "why": "The SHA operations produce distinct live results, both copies preserve inputs needed by SHA1NEXTE, and the comparison supplies required SF and OF."
+  },
+  "c47326a58d": {
+    "rewrite": null,
+    "why": "Each VEX instruction produces a distinct live vector result or the required store, with no redundant copy or operation."
+  },
+  "beef242ca8": {
+    "rewrite": "vmovdqu xmm6,XMMWORD PTR [rbx]\nvpxor xmm8,xmm8,xmm8\nvpcmpgtd xmm7,xmm6,xmm8\nvpaddd xmm6,xmm6,xmm7\nvpand xmm10,xmm10,xmm7\nvpand xmm11,xmm11,xmm7\nvpaddd xmm10,xmm10,XMMWORD PTR [rdi]\nvpand xmm12,xmm12,xmm7\nvpaddd xmm11,xmm11,XMMWORD PTR [rdi+0x20]\nvpand xmm13,xmm13,xmm7\nvpaddd xmm12,xmm12,XMMWORD PTR [rdi+0x40]\nvpand xmm14,xmm14,xmm7\nvpaddd xmm13,xmm13,XMMWORD PTR [rdi+0x60]\nvpaddd xmm14,xmm14,XMMWORD PTR [rdi+0x80]\nvmovdqu XMMWORD PTR [rdi],xmm10\nvmovdqu XMMWORD PTR [rdi+0x20],xmm11\nvmovdqu XMMWORD PTR [rdi+0x40],xmm12\nvmovdqu XMMWORD PTR [rdi+0x60],xmm13\nvmovdqu XMMWORD PTR [rdi+0x80],xmm14\nvmovdqu XMMWORD PTR [rbx],xmm6\nvmovdqu xmm5,XMMWORD PTR [rbp+0x60]\ndec edx",
+    "saved": 1,
+    "why": "VPCMPGTD can read xmm6 directly while writing xmm7, eliminating the preceding vector copy without changing any required result."
+  },
+  "356ee63d33": {
+    "rewrite": null,
+    "why": "Every instruction produces a distinct required vector value or store, and all operations already use AVX2 three-operand forms."
+  },
+  "17ca74b518": {
+    "rewrite": null,
+    "why": "Both loads and all six vector computations have live results, with no redundant intermediate operation."
+  },
+  "59a6de4675": {
+    "rewrite": null,
+    "why": "The live AND-XOR and three-input XOR each need two AVX2 instructions, while the add, shift, and store are also required."
+  },
+  "2b86578d1d": {
+    "rewrite": null,
+    "why": "Both masked register results and their OR are required, and the final comparison must separately establish all five specified flags."
+  },
+  "ff8cbe2794": {
+    "rewrite": null,
+    "why": "Both stores need their selected lane order, and a direct high-dword extraction store would require unavailable SSE4.1 instructions."
+  }
+}

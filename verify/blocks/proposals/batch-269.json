@@ -1,0 +1,91 @@
+{
+  "aa22f95363": {
+    "rewrite": null,
+    "why": "The comparison, pointer update, mask transfer, and ZF test are all needed for the required outputs."
+  },
+  "1c479532f2": {
+    "rewrite": "vmovdqu64 zmm17,ZMMWORD PTR [rax]\nvpminub zmm17,zmm17,ZMMWORD PTR [rax+0x40]\nvextracti64x4 ymm18,zmm17,0x1\nvpminub ymm17,ymm17,ymm18\nvpcmpeqb k0,ymm16,ymm17\nadd rax,0x80\nktestd k0,k0",
+    "saved": 1,
+    "why": "Unsigned byte minimum is associative, so reducing two 64-byte chunks and then their halves produces the same 32-byte minimum with one fewer instruction. The loads cover only the original bytes and impose no stricter alignment requirement."
+  },
+  "b0966f81c9": {
+    "rewrite": null,
+    "why": "The comparison, pointer adjustment, mask transfer, and ZF test are all needed for the required outputs."
+  },
+  "0cd16de89e": {
+    "rewrite": "vpcmpeqb k3,ymm16,YMMWORD PTR [rax+0x80]\nkmovd edx,k3\nsub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x80]",
+    "saved": 1,
+    "why": "LEA combines the two final additions without changing the resulting rax value; their flags are not required."
+  },
+  "c515e6e88e": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x20]",
+    "saved": 1,
+    "why": "LEA combines the two final additions, and no final flags must match."
+  },
+  "6ef46d0944": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x40]",
+    "saved": 1,
+    "why": "LEA combines the two final additions, and no final flags must match."
+  },
+  "eba21685c3": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x60]",
+    "saved": 1,
+    "why": "LEA combines the two final additions, and no final flags must match."
+  },
+  "a100a3b48c": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x80]",
+    "saved": 1,
+    "why": "LEA combines the two final additions, and no final flags must match."
+  },
+  "be7cce16a4": {
+    "rewrite": null,
+    "why": "The two address results, copied and masked rcx value, and comparison flags require the existing five instructions."
+  },
+  "3fb814d3bc": {
+    "rewrite": null,
+    "why": "All initialized registers and comparison flags are required, and SSE2 offers no instruction that combines these independent results."
+  },
+  "310711099d": {
+    "rewrite": null,
+    "why": "Both the loaded xmm1 value and comparison result are live, so the load cannot be folded away, and the mask extraction and ZF test remain necessary."
+  },
+  "71f5b701aa": {
+    "rewrite": null,
+    "why": "The three zeroed vector outputs, zero-based comparison, extracted mask, and ZF result are all required and cannot be combined further with SSE2."
+  },
+  "3c4fb0517d": {
+    "rewrite": null,
+    "why": "The vector comparison, pointer increment, mask extraction, and ZF test each provide a required result."
+  },
+  "f6bdb28541": {
+    "rewrite": null,
+    "why": "The vector comparison, pointer increment, mask extraction, and ZF test each provide a required result."
+  },
+  "051a6d07fb": {
+    "rewrite": null,
+    "why": "The vector comparison, pointer increment, mask extraction, and ZF test each provide a required result."
+  },
+  "9b314e5008": {
+    "rewrite": null,
+    "why": "The live intermediate minimum and comparison vector require the existing reductions, and SSE2 still needs separate mask extraction and testing to set ZF."
+  },
+  "874e8c7ef7": {
+    "rewrite": null,
+    "why": "The vector comparison, pointer adjustment, mask extraction, and ZF test each provide a required result."
+  },
+  "e240312d44": {
+    "rewrite": "pcmpeqb xmm3,XMMWORD PTR [rax+0x40]\npmovmskb edx,xmm3\nsub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x40]",
+    "saved": 1,
+    "why": "LEA combines the two final additions without changing the resulting rax value; their flags are not required."
+  },
+  "3d15294d7d": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x10]",
+    "saved": 1,
+    "why": "LEA combines the two final additions, and no final flags must match."
+  },
+  "31902eedae": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x20]",
+    "saved": 1,
+    "why": "LEA combines the two final additions, and no final flags must match."
+  }
+}

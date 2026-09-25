@@ -1,0 +1,84 @@
+{
+  "3564299ae4": {
+    "rewrite": null,
+    "why": "Each of the six live outputs requires its own load and key XOR, with no dead result or foldable copy."
+  },
+  "01c349678f": {
+    "rewrite": null,
+    "why": "All six whitened registers and six stores are required, and each XOR already consumes its key directly from memory."
+  },
+  "5aecd501a7": {
+    "rewrite": null,
+    "why": "Each live register must be XORed with its key before a distinct required memory XOR store, leaving no removable instruction."
+  },
+  "1e319a0f06": {
+    "rewrite": null,
+    "why": "Each of the six live words needs a load, key XOR and 32-bit rotate, which cannot be combined with fewer permitted instructions."
+  },
+  "13f7df3ca8": {
+    "rewrite": null,
+    "why": "All six rotations, key XORs and stores contribute required register or memory values, and the final XOR supplies the required flags."
+  },
+  "b12cf2f612": {
+    "rewrite": null,
+    "why": "The four live key XORs already fold their loads, while producing the decremented r13d still requires a load and subtraction."
+  },
+  "75abbda6c8": {
+    "rewrite": null,
+    "why": "Each instruction updates a distinct required register, and the final XOR also supplies the required flags."
+  },
+  "a2b3c8bd00": {
+    "rewrite": null,
+    "why": "The three live register transfers and the flag-producing test are all required, and changing the test encoding would not remove an instruction."
+  },
+  "5eb98083ca": {
+    "rewrite": null,
+    "why": "Both qwords must be loaded and stored, and the live shifted rdx and zero rcx require the remaining two instructions."
+  },
+  "70fafbdc25": {
+    "rewrite": null,
+    "why": "All three qword copies affect required memory, and the shifted rdx and zero rcx require the remaining two instructions."
+  },
+  "ba95793fa3": {
+    "rewrite": null,
+    "why": "The two dependent XOR results must each be stored, and both the counter increment and pointer advance are live."
+  },
+  "f1b222c3e2": {
+    "rewrite": null,
+    "why": "All four qword copies affect required memory, and the shifted rdx and zero rcx require the remaining two instructions."
+  },
+  "856d6c6278": {
+    "rewrite": "mov rax,QWORD PTR [rsi]\nmov rbx,QWORD PTR [rsi+0x8]\nxchg QWORD PTR [rdi],rax\nxchg QWORD PTR [rdi+0x8],rbx\nmov QWORD PTR [rsi],rax\nmov QWORD PTR [rsi+0x8],rbx\nlea rsi,[rsi+0x10]\nlea rdi,[rdi-0x10]\ncmp rdi,rsi",
+    "saved": 2,
+    "why": "Each memory XCHG combines a destination load and store while returning the previous value for the source store. The temporary registers are dead, and the pointer updates and final comparison are retained."
+  },
+  "083529d546": {
+    "rewrite": null,
+    "why": "All three loaded registers are live, and the separate comparison is needed for ZF, SF and OF."
+  },
+  "d36eaaf03e": {
+    "rewrite": null,
+    "why": "All three loaded registers are live, and the separate comparison is needed for ZF, SF and OF."
+  },
+  "bd34de750f": {
+    "rewrite": null,
+    "why": "All three loaded registers are live, and the separate comparison is needed for ZF, SF and OF."
+  },
+  "7b1b468742": {
+    "rewrite": null,
+    "why": "Both AES rounds, the new key load and the xmm11 copy produce distinct required outputs."
+  },
+  "64fdf999ba": {
+    "rewrite": null,
+    "why": "Both AES rounds, the new key load and the xmm11 copy produce distinct required outputs."
+  },
+  "40cf6ab492": {
+    "rewrite": "vzeroupper\nmov r15,QWORD PTR [rax-0x30]\nmov r14,QWORD PTR [rax-0x28]\nmov r13,QWORD PTR [rax-0x20]\nmov r12,QWORD PTR [rax-0x18]\nmov rbp,QWORD PTR [rax-0x10]\nmov rbx,QWORD PTR [rax-0x8]",
+    "saved": 1,
+    "why": "The final LEA writes only rsp, which is excluded from the required final values and explicitly must not be touched. Removing it retains all six required loads, the upper-vector clearing and the incoming flags."
+  },
+  "63b5a80b10": {
+    "rewrite": null,
+    "why": "Both shuffled registers are live and all three stores are required, so neither shuffle nor any store can be removed."
+  }
+}

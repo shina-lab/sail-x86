@@ -1,0 +1,85 @@
+{
+  "a47cd112cc": {
+    "rewrite": null,
+    "why": "The store, packed accumulation, pointer advance, and counter decrement each produce a required effect."
+  },
+  "a95e7c3680": {
+    "rewrite": null,
+    "why": "The required loads, saturated products, sums, stores, and scalar updates cannot be shortened by swapping the asymmetric unsigned and signed operands of PMADDUBSW."
+  },
+  "36c13f3f8a": {
+    "rewrite": "movddup xmm0,QWORD PTR [rsi]\nmovddup xmm1,QWORD PTR [rsi+rdx*1]\npmaddubsw xmm0,xmm2\npmaddubsw xmm1,xmm2\npaddw xmm0,xmm1\npshufhw xmm0,xmm0,0xff\nmovdqa XMMWORD PTR [rdi],xmm0\npaddw xmm4,xmm0\npshufd xmm6,xmm0,0xee\nmovdqa XMMWORD PTR [rdi+0x10],xmm6\npaddw xmm4,xmm6\nlea rsi,[rsi+rdx*2]\nadd rdi,0x20\ndec eax",
+    "saved": 2,
+    "why": "PSHUFD with immediate 0xee copies and duplicates xmm0's high quadword in one instruction, replacing both identical moves and the unpack."
+  },
+  "2ed1312509": {
+    "rewrite": null,
+    "why": "The final word broadcast already takes two SSSE3-compatible shuffles, and the remaining operations produce required products, sums, stores, or scalar updates."
+  },
+  "751ba5d504": {
+    "rewrite": null,
+    "why": "The full-width and duplicated-quadword loads feed distinct saturated products, and all subsequent sums, the edge shuffle, stores, and scalar updates are required."
+  },
+  "295716a610": {
+    "rewrite": null,
+    "why": "Both stores and both additions to the preserved accumulator are required, along with the pointer and counter updates."
+  },
+  "a9cd895db3": {
+    "rewrite": null,
+    "why": "The shifts correctly zero-extend each unsigned word before addition, whereas a shorter signed PMADDWD reduction would fail for words with their high bit set."
+  },
+  "87c45ed2c5": {
+    "rewrite": null,
+    "why": "The reduction must preserve xmm4's shuffled pair sums as well as produce xmm0's shifted packed total, so horizontal adds do not remove instructions."
+  },
+  "82bf47c6af": {
+    "rewrite": null,
+    "why": "SSE requires separate load, packed subtraction, and store instructions, while the pointer update and flag-setting counter subtraction are also required."
+  },
+  "527fb91b00": {
+    "rewrite": null,
+    "why": "The four independently indexed quadword loads, two saturated products, stores, accumulations, and scalar updates each supply required effects."
+  },
+  "9bb2ee6ca2": {
+    "rewrite": null,
+    "why": "Each loaded vector contributes a distinct stored saturated product and accumulator update, and PMADDUBSW's operand signedness prevents folding these loads by exchanging operands."
+  },
+  "f0e972417e": {
+    "rewrite": null,
+    "why": "Each row needs its duplicated load, saturated multiply-add, edge shuffle, store, and accumulation, followed by the required scalar updates."
+  },
+  "9b5d3a7fb3": {
+    "rewrite": null,
+    "why": "Two stores and two additions of the preserved xmm0 are needed, and doubling xmm0 in a temporary would not reduce the instruction count."
+  },
+  "e4cdb2d339": {
+    "rewrite": null,
+    "why": "All four independently loaded vectors require their own saturated products and stores, and the accumulations and scalar updates remain necessary."
+  },
+  "9b06cdc566": {
+    "rewrite": "movddup xmm1,QWORD PTR [rsi]\npmaddubsw xmm1,xmm2\npshufhw xmm1,xmm1,0xff\nmovdqa XMMWORD PTR [rdi],xmm1\npaddw xmm5,xmm1\npunpckhqdq xmm1,xmm1\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\npaddw xmm5,xmm1\nmovddup xmm1,QWORD PTR [rsi+rdx*1]\npmaddubsw xmm1,xmm2\npshufhw xmm1,xmm1,0xff\nmovdqa XMMWORD PTR [rdi+0x20],xmm1\npaddw xmm4,xmm1\npshufd xmm0,xmm1,0xee\nmovdqa XMMWORD PTR [rdi+0x30],xmm0\npaddw xmm4,xmm0\nlea rsi,[rsi+rdx*2]\nadd rdi,0x40\nsub eax,0x2",
+    "saved": 1,
+    "why": "PSHUFD with immediate 0xee replaces the copy followed by high-quadword duplication while preserving xmm1."
+  },
+  "2e84d3e4c1": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi]\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi],xmm1\npaddw xmm5,xmm1\npshufhw xmm1,xmm1,0xff\npunpckhqdq xmm1,xmm1\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\npaddw xmm5,xmm1\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi+0x20],xmm1\npaddw xmm4,xmm1\npshufhw xmm0,xmm1,0xff\npunpckhqdq xmm0,xmm0\nmovdqa XMMWORD PTR [rdi+0x30],xmm0\npaddw xmm4,xmm0\nlea rsi,[rsi+rdx*2]\nadd rdi,0x40\nsub eax,0x2",
+    "saved": 1,
+    "why": "PSHUFHW can read xmm1 directly while writing xmm0, eliminating the preceding copy without changing either preserved result."
+  },
+  "80f3654e0c": {
+    "rewrite": null,
+    "why": "The full-width and duplicated-quadword loads require separate products and stores, and the edge shuffles, accumulations, and scalar updates are all needed."
+  },
+  "3a1b5f3f14": {
+    "rewrite": null,
+    "why": "The four stores and four packed additions are required while preserving both source vectors, and temporary doubling would not save instructions."
+  },
+  "e8bf553352": {
+    "rewrite": null,
+    "why": "The coefficient shift and both products are required, and the copy is necessary to preserve xmm4 under destructive SSE multiplication."
+  },
+  "55275a90ab": {
+    "rewrite": null,
+    "why": "Both reductions need unsigned word extraction, including the preserved low-word vector in xmm4, and constructing a shared mask costs as many instructions as it saves."
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "b563aa73e1": {
+    "rewrite": "nop",
+    "saved": 7,
+    "why": "All computed vector values are dead and there are no stores, so a single nop preserves every required output."
+  },
+  "cdc3754110": {
+    "rewrite": "nop",
+    "saved": 11,
+    "why": "The block only loads and transforms unrestricted vector registers, so all of its computations can be replaced by a nop."
+  },
+  "57f1448393": {
+    "rewrite": "nop",
+    "saved": 9,
+    "why": "None of the vector destinations is a required output and the block performs no stores, so a nop preserves the specified state."
+  },
+  "55f29b6bad": {
+    "rewrite": "vpbroadcastd ymm10,DWORD PTR [CONST_1]\nvpcmpgtw ymm9,ymm11,ymm15\nvpaddw ymm15,ymm15,ymm9\nvpmulhrsw ymm15,ymm15,ymm10\nvpaddw ymm4,ymm15,ymm4\nvpminsw ymm4,ymm4,ymm7\nvpmaxsw ymm4,ymm8,ymm4\nvpackuswb ymm4,ymm4,ymm4\nvextracti128 xmm5,ymm4,0x1\nvmovd DWORD PTR [rdi],xmm4\nvpextrd DWORD PTR [rdi+rsi*1],xmm4,0x1\nvmovd DWORD PTR [rdi+rsi*2],xmm5\nvpextrd DWORD PTR [rdi+r10*1],xmm5,0x1",
+    "saved": 1,
+    "why": "The final rsp assignment is not a required output and can be omitted, leaving rsp untouched as required. All four stores and their computations remain identical."
+  },
+  "cf1a147afb": {
+    "rewrite": "vpcmpgtw ymm9,ymm11,ymm15\nvpaddw ymm15,ymm15,ymm9\nvpmulhrsw ymm15,ymm15,ymm1\nvpaddw ymm4,ymm15,ymm4\nvpackuswb ymm4,ymm4,ymm4\nvextracti128 xmm5,ymm4,0x1\nvmovd DWORD PTR [rdi],xmm4\nvpextrd DWORD PTR [rdi+rsi*1],xmm4,0x1\nvmovd DWORD PTR [rdi+rsi*2],xmm5\nvpextrd DWORD PTR [rdi+r10*1],xmm5,0x1",
+    "saved": 1,
+    "why": "Omitting the final rsp assignment leaves rsp untouched and preserves every listed output. The arithmetic and four stores are unchanged."
+  },
+  "7f7bc227c3": {
+    "rewrite": null,
+    "why": "Both bytewise bounds and the masked saturating update feed the required zmm16 result, with no removable intermediate or direct fused replacement."
+  },
+  "b7e419a48b": {
+    "rewrite": null,
+    "why": "The arbitrary permutation indices require a load and permutation, followed by four stores with distinct required address expressions."
+  },
+  "e41dab8543": {
+    "rewrite": null,
+    "why": "Each live result requires its index addition, mask lookup, fallback initialization, and masked byte permutation."
+  },
+  "6b832cffa1": {
+    "rewrite": null,
+    "why": "Each of the two live vectors requires a distinct index addition and byte permutation."
+  },
+  "1b18704404": {
+    "rewrite": null,
+    "why": "The two index vectors are already shared, while each of the four live results needs its own mask lookup, fallback initialization, and permutation."
+  },
+  "b7ae8216c6": {
+    "rewrite": null,
+    "why": "Two shared index additions and four permutations directly produce the four required vector outputs."
+  },
+  "371ad42a1c": {
+    "rewrite": null,
+    "why": "The separate loads and insertions construct two live vectors, all mask registers must be preserved, and the final test supplies the required ZF."
+  },
+  "91679c2a12": {
+    "rewrite": "vmovdqa32 xmm24,XMMWORD PTR [r11-0x60]\nvpshldd zmm20,zmm20,zmm16,0x8\nvpshldd zmm21,zmm21,zmm17,0x8\nvpshldd zmm22,zmm22,zmm18,0x8\nvpshldd zmm23,zmm23,zmm19,0x8\nvpaddw zmm16,zmm16,zmm20\nvpaddw zmm17,zmm17,zmm21\nvpaddw zmm18,zmm18,zmm22\nvpaddw zmm19,zmm19,zmm23\nvpermb zmm16,zmm24,zmm16\nvpermb zmm17,zmm24,zmm17\nvpermb zmm18,zmm24,zmm18\nvpermb zmm19,zmm24,zmm19\nvpunpckldq zmm20,zmm16,zmm17\nvpunpckhdq zmm16,zmm16,zmm17\nvpunpckldq zmm21,zmm18,zmm19\nvpunpckhdq zmm18,zmm18,zmm19\nvmovq QWORD PTR [rdi],xmm20\nvmovq QWORD PTR [rdi+rsi*2],xmm16\nvmovq QWORD PTR [rbp+0x0],xmm21\nvmovq QWORD PTR [rbp+rsi*2+0x0],xmm18\nvmovhps QWORD PTR [rdi+rsi*1],xmm20\nvmovhps QWORD PTR [rdi+rbx*1],xmm16\nvmovhps QWORD PTR [rbp+rsi*1+0x0],xmm21\nvmovhps QWORD PTR [rbp+rbx*1+0x0],xmm18",
+    "saved": 2,
+    "why": "The k1 initialization is unused and k1 is not a required output. Dropping it and the unrequired rsp assignment preserves all eight stores while leaving rsp untouched."
+  },
+  "ddf84c05db": {
+    "rewrite": null,
+    "why": "All eight permutations feed live outputs, and their arbitrary masks and fallback vectors require the accompanying mask lookups and merge operations."
+  },
+  "0cfdfa1313": {
+    "rewrite": null,
+    "why": "The two index additions are already shared across eight permutations whose destinations are all required outputs."
+  },
+  "8851b448fa": {
+    "rewrite": null,
+    "why": "All five destinations are required, and SSE4.1 needs separate instructions to initialize the scalar, zero xmm0, load xmm4, and copy it to xmm7 and xmm8."
+  },
+  "48141d6591": {
+    "rewrite": null,
+    "why": "The sign correction, rounded multiplication, clamping, packing, store, and scalar updates all contribute to required outputs or flags without an available instruction-count reduction."
+  },
+  "3c189e443c": {
+    "rewrite": null,
+    "why": "The sign correction and rounded multiplication produce live xmm0, while the remaining vector and scalar operations are needed for the store and required register and flag updates."
+  },
+  "a0f16787b1": {
+    "rewrite": null,
+    "why": "Two noncontiguous loads, two required vector copies, vector zeroing, and scalar initialization each require their existing SSE4.1 instructions."
+  },
+  "06d14500e9": {
+    "rewrite": "pxor xmm6,xmm6\npcmpgtw xmm6,xmm0\npaddw xmm0,xmm6\npmulhrsw xmm0,xmm15\npaddw xmm4,xmm0\npminsw xmm4,xmm7\npmaxsw xmm4,xmm8\npackuswb xmm4,xmm4\nmovd DWORD PTR [rdi],xmm4\npextrd DWORD PTR [rdi+rsi*1],xmm4,0x1\nadd rax,0x40\nlea rdi,[rdi+rsi*2]\ndec edx",
+    "saved": 1,
+    "why": "PEXTRD stores the second packed dword directly, replacing the qword shift and MOVD pair. The final xmm4 value is unrestricted, and all required registers, stores, and flags are preserved."
+  }
+}

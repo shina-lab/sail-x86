@@ -1,0 +1,86 @@
+{
+  "ef7415cc62": {
+    "rewrite": null,
+    "why": "Both stores, the final shifted xmm0 value, and the index update with its flags are required."
+  },
+  "a98ce303e0": {
+    "rewrite": null,
+    "why": "The arbitrary byte shuffle, both stores, the final qword shift, and the index update each supply a required result."
+  },
+  "df3917d8b9": {
+    "rewrite": null,
+    "why": "The two arbitrary shuffle masks require separate copies of the input, and all stores and final register values remain live."
+  },
+  "a49585fcf6": {
+    "rewrite": null,
+    "why": "Each shuffle constructs a distinct required store value, while the two initial byte permutations require retaining separate copies of the input."
+  },
+  "577b01e984": {
+    "rewrite": "xor r13d,r13d\ncmp DWORD PTR [rdi+0x80],0x1\nmov r12d,DWORD PTR [rdi+0x14]\nmov r15d,DWORD PTR [rdi+0x10]\nmov edx,edx\nmov ecx,ecx",
+    "saved": 1,
+    "why": "The stack adjustment affects no listed output and its flags are overwritten. Removing it leaves rsp untouched while preserving the required register values and ZF."
+  },
+  "83b0422f44": {
+    "rewrite": null,
+    "why": "Both stores, the shifted ymm1 result including its cleared upper half, and the index update with its flags are required."
+  },
+  "16080b699c": {
+    "rewrite": null,
+    "why": "The byte shuffle and qword shift produce distinct required store values and the live final ymm1 value."
+  },
+  "b50d0d8bb9": {
+    "rewrite": null,
+    "why": "Duplicating the input lane, applying the arbitrary byte mask, shifting the final xmm1 value, and performing both stores and the index update are all necessary."
+  },
+  "f00176e094": {
+    "rewrite": null,
+    "why": "The lane duplication, two arbitrary byte permutations, and final dword shuffle each supply distinct required stores or live register values."
+  },
+  "b92d1b9aa1": {
+    "rewrite": null,
+    "why": "Each permutation produces a required register value and store, and the remaining instruction updates the live index and flags."
+  },
+  "31b0b457ee": {
+    "rewrite": null,
+    "why": "All initialized destinations are live, and the arbitrary contents of xmm2 prevent replacing the load and byte unpack with a zero-extending load."
+  },
+  "eb24433760": {
+    "rewrite": null,
+    "why": "All intermediate vector results are live, and arbitrary ymm4 and ymm5 values prevent assuming zero-extension or a fixed rounding constant to shorten the arithmetic."
+  },
+  "cfdfd25799": {
+    "rewrite": null,
+    "why": "The four instructions update four independent live registers, with the decrement also providing all required flags."
+  },
+  "60ba1ae387": {
+    "rewrite": null,
+    "why": "The unpacked and absolute-value intermediates are live, and arbitrary ymm2 and ymm4 values prevent reducing the computation to narrow saturated arithmetic."
+  },
+  "59781899a2": {
+    "rewrite": null,
+    "why": "The constant load is live, and the wrapping 32-bit shift, two 64-bit pointer additions, and 64-bit negation cannot be combined into fewer instructions without changing required values."
+  },
+  "364f42ab8d": {
+    "rewrite": null,
+    "why": "The shift must truncate to 32 bits before updating both 64-bit pointers and negating the zero-extended offset, so scaled addressing cannot eliminate it."
+  },
+  "6d95d583c3": {
+    "rewrite": "pshufd xmm0,XMMWORD PTR [rdx],0xfa\npshufd xmm1,XMMWORD PTR [rcx],0xfa\npshufd xmm4,XMMWORD PTR [rdx],0x50\npshufd xmm5,XMMWORD PTR [rcx],0x50\nshl r8d,0x3\nadd rdi,r8\nadd rsi,r8\nneg r8",
+    "saved": 4,
+    "why": "Memory-source PSHUFD directly creates each duplicated pair of dwords, replacing each four-instruction load/copy/unpack group with two instructions. The repeated reads use exactly the original 16-byte source addresses."
+  },
+  "6147136952": {
+    "rewrite": null,
+    "why": "All four loaded vectors are live, and the wrapping 32-bit shift, two pointer additions, and 64-bit negation each remain necessary."
+  },
+  "1f16521912": {
+    "rewrite": "mov r8,rsi\nlea r9,[r8+0x2600]\nmov eax,ecx",
+    "saved": 1,
+    "why": "LEA combines the immediate initialization and addition into one instruction with the same 64-bit result, and no flags are required."
+  },
+  "64c15e9c14": {
+    "rewrite": "movlps xmm4,QWORD PTR [r8]\nmovlps xmm1,QWORD PTR [r9]\nunpcklps xmm4,xmm1\nmovlps xmm3,QWORD PTR [r8+rcx*1]\nmovhps xmm3,QWORD PTR [r9+rcx*1]\npshufd xmm3,xmm3,0xd8\nmovaps xmm1,xmm4\nmovlhps xmm1,xmm3\nmovhlps xmm3,xmm4\nmovaps XMMWORD PTR [rdi],xmm1\nmovaps XMMWORD PTR [rdi+rcx*1],xmm3\nlea r8,[r8+rcx*2]\nlea r9,[r9+rcx*2]\nadd rdi,0x10\nsub eax,0x10",
+    "saved": 1,
+    "why": "Build the low interleaved pair directly in xmm4 and assemble the high pair in xmm3 with PSHUFD, eliminating the initial register copy. The final three vectors, four qword load addresses, both stores, and scalar updates remain identical."
+  }
+}

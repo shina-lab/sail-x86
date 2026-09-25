@@ -1,0 +1,91 @@
+{
+  "c3704f7291": {
+    "rewrite": null,
+    "why": "The xmm15 copy, five stores, and five XORs all contribute to required final values or memory writes."
+  },
+  "ba0e3fa8ed": {
+    "rewrite": null,
+    "why": "The xmm15 copy, both stores, and both XORs are required, with no shorter SSE2 form for these outputs."
+  },
+  "59070c6d11": {
+    "rewrite": null,
+    "why": "The xmm15 copy, three stores, and three XORs are all needed to preserve the specified registers and memory writes."
+  },
+  "36506e87bb": {
+    "rewrite": null,
+    "why": "The xmm15 copy, four stores, and four XORs are all needed to preserve the specified registers and memory writes."
+  },
+  "f5d30f16fb": {
+    "rewrite": null,
+    "why": "All three loaded values, both pointer advances, and both XOR results are required, leaving no removable instruction under SSE2."
+  },
+  "fcdf794eed": {
+    "rewrite": null,
+    "why": "The AES result, store, register copies, pointer advance, and subtraction with its carry flag are all required."
+  },
+  "2a44ceeca2": {
+    "rewrite": "pxor xmm0,xmm0\nmovups XMMWORD PTR [r8],xmm2",
+    "saved": 3,
+    "why": "Only xmm0 must retain its zeroed value; the clears of xmm1, xmm2, and xmm3 are dead after preserving the store of the original xmm2."
+  },
+  "2a2650c6fa": {
+    "rewrite": null,
+    "why": "Each instruction establishes a distinct required register value, including both adjusted pointers and the zeroed rdx."
+  },
+  "fd96e5829c": {
+    "rewrite": null,
+    "why": "The input copy must survive in xmm4 while xmm2 is XORed with the separately preserved key load; the other loads and rcx advance are also required."
+  },
+  "895529df84": {
+    "rewrite": "aesdeclast xmm2,xmm1\npxor xmm0,xmm0\nmovdqu XMMWORD PTR [r8],xmm4\nxorps xmm2,xmm3\nmovups XMMWORD PTR [rsi],xmm2",
+    "saved": 3,
+    "why": "The clears of xmm1, xmm3, and xmm2 have no required final outputs. Keep the AES operation, CBC XOR, both stores, and xmm0 clear."
+  },
+  "b831043a1a": {
+    "rewrite": "mov rbp,rcx\nmovups xmm10,XMMWORD PTR [r8]\nmov eax,r10d\ncmp rdx,0x50",
+    "saved": 2,
+    "why": "The rsp adjustments feed no retained operation or required final-value output, and cmp overwrites their flags. Omitting them leaves rsp untouched as required."
+  },
+  "88bf611d90": {
+    "rewrite": "pxor xmm2,xmm10\nmovaps xmm10,xmm8\npxor xmm3,xmm11\nmovdqu XMMWORD PTR [rsi],xmm2\npxor xmm4,xmm12\nmovdqu XMMWORD PTR [rsi+0x10],xmm3\npxor xmm5,xmm13\nmovdqu XMMWORD PTR [rsi+0x20],xmm4\npxor xmm6,xmm14\nmovdqu XMMWORD PTR [rsi+0x30],xmm5\npxor xmm7,xmm15\nmovdqu XMMWORD PTR [rsi+0x40],xmm6\nlea rsi,[rsi+0x50]\nmovdqa xmm2,xmm7",
+    "saved": 5,
+    "why": "The clears of xmm3 through xmm7 are dead after their values have been stored or copied into xmm2."
+  },
+  "89e9fa26d9": {
+    "rewrite": "pxor xmm2,xmm10\nmovups xmm10,XMMWORD PTR [rdi+0x60]\npxor xmm3,xmm11\nmovdqu XMMWORD PTR [rsi],xmm2\npxor xmm4,xmm12\nmovdqu XMMWORD PTR [rsi+0x10],xmm3\npxor xmm5,xmm13\nmovdqu XMMWORD PTR [rsi+0x20],xmm4\npxor xmm6,xmm14\nmovdqu XMMWORD PTR [rsi+0x30],xmm5\npxor xmm7,xmm15\nmovdqu XMMWORD PTR [rsi+0x40],xmm6\nmovups xmm2,XMMWORD PTR [rdi+0x50]\npxor xmm2,xmm8\nmovdqu XMMWORD PTR [rsi+0x50],xmm7\nlea rsi,[rsi+0x60]",
+    "saved": 8,
+    "why": "Remove seven dead clears and load the final XOR operand directly into xmm2 after its first store, eliminating the final copy. Delaying the load is safe because the rdi and rsi buffers do not overlap."
+  },
+  "35dcca3b9e": {
+    "rewrite": null,
+    "why": "All XOR results, stores, register copies, and pointer/count updates are required, including the flags from the final subtraction."
+  },
+  "616988e69e": {
+    "rewrite": null,
+    "why": "The load, both copies, and zeroing each establish a required vector-register value and already preserve all required flags."
+  },
+  "d4570d6069": {
+    "rewrite": "pxor xmm2,xmm10\nmovaps xmm10,xmm15\npxor xmm3,xmm11\nmovdqu XMMWORD PTR [rsi],xmm2\npxor xmm4,xmm12\nmovdqu XMMWORD PTR [rsi+0x10],xmm3\npxor xmm5,xmm13\nmovdqu XMMWORD PTR [rsi+0x20],xmm4\npxor xmm6,xmm14\nmovdqu XMMWORD PTR [rsi+0x30],xmm5\nlea rsi,[rsi+0x40]\nmovdqa xmm2,xmm6\nsub rdx,0x10",
+    "saved": 5,
+    "why": "The clears of xmm3 through xmm7 do not affect any required output after the stores and the copy into xmm2."
+  },
+  "dc30deb3cc": {
+    "rewrite": null,
+    "why": "The saved input in xmm11, both loaded key values, advanced rcx, and XOR result in xmm2 are all required."
+  },
+  "3da379e384": {
+    "rewrite": "pxor xmm2,xmm10\nmovaps xmm10,xmm12\npxor xmm3,xmm11\nmovdqu XMMWORD PTR [rsi],xmm2\nmovdqa xmm2,xmm3\nlea rsi,[rsi+0x10]",
+    "saved": 1,
+    "why": "The xmm3 clear is dead after its value is copied into the required xmm2 output."
+  },
+  "906d8c80f0": {
+    "rewrite": "pxor xmm2,xmm10\nmovaps xmm10,xmm13\npxor xmm3,xmm11\nmovdqu XMMWORD PTR [rsi],xmm2\npxor xmm4,xmm12\nmovdqu XMMWORD PTR [rsi+0x10],xmm3\nmovdqa xmm2,xmm4\nlea rsi,[rsi+0x20]",
+    "saved": 2,
+    "why": "The xmm3 and xmm4 clears are dead after their values have been stored or copied into xmm2."
+  },
+  "0c7a79a8d4": {
+    "rewrite": "pxor xmm2,xmm10\nmovaps xmm10,xmm14\npxor xmm3,xmm11\nmovdqu XMMWORD PTR [rsi],xmm2\npxor xmm4,xmm12\nmovdqu XMMWORD PTR [rsi+0x10],xmm3\npxor xmm5,xmm13\nmovdqu XMMWORD PTR [rsi+0x20],xmm4\nmovdqa xmm2,xmm5\nlea rsi,[rsi+0x30]",
+    "saved": 3,
+    "why": "The xmm3, xmm4, and xmm5 clears are dead after the stores and the copy into xmm2."
+  }
+}

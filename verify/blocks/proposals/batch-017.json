@@ -1,0 +1,86 @@
+{
+  "5bc6677b00": {
+    "rewrite": null,
+    "why": "The partner words, weights, shift count and clamp bounds are arbitrary, so both unpacked arithmetic paths and both signed clamps are needed."
+  },
+  "731e4df5a5": {
+    "rewrite": null,
+    "why": "Both multiply-add and variable-shift paths are needed, and arbitrary xmm0 prevents replacing the unpacks with zero-extension loads."
+  },
+  "7f2fd46281": {
+    "rewrite": null,
+    "why": "The two independently indexed rows require separate loads and arithmetic, and the arbitrary partner words and clamp bounds prevent narrower substitutes."
+  },
+  "828d95f696": {
+    "rewrite": null,
+    "why": "Both indexed rows need their unpacked multiply-add and shift paths, and arbitrary xmm0 prevents folding the loads into widening instructions."
+  },
+  "8a53291ae4": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi]\nmovdqa xmm2,xmm0\npunpckhwd xmm2,XMMWORD PTR [rsi]\npunpcklwd xmm0,XMMWORD PTR [rsi]\npmaddwd xmm0,xmm4\npmaddwd xmm2,xmm4\npaddd xmm0,xmm5\npaddd xmm2,xmm5\npsrad xmm0,xmm6\npsrad xmm2,xmm6\npackssdw xmm0,xmm2\npmaxsw xmm0,xmm7\npminsw xmm0,xmm3\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa xmm0,XMMWORD PTR [rdi+0x10]\nmovdqa xmm2,xmm0\npunpckhwd xmm2,XMMWORD PTR [rsi+0x10]\npunpcklwd xmm0,XMMWORD PTR [rsi+0x10]\npmaddwd xmm0,xmm4\npmaddwd xmm2,xmm4\npaddd xmm0,xmm5\npaddd xmm2,xmm5\npsrad xmm0,xmm6\npsrad xmm2,xmm6\npackssdw xmm0,xmm2\npmaxsw xmm0,xmm7\npminsw xmm0,xmm3\nmovdqa XMMWORD PTR [rdi+0x10],xmm0\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 2,
+    "why": "Fold each xmm1 load into the two word-unpack memory operands because xmm1 is not preserved. This removes two standalone load instructions while preserving the arithmetic, stores and final xmm0."
+  },
+  "ada32fafcd": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi]\nmovdqa xmm2,xmm0\npunpckhwd xmm2,XMMWORD PTR [rsi]\npunpcklwd xmm0,XMMWORD PTR [rsi]\npmaddwd xmm0,xmm4\npmaddwd xmm2,xmm4\npaddd xmm0,xmm5\npaddd xmm2,xmm5\npsrad xmm0,xmm6\npsrad xmm2,xmm6\npackusdw xmm0,xmm2\npminsw xmm0,xmm3\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa xmm0,XMMWORD PTR [rdi+0x10]\nmovdqa xmm2,xmm0\npunpckhwd xmm2,XMMWORD PTR [rsi+0x10]\npunpcklwd xmm0,XMMWORD PTR [rsi+0x10]\npmaddwd xmm0,xmm4\npmaddwd xmm2,xmm4\npaddd xmm0,xmm5\npaddd xmm2,xmm5\npsrad xmm0,xmm6\npsrad xmm2,xmm6\npackusdw xmm0,xmm2\npminsw xmm0,xmm3\nmovdqa XMMWORD PTR [rdi+0x10],xmm0\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 2,
+    "why": "Use the original source addresses directly in both unpack instructions for each vector, eliminating the two xmm1 loads. All arithmetic, stores, preserved registers and the final ZF remain unchanged."
+  },
+  "7a79576ab9": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi]\nmovdqa xmm2,xmm0\npunpckhwd xmm2,XMMWORD PTR [rsi]\npunpcklwd xmm0,XMMWORD PTR [rsi]\npmaddwd xmm0,xmm4\npmaddwd xmm2,xmm4\npaddd xmm0,xmm5\npaddd xmm2,xmm5\npsrad xmm0,xmm6\npsrad xmm2,xmm6\npackssdw xmm0,xmm2\npmaxsw xmm0,xmm7\npminsw xmm0,xmm3\nmovdqa XMMWORD PTR [rdi],xmm0\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 1,
+    "why": "Fold the xmm1 load into both unpack instructions using the same source address. The final xmm1 is unconstrained, and all required results are preserved."
+  },
+  "5b97354a08": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi]\nmovdqa xmm2,xmm0\npunpckhwd xmm2,XMMWORD PTR [rsi]\npunpcklwd xmm0,XMMWORD PTR [rsi]\npmaddwd xmm0,xmm4\npmaddwd xmm2,xmm4\npaddd xmm0,xmm5\npaddd xmm2,xmm5\npsrad xmm0,xmm6\npsrad xmm2,xmm6\npackusdw xmm0,xmm2\npminsw xmm0,xmm3\nmovdqa XMMWORD PTR [rdi],xmm0\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 1,
+    "why": "Both unpack instructions can read the original source directly, removing the standalone xmm1 load. The arithmetic, store, preserved registers and final ZF are unchanged."
+  },
+  "e3bb9abe2d": {
+    "rewrite": null,
+    "why": "Each row needs both eight-byte inputs, and folding a source load into PUNPCKLWD would widen the memory access beyond the original bytes."
+  },
+  "004e14d69a": {
+    "rewrite": null,
+    "why": "The two rows require their separate arithmetic paths, and PUNPCKLWD memory operands cannot replace the eight-byte loads without reading extra bytes."
+  },
+  "a1a3faaae2": {
+    "rewrite": null,
+    "why": "With arbitrary xmm4, the XOR operations around each source average are necessary, as are the subsequent destination averages and stores."
+  },
+  "b176924381": {
+    "rewrite": null,
+    "why": "The arbitrary xmm4 mask prevents simplifying the XOR-average-XOR calculations, and each row already uses only its two source loads and one store."
+  },
+  "ff3d923285": {
+    "rewrite": null,
+    "why": "Transformed source rows are already reused between adjacent averages, while arbitrary xmm3 and the required final xmm0 prevent dropping the remaining XOR operations."
+  },
+  "3ccf53a804": {
+    "rewrite": null,
+    "why": "The block already shares transformed rows between averages, and its arbitrary mask, four stores and preserved final xmm0 require the remaining operations."
+  },
+  "3340f39e27": {
+    "rewrite": null,
+    "why": "Both constant registers must be produced, and the two eight-byte loads, byte interleave and PMADDUBSW are needed to form the eight exact adjacent-byte sums."
+  },
+  "9b15dd68c1": {
+    "rewrite": null,
+    "why": "Both constants are preserved outputs, and forming all eight adjacent-byte sums requires the two bounded loads, interleave and multiply-add."
+  },
+  "0b70835358": {
+    "rewrite": null,
+    "why": "SSE2 needs separate low and high byte-widening paths for the exact word sums, and the zero vector and rounding constant are also required outputs."
+  },
+  "495151151d": {
+    "rewrite": null,
+    "why": "The two exact word-sum vectors require both widening paths under SSE2, while the zero vector, constant and scalar updates must also be retained."
+  },
+  "bbeb591c5d": {
+    "rewrite": null,
+    "why": "Both constant registers are required outputs, and swapping PMADDUBSW operands to fold the pixel loads would interpret arbitrary pixel bytes as signed."
+  },
+  "2ef98d5a36": {
+    "rewrite": null,
+    "why": "Broadcasting the low word requires the move and two SSE2 rearrangements, while doubling ecx and testing only its low five bits require separate operations."
+  }
+}

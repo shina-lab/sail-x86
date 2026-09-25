@@ -1,0 +1,22 @@
+{
+  "64a6d6676e": {
+    "rewrite": null,
+    "why": "The two saturation stages, preserved high-half extraction, and final lane shuffle are required; vzeroupper also changes other preserved registers."
+  },
+  "40183c1f35": {
+    "rewrite": null,
+    "why": "Each conversion needs both saturation stages and lane reordering while preserving its extracted words, and the shared vzeroupper has observable effects on other preserved registers."
+  },
+  "a8fbf8f234": {
+    "rewrite": null,
+    "why": "AVX2 requires high-half extraction and separate widening of both halves, while the load, pointer update, and resulting flags must also be preserved."
+  },
+  "413aef9ae1": {
+    "rewrite": null,
+    "why": "Each input requires high-half extraction and two widening instructions to produce its two preserved outputs, and the load and pointer update remain necessary."
+  },
+  "77d12ebd52": {
+    "rewrite": null,
+    "why": "AVX2 packing operates independently within 128-bit lanes, so the permutation is required for the final element order, alongside the observable load and pointer update."
+  }
+}

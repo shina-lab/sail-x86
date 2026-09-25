@@ -1,0 +1,82 @@
+{
+  "245a29bd76": {
+    "rewrite": null,
+    "why": "The dword shift, multiplier transfer, unsigned high-word multiply, and word shift each contribute to the result for arbitrary inputs."
+  },
+  "790d74e223": {
+    "rewrite": null,
+    "why": "All four stores, the pointer update, and the counter subtraction with its live flags are required."
+  },
+  "e968430315": {
+    "rewrite": null,
+    "why": "The unaligned load cannot safely become a legacy arithmetic memory operand, and the arbitrary unpack input and live upper lanes prevent a shorter horizontal reduction."
+  },
+  "f1c36d4466": {
+    "rewrite": null,
+    "why": "The four separately addressed stores and the two live scalar updates already require six instructions at this ISA level."
+  },
+  "a24df94350": {
+    "rewrite": null,
+    "why": "The unaligned loads need separate instructions, while the wrapping word sums, arbitrary unpack input, and full-vector result prevent a shorter reduction."
+  },
+  "b6019ae0aa": {
+    "rewrite": null,
+    "why": "All eight 128-bit stores and both scalar updates are required, and SSSE3 provides no wider store to combine them."
+  },
+  "5d7baecff4": {
+    "rewrite": null,
+    "why": "The four independent memory inputs already use one instruction each, with three loads folded into the additions."
+  },
+  "812b965d71": {
+    "rewrite": null,
+    "why": "The unaligned loads cannot safely be folded into legacy arithmetic, and the reduction must retain contributions from arbitrary xmm3 and xmm4 in every output lane."
+  },
+  "2f7db0e115": {
+    "rewrite": null,
+    "why": "Broadcasting an arbitrary low word takes two instructions here, followed by one copy for each of the three other live vector destinations."
+  },
+  "1f6134a59b": {
+    "rewrite": null,
+    "why": "The eight separately addressed 128-bit stores, pointer update, and flag-producing counter update are all necessary."
+  },
+  "b9cf1f5f7c": {
+    "rewrite": null,
+    "why": "The eight memory inputs already have their additions folded into loads where possible, and the final merge is needed while preserving the separate xmm1 partial sum."
+  },
+  "606dd378c6": {
+    "rewrite": null,
+    "why": "Separate unaligned loads are necessary, and replacing the unpack-and-add reduction with horizontal sums would change live upper lanes for arbitrary inputs."
+  },
+  "e9ae533a7e": {
+    "rewrite": null,
+    "why": "SSSE3 requires the eight 128-bit stores, and the pointer and counter updates both have live results."
+  },
+  "9dfc0df1c0": {
+    "rewrite": null,
+    "why": "Each of the four live vector destinations needs its own load, and the comparison is required to produce ZF."
+  },
+  "2df39c81ae": {
+    "rewrite": null,
+    "why": "Eight independent vector stores and two live scalar updates cannot be combined into fewer instructions with the allowed ISA."
+  },
+  "f46c39147e": {
+    "rewrite": null,
+    "why": "The word broadcast needs both SIMD instructions, and the live doubled count, pointer difference, and masked ecx require the remaining scalar operations."
+  },
+  "661e55cc53": {
+    "rewrite": null,
+    "why": "The duplicated load, copy for a destructive subtraction, subtraction, and absolute value are needed because all four named vector results must be preserved."
+  },
+  "9f14c36cb1": {
+    "rewrite": null,
+    "why": "The word expansion, modular differences, signed comparisons with their tie behavior, and two selections require the existing SSSE3 operations while preserving xmm4 through xmm7."
+  },
+  "188294cdc3": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required register result, and the constant load already duplicates both halves in one instruction."
+  },
+  "c5039906cc": {
+    "rewrite": null,
+    "why": "Both pointer results are live, and preserving the loaded vector alongside its difference and absolute value requires the load, copy, subtraction, and absolute-value instructions."
+  }
+}

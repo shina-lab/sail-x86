@@ -1,0 +1,83 @@
+{
+  "a6a9621c24": {
+    "rewrite": null,
+    "why": "The alignment and length adjustment require the arithmetic chain, while the live vector copy must also zero the upper ZMM bits."
+  },
+  "9372885aa9": {
+    "rewrite": null,
+    "why": "The four comparisons, ternary reduction, two mask extractions, and final addition are needed for the live vector and scalar results and ZF."
+  },
+  "b2fd5caf6e": {
+    "rewrite": null,
+    "why": "The comparison, mask extraction, and pointer update are needed, and vzeroupper must clear the upper bits of the preserved zmm0."
+  },
+  "98b7f5ea12": {
+    "rewrite": null,
+    "why": "The comparison, mask extraction, trailing-zero count, and final comparison each supply a required result or flag."
+  },
+  "f44b1df2e2": {
+    "rewrite": null,
+    "why": "The mask result and pointer update are both live, and a separate test is needed to set ZF from the mask."
+  },
+  "fdabc827aa": {
+    "rewrite": null,
+    "why": "The full 64-bit length mask in rcx is live, so its construction cannot be dropped in favor of applying bzhi directly to eax."
+  },
+  "22f340c712": {
+    "rewrite": null,
+    "why": "The comparison mask must be extracted and intersected with the upper half of the original rcx, with the intersection also setting ZF."
+  },
+  "c114d51c05": {
+    "rewrite": null,
+    "why": "SSE2 needs both the scalar transfer and byte unpack, while the ecx copy and rdx zero test produce independent required outputs."
+  },
+  "08cc769ae6": {
+    "rewrite": null,
+    "why": "The byte duplication and full-vector replication need separate SSE2 operations, and the live ecx value and comparison flags require the two scalar operations."
+  },
+  "4331c65d28": {
+    "rewrite": null,
+    "why": "The pointer alignment and masked length adjustment are independent, and folding the final arithmetic into lea would lose the required CF and ZF."
+  },
+  "48aafa068a": {
+    "rewrite": null,
+    "why": "Preserving xmm1 while producing the live xmm0 comparison requires a load and comparison, followed by mask extraction and a zero test."
+  },
+  "ed9dff6d9e": {
+    "rewrite": null,
+    "why": "Preserving xmm1 requires a separate load or copy before the destructive SSE2 comparison, and both mask extraction and the zero test remain necessary."
+  },
+  "37cb4de682": {
+    "rewrite": null,
+    "why": "Preserving xmm1 requires a separate load or copy before the destructive SSE2 comparison, and both mask extraction and the zero test remain necessary."
+  },
+  "92496b00b2": {
+    "rewrite": null,
+    "why": "The preserved xmm1 requires a separate comparison destination, while the mask, pointer update, and mask-dependent ZF each require their existing operations."
+  },
+  "8a461cb06b": {
+    "rewrite": null,
+    "why": "The preserved xmm1 requires a separate comparison destination, while the mask, pointer update, and mask-dependent ZF each require their existing operations."
+  },
+  "8a93190ea2": {
+    "rewrite": "add rdx,rdi\nand rdi,0xffffffffffffffc0\nsub rdx,rdi",
+    "saved": 1,
+    "why": "Adding the original pointer and subtracting its aligned value adds exactly its low six bits to rdx, including under 64-bit wraparound. This preserves rdi and removes the temporary copy because rcx and flags are not live."
+  },
+  "41f9f717c3": {
+    "rewrite": null,
+    "why": "Preserving xmm1 and the first two comparison vectors requires the comparison setup, and SSE2 still needs three binary reductions, mask extraction, and a zero test."
+  },
+  "4a8642ebd9": {
+    "rewrite": null,
+    "why": "The two comparisons need the original xmm1 independently, so one separate load or copy is necessary before mask extraction and the required zero test."
+  },
+  "45ae8abc6b": {
+    "rewrite": null,
+    "why": "The edx update is independently live, and producing the live comparison vector and mask while preserving xmm1 requires the remaining four operations."
+  },
+  "5dc74c7d1e": {
+    "rewrite": null,
+    "why": "Comparing two memory operands requires a load and comparison, followed by mask extraction and the increment that produces both the live rax value and ZF."
+  }
+}

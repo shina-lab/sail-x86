@@ -1,0 +1,83 @@
+{
+  "7bde43655e": {
+    "rewrite": null,
+    "why": "Both full products, the OF-carry addition, and both live pointer adjustments are required."
+  },
+  "3fb3eaa675": {
+    "rewrite": null,
+    "why": "Both products feed required results, and the independent CF/OF additions and live pointer adjustments cannot be removed."
+  },
+  "c23b94cecf": {
+    "rewrite": null,
+    "why": "Both products, the two independent carry additions, and both pointer updates contribute to preserved results."
+  },
+  "d4ac217a26": {
+    "rewrite": null,
+    "why": "Both products feed required results, and the independent CF/OF additions and live pointer adjustments cannot be removed."
+  },
+  "c9cf65c65c": {
+    "rewrite": null,
+    "why": "Both products, the two independent carry additions, and both pointer updates contribute to preserved results."
+  },
+  "f686057a4f": {
+    "rewrite": null,
+    "why": "Both full products, the OF-carry addition, and the live rcx decrement are required."
+  },
+  "efb4b3a13b": {
+    "rewrite": null,
+    "why": "Both products feed required results, and the independent CF/OF additions and live pointer adjustments cannot be removed."
+  },
+  "f2d7a7b5bf": {
+    "rewrite": null,
+    "why": "The two additions of arbitrary rcx, both incoming carry chains, stored sums, full product, saved carry byte, and final decrement all affect required outputs."
+  },
+  "240b8904e5": {
+    "rewrite": null,
+    "why": "The multiply outputs, updated r12, store, rcx decrement, and both live carry flags prevent eliminating any instruction."
+  },
+  "939edd1b53": {
+    "rewrite": null,
+    "why": "The two carry chains, full product, updated r10, and its store all contribute to required results."
+  },
+  "0989b77f3d": {
+    "rewrite": null,
+    "why": "Both loaded values, the required duplicate in r9, the zero result in rax, and the decremented rsi require the existing operations."
+  },
+  "17236bd2c5": {
+    "rewrite": null,
+    "why": "Saving the original rdx, subtracting rcx, and computing the variable memory product require the existing four operations while preserving r8."
+  },
+  "376e5edb10": {
+    "rewrite": "xor ecx,ecx\nmulx r11,r10,QWORD PTR [r14]\nadox r10,rax\nadox r11,rbx\nmulx rbx,rdx,QWORD PTR [r14+0x8]\nadcx rdx,r11\nadox rbx,rcx\nmov rax,rdx\nadc rbx,rcx\nimul rdx,r8\nbt r13d,0x0\nadc rbx,QWORD PTR [rdi+0x10]\nsetb r13b\nlea rdi,[rdi+0x8]\ndec rsi",
+    "saved": 1,
+    "why": "Reassociate the middle-limb sum by adding the incoming rbx and OF carry to the first product's high half before adding the second product's low half; the low result and total carry are unchanged. This consumes the old rbx before the second MULX, allowing its high half and subsequent accumulation to use rbx directly and eliminating the final copy."
+  },
+  "55b745cd3d": {
+    "rewrite": null,
+    "why": "The original rdx, zero r13, size difference, both loaded values, and product are all live, so a separate product initialization remains necessary."
+  },
+  "44cfcac39b": {
+    "rewrite": null,
+    "why": "All source products and both carry chains are needed, including both halves of the final product and the carry-bearing memory store."
+  },
+  "78e98aa49c": {
+    "rewrite": null,
+    "why": "Both halves of the final product are live, and the limb sums, stores, two carry chains, and loop-state updates all contribute to preserved results."
+  },
+  "f82591cf9e": {
+    "rewrite": null,
+    "why": "The final high product is dead, but forming its live low half still requires initializing the multiply operand, and the remaining arithmetic, stores, and carry handling are required."
+  },
+  "40cc0fab5f": {
+    "rewrite": null,
+    "why": "The final high product is dead, but forming its live low half still requires initializing the multiply operand, and the remaining arithmetic, stores, and carry handling are required."
+  },
+  "40ee73bfa3": {
+    "rewrite": null,
+    "why": "Both halves of the final product are live, and the limb sums, stores, two carry chains, and loop-state updates all contribute to preserved results."
+  },
+  "6e6d635f87": {
+    "rewrite": null,
+    "why": "The final high product is dead, but forming its live low half still requires initializing the multiply operand, and the remaining arithmetic, stores, and carry handling are required."
+  }
+}

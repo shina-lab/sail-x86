@@ -1,0 +1,82 @@
+{
+  "80f6297525": {
+    "rewrite": null,
+    "why": "All eight AVX2 stores are required, and the pointer addition must preserve both its result and its flags."
+  },
+  "92613d1350": {
+    "rewrite": null,
+    "why": "The two distinct pointer results and two distinct live constant broadcasts each require an instruction."
+  },
+  "08bbe6c195": {
+    "rewrite": null,
+    "why": "All three register updates and the final comparison are required, and subtracting r11 then adding a constant cannot be folded into one LEA."
+  },
+  "4b8a1264ea": {
+    "rewrite": null,
+    "why": "The scalar rounding stages, store, counter update, live constant broadcast, and AVX2 transfer and saturation sequence have no removable instruction."
+  },
+  "bdeafdda40": {
+    "rewrite": null,
+    "why": "Each of the four vectors requires its saturated addition, unsigned saturated subtraction, and store, while the pointer and counter updates also remain live."
+  },
+  "490aa9f09e": {
+    "rewrite": null,
+    "why": "Both pointer results and the comparison flags are required, and the subtraction plus constant addition cannot use a single LEA with a negative index."
+  },
+  "80371e3a35": {
+    "rewrite": null,
+    "why": "The three register updates and comparison are live, and the rdi subtraction and constant addition cannot be combined into one instruction."
+  },
+  "5ab843ccbc": {
+    "rewrite": null,
+    "why": "Both rounded scalar products, the store and counter update, and the live broadcast and saturation results are required."
+  },
+  "2e6eeb73d5": {
+    "rewrite": null,
+    "why": "The unknown stride requires separate row accesses, and the vector assembly, two saturation operations, stores, and scalar updates all contribute to required results."
+  },
+  "1f4a77d1f0": {
+    "rewrite": null,
+    "why": "The rounding, butterfly arithmetic, clamps, multiplication, and lane rearrangements all feed preserved outputs, with unconstrained operands preventing saturation or multiply-rounding shortcuts."
+  },
+  "4e471ba609": {
+    "rewrite": null,
+    "why": "The two bias additions are shared by four live butterfly results, each requiring its own variable arithmetic shift."
+  },
+  "aa3efbcbe4": {
+    "rewrite": null,
+    "why": "Each of eight live vectors requires addition of the arbitrary zmm29 value followed by an arithmetic right shift."
+  },
+  "e86661f82c": {
+    "rewrite": null,
+    "why": "The multiply and butterfly chain and every clamp feed preserved values, including the separately preserved zmm23 maximum and zmm22 minimum."
+  },
+  "4eac0fea32": {
+    "rewrite": null,
+    "why": "The broadcast value is unconstrained, and its live value, all eight biased butterfly results, and their variable arithmetic shifts are required."
+  },
+  "184d6660cb": {
+    "rewrite": null,
+    "why": "The saturated sum and difference each need their own rounded multiply, and both full-width results are live."
+  },
+  "bae3b254e3": {
+    "rewrite": null,
+    "why": "The three scalar multiply-and-round stages require their intermediate truncations, and the store, counter update, broadcasts, and saturated sum are live."
+  },
+  "9da367c6ee": {
+    "rewrite": null,
+    "why": "The unknown stride prevents merging the two row accesses, and the vector assembly, saturation operations, stores, pointer update, and counter subtraction are required."
+  },
+  "a078daa3ca": {
+    "rewrite": null,
+    "why": "All eight sums and differences and their clamps are live, and arbitrary zmm30 and zmm31 bounds prevent replacing the clamps with fixed saturation."
+  },
+  "a12be329d3": {
+    "rewrite": null,
+    "why": "All butterfly results and shifts feed preserved registers or packs, and the unknown broadcast shift count prevents a fixed narrowing shortcut."
+  },
+  "2a538f499f": {
+    "rewrite": null,
+    "why": "The unpack and shuffle stages route distinct data into eight full-width outputs and the preserved zmm24 temporary, with no redundant stage."
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "19b8b5bd1f": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nmovq xmm0,QWORD PTR [rsi+0x10]\npshufd xmm1,xmm0,0x55\npshufd xmm0,xmm0,0x0\nmovd xmm3,DWORD PTR [rsi+0x1c]\npshufd xmm3,xmm3,0x0\nadd rsi,0x20",
+    "saved": 1,
+    "why": "Load the two adjacent dwords with one MOVQ, then broadcast each with PSHUFD; this reads exactly the same bytes and preserves the final ADD flags."
+  },
+  "024968902e": {
+    "rewrite": null,
+    "why": "The rotation requires all five vector assignments, including the preserved final value of xmm8, plus the load and pointer update."
+  },
+  "4c23cbb8a6": {
+    "rewrite": null,
+    "why": "All four vector assignments produce required final values, and the load and flag-setting pointer update are also required."
+  },
+  "5fa41b4779": {
+    "rewrite": null,
+    "why": "The swap and required copy in xmm8 already use one instruction per changed vector register, alongside the required load and pointer update."
+  },
+  "1906661dfd": {
+    "rewrite": null,
+    "why": "The two independent vector swaps each need three moves under SSE4.1, and xmm8 must retain the second saved input."
+  },
+  "78d08e7ba0": {
+    "rewrite": null,
+    "why": "Each of the two required vector copies, the scalar load, and the flag-setting pointer update already takes one instruction."
+  },
+  "d7c9f2a179": {
+    "rewrite": null,
+    "why": "The three vector destinations require their separate copies, in addition to the required scalar load and pointer update."
+  },
+  "9039650a48": {
+    "rewrite": null,
+    "why": "The four changed vector registers already receive their required final values with four moves, and neither scalar instruction can be removed."
+  },
+  "5f5fe926a2": {
+    "rewrite": null,
+    "why": "The mask load cannot be folded away because xmm8 itself is preserved, and the shuffle, scalar load, and pointer update are all required."
+  },
+  "05778a87e0": {
+    "rewrite": null,
+    "why": "Both independent byte shuffles are required, and the shared mask must remain in xmm8 alongside the scalar load and pointer update."
+  },
+  "bbe40316c0": {
+    "rewrite": null,
+    "why": "Each of the three independent vector results needs its shuffle, while the mask load and both scalar operations produce required final values."
+  },
+  "1280ce70d4": {
+    "rewrite": null,
+    "why": "The four independent shuffles already use one instruction each, and preserving xmm8 prevents eliminating the shared mask load."
+  },
+  "25d54d0fd6": {
+    "rewrite": null,
+    "why": "The two vector loads, scalar load, and two independent pointer updates all produce required final values and cannot be combined within SSE4.1."
+  },
+  "dd6b93054c": {
+    "rewrite": null,
+    "why": "All four vector loads, the scalar load, and the three independent pointer updates are required, with no redundant instruction."
+  },
+  "f812c298ff": {
+    "rewrite": null,
+    "why": "Both 128-bit stores, the scalar load, and the flag-setting pointer update are required and already use one instruction each."
+  },
+  "0227ffa6c9": {
+    "rewrite": null,
+    "why": "The four stores, scalar load, and updates of two distinct pointers are all necessary under the SSE4.1 limit."
+  },
+  "8455388281": {
+    "rewrite": null,
+    "why": "The shuffled inputs in xmm8 through xmm11 and the mask in xmm12 are all preserved, so forming the four additional unpacked outputs still requires their copies and unpacks."
+  },
+  "16c81d736f": {
+    "rewrite": "movdqa xmm12,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nmovdqu xmm0,XMMWORD PTR [r10]\npshufb xmm0,xmm12\nmovdqu xmm1,XMMWORD PTR [r10+0xc]\npshufb xmm1,xmm12\nmovdqu xmm8,XMMWORD PTR [r10+0x18]\npshufb xmm8,xmm12\nmovdqu xmm3,XMMWORD PTR [r10+0x24]\npshufb xmm3,xmm12\nmovdqa xmm2,xmm0\npunpckhdq xmm2,xmm1\npunpckldq xmm0,xmm1\nmovdqa xmm9,xmm8\npunpckhdq xmm9,xmm3\npunpckldq xmm8,xmm3\nmovdqa xmm1,xmm0\npunpckhqdq xmm1,xmm8\npunpcklqdq xmm0,xmm8\npunpcklqdq xmm2,xmm9\nmovdqu xmm8,XMMWORD PTR [r10+0x30]\npshufb xmm8,xmm12\nmovdqu xmm5,XMMWORD PTR [r10+0x3c]\npshufb xmm5,xmm12\nmovdqu xmm9,XMMWORD PTR [r10+0x48]\npshufb xmm9,xmm12\nmovdqu xmm7,XMMWORD PTR [r10+0x54]\npshufb xmm7,xmm12\nmovdqa xmm10,xmm8\npunpckhdq xmm10,xmm5\npunpckldq xmm8,xmm5\nmovdqa xmm11,xmm9\npunpckhdq xmm11,xmm7\npunpckldq xmm9,xmm7\nmovdqa xmm4,xmm8\npunpcklqdq xmm4,xmm9\nmovdqa xmm5,xmm8\npunpckhqdq xmm5,xmm9\nmovdqa xmm6,xmm10\npunpcklqdq xmm6,xmm11\nadd r10,0x60\nadd rsi,0x20",
+    "saved": 14,
+    "why": "Load directly into the shuffle destinations and reuse intermediate registers during both transposes to remove fourteen copies. The schedule preserves xmm3, xmm7, all final unpacked temporaries, the original load addresses, and final flags."
+  },
+  "8819e6568a": {
+    "rewrite": "movdqa xmm12,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nmovaps xmm8,xmm0\npunpcklbw xmm8,xmm1\nmovaps xmm9,xmm0\npunpckhbw xmm9,xmm1\nmovaps xmm10,xmm4\npunpcklbw xmm10,xmm5\nmovaps xmm11,xmm4\npunpckhbw xmm11,xmm5\nmovdqu XMMWORD PTR [rax],xmm8\nmovdqu XMMWORD PTR [rax+0x10],xmm9\nmovdqu XMMWORD PTR [rax+0x20],xmm10\nmovdqu XMMWORD PTR [rax+0x30],xmm11\nadd rax,0x40",
+    "saved": 4,
+    "why": "Each qword unpack followed by this constant byte shuffle is exactly a low or high byte unpack. Keep the constant load because xmm12 is preserved."
+  },
+  "a3d9f26e6a": {
+    "rewrite": "movdqa xmm12,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nmovdqa xmm10,xmm0\npunpckldq xmm0,xmm1\npunpckhdq xmm10,xmm1\nmovdqa xmm11,xmm2\npunpckldq xmm2,xmm3\npunpckhdq xmm11,xmm3\nmovdqa xmm8,xmm0\nmovlhps xmm0,xmm2\nmovhlps xmm2,xmm8\nmovdqa xmm9,xmm10\nmovlhps xmm10,xmm11\nmovhlps xmm11,xmm9\nmovdqa xmm8,xmm0\nmovdqa xmm1,xmm2\nmovdqa xmm3,xmm11\npshufb xmm8,xmm12\npshufb xmm2,xmm12\nmovdqu XMMWORD PTR [rax],xmm8\nmovdqu XMMWORD PTR [rax+0xc],xmm2\nmovdqa xmm2,xmm10\npshufb xmm10,xmm12\npshufb xmm11,xmm12\nmovdqu XMMWORD PTR [rax+0x18],xmm10\nmovdqu XMMWORD PTR [rax+0x24],xmm11\nmovdqa xmm10,xmm4\npunpckhdq xmm10,xmm5\npunpckldq xmm4,xmm5\nmovdqa xmm11,xmm6\npunpckhdq xmm11,xmm7\npunpckldq xmm6,xmm7\nmovdqa xmm5,xmm4\npunpckhqdq xmm5,xmm6\npunpcklqdq xmm4,xmm6\nmovdqa xmm6,xmm10\npunpcklqdq xmm6,xmm11\nmovdqa xmm7,xmm10\npunpckhqdq xmm7,xmm11\nmovdqa xmm8,xmm4\npshufb xmm8,xmm12\nmovdqa xmm9,xmm5\npshufb xmm9,xmm12\nmovdqa xmm10,xmm6\npshufb xmm10,xmm12\nmovdqa xmm11,xmm7\npshufb xmm11,xmm12\nmovdqu XMMWORD PTR [rax+0x30],xmm8\nmovdqu XMMWORD PTR [rax+0x3c],xmm9\nmovdqu XMMWORD PTR [rax+0x48],xmm10\nmovdqu XMMWORD PTR [rax+0x54],xmm11\nadd rax,0x60",
+    "saved": 7,
+    "why": "Shorten both transpose schedules and use xmm2 for an early shuffled store before assigning its required final transposed value. All final vector values, overlapping stores in their original order, and final ADD flags are preserved."
+  }
+}

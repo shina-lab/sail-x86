@@ -1,0 +1,86 @@
+{
+  "9f62dcbf2d": {
+    "rewrite": null,
+    "why": "All five instructions update distinct required registers, and the final subtraction also supplies the required flags."
+  },
+  "2dc7033b9f": {
+    "rewrite": null,
+    "why": "The vector shift, address update, scalar shift, and subtraction each produce a distinct required result."
+  },
+  "18fa37c83b": {
+    "rewrite": null,
+    "why": "Each instruction produces a required register value, with the final subtraction also setting the required flags."
+  },
+  "e1a327c3b5": {
+    "rewrite": null,
+    "why": "Both shifts, the indexed address update, and the flag-setting subtraction are independently required."
+  },
+  "bb95974696": {
+    "rewrite": null,
+    "why": "Each of the five instructions updates a distinct live register, and SSSE3 provides no shorter combination of these updates."
+  },
+  "1b3f3a66f6": {
+    "rewrite": null,
+    "why": "All four instructions compute distinct required outputs, including the subtraction flags."
+  },
+  "ed8d9cab0a": {
+    "rewrite": null,
+    "why": "The three increments and counter subtraction update four independently required registers."
+  },
+  "3231dd69f5": {
+    "rewrite": null,
+    "why": "All four scalar updates are required, and the subtraction already computes the required flags."
+  },
+  "031af1b28b": {
+    "rewrite": null,
+    "why": "Both indexed address updates, the rdx increment, and the counter subtraction produce required values."
+  },
+  "0158afe3e4": {
+    "rewrite": null,
+    "why": "The two shifts, two pointer increments, and subtraction each update a distinct required register."
+  },
+  "e0cc1132aa": {
+    "rewrite": null,
+    "why": "The address update, vector shift, scalar shift, and flag-setting subtraction are all required."
+  },
+  "d704903252": {
+    "rewrite": null,
+    "why": "Both copies and both additions produce required register values, and the last addition supplies all required flags."
+  },
+  "28306901a8": {
+    "rewrite": null,
+    "why": "All five copy destinations are live, and the decrement must update r9 and its flags while preserving CF."
+  },
+  "9f56212c17": {
+    "rewrite": "vmovd xmm1,ebp\nvpbroadcastb ymm1,xmm1\nvpbroadcastd ymm0,DWORD PTR [CONST_4]\nvpsubb ymm0,ymm0,ymm1\nvpminub ymm0,ymm0,YMMWORD PTR [CONST_2]",
+    "saved": 10,
+    "why": "Only the final ymm0 mask is live among the modified vector registers, so all three data shuffles and the first two mask calculations can be removed. Fold the ramp constant load into the remaining minimum."
+  },
+  "2af19dfc59": {
+    "rewrite": "vmovdqa ymm4,YMMWORD PTR [rcx+rbp*1]\nvpermq ymm3,ymm4,0x91\nvpshufb ymm3,ymm3,YMMWORD PTR [CONST_1]",
+    "saved": 1,
+    "why": "The broadcast and vshufpd together select qwords 1, 0, 1, 2 from the loaded ymm4, which vpermq performs directly. The original byte shuffle and required ymm4 value are preserved."
+  },
+  "dfc60e8382": {
+    "rewrite": null,
+    "why": "Every shuffle and arithmetic result feeds a required output or store, and the signed saturation before the final word shift prevents simply merging the shifts."
+  },
+  "43daf2b692": {
+    "rewrite": "mov r13,r12\nmov r12,r15\nmov r15,r14\nmov r14,rbx\nmov rbx,r10",
+    "saved": 3,
+    "why": "The final updates to r10, r11, and rdi are dead, and no flags must match. Keep only the five copies that produce required register values."
+  },
+  "e5c3b44e3c": {
+    "rewrite": "mov r13,r12\nmov r12,r15\nmov r15,r14\nmov r14,rbx\nmov rbx,r10",
+    "saved": 1,
+    "why": "The final rdi update and its flags are dead, so the addition can be removed."
+  },
+  "482edce96a": {
+    "rewrite": null,
+    "why": "All three copy destinations and the decremented r9 are live, and the decrement also supplies required flags while preserving CF."
+  },
+  "25e5db3c2e": {
+    "rewrite": null,
+    "why": "All three copies and the rdi addition produce required values, with the addition also supplying all required flags."
+  }
+}

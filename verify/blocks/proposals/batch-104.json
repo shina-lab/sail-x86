@@ -1,0 +1,93 @@
+{
+  "b721e5fecb": {
+    "rewrite": null,
+    "why": "The horizontal sum, rounded multiply, two overlapping word interleaves, and accumulated products all contribute to the preserved result."
+  },
+  "d888b80342": {
+    "rewrite": null,
+    "why": "Both vectors require the doubling, rounded multiplication, addition, and clamps, while the index update and comparison establish distinct required results."
+  },
+  "23427afce0": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rsi+0x80]\nvpaddw ymm0,ymm0,ymm0\nvpmulhrsw ymm0,ymm0,ymm4\nvpaddw ymm0,ymm0,YMMWORD PTR [rdi+0x80]\nvpminsw ymm0,ymm0,ymm6\nvpmaxsw ymm0,ymm0,ymm7\nvpblendd ymm0,ymm0,YMMWORD PTR [rdi+0x80],0xc0\nvmovdqu YMMWORD PTR [rdi+0x80],ymm0\nadd rdi,0xa4\nadd rsi,0xa4\ndec edx",
+    "saved": 1,
+    "why": "Fold the disposable ymm1 load into the addition and blend, which both read the same unchanged memory before the store."
+  },
+  "0f13e25ad7": {
+    "rewrite": null,
+    "why": "Both interleaves and multiply-add chains are needed, and folding the eight-byte load into an unpack would read beyond the original load."
+  },
+  "2970a740c4": {
+    "rewrite": null,
+    "why": "The multiply, offset, rotation, extraction, and memory XOR each affect rbx, and all three address calculations have preserved outputs."
+  },
+  "df580a60bc": {
+    "rewrite": "vmovdqa32 zmm18,zmm3\nvpdpwssd zmm18,zmm28,zmm20\nvmovdqa32 zmm19,zmm3\nvpdpwssd zmm19,zmm29,zmm21\nvmovdqa32 zmm20,zmm3\nvpdpwssd zmm20,zmm28,zmm16\nvpdpwssd zmm3,zmm29,zmm17\nvpsrad zmm18,zmm18,0x1\nvpsrad zmm19,zmm19,0x1\nvpsrad zmm20,zmm20,0x1\nvpsrad zmm3,zmm3,0x1\nvpackssdw zmm20,zmm20,zmm18\nvpackssdw zmm21,zmm3,zmm19\nvpsravw zmm20,zmm20,zmm27\nvpsravw zmm21,zmm21,zmm27",
+    "saved": 1,
+    "why": "After copying the initial accumulator for the first three products, consume disposable zmm3 directly for the fourth product and pack it into zmm21."
+  },
+  "11db6ce16e": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+r10*2-0xa6]\npalignr xmm2,xmm0,0x2\npshufd xmm1,xmm0,0x39\npunpcklwd xmm0,xmm2\npunpcklwd xmm1,xmm3\npmaddwd xmm0,xmm4\npmaddwd xmm1,xmm5\npaddd xmm0,xmm1",
+    "saved": 2,
+    "why": "PALIGNR and PSHUFD each replace a copy followed by a byte shift because only their low 64 bits feed the subsequent unpacks."
+  },
+  "358f865ff9": {
+    "rewrite": null,
+    "why": "The extraction, preserved vector shift, scalar arithmetic, signed word load, and final comparison each provide a required value or flag."
+  },
+  "4eae5b16ce": {
+    "rewrite": "movdqa xmm15,xmm14\npmaddwd xmm15,xmm4\npaddd xmm15,xmm13\npsrldq xmm13,0x4\npsrad xmm15,XMMWORD PTR [rsi+0xb0]\npaddd xmm15,xmm11\npackssdw xmm15,xmm15\npminsw xmm15,xmm12\npmaxsw xmm15,xmm8\npsrldq xmm11,0x4\npslldq xmm15,0x2\npsrldq xmm14,0x2\npxor xmm14,xmm15\npand xmm14,xmm9\npxor xmm14,xmm15\nmovd DWORD PTR [rdi+rcx*2-0x2],xmm14\ninc rcx",
+    "saved": 1,
+    "why": "Replace the four-instruction masked merge with B XOR ((A XOR B) AND mask), preserving every bit of xmm14 and the stored value."
+  },
+  "e988700957": {
+    "rewrite": "movdqa xmm3,xmm2\npmaddwd xmm3,xmm4\npshufd xmm12,xmm3,0x55\npaddd xmm3,xmm12\npaddd xmm3,xmm1\npsrldq xmm1,0x4\npsrad xmm3,XMMWORD PTR [rsi+0xb0]\npackssdw xmm3,xmm3\npminsw xmm3,xmm7\npmaxsw xmm3,xmm6\npslldq xmm3,0x4\npsrldq xmm2,0x2\npxor xmm2,xmm3\npand xmm2,xmm11\npxor xmm2,xmm3\nmovq QWORD PTR [rdi+rcx*2-0x4],xmm2\ninc rcx",
+    "saved": 1,
+    "why": "Use the three-instruction XOR/AND merge to select between the shifted xmm2 and xmm3 values under the unchanged xmm11 mask."
+  },
+  "bb80cd4b77": {
+    "rewrite": null,
+    "why": "The averaging and widened arithmetic stages are needed, xmm14 must retain its final load, and folding the unaligned source loads into legacy arithmetic would add alignment requirements."
+  },
+  "c9711048d5": {
+    "rewrite": "pxor xmm14,xmm0\npand xmm14,xmm2\npxor xmm0,xmm14\nmovdqu XMMWORD PTR [rdi+rcx*2],xmm0\nadd rdi,0xa4\nadd rsi,0x148\ndec edx",
+    "saved": 2,
+    "why": "Use disposable xmm14 to compute (old xmm14 XOR xmm0) AND xmm2, then XOR it into xmm0, replacing the five-instruction masked merge with three instructions."
+  },
+  "46cb46b863": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+r11*2-0xa6]\nmovdqu xmm7,XMMWORD PTR [rsi+r11*4]\nmovdqu xmm14,XMMWORD PTR [rsi+r11*4+0xa4]\npaddw xmm7,xmm14\nphaddw xmm7,xmm7\npalignr xmm12,xmm0,0x2\npshufd xmm14,xmm0,0x39\npunpcklwd xmm0,xmm12\npmulhrsw xmm7,xmm6\npunpcklwd xmm14,xmm7\npmaddwd xmm0,xmm4\npmaddwd xmm14,xmm5\npaddd xmm0,xmm14\npaddd xmm0,xmm3",
+    "saved": 3,
+    "why": "Reassociate the wrapping word additions before PHADDW to eliminate the high-half shuffle while preserving the four consumed sums. PALIGNR and PSHUFD also replace the two copy-and-shift pairs."
+  },
+  "0affe07a43": {
+    "rewrite": "movdqa xmm11,xmm9\npmaddwd xmm11,xmm3\npaddd xmm11,xmm8\npsrldq xmm8,0x4\npsrad xmm11,XMMWORD PTR [rdx+0xb0]\npaddd xmm11,xmm10\npackssdw xmm11,xmm11\npminsw xmm11,xmm5\npmaxsw xmm11,xmm6\npsrldq xmm9,0x2\npslldq xmm11,0x2\npsrldq xmm10,0x4\npxor xmm9,xmm11\npand xmm9,xmm7\npxor xmm9,xmm11\nmovd DWORD PTR [rdi+r8*2-0x2],xmm9\ninc r8",
+    "saved": 1,
+    "why": "The XOR/AND merge computes the same full xmm9 value using three instructions, eliminating the mask copy into xmm2."
+  },
+  "fbe20bb13e": {
+    "rewrite": null,
+    "why": "The horizontal sum and widened arithmetic are needed, xmm14 must retain the destination load, and folding the source load into legacy PHADDW would add an alignment requirement."
+  },
+  "dc02ffbdfe": {
+    "rewrite": "pxor xmm14,xmm0\npand xmm14,xmm2\npxor xmm0,xmm14\nmovdqu XMMWORD PTR [rdi+rcx*2],xmm0\nadd rdi,0xa4\nadd rsi,0xa4\ndec edx",
+    "saved": 2,
+    "why": "Compute the masked difference in disposable xmm14 and XOR it into xmm0, reducing the masked merge from five instructions to three."
+  },
+  "c2f43b223c": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+r11*2-0xa6]\nmovdqu xmm7,XMMWORD PTR [rsi+r11*4]\nphaddw xmm7,xmm7\npalignr xmm12,xmm0,0x2\npshufd xmm14,xmm0,0x39\npunpcklwd xmm0,xmm12\npmulhrsw xmm7,xmm6\npunpcklwd xmm14,xmm7\npmaddwd xmm0,xmm4\npmaddwd xmm14,xmm5\npaddd xmm0,xmm14\npaddd xmm0,xmm3",
+    "saved": 2,
+    "why": "Generate the consumed low halves of the two shifted temporaries directly with PALIGNR and PSHUFD, eliminating both copies."
+  },
+  "b5f479145a": {
+    "rewrite": null,
+    "why": "The arbitrary coefficients require the widened multiply and pack stages, and folding the unaligned destination load into legacy PADDW would add an alignment requirement."
+  },
+  "8a8dfb66ed": {
+    "rewrite": null,
+    "why": "The store, two distinct preserved pointer updates, and decrement producing the required flags each need an instruction."
+  },
+  "e1b6a460d2": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+r11*2-0xa6]\nmovq xmm7,QWORD PTR [rsi+r11*2]\npalignr xmm2,xmm0,0x2\npshufd xmm14,xmm0,0x39\npunpcklwd xmm0,xmm2\npunpcklwd xmm14,xmm7\npmaddwd xmm0,xmm4\npmaddwd xmm14,xmm5\npaddd xmm0,xmm14\npaddd xmm0,xmm3",
+    "saved": 2,
+    "why": "Replace each copy-and-shift pair with one instruction that produces the same low 64 bits consumed by its unpack."
+  }
+}

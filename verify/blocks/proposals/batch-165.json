@@ -1,0 +1,88 @@
+{
+  "f8ebdd10f5": {
+    "rewrite": null,
+    "why": "The four independently addressed rows require their loads and stores, and the wrapping addition, two clamps, and two coefficient-buffer stores are all necessary."
+  },
+  "1f4a77d1f0": {
+    "rewrite": "",
+    "saved": 33,
+    "why": "Every instruction writes only unpreserved vector registers, with no memory or flag effects, so the entire block is dead."
+  },
+  "4e471ba609": {
+    "rewrite": "",
+    "saved": 10,
+    "why": "All computed vector values are unpreserved, and the block has no memory or flag effects."
+  },
+  "d47bced3bd": {
+    "rewrite": null,
+    "why": "Each of the four required destination vectors already uses a single permutation instruction."
+  },
+  "fdeed9228d": {
+    "rewrite": null,
+    "why": "The unpacking, arithmetic, saturation, and permutations remain necessary for the preserved vectors, including the shifted memory-derived indices and intermediate packed results."
+  },
+  "f9c584f106": {
+    "rewrite": null,
+    "why": "Each required result needs both its lane interleave and its addition or subtraction with the unconstrained zmm27 value."
+  },
+  "8a07002780": {
+    "rewrite": null,
+    "why": "The store and rcx update are required, and the two multiplications separated by rounding and an arithmetic shift cannot be folded while preserving the required results and flags."
+  },
+  "9ffbac53c3": {
+    "rewrite": null,
+    "why": "Four independently required vectors each already use one signed saturating pack instruction."
+  },
+  "74094972db": {
+    "rewrite": null,
+    "why": "All four arbitrary byte permutations feed the required transpose outputs, and the intermediate vectors in zmm18 and zmm20 must also be preserved."
+  },
+  "a975c0eac7": {
+    "rewrite": null,
+    "why": "Each required destination already uses one extraction that also zeroes its upper 256 bits."
+  },
+  "295ca4ef98": {
+    "rewrite": null,
+    "why": "The packs, qword rotation, arbitrary full-width permutations, and splits into four upper-zeroed vectors all contribute to preserved results."
+  },
+  "aa3efbcbe4": {
+    "rewrite": "",
+    "saved": 16,
+    "why": "All eight destination vectors are unpreserved, and these arithmetic instructions have no memory or flag effects."
+  },
+  "e86661f82c": {
+    "rewrite": "",
+    "saved": 42,
+    "why": "The entire computation affects only unpreserved vector registers and has no memory or flag effects."
+  },
+  "4eac0fea32": {
+    "rewrite": "",
+    "saved": 21,
+    "why": "The broadcast and every dependent result are unpreserved, so the load and all arithmetic can be removed without changing any required state or store."
+  },
+  "5bb8a32095": {
+    "rewrite": null,
+    "why": "Eight required destination vectors each already use a single arithmetic shift instruction."
+  },
+  "23d2451320": {
+    "rewrite": null,
+    "why": "The arithmetic, saturation, arbitrary permutations, and half-vector splits are required, along with the final zmm20 intermediate and zmm21 index vector."
+  },
+  "00807ceb05": {
+    "rewrite": null,
+    "why": "Each of the four required interleaved vectors already uses one unpack instruction."
+  },
+  "184d6660cb": {
+    "rewrite": "",
+    "saved": 4,
+    "why": "Both computed vectors are unpreserved, and the instructions have no memory or flag effects."
+  },
+  "ce25b6d30a": {
+    "rewrite": null,
+    "why": "Each of the eight required destination vectors already uses one arithmetic shift instruction."
+  },
+  "0db84c2004": {
+    "rewrite": null,
+    "why": "Each required vector needs its qword interleave followed by its addition or subtraction with the unconstrained zmm27 value."
+  }
+}

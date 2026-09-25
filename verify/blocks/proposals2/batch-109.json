@@ -1,0 +1,82 @@
+{
+  "82ad6be5fd": {
+    "rewrite": null,
+    "why": "AVX2 cannot fold the data load into this immediate word shift, and the store, index update, and flag-producing comparison are required."
+  },
+  "565ff2a012": {
+    "rewrite": null,
+    "why": "The arbitrary byte shuffle requires a register data operand, while the subsequent shift, store, index update, and comparison each produce required results."
+  },
+  "dbde090acb": {
+    "rewrite": null,
+    "why": "The vector load and store, full-width index increment, and comparison flags are all required and cannot be combined into fewer allowed instructions."
+  },
+  "362bf61d5c": {
+    "rewrite": null,
+    "why": "VPSHUFB cannot fold a load of its data operand, and the store, index increment, and comparison must also remain."
+  },
+  "72c71b3fa1": {
+    "rewrite": null,
+    "why": "Each instruction independently establishes a required constant, zero value, or loaded pointer in a different live register."
+  },
+  "bc63861030": {
+    "rewrite": null,
+    "why": "The five loads, two count adjustments, two negative products, and two pointer adjustments are needed because all their resulting registers are live."
+  },
+  "a90843b7a6": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle of the zero-extended qword requires separate load and shuffle instructions, followed by the required store and both index updates."
+  },
+  "05edcbcb36": {
+    "rewrite": null,
+    "why": "Each instruction updates a distinct live register, and the carry flag from the final multiplication and the flags set by DEC must also match."
+  },
+  "d9c4f597b9": {
+    "rewrite": null,
+    "why": "Both negative scaled offsets must survive alongside the loaded values, adjusted counts, and adjusted pointers, so using shifts or LEA would not reduce the instruction count."
+  },
+  "d0f515db64": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle of a zero-extended dword requires separate load and shuffle instructions, and the store and both live index increments remain necessary."
+  },
+  "b9c731e282": {
+    "rewrite": null,
+    "why": "The two pointer additions, two offset products, and counter decrement each update a required register, with multiplication carry and decrement flags also live."
+  },
+  "849c0af050": {
+    "rewrite": null,
+    "why": "All five loads and both count adjustments are needed, and the live negative products prevent eliminating either product calculation or pointer adjustment."
+  },
+  "86d57716b5": {
+    "rewrite": null,
+    "why": "PSHUFB needs the separately loaded and zero-extended dword as its register data operand, while the store, both index updates, and final ZF are required."
+  },
+  "4ead3d478d": {
+    "rewrite": null,
+    "why": "All five instructions update distinct required registers, and preserving the final multiplication carry and DEC flags leaves no removable operation."
+  },
+  "4ed76e2e4a": {
+    "rewrite": null,
+    "why": "The loads, count adjustments, negative offsets, and adjusted pointers are all required, and deriving one offset from the other would still take two instructions."
+  },
+  "145160bd31": {
+    "rewrite": null,
+    "why": "The arbitrary byte shuffle cannot consume its data directly from memory, and its store and both live index increments are necessary."
+  },
+  "7fc8df43ba": {
+    "rewrite": null,
+    "why": "Each pointer update, offset calculation, and counter decrement has a distinct live destination, and the multiplication carry and DEC flags must be preserved."
+  },
+  "a175fc1787": {
+    "rewrite": null,
+    "why": "The five loads and two count adjustments are necessary, and both negative products must be retained in addition to the two adjusted pointers."
+  },
+  "f19a178033": {
+    "rewrite": null,
+    "why": "The data load cannot be folded into PSHUFB, and the shuffled register value, store, two updated indices, and final ZF are all live."
+  },
+  "1f10a87e45": {
+    "rewrite": null,
+    "why": "All five instructions establish different required register values, with the final multiplication carry flag and the flags set by DEC also required."
+  }
+}

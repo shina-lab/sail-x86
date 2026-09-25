@@ -1,0 +1,86 @@
+{
+  "3bf4fab727": {
+    "rewrite": null,
+    "why": "All eight shuffle/XOR results and the updated counter are live, and the allowed AVX instructions cannot fuse these operations."
+  },
+  "e4826d9f0e": {
+    "rewrite": null,
+    "why": "The loaded vectors and all three carry-less products are live, and forming the Karatsuba input still requires its shuffle and XOR."
+  },
+  "58631ff272": {
+    "rewrite": null,
+    "why": "The two products, shuffled intermediate, accumulator and pointer update are all live, leaving no removable reduction step."
+  },
+  "946792ec39": {
+    "rewrite": "movq xmm10,QWORD PTR [CONST_1]\npxor xmm3,xmm3\npxor xmm4,xmm4\npxor xmm2,xmm2\nimul eax,r9d,0xffffffff\nsar eax,0x4\nlea eax,[rax*8+0x40]\nsub r9d,0x10",
+    "saved": 2,
+    "why": "An immediate multiply replaces the copy and negation, while an arithmetic shift by four followed by LEA replaces the mask, shift and add. The final subtraction remains unchanged, preserving SF and OF."
+  },
+  "4419047568": {
+    "rewrite": null,
+    "why": "The shuffle, counter update, key XOR, address calculation and comparison each produce required register values or flags."
+  },
+  "5bb2b1eb94": {
+    "rewrite": null,
+    "why": "The AES result, key loads and scalar copies are live, and the subtraction must produce both ECX and the specified flags."
+  },
+  "dccc4a9a56": {
+    "rewrite": null,
+    "why": "Both carry-less reductions and the Karatsuba correction contribute to the live accumulator, and the constant load is also a required output."
+  },
+  "3c9ec091af": {
+    "rewrite": null,
+    "why": "All three carry-less products contribute to preserved accumulators, and the shuffle and XORs are needed to form their inputs."
+  },
+  "03d77d8c6d": {
+    "rewrite": null,
+    "why": "Each of the three loads initializes a preserved vector register, and the test supplies the required ZF."
+  },
+  "c43fe5ed5b": {
+    "rewrite": null,
+    "why": "The partial products, two reduction rounds and lane fold contribute to live outputs, and the scalar updates and subtraction flags are also required."
+  },
+  "a77e61d967": {
+    "rewrite": "vmovq xmm0,QWORD PTR [rdx]\nmov rax,QWORD PTR [rdx+rcx*1]\nimul ecx,ecx,0xfffffff8\nshr rax,cl\nvpinsrq xmm0,xmm0,rax,0x1",
+    "saved": 1,
+    "why": "Multiplying ECX by -8 computes the same 32-bit shift count as NEG followed by SHL, with both memory loads kept before ECX changes."
+  },
+  "a0b55c4e93": {
+    "rewrite": null,
+    "why": "The shuffle, four partial products and two reduction rounds all contribute to the live result, and the loaded multiplier must also be preserved."
+  },
+  "12033f163f": {
+    "rewrite": null,
+    "why": "Every generated output and the final counter are preserved, so all four counter updates, shuffles and XORs remain necessary alongside the flag-producing comparison."
+  },
+  "a0cf611945": {
+    "rewrite": "vbroadcasti128 ymm2,XMMWORD PTR [CONST_1]\nvpshufb ymm12,ymm11,ymm0\nvpaddd ymm11,ymm11,ymm2\nvpshufb ymm13,ymm11,ymm0\nvpxor ymm12,ymm12,ymm9\nvpxor ymm13,ymm13,ymm9\nlea rax,[rdi+0x20]",
+    "saved": 1,
+    "why": "The last counter increment only changes YMM11, which is not preserved and is not read again in the block."
+  },
+  "c87a6cc4cf": {
+    "rewrite": "vbroadcasti128 ymm2,XMMWORD PTR [CONST_1]\nvpshufb ymm12,ymm11,ymm0\nvpaddd ymm11,ymm11,ymm2\nvpshufb ymm13,ymm11,ymm0\nvpaddd ymm11,ymm11,ymm2\nvpshufb ymm14,ymm11,ymm0\nvpaddd ymm11,ymm11,ymm2\nvpshufb ymm15,ymm11,ymm0\nvpxor ymm12,ymm12,ymm9\nvpxor ymm13,ymm13,ymm9\nvpxor ymm14,ymm14,ymm9\nvpxor ymm15,ymm15,ymm9\nlea rax,[rdi+0x20]",
+    "saved": 1,
+    "why": "The fourth counter increment only changes dead YMM11 after all four shuffled outputs have been formed."
+  },
+  "be469ae320": {
+    "rewrite": null,
+    "why": "The vector load and both scalar results are live, and replacing the ECX copy and subtraction with LEA would lose the required flags."
+  },
+  "346ee0b26e": {
+    "rewrite": null,
+    "why": "Each of the four carry-less partial products contributes to a preserved accumulator, and the allowed ISA has no fused carry-less multiply and XOR."
+  },
+  "ab49a09da6": {
+    "rewrite": null,
+    "why": "The broadcast constant, both reduction rounds and final lane fold are all needed to form the preserved YMM1 result."
+  },
+  "d3ad67f6ea": {
+    "rewrite": null,
+    "why": "The AES store, hash accumulations, register rotation, zeroing and scalar updates all affect required outputs, while the final comparison supplies distinct required flags."
+  },
+  "f2350d0f7c": {
+    "rewrite": null,
+    "why": "The load, shuffle and vector test determine the result, and both zeroing EAX and setting AL are needed to produce a full-width zero or one."
+  }
+}

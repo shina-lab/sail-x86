@@ -69,15 +69,6 @@ function resolve_seg(pfx, default_seg) = match pfx.seg_override {
   None()  => default_seg,
 }
 
-// Legacy compatibility: apply_segment still used by moffs paths.
-// Returns the linear address (segment base + effective address).
-// Limit checking is NOT done here — callers must use seg_linear for that.
-val apply_segment : (qword, Prefixes, segreg_idx) -> qword
-function apply_segment(addr, pfx, default_seg) = {
-  let seg = resolve_seg(pfx, default_seg);
-  addr + get_seg_base(seg)
-}
-
 // Compute EVEX compressed displacement scale factor for "Full" tuple type.
 // Without broadcast: N = vector size in bytes. With broadcast: N = element size.
 val evex_full_disp_n : Prefixes -> range(4, 64)

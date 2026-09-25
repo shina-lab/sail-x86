@@ -1,0 +1,85 @@
+{
+  "59be79d7df": {
+    "rewrite": null,
+    "why": "The AES operation, two loads, and register transfers are required, and replacing the subtraction with LEA would lose the required flags."
+  },
+  "bf8f634b1a": {
+    "rewrite": null,
+    "why": "Both reduction stages and their intermediate register results are live, with no redundant XOR, shuffle, or multiplication."
+  },
+  "2a370d1dbe": {
+    "rewrite": null,
+    "why": "The three products need distinct forms of the input, and the destructive SSE instructions require the copy to retain those inputs."
+  },
+  "1e53cbe0b4": {
+    "rewrite": "aesenclast xmm3,XMMWORD PTR [rsi]\npshufb xmm3,XMMWORD PTR [CONST_1]\npshufd xmm0,xmm3,0xd3\npsrad xmm0,0x1f\npaddq xmm3,xmm3\npand xmm0,XMMWORD PTR [CONST_2]\npxor xmm3,xmm0\nmovdqa XMMWORD PTR [rdi+0x180],xmm3\nmovq xmm5,QWORD PTR [CONST_3]\npshufd xmm0,xmm3,0x4e\nvpclmullqlqdq xmm4,xmm5,xmm3\npxor xmm4,xmm0\nmovdqa XMMWORD PTR [rdi+0x1d0],xmm4\npxor xmm0,xmm3\nmovq QWORD PTR [rdi+0x1c8],xmm0\nmovdqa xmm2,xmm3\nmov eax,0x30",
+    "saved": 1,
+    "why": "PSHUFD can read xmm3 directly, eliminating the preceding copy without changing any required register or store."
+  },
+  "606fbd3366": {
+    "rewrite": null,
+    "why": "The products, reduction, two stores, and flag-setting index update all contribute to required outputs."
+  },
+  "d6a19407d7": {
+    "rewrite": null,
+    "why": "Each load supplies a required register value, and the subtraction supplies both the required counter and flags."
+  },
+  "0b22454789": {
+    "rewrite": null,
+    "why": "The input shuffle, products, reduction intermediates, and pointer and counter updates are all required."
+  },
+  "7d71d65487": {
+    "rewrite": null,
+    "why": "The loads, shift, and insertion are required, while combining NEG and SHL into IMUL would change live flags when the subsequent shift count is zero."
+  },
+  "625de72e81": {
+    "rewrite": null,
+    "why": "Every shuffle, XOR, and multiplication contributes to a required reduction result, and the existing VEX products already avoid copies."
+  },
+  "3bf4fab727": {
+    "rewrite": null,
+    "why": "All eight counter values require their own shuffle and key XOR, and the constant, key, final counter, and address are also live."
+  },
+  "e4826d9f0e": {
+    "rewrite": null,
+    "why": "The loaded and shuffled operands remain live, and each product and the half-wise XOR construction is needed for a required output."
+  },
+  "58631ff272": {
+    "rewrite": null,
+    "why": "Both polynomial reduction stages, their intermediate registers, and the pointer update are required."
+  },
+  "946792ec39": {
+    "rewrite": "movq xmm10,QWORD PTR [CONST_1]\npxor xmm3,xmm3\npxor xmm4,xmm4\npxor xmm2,xmm2\nimul eax,r9d,0xffffffff\nsar eax,0x4\nlea eax,[rax*8+0x40]\nsub r9d,0x10",
+    "saved": 2,
+    "why": "IMUL forms the 32-bit negation without a copy, and SAR by four followed by scaled LEA implements the original masking, halving, and addition. The final SUB preserves the required flags."
+  },
+  "4419047568": {
+    "rewrite": null,
+    "why": "The shuffle, counter increment, key XOR, address calculation, and comparison each produce a required result."
+  },
+  "5bb2b1eb94": {
+    "rewrite": null,
+    "why": "The AES operation, two loads, and register transfers are required, and the live arithmetic flags prevent folding the copy and subtraction into LEA."
+  },
+  "dccc4a9a56": {
+    "rewrite": null,
+    "why": "The two reduction stages have no dead operations, and all resulting vector registers, including their upper halves, must match."
+  },
+  "3c9ec091af": {
+    "rewrite": null,
+    "why": "The existing VEX multiplication already removes the input copy, and the remaining operations supply distinct required products and accumulations."
+  },
+  "03d77d8c6d": {
+    "rewrite": null,
+    "why": "All three loaded vector values and the flags produced by TEST are required."
+  },
+  "c43fe5ed5b": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdx]\nvpshufb ymm0,ymm0,ymm6\nvpxor ymm5,ymm5,ymm0\nvpclmullqlqdq ymm1,ymm5,YMMWORD PTR [rdi+0x180]\nvpclmulhqlqdq ymm2,ymm5,YMMWORD PTR [rdi+0x180]\nvpclmullqhqdq ymm3,ymm5,YMMWORD PTR [rdi+0x180]\nvpxor ymm2,ymm2,ymm3\nvpclmulhqlqdq ymm3,ymm7,ymm1\nvpshufd ymm1,ymm1,0x4e\nvpxor ymm2,ymm2,ymm1\nvpxor ymm2,ymm2,ymm3\nvpclmulhqhqdq ymm5,ymm5,YMMWORD PTR [rdi+0x180]\nvpclmulhqlqdq ymm1,ymm7,ymm2\nvpshufd ymm2,ymm2,0x4e\nvpxor ymm5,ymm5,ymm2\nvpxor ymm5,ymm5,ymm1\nvextracti128 xmm0,ymm5,0x1\nvpxor xmm5,xmm5,xmm0\nadd rdx,0x20\nsub ecx,0x20",
+    "saved": 1,
+    "why": "Fold the key load into the four multiplication operands because ymm0 is overwritten by the final lane extraction. Each repeated load uses the original address and width."
+  },
+  "a77e61d967": {
+    "rewrite": null,
+    "why": "The loads and final register results are required, and replacing the count calculation with IMUL would change live flags when SHR has a zero count."
+  }
+}

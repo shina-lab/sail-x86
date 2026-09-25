@@ -1,0 +1,89 @@
+{
+  "2623d69ef0": {
+    "rewrite": null,
+    "why": "The scalar initialization, both vector zeroings, four loads, and lane assembly all contribute to required final register values."
+  },
+  "22585f3b92": {
+    "rewrite": null,
+    "why": "Each instruction independently produces a required broadcast, address, or loaded scalar value."
+  },
+  "95fa29e7f3": {
+    "rewrite": "",
+    "saved": 8,
+    "why": "Every instruction writes only unobserved vector registers, and the block has no stores or required flags, so the entire sequence can be removed."
+  },
+  "ee47ee3108": {
+    "rewrite": null,
+    "why": "The broadcast, scalar loads, subtraction, and zeroing produce required values, while the final test supplies the required ZF."
+  },
+  "45bfb316ae": {
+    "rewrite": null,
+    "why": "The two discontiguous loads, both observable vector copies, scalar initialization, and vector zeroing are all needed."
+  },
+  "6e385db44b": {
+    "rewrite": null,
+    "why": "The correction, rounding, clamping, packing, and lane extraction feed required stores, and the scalar updates and final decrement preserve required registers and flags."
+  },
+  "4cac12c7d1": {
+    "rewrite": null,
+    "why": "Both discontiguous vector loads and the two independent initializations contribute to required final registers."
+  },
+  "180539c6a8": {
+    "rewrite": null,
+    "why": "The comparison and rounded multiplication produce a required vector, while packing, lane extraction, stores, and scalar updates are needed for the remaining observable results."
+  },
+  "5515035525": {
+    "rewrite": "vpbroadcastd ymm10,DWORD PTR [CONST_1]\nvpxor ymm9,ymm9,ymm9\nvpcmpgtw ymm6,ymm9,ymm12\nvpcmpgtw ymm5,ymm9,ymm15\nvpaddw ymm12,ymm12,ymm6\nvpaddw ymm15,ymm15,ymm5\nvpunpckhbw ymm5,ymm4,ymm9\nvpunpcklbw ymm4,ymm4,ymm9\nvpmulhrsw ymm12,ymm12,ymm10\nvpmulhrsw ymm15,ymm15,ymm10\nvpaddw ymm5,ymm12,ymm5\nvpaddw ymm4,ymm15,ymm4\nvpackuswb ymm4,ymm4,ymm5\nvpminub ymm4,ymm4,ymm7\nvpmaxub ymm4,ymm8,ymm4\nvextracti128 xmm5,ymm4,0x1\nvmovd DWORD PTR [rdi],xmm4\nvmovd DWORD PTR [rbp+0x0],xmm5\nvpextrd DWORD PTR [rdi+rsi*1],xmm4,0x1\nvpextrd DWORD PTR [rbp+rsi*1+0x0],xmm5,0x1\nvpextrd DWORD PTR [rdi+rsi*2],xmm4,0x2\nvpextrd DWORD PTR [rbp+rsi*2+0x0],xmm5,0x2\nvpextrd DWORD PTR [rdi+r14*1],xmm4,0x3\nvpextrd DWORD PTR [rbp+r14*1+0x0],xmm5,0x3",
+    "saved": 1,
+    "why": "Remove the final assignment to rsp, which is not a required output and must not be touched under the explicit constraint. All arithmetic and stores remain identical."
+  },
+  "aeaed843ca": {
+    "rewrite": "vpcmpgtw ymm6,ymm1,ymm12\nvpcmpgtw ymm5,ymm1,ymm15\nvpaddw ymm12,ymm12,ymm6\nvpaddw ymm15,ymm15,ymm5\nvpmulhrsw ymm12,ymm12,ymm3\nvpmulhrsw ymm15,ymm15,ymm3\nvpacksswb ymm15,ymm15,ymm12\nvpaddb ymm4,ymm15,ymm4\nvextracti128 xmm5,ymm4,0x1\nvmovd DWORD PTR [rdi],xmm4\nvmovd DWORD PTR [rbp+0x0],xmm5\nvpextrd DWORD PTR [rdi+rsi*1],xmm4,0x1\nvpextrd DWORD PTR [rbp+rsi*1+0x0],xmm5,0x1\nvpextrd DWORD PTR [rdi+rsi*2],xmm4,0x2\nvpextrd DWORD PTR [rbp+rsi*2+0x0],xmm5,0x2\nvpextrd DWORD PTR [rdi+r14*1],xmm4,0x3\nvpextrd DWORD PTR [rbp+r14*1+0x0],xmm5,0x3",
+    "saved": 1,
+    "why": "Remove the final assignment to rsp, which is not a required output and must not be touched under the explicit constraint. All arithmetic and stores remain identical."
+  },
+  "2932d8e16f": {
+    "rewrite": null,
+    "why": "Both broadcasts, the address calculation, and the scalar load produce distinct required final values."
+  },
+  "6df4ddb03f": {
+    "rewrite": "",
+    "saved": 21,
+    "why": "All loads and vector operations write only unobserved registers, with no stores or required flag changes, so the whole block can be removed."
+  },
+  "b43f21623a": {
+    "rewrite": "",
+    "saved": 16,
+    "why": "Every destination is an unobserved vector register, and there are no stores or required flags, so the entire block is dead."
+  },
+  "eb0bfa8b9e": {
+    "rewrite": null,
+    "why": "The four separated qword loads require lane assembly, and both copies, the scalar initialization, and the zero vector are observable."
+  },
+  "df829fee19": {
+    "rewrite": null,
+    "why": "All vector operations feed the required rounded vector or four stores, and the address updates and decrement are needed for required scalar values and flags."
+  },
+  "3d56cf9327": {
+    "rewrite": null,
+    "why": "Constructing the required vector from four separated qword loads needs the lane insertion, and both independent initializations are required."
+  },
+  "6e68bbb39a": {
+    "rewrite": null,
+    "why": "The required rounded vector, four separately addressed stores, pointer updates, and decrement flags leave no removable instruction."
+  },
+  "2250b5c4c8": {
+    "rewrite": "vpbroadcastd ymm10,DWORD PTR [CONST_1]\nvpxor ymm9,ymm9,ymm9\nvpunpcklbw ymm4,ymm4,ymm9\nvpcmpgtw ymm9,ymm9,ymm15\nvpaddw ymm15,ymm15,ymm9\nvpmulhrsw ymm15,ymm15,ymm10\nvpaddw ymm4,ymm15,ymm4\nvpackuswb ymm4,ymm4,ymm4\nvpminub ymm4,ymm4,ymm7\nvpmaxub ymm4,ymm8,ymm4\nvextracti128 xmm5,ymm4,0x1\nvmovd DWORD PTR [rdi],xmm4\nvmovd DWORD PTR [rdi+rsi*2],xmm5\nvpextrd DWORD PTR [rdi+rsi*1],xmm4,0x1\nvpextrd DWORD PTR [rdi+rbp*1],xmm5,0x1",
+    "saved": 1,
+    "why": "Remove the final assignment to rsp, which is not a required output and must not be touched under the explicit constraint. All arithmetic and stores remain identical."
+  },
+  "110cb75b4e": {
+    "rewrite": "vpcmpgtw ymm1,ymm1,ymm15\nvpaddw ymm15,ymm15,ymm1\nvpmulhrsw ymm15,ymm15,ymm3\nvpacksswb ymm15,ymm15,ymm15\nvpaddb ymm4,ymm15,ymm4\nvextracti128 xmm5,ymm4,0x1\nvmovd DWORD PTR [rdi],xmm4\nvmovd DWORD PTR [rdi+rsi*2],xmm5\nvpextrd DWORD PTR [rdi+rsi*1],xmm4,0x1\nvpextrd DWORD PTR [rdi+rbp*1],xmm5,0x1",
+    "saved": 1,
+    "why": "Remove the final assignment to rsp, which is not a required output and must not be touched under the explicit constraint. All arithmetic and stores remain identical."
+  },
+  "e1b8312095": {
+    "rewrite": null,
+    "why": "Each of the two broadcasts, the address calculation, and the scalar load independently produces a required final value."
+  }
+}

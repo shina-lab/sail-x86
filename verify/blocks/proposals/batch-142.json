@@ -1,0 +1,84 @@
+{
+  "f5b1f94e07": {
+    "rewrite": null,
+    "why": "The arbitrary word inputs require the separate absolute-value, rounded-multiply, and sign operations, followed by packing, lane permutation, stores, and live pointer updates."
+  },
+  "b110d812c9": {
+    "rewrite": null,
+    "why": "The sign and absolute-value operations cannot be removed for arbitrary words without changing rounding or signed-minimum behavior, and the remaining packing, store, and updates are required."
+  },
+  "6bc1e3b097": {
+    "rewrite": null,
+    "why": "The four independently addressed loads, two saturated multiply-adds, sum, store, accumulation, and live scalar updates have no redundant instruction."
+  },
+  "28c96672db": {
+    "rewrite": null,
+    "why": "Each instruction supplies a required store, accumulator update, pointer update, or counter result and flags."
+  },
+  "b85152afaf": {
+    "rewrite": null,
+    "why": "The strided loads and lane inserts construct distinct inputs for saturated multiply-adds, and the sum, store, accumulation, and scalar updates are all required."
+  },
+  "be3143a27e": {
+    "rewrite": null,
+    "why": "The narrow loads supply required zero padding, and the lane inserts, saturated arithmetic, arbitrary shuffle, store, and live updates cannot be shortened."
+  },
+  "a244902e9d": {
+    "rewrite": null,
+    "why": "The store, vector accumulation, pointer increment, and counter subtraction each produce a required effect."
+  },
+  "527ff15df8": {
+    "rewrite": null,
+    "why": "VPMADDUBSW requires the loaded unsigned bytes as its register-only first source, so the loads cannot be folded by swapping operands, and all subsequent effects are required."
+  },
+  "ef0c4bddae": {
+    "rewrite": null,
+    "why": "Both saturated products, the sum and shuffle, the store and accumulation, and all scalar results and final flags must be retained."
+  },
+  "08a723d92c": {
+    "rewrite": null,
+    "why": "The four instructions independently implement the required store, accumulation, pointer update, and counter result with matching flags."
+  },
+  "d514955fca": {
+    "rewrite": "vpbroadcastd ymm2,DWORD PTR [CONST_1]\nvpmaddwd ymm0,ymm4,ymm2\nvextracti128 xmm1,ymm0,0x1\ntzcnt esi,r10d\nvpaddd xmm0,xmm0,xmm1\nvmovd xmm2,esi\nvmovd xmm3,r10d\nvphaddd xmm0,xmm0,xmm0\nvphaddd xmm0,xmm0,xmm0\nvpsrad xmm3,xmm3,0x1\nvpaddd xmm0,xmm0,xmm3\nvpsrad xmm0,xmm0,xmm2\nvpbroadcastw ymm0,xmm0",
+    "saved": 2,
+    "why": "Two horizontal dword adds replace the two shuffle-and-add pairs while producing the same low-dword sum. The rounding addition, arithmetic shift including a count of 32, and final word broadcast are preserved."
+  },
+  "e9dc3b8df4": {
+    "rewrite": null,
+    "why": "VPSUBW cannot take the loaded minuend as its memory operand, and the subtraction, store, pointer increment, and counter update are required."
+  },
+  "78d9989b6f": {
+    "rewrite": null,
+    "why": "The four strided loads feed two distinct saturated products and stores, and both live accumulators and all scalar updates must be maintained."
+  },
+  "c77226b34e": {
+    "rewrite": null,
+    "why": "The four independently addressed loads require lane assembly before the two saturated products, with no redundant stores, accumulations, or scalar updates."
+  },
+  "c5ac795edd": {
+    "rewrite": null,
+    "why": "The narrow-load zero padding, lane assembly, saturated products, arbitrary byte shuffles, stores, and live updates each contribute required results."
+  },
+  "db418fc3f7": {
+    "rewrite": null,
+    "why": "The unsigned loaded operands of VPMADDUBSW cannot be moved into its signed memory-source position, and both products, stores, accumulations, and scalar updates are required."
+  },
+  "052bf9fbbd": {
+    "rewrite": null,
+    "why": "Both saturated products and independent shuffles contribute preserved vector results, and the stores, accumulations, pointer updates, and counter flags are all required."
+  },
+  "a63a7c10d3": {
+    "rewrite": null,
+    "why": "AVX2 requires two stores for the 64 output bytes and separate additions for the two live accumulators, followed by the required pointer and counter updates."
+  },
+  "50ed445dcb": {
+    "rewrite": "vpbroadcastd ymm2,DWORD PTR [CONST_1]\nvpmaddwd ymm5,ymm5,ymm2\nvpmaddwd ymm0,ymm4,ymm2\nvpaddd ymm0,ymm0,ymm5\nvextracti128 xmm1,ymm0,0x1\ntzcnt esi,r10d\nvpaddd xmm0,xmm0,xmm1\nvmovd xmm2,esi\nvmovd xmm3,r10d\nvphaddd xmm0,xmm0,xmm0\nvphaddd xmm0,xmm0,xmm0\nvpsrad xmm3,xmm3,0x1\nvpaddd xmm0,xmm0,xmm3\nvpsrad xmm0,xmm0,xmm2\nvpbroadcastw ymm0,xmm0",
+    "saved": 2,
+    "why": "Two horizontal dword adds replace four instructions that shuffle and sum the remaining lanes, preserving the low-dword total. The rounding term, variable arithmetic shift, and full-width word broadcast remain unchanged."
+  },
+  "1aebc63ad4": {
+    "rewrite": null,
+    "why": "The unpack source is arbitrary rather than known zero, so widening shortcuts are invalid, and the strided loads, shifts, stores, accumulation, and scalar updates remain necessary."
+  }
+}

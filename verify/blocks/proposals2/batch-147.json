@@ -1,0 +1,84 @@
+{
+  "324e748b07": {
+    "rewrite": null,
+    "why": "The shifted source, saved load, joined vector and comparison results are all live, and SSE2 offers no shorter replacement for this 5-byte/11-byte splice."
+  },
+  "d2f8f3983f": {
+    "rewrite": null,
+    "why": "The zero mask, loaded vector, byte-difference vector, shifted scalar mask and subtraction result are all required, leaving no redundant SSE2 operation."
+  },
+  "e133c5b891": {
+    "rewrite": null,
+    "why": "The shifted source, saved load, joined vector and comparison results are all live, and SSE2 offers no shorter replacement for this 6-byte/10-byte splice."
+  },
+  "9023a4be91": {
+    "rewrite": null,
+    "why": "The zero mask, loaded vector, byte-difference vector, shifted scalar mask and subtraction result are all required, leaving no redundant SSE2 operation."
+  },
+  "3e9d92b7c6": {
+    "rewrite": null,
+    "why": "The shifted source, saved load, joined vector and comparison results are all live, and SSE2 offers no shorter replacement for this 7-byte/9-byte splice."
+  },
+  "1702bfa425": {
+    "rewrite": null,
+    "why": "The 8-byte shift must supply zero low bytes before comparison, while the zero mask, loaded vector, difference vector and both scalar results must all be preserved."
+  },
+  "989d77adff": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm4,XMMWORD PTR [rdi+rcx*1]\npsrldq xmm3,0x8\nmovdqa xmm2,xmm3\npunpcklqdq xmm2,xmm4\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "Load directly into xmm4 and interleave its low qword with the shifted xmm3 low qword to form xmm2. This replaces the copy, left shift and OR with a copy and unpack while preserving every final value."
+  },
+  "2a5f31cfef": {
+    "rewrite": null,
+    "why": "The zero mask, loaded vector, byte-difference vector, shifted scalar mask and subtraction result are all required, leaving no redundant SSE2 operation."
+  },
+  "82d46efc4c": {
+    "rewrite": null,
+    "why": "The shifted source, saved load, joined vector and comparison results are all live, and SSE2 offers no shorter replacement for this 9-byte/7-byte splice."
+  },
+  "08cbaa925d": {
+    "rewrite": null,
+    "why": "The zero mask, loaded vector, byte-difference vector, shifted scalar mask and subtraction result are all required, leaving no redundant SSE2 operation."
+  },
+  "0986334fe5": {
+    "rewrite": null,
+    "why": "The shifted source, saved load, joined vector and comparison results are all live, and SSE2 offers no shorter replacement for this 10-byte/6-byte splice."
+  },
+  "071dc48257": {
+    "rewrite": null,
+    "why": "The zero mask, loaded vector, byte-difference vector, shifted scalar mask and subtraction result are all required, leaving no redundant SSE2 operation."
+  },
+  "a3663980f8": {
+    "rewrite": null,
+    "why": "The shifted source, saved load, joined vector and comparison results are all live, and SSE2 offers no shorter replacement for this 11-byte/5-byte splice."
+  },
+  "aaba610866": {
+    "rewrite": null,
+    "why": "The zero mask, loaded vector, byte-difference vector, shifted scalar mask and subtraction result are all required, leaving no redundant SSE2 operation."
+  },
+  "bfb5a7c797": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm4,XMMWORD PTR [rdi+rcx*1]\npsrldq xmm3,0xc\npshufd xmm2,xmm4,0x90\nmovss xmm2,xmm3\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "PSHUFD places xmm4 dwords 0, 1 and 2 in xmm2 dwords 1, 2 and 3, and register MOVSS inserts the shifted xmm3 low dword without changing those upper dwords. This replaces the copy, left shift and OR with two instructions."
+  },
+  "d621f1171f": {
+    "rewrite": null,
+    "why": "The zero mask, loaded vector, byte-difference vector, shifted scalar mask and subtraction result are all required, leaving no redundant SSE2 operation."
+  },
+  "50104637b2": {
+    "rewrite": null,
+    "why": "The shifted source, saved load, joined vector and comparison results are all live, and SSE2 offers no shorter replacement for this 13-byte/3-byte splice."
+  },
+  "24565350a8": {
+    "rewrite": null,
+    "why": "The zero mask, loaded vector, byte-difference vector, shifted scalar mask and subtraction result are all required, leaving no redundant SSE2 operation."
+  },
+  "1eb1d42201": {
+    "rewrite": null,
+    "why": "The shifted source, saved load, joined vector and comparison results are all live, and SSE2 offers no shorter replacement for this 14-byte/2-byte splice."
+  },
+  "f4afdac811": {
+    "rewrite": null,
+    "why": "The zero mask, loaded vector, byte-difference vector, shifted scalar mask and subtraction result are all required, leaving no redundant SSE2 operation."
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "a471e1ec0a": {
+    "rewrite": "movdqa xmm5,XMMWORD PTR [r9]\nmovdqa xmm0,XMMWORD PTR [rdi]\nmovdqa xmm1,XMMWORD PTR [rdi+0x10]\npsubw xmm0,XMMWORD PTR [rdx]\npsubw xmm1,XMMWORD PTR [rdx+0x10]\nmovdqa xmm4,xmm5\npunpcklbw xmm4,xmm6\npunpckhbw xmm5,xmm6\npmullw xmm4,xmm7\npmullw xmm5,xmm7\npmulhrsw xmm0,xmm4\npmulhrsw xmm1,xmm5\npaddw xmm0,XMMWORD PTR [rdi]\npaddw xmm1,XMMWORD PTR [rdi+0x10]\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\nmovdqa xmm5,XMMWORD PTR [r9+0x10]\nmovdqa xmm0,XMMWORD PTR [rdi+0x20]\nmovdqa xmm1,XMMWORD PTR [rdi+0x30]\npsubw xmm0,XMMWORD PTR [rdx+0x20]\npsubw xmm1,XMMWORD PTR [rdx+0x30]\nadd r9,0x20\nadd rdx,0x40\nmovdqa xmm4,xmm5\npunpcklbw xmm4,xmm6\npunpckhbw xmm5,xmm6\npmullw xmm4,xmm7\npmullw xmm5,xmm7\npmulhrsw xmm0,xmm4\npmulhrsw xmm1,xmm5\npaddw xmm0,XMMWORD PTR [rdi+0x20]\npaddw xmm1,XMMWORD PTR [rdi+0x30]\nmovdqa XMMWORD PTR [rdi+0x20],xmm0\nmovdqa XMMWORD PTR [rdi+0x30],xmm1\nadd rdi,rsi\ndec r8d",
+    "saved": 4,
+    "why": "Compute each difference and rounded product in its output register, then add the original destination value directly from memory before storing. This eliminates four register copies while preserving xmm0, coefficients, pointer updates, and final flags."
+  },
+  "887e31ec0f": {
+    "rewrite": null,
+    "why": "The narrow DWORD loads, two rounded blends, separate stores, and live upper-zero xmm0 result leave no shorter SSSE3 sequence without extra packing and extraction."
+  },
+  "814c97b138": {
+    "rewrite": null,
+    "why": "The two discontiguous QWORD loads and stores, rounded word blend, and live pointer and count updates are already tight."
+  },
+  "b5b001a66e": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\nadd rdx,0x20\npsubw xmm0,XMMWORD PTR [rdi]\npsubw xmm1,XMMWORD PTR [rdi+rsi*1]\npmulhrsw xmm0,xmm4\npmulhrsw xmm1,xmm4\npaddw xmm0,XMMWORD PTR [rdi]\npaddw xmm1,XMMWORD PTR [rdi+rsi*1]\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm1\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 2,
+    "why": "Fold each destination-buffer load into psubw and reread the same value with paddw, eliminating two explicit loads. All destination reads precede both stores, preserving behavior even when the rows overlap."
+  },
+  "da2d86312d": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\nadd rdx,0x20\npsubw xmm0,XMMWORD PTR [rdi]\npsubw xmm1,XMMWORD PTR [rdi+0x10]\npmulhrsw xmm0,xmm4\npmulhrsw xmm1,xmm5\npaddw xmm0,XMMWORD PTR [rdi]\npaddw xmm1,XMMWORD PTR [rdi+0x10]\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\nadd rdi,rsi\ndec r8d",
+    "saved": 2,
+    "why": "Use memory operands for the destination values in both subtraction and addition, removing two explicit loads. The two coefficient registers, final xmm0, stores, and scalar updates are preserved."
+  },
+  "45eb3742ae": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\npsubw xmm0,XMMWORD PTR [rdi]\npsubw xmm1,XMMWORD PTR [rdi+0x10]\npmulhrsw xmm0,xmm4\npmulhrsw xmm1,xmm5\npaddw xmm0,XMMWORD PTR [rdi]\npaddw xmm1,XMMWORD PTR [rdi+0x10]\nmovdqa xmm2,XMMWORD PTR [rdx+0x20]\nadd rdx,0x40\npsubw xmm2,XMMWORD PTR [rdi+0x20]\npmulhrsw xmm2,xmm6\npaddw xmm2,XMMWORD PTR [rdi+0x20]\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\nmovdqa XMMWORD PTR [rdi+0x20],xmm2\nadd rdi,rsi\ndec r8d",
+    "saved": 3,
+    "why": "For each of the three vectors, fold the destination read into subtraction and reread it for addition before any store. This removes three explicit loads while retaining the original rounded arithmetic and live outputs."
+  },
+  "ba12c133c5": {
+    "rewrite": null,
+    "why": "Packing the two DWORD rows, duplicating their word coefficients, blending, and extracting the second row are all needed under SSSE3 and the final xmm0 requirement."
+  },
+  "ea8886b371": {
+    "rewrite": null,
+    "why": "The discontiguous QWORD rows and arbitrary byte-shuffled coefficients require the existing loads, shuffle, rounded arithmetic, and stores."
+  },
+  "9e36306bea": {
+    "rewrite": "movd xmm7,DWORD PTR [r9+r8*2]\nmovdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\nadd rdx,0x20\nmovdqa xmm6,xmm7\npshufb xmm6,xmm4\npsubw xmm0,XMMWORD PTR [rdi]\npshufb xmm7,xmm5\npsubw xmm1,XMMWORD PTR [rdi+rsi*1]\npmulhrsw xmm0,xmm6\npmulhrsw xmm1,xmm7\npaddw xmm0,XMMWORD PTR [rdi]\npaddw xmm1,XMMWORD PTR [rdi+rsi*1]\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm1\nlea rdi,[rdi+rsi*2]\nadd r8,0x2",
+    "saved": 2,
+    "why": "Fold the two destination loads into the blend arithmetic while retaining both independent coefficient shuffles. Complete all destination reads before either store so overlapping rows retain the original behavior."
+  },
+  "0e996a24fd": {
+    "rewrite": "movd xmm5,DWORD PTR [r9+r8*2]\npshufb xmm5,xmm4\nmovdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\nadd rdx,0x20\npsubw xmm0,XMMWORD PTR [rdi]\npsubw xmm1,XMMWORD PTR [rdi+0x10]\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npaddw xmm0,XMMWORD PTR [rdi]\npaddw xmm1,XMMWORD PTR [rdi+0x10]\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\nadd rdi,rsi\ninc r8",
+    "saved": 2,
+    "why": "Read each destination value through psubw and paddw instead of loading it into a separate register. This removes two instructions and preserves the coefficient shuffle, final xmm0, stores, and scalar updates."
+  },
+  "8b2125da30": {
+    "rewrite": "movd xmm5,DWORD PTR [r9+r8*2]\npshufb xmm5,xmm4\nmovdqa xmm0,XMMWORD PTR [rdx]\nmovdqa xmm1,XMMWORD PTR [rdx+0x10]\npsubw xmm0,XMMWORD PTR [rdi]\npsubw xmm1,XMMWORD PTR [rdi+0x10]\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npaddw xmm0,XMMWORD PTR [rdi]\npaddw xmm1,XMMWORD PTR [rdi+0x10]\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\nmovdqa xmm0,XMMWORD PTR [rdx+0x20]\nmovdqa xmm1,XMMWORD PTR [rdx+0x30]\nadd rdx,0x40\npsubw xmm0,XMMWORD PTR [rdi+0x20]\npsubw xmm1,XMMWORD PTR [rdi+0x30]\npmulhrsw xmm0,xmm5\npmulhrsw xmm1,xmm5\npaddw xmm0,XMMWORD PTR [rdi+0x20]\npaddw xmm1,XMMWORD PTR [rdi+0x30]\nmovdqa XMMWORD PTR [rdi+0x20],xmm0\nmovdqa XMMWORD PTR [rdi+0x30],xmm1\nadd rdi,rsi\ninc r8",
+    "saved": 4,
+    "why": "Fold all four destination loads into subtraction and reread their original values for addition before their stores. The disjoint destination chunks, coefficient shuffle, final xmm0, and pointer and flag results remain unchanged."
+  },
+  "139d239737": {
+    "rewrite": null,
+    "why": "The scalar multiply and accumulation, independent rbp address result, and comparison sign flag each require their existing instructions."
+  },
+  "47118f469c": {
+    "rewrite": null,
+    "why": "The preserved vector load, required store, live index increment, and final signed comparison each need a separate instruction."
+  },
+  "9180fd31dd": {
+    "rewrite": null,
+    "why": "The word broadcast needs both shuffles after its narrow load, and the live rcx value must separately be cleared."
+  },
+  "df56cd2497": {
+    "rewrite": null,
+    "why": "The live address update and rcx reset are independent of the narrow load and two shuffles needed to broadcast its low word."
+  },
+  "5885f10057": {
+    "rewrite": null,
+    "why": "The live r15 address and zero rcx result require separate instructions in addition to the narrow load and two word-broadcast shuffles."
+  },
+  "006521d828": {
+    "rewrite": null,
+    "why": "The multiply-add result feeds the live accumulator, and both shifts and the zeroing produce distinct live outputs with no SSSE3 fusion available."
+  },
+  "fb6b716a03": {
+    "rewrite": null,
+    "why": "All four sign-extended word results are live, and the three shifts plus three sign-extending moves already extract them without redundant work."
+  },
+  "762b4fbcc1": {
+    "rewrite": null,
+    "why": "Each of the four byte shuffles transforms a distinct live vector using an arbitrary mask, so none can be removed or combined under SSSE3."
+  },
+  "4ed433176c": {
+    "rewrite": null,
+    "why": "All four zero-extended DWORD outputs are live, and SSSE3 needs the four transfers plus three lane-positioning operations because pextrd is unavailable."
+  }
+}

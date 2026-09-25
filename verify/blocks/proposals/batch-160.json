@@ -1,0 +1,86 @@
+{
+  "2d72a4ca3f": {
+    "rewrite": null,
+    "why": "The shifts, saturating packs, permutations, and constant broadcast all contribute to required final register values and cannot be fused with AVX2."
+  },
+  "a2e35be5be": {
+    "rewrite": null,
+    "why": "Each required result needs both a qword permutation and a rounded word multiplication, which AVX2 cannot combine."
+  },
+  "16d02aa3a4": {
+    "rewrite": null,
+    "why": "Both broadcast bounds and every clamped result are required, and AVX2 has no single instruction for this signed 18-bit clamp."
+  },
+  "4429522985": {
+    "rewrite": null,
+    "why": "The four distinct stores and four independent signed minima each require an instruction."
+  },
+  "12268faca1": {
+    "rewrite": "vpsrad ymm0,ymm4,0xf\nvpsrad ymm4,ymm8,0xf\nvpackssdw ymm0,ymm0,ymm4",
+    "saved": 11,
+    "why": "Only ymm0 is a required vector output, so retain its two input shifts and saturating pack and remove all other computations."
+  },
+  "a7fce4acc9": {
+    "rewrite": null,
+    "why": "All four permutations feed required rounded products, and the permutation temporaries in ymm6 and ymm7 are also required outputs."
+  },
+  "b6e44ee229": {
+    "rewrite": null,
+    "why": "Every output and broadcast constant is required, and the signed 18-bit inputs prevent replacing the dword multiply, bias, and shift with a word multiply."
+  },
+  "329351e218": {
+    "rewrite": null,
+    "why": "Each of the four rounded products and two broadcast constants is a required result already produced by one instruction."
+  },
+  "c2d5119cc1": {
+    "rewrite": null,
+    "why": "The store, ecx update, broadcast, and multiply-bias-shift-multiply computation are all required, with no instruction combining the intervening arithmetic."
+  },
+  "9708dd4653": {
+    "rewrite": null,
+    "why": "The shifted ymm11 and eight independent sums are all required, with one instruction per result."
+  },
+  "826908e6ed": {
+    "rewrite": null,
+    "why": "All sixteen shifted vector registers must be preserved, and each already takes one instruction."
+  },
+  "695a7cf8fd": {
+    "rewrite": null,
+    "why": "The broadcast constant and four rounded products are all required and already take one instruction each."
+  },
+  "fbada097a1": {
+    "rewrite": null,
+    "why": "Each of the four required independent rounded products already uses one instruction."
+  },
+  "63084991d2": {
+    "rewrite": "vpaddd ymm0,ymm0,YMMWORD PTR [rax-0x80]",
+    "saved": 22,
+    "why": "Only ymm0 is a required vector output; fold its load into the addition and remove the unused loads and arithmetic."
+  },
+  "00b14853ee": {
+    "rewrite": "vpunpckldq xmm0,xmm0,xmm1\nvpunpckldq xmm2,xmm2,xmm3\nvpunpcklqdq xmm0,xmm0,xmm2\nvpunpckldq xmm4,xmm4,xmm5\nvpunpckldq xmm6,xmm6,xmm7\nvpunpcklqdq xmm4,xmm4,xmm6\nvpackssdw xmm0,xmm0,xmm4\nvpunpckldq xmm8,xmm8,xmm9\nvpunpckldq xmm10,xmm10,xmm11\nvpunpcklqdq xmm8,xmm8,xmm10\nvpunpckldq xmm12,xmm12,xmm13\nvpunpckldq xmm14,xmm14,xmm15\nvpunpcklqdq xmm12,xmm12,xmm14\nvpackssdw xmm8,xmm8,xmm12\nvinserti128 ymm0,ymm0,xmm8,0x1",
+    "saved": 25,
+    "why": "The required ymm0 contains the saturated lowest dword of each input register in register order. Gather those dwords, pack them into signed words, and join the two 128-bit halves."
+  },
+  "e4c7230273": {
+    "rewrite": null,
+    "why": "All sixteen independently shifted vector registers are required, with one instruction per output."
+  },
+  "00f7bb2f15": {
+    "rewrite": null,
+    "why": "Both signed constants and all four rounded products are required, and AVX2 needs two instructions to form the negative constant from the positive broadcast."
+  },
+  "91b2ab6336": {
+    "rewrite": null,
+    "why": "The four required rounded products already use one instruction apiece."
+  },
+  "e11cc0d805": {
+    "rewrite": "vpaddd ymm0,ymm15,ymm0",
+    "saved": 15,
+    "why": "Only ymm0 is a required vector output, and its value depends solely on the first addition."
+  },
+  "fef2c61f87": {
+    "rewrite": null,
+    "why": "All copied inputs, rounded products, and signed constants are required final values, so the copies and two-instruction negation cannot be removed."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "18028301ae": {
+    "rewrite": null,
+    "why": "Four 32-byte stores are required at AVX2 width, and vzeroupper is needed to match the final ymm0."
+  },
+  "528b09a11f": {
+    "rewrite": "vpbroadcastb xmm0,esi\nlea rsi,[rdi+rdx*1]\nmov rax,rdi\ncmp rdx,0x10",
+    "saved": 2,
+    "why": "The AVX-512 byte broadcast replaces the zeroing, scalar move, and byte shuffle while preserving the low-byte replication and zeroing zmm0 above bit 127."
+  },
+  "c5b316cefb": {
+    "rewrite": null,
+    "why": "The live rsi adjustment, 64-byte store, and two operations that advance rdi to the next 64-byte boundary are all needed."
+  },
+  "04bcc4fcdc": {
+    "rewrite": null,
+    "why": "The four maximum-width stores, live rdi update, and comparison producing the required CF each need their own instruction."
+  },
+  "9809e27b86": {
+    "rewrite": null,
+    "why": "The two maximum-width stores, live rsi adjustment, and two operations that advance rdi to the next 128-byte boundary are all needed."
+  },
+  "89dd6acada": {
+    "rewrite": null,
+    "why": "Scaling rdx, broadcasting esi, copying rdi to rax, and producing the comparison flags are distinct required effects."
+  },
+  "e5c2b08cc4": {
+    "rewrite": null,
+    "why": "Zeroing zmm16, setting both live scalar destinations, and producing the comparison flags each require an instruction."
+  },
+  "e17f5ecb4e": {
+    "rewrite": null,
+    "why": "The two maximum-width stores, live rcx address calculation, and comparison producing CF and ZF are all required."
+  },
+  "8c6866be1c": {
+    "rewrite": null,
+    "why": "The four maximum-width stores, live rdi update, and comparison producing CF cannot be combined into fewer instructions."
+  },
+  "f22c772c63": {
+    "rewrite": null,
+    "why": "Scaling rdx, broadcasting esi with the required upper-register zeroing, copying rdi to rax, and producing the comparison flags each require an instruction."
+  },
+  "654cf359ac": {
+    "rewrite": null,
+    "why": "Zeroing zmm16, setting both live scalar destinations, and producing the comparison flags each require an instruction."
+  },
+  "47ad781dc2": {
+    "rewrite": null,
+    "why": "Both live address calculations and the comparison are needed, and combining the two stores would require an additional instruction to duplicate their vector data."
+  },
+  "a8ffaa29d3": {
+    "rewrite": "vinserti64x4 zmm1,zmm16,ymm16,0x1\nvmovdqu64 ZMMWORD PTR [rdi],zmm1\nvmovdqu64 ZMMWORD PTR [rdi+0x40],zmm1\nsub rdi,0xffffffffffffff80\ncmp rdi,rcx",
+    "saved": 1,
+    "why": "Duplicating ymm16 into both halves of a scratch ZMM register lets two unaligned 64-byte stores write the same bytes as the four original stores. The pointer update, comparison, and full zmm16 value are preserved."
+  },
+  "d663ecf55f": {
+    "rewrite": null,
+    "why": "SSE2 needs both the scalar move and shuffle for the dword broadcast, in addition to the required rdx scaling, rax copy, and comparison."
+  },
+  "8dd78915d4": {
+    "rewrite": null,
+    "why": "The rax copy, transfer of the original rsi into rdx, clearing of rsi, and final comparison are all required."
+  },
+  "7d7c30475a": {
+    "rewrite": null,
+    "why": "The SSE2 byte broadcast needs the scalar move and three replication instructions, while the rax copy and comparison must also remain."
+  },
+  "40bf1a9a9d": {
+    "rewrite": null,
+    "why": "SSE2 requires both 16-byte stores, and the live rdi addition and comparison producing CF and ZF are independently necessary."
+  },
+  "9d15be17f5": {
+    "rewrite": null,
+    "why": "Both 16-byte stores, the live rdi adjustment, and the comparison producing CF and ZF are required."
+  },
+  "5afbb1b3e2": {
+    "rewrite": null,
+    "why": "SSE2 requires four stores for these 64 bytes, followed by the live rdx update and comparison producing CF."
+  },
+  "7cbfa9ccc4": {
+    "rewrite": null,
+    "why": "The four comparisons and three OR operations form the required rcx mask, and mask extraction, the live pointer update, and a flag-setting test are also needed."
+  }
+}

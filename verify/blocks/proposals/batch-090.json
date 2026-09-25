@@ -1,0 +1,90 @@
+{
+  "636df589b0": {
+    "rewrite": "vmovdqu ymm1,YMMWORD PTR [rsi]\nvperm2i128 ymm2,ymm0,ymm1,0x20\nvpalignr ymm2,ymm1,ymm2,0xf\nvperm2i128 ymm4,ymm0,ymm1,0x3\nvpalignr ymm3,ymm4,ymm1,0x1\nvpor ymm2,ymm2,ymm7\nvpor ymm3,ymm3,ymm6\nvpsrldq ymm7,ymm4,0xf\nvpcmpeqb ymm4,ymm4,ymm4\nvpxor ymm5,ymm1,ymm4\nvpavgb ymm2,ymm2,ymm1\nvpxor ymm2,ymm2,ymm4\nvpavgb ymm2,ymm2,ymm5\nvpxor ymm2,ymm2,ymm4\nvpxor ymm3,ymm3,ymm4\nvpavgb ymm3,ymm3,ymm5\nvpxor ymm3,ymm3,ymm4\nvpavgb ymm3,ymm3,ymm1\nvpsrlw ymm4,ymm4,0xa\nvpackuswb ymm4,ymm4,ymm4\nvpand ymm1,ymm0,ymm4\nvpor ymm3,ymm3,ymm1\nvpunpckhbw ymm5,ymm2,ymm3\nvpunpcklbw ymm2,ymm2,ymm3\nvperm2i128 ymm1,ymm2,ymm5,0x20\nvperm2i128 ymm5,ymm2,ymm5,0x31\nvmovdqu YMMWORD PTR [rdi],ymm1\nvmovdqu YMMWORD PTR [rdi+0x20],ymm5\nsub rax,0x20\nadd rsi,0x20\nadd rdi,0x40\ncmp rax,0x20",
+    "saved": 12,
+    "why": "Nested floor and ceiling byte averages reproduce both 3:1 interpolation formulas. ORing each right result with the corresponding byte of ymm0 masked by 0x3f preserves the original wrapped word arithmetic, and lane permutations are needed only for the final outputs."
+  },
+  "d097a820a9": {
+    "rewrite": null,
+    "why": "The five live pointer loads, zero vector, two distinct masks with zeroed unused lanes, and ZF test require the existing setup."
+  },
+  "5782b31c44": {
+    "rewrite": null,
+    "why": "Two independent masked loads and two stores already use folded memory operands."
+  },
+  "cf878d09d8": {
+    "rewrite": null,
+    "why": "Rounding must retain carry beyond the zero-extended 32-bit input, so the copy, 64-bit addition, mask, and live r13 assignment are needed."
+  },
+  "e047027254": {
+    "rewrite": null,
+    "why": "The load, two byte unpacks, and two stores are already tight while preserving ymm0 with its upper half zero."
+  },
+  "dfbeb513ef": {
+    "rewrite": "vpermq ymm0,YMMWORD PTR [rsi],0xd8\nvpunpckhbw ymm1,ymm0,ymm0\nvpunpcklbw ymm0,ymm0,ymm0\nvmovdqu YMMWORD PTR [rdi],ymm0\nvmovdqu YMMWORD PTR [rdi+0x20],ymm1\nsub rax,0x40",
+    "saved": 1,
+    "why": "Fold the input load into the memory operand of vpermq."
+  },
+  "508f300999": {
+    "rewrite": "vmovdqu xmm0,XMMWORD PTR [rsi]\nvpunpckhbw xmm1,xmm0,xmm0\nvpunpcklbw xmm0,xmm0,xmm0\nvinserti128 ymm1,ymm0,xmm1,0x1\nvmovdqu YMMWORD PTR [rbx],ymm1\nvmovdqu YMMWORD PTR [rdi],ymm1",
+    "saved": 1,
+    "why": "Join the duplicated halves once and write each row with one 256-bit store, preserving the same stored bytes and the zero upper half of ymm0."
+  },
+  "cc5d357dbc": {
+    "rewrite": "vpermq ymm0,YMMWORD PTR [rsi],0xd8\nvpunpckhbw ymm1,ymm0,ymm0\nvpunpcklbw ymm0,ymm0,ymm0\nvmovdqu YMMWORD PTR [rbx],ymm0\nvmovdqu YMMWORD PTR [rbx+0x20],ymm1\nvmovdqu YMMWORD PTR [rdi],ymm0\nvmovdqu YMMWORD PTR [rdi+0x20],ymm1\nsub rax,0x40",
+    "saved": 1,
+    "why": "Fold the input load into vpermq while keeping both output rows and the counter update identical."
+  },
+  "94474e88de": {
+    "rewrite": "pxor xmm0,xmm0\nmovzx r8d,BYTE PTR [rsi]\nmovd xmm7,r8d\nadd rax,0xf\nand rax,0xfffffffffffffff0\ncmp rax,0x10",
+    "saved": 1,
+    "why": "A zero-extended byte load followed by movd replaces constructing a one-byte mask and applying it to a vector load."
+  },
+  "d93fb4dcd3": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi]\nmovdqa xmm2,xmm1\nmovdqa xmm3,xmm1\npslldq xmm2,0x1\npsrldq xmm3,0x1\npor xmm2,xmm7\npor xmm3,xmm6\nmovdqa xmm7,xmm1\npsrldq xmm7,0xf\npcmpeqb xmm4,xmm4\nmovdqa xmm5,xmm1\npxor xmm5,xmm4\npavgb xmm2,xmm1\npxor xmm2,xmm4\npavgb xmm2,xmm5\npxor xmm2,xmm4\npxor xmm3,xmm4\npavgb xmm3,xmm5\npxor xmm3,xmm4\npavgb xmm3,xmm1\npsrlw xmm4,0xa\npackuswb xmm4,xmm4\npand xmm4,xmm0\npxor xmm6,xmm6\npunpckhbw xmm6,xmm3\npor xmm3,xmm4\nmovdqa xmm5,xmm2\npunpcklbw xmm2,xmm3\npunpckhbw xmm5,xmm3\nmovdqa XMMWORD PTR [rdi],xmm2\nmovdqa XMMWORD PTR [rdi+0x10],xmm5\nsub rax,0x10\nadd rsi,0x10\nadd rdi,0x20\ncmp rax,0x10",
+    "saved": 7,
+    "why": "Nested floor and ceiling byte averages reproduce the distinct interpolation biases. Restoring xmm0's low six bits in each stored high byte and reconstructing xmm6 preserves the original results for arbitrary incoming vectors."
+  },
+  "37bfc90075": {
+    "rewrite": null,
+    "why": "All five loaded pointers are live, and a separate test is needed for the required ZF."
+  },
+  "7d824c5f71": {
+    "rewrite": null,
+    "why": "The high-word mask must be constructed and shared between two masked loads and two full-width stores using the original address forms."
+  },
+  "f7b4cca45e": {
+    "rewrite": null,
+    "why": "Rounding must retain carry beyond the zero-extended 32-bit input, so the copy, 64-bit addition, mask, and live r13 assignment are needed."
+  },
+  "854fb35764": {
+    "rewrite": null,
+    "why": "SSE2 needs both byte unpacks and a copy, followed by two stores and the live counter update."
+  },
+  "0f920c8a3a": {
+    "rewrite": null,
+    "why": "SSE2 needs both byte unpacks and a copy, followed by two stores and the live counter update."
+  },
+  "eff9ff2aa4": {
+    "rewrite": null,
+    "why": "SSE2 requires the load, copy, two byte unpacks, four 128-bit stores, and live counter update."
+  },
+  "6aca5d3c06": {
+    "rewrite": null,
+    "why": "SSE2 requires the load, copy, two byte unpacks, four 128-bit stores, and live counter update."
+  },
+  "9853392cac": {
+    "rewrite": "mov rax,QWORD PTR [rsi+0x10]\nor rax,QWORD PTR [rsi+0x20]\nor rax,QWORD PTR [rsi+0x30]\nor rax,QWORD PTR [rsi+0x40]\nor rax,QWORD PTR [rsi+0x50]\nor rax,QWORD PTR [rsi+0x60]\nor rax,QWORD PTR [rsi+0x70]",
+    "saved": 9,
+    "why": "Signed saturation maps a nonzero word to a nonzero byte, so the original ZF is simply the zero test of all seven qwords ORed together. Scalar ORs fold the loads and set the required ZF directly."
+  },
+  "4cb538b9ec": {
+    "rewrite": null,
+    "why": "All four independently updated registers are live, and the decrement supplies the required ZF."
+  },
+  "1e29d8c8cf": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+0x10]\npor xmm0,XMMWORD PTR [rsi+0x20]\npor xmm0,XMMWORD PTR [rsi+0x30]\npor xmm0,XMMWORD PTR [rsi+0x40]\npor xmm0,XMMWORD PTR [rsi+0x50]\npor xmm0,XMMWORD PTR [rsi+0x60]\npor xmm0,XMMWORD PTR [rsi+0x70]\npacksswb xmm0,xmm0\nmovq rax,xmm0\ntest rax,rax",
+    "saved": 2,
+    "why": "A single OR accumulator removes the final merge. One saturating pack followed by a 64-bit zero test covers all eight words, making the second pack unnecessary."
+  }
+}

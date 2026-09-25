@@ -1,0 +1,38 @@
+{
+  "0d9df8f6c3": {
+    "rewrite": null,
+    "why": "The QWORD loads provide required zero extension without reading extra bytes, and both products, the subtraction, the addition, the shift, and the broadcast contribute to preserved outputs."
+  },
+  "4c6e2618a4": {
+    "rewrite": null,
+    "why": "Both products already fold their memory operands, and the subtraction, addition, arithmetic shift, and lane insertion are needed to construct the preserved zmm16 value for arbitrary coefficients."
+  },
+  "0d467dd0a0": {
+    "rewrite": null,
+    "why": "The two independent memory-folded products require the bias subtraction, addition, and arithmetic shift to produce the preserved result."
+  },
+  "3e30ae889b": {
+    "rewrite": null,
+    "why": "Both output vectors are preserved, and each requires its two independent memory-folded products followed by subtraction, addition, and arithmetic shifting."
+  },
+  "bd746987e2": {
+    "rewrite": null,
+    "why": "The four instructions produce four required register updates, with the final subtraction also supplying the required ZF, SF, and OF values."
+  },
+  "ec97c351fe": {
+    "rewrite": null,
+    "why": "The constant load, pointer adjustment, and two distinct broadcasts each produce a separate preserved register value."
+  },
+  "b651177286": {
+    "rewrite": null,
+    "why": "The arbitrary permutation and coefficients require both dot products and their accumulator initialization, while the conversion, signed minimum, separate stores, pointer updates, and final flag-setting subtraction remain necessary."
+  },
+  "b1f9b57c43": {
+    "rewrite": null,
+    "why": "Every constant load is preserved or used, both dot-product chains require their arbitrary initial accumulators, and the final shuffle and permutations select distinct bytes needed by all three preserved result vectors."
+  },
+  "9eecb0dc98": {
+    "rewrite": null,
+    "why": "Each instruction supplies a distinct required register result, and the final subtraction must also preserve its ZF, SF, and OF values."
+  }
+}

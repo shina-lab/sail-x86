@@ -1,0 +1,85 @@
+{
+  "949d88f9e5": {
+    "rewrite": "pshuflw xmm5,xmm5,0x0\npshuflw xmm4,xmm4,0x0\npunpcklqdq xmm5,xmm5\npunpcklqdq xmm4,xmm4\npcmpeqw xmm1,xmm1\npslldq xmm1,0xc\nsub rdi,0x1669\nadd rsi,0xf9\nmov edx,0x46",
+    "saved": 1,
+    "why": "The shuffle of xmm7 is unused, and xmm7 is not required at the end of the block."
+  },
+  "7bb717948f": {
+    "rewrite": null,
+    "why": "The signed-byte expansions, multiplication stages, and required xmm6, xmm8, and xmm9 results leave no removable instruction within SSSE3."
+  },
+  "6661cc7bc6": {
+    "rewrite": "pxor xmm8,xmm0\npand xmm8,xmm1\npxor xmm8,xmm0\nmovdqu XMMWORD PTR [rdi+rcx*1-0x10],xmm8\nadd rdi,0x52\nadd rsi,0x52\ndec edx",
+    "saved": 1,
+    "why": "The identity a XOR ((b XOR a) AND mask) implements the same bitwise blend in three instructions using disposable xmm8. The store, pointer updates, and final flag-setting decrement are preserved."
+  },
+  "116561c0b4": {
+    "rewrite": null,
+    "why": "Every broadcast and scalar update produces a required result, and SSSE3 needs two instructions for the low-word broadcast."
+  },
+  "07cb752eba": {
+    "rewrite": null,
+    "why": "The three-instruction zero-extension and broadcast sequence and the three required scalar updates have no removable operation under SSSE3."
+  },
+  "859823793d": {
+    "rewrite": null,
+    "why": "The load, two-instruction word broadcasts, and final flag-setting comparison are all needed under SSSE3."
+  },
+  "ab63ac2121": {
+    "rewrite": null,
+    "why": "The sum, two trailing-zero counts, and two vector transfers each produce a required value."
+  },
+  "d3fc8aef69": {
+    "rewrite": null,
+    "why": "The eight-byte load cannot be folded into a wider vector memory operand, and the shift/add stages are needed to preserve every output lane."
+  },
+  "8b301f1648": {
+    "rewrite": null,
+    "why": "The wrapping word sums, arbitrary xmm3 blend, and shift/add reductions all affect required output lanes."
+  },
+  "a754faa130": {
+    "rewrite": null,
+    "why": "Both unpack operations and every reduction stage contribute to the required full vector result for arbitrary input registers."
+  },
+  "a42649b5dc": {
+    "rewrite": null,
+    "why": "All four stores, the destination advance, and the flag-setting counter update are required."
+  },
+  "3fa93f9941": {
+    "rewrite": null,
+    "why": "All loads and arithmetic stages contribute to the full output vector, including arbitrary xmm3 words and the partially reduced lanes."
+  },
+  "04d2c57436": {
+    "rewrite": null,
+    "why": "AVX2 requires eight separate 32-byte stores, followed by the required destination and counter updates."
+  },
+  "e1ef78a18f": {
+    "rewrite": null,
+    "why": "Both ymm0 and the partial sum in ymm1 must be preserved, so the two loads and three additions are all necessary."
+  },
+  "8cf3a1349b": {
+    "rewrite": "vpaddw ymm0,ymm0,YMMWORD PTR [rdx+0x2]\nvpaddw ymm0,ymm0,YMMWORD PTR [rdx+0x22]\nvpaddw ymm0,ymm0,YMMWORD PTR [rdx+0x42]\nvpaddw ymm0,ymm0,YMMWORD PTR [rdx+0x62]\nvextracti128 xmm1,ymm0,0x1\nvpaddw xmm0,xmm0,xmm1\nvpunpcklwd xmm1,xmm0,xmm3\nvpunpckhwd xmm0,xmm0,xmm3\nvpaddd xmm1,xmm1,xmm4\nvpaddd xmm0,xmm0,xmm1\nvpsrlq xmm1,xmm0,0x20\nvpaddd xmm0,xmm0,xmm1\nvpsrldq xmm1,xmm0,0x8\nvpaddd xmm0,xmm0,xmm1\nvpsrld xmm0,xmm0,xmm5\ncmp r8d,0x40",
+    "saved": 1,
+    "why": "Associativity of addition modulo 65536 allows all four memory operands to accumulate directly into ymm0, removing the separate temporary load and combine. The remaining reduction and final comparison are unchanged."
+  },
+  "19c3156fd9": {
+    "rewrite": null,
+    "why": "The shifted constant in rax is required, and the unsigned high multiply and halving cannot be merged without changing rounding."
+  },
+  "498c224f81": {
+    "rewrite": null,
+    "why": "All eight 32-byte stores and both scalar updates are required at the AVX2 instruction-set limit."
+  },
+  "7780426b71": {
+    "rewrite": null,
+    "why": "Each row needs its own word broadcast and eight-byte store, and all three pointer or counter updates are required."
+  },
+  "18ce482e7e": {
+    "rewrite": null,
+    "why": "Each row needs its own word broadcast and 16-byte store, and all three pointer or counter updates are required."
+  },
+  "fcb5d1fa8c": {
+    "rewrite": null,
+    "why": "Each row needs its own word broadcast and 32-byte store, and all three pointer or counter updates are required."
+  }
+}

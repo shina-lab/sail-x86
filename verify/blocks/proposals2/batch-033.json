@@ -1,0 +1,82 @@
+{
+  "ff2da0698f": {
+    "rewrite": null,
+    "why": "All eight AVX2 stores are required, and the pointer addition and counter decrement independently produce required register values and flags."
+  },
+  "0ddc9cf661": {
+    "rewrite": null,
+    "why": "The two multiply-and-shift stages have distinct rounding effects, and the remaining instructions produce required memory, scalar, vector, and mask results."
+  },
+  "03b3d06a7b": {
+    "rewrite": null,
+    "why": "Each unpack produces a distinct required register value, including the required clearing of its upper vector bits."
+  },
+  "bb45c32ba8": {
+    "rewrite": null,
+    "why": "The saturated butterfly results are live, and both dot products require the arbitrary preserved accumulator before shifting and packing."
+  },
+  "eba2db8c5d": {
+    "rewrite": null,
+    "why": "The saturated butterfly results are live, and both full-width dot products require the arbitrary preserved accumulator before shifting and packing."
+  },
+  "05e312e443": {
+    "rewrite": null,
+    "why": "All product intermediates and packed outputs are live, and the final dot product already reuses the accumulator after its other required copies."
+  },
+  "5627fd2884": {
+    "rewrite": null,
+    "why": "The arbitrary byte-shuffle mask, required rearranged intermediate, and saturated arithmetic prevent removing any of the shuffle, butterfly, or scaling steps."
+  },
+  "8f071eb382": {
+    "rewrite": null,
+    "why": "Both registers in every final copy are live, and VPMULHRSW cannot fold the scalar broadcasts into its memory operand."
+  },
+  "249c4b3fce": {
+    "rewrite": null,
+    "why": "Each required result needs its word duplication and rounded multiplication, whose scalar coefficient broadcast cannot be folded into VPMULHRSW."
+  },
+  "023da0e189": {
+    "rewrite": null,
+    "why": "All eight unpack destinations contain distinct required results, so none of these single-result instructions is removable."
+  },
+  "c476070d0f": {
+    "rewrite": null,
+    "why": "All eight saturated sum and difference results are live, and the allowed ISA has no instruction that produces both required registers at once."
+  },
+  "ce4d275e07": {
+    "rewrite": null,
+    "why": "The two scalar rounding stages are distinct, and the load, store, ECX update, zero vector, and broadcast all contribute required results."
+  },
+  "e0b1b0c492": {
+    "rewrite": null,
+    "why": "The unknown stride requires separate memory accesses, and the arbitrary unpack operand and live high-word intermediate prevent simplifying the widening, addition, and packing sequence."
+  },
+  "ace2280918": {
+    "rewrite": null,
+    "why": "Every product and its final copied value is required, while VPMULHRSW lacks the scalar memory broadcast needed to remove coefficient setup instructions."
+  },
+  "b066bdfc46": {
+    "rewrite": null,
+    "why": "All eight scaled vectors are required, and each arbitrary coefficient needs an explicit broadcast because VPMULHRSW does not support scalar memory broadcast."
+  },
+  "d1f7a8918a": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required saturated sum or difference, with no redundant destination or combined integer add-subtract replacement."
+  },
+  "9cf24e0e9a": {
+    "rewrite": null,
+    "why": "All butterfly outputs and copied products are required, while the arbitrary coefficients and preserved accumulator prevent eliminating the broadcast and dot-product setup steps."
+  },
+  "2cb162f9f5": {
+    "rewrite": null,
+    "why": "Each of the eight live rounded products needs its arbitrary broadcast coefficient, and VPMULHRSW cannot combine those two instructions."
+  },
+  "80f8a325f0": {
+    "rewrite": null,
+    "why": "All eight saturated butterfly results occupy required registers, so every sum and difference instruction is necessary."
+  },
+  "2b6999b88e": {
+    "rewrite": null,
+    "why": "Both copies of every product are required, and the scalar coefficient broadcasts cannot be folded into the rounded word multiplications."
+  }
+}

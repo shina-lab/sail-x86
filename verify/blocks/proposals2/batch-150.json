@@ -1,0 +1,99 @@
+{
+  "4fb200ef7c": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x2\nlea r10,[rdi+0x2]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "6b777623ba": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x3\nlea r10,[rdi+0x3]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "d7112a7290": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x4\nlea r10,[rdi+0x4]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "3f1c3afe30": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x5\nlea r10,[rdi+0x5]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "f98f761701": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x6\nlea r10,[rdi+0x6]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "32f3c3d350": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x7\nlea r10,[rdi+0x7]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "397a0cb9b9": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x8\nlea r10,[rdi+0x8]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "e78bd12e52": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x9\nlea r10,[rdi+0x9]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "5c82e5072e": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xa\nlea r10,[rdi+0xa]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "6c29cd156c": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xb\nlea r10,[rdi+0xb]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "532a315c14": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xc\nlea r10,[rdi+0xc]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "1adb72bffa": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xd\nlea r10,[rdi+0xd]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "e76e1e116d": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xe\nlea r10,[rdi+0xe]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "7fe64e6bf4": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xf\nlea r10,[rdi+0xf]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "84af4cc610": {
+    "rewrite": null,
+    "why": "The preserved source registers require separate copies and masks, and the three live vector constants, r11 copy, and CF/ZF comparison leave no removable instruction."
+  },
+  "cbadd4c6b4": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x1\nlea r10,[rdi+0x1]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "0a66e8d667": {
+    "rewrite": null,
+    "why": "The live r10 update, load and byte shift for xmm0, data-dependent string index in rcx, and final CF comparison each require their instruction."
+  },
+  "2778ffe85e": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x2\nlea r10,[rdi+0x2]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  },
+  "600bf429bd": {
+    "rewrite": null,
+    "why": "The live r10 update, load and byte shift for xmm0, data-dependent string index in rcx, and final CF comparison each require their instruction."
+  },
+  "6c8dbd3825": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x3\nlea r10,[rdi+0x3]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; no flags must match."
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "675a5df643": {
+    "rewrite": null,
+    "why": "Broadcasting the common addend, retaining both live vector results, and extracting four distinct scalar outputs require the existing operations."
+  },
+  "0128931057": {
+    "rewrite": null,
+    "why": "Both vector operations and both separately addressed loads produce required final register values."
+  },
+  "03d81dc8e3": {
+    "rewrite": null,
+    "why": "The live coefficient vectors and lane-specific filter results require the duplication, shuffles, arithmetic, and final interleaving."
+  },
+  "f9300273d7": {
+    "rewrite": null,
+    "why": "The eight distinct scalar extractions and two independently masked vector blends leave no removable instruction."
+  },
+  "6bb0044897": {
+    "rewrite": null,
+    "why": "The final vector values include the partial sums and coefficients, while the store and flag-producing scalar updates are also required."
+  },
+  "66cb20b198": {
+    "rewrite": null,
+    "why": "The copied source vectors and extracted upper half are required outputs, leaving no removable step in the filter, packing, and pointer updates."
+  },
+  "10027ab416": {
+    "rewrite": null,
+    "why": "The shifted vectors are required outputs, preventing their removal when simplifying the horizontal sums, and the remaining filter and store sequence is tight."
+  },
+  "1f9f293abe": {
+    "rewrite": null,
+    "why": "The four distinct stores, live high-lane extraction, and required comparison flags each need their existing instruction."
+  },
+  "444f8ce2c2": {
+    "rewrite": "vmovdqa xmm1,XMMWORD PTR [rdi]\nvinserti128 ymm1,ymm1,XMMWORD PTR [rdi+rsi*1],0x1\nvpsubb ymm3,ymm4,YMMWORD PTR [r9]\nvpunpcklbw ymm2,ymm3,YMMWORD PTR [r9]\nvpunpckhbw ymm3,ymm3,YMMWORD PTR [r9]\nvmovdqa ymm6,YMMWORD PTR [r9+rdx*1]\nadd r9,0x20\nvpunpcklbw ymm0,ymm1,ymm6\nvpunpckhbw ymm1,ymm1,ymm6\nvpmaddubsw ymm0,ymm0,ymm2\nvpmaddubsw ymm1,ymm1,ymm3\nvpmulhrsw ymm0,ymm0,ymm5\nvpmulhrsw ymm1,ymm1,ymm5\nvpackuswb ymm0,ymm0,ymm1\nvmovdqa XMMWORD PTR [rdi],xmm0\nvextracti128 XMMWORD PTR [rdi+rsi*1],ymm0,0x1\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Fold the temporary ymm0 load into the subtraction and both byte-unpack instructions, using the same memory operand each time. The loaded value is then dead and ymm0 is overwritten before its next use."
+  },
+  "a92d4bd428": {
+    "rewrite": "vmovdqa ymm1,YMMWORD PTR [rdi]\nvmovdqa ymm6,YMMWORD PTR [r9+rdx*1]\nvpsubb ymm3,ymm4,YMMWORD PTR [r9]\nvpunpcklbw ymm2,ymm3,YMMWORD PTR [r9]\nvpunpckhbw ymm3,ymm3,YMMWORD PTR [r9]\nadd r9,0x20\nvpunpcklbw ymm0,ymm1,ymm6\nvpunpckhbw ymm1,ymm1,ymm6\nvpmaddubsw ymm0,ymm0,ymm2\nvpmaddubsw ymm1,ymm1,ymm3\nvpmulhrsw ymm0,ymm0,ymm5\nvpmulhrsw ymm1,ymm1,ymm5\nvpackuswb ymm0,ymm0,ymm1\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 1,
+    "why": "Fold the temporary mask load into the subtraction and both unpacks, removing its standalone move. Delay the r9 increment until those loads finish so all memory operands retain their original addresses."
+  },
+  "2bed4470bc": {
+    "rewrite": null,
+    "why": "Separate row loads and word stores are necessary, and the live source register and arbitrary coefficients prevent collapsing the arithmetic."
+  },
+  "2fd166fa4f": {
+    "rewrite": null,
+    "why": "The two independently addressed row loads, live source vector, saturation stages, and scalar updates have no redundant instruction."
+  },
+  "4920ba4eee": {
+    "rewrite": null,
+    "why": "Both rounded row results are needed, including the live ymm1 result, and the source vector and coefficients must retain their full final values."
+  },
+  "0e79807ead": {
+    "rewrite": null,
+    "why": "The two-row assembly, live source and high-byte arithmetic result, packed stores, and flag-producing updates are all required."
+  },
+  "6e60407f20": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [r9+0x40]\nvperm2i128 ymm3,ymm0,YMMWORD PTR [r9+0x60],0x20\nvperm2i128 ymm4,ymm0,YMMWORD PTR [r9+0x60],0x31",
+    "saved": 1,
+    "why": "Load the first two 128-bit chunks together, then select the low or high halves from that scratch register and a shared 256-bit memory operand with vperm2i128. All bytes read belong to the original four loads."
+  },
+  "009a082f1c": {
+    "rewrite": null,
+    "why": "Both unpacked paths feed required results, the loaded source vector is live, and the pointer addition supplies the carry flag preserved by dec."
+  },
+  "d9660c5dce": {
+    "rewrite": null,
+    "why": "The coefficient load and duplication, separate row loads and stores, live source vector, and rounded saturation stages leave no removable instruction."
+  },
+  "9ae4e5cd9e": {
+    "rewrite": null,
+    "why": "The byte-shuffle control and arithmetic coefficients are arbitrary, while both the shuffled coefficient vector and loaded source vector are required outputs."
+  },
+  "116ac181bd": {
+    "rewrite": null,
+    "why": "The two discontiguous pixel rows need explicit lane assembly, and the extracted high-lane result must also remain in ymm1."
+  },
+  "bd24407fdb": {
+    "rewrite": null,
+    "why": "The broadcast coefficients still require the arbitrary byte shuffle, and both arithmetic paths, the source vector, stores, and pointer updates remain necessary."
+  }
+}

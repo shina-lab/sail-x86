@@ -1,0 +1,82 @@
+{
+  "f9538b476a": {
+    "rewrite": null,
+    "why": "The four stores, four signed multiply-adds, accumulation steps, and scalar updates are required, and the SSE copies preserve live source vectors while producing the required final temporaries."
+  },
+  "689289d3b8": {
+    "rewrite": null,
+    "why": "Broadcasting the highest word requires two instructions with SSSE3 and no supplied shuffle constant, followed by two copies to populate the other required destinations."
+  },
+  "40bcacdce7": {
+    "rewrite": null,
+    "why": "All four input vectors and the multiplier must remain intact, so the destructive SSE multiply-adds require copies, and every store, accumulation, and scalar update contributes to a required result."
+  },
+  "1f7a35f4ea": {
+    "rewrite": null,
+    "why": "The four stores and three register updates are all required, including the carry flag from the pointer addition that the final decrement preserves."
+  },
+  "d500317694": {
+    "rewrite": null,
+    "why": "The nibble expansion, arbitrary byte-table lookups, and output interleaves require the SSE copies, with all four stores and the pointer and counter updates remaining necessary."
+  },
+  "addeb5b547": {
+    "rewrite": null,
+    "why": "Preserving both arbitrary lookup tables requires copies before destructive PSHUFB operations, and producing both halves of each interleave requires the remaining copies and unpacks."
+  },
+  "88b1b1362e": {
+    "rewrite": null,
+    "why": "Both independent input vectors require full nibble expansion and table lookup, and the destructive SSE shuffles and interleaves leave no redundant copies across the eight required stores."
+  },
+  "66742d6555": {
+    "rewrite": null,
+    "why": "The four-byte zero-extending load cannot be folded into VPMADDUBSW without widening the read or reversing operand signedness, and the remaining arithmetic and comparison are required."
+  },
+  "2485b90dda": {
+    "rewrite": null,
+    "why": "The four independently indexed stores cannot be combined for arbitrary strides, and the pointer update and flag-producing counter subtraction are both required."
+  },
+  "52b6006b90": {
+    "rewrite": null,
+    "why": "The narrow load and upper-half extraction are necessary, and horizontal-add substitutions would alter required output lanes for arbitrary initial vectors and multiply coefficients."
+  },
+  "5df4e1707f": {
+    "rewrite": null,
+    "why": "Folding the load would reverse VPMADDUBSW signedness, while replacing the shuffle-and-add reductions with horizontal adds would change lanes of the required full vector result."
+  },
+  "faba84b06c": {
+    "rewrite": null,
+    "why": "The unsigned-byte load cannot be folded into the signed memory operand of VPMADDUBSW, and every reduction stage affects the required full vector result for arbitrary coefficients."
+  },
+  "d288e4676a": {
+    "rewrite": null,
+    "why": "Both loaded vectors are unsigned VPMADDUBSW operands, so memory folding would change signedness, and both products plus their sum are needed to preserve the specified final vectors."
+  },
+  "5ffed99869": {
+    "rewrite": null,
+    "why": "Both unsigned-byte loads and multiply-adds are necessary, and the subsequent accumulation, lane reductions, variable shift, and comparison all contribute to required outputs."
+  },
+  "e67c292ce0": {
+    "rewrite": null,
+    "why": "The constant materialization, variable shift, zero-extending vector transfer, and unsigned high-half multiplication are all needed, with the shifted scalar also required in RAX."
+  },
+  "8ef67f51ad": {
+    "rewrite": null,
+    "why": "The broadcast and upper-zeroing copy produce required vectors, and unrestricted unsigned-byte absolute differences require both saturated subtractions and their combination."
+  },
+  "70876ad3c9": {
+    "rewrite": null,
+    "why": "The loaded vector must remain available, and unsigned-byte absolute differences require three arithmetic instructions because signed byte absolute value fails for differences exceeding 128."
+  },
+  "faa0a2b7c1": {
+    "rewrite": null,
+    "why": "Both loaded vectors and both full unsigned-byte absolute-difference vectors must be preserved, requiring the two loads and three arithmetic instructions for each independent difference."
+  },
+  "41fd702c8a": {
+    "rewrite": null,
+    "why": "Arbitrary shuffle masks, multiplicands, and addends require both arithmetic paths, and the full packed vector, extracted upper half, four stores, and comparison are all observable."
+  },
+  "da822ff267": {
+    "rewrite": null,
+    "why": "Both arithmetic paths contribute to the required full packed vector, while extracting its upper half, issuing four independently addressed stores, and updating both scalar registers remain necessary."
+  }
+}

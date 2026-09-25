@@ -1,0 +1,92 @@
+{
+  "c122b55423": {
+    "rewrite": "vmovdqa32 zmm0,ZMMWORD PTR [r14+rbp*2+0x680]\nvpunpcklwd zmm17,zmm22,ZMMWORD PTR [rdi+rbp*1]\nvpunpcklwd zmm18,zmm22,ZMMWORD PTR [r15+rbp*1+0x340]\nvpmaddwd zmm18,zmm18,zmm17\nvpunpckhwd zmm17,zmm22,ZMMWORD PTR [rdi+rbp*1]\nvpunpckhwd zmm19,zmm22,ZMMWORD PTR [r15+rbp*1+0x340]\nvpmaddwd zmm19,zmm19,zmm17\nvshufi32x4 zmm17,zmm0,ZMMWORD PTR [r14+rbp*2+0x6c0],0x88\nvshufi32x4 zmm0,zmm0,ZMMWORD PTR [r14+rbp*2+0x6c0],0xdd\nvpsubd zmm17,zmm17,zmm18\nvpsubd zmm0,zmm0,zmm19\nvpsrad zmm17,zmm17,0x8\nvpsrad zmm0,zmm0,0x8\nvpackssdw zmm17,zmm17,zmm0\nvpmulhrsw zmm17,zmm17,zmm23\nvpaddw zmm16,zmm17,ZMMWORD PTR [rdi+rbp*1]\nvpmaxsw zmm16,zmm16,zmm22\nvpminsw zmm16,zmm16,zmm30\nvmovdqa32 ZMMWORD PTR [rdi+rbp*1],zmm16\nadd rbp,0x40",
+    "saved": 3,
+    "why": "Fold three vector loads into their consumers. Swapping both unpack operands preserves each pairwise product sum even for arbitrary zmm22, and all repeated loads use original addresses before the store."
+  },
+  "bff21fd2e6": {
+    "rewrite": null,
+    "why": "Both copies and both additions produce required register values, and the final addition also supplies the required flags."
+  },
+  "eb720b0efd": {
+    "rewrite": null,
+    "why": "All five copied registers and the decremented register are live, including the decrement's flag results."
+  },
+  "3ff12f7f4e": {
+    "rewrite": "pxor xmm0,xmm0\nmovd xmm1,ebp\npshufb xmm1,xmm0\nmovdqa xmm0,XMMWORD PTR [CONST_4]\npsubb xmm0,xmm1\npminub xmm0,XMMWORD PTR [CONST_1]",
+    "saved": 10,
+    "why": "Only the final xmm0 mask is live; the earlier masks and all three shuffled data results are dead. Fold the remaining minimum's constant load into its memory operand."
+  },
+  "8bd68d9aaf": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and coefficients require distinct products, while live xmm1 and xmm2 require retaining the shifted intermediate and constant value."
+  },
+  "82a85da6c3": {
+    "rewrite": "mov r13,r12\nmov r12,r15\nmov r15,r14\nmov r14,rbx\nmov rbx,r10",
+    "saved": 3,
+    "why": "The final updates to r10, r11, and rdi are dead, and no flags need to match."
+  },
+  "b2b78e7ba7": {
+    "rewrite": "mov r13,r12\nmov r12,r15\nmov r15,r14\nmov r14,rbx\nmov rbx,r10",
+    "saved": 1,
+    "why": "The rdi addition and its flags are dead; the five required register copies remain."
+  },
+  "4d8c57a7c6": {
+    "rewrite": null,
+    "why": "All three copies and the decrement produce required register values, and the decrement's flags must also match."
+  },
+  "5a39383559": {
+    "rewrite": null,
+    "why": "Each copy produces a required register value, and the addition must preserve both rdi and its resulting flags."
+  },
+  "9e9732d1a8": {
+    "rewrite": "pxor xmm1,xmm1\nmovd xmm2,ebp\npshufb xmm2,xmm1\nmovdqa xmm0,XMMWORD PTR [CONST_1]\npsubb xmm0,xmm2\npminub xmm0,XMMWORD PTR [CONST_3]",
+    "saved": 6,
+    "why": "Only xmm0 is a live vector result, so the second mask and both data shuffles can be removed. Fold the minimum's constant load into its memory operand."
+  },
+  "0e93c4664d": {
+    "rewrite": "pshufd xmm3,XMMWORD PTR [rcx+rbp*1],0x90\nmovd xmm4,DWORD PTR [rdx+0x4]\nmovss xmm3,xmm4\nadd rdx,0x8",
+    "saved": 1,
+    "why": "PSHUFD places the buffer's first three dwords in the upper three result lanes, and register MOVSS inserts the other load into the low lane while preserving those upper lanes."
+  },
+  "43267372cb": {
+    "rewrite": null,
+    "why": "All shuffles and multiply-adds feed live outputs, and saturation followed by the word arithmetic shift cannot be collapsed for arbitrary inputs."
+  },
+  "f1bbd64ec9": {
+    "rewrite": "mov r15,r14\nmov r14,rbx\nmov rbx,r10",
+    "saved": 3,
+    "why": "The updates to r10, r11, and rdi are dead, leaving only the three required copies."
+  },
+  "6c3f083de5": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [CONST_3]",
+    "saved": 16,
+    "why": "The only live vector result is xmm0, which is overwritten with CONST_3; all other computations and the buffer load are dead."
+  },
+  "a279d740f7": {
+    "rewrite": null,
+    "why": "The result needs both buffer loads and the cross-register byte alignment, while the pointer increment is also live."
+  },
+  "8c653f35f7": {
+    "rewrite": null,
+    "why": "All six computed vector registers are live, requiring the distinct alignments and low/high word-square sums as well as the final flag-setting test."
+  },
+  "6f2f647d61": {
+    "rewrite": null,
+    "why": "The unsigned word products require both multiply halves and their unpacks, followed by separate subtraction, saturation, rounding, and signed-clamp stages."
+  },
+  "ab9a782308": {
+    "rewrite": "",
+    "saved": 11,
+    "why": "Every computed register is dead, all required registers are untouched, and the block has no stores or required flags, so the entire block can be removed."
+  },
+  "53ce09c381": {
+    "rewrite": null,
+    "why": "Both buffer loads, the byte alignment that combines them, and the live pointer increment are required."
+  },
+  "e9661f5f5c": {
+    "rewrite": "vmovd xmm2,ebp\nvpbroadcastd ymm0,DWORD PTR [CONST_1]\nvpbroadcastb ymm2,xmm2\nvpsubb ymm0,ymm0,ymm2\nvpminub ymm0,ymm0,YMMWORD PTR [CONST_3]",
+    "saved": 6,
+    "why": "Only ymm0 is live, so the second mask and both data shuffles are dead. Fold the remaining minimum's constant load into its memory operand while retaining full-width AVX2 operations."
+  }
+}

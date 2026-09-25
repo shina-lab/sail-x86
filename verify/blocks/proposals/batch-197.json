@@ -1,0 +1,84 @@
+{
+  "3f06e56f49": {
+    "rewrite": null,
+    "why": "The vector arithmetic produces required ymm6 and ymm10 values, and all four scalar results require the broadcast, addition, and separate extractions."
+  },
+  "ff3c48760c": {
+    "rewrite": null,
+    "why": "Both scalar loads and all four independent byte shuffles produce required final register values."
+  },
+  "cfbaa95748": {
+    "rewrite": null,
+    "why": "The coefficient expansion, filter arithmetic, and final lane rearrangements all feed required outputs, with no removable copies or unused calculations."
+  },
+  "420fbc5cda": {
+    "rewrite": null,
+    "why": "The vector copies establish required final values, and the remaining filtering, rearrangement, stores, pointer updates, and counter update all contribute to observable results."
+  },
+  "fa83669588": {
+    "rewrite": null,
+    "why": "Each shift and blend combines distinct input words, while coefficient duplication, sign extension, and four broadcasts are needed for the required full-width outputs."
+  },
+  "4a2d982141": {
+    "rewrite": null,
+    "why": "All filter results and coefficient broadcasts are live, and arbitrary bias lanes prevent treating the overlapping horizontal sums as identical results."
+  },
+  "10483929d5": {
+    "rewrite": null,
+    "why": "The loaded rows, filtering stages, and lane rearrangements feed required vector outputs or stores, and the pointer and flag-setting counter updates must remain."
+  },
+  "6da3b4c5fc": {
+    "rewrite": null,
+    "why": "All four signed coefficient pairs contribute to the stored result, and their broadcasts, products, accumulation, rounding shift, and saturation have no shorter direct AVX2 replacement."
+  },
+  "44521db1d4": {
+    "rewrite": null,
+    "why": "Both scalar loads and all four byte shuffles independently produce required final register values."
+  },
+  "944e823da8": {
+    "rewrite": null,
+    "why": "The arbitrary bias requires both additions, and the shifts, signed packing, permutation, stores, and decrement preserve required register and flag results."
+  },
+  "b28eecc0eb": {
+    "rewrite": null,
+    "why": "The shifts, unsigned saturation, rounded multiplication, signed minimum, and permutation perform distinct required operations before the two stores and decrement."
+  },
+  "a4922b3316": {
+    "rewrite": null,
+    "why": "The two sign-extending loads, constant broadcast, and zeroing each establish a separate required register value in one instruction."
+  },
+  "4f9a5e0e6c": {
+    "rewrite": null,
+    "why": "Four independently addressed stores are required, and the extraction also establishes the required final ymm0 value before the necessary comparison."
+  },
+  "1ce8be77ca": {
+    "rewrite": null,
+    "why": "The block already uses one instruction per independently addressed store and one comparison to establish the required ZF."
+  },
+  "13a02fe82c": {
+    "rewrite": null,
+    "why": "Four 256-bit stores already use the widest permitted vector width, and the decrement is required for both r9 and the flags."
+  },
+  "9892579a13": {
+    "rewrite": "vmovdqa ymm0,YMMWORD PTR [rdx]\nvpaddsw ymm0,ymm0,YMMWORD PTR [rcx]\nsub rdx,0xffffffffffffff80\nvpmaxsw ymm0,ymm0,ymm4\nvpsubsw ymm0,ymm0,ymm4\nvpmulhw ymm0,ymm0,ymm5",
+    "saved": 16,
+    "why": "Only ymm0 and the updated rdx are live among the modified registers. Remove all computations and loads for ymm1 through ymm3, along with the unused rcx update."
+  },
+  "128b02acf7": {
+    "rewrite": "vmovdqa ymm0,YMMWORD PTR [rcx]\nvpunpckhwd ymm5,ymm0,YMMWORD PTR [rdx]\nvpunpcklwd ymm0,ymm0,YMMWORD PTR [rdx]\nvpmaddwd ymm5,ymm5,ymm6\nvpmaddwd ymm0,ymm0,ymm6\nvpaddd ymm5,ymm5,ymm7\nvpaddd ymm0,ymm0,ymm7\nvpsrad ymm5,ymm5,0x8\nvpsrad ymm0,ymm0,0x8\nvpackusdw ymm0,ymm0,ymm5\nsub rdx,0xffffffffffffff80\nvpminsw ymm0,ymm8,ymm0",
+    "saved": 38,
+    "why": "Retain only the first output vector and the required rdx update, eliminating calculations for unused outputs and the rcx update. Fold the first rdx load into both unpack instructions, which read only the original 32-byte source range."
+  },
+  "9f602931f1": {
+    "rewrite": null,
+    "why": "The mask arithmetic and lane rearrangements feed its store, while the four image stores, extraction establishing final ymm0, and comparison are all required."
+  },
+  "04246bb229": {
+    "rewrite": null,
+    "why": "The constant vector, packed intermediate, and permuted result are all required final values, and every store and the flag-setting counter update must remain."
+  },
+  "55d33300c3": {
+    "rewrite": null,
+    "why": "Both additions produce required vector values, and all five stores are required at their original addresses."
+  }
+}

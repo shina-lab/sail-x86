@@ -1,0 +1,84 @@
+{
+  "14d2036e07": {
+    "rewrite": "vpmovzxbw ymm0,XMMWORD PTR [r10]\nvbroadcasti128 ymm8,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nadd r10,0x10\nvpsllw ymm1,ymm0,0x8\nvpsrlw ymm0,ymm0,0x4\nvpand ymm1,ymm8,ymm1\nvpor ymm0,ymm0,ymm1\nadd rsi,0x20",
+    "saved": 1,
+    "why": "The memory form of vpmovzxbw combines the 16-byte load and byte-to-word widening, using the original r10 address before its increment. All final vector values, pointer updates, and flags are unchanged."
+  },
+  "c61ea3a406": {
+    "rewrite": "vpbroadcastd ymm0,DWORD PTR [r10]\nvmovdqa ymm8,YMMWORD PTR [CONST_1]\nvbroadcasti128 ymm9,XMMWORD PTR [CONST_2]\nvbroadcasti128 ymm10,XMMWORD PTR [CONST_3]\nmov r8,QWORD PTR [rsi]\nadd r10,0x4\nvpshufb ymm0,ymm0,ymm8\nvpand ymm0,ymm9,ymm0\nvpminub ymm0,ymm0,ymm10\nadd rsi,0x20",
+    "saved": 1,
+    "why": "Each byte of ymm9 contains exactly one set bit, so the masked input byte is either zero or that nonzero mask. Taking its unsigned minimum with one replaces the equality comparison and final AND while preserving all live constants and flags."
+  },
+  "63b757b361": {
+    "rewrite": null,
+    "why": "The shifted and shuffled vector, shuffle constant, packed store, scalar outputs, and upper-half clearing are all observable, leaving no removable instruction."
+  },
+  "dee31d61fa": {
+    "rewrite": null,
+    "why": "The constant vector, comparison result, scalar load, and pointer update are distinct required outputs already produced with one instruction each."
+  },
+  "d5a24e5afd": {
+    "rewrite": null,
+    "why": "Both shifts and both ORs are needed for arbitrary inputs, including the preserved shifted ymm1, and AVX2 provides no fused shift-and-OR operation."
+  },
+  "057c47d3b2": {
+    "rewrite": null,
+    "why": "The two shifts and two ORs form the required packed result while preserving shifted ymm1, and the scalar load and flag-setting pointer increment are also required."
+  },
+  "3e2a9d1e1a": {
+    "rewrite": null,
+    "why": "Arbitrary input bits require both shifts and both ORs, with no permitted AVX2 operation combining them while retaining the required ymm1 output."
+  },
+  "be555834b6": {
+    "rewrite": null,
+    "why": "The three preserved component vectors require separate masks, with shifts for the two upper fields, and the existing mask operations already use memory operands."
+  },
+  "221b2c0044": {
+    "rewrite": null,
+    "why": "Extracting all three byte fields requires the low-field mask and two shift-and-mask pairs, since the dword shifts can introduce bits from neighboring bytes."
+  },
+  "bcd11264ca": {
+    "rewrite": null,
+    "why": "All three component vectors are preserved, and the masks following the dword shifts are necessary to remove unwanted field and neighboring-byte bits."
+  },
+  "bdfc201e4a": {
+    "rewrite": null,
+    "why": "Each of the two independent vector broadcasts, the scalar load, and the flag-setting pointer update produces a required output in one instruction."
+  },
+  "7a13a30569": {
+    "rewrite": null,
+    "why": "The two memory broadcasts target distinct preserved vectors, and neither the required r8 load nor the rsi increment can be eliminated."
+  },
+  "a9bf1d1c9a": {
+    "rewrite": null,
+    "why": "Both preserved vectors already use single-instruction memory broadcasts, alongside the necessary scalar load and pointer increment."
+  },
+  "1f03ddf9ce": {
+    "rewrite": null,
+    "why": "The two distinct broadcast results, r8 value, and updated rsi and flags each require their existing instruction."
+  },
+  "57a11df4d6": {
+    "rewrite": null,
+    "why": "The independent broadcasts and scalar load already use direct memory operands, and the pointer increment must retain its final flags."
+  },
+  "19984ad225": {
+    "rewrite": null,
+    "why": "Three distinct preserved vector results require three broadcasts, in addition to the required scalar load and flag-setting pointer update."
+  },
+  "36e07ed281": {
+    "rewrite": null,
+    "why": "Each changed vector is produced by one memory broadcast, and both scalar instructions are necessary for preserved register values and flags."
+  },
+  "93f639d9ea": {
+    "rewrite": null,
+    "why": "The three independent broadcast outputs, scalar load, and pointer update already require only one instruction apiece."
+  },
+  "6803f23420": {
+    "rewrite": null,
+    "why": "All five written vector registers, including temporary ymm8, are preserved and already receive one move each, while the scalar load and increment are also required."
+  },
+  "362721e56f": {
+    "rewrite": null,
+    "why": "All four vector move destinations, including ymm8, have required final values, so none of the moves or scalar instructions can be removed."
+  }
+}

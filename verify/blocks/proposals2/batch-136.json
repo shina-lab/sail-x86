@@ -1,0 +1,90 @@
+{
+  "7ab575abbd": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x5\nlea r10,[rdi+0x5]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "OR with 0xfffffffffffff000 gives the same 64-bit result as masking to 12 bits and subtracting 0x1000; no flags must match."
+  },
+  "4aca38e67d": {
+    "rewrite": null,
+    "why": "The byte alignment and comparisons require their current SSE2 operations because all intermediate vector results must be preserved and the comparison bounds are arbitrary."
+  },
+  "9b144017ca": {
+    "rewrite": null,
+    "why": "The zero mask, range masks, transformed bytes, shifted scalar masks, and subtraction result are all live, with no shorter equivalent identified under SSE2."
+  },
+  "2390f0dc5f": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x6\nlea r10,[rdi+0x6]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "OR with 0xfffffffffffff000 gives the same 64-bit result as masking to 12 bits and subtracting 0x1000; no flags must match."
+  },
+  "8c5f746266": {
+    "rewrite": null,
+    "why": "The byte alignment and comparisons require their current SSE2 operations because all intermediate vector results must be preserved and the comparison bounds are arbitrary."
+  },
+  "7475540205": {
+    "rewrite": null,
+    "why": "The zero mask, range masks, transformed bytes, shifted scalar masks, and subtraction result are all live, with no shorter equivalent identified under SSE2."
+  },
+  "5e4d166e04": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x7\nlea r10,[rdi+0x7]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "OR with 0xfffffffffffff000 gives the same 64-bit result as masking to 12 bits and subtracting 0x1000; no flags must match."
+  },
+  "c2c8597eba": {
+    "rewrite": null,
+    "why": "The byte alignment and comparisons require their current SSE2 operations because all intermediate vector results must be preserved and the comparison bounds are arbitrary."
+  },
+  "02e58b2efc": {
+    "rewrite": null,
+    "why": "Even with the eight-byte shift, SSE2 still needs to load the data and establish zero low bytes while preserving all comparison masks and final vector values."
+  },
+  "9d440c1164": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x8\nlea r10,[rdi+0x8]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "OR with 0xfffffffffffff000 gives the same 64-bit result as masking to 12 bits and subtracting 0x1000; no flags must match."
+  },
+  "a9bfadbf08": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+rcx*1]\nmovdqa xmm4,XMMWORD PTR [rdi+rcx*1]\nmovdqa xmm2,xmm3\npsrldq xmm3,0x8\nshufpd xmm2,xmm4,0x1\nmovdqa xmm8,xmm1\nmovdqa xmm9,xmm6\nmovdqa xmm10,xmm2\nmovdqa xmm11,xmm6\npcmpgtb xmm8,xmm5\npcmpgtb xmm9,xmm1\npcmpgtb xmm10,xmm5\npcmpgtb xmm11,xmm2\npand xmm8,xmm9\npand xmm10,xmm11\npand xmm8,xmm7\npand xmm10,xmm7\npor xmm1,xmm8\npor xmm2,xmm10\npcmpeqb xmm0,xmm1\npcmpeqb xmm1,xmm2\npsubb xmm1,xmm0\npmovmskb edx,xmm1\nsub edx,0xffff",
+    "saved": 1,
+    "why": "SHUFPD combines the original xmm3 high qword with the loaded low qword, replacing the left shift and OR with one instruction. Loading xmm4 directly and copying the original xmm3 to xmm2 preserves every required vector result."
+  },
+  "8e6cafeee3": {
+    "rewrite": null,
+    "why": "The zero mask, range masks, transformed bytes, shifted scalar masks, and subtraction result are all live, with no shorter equivalent identified under SSE2."
+  },
+  "2ec975f533": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x9\nlea r10,[rdi+0x9]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "OR with 0xfffffffffffff000 gives the same 64-bit result as masking to 12 bits and subtracting 0x1000; no flags must match."
+  },
+  "d7f56cd553": {
+    "rewrite": null,
+    "why": "The byte alignment and comparisons require their current SSE2 operations because all intermediate vector results must be preserved and the comparison bounds are arbitrary."
+  },
+  "4bb449b424": {
+    "rewrite": null,
+    "why": "The zero mask, range masks, transformed bytes, shifted scalar masks, and subtraction result are all live, with no shorter equivalent identified under SSE2."
+  },
+  "0f51dad233": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xa\nlea r10,[rdi+0xa]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "OR with 0xfffffffffffff000 gives the same 64-bit result as masking to 12 bits and subtracting 0x1000; no flags must match."
+  },
+  "63eb6b69f5": {
+    "rewrite": null,
+    "why": "The byte alignment and comparisons require their current SSE2 operations because all intermediate vector results must be preserved and the comparison bounds are arbitrary."
+  },
+  "3d56b0ea49": {
+    "rewrite": null,
+    "why": "The zero mask, range masks, transformed bytes, shifted scalar masks, and subtraction result are all live, with no shorter equivalent identified under SSE2."
+  },
+  "7259ebdf9f": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xb\nlea r10,[rdi+0xb]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "OR with 0xfffffffffffff000 gives the same 64-bit result as masking to 12 bits and subtracting 0x1000; no flags must match."
+  },
+  "4a8197269f": {
+    "rewrite": null,
+    "why": "The byte alignment and comparisons require their current SSE2 operations because all intermediate vector results must be preserved and the comparison bounds are arbitrary."
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "6a9c729bd0": {
+    "rewrite": null,
+    "why": "The shift and OR produce R12, the move defines RCX, and the comparison supplies the required flags."
+  },
+  "3cb64a08a2": {
+    "rewrite": "add cl,r15b\nmov ebx,edx\nshl r12,cl\nmov cl,r15b\nneg cl\nshr ebx,cl\nor rbx,r12\nmovq xmm0,rbx\nbswap rbx\nmov r12,rdx\npcmpeqb xmm0,xmm1\nmov ecx,r8d\npmovmskb edx,xmm0\nmov QWORD PTR [rax],rbx\nadd r15b,0x40\nadd rax,0x8\ntest edx,edx",
+    "saved": 1,
+    "why": "Negate the copied shift count in CL instead of negating R15B twice. RCX is subsequently overwritten, and R15B retains its original value until the required increment."
+  },
+  "b156cd9c46": {
+    "rewrite": "lea eax,[r12+0x7]\nshr eax,0x3\nsub eax,0x8",
+    "saved": 2,
+    "why": "LEA combines the copy and addition with the same 32-bit wraparound, and the right shift discards the bits cleared by AND. The final subtraction preserves the required ZF."
+  },
+  "edea8d20fd": {
+    "rewrite": "add r14,0x10\nlea eax,[r12+0x7]\nshr eax,0x3\nsub eax,0x8",
+    "saved": 2,
+    "why": "LEA combines the copy and addition, and the right shift makes the low-bit mask redundant. The R14 update and final subtraction remain unchanged."
+  },
+  "5074f0b40b": {
+    "rewrite": null,
+    "why": "The store, shift, pointer increment, and EAX increment each produce a required result."
+  },
+  "e41e886d52": {
+    "rewrite": "mov edx,0x10000\nvmovd xmm7,edx\nvpbroadcastd ymm7,xmm7\nvpcmpeqw ymm6,ymm6,ymm6\nvpsrlw ymm6,ymm6,0x8\nmov rsi,r14\nmov rdi,r15",
+    "saved": 1,
+    "why": "VPBROADCASTD replaces the dword shuffle and 128-bit lane duplication while producing the same full YMM7 value."
+  },
+  "efcc3d2300": {
+    "rewrite": null,
+    "why": "Live intermediate vectors and arbitrary mask and bias inputs prevent shortening the word arithmetic, while the store, scalar updates, and final carry flag are required."
+  },
+  "fd3067e56a": {
+    "rewrite": "mov edx,0x20001\nvmovd xmm7,edx\nvpcmpeqw ymm6,ymm6,ymm6\nvpbroadcastd ymm7,xmm7\nvpsrlw ymm6,ymm6,0x8\nmov rsi,r14\nmov rdi,r15",
+    "saved": 1,
+    "why": "VPBROADCASTD broadcasts the low dword across YMM7 in one instruction, replacing the shuffle and lane duplication."
+  },
+  "f8530981a6": {
+    "rewrite": null,
+    "why": "All three loaded pointers and the comparison carry flag are required."
+  },
+  "be28218cd0": {
+    "rewrite": null,
+    "why": "Both vector loads, both vector zeroings, and the loop-count assignment define required outputs."
+  },
+  "1151f9c5e6": {
+    "rewrite": null,
+    "why": "The two vector loads with upper-half zeroing, two required zero vectors, and RCX initialization leave no removable instruction."
+  },
+  "f06f57c70d": {
+    "rewrite": null,
+    "why": "Arbitrary masks and biases and the preserved intermediate vectors prevent replacing the word arithmetic with a shorter averaging sequence."
+  },
+  "f8619ad042": {
+    "rewrite": null,
+    "why": "Both vector constants, the required EDX value, and the two pointer copies already use the necessary SSE2 instructions."
+  },
+  "db79b0a07e": {
+    "rewrite": null,
+    "why": "SSE2 needs the copies for the separately preserved shifted vectors, and arbitrary mask and bias inputs prevent averaging substitutions."
+  },
+  "640def9dcf": {
+    "rewrite": null,
+    "why": "SSE2 needs the scalar constant, MOVD, and shuffle for XMM7, plus the mask construction and pointer copies."
+  },
+  "351501aa94": {
+    "rewrite": null,
+    "why": "All three loaded pointers and the comparison carry flag are required."
+  },
+  "9ad23a12a6": {
+    "rewrite": null,
+    "why": "Both vector loads, both vector zeroings, and the loop-count assignment define required outputs."
+  },
+  "85cb1cbe67": {
+    "rewrite": null,
+    "why": "The SSE2 copies retain values needed by separate shifts and masks, and arbitrary mask and bias inputs rule out a shorter averaging replacement."
+  },
+  "d68955d388": {
+    "rewrite": null,
+    "why": "Both stores, both scalar updates, and the full-width vector copy are required final effects."
+  },
+  "f165ac45bd": {
+    "rewrite": null,
+    "why": "The store, pointer and count updates, and full-width vector copy are all required."
+  }
+}

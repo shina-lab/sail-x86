@@ -1,0 +1,86 @@
+{
+  "554e6be046": {
+    "rewrite": null,
+    "why": "The two preserved comparison vectors, preserved first mask, pointer update, and combined-mask ZF require the existing SSE2 operations."
+  },
+  "385442dbf9": {
+    "rewrite": null,
+    "why": "The SSE2 byte broadcast and masked page-offset comparison have no shorter sequence that preserves the required vector and individual flags."
+  },
+  "8fdfe75ab5": {
+    "rewrite": null,
+    "why": "The zero vector, zero-byte mask, combined comparison vector, scalar mask, and ZF are all required outputs."
+  },
+  "67fd99771a": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+0x10]\nmovdqa xmm4,xmm0\npcmpeqb xmm0,xmm1\npcmpeqb xmm4,xmm3\npor xmm0,xmm4\npmovmskb ecx,xmm0\nmovdqu xmm0,XMMWORD PTR [rdi+0x20]\nmovdqa xmm4,xmm0\npcmpeqb xmm0,xmm1\nshl rcx,0x30\npcmpeqb xmm4,xmm3\npor xmm0,xmm4\npmovmskb eax,xmm0\nmovdqu xmm0,XMMWORD PTR [rdi+0x30]\npcmpeqb xmm3,xmm0\nshld rax,rcx,0x20\npcmpeqb xmm0,xmm1\npor xmm0,xmm3\npmovmskb ecx,xmm0\nshl rcx,0x30\nor rax,rcx",
+    "saved": 2,
+    "why": "Shifting the first mask to bits 48..63 lets SHLD combine it with the second mask in one instruction. The final OR already supplies the ZF produced by TEST."
+  },
+  "b8a63a266e": {
+    "rewrite": "movdqa xmm5,XMMWORD PTR [rdi]\nmovdqa xmm0,xmm5\npcmpeqb xmm5,xmm1\npcmpeqb xmm0,xmm6\npor xmm5,xmm0\npcmpeqb xmm2,xmm6\npcmpeqb xmm3,xmm6\npcmpeqb xmm4,xmm6\npmovmskb ecx,xmm5\npmovmskb edx,xmm2\nshl rdx,0x20\npmovmskb r8d,xmm3\npmovmskb eax,xmm4\nshl r8,0x20\nshld rax,rdx,0x30\nor rax,r8\nor rax,rcx",
+    "saved": 1,
+    "why": "Extracting the fourth mask into RAX and shifting the second mask into RDX lets SHLD place both at their final offsets with one fewer instruction. RCX, R8, and all vector results are preserved."
+  },
+  "3147f98cf4": {
+    "rewrite": null,
+    "why": "The preserved comparison, shifted RCX, trailing-zero result, adjusted RDI, addition flags, and cleared upper vector halves leave no redundant instruction."
+  },
+  "5a9a971a7e": {
+    "rewrite": null,
+    "why": "The trailing-zero count, preserved RDI adjustment, flag-setting addition, and upper-vector clearing each require their existing instruction."
+  },
+  "91daa373ec": {
+    "rewrite": null,
+    "why": "The trailing-zero count, preserved RDI adjustment, flag-setting addition, and upper-vector clearing each require their existing instruction."
+  },
+  "45300549ad": {
+    "rewrite": null,
+    "why": "The preserved zeroed YMM15 and shifted OR result require their existing operations, followed by the comparison that supplies CF and ZF."
+  },
+  "21b52080c7": {
+    "rewrite": null,
+    "why": "The loaded vector, both comparison-derived vector outputs, incremented scalar mask, and ZF require all six instructions under AVX2."
+  },
+  "b51dfbf543": {
+    "rewrite": null,
+    "why": "The loaded vector, both comparison-derived vector outputs, incremented scalar mask, and ZF require all six instructions under AVX2."
+  },
+  "28dc5decaa": {
+    "rewrite": null,
+    "why": "The loaded vector, both comparison-derived vector outputs, incremented scalar mask, and ZF require all six instructions under AVX2."
+  },
+  "cec49fc460": {
+    "rewrite": null,
+    "why": "The loaded vector, both comparison-derived vector outputs, incremented scalar mask, and ZF require all six instructions under AVX2."
+  },
+  "1cc989055b": {
+    "rewrite": null,
+    "why": "The preserved loaded and intermediate vectors require the comparisons, masking, and minimum reduction, while extracting EDX does not set the required ZF."
+  },
+  "9c322fd46a": {
+    "rewrite": null,
+    "why": "The loaded vector, both comparison-derived vector outputs, incremented scalar mask, and ZF require all six instructions under AVX2."
+  },
+  "a87ef29dd0": {
+    "rewrite": null,
+    "why": "The indexed loads already feed the required vector results directly, and the mask extraction and increment are both needed for RCX and ZF."
+  },
+  "878e912a75": {
+    "rewrite": null,
+    "why": "The preserved vectors require both masked comparisons and their minimum reduction, while the scalar mask still needs a separate instruction to set ZF."
+  },
+  "774a5e7dbc": {
+    "rewrite": "mov edx,0xc\nbzhi eax,edi,edx\nbzhi ecx,esi,edx\nxor edx,edx\ncmp ecx,eax",
+    "saved": 1,
+    "why": "A shared bit count lets two BMI2 BZHI instructions replace both move-and-mask pairs. Clearing EDX and retaining the final comparison preserve all required outputs."
+  },
+  "add6580fdc": {
+    "rewrite": null,
+    "why": "The indexed loads already feed the required vector results directly, and the mask extraction and increment are both needed for RCX and ZF."
+  },
+  "908a982026": {
+    "rewrite": "mov eax,ecx\nxchg rdi,rsi\nmov r8d,0xffffffff\nxor edx,edx\nsub eax,0x60",
+    "saved": 2,
+    "why": "XCHG replaces the three-move pointer swap because the temporary final RCX value is not required. The remaining instructions preserve the scalar results and subtraction flags."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "6bc1e3b097": {
+    "rewrite": null,
+    "why": "The four indexed loads, two signed-saturating multiply-adds, sum, store, accumulation, and three required scalar updates have no removable instruction."
+  },
+  "28c96672db": {
+    "rewrite": null,
+    "why": "Each instruction supplies a required store, accumulator value, pointer value, or counter value and flags."
+  },
+  "b85152afaf": {
+    "rewrite": null,
+    "why": "The indexed loads already use memory-source lane inserts, and both multiply-add results feed the required sum, store, and accumulator."
+  },
+  "be3143a27e": {
+    "rewrite": null,
+    "why": "The partial loads, lane inserts, saturating multiply-adds, sum, and arbitrary byte shuffle are needed to produce the stored and accumulated vector."
+  },
+  "a244902e9d": {
+    "rewrite": null,
+    "why": "The store, vector accumulation, pointer increment, and counter subtraction each produce a required effect."
+  },
+  "527ff15df8": {
+    "rewrite": null,
+    "why": "Folding the loads into VPMADDUBSW would swap its unsigned and signed operands, while the remaining instructions produce required outputs."
+  },
+  "08a723d92c": {
+    "rewrite": null,
+    "why": "All four instructions are needed for the store, accumulator, pointer, and decremented counter with matching flags."
+  },
+  "d514955fca": {
+    "rewrite": "vpbroadcastd ymm2,DWORD PTR [CONST_1]\nvpmaddwd ymm0,ymm4,ymm2\nvextracti128 xmm1,ymm0,0x1\ntzcnt esi,r10d\nvpaddd xmm0,xmm0,xmm1\nvmovd xmm2,esi\nvmovd xmm3,r10d\nvphaddd xmm0,xmm0,xmm0\nvphaddd xmm0,xmm0,xmm0\nvpsrad xmm3,xmm3,0x1\nvpaddd xmm0,xmm0,xmm3\nvpsrad xmm0,xmm0,xmm2\nvpbroadcastw ymm0,xmm0",
+    "saved": 2,
+    "why": "Two VPHADDD instructions replace two shuffles and two additions while preserving the low-dword sum used by the final broadcast. The rounding term, shift count, and all required register values remain unchanged."
+  },
+  "e9dc3b8df4": {
+    "rewrite": null,
+    "why": "VPSUBW cannot fold the minuend load into its memory operand, and the store plus both scalar updates are required."
+  },
+  "78d9989b6f": {
+    "rewrite": null,
+    "why": "The four indexed loads construct two separately multiplied, stored, and accumulated vectors, with all three scalar updates also required."
+  },
+  "c77226b34e": {
+    "rewrite": null,
+    "why": "Memory-source lane inserts already combine loading and assembly, and both vector results, stores, accumulations, and scalar updates are required."
+  },
+  "c5ac795edd": {
+    "rewrite": null,
+    "why": "Both vectors require their partial loads, lane inserts, saturating multiply-adds, and arbitrary byte shuffles before the required stores and accumulations."
+  },
+  "db418fc3f7": {
+    "rewrite": null,
+    "why": "The source loads cannot be folded into VPMADDUBSW without reversing byte signedness, and both stores, accumulations, and scalar updates are live."
+  },
+  "a63a7c10d3": {
+    "rewrite": null,
+    "why": "Two distinct stores, two independent accumulator updates, and two required scalar updates already take one instruction each."
+  },
+  "50ed445dcb": {
+    "rewrite": "vpbroadcastd ymm2,DWORD PTR [CONST_1]\nvpmaddwd ymm5,ymm5,ymm2\nvpmaddwd ymm0,ymm4,ymm2\nvpaddd ymm0,ymm0,ymm5\nvextracti128 xmm1,ymm0,0x1\ntzcnt esi,r10d\nvpaddd xmm0,xmm0,xmm1\nvmovd xmm2,esi\nvmovd xmm3,r10d\nvphaddd xmm0,xmm0,xmm0\nvphaddd xmm0,xmm0,xmm0\nvpsrad xmm3,xmm3,0x1\nvpaddd xmm0,xmm0,xmm3\nvpsrad xmm0,xmm0,xmm2\nvpbroadcastw ymm0,xmm0",
+    "saved": 2,
+    "why": "Two horizontal additions replace the four-instruction shuffle-and-add reduction with the same low-dword sum. The required YMM5 product, rounding term, shift count, and final broadcast are preserved."
+  },
+  "1aebc63ad4": {
+    "rewrite": null,
+    "why": "XMM2 is arbitrary, so zero-extension cannot replace the unpacks, and both shifted vectors are required for the stores and accumulation."
+  },
+  "3e8ad61d93": {
+    "rewrite": null,
+    "why": "Both stores and all three register updates are required, and constructing a wider repeated vector would offset the saved store instruction."
+  },
+  "fcaaab9518": {
+    "rewrite": null,
+    "why": "The arbitrary YMM2 bytes prevent replacing the unpacks with zero-extension, and both assembled and shifted vectors feed required stores and accumulation."
+  },
+  "ff061a5090": {
+    "rewrite": null,
+    "why": "The two 256-bit stores, accumulator update, pointer increment, and counter subtraction cannot be combined into fewer AVX2 instructions."
+  },
+  "9f83acb692": {
+    "rewrite": null,
+    "why": "The loads already fold byte widening, both scaled vectors are stored, and the word sum, arbitrary-weight multiply-add, and dword accumulation each contribute to required outputs."
+  }
+}

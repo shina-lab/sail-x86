@@ -1,0 +1,89 @@
+{
+  "b689b67197": {
+    "rewrite": null,
+    "why": "The masked operand is live, and forming and storing the sum, recording carry, and updating the index each require their existing instructions."
+  },
+  "46d8571aa8": {
+    "rewrite": null,
+    "why": "The masked operand is live, and forming and storing the difference, recording borrow, and updating the index leave no removable instruction."
+  },
+  "e824e90ae0": {
+    "rewrite": "mov r12,QWORD PTR [rcx+r8*8]\nmov r13,QWORD PTR [rcx+r8*8+0x8]\nmov r14,QWORD PTR [rcx+r8*8+0x10]\nmov r11,QWORD PTR [rcx+r8*8+0x18]\nand r12,rdi\nmov r10,QWORD PTR [rdx+r8*8]\nand r13,rdi\nmov rbx,QWORD PTR [rdx+r8*8+0x8]\nand r14,rdi\nmov rbp,QWORD PTR [rdx+r8*8+0x10]\nand r11,rdi\nadd eax,eax\nadc r10,r12\nmov QWORD PTR [rsi+r8*8],r10\nadc rbx,r13\nmov QWORD PTR [rsi+r8*8+0x8],rbx\nadc rbp,r14\nmov QWORD PTR [rsi+r8*8+0x10],rbp\nadc r11,QWORD PTR [rdx+r8*8+0x18]\nmov QWORD PTR [rsi+r8*8+0x18],r11\nsbb eax,eax\nadd r8,0x4",
+    "saved": 1,
+    "why": "The final masked limb in r11 is dead after the addition, so it can hold the sum and fold the other operand's load into ADC. Commuting the operands preserves both the stored sum and carry."
+  },
+  "8a9c219621": {
+    "rewrite": null,
+    "why": "The borrow chain needs separate minuend loads, and the masked r12/r13/r14 values and rbx/rbp differences are all live."
+  },
+  "cace0d7f4a": {
+    "rewrite": "mov rbx,r9\nnot rbx\nimul rbx,r8\nlea rbp,[rbx+r8*1]",
+    "saved": 1,
+    "why": "Modulo 2^64, r8 times the complement of r9 equals the required rbx value, -r8*r9-r8. Adding r8 with LEA recovers the required rbp value."
+  },
+  "50c65a211e": {
+    "rewrite": "mov r14,r9\nand r14,r12\nimul r15,r12,0xffffffffffffffff\nmul r9\nadd r14,rdx\nadc r15,0x0\nadd r14,r13\nmov r13,rax\nmov rax,rbp\nlea r10,[rbx+r11*1]\nadc r15,0x0\nmul rcx\nand r12,rbp\nadd r11,r12",
+    "saved": 1,
+    "why": "Three-operand IMUL with immediate -1 combines copying r12 and negating it into one instruction. The following MUL overwrites its carry flag before the carry chain begins."
+  },
+  "4d149b6414": {
+    "rewrite": null,
+    "why": "Both copies of the high-limb sum are live, and the low-limb sum, carry mask, store, and index decrement must also be preserved."
+  },
+  "07ee5b0466": {
+    "rewrite": "imul r14,r12,0xffffffffffffffff\nand r12,r8\nsub rax,r12\nmov rcx,rax\nsub rax,r8",
+    "saved": 1,
+    "why": "Three-operand IMUL with immediate -1 forms the negated copy of the original r12 in one instruction. The final SUB still supplies the required CF."
+  },
+  "4ca2b46075": {
+    "rewrite": null,
+    "why": "Both original loaded limbs and both limbs of the difference are live, so the loads, copies, and borrow-chain arithmetic are all needed."
+  },
+  "d9c61c4123": {
+    "rewrite": null,
+    "why": "Both byte predicates affect preserved registers, and the final OR must also provide the required ZF."
+  },
+  "e1d53194d2": {
+    "rewrite": null,
+    "why": "The two live shifted limbs each require their shift and their separate store."
+  },
+  "010dfe714e": {
+    "rewrite": null,
+    "why": "The multiply's high half is live, and SHRD requires the second loaded limb in a register."
+  },
+  "f96dbc4eb4": {
+    "rewrite": null,
+    "why": "The final rbx retains its original upper bytes and accumulates both borrows, requiring the partial-byte write and carry update."
+  },
+  "6b6cce046a": {
+    "rewrite": null,
+    "why": "The live multiplication high half, variable shift, two independent subtractions, final product, and store leave no removable instruction."
+  },
+  "d7b65c4d60": {
+    "rewrite": null,
+    "why": "The loaded limb, its subtraction result, and the decremented index are all live, and CF must come from the subtraction."
+  },
+  "14350a624a": {
+    "rewrite": null,
+    "why": "Producing a full-width 0/1 result with the required flags takes both arithmetic instructions, followed by the required store and pointer update."
+  },
+  "501a434634": {
+    "rewrite": "mov r10,QWORD PTR [rsi+rbx*8]\nmul r9\nadd rax,r10\nadc rdx,rbp\nmov r13,rdx\nimul rdx,r8\nsub r10,rdx\ncmp r10,rax\nlea rax,[r8+r10*1]",
+    "saved": 2,
+    "why": "Compare against the intermediate rax before replacing it, eliminating the copy into dead rbp. LEA then combines the final move and addition without changing the comparison's CF."
+  },
+  "0317a3ff87": {
+    "rewrite": null,
+    "why": "The exact complemented 32-bit scan result and both separately shifted registers are live, and baseline x86-64 has no instruction combining these operations."
+  },
+  "5bda01e84e": {
+    "rewrite": "mov r10,QWORD PTR [rsi+rbx*8]\nshl rbp,cl\nneg ecx\nshr r10,cl\nneg ecx\nor rbp,r10\nmul r9\nadd rax,rbp\nadc rdx,r11\nmov r13,rdx\nimul rdx,r8\nsub rbp,rdx\ncmp rbp,rax\nlea rax,[r8+rbp*1]",
+    "saved": 2,
+    "why": "Compare against the intermediate rax before replacing it, eliminating the copy into dead r11. LEA then combines the final move and addition while preserving CF."
+  },
+  "b623fbc1fa": {
+    "rewrite": "shl rbp,cl\nmul r9\nadd rax,rbp\nadc rdx,r11\nmov r13,rdx\nimul rdx,r8\nsub rbp,rdx\ncmp rbp,rax\nlea rax,[r8+rbp*1]",
+    "saved": 2,
+    "why": "Compare against the intermediate rax before replacing it, eliminating the copy into dead r11. LEA then combines the final move and addition while preserving CF."
+  }
+}

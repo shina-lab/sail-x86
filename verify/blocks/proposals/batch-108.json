@@ -1,0 +1,84 @@
+{
+  "dc1a6a99f7": {
+    "rewrite": null,
+    "why": "All four broadcasts and eight stores are required at AVX2 vector widths, and the three scalar updates are live."
+  },
+  "ee2be119f9": {
+    "rewrite": null,
+    "why": "Both broadcasts and all eight stores are required at AVX2 vector widths, along with the pointer and counter updates."
+  },
+  "30a0371a13": {
+    "rewrite": null,
+    "why": "Both loaded vectors, the word difference and its absolute value are required final outputs."
+  },
+  "1a270dbc1e": {
+    "rewrite": null,
+    "why": "Both loaded vectors, both word differences and both absolute values must survive, leaving no removable instruction."
+  },
+  "0133dd1f31": {
+    "rewrite": null,
+    "why": "Each of the four loads, four subtractions and four absolute values produces a required final vector."
+  },
+  "febb2405b7": {
+    "rewrite": null,
+    "why": "The broadcast, shuffle, multiply, add and upper-lane extraction all feed required stores, and both scalar updates are live."
+  },
+  "b21195d5f3": {
+    "rewrite": null,
+    "why": "Each row pair needs its own broadcast, shuffle, rounded multiply and addition, followed by the four required stores and scalar updates."
+  },
+  "fdeb071390": {
+    "rewrite": null,
+    "why": "Four independent broadcast/multiply/add results must be stored, and neither scalar update is dead."
+  },
+  "c7cfd35c3e": {
+    "rewrite": null,
+    "why": "AVX2 cannot fold a memory operand into the minuend of vpsubw, so each independent vector needs its load and subtraction."
+  },
+  "04ab3e0953": {
+    "rewrite": null,
+    "why": "The broadcast is already shared across four required multiply/add/store chains, and the scalar updates are live."
+  },
+  "ec4044881b": {
+    "rewrite": null,
+    "why": "Both arbitrary byte shuffles and wrapping word subtractions are required before the rounded multiplies, and every result feeds a store."
+  },
+  "fbf8db589d": {
+    "rewrite": null,
+    "why": "The unpack and subtraction create distinct word pairs because ymm5 is unconstrained, so all four shuffles and multiply/add/store chains remain necessary."
+  },
+  "b4f3f99b7b": {
+    "rewrite": null,
+    "why": "The two broadcast/subtraction results each feed two independent rounded multiplies, and all additions, stores and scalar updates are live."
+  },
+  "4eda8014a4": {
+    "rewrite": null,
+    "why": "One broadcast/subtraction is already shared by four independent multiply/add/store chains, leaving no removable instruction."
+  },
+  "9f77a401f5": {
+    "rewrite": null,
+    "why": "Arbitrary input vectors require both weighted-sum paths, shifts, saturation and averaging, and the extraction supplies the upper-half stores."
+  },
+  "3a6abc2f5a": {
+    "rewrite": null,
+    "why": "Both weighted sums, logical shifts, saturating pack and unsigned average are required for arbitrary inputs, as are the stores and scalar updates."
+  },
+  "af0c6f7bff": {
+    "rewrite": "vpbroadcastw ymm0,WORD PTR [rdx]\nvmovdqu ymm7,YMMWORD PTR [rdx+r8*2+0x2]\nvmovdqu ymm8,YMMWORD PTR [rax-0x42c]\nvperm2i128 ymm9,ymm8,YMMWORD PTR [rax-0x40c],0x31\nvperm2i128 ymm8,ymm8,YMMWORD PTR [rax-0x40c],0x20\nvpunpcklwd ymm6,ymm7,ymm0\nvpunpckhwd ymm7,ymm7,ymm0",
+    "saved": 1,
+    "why": "Load adjacent 128-bit chunks A and B together, then use memory-source lane permutations with chunks C and D to form ymm9=[B,D] and ymm8=[A,C]. This replaces four load/insert instructions with three and reads only bytes loaded originally."
+  },
+  "3ae7d7cf06": {
+    "rewrite": "vpbroadcastw ymm0,WORD PTR [rdx]\nvmovdqu ymm7,YMMWORD PTR [rdx+r8*2+0x2]\nvmovdqu ymm9,YMMWORD PTR [rdx+r8*2+0x22]\nvmovdqu ymm10,YMMWORD PTR [rax-0x3ec]\nvperm2i128 ymm11,ymm10,YMMWORD PTR [rax-0x3cc],0x31\nvperm2i128 ymm10,ymm10,YMMWORD PTR [rax-0x3cc],0x20\nvmovdqu ymm12,YMMWORD PTR [rax-0x3ac]\nvperm2i128 ymm13,ymm12,YMMWORD PTR [rax-0x38c],0x31\nvperm2i128 ymm12,ymm12,YMMWORD PTR [rax-0x38c],0x20\nvpunpcklwd ymm6,ymm7,ymm0\nvpunpckhwd ymm7,ymm7,ymm0\nvpunpcklwd ymm8,ymm9,ymm0\nvpunpckhwd ymm9,ymm9,ymm0",
+    "saved": 2,
+    "why": "For each four-chunk group, one wide load and two memory-source lane permutations produce the original two interleaved vectors in three instructions instead of four. All loaded bytes and address expressions come from the original accesses."
+  },
+  "61bfcd1803": {
+    "rewrite": null,
+    "why": "All four weighted-sum paths contribute to the two required stores, and arbitrary inputs prevent folding the logical shifts, saturation and averages."
+  },
+  "e8f51437fe": {
+    "rewrite": null,
+    "why": "All four register updates are live, and the final test must separately set ZF from bit 6 of the updated r11."
+  }
+}

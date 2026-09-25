@@ -1,0 +1,84 @@
+{
+  "ff55af25ec": {
+    "rewrite": null,
+    "why": "The byte store, original-pointer result, pointer advance, and count decrement with matching ZF each require an instruction."
+  },
+  "cf2ecff916": {
+    "rewrite": null,
+    "why": "All four register updates are live, and the final comparison is needed to produce the required CF."
+  },
+  "748a1d106e": {
+    "rewrite": null,
+    "why": "The live pointer update and bit-index arithmetic cannot be shortened while preserving rcx and the final comparison's CF."
+  },
+  "4f14111b13": {
+    "rewrite": null,
+    "why": "The loaded word must remain in rdx, and the store, two pointer results, and count decrement with matching ZF are all required."
+  },
+  "4f1572a36a": {
+    "rewrite": null,
+    "why": "The word copy and separate zero-byte store are needed alongside both pointer results and the count decrement that produces ZF."
+  },
+  "ec2da7cb86": {
+    "rewrite": null,
+    "why": "The loaded dword must remain in rdx, and each remaining instruction supplies a required store, pointer result, or count result and ZF."
+  },
+  "4423069611": {
+    "rewrite": null,
+    "why": "Both copies use required address expressions, and the live pointer results and subtraction of rdx plus one have no shorter equivalent here."
+  },
+  "75be57ad96": {
+    "rewrite": null,
+    "why": "The unknown index prevents combining the two copies, and both pointer results and the count decrement with matching ZF are required."
+  },
+  "3abd130cf9": {
+    "rewrite": null,
+    "why": "The two vector copies have independently indexed addresses, and the remaining instructions produce required pointer and count results plus ZF."
+  },
+  "239f2d6e20": {
+    "rewrite": null,
+    "why": "The unknown index prevents merging the vector copies, and the live pointer and count calculations cannot be shortened while preserving ZF."
+  },
+  "e3aec2df59": {
+    "rewrite": "vmovdqu64 YMMWORD PTR [rdi],ymm16\nlea r8,[r8+rdi*1]\nand rdi,0xffffffffffffffe0\nsub r8,rdi\nlea rdi,[rdi+0x20]\nsub r8,0x80",
+    "saved": 1,
+    "why": "Adding the original pointer and subtracting its aligned value adds exactly its low five bits to r8. The pointer advance is equivalent modulo 64 bits, and the unchanged final subtraction receives the same value and preserves CF."
+  },
+  "e8cc36ec89": {
+    "rewrite": "vshufi64x2 zmm17,zmm16,zmm16,0x44\nvmovdqu64 ZMMWORD PTR [rdi],zmm17\nvmovdqu64 ZMMWORD PTR [rdi+0x40],zmm17\nadd rdi,0x80\nsub r8,0x80",
+    "saved": 1,
+    "why": "The shuffle duplicates the low 256 bits of zmm16 into both halves of a scratch register, so two unaligned 512-bit stores write exactly the original 128 bytes and values. The pointer and count updates, CF, and full zmm16 value are preserved."
+  },
+  "e3cda7a791": {
+    "rewrite": null,
+    "why": "Combining the stores would require a separate duplication instruction because zmm16's upper half is unknown, yielding no instruction reduction."
+  },
+  "50f1f57a6b": {
+    "rewrite": null,
+    "why": "Clearing rcx, computing the byte-equality mask, transferring it to edx, and updating r8 with the required flags are all necessary."
+  },
+  "f64f3191aa": {
+    "rewrite": null,
+    "why": "The comparison and mask transfer, vector store, and two live counter updates each require their existing instruction."
+  },
+  "ddac03776f": {
+    "rewrite": null,
+    "why": "The comparison and mask transfer, vector store, and two live counter updates have no redundant operation to remove."
+  },
+  "0fad2e8d13": {
+    "rewrite": null,
+    "why": "The equality mask must be transferred and scanned, while the store, both pointer updates, and final CF-producing comparison are required."
+  },
+  "a1a4d6b296": {
+    "rewrite": null,
+    "why": "Both vector comparison outputs are live, and the adjusted r10 value is still needed to compute the required CF and ZF even though r10 itself is dead."
+  },
+  "2deffa6017": {
+    "rewrite": null,
+    "why": "The loaded xmm3 value is live, preventing load folding, and the store, comparison outputs, and counter updates are all required."
+  },
+  "759533f477": {
+    "rewrite": null,
+    "why": "Both loaded vectors and the comparison vector are live, so neither load nor the zeroing, mask extraction, or final comparison can be removed."
+  }
+}

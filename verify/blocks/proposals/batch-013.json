@@ -1,0 +1,93 @@
+{
+  "9b6f0311d3": {
+    "rewrite": "movq mm2,mm1\npxor mm2,mm4\npavgb mm1,mm4\npand mm2,QWORD PTR [CONST_1]\npsubusb mm1,mm2\nmovq mm2,mm3\npavgb mm2,mm1\nmovq2dq xmm2,mm2\nmovq mm1,mm4\npxor mm1,mm3\npand mm1,QWORD PTR [CONST_1]\npavgb mm3,mm4\npsubusb mm3,mm1\npavgb mm4,mm3\npsllq mm4,0x38\nmovq2dq xmm0,mm4\npunpcklqdq xmm0,xmm2\ntest esi,esi",
+    "saved": 16,
+    "why": "The trailing MMX loads and shifts have no preserved outputs, and both averages can use fewer copies. Shift the second result within MMX and combine the two qwords with PUNPCKLQDQ to obtain the exact required xmm0."
+  },
+  "2d99405561": {
+    "rewrite": "movq mm2,mm1\npxor mm2,mm4\npavgb mm1,mm4\npand mm2,QWORD PTR [CONST_1]\npsubusb mm1,mm2\nmovq mm2,mm3\npavgb mm2,mm1\nmovq2dq xmm2,mm2\nmovq mm1,mm4\npxor mm1,mm3\npand mm1,QWORD PTR [CONST_1]\npavgb mm3,mm4\npsubusb mm3,mm1\npavgb mm4,mm3\npsllq mm4,0x38\nmovq2dq xmm0,mm4\npunpcklqdq xmm0,xmm2\ntest esi,esi",
+    "saved": 12,
+    "why": "The trailing MMX loads and alignments have no preserved outputs, and both averages can use fewer copies. Shift the second result within MMX and combine the two qwords with PUNPCKLQDQ to obtain the exact required xmm0."
+  },
+  "d6017561cf": {
+    "rewrite": null,
+    "why": "Each qword load needs a word shuffle and qword duplication to broadcast its last word under SSE2, and both stores and loop updates are required."
+  },
+  "99b166dd13": {
+    "rewrite": null,
+    "why": "The preserved inputs require the temporary copy, and the ordered saturating additions, shift, clamps, store, and loop updates all contribute to required results."
+  },
+  "4225dadf8c": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rdi+0x10]\nmovdqa xmm5,xmm1\npsrldq xmm5,0x2\npslldq xmm1,0x2\npsrldq xmm3,0xe\npor xmm1,xmm3\npshufhw xmm5,xmm5,0xa4\npaddw xmm1,xmm5\npsrlw xmm1,0x1\npavgw xmm1,XMMWORD PTR [rdi+0x10]",
+    "saved": 1,
+    "why": "Build the neighbor sum directly in xmm1 and reload the original vector through the final PAVGW memory operand, eliminating the copy to xmm2."
+  },
+  "95d4f206cb": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rdi+0x10]\nmovdqa xmm5,xmm1\npsrldq xmm5,0x2\npalignr xmm1,xmm3,0xe\npshufhw xmm5,xmm5,0xa4\npaddw xmm1,xmm5\npsrlw xmm1,0x1\npavgw xmm1,XMMWORD PTR [rdi+0x10]",
+    "saved": 1,
+    "why": "Build the neighbor sum directly in xmm1 and reload the original vector through the final PAVGW memory operand, eliminating the copy to xmm2."
+  },
+  "1cf37027b7": {
+    "rewrite": null,
+    "why": "The VEX forms already avoid copies, while the neighbor alignment, endpoint shuffle, wrapping sum, shift, and rounded average are all needed for arbitrary input words."
+  },
+  "88590826d2": {
+    "rewrite": null,
+    "why": "SSE2 requires all four 128-bit stores, and the pointer update and flag-producing counter decrement are both preserved."
+  },
+  "5c7536f366": {
+    "rewrite": null,
+    "why": "Each dword load needs two SSE2 operations to broadcast its selected word, followed by four required stores and both loop updates."
+  },
+  "bab69873aa": {
+    "rewrite": null,
+    "why": "All four SSE2 stores and the preserved pointer and counter updates are necessary."
+  },
+  "8400acf574": {
+    "rewrite": null,
+    "why": "All four SSE2 stores and the preserved pointer and counter updates are necessary."
+  },
+  "8c3fe972a7": {
+    "rewrite": null,
+    "why": "Each of the four 128-bit copies requires a load and store under SSE2, and both pointer updates and the counter decrement are required."
+  },
+  "ad671cf374": {
+    "rewrite": null,
+    "why": "Each output already uses one source load, a rounded average with a memory operand, and one store, with all loop updates preserved."
+  },
+  "c654163d92": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi-0x4]\nmovdqu xmm0,XMMWORD PTR [rsi+0x6]\nmovdqa xmm6,xmm0\npsrldq xmm0,0x6\npaddw xmm6,xmm2\nmovdqa xmm3,xmm0\npalignr xmm3,xmm2,0x2\nmovdqa xmm7,xmm0\npalignr xmm7,xmm2,0x8\npaddw xmm3,xmm7\nmovdqa xmm4,xmm0\npalignr xmm4,xmm2,0x4\npalignr xmm0,xmm2,0x6\npaddw xmm4,xmm0\npaddw xmm6,xmm8\npsubw xmm6,xmm3\npsraw xmm6,0x2\npsubw xmm6,xmm3\npaddw xmm6,xmm4\npsraw xmm6,0x2\npaddw xmm6,xmm4\npsraw xmm6,0x1\npxor xmm0,xmm0\npmaxsw xmm6,xmm0\npminsw xmm6,xmm1\nmovdqa XMMWORD PTR [rdi],xmm6\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 1,
+    "why": "Use xmm0 directly for the final PALIGNR because its shifted input is dead afterward and xmm0 is subsequently zeroed, eliminating the last copy to xmm7."
+  },
+  "7de4f7a948": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi-0x4]\nmovdqu xmm0,XMMWORD PTR [rsi+0x6]\nmovdqa xmm6,xmm0\npsrldq xmm0,0x6\npaddw xmm6,xmm2\nmovdqa xmm3,xmm2\npsrldq xmm3,0x2\npextrw r9d,xmm0,0x0\npinsrw xmm3,r9d,0x7\nmovdqa xmm7,xmm2\nshufpd xmm7,xmm0,0x1\npaddw xmm3,xmm7\nmovdqa xmm4,xmm2\nmovss xmm4,xmm0\npshufd xmm4,xmm4,0x39\npslldq xmm0,0xa\npsrldq xmm2,0x6\npor xmm2,xmm0\npaddw xmm4,xmm2\npaddw xmm6,xmm8\npsubw xmm6,xmm3\npsraw xmm6,0x2\npsubw xmm6,xmm3\npaddw xmm6,xmm4\npsraw xmm6,0x2\npaddw xmm6,xmm4\npsraw xmm6,0x1\npxor xmm0,xmm0\npmaxsw xmm6,xmm0\npminsw xmm6,xmm1\nmovdqa XMMWORD PTR [rdi],xmm6\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 8,
+    "why": "Word insertion, SHUFPD, and MOVSS followed by PSHUFD construct the first three shifted vectors with fewer instructions. The final window consumes the dead input registers directly, preserving the filter arithmetic and required outputs."
+  },
+  "1cfc093dc4": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi-0x4]\nmovdqu xmm0,XMMWORD PTR [rsi+0x6]\nmovdqa xmm6,xmm0\npsrldq xmm0,0x6\npaddw xmm6,xmm2\nmovdqa xmm3,xmm0\npalignr xmm3,xmm2,0x2\nmovdqa xmm7,xmm0\npalignr xmm7,xmm2,0x8\npaddw xmm3,xmm7\nmovdqa xmm4,xmm0\npalignr xmm4,xmm2,0x4\npalignr xmm0,xmm2,0x6\npaddw xmm4,xmm0\npaddw xmm6,xmm8\npsubw xmm6,xmm3\npsraw xmm6,0x2\npsubw xmm6,xmm3\npaddw xmm6,xmm4\npsraw xmm6,0x2\npaddw xmm6,xmm4\npsraw xmm6,0x1\npxor xmm0,xmm0\npmaxsw xmm6,xmm0\npminsw xmm6,xmm1\npavgw xmm6,XMMWORD PTR [rdi]\nmovdqa XMMWORD PTR [rdi],xmm6\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 1,
+    "why": "Use xmm0 directly for the final PALIGNR because its shifted input is dead afterward and xmm0 is subsequently zeroed, eliminating the last copy to xmm7."
+  },
+  "ced59fc398": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi-0x4]\nmovdqu xmm0,XMMWORD PTR [rsi+0x6]\nmovdqa xmm6,xmm0\npsrldq xmm0,0x6\npaddw xmm6,xmm2\nmovdqa xmm3,xmm2\npsrldq xmm3,0x2\npextrw r9d,xmm0,0x0\npinsrw xmm3,r9d,0x7\nmovdqa xmm7,xmm2\nshufpd xmm7,xmm0,0x1\npaddw xmm3,xmm7\nmovdqa xmm4,xmm2\nmovss xmm4,xmm0\npshufd xmm4,xmm4,0x39\npslldq xmm0,0xa\npsrldq xmm2,0x6\npor xmm2,xmm0\npaddw xmm4,xmm2\npaddw xmm6,xmm8\npsubw xmm6,xmm3\npsraw xmm6,0x2\npsubw xmm6,xmm3\npaddw xmm6,xmm4\npsraw xmm6,0x2\npaddw xmm6,xmm4\npsraw xmm6,0x1\npxor xmm0,xmm0\npmaxsw xmm6,xmm0\npminsw xmm6,xmm1\npavgw xmm6,XMMWORD PTR [rdi]\nmovdqa XMMWORD PTR [rdi],xmm6\nadd rdi,rdx\nadd rsi,rdx\ndec ecx",
+    "saved": 8,
+    "why": "Word insertion, SHUFPD, and MOVSS followed by PSHUFD construct the first three shifted vectors with fewer instructions. The final window consumes the dead input registers directly, preserving the filter arithmetic and required outputs."
+  },
+  "112afea8f8": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi-0x4]\nmovdqu xmm0,XMMWORD PTR [rsi+0x6]\nmovdqa xmm6,xmm0\npsrldq xmm0,0x6\npaddw xmm6,xmm2\nmovdqa xmm3,xmm0\npalignr xmm3,xmm2,0x2\nmovdqa xmm7,xmm0\npalignr xmm7,xmm2,0x8\npaddw xmm3,xmm7\nmovdqa xmm4,xmm0\npalignr xmm4,xmm2,0x4\npalignr xmm0,xmm2,0x6\npaddw xmm4,xmm0\npaddw xmm6,xmm8\npsubw xmm6,xmm3\npsraw xmm6,0x2\npsubw xmm6,xmm3\npaddw xmm6,xmm4\npsraw xmm6,0x2\npaddw xmm6,xmm4\npsraw xmm6,0x1\npxor xmm0,xmm0\npmaxsw xmm6,xmm0\npminsw xmm6,xmm1\nmovdqu xmm3,XMMWORD PTR [r8]\npavgw xmm6,xmm3\nmovdqa XMMWORD PTR [rdi],xmm6\nadd rdi,rdx\nadd rsi,rdx\nadd r8,rdx\ndec ecx",
+    "saved": 1,
+    "why": "Use xmm0 directly for the final PALIGNR because its shifted input is dead afterward and xmm0 is subsequently zeroed, eliminating the last copy to xmm7."
+  },
+  "8c7cc593ed": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi-0x4]\nmovdqu xmm0,XMMWORD PTR [rsi+0x6]\nmovdqa xmm6,xmm0\npsrldq xmm0,0x6\npaddw xmm6,xmm2\nmovdqa xmm3,xmm2\npsrldq xmm3,0x2\npextrw r9d,xmm0,0x0\npinsrw xmm3,r9d,0x7\nmovdqa xmm7,xmm2\nshufpd xmm7,xmm0,0x1\npaddw xmm3,xmm7\nmovdqa xmm4,xmm2\nmovss xmm4,xmm0\npshufd xmm4,xmm4,0x39\npslldq xmm0,0xa\npsrldq xmm2,0x6\npor xmm2,xmm0\npaddw xmm4,xmm2\npaddw xmm6,xmm8\npsubw xmm6,xmm3\npsraw xmm6,0x2\npsubw xmm6,xmm3\npaddw xmm6,xmm4\npsraw xmm6,0x2\npaddw xmm6,xmm4\npsraw xmm6,0x1\npxor xmm0,xmm0\npmaxsw xmm6,xmm0\npminsw xmm6,xmm1\nmovdqu xmm3,XMMWORD PTR [r8]\npavgw xmm6,xmm3\nmovdqa XMMWORD PTR [rdi],xmm6\nadd rdi,rdx\nadd rsi,rdx\nadd r8,rdx\ndec ecx",
+    "saved": 8,
+    "why": "Word insertion, SHUFPD, and MOVSS followed by PSHUFD construct the first three shifted vectors with fewer instructions. The final window consumes the dead input registers directly, preserving the filter arithmetic and required outputs."
+  },
+  "28e5fc6ca6": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi-0x4]\nmovdqu xmm0,XMMWORD PTR [rsi+0x6]\nmovdqa xmm6,xmm0\npsrldq xmm0,0x6\npaddw xmm6,xmm2\nmovdqa xmm3,xmm0\npalignr xmm3,xmm2,0x2\nmovdqa xmm7,xmm0\npalignr xmm7,xmm2,0x8\npaddw xmm3,xmm7\nmovdqa xmm4,xmm0\npalignr xmm4,xmm2,0x4\npalignr xmm0,xmm2,0x6\npaddw xmm4,xmm0\npaddw xmm6,xmm8\npsubw xmm6,xmm3\npsraw xmm6,0x2\npsubw xmm6,xmm3\npaddw xmm6,xmm4\npsraw xmm6,0x2\npaddw xmm6,xmm4\npsraw xmm6,0x1\npxor xmm0,xmm0\npmaxsw xmm6,xmm0\npminsw xmm6,xmm1\nmovdqu xmm3,XMMWORD PTR [r8]\npavgw xmm6,xmm3\npavgw xmm6,XMMWORD PTR [rdi]\nmovdqa XMMWORD PTR [rdi],xmm6\nadd rdi,rdx\nadd rsi,rdx\nadd r8,rdx\ndec ecx",
+    "saved": 1,
+    "why": "Use xmm0 directly for the final PALIGNR because its shifted input is dead afterward and xmm0 is subsequently zeroed, eliminating the last copy to xmm7."
+  }
+}

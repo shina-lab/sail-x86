@@ -1,0 +1,88 @@
+{
+  "2047927200": {
+    "rewrite": null,
+    "why": "The index expansion, palette lookup, and four dword stores require the existing operations while preserving the final xmm0 and xmm4 values."
+  },
+  "8b28b70cc3": {
+    "rewrite": null,
+    "why": "Both palette lookups and byte interleaves are needed, and SSSE3's destructive operands require the copies while preserving xmm0 and xmm4."
+  },
+  "d90c660c3a": {
+    "rewrite": null,
+    "why": "The two palette lookups, low and high byte interleaves, stores, and live pointer updates have no removable operations under SSSE3."
+  },
+  "fb4de7288a": {
+    "rewrite": null,
+    "why": "Both palette lookups and interleaved outputs are needed, with the copies preserving the palette and the required final xmm0 value."
+  },
+  "249dbde550": {
+    "rewrite": null,
+    "why": "Each input vector needs two independent palette lookups and both interleaves, and none of the intermediate copies can be removed with destructive SSSE3 operands."
+  },
+  "faabc5fb24": {
+    "rewrite": "pshufd xmm1,xmm0,0xee\npaddw xmm0,xmm1\npshuflw xmm1,xmm0,0x4e\npaddw xmm0,xmm1\npsrlw xmm0,0x2\nmov eax,0x5556\nmov edx,0x3334\ntest r8d,0x8",
+    "saved": 1,
+    "why": "PSHUFD with immediate 0xee duplicates xmm0's high qword directly, replacing the copy and PUNPCKHQDQ pair."
+  },
+  "3f28011c00": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [r9]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x10]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovd DWORD PTR [rdi],xmm4\npshuflw xmm4,xmm4,0x4e\nmovd DWORD PTR [rdi+rsi*1],xmm4\npunpckhqdq xmm4,xmm4\nmovd DWORD PTR [rdi+rsi*2],xmm4\npsrlq xmm4,0x20\nmovd DWORD PTR [rdi+rax*1],xmm4\nlea rdi,[rdi+rsi*4]\nadd r9,0x20\nsub r8d,0x4",
+    "saved": 2,
+    "why": "Load each input into xmm3 and use PABSW's independent destination to produce xmm4 or xmm5 before applying PSIGNW to xmm3. This removes one copy per input while preserving the exact sign and rounding operations."
+  },
+  "231680debe": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [r9]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x10]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovq QWORD PTR [rdi],xmm4\nmovhps QWORD PTR [rdi+rsi*1],xmm4\nmovdqa xmm3,XMMWORD PTR [r9+0x20]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x30]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovq QWORD PTR [rdi+rsi*2],xmm4\nmovhps QWORD PTR [rdi+rax*1],xmm4\nlea rdi,[rdi+rsi*4]\nadd r9,0x40\nsub r8d,0x4",
+    "saved": 4,
+    "why": "Load each of the four inputs into xmm3 and compute its absolute value into the output register before modifying xmm3 with PSIGNW. PABSW thereby replaces each separate register copy without changing the arithmetic or stores."
+  },
+  "0bd3505d68": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [r9]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x10]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovdqa XMMWORD PTR [rdi],xmm4\nmovdqa xmm3,XMMWORD PTR [r9+0x20]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x30]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovdqa XMMWORD PTR [rdi+rsi*1],xmm4\nlea rdi,[rdi+rsi*2]\nadd r9,0x40\nsub r8d,0x2",
+    "saved": 4,
+    "why": "PABSW can read each loaded input from xmm3 and write its absolute value directly to xmm4 or xmm5 before xmm3 is signed. This eliminates four copies while retaining all original arithmetic and memory effects."
+  },
+  "83d0430e23": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [r9]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x10]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovdqa XMMWORD PTR [rdi],xmm4\nmovdqa xmm3,XMMWORD PTR [r9+0x20]\npabsw xmm4,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm4,xmm2\npsignw xmm4,xmm3\npaddw xmm4,xmm0\nmovdqa xmm3,XMMWORD PTR [r9+0x30]\npabsw xmm5,xmm3\npsignw xmm3,xmm1\npmulhrsw xmm5,xmm2\npsignw xmm5,xmm3\npaddw xmm5,xmm0\npackuswb xmm4,xmm5\nmovdqa XMMWORD PTR [rdi+0x10],xmm4\nadd rdi,rsi\nadd r9,0x40\ndec r8d",
+    "saved": 4,
+    "why": "Loading into xmm3 lets PABSW generate each magnitude in xmm4 or xmm5 before PSIGNW modifies xmm3. The four explicit copies disappear, with the rounded products, signs, stores, and final flags unchanged."
+  },
+  "8cf5fcc829": {
+    "rewrite": null,
+    "why": "The reduction must preserve the full intermediate xmm1 value as well as the broadcast result, and the arbitrary coefficients prevent replacing its arithmetic or two-instruction word broadcast."
+  },
+  "0fcfedd78f": {
+    "rewrite": null,
+    "why": "Four separately indexed qword loads and both saturating byte dot products are needed before the live sum, store, accumulation, and pointer updates."
+  },
+  "d7ab92d999": {
+    "rewrite": null,
+    "why": "Each instruction performs a distinct required store, vector accumulation, pointer update, or counter update with matching flags."
+  },
+  "608ed36c4b": {
+    "rewrite": null,
+    "why": "Both output vectors require their separate loads and saturating dot products, followed by the required stores, accumulation, and scalar updates."
+  },
+  "5e1f7b003f": {
+    "rewrite": null,
+    "why": "The duplicated loads, separate saturating products, high-word replication, and all resulting state updates are needed for arbitrary xmm2 coefficients."
+  },
+  "a47cd112cc": {
+    "rewrite": null,
+    "why": "All four instructions independently contribute a required store, accumulation, pointer update, or counter and flag result."
+  },
+  "a95e7c3680": {
+    "rewrite": null,
+    "why": "Both live output vectors require independent saturating dot products, and every remaining instruction contributes a required store, accumulation, or scalar update."
+  },
+  "36c13f3f8a": {
+    "rewrite": "movddup xmm0,QWORD PTR [rsi]\nmovddup xmm1,QWORD PTR [rsi+rdx*1]\npmaddubsw xmm0,xmm2\npmaddubsw xmm1,xmm2\npaddw xmm0,xmm1\npshufhw xmm0,xmm0,0xff\nmovdqa XMMWORD PTR [rdi],xmm0\npaddw xmm4,xmm0\npshufd xmm6,xmm0,0xee\nmovdqa XMMWORD PTR [rdi+0x10],xmm6\npaddw xmm4,xmm6\nlea rsi,[rsi+rdx*2]\nadd rdi,0x20\ndec eax",
+    "saved": 2,
+    "why": "Replace the two identical copies into xmm6 and the following high-qword unpack with one PSHUFD using immediate 0xee. It produces the identical xmm6 value for both the store and accumulation."
+  },
+  "2ed1312509": {
+    "rewrite": null,
+    "why": "Broadcasting the highest word requires both existing shuffles under SSSE3 without a known shuffle mask, and the loads, arithmetic, stores, and updates are all needed."
+  },
+  "751ba5d504": {
+    "rewrite": null,
+    "why": "The full-width and duplicated-qword inputs need their separate saturating products, and both live outputs, stores, accumulation, and scalar updates remain necessary."
+  }
+}

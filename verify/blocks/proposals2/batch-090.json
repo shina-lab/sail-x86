@@ -1,0 +1,86 @@
+{
+  "d963ef0c5c": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdx-0x3]\nvmovdqu ymm2,YMMWORD PTR [rdx-0x1]\nvmovdqu ymm4,YMMWORD PTR [rdx+0x1]\nvmovdqu ymm6,YMMWORD PTR [rdx+0x3]\nvmovdqu ymm7,YMMWORD PTR [rdx+0x4]\nvpunpckhbw ymm12,ymm0,YMMWORD PTR [rdx-0x2]\nvpunpcklbw ymm0,ymm0,YMMWORD PTR [rdx-0x2]\nvpunpckhbw ymm1,ymm2,YMMWORD PTR [rdx]\nvpunpcklbw ymm2,ymm2,YMMWORD PTR [rdx]\nvpunpckhbw ymm3,ymm4,YMMWORD PTR [rdx+0x2]\nvpunpcklbw ymm4,ymm4,YMMWORD PTR [rdx+0x2]\nvpunpckhbw ymm5,ymm6,ymm7\nvpunpcklbw ymm6,ymm6,ymm7\nadd rdx,rcx\nvpmaddubsw ymm0,ymm0,ymm8\nvpmaddubsw ymm12,ymm12,ymm8\nvpmaddubsw ymm2,ymm2,ymm9\nvpmaddubsw ymm1,ymm1,ymm9\nvpmaddubsw ymm4,ymm4,ymm10\nvpmaddubsw ymm3,ymm3,ymm10\nvpmaddubsw ymm6,ymm6,ymm11\nvpmaddubsw ymm5,ymm5,ymm11\nvpaddw ymm0,ymm0,ymm4\nvpaddw ymm12,ymm12,ymm3\nvpaddw ymm2,ymm2,ymm6\nvpaddw ymm1,ymm1,ymm5\nvpaddsw ymm0,ymm0,ymm2\nvpaddsw ymm12,ymm12,ymm1\nvpmulhrsw ymm0,ymm13,ymm0\nvpmulhrsw ymm12,ymm12,ymm13\nvpackuswb ymm0,ymm0,ymm12\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 3,
+    "why": "Fold the initial loads into ymm1, ymm3, and ymm5 into the two unpack instructions that consume each value, since those registers are subsequently overwritten. Move the rdx increment after the unpack reads to preserve their original addresses and retain all final register and flag values."
+  },
+  "c4e9fc1dbc": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdx-0x3]\nvmovdqu ymm2,YMMWORD PTR [rdx-0x1]\nvmovdqu ymm4,YMMWORD PTR [rdx+0x1]\nvmovdqu ymm6,YMMWORD PTR [rdx+0x3]\nvmovdqu ymm7,YMMWORD PTR [rdx+0x4]\nvpunpckhbw ymm12,ymm0,YMMWORD PTR [rdx-0x2]\nvpunpcklbw ymm0,ymm0,YMMWORD PTR [rdx-0x2]\nvpunpckhbw ymm1,ymm2,YMMWORD PTR [rdx]\nvpunpcklbw ymm2,ymm2,YMMWORD PTR [rdx]\nvpunpckhbw ymm3,ymm4,YMMWORD PTR [rdx+0x2]\nvpunpcklbw ymm4,ymm4,YMMWORD PTR [rdx+0x2]\nvpunpckhbw ymm5,ymm6,ymm7\nvpunpcklbw ymm6,ymm6,ymm7\nadd rdx,rcx\nvpmaddubsw ymm0,ymm0,ymm8\nvpmaddubsw ymm12,ymm12,ymm8\nvpmaddubsw ymm2,ymm2,ymm9\nvpmaddubsw ymm1,ymm1,ymm9\nvpmaddubsw ymm4,ymm4,ymm10\nvpmaddubsw ymm3,ymm3,ymm10\nvpmaddubsw ymm6,ymm6,ymm11\nvpmaddubsw ymm5,ymm5,ymm11\nvpaddw ymm0,ymm0,ymm4\nvpaddw ymm12,ymm12,ymm3\nvpaddw ymm2,ymm2,ymm6\nvpaddw ymm1,ymm1,ymm5\nvpaddsw ymm0,ymm0,ymm2\nvpaddsw ymm12,ymm12,ymm1\nvpmulhrsw ymm0,ymm13,ymm0\nvpmulhrsw ymm12,ymm12,ymm13\nvpackuswb ymm0,ymm0,ymm12\nvpavgb ymm0,ymm0,YMMWORD PTR [rdi]\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 3,
+    "why": "Fold the three temporary loads into ymm1, ymm3, and ymm5 into their consuming unpack instructions, delaying the rdx increment until those reads finish. The unpack results, subsequent arithmetic, destination average, stores, and final flags remain identical."
+  },
+  "4abd26513c": {
+    "rewrite": null,
+    "why": "The arbitrary unpack and coefficient registers require the existing SSE2 widening, products, sums, saturation, and packing, while all final temporaries and pointer and flag results must be preserved."
+  },
+  "083a8559c5": {
+    "rewrite": null,
+    "why": "The SSE2 filter has no redundant arithmetic for arbitrary input registers, and folding the final qword load into PAVGB would widen the memory access and lose the required xmm1 value."
+  },
+  "5a2765210f": {
+    "rewrite": null,
+    "why": "The qword loads and byte interleaves feed necessary saturated dot products and rounded scaling, and folding those loads into legacy unpack memory operands would widen accesses and impose alignment requirements."
+  },
+  "696176e79d": {
+    "rewrite": null,
+    "why": "The filter already uses SSSE3 dot products and rounded multiplication, while the qword input and destination loads cannot be folded into wider legacy SIMD operands without changing memory accesses or required register results."
+  },
+  "8c61a2b734": {
+    "rewrite": null,
+    "why": "Both unpack halves and their intermediate results are needed, and folding the unaligned source loads into legacy SSE unpack operands would introduce alignment requirements absent from MOVDQU."
+  },
+  "9e07fb49dc": {
+    "rewrite": null,
+    "why": "The required unpack halves, arithmetic results, and destination average leave no removable operation, and legacy SSE unpack memory operands cannot safely replace the unaligned MOVDQU source loads."
+  },
+  "a2848ded3e": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdx]\nvmovdqu ymm2,YMMWORD PTR [rdx+rcx*2]\nvmovdqu ymm4,YMMWORD PTR [rax]\nvmovdqu ymm6,YMMWORD PTR [rax+rcx*2]\nvmovdqu ymm7,YMMWORD PTR [rax+r10*1]\nvpunpckhbw ymm12,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpcklbw ymm0,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpckhbw ymm1,ymm2,YMMWORD PTR [rdx+r10*1]\nvpunpcklbw ymm2,ymm2,YMMWORD PTR [rdx+r10*1]\nvpunpckhbw ymm3,ymm4,YMMWORD PTR [rax+rcx*1]\nvpunpcklbw ymm4,ymm4,YMMWORD PTR [rax+rcx*1]\nvpunpckhbw ymm5,ymm6,ymm7\nvpunpcklbw ymm6,ymm6,ymm7\nadd rdx,rcx\nadd rax,rcx\nvpmaddubsw ymm0,ymm0,ymm8\nvpmaddubsw ymm12,ymm12,ymm8\nvpmaddubsw ymm2,ymm2,ymm9\nvpmaddubsw ymm1,ymm1,ymm9\nvpmaddubsw ymm4,ymm4,ymm10\nvpmaddubsw ymm3,ymm3,ymm10\nvpmaddubsw ymm6,ymm6,ymm11\nvpmaddubsw ymm5,ymm5,ymm11\nvpaddw ymm0,ymm0,ymm4\nvpaddw ymm12,ymm12,ymm3\nvpaddw ymm2,ymm2,ymm6\nvpaddw ymm1,ymm1,ymm5\nvpaddsw ymm0,ymm0,ymm2\nvpaddsw ymm12,ymm12,ymm1\nvpmulhrsw ymm0,ymm13,ymm0\nvpmulhrsw ymm12,ymm12,ymm13\nvpackuswb ymm0,ymm0,ymm12\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 3,
+    "why": "Replace the initial loads into ymm1, ymm3, and ymm5 with memory operands on both unpack instructions that use each value. Delay the rdx and rax increments until those reads finish, preserving the original address expressions and every final register, store, and flag result."
+  },
+  "2bae78dd5f": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdx]\nvmovdqu ymm2,YMMWORD PTR [rdx+rcx*2]\nvmovdqu ymm4,YMMWORD PTR [rax]\nvmovdqu ymm6,YMMWORD PTR [rax+rcx*2]\nvmovdqu ymm7,YMMWORD PTR [rax+r10*1]\nvpunpckhbw ymm12,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpcklbw ymm0,ymm0,YMMWORD PTR [rdx+rcx*1]\nvpunpckhbw ymm1,ymm2,YMMWORD PTR [rdx+r10*1]\nvpunpcklbw ymm2,ymm2,YMMWORD PTR [rdx+r10*1]\nvpunpckhbw ymm3,ymm4,YMMWORD PTR [rax+rcx*1]\nvpunpcklbw ymm4,ymm4,YMMWORD PTR [rax+rcx*1]\nvpunpckhbw ymm5,ymm6,ymm7\nvpunpcklbw ymm6,ymm6,ymm7\nadd rdx,rcx\nadd rax,rcx\nvpmaddubsw ymm0,ymm0,ymm8\nvpmaddubsw ymm12,ymm12,ymm8\nvpmaddubsw ymm2,ymm2,ymm9\nvpmaddubsw ymm1,ymm1,ymm9\nvpmaddubsw ymm4,ymm4,ymm10\nvpmaddubsw ymm3,ymm3,ymm10\nvpmaddubsw ymm6,ymm6,ymm11\nvpmaddubsw ymm5,ymm5,ymm11\nvpaddw ymm0,ymm0,ymm4\nvpaddw ymm12,ymm12,ymm3\nvpaddw ymm2,ymm2,ymm6\nvpaddw ymm1,ymm1,ymm5\nvpaddsw ymm0,ymm0,ymm2\nvpaddsw ymm12,ymm12,ymm1\nvpmulhrsw ymm0,ymm13,ymm0\nvpmulhrsw ymm12,ymm12,ymm13\nvpackuswb ymm0,ymm0,ymm12\nvpavgb ymm0,ymm0,YMMWORD PTR [rdi]\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 3,
+    "why": "Fold the three temporary loads into ymm1, ymm3, and ymm5 into their consuming unpack instructions and move the source pointer increments after these reads. All unpack results and the remaining arithmetic, destination average, stores, and final flags are unchanged."
+  },
+  "d22f50418e": {
+    "rewrite": null,
+    "why": "Four required 128-bit loads and stores plus two pointer updates and the flag-producing counter subtraction are already minimal for SSE2 with all registers preserved."
+  },
+  "d5f1ec231b": {
+    "rewrite": null,
+    "why": "Each of the four live XMM values needs its load and store, and the two pointer updates and counter subtraction are independently required."
+  },
+  "188e456d10": {
+    "rewrite": null,
+    "why": "SSE2 requires eight vector loads and eight stores for these eight live XMM results, with no redundant pointer or counter update."
+  },
+  "6c7f4bf723": {
+    "rewrite": null,
+    "why": "Each live vector already uses one source load, one memory-source byte average, and one store, followed by required pointer and counter updates."
+  },
+  "222e8b66ee": {
+    "rewrite": null,
+    "why": "The four byte averages already fold their destination reads into PAVGB, leaving only necessary source loads, stores, and scalar updates."
+  },
+  "c231eda372": {
+    "rewrite": null,
+    "why": "The four live YMM values each require a 256-bit load and store, and AVX offers no instruction that combines the remaining independent pointer and counter updates."
+  },
+  "ade3a90dd6": {
+    "rewrite": null,
+    "why": "Four AVX loads and four stores already cover the 128-byte copy at the maximum permitted width, with both pointer updates and the counter subtraction required."
+  },
+  "38e4b62bdb": {
+    "rewrite": null,
+    "why": "Each 256-bit result already uses a source load, a memory-source VPAVGB, and a store, and all scalar updates and final vector values must remain."
+  },
+  "0dd94893b3": {
+    "rewrite": null,
+    "why": "The four word averages already fold destination reads into PAVGW, so the remaining source loads, stores, and pointer and counter updates are all necessary."
+  },
+  "0665ecbaf0": {
+    "rewrite": null,
+    "why": "Each required XMM result is computed with one load and one memory-source PAVGW before its store, leaving no redundant operation among the required scalar updates."
+  }
+}

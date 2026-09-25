@@ -1,0 +1,87 @@
+{
+  "18095e1005": {
+    "rewrite": null,
+    "why": "The loads use fixed addresses, and the two-operand comparisons and masking operations must preserve both transformed vectors and all four live mask registers."
+  },
+  "a834f455d9": {
+    "rewrite": null,
+    "why": "The R10 update, loaded and shifted XMM0, null-byte index in RCX, and final CF/ZF each require the existing operations."
+  },
+  "130e5b6818": {
+    "rewrite": null,
+    "why": "The shifted vector, comparison masks, transformed bytes, and both shifted scalar results are live, so the two-operand copies and subsequent operations cannot be dropped."
+  },
+  "42562a04d5": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0x2\nlea r10,[rdi+0x2]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000, replacing the AND and SUB with one OR. No flags must match."
+  },
+  "52e5cc6c89": {
+    "rewrite": null,
+    "why": "The loads use fixed addresses, and the two-operand comparisons and masking operations must preserve both transformed vectors and all four live mask registers."
+  },
+  "7c89fd86fe": {
+    "rewrite": null,
+    "why": "The R10 update, loaded and shifted XMM0, null-byte index in RCX, and final CF/ZF each require the existing operations."
+  },
+  "0367a4c6d5": {
+    "rewrite": null,
+    "why": "The shifted vector, comparison masks, transformed bytes, and both shifted scalar results are live, so the two-operand copies and subsequent operations cannot be dropped."
+  },
+  "6f722c90d5": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0x3\nlea r10,[rdi+0x3]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000, replacing the AND and SUB with one OR. No flags must match."
+  },
+  "9d6b9bcaab": {
+    "rewrite": null,
+    "why": "The loads use fixed addresses, and the two-operand comparisons and masking operations must preserve both transformed vectors and all four live mask registers."
+  },
+  "7a37f8cf7a": {
+    "rewrite": null,
+    "why": "The R10 update, loaded and shifted XMM0, null-byte index in RCX, and final CF/ZF each require the existing operations."
+  },
+  "06f28b75ff": {
+    "rewrite": null,
+    "why": "The shifted vector, comparison masks, transformed bytes, and both shifted scalar results are live, so the two-operand copies and subsequent operations cannot be dropped."
+  },
+  "5a7538e66b": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0x4\nlea r10,[rdi+0x4]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000, replacing the AND and SUB with one OR. No flags must match."
+  },
+  "64ca81081f": {
+    "rewrite": null,
+    "why": "The loads use fixed addresses, and the two-operand comparisons and masking operations must preserve both transformed vectors and all four live mask registers."
+  },
+  "797f0eeaed": {
+    "rewrite": null,
+    "why": "The R10 update, loaded and shifted XMM0, null-byte index in RCX, and final CF/ZF each require the existing operations."
+  },
+  "574e0dbf03": {
+    "rewrite": null,
+    "why": "The shifted vector, comparison masks, transformed bytes, and both shifted scalar results are live, so the two-operand copies and subsequent operations cannot be dropped."
+  },
+  "970e2ccaa9": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0x5\nlea r10,[rdi+0x5]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000, replacing the AND and SUB with one OR. No flags must match."
+  },
+  "b99234d3af": {
+    "rewrite": null,
+    "why": "The loads use fixed addresses, and the two-operand comparisons and masking operations must preserve both transformed vectors and all four live mask registers."
+  },
+  "43d080c099": {
+    "rewrite": null,
+    "why": "The R10 update, loaded and shifted XMM0, null-byte index in RCX, and final CF/ZF each require the existing operations."
+  },
+  "e287d68d83": {
+    "rewrite": null,
+    "why": "The shifted vector, comparison masks, transformed bytes, and both shifted scalar results are live, so the two-operand copies and subsequent operations cannot be dropped."
+  },
+  "4ab63ce92a": {
+    "rewrite": "movdqa xmm3,XMMWORD PTR [rdi]\nmov rcx,0x10\nmov r9d,0x6\nlea r10,[rdi+0x6]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For every 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000, replacing the AND and SUB with one OR. No flags must match."
+  }
+}

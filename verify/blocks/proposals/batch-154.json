@@ -1,0 +1,86 @@
+{
+  "8ea34e4717": {
+    "rewrite": null,
+    "why": "The SSSE3 shuffle/multiply chain and both final data arrangements are needed for the live vectors and required store."
+  },
+  "a094bbc26c": {
+    "rewrite": null,
+    "why": "The SSSE3 shuffle/multiply chain and both final data arrangements are needed for the live vectors and required store."
+  },
+  "7a97beba39": {
+    "rewrite": null,
+    "why": "The filter, alignment, memory operations, address updates, and flag-producing subtraction all contribute to required final state."
+  },
+  "31d7e1bdd1": {
+    "rewrite": null,
+    "why": "Both rounded scalar multiplications, the saturation and broadcast, and the retained constant and scalar updates are required."
+  },
+  "c48392de0e": {
+    "rewrite": null,
+    "why": "The independently addressed loads and stores require both saturating operations, and the address and flag-producing counter updates are live."
+  },
+  "ca94085c07": {
+    "rewrite": "vpermq ymm0,YMMWORD PTR [rdx],0xd8\nvpermq ymm1,YMMWORD PTR [rdx+0x20],0xd8\nvpbroadcastd ymm5,DWORD PTR [CONST_1]\nvbroadcasti128 ymm2,XMMWORD PTR [CONST_2]\nvpmulld ymm3,ymm0,ymm2\nvpmulld ymm2,ymm2,ymm1\nvbroadcasti128 ymm4,XMMWORD PTR [CONST_3]\nvpmulld ymm0,ymm0,ymm4\nvpmulld ymm1,ymm1,ymm4\nvpaddd ymm3,ymm3,ymm5\nvpaddd ymm1,ymm1,ymm3\nvpaddd ymm0,ymm0,ymm5\nvpsubd ymm0,ymm0,ymm2\nvpsrad ymm1,ymm1,0xc\nvpsrad ymm0,ymm0,0xc\nvpunpckhqdq ymm2,ymm1,ymm0\nvpunpcklqdq ymm1,ymm1,ymm0\nvpaddd ymm0,ymm1,ymm2",
+    "saved": 1,
+    "why": "The final subtraction writes only unpreserved ymm1 after the required ymm0 result has been computed."
+  },
+  "9272e57d68": {
+    "rewrite": null,
+    "why": "The rounded second vector and shifted shuffle mask are live alongside the packed result, so the rounding and rearrangement stages remain necessary."
+  },
+  "6c714cc7cb": {
+    "rewrite": "vpbroadcastd xmm0,DWORD PTR [CONST_3]",
+    "saved": 25,
+    "why": "The only preserved vector is ymm0, whose final value is the CONST_3 broadcast with its upper half zeroed by the VEX instruction. All other vector calculations and loads are dead."
+  },
+  "ed8e236dcd": {
+    "rewrite": null,
+    "why": "The full-width products and rounding feed live vectors, while both shuffle stages and the final mask value must be preserved."
+  },
+  "00958c8134": {
+    "rewrite": null,
+    "why": "Both permutation tables and both permuted vectors are required, and AVX2 VPERMD cannot take its index vector from memory."
+  },
+  "5bb019f142": {
+    "rewrite": null,
+    "why": "The split rounding that avoids overflow, cross-lane permutations, and 18-bit clamps are required along with the preserved intermediate vectors and constants."
+  },
+  "8e2594c447": {
+    "rewrite": null,
+    "why": "The full 32-bit modular products, rounded corrections, and original permuted data are all needed by preserved final registers."
+  },
+  "ffa13a7bca": {
+    "rewrite": null,
+    "why": "Each live result requires its multiply, rounding add, and arithmetic shift, with both broadcast constants also live."
+  },
+  "2e4ed281e0": {
+    "rewrite": null,
+    "why": "The store, counter-bit update, constant broadcast, and two multiplications with intervening rounding all produce required state."
+  },
+  "827d3b2e44": {
+    "rewrite": "vpbroadcastd ymm4,DWORD PTR [CONST_1]\nvpmulld ymm0,ymm4,YMMWORD PTR [rdx]\nvpmulld ymm1,ymm4,YMMWORD PTR [rdx+0x20]\nvpmulld ymm2,ymm4,YMMWORD PTR [rdx+0x40]\nvpmulld ymm3,ymm4,YMMWORD PTR [rdx+0x60]\nvpbroadcastd ymm7,DWORD PTR [CONST_2]\nvpaddd ymm0,ymm0,ymm7\nvpaddd ymm1,ymm1,ymm7\nvpaddd ymm2,ymm2,ymm7\nvpaddd ymm3,ymm3,ymm7\nvpsrad ymm0,ymm0,0xc\nvpsrad ymm1,ymm1,0xc\nvpsrad ymm2,ymm2,0xc\nvpsrad ymm3,ymm3,0xc\nvpmulld ymm0,ymm0,ymm4\nvpmulld ymm2,ymm2,ymm4\nvpaddd ymm0,ymm0,ymm7\nvpbroadcastd ymm4,DWORD PTR [CONST_3]\nvpmulld ymm5,ymm1,ymm4\nvpmulld ymm4,ymm4,ymm3\nvpbroadcastd ymm6,DWORD PTR [CONST_4]\nvpmulld ymm1,ymm1,ymm6\nvpmulld ymm3,ymm3,ymm6\nvpaddd ymm5,ymm5,ymm7\nvpaddd ymm3,ymm3,ymm5\nvpaddd ymm1,ymm1,ymm7\nvpsubd ymm1,ymm1,ymm4\nvpsrad ymm3,ymm3,0xc\nvpsrad ymm1,ymm1,0xc\nvpaddd ymm4,ymm0,ymm2\nvpsubd ymm0,ymm0,ymm2\nvpsrad ymm4,ymm4,0xc\nvpsrad ymm0,ymm0,0xc\nvpsubd ymm2,ymm0,ymm1\nvpaddd ymm1,ymm1,ymm0\nvpaddd ymm0,ymm4,ymm3\nvpsubd ymm3,ymm4,ymm3",
+    "saved": 1,
+    "why": "Keep the initial CONST_1 broadcast in ymm4 and perform the second multiplications of ymm0 and ymm2 before reusing that register. This removes the repeated broadcast while preserving every final vector."
+  },
+  "e3c2f925b4": {
+    "rewrite": null,
+    "why": "All four interleaves and both upper-half extractions contribute to distinct live outputs, including the required zero upper halves."
+  },
+  "8795fae976": {
+    "rewrite": null,
+    "why": "Four live vectors each need a rounding add and shift, and the shared rounding constant is also live."
+  },
+  "7a38c37604": {
+    "rewrite": "",
+    "saved": 8,
+    "why": "Every instruction writes only unpreserved vector registers, with no stores or required flag changes, so the entire block is dead."
+  },
+  "43333a944f": {
+    "rewrite": null,
+    "why": "The four independent sums and their shared broadcast constant are all live outputs."
+  },
+  "228c157995": {
+    "rewrite": null,
+    "why": "Both multiply/add/shift stages are required for arbitrary 32-bit inputs because the intervening rounding and modular overflow prevent combining them."
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "d4935ed581": {
+    "rewrite": null,
+    "why": "The multiplication, carry-dependent additions, loads, pointer updates, and final ZF-producing test each contribute a required result."
+  },
+  "6d51c24917": {
+    "rewrite": "mov QWORD PTR [rdi+0x8],r11\nadc r13,r10\nadc rbx,r12\nmulx r8,r10,QWORD PTR [rsi]\nadc rbp,rax\nadd rbp,r10\nmov rdx,QWORD PTR [r15]\nmulx r12,r9,QWORD PTR [rsi-0x18]\nmulx rax,r14,QWORD PTR [rsi-0x10]\nadd r14,r12\nadc rax,0x0\nadc r13,r9\nmov QWORD PTR [rdi+0x10],r13\nadc rbx,r14\nmulx r8,r10,QWORD PTR [rsi-0x8]\nadc rbp,rax\nadd rbp,r10\nmov rdx,QWORD PTR [r15+0x8]\nmulx rax,r14,QWORD PTR [rsi-0x18]\nadd rbx,r14\nmov QWORD PTR [rdi+0x18],rbx\nmulx r8,r10,QWORD PTR [rsi-0x10]\nadc rbp,rax\nadd rbp,r10\nmov QWORD PTR [rdi+0x20],rbp",
+    "saved": 1,
+    "why": "Fold the load through r8 into MULX's memory operand. That temporary r8 value is otherwise unused, and MULX preserves the carry chain."
+  },
+  "d5e6364847": {
+    "rewrite": null,
+    "why": "MULX and every ADC produce a live limb or carry, and the final addition supplies both rcx and the required SF."
+  },
+  "7c99c93be6": {
+    "rewrite": null,
+    "why": "Four carry-linked memory updates and a live r14 increment are required, with INC preserving the outgoing CF."
+  },
+  "1654091210": {
+    "rewrite": null,
+    "why": "All four arithmetic instructions update different live registers, and the final subtraction supplies the required flags."
+  },
+  "b662a25008": {
+    "rewrite": "movd xmm4,ecx\nneg ecx\nlea eax,[rcx+0x40]\nmovd xmm5,eax\nmov rax,QWORD PTR [rsi]\nshl rax,cl\ncmp rdx,0x3",
+    "saved": 1,
+    "why": "Reuse the negated ecx to compute 64 minus the original ecx modulo 32 bits with LEA. This preserves both vector counts, the scalar shift count, and the final comparison flags."
+  },
+  "dfd72a3ad8": {
+    "rewrite": null,
+    "why": "The independent SSE2 shift counts require separate shifts and an OR, while the loads, store, pointer updates, and decrement are all needed."
+  },
+  "f82c3588aa": {
+    "rewrite": null,
+    "why": "SSE2 requires both loads, two independently counted lane shifts, an OR, and the store."
+  },
+  "af30d0b97b": {
+    "rewrite": null,
+    "why": "SSE2 requires both loads, two independently counted lane shifts, an OR, and the store."
+  },
+  "aa41aa519a": {
+    "rewrite": null,
+    "why": "SSE2 requires both loads, two independently counted lane shifts, an OR, and the store."
+  },
+  "a669d6e8d4": {
+    "rewrite": null,
+    "why": "The two loads, independent shifts, OR, and store are required, as is the final rdx update that supplies SF and OF."
+  },
+  "dc12ea91c2": {
+    "rewrite": null,
+    "why": "Both loads, the independently counted shifts, their OR, and the store are needed to produce the stored 128-bit result and live xmm0."
+  },
+  "d0e39a3b56": {
+    "rewrite": null,
+    "why": "The independent shift counts require both loads, both shifts, and the OR; the store and edx decrement with its ZF are also required."
+  },
+  "b607ce477d": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rsi+0x8]\nmovq xmm0,QWORD PTR [rsi+0x10]\npsrlq xmm1,xmm4\npsllq xmm0,xmm5\npor xmm0,xmm1\nmovq QWORD PTR [rdi+0x8],xmm0\npsrldq xmm0,0x8\nmovq QWORD PTR [rdi+0x10],xmm0",
+    "saved": 1,
+    "why": "Load both source limbs together and shift them right in parallel, using only bytes the original loads. Extract the already-shifted upper limb for the second store and final xmm0 value, replacing a reload and shift with one PSRLDQ."
+  },
+  "e99ee61e0b": {
+    "rewrite": null,
+    "why": "The shift carry and subtraction borrow are separate required outputs, and the loads, arithmetic, store, and three pointer updates are all needed."
+  },
+  "d767632516": {
+    "rewrite": null,
+    "why": "Both shifted limbs and subtractions participate in carry chains, while the carry masks, stores, and pointer updates are required outputs."
+  },
+  "d774c25ad2": {
+    "rewrite": null,
+    "why": "All three shifted limbs and subtractions participate in carry chains, while the carry masks, stores, and pointer updates are required outputs."
+  },
+  "54d5666727": {
+    "rewrite": null,
+    "why": "Both incoming carry seeds, all four shifted-limb subtractions and stores, both carry masks, and all pointer updates are required."
+  },
+  "fc1c1c5454": {
+    "rewrite": "xor r11d,r11d\nmov eax,edx\nxchg rcx,rdx\nshr rcx,0x3\nand eax,0x7",
+    "saved": 2,
+    "why": "Replace the three-move register exchange through dead r10 with XCHG, saving the original edx in eax first. The final AND produces exactly the original required flags."
+  },
+  "0e2db91934": {
+    "rewrite": null,
+    "why": "MULX, the three pointer or counter updates, and ADC each produce required register values or the final CF."
+  }
+}

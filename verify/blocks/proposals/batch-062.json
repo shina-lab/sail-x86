@@ -1,0 +1,94 @@
+{
+  "e1ecec51e0": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nvmovdqu ymm8,YMMWORD PTR [CONST_2]\nmov r11d,0x4001000\nvmovq xmm6,r11\nvbroadcastss ymm6,xmm6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 1,
+    "why": "YMM9 is neither used by the block nor required as a final output, so its zeroing can be removed."
+  },
+  "f5d57cdc89": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nmov r11d,0x10004000\nvmovq xmm6,r11\nvbroadcastss ymm6,xmm6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 1,
+    "why": "YMM9 is neither used by the block nor required as a final output, so its zeroing can be removed."
+  },
+  "ce50dacffe": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nvmovdqu ymm8,YMMWORD PTR [CONST_2]\nmov r11d,0x10004000\nvmovq xmm6,r11\nvbroadcastss ymm6,xmm6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 1,
+    "why": "YMM9 is neither used by the block nor required as a final output, so its zeroing can be removed."
+  },
+  "0898e7bfe9": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nvpbroadcastw ymm6,xmm7\nvpsllw ymm6,ymm6,0x6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 2,
+    "why": "YMM9 is dead, and broadcasting XMM7's known low word 0x0100 then shifting each word left by six produces the required 0x40004000 dwords with one fewer instruction."
+  },
+  "76c038b02d": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvmovdqu ymm7,YMMWORD PTR [CONST_1]\nvmovdqu ymm8,YMMWORD PTR [CONST_2]\nvpbroadcastw ymm6,xmm7\nvpsllw ymm6,ymm6,0x6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 2,
+    "why": "YMM9 is dead, and broadcasting XMM7's known low word 0x0100 then shifting each word left by six produces the required 0x40004000 dwords with one fewer instruction."
+  },
+  "c5053d7158": {
+    "rewrite": "vbroadcastss ymm10,DWORD PTR [r8+0xc]\nvbroadcastss ymm11,DWORD PTR [r8+0x10]\nvbroadcastss ymm12,DWORD PTR [r8+0x14]\nvbroadcastss ymm13,DWORD PTR [r8+0x18]\nvbroadcastss ymm14,DWORD PTR [r8+0x1c]\nvbroadcastss ymm15,DWORD PTR [r8+0x20]\nvpxor ymm9,ymm9,ymm9\nvmovdqu ymm8,YMMWORD PTR [CONST_1]\nvmovdqu ymm7,YMMWORD PTR [CONST_2]\nvpbroadcastw ymm6,xmm7\nvpsllw ymm6,ymm6,0x6\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 1,
+    "why": "Broadcasting XMM7's known low word 0x0100 and shifting each word left by six creates the required YMM6 constant in two instructions instead of three."
+  },
+  "ae3fb8fb54": {
+    "rewrite": null,
+    "why": "AVX2 requires separate byte widening, word scaling, store, index update, and comparison to retain all required outputs."
+  },
+  "e89ade23f5": {
+    "rewrite": null,
+    "why": "The AVX2 immediate word shift cannot fold the data load, and the store, 64-bit index update, and 32-bit comparison are all required."
+  },
+  "64505d6909": {
+    "rewrite": "vmovdqu ymm7,YMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi+0x18]\nxor r9,r9",
+    "saved": 1,
+    "why": "YMM9 is neither used by the block nor required as a final output, so its zeroing can be removed."
+  },
+  "f961081d03": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask, word shift, store, index update, and comparison all contribute to required outputs, and AVX2 cannot fold this data load into the shuffle."
+  },
+  "82ad6be5fd": {
+    "rewrite": null,
+    "why": "The AVX2 immediate word shift cannot fold the data load, and the store, 64-bit index update, and 32-bit comparison are all required."
+  },
+  "565ff2a012": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask, word shift, store, index update, and comparison all contribute to required outputs, and AVX2 cannot fold this data load into the shuffle."
+  },
+  "dbde090acb": {
+    "rewrite": null,
+    "why": "The vector load and store, full-width index update, and flag-producing comparison are all required."
+  },
+  "362bf61d5c": {
+    "rewrite": null,
+    "why": "The arbitrary byte shuffle needs a separate data load in AVX2, and the store, index update, and comparison remain necessary."
+  },
+  "72c71b3fa1": {
+    "rewrite": null,
+    "why": "Both constant vectors, the zero vector, the pointer load, and the zeroed index are all live outputs."
+  },
+  "a9528fbb73": {
+    "rewrite": "lea r9d,[rcx*8+0x0]\nand r9d,0x8\nadd r9,QWORD PTR [rsi+0x10]\nmovzx r8d,WORD PTR [rsi+0x18]\ntest r8w,r8w",
+    "saved": 2,
+    "why": "LEA and a mask compute 8*(ECX&1) directly in R9, allowing the pointer load to fold into ADD. MOVZX reproduces the original zero-extended R8, and TEST preserves SF."
+  },
+  "3b7c5b53be": {
+    "rewrite": "imul r9d,ecx,0x10\nand r9d,0x30\nadd r9,QWORD PTR [rsi+0x10]\nmovzx r8d,WORD PTR [rsi+0x18]\ntest r8w,r8w",
+    "saved": 2,
+    "why": "IMUL and a mask compute 16*(ECX&3) directly in R9, allowing the pointer load to fold into ADD. MOVZX reproduces the original zero-extended R8, and TEST preserves SF."
+  },
+  "b68b75ac55": {
+    "rewrite": "imul r9d,ecx,0x20\nand r9d,0xe0\nadd r9,QWORD PTR [rsi+0x10]\nmovzx r8d,WORD PTR [rsi+0x18]\ntest r8w,r8w",
+    "saved": 2,
+    "why": "IMUL and a mask compute 32*(ECX&7) directly in R9, allowing the pointer load to fold into ADD. MOVZX reproduces the original zero-extended R8, and TEST preserves SF."
+  },
+  "1511fda798": {
+    "rewrite": "imul r9d,ecx,0x40\nand r9d,0x3c0\nadd r9,QWORD PTR [rsi+0x10]\nmovzx r8d,WORD PTR [rsi+0x18]\ntest r8w,r8w",
+    "saved": 2,
+    "why": "IMUL and a mask compute 64*(ECX&15) directly in R9, allowing the pointer load to fold into ADD. MOVZX reproduces the original zero-extended R8, and TEST preserves SF."
+  },
+  "2a2c11acbe": {
+    "rewrite": "mov r8d,edx\nand r8d,0x1\nlea r9d,[r8+rcx*2]\nand r9d,0x3f\nshl r9d,0x6\nadd r9,QWORD PTR [rsi+0x10]\nmovzx r8d,WORD PTR [rsi+0x18]\ntest r8w,r8w",
+    "saved": 3,
+    "why": "Packing (ECX&31) and (EDX&1) into one six-bit value yields the combined offset with one shift, and ADD folds the pointer load. MOVZX and TEST reproduce R8 and SF."
+  }
+}

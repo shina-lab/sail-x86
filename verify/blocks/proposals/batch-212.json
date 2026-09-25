@@ -1,0 +1,87 @@
+{
+  "9412197d9b": {
+    "rewrite": "vmovq xmm11,rax\nvpmovsxbw xmm11,xmm11\nvpshufd xmm8,xmm11,0x44\nvpshufd xmm9,xmm11,0xee\nvpunpckldq xmm5,xmm3,xmm0\nvpunpckldq xmm6,xmm2,xmm4\nvpmaddwd xmm5,xmm5,xmm8\nvpmaddwd xmm6,xmm6,xmm9\nvpaddd xmm5,xmm5,xmm6\nvphaddd xmm5,xmm5,xmm5\nvpaddd xmm5,xmm13,xmm5\nvpsrad xmm5,xmm5,0xa\nvpackssdw xmm5,xmm5,xmm5\nvpackuswb xmm5,xmm5,xmm5\nvpextrw WORD PTR [rdi],xmm5,0x0\nadd rdi,rsi\ndec r9d",
+    "saved": 3,
+    "why": "Only the first two output pixels are stored, so interleaving their input dwords allows two VPMADDWD instructions and a horizontal sum to replace four separate products and their reduction. The bias, saturation, store, and counter update remain equivalent."
+  },
+  "f9a0668343": {
+    "rewrite": null,
+    "why": "The row-history shuffles, saturated filter, and duplicated low qword all contribute to preserved vector outputs."
+  },
+  "376603d4aa": {
+    "rewrite": null,
+    "why": "Both register copies are live outputs, and the remaining filter and lane-rearrangement operations construct the preserved vectors."
+  },
+  "9cac5c02b3": {
+    "rewrite": null,
+    "why": "Zero-extending AL is necessary for the preserved YMM15 value, while the decrement and packed multiply-add each produce required outputs."
+  },
+  "17f472d263": {
+    "rewrite": null,
+    "why": "The vector updates and all four scalar extractions are live, and the broadcast, mask, shift, and addition perform distinct required operations."
+  },
+  "db11acd2ad": {
+    "rewrite": null,
+    "why": "The comparison, shift, and two loads each produce an independently preserved vector value."
+  },
+  "128938e965": {
+    "rewrite": "vmovq xmm10,rax\nvpunpcklwd xmm10,xmm10,xmm10\nvpmovsxbw ymm10,xmm10\nvpshufd ymm7,ymm10,0x0\nvpshufd ymm8,ymm10,0xaa\nvinserti128 ymm4,ymm0,xmm2,0x1\nvinserti128 ymm5,ymm1,xmm3,0x1\nvpmaddwd ymm4,ymm4,ymm7\nvpmaddwd ymm5,ymm5,ymm8\nvpaddd ymm4,ymm4,ymm5\nvextracti128 xmm5,ymm4,0x1\nvpaddd xmm4,xmm4,xmm5\nvpaddd xmm4,xmm13,xmm4\nvpsrad xmm4,xmm4,0xa\nvpackssdw xmm4,xmm4,xmm4\nvpackuswb xmm4,xmm4,xmm4\nvmovd DWORD PTR [rdi],xmm4\nadd rdi,rsi\ndec r9d",
+    "saved": 1,
+    "why": "Duplicating packed coefficient pairs before sign extension creates two lane-specific YMM coefficient vectors with fewer preparation instructions. Two YMM products and a cross-lane sum reproduce all four original output dwords."
+  },
+  "2d9ff94f08": {
+    "rewrite": null,
+    "why": "The loaded lanes, coefficient blends, filter stages, and final lane rearrangements all feed required outputs without a removable copy."
+  },
+  "cffca2c310": {
+    "rewrite": null,
+    "why": "The filter stages, row-history copies, saturation, and two distinct stores all contribute to required outputs."
+  },
+  "184e396f70": {
+    "rewrite": null,
+    "why": "The four scalar extractions and permuted YMM8 result are all preserved, so the broadcast and vector arithmetic have no dead result."
+  },
+  "980c69b453": {
+    "rewrite": null,
+    "why": "The coefficient replication and lane permutations are needed for the preserved YMM results, and the saturated filtering stages have no removable intermediate."
+  },
+  "940042912c": {
+    "rewrite": null,
+    "why": "The row-history copies are live, and the filtering, cross-lane packing, and word permutation are needed for the two output stores."
+  },
+  "e364ea5854": {
+    "rewrite": null,
+    "why": "The independent lane blends, coefficient broadcasts, and output interleaves each supply required parts of the preserved vectors."
+  },
+  "0b094f52f5": {
+    "rewrite": "vmovq xmm6,QWORD PTR [rdx]\nvmovq xmm7,QWORD PTR [rdx+rcx*1]\nvmovhps xmm6,xmm6,QWORD PTR [rdx+rcx*2]\nvmovhps xmm7,xmm7,QWORD PTR [rdx+rbp*1]\nlea rdx,[rdx+rcx*4]\nvpmaddwd xmm4,xmm8,xmm3\nvpmaddwd xmm5,xmm9,xmm2\nvinserti128 ymm6,ymm6,xmm7,0x1\nvpshufb ymm6,ymm6,ymm14\nvpmaddubsw ymm6,ymm6,ymm15\nvphaddw ymm6,ymm6,ymm6\nvpmulhrsw ymm6,ymm12,ymm6\nvpalignr ymm0,ymm6,ymm0,0x8\nvpshufd ymm2,ymm0,0xe9\nvextracti128 xmm1,ymm2,0x1\nvpunpcklwd xmm3,xmm2,xmm1\nvpunpckhwd xmm2,xmm2,xmm1\nvpmaddwd xmm6,xmm10,xmm3\nvpmaddwd xmm7,xmm11,xmm2\nvpaddd xmm4,xmm4,xmm5\nvpaddd xmm4,xmm13,xmm4\nvpaddd xmm6,xmm6,xmm7\nvpaddd xmm4,xmm4,xmm6\nvpsrad xmm4,xmm4,0xa\nvpackssdw xmm4,xmm4,xmm4\nvpackuswb xmm4,xmm4,xmm4\nvpextrw WORD PTR [rdi],xmm4,0x0\nvpextrw WORD PTR [rdi+rsi*1],xmm4,0x1\nlea rdi,[rdi+rsi*2]\nsub r9d,0x2",
+    "saved": 1,
+    "why": "Assemble the four loaded qwords as two XMM pairs and join them with one VINSERTI128, replacing the two broadcasts and two blends with three instructions. All load addresses, sizes, and their order remain unchanged."
+  },
+  "675a5df643": {
+    "rewrite": null,
+    "why": "All four scalar extractions and both updated YMM values are live, leaving no redundant broadcast or arithmetic instruction."
+  },
+  "0128931057": {
+    "rewrite": null,
+    "why": "The comparison, shift, and two independent loads each directly produce a required final vector."
+  },
+  "03d81dc8e3": {
+    "rewrite": null,
+    "why": "The coefficient replication, filtering, and lane assembly all feed preserved full-width vectors, including the zeroed upper halves from XMM operations."
+  },
+  "890ecb4237": {
+    "rewrite": "vmovdqu xmm6,XMMWORD PTR [rdx]\nvmovdqu xmm7,XMMWORD PTR [rdx+rcx*1]\nvinserti128 ymm6,ymm6,XMMWORD PTR [rdx+rcx*2],0x1\nvinserti128 ymm7,ymm7,XMMWORD PTR [rdx+rbp*1],0x1\nlea rdx,[rdx+rcx*4]\nvpmaddwd ymm4,ymm8,ymm0\nvpmaddwd ymm5,ymm9,ymm1\nvpshufb ymm6,ymm6,ymm14\nvpshufb ymm7,ymm7,ymm14\nvpmaddubsw ymm6,ymm6,ymm15\nvpmaddubsw ymm7,ymm7,ymm15\nvphaddw ymm6,ymm6,ymm7\nvpshufd ymm2,ymm6,0x4e\nvpunpcklwd ymm6,ymm6,ymm2\nvpmulhrsw ymm6,ymm12,ymm6\nvpaddd ymm4,ymm4,ymm5\nvperm2i128 ymm0,ymm1,ymm6,0x21\nvmovdqa ymm1,ymm6\nvpmaddwd ymm6,ymm10,ymm0\nvpmaddwd ymm7,ymm11,ymm1\nvpaddd ymm4,ymm13,ymm4\nvpaddd ymm6,ymm6,ymm7\nvpaddd ymm4,ymm4,ymm6\nvpsrad ymm4,ymm4,0xa\nvextracti128 xmm5,ymm4,0x1\nvpackssdw xmm4,xmm4,xmm5\nvpackuswb xmm4,xmm4,xmm4\nvmovd DWORD PTR [rdi],xmm4\nvpextrd DWORD PTR [rdi+rsi*1],xmm4,0x1\nlea rdi,[rdi+rsi*2]\nsub r9d,0x2",
+    "saved": 2,
+    "why": "VPHADDW computes the same wrapping adjacent-word sums as the two shifts and additions. Swapping qwords within each lane and interleaving words reproduces the blend order in three instructions instead of five."
+  },
+  "f9300273d7": {
+    "rewrite": null,
+    "why": "All eight scalar extractions are live, and each mask shuffle and blend contributes to one of the two preserved coefficient vectors."
+  },
+  "6bb0044897": {
+    "rewrite": "vmovq xmm10,r9\nvpunpcklwd xmm10,xmm10,xmm10\nvpmovsxbw ymm10,xmm10\nvpshufd ymm7,ymm10,0x0\nvpshufd ymm8,ymm10,0xaa\nvinserti128 ymm4,ymm0,xmm2,0x1\nvinserti128 ymm5,ymm1,xmm3,0x1\nvpmaddwd ymm4,ymm4,ymm7\nvpmaddwd ymm5,ymm5,ymm8\nvpaddd ymm4,ymm4,ymm5\nvextracti128 xmm5,ymm4,0x1\nvpaddd xmm4,xmm4,xmm5\nvpaddd xmm4,xmm13,xmm4\nvpsrad xmm4,xmm4,0x6\nvpackssdw xmm4,xmm4,xmm4\nvmovq QWORD PTR [rdi],xmm4\nadd rdi,0x8\ndec r8d",
+    "saved": 1,
+    "why": "Duplicating packed coefficient pairs before widening permits two lane-specific YMM products with fewer coefficient-preparation instructions. Reducing their two lanes preserves all four signed results before the original shift and saturation."
+  }
+}

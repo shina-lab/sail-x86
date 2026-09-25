@@ -1,0 +1,85 @@
+{
+  "5f0cdb1774": {
+    "rewrite": null,
+    "why": "The scalar broadcasts, coefficient blends, offset arithmetic, and live fourfold coefficient all contribute to the preserved outputs."
+  },
+  "20f01315d2": {
+    "rewrite": null,
+    "why": "The loaded vectors and multiplication result are all live, including ymm2, and the final comparison must retain its flags."
+  },
+  "008055a7fb": {
+    "rewrite": null,
+    "why": "The scalar broadcasts, offset arithmetic, lane blend, and doubled coefficient are needed alongside the preserved endpoint and scalar updates."
+  },
+  "b092e69e4c": {
+    "rewrite": null,
+    "why": "The two stores use an unknown stride, and both the pointer update and flag-setting counter update must remain."
+  },
+  "c22b395608": {
+    "rewrite": null,
+    "why": "The required vector outputs keep every computation live, and the rounded average and wrapping word additions cannot be fused for arbitrary inputs."
+  },
+  "2c0eac7904": {
+    "rewrite": null,
+    "why": "Both distinct memory blends feed the rounded average and wrapping sum, leaving no removable instruction at AVX2."
+  },
+  "26153f327f": {
+    "rewrite": null,
+    "why": "The two different shuffles feed separate terms, and the rounded average, wrapping additions, and final shift must remain distinct."
+  },
+  "3663277d59": {
+    "rewrite": null,
+    "why": "Both scalar broadcasts are needed to preserve ymm4 while forming ymm3, and the endpoint load and scalar updates are also live."
+  },
+  "b429dd1058": {
+    "rewrite": null,
+    "why": "The unknown stride requires separate stores, while the preserved pointer, counter, and comparison flags require both scalar updates."
+  },
+  "f60eea0189": {
+    "rewrite": null,
+    "why": "The offset calculation, coefficient broadcast, constant mask broadcast, endpoint load, and scalar updates all produce required values."
+  },
+  "39f58b297e": {
+    "rewrite": null,
+    "why": "Both derived masks must be preserved along with the coefficient and position vectors, leaving no dead operation."
+  },
+  "cbd36d204f": {
+    "rewrite": null,
+    "why": "Four 256-bit stores are needed for the 128 output bytes under AVX2, and the pointer and flag-setting counter updates are required."
+  },
+  "5d3c035825": {
+    "rewrite": null,
+    "why": "The comparison depends on the upper bits computed by lea as well as the replaced low byte, and r11 must also be zeroed."
+  },
+  "4b6c03e468": {
+    "rewrite": "vpmovzxbd ymm8,QWORD PTR [rax]\nvpmovzxbd ymm9,QWORD PTR [rax+0x8]\nadd rax,0x10\nvpermi2d ymm9,ymm6,ymm7\nvpermt2d ymm6,ymm8,ymm7\nvmovdqa ymm7,ymm9\nvpaddd xmm0,xmm0,xmm6\nvpaddd xmm0,xmm0,xmm1\nvpxor xmm3,xmm3,xmm0\nvprord xmm3,xmm3,0x10\nvpaddd xmm2,xmm2,xmm3\nvpxor xmm1,xmm1,xmm2\nvprord xmm1,xmm1,0xc\nvextracti128 xmm8,ymm6,0x1\nvpaddd xmm0,xmm0,xmm8\nvpaddd xmm0,xmm0,xmm1\nvpxor xmm3,xmm3,xmm0\nvprord xmm3,xmm3,0x8\nvpaddd xmm2,xmm2,xmm3\nvpxor xmm1,xmm1,xmm2\nvprord xmm1,xmm1,0x7\nvpshufd xmm0,xmm0,0x93\nvpshufd xmm3,xmm3,0x4e\nvpshufd xmm2,xmm2,0x39\nvpaddd xmm0,xmm0,xmm9\nvpaddd xmm0,xmm0,xmm1\nvpxor xmm3,xmm3,xmm0\nvprord xmm3,xmm3,0x10\nvpaddd xmm2,xmm2,xmm3\nvpxor xmm1,xmm1,xmm2\nvprord xmm1,xmm1,0xc\nvextracti128 xmm9,ymm9,0x1\nvpaddd xmm0,xmm0,xmm9\nvpaddd xmm0,xmm0,xmm1\nvpxor xmm3,xmm3,xmm0\nvprord xmm3,xmm3,0x8\nvpaddd xmm2,xmm2,xmm3\nvpxor xmm1,xmm1,xmm2\nvprord xmm1,xmm1,0x7\nvpshufd xmm0,xmm0,0x39\nvpshufd xmm3,xmm3,0x4e\nvpshufd xmm2,xmm2,0x93\ndec cl",
+    "saved": 1,
+    "why": "Compute the second permutation first, then use vpermt2d to write the first result directly into ymm6. Reading that result from ymm6 removes one copy while preserving the full vector outputs."
+  },
+  "4d726b6549": {
+    "rewrite": null,
+    "why": "The two independent variable shifts per result cannot be replaced by a rotate for arbitrary input counts, and the remaining instructions produce required values."
+  },
+  "8ed347a53f": {
+    "rewrite": null,
+    "why": "The preserved intermediate vectors and scalar outputs keep every operation live, while the arbitrary shift counts prevent replacing each shift pair with a rotate."
+  },
+  "df2f1d0d98": {
+    "rewrite": "vshufps xmm0,xmm1,xmm0,0xdd\nvpshufd xmm0,xmm0,0xd8\nvpshufb xmm0,xmm0,xmm9",
+    "saved": 21,
+    "why": "Only ymm0 is live, so discard the other output computations and form its odd-dword interleave with two shuffles. The final VEX byte shuffle preserves the result and clears the upper half."
+  },
+  "ff2e43cd9c": {
+    "rewrite": "vmovq xmm8,QWORD PTR [r12]\nvpshufd xmm8,xmm8,0x4f\nvpxor xmm1,xmm1,xmm8\nvpxor xmm0,xmm0,XMMWORD PTR [r12+0x8]\nvinsertf128 ymm3,ymm3,xmm2,0x1\nvxorps ymm3,ymm3,YMMWORD PTR [r12+0x18]\nvinsertf128 ymm5,ymm5,xmm4,0x1\nvxorps ymm5,ymm5,YMMWORD PTR [r12+0x38]\nvinsertf128 ymm7,ymm7,xmm6,0x1\nvxorps ymm7,ymm7,YMMWORD PTR [r12+0x58]\nvmovdqu XMMWORD PTR [r11],xmm1\nvmovdqu XMMWORD PTR [r11+0x10],xmm0\nvmovdqu YMMWORD PTR [r11+0x20],ymm3\nvmovdqu YMMWORD PTR [r11+0x40],ymm5\nvmovdqu YMMWORD PTR [r11+0x60],ymm7",
+    "saved": 3,
+    "why": "Combine three adjacent output pairs using AVX 256-bit inserts, XORs, and stores, preserving the same loaded and stored bytes. Keep the xmm0 operation separate so its required upper half is cleared."
+  },
+  "06f55f95f9": {
+    "rewrite": null,
+    "why": "The preserved state updates and both arbitrary-count shift/OR computations remain necessary, and AVX cannot combine the packed integer shifts into 256-bit operations."
+  },
+  "19c70d154c": {
+    "rewrite": null,
+    "why": "The state updates, packed subtractions, arbitrary-count shifts, and scalar extractions all remain necessary for the preserved results at AVX."
+  }
+}

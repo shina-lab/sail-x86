@@ -1,0 +1,82 @@
+{
+  "fce5f3ffb0": {
+    "rewrite": null,
+    "why": "Both arbitrary word products, the bias, their sum, and the logical shift contribute to xmm0, with no fused SSSE3 replacement."
+  },
+  "041644e4c3": {
+    "rewrite": null,
+    "why": "The four independently addressed qword loads, two multiply-subtract computations, stores, and register updates are all required."
+  },
+  "d8449d0c89": {
+    "rewrite": null,
+    "why": "Each of the four vectors needs its own load, arbitrary word multiplication, subtraction, and store, while all pointer updates and final flags are live."
+  },
+  "aabc2577a9": {
+    "rewrite": null,
+    "why": "The four distinct vectors and their multiply-subtract results are required, and SSSE3 cannot fuse these operations or process wider vectors."
+  },
+  "77ad95eb77": {
+    "rewrite": null,
+    "why": "All four vector computations and stores are necessary, and the pointer updates and decrement must also preserve their results and final flags."
+  },
+  "0b205712e4": {
+    "rewrite": null,
+    "why": "Both groups of four vector results are stored, so overwriting the first group's temporaries does not make their computations dead."
+  },
+  "ac783ec233": {
+    "rewrite": null,
+    "why": "The four qword loads feed two arbitrary products, and the bias subtraction, sum, arithmetic shift, store, and register updates all remain observable."
+  },
+  "1c90b4053a": {
+    "rewrite": null,
+    "why": "Both bilinear results and the final xmm2 product are live, and SSSE3 provides no fused operation for these arbitrary word coefficients and bias."
+  },
+  "0ead3ec7fe": {
+    "rewrite": null,
+    "why": "The two independent bilinear computations, final product temporary, stores, and address updates are required, including the flags from the final add."
+  },
+  "8313ec0d16": {
+    "rewrite": null,
+    "why": "The duplicate loads supply both halves of xmm0's computation, and arbitrary per-lane coefficients prevent replacing the products, bias, sum, and shift with a shorter averaging sequence."
+  },
+  "33ad8971c2": {
+    "rewrite": null,
+    "why": "Both loaded vectors and their arbitrary word products are needed before the bias, sum, and arithmetic shift, with no shorter SSSE3 combination."
+  },
+  "5c61b314b5": {
+    "rewrite": null,
+    "why": "The filter, signed saturation, arbitrary upper clamp, zero lower clamp, and final shuffle all affect required outputs, and xmm1 must also finish as zero."
+  },
+  "71c979ee6e": {
+    "rewrite": null,
+    "why": "Each input feeds two distinct arbitrary shuffles and products, while the biased xmm6 intermediate, clamped result, zeroed xmm1, stores, and updates are all live."
+  },
+  "9450a06308": {
+    "rewrite": null,
+    "why": "SSSE3 needs the unpack and arithmetic shift to sign-extend the bytes, followed by three required broadcasts and three independent address or index updates."
+  },
+  "16eba52cfd": {
+    "rewrite": null,
+    "why": "The copies preserve data needed by distinct shuffles and coefficient products, and both final product temporaries remain live alongside the clamped result and store."
+  },
+  "5a57b49aca": {
+    "rewrite": null,
+    "why": "The shifted vector and broadcast are both live, negating rcx into rax requires preserving rcx, and the final comparison supplies required flags."
+  },
+  "db5b3bb445": {
+    "rewrite": null,
+    "why": "The four instructions produce four independently required register results, with the subtraction also supplying all required final flags."
+  },
+  "8dba8e4600": {
+    "rewrite": null,
+    "why": "The three horizontal sums receive arbitrary per-lane biases, and their shifted values, saturated packing, and final interleavings all contribute to live outputs."
+  },
+  "484370f837": {
+    "rewrite": null,
+    "why": "All five filtered vectors feed the four required interleavings, and destructive SSSE3 operations require copies to retain inputs used by multiple outputs."
+  },
+  "2ba4a48f07": {
+    "rewrite": null,
+    "why": "Both updated pointers and their copied values are required along with the extracted byte, decremented counter, and subtraction flags, leaving no removable instruction."
+  }
+}

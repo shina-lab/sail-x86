@@ -1,0 +1,82 @@
+{
+  "fb7c30ffe8": {
+    "rewrite": null,
+    "why": "The two row pairs require separate loads and lane insertion, and the products, wrapping arithmetic, shift, store, pointer updates, and final flags are all required."
+  },
+  "e58fd3e518": {
+    "rewrite": null,
+    "why": "All four loads are already folded into multiplies, and the two independent results require their subtraction, addition, shift, and store operations."
+  },
+  "03baa0bfa9": {
+    "rewrite": null,
+    "why": "The indexed loads are already folded into multiplies, and both filtered outputs, the live product in ymm2, and the counter flags must be retained."
+  },
+  "c4d7be2a2d": {
+    "rewrite": null,
+    "why": "The shifted samples and arbitrary word coefficients require both products, while the wrapping subtraction and addition, arithmetic shift, and final broadcast have distinct effects."
+  },
+  "51b352dd9d": {
+    "rewrite": null,
+    "why": "The loads are already folded into the two products, and the correction, addition, arithmetic shift, and duplication into the upper lane are all necessary."
+  },
+  "630ed5ab9f": {
+    "rewrite": null,
+    "why": "The five instructions perform two memory-folded products, a subtraction, an addition, and an arithmetic shift that AVX2 cannot fuse for arbitrary word operands."
+  },
+  "ca7c3e168e": {
+    "rewrite": null,
+    "why": "Both shuffled products, the horizontal sum, rounding and clipping stages, separate stores, and live final value of ymm1 require the existing operations."
+  },
+  "f16e000ed5": {
+    "rewrite": null,
+    "why": "Both constant masks are live, and broadcasting two different interior source dwords across full ymm registers requires the existing three shuffle and broadcast operations."
+  },
+  "4b18063970": {
+    "rewrite": null,
+    "why": "The two shuffled products and clipping operations are required, and the extracted upper half in ymm1 is live in addition to the packed result in ymm0."
+  },
+  "6fa246a733": {
+    "rewrite": null,
+    "why": "Sign extension must use the low eight bytes of each independent 128-bit lane, so a single vpmovsxbw cannot replace the unpack and shift before the three required shuffles."
+  },
+  "4f3f82b0a8": {
+    "rewrite": null,
+    "why": "Arbitrary shuffle masks and coefficients require the separate sample arrangements and products, and every resulting temporary register and both stores are live."
+  },
+  "cb2ce41651": {
+    "rewrite": null,
+    "why": "The byte shuffles cannot fold their data loads, and the separate products, intermediate sums, packed output, and counter flags must all be preserved."
+  },
+  "78734825dd": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required register value, with the final subtraction also supplying the required flags."
+  },
+  "43f7822eaa": {
+    "rewrite": null,
+    "why": "The three shuffles produce three distinct live vectors, and the comparison separately supplies the required zero flag."
+  },
+  "1a0e9e15ff": {
+    "rewrite": null,
+    "why": "The copies preserve required history vectors, and the broadcasts, blends, unpack, products, clipping, stores, and pointer updates each contribute required results."
+  },
+  "9e563ff2b1": {
+    "rewrite": null,
+    "why": "The history copies and filter operations are required, and the upper-half extraction must remain because its complete result in ymm4 is live."
+  },
+  "f04ce1dc48": {
+    "rewrite": null,
+    "why": "All history vectors and products are live, while unsigned packing followed by rounded averaging and signed minimum cannot be collapsed into a simple shift or pack."
+  },
+  "96a2849e1e": {
+    "rewrite": null,
+    "why": "Both constant masks and all four coefficient vectors are live, and independent sign extension within each 128-bit lane prevents replacing the unpack and shift with one widening instruction."
+  },
+  "d4e0e4e81b": {
+    "rewrite": null,
+    "why": "The arbitrary masks and coefficients prevent merging the shuffles or products, and every final intermediate vector, output store, pointer update, and counter flag is required."
+  },
+  "1b6045e043": {
+    "rewrite": null,
+    "why": "The overlapping loads feed arbitrary byte shuffles that cannot fold their data operands, and all product accumulations and final temporary vectors remain live."
+  }
+}

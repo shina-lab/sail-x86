@@ -1,0 +1,22 @@
+{
+  "fcdf4ca5b1": {
+    "rewrite": null,
+    "why": "The rounded scalar arithmetic, high-word broadcast, store, and required register initializations have no identified shorter equivalent within SSE4.1."
+  },
+  "9f766cb8cc": {
+    "rewrite": null,
+    "why": "Each vector needs its load, wrapping addition, two clamps with arbitrary input bounds, and store, while the pointer update and BTC result and carry must also be preserved."
+  },
+  "11b1e36789": {
+    "rewrite": null,
+    "why": "All four stores use required address expressions, and the live pointer decrement and comparison flags require separate instructions."
+  },
+  "0b754ea9a4": {
+    "rewrite": null,
+    "why": "The seven stores and flag-producing pointer subtraction are required, and SSE4.1 needs a copy followed by a shift to preserve xmm11 while producing xmm15."
+  },
+  "b3c4248fff": {
+    "rewrite": null,
+    "why": "The two rounded multiplications cannot be collapsed across the intervening arithmetic shift for arbitrary inputs, and the store, counter initialization, and final flags remain required."
+  }
+}

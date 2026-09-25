@@ -1,0 +1,97 @@
+{
+  "9d1170f626": {
+    "rewrite": "movq xmm11,rax\npunpcklbw xmm11,xmm11\npsraw xmm11,0x8\npshufd xmm15,xmm11,0x0\npshufd xmm8,xmm11,0x55\npshufd xmm10,xmm11,0xaa\npshufd xmm11,xmm11,0xff\npmaddwd xmm15,xmm3\npmaddwd xmm8,xmm0\npmaddwd xmm10,xmm2\npmaddwd xmm11,xmm4\npaddd xmm15,xmm8\npaddd xmm10,xmm11\npaddd xmm15,xmm13\npaddd xmm15,xmm10\npsrad xmm15,0xa\npackssdw xmm15,xmm15\npackuswb xmm15,xmm15\npextrw eax,xmm15,0x0\nmov WORD PTR [rdi],ax\nadd rdi,rsi\ndec r9d",
+    "saved": 4,
+    "why": "PMADDWD is commutative, so the four disposable coefficient registers can hold the products directly, eliminating four copies."
+  },
+  "fb43a8bdda": {
+    "rewrite": "add rdx,rcx\nshufps xmm3,xmm0,0x4e\nshufps xmm0,xmm2,0x4e\nshufps xmm2,xmm4,0x4e\npshufb xmm5,xmm14\npmaddubsw xmm5,xmm9\nphaddw xmm5,xmm5\npmulhrsw xmm5,xmm12\nmovdqa xmm4,xmm5\npalignr xmm4,xmm1,0xc\npshufd xmm1,xmm4,0x44\npunpcklwd xmm4,xmm5",
+    "saved": 2,
+    "why": "PSHUFD copies and duplicates the low qword into xmm1 in one instruction. The low qword already in xmm4 is exactly what its final unpack consumes."
+  },
+  "98b21ba098": {
+    "rewrite": "movhps xmm5,QWORD PTR [rdx+rcx*1]\nlea rdx,[rdx+rcx*2]\nmovdqa xmm3,xmm0\nmovdqa xmm0,xmm2\npshufb xmm5,xmm14\npmaddubsw xmm5,xmm9\nphaddw xmm5,xmm5\npmulhrsw xmm5,xmm12\nshufps xmm1,xmm5,0x4e\npshufd xmm5,xmm1,0x39\nmovdqa xmm2,xmm1\nmovdqa xmm4,xmm1\npunpcklwd xmm2,xmm5\npunpckhwd xmm4,xmm5",
+    "saved": 1,
+    "why": "SHUFPS constructs the aligned value directly in its required final register xmm1, eliminating one copy."
+  },
+  "5b8d2936a7": {
+    "rewrite": "pshufd xmm15,xmm15,0x0\npaddd xmm14,xmm8\nmovdqa xmm0,xmm14\npand xmm0,xmm10\npsrld xmm0,0x6\npaddd xmm15,xmm0\npshufd xmm7,xmm15,0xee\nmovd r8d,xmm15\nmovd r14d,xmm7\npsrldq xmm15,0x4\npsrldq xmm7,0x4\nmovd eax,xmm15\nmovd r12d,xmm7",
+    "saved": 1,
+    "why": "A single PSHUFD replaces the copy and eight-byte shift; only its low two dwords are subsequently extracted."
+  },
+  "58c344a075": {
+    "rewrite": "movq xmm10,rax\npunpcklbw xmm10,xmm10\npsraw xmm10,0x8\npshufd xmm7,xmm10,0x0\npshufd xmm8,xmm10,0x55\npshufd xmm9,xmm10,0xaa\npshufd xmm10,xmm10,0xff\npmaddwd xmm7,xmm15\npmaddwd xmm8,xmm1\npmaddwd xmm9,xmm2\npmaddwd xmm10,xmm3\npaddd xmm7,xmm8\npaddd xmm9,xmm10\npaddd xmm7,xmm13\npaddd xmm7,xmm9\npsrad xmm7,0xa\npackssdw xmm7,xmm7\npackuswb xmm7,xmm7\nmovd DWORD PTR [rdi],xmm7\nadd rdi,rsi\ndec r9d",
+    "saved": 4,
+    "why": "The coefficient registers are disposable, so commutative PMADDWD can overwrite them instead of copying each preserved input."
+  },
+  "485825a03e": {
+    "rewrite": null,
+    "why": "The scalar extraction, pointer adjustment, and copied vector shift each require their existing instructions under SSSE3 while preserving xmm8."
+  },
+  "2545a3ce4d": {
+    "rewrite": "pshufb xmm14,xmm5\npaddb xmm14,xmm6\nmovq xmm10,r8\npunpcklbw xmm10,xmm10\npsraw xmm10,0x8\npunpckldq xmm15,xmm7\npunpcklqdq xmm15,xmm15\npand xmm11,xmm9\npandn xmm9,xmm15\npor xmm9,xmm11\npshufd xmm15,xmm10,0x0\npshufd xmm8,xmm10,0x55\npshufd xmm11,xmm10,0xff\npshufd xmm10,xmm10,0xaa\npshufb xmm0,xmm14\npshufb xmm2,xmm14\npmaddubsw xmm0,xmm9\npmaddubsw xmm2,xmm9\nphaddw xmm0,xmm2\npmulhrsw xmm0,xmm12\nmovq xmm2,QWORD PTR [rdx]\nmovq xmm3,QWORD PTR [rdx+rcx*2]\nmovhps xmm2,QWORD PTR [rdx+rcx*1]\nadd rdx,rbp\npshufb xmm2,xmm14\npshufb xmm3,xmm14\npmaddubsw xmm2,xmm9\npmaddubsw xmm3,xmm9\nphaddw xmm2,xmm3\npmulhrsw xmm2,xmm12\nmovdqa xmm1,xmm2\npalignr xmm1,xmm0,0x4\npshufd xmm4,xmm2,0x99\nmovdqa xmm3,xmm0\npunpcklwd xmm3,xmm1\npunpckhwd xmm0,xmm1\npunpcklwd xmm2,xmm4",
+    "saved": 1,
+    "why": "After consuming the original xmm2, compute the loaded row pair directly in xmm2 and use dead xmm1 for alignment, eliminating the final copy into xmm2."
+  },
+  "f9e457e8d7": {
+    "rewrite": "movq xmm1,QWORD PTR [rdx]\nmovhps xmm1,QWORD PTR [rdx+rcx*1]\nlea rdx,[rdx+rcx*2]\nmovdqa xmm6,xmm0\npmaddwd xmm6,xmm8\npmaddwd xmm3,xmm15\npaddd xmm6,xmm3\nmovdqa xmm3,xmm0\nmovdqa xmm0,xmm2\npmaddwd xmm2,xmm10\npaddd xmm6,xmm2\npaddd xmm6,xmm13\npshufb xmm1,xmm14\npmaddubsw xmm1,xmm9\nphaddw xmm1,xmm1\npmulhrsw xmm1,xmm12\nmovdqa xmm2,xmm1\npalignr xmm2,xmm4,0xc\npunpcklwd xmm2,xmm1\nmovdqa xmm7,xmm2\npmaddwd xmm7,xmm11\nmovdqa xmm4,xmm1\npaddd xmm6,xmm7\npsrad xmm6,0xa\npackssdw xmm6,xmm6\npackuswb xmm6,xmm6\nmovd r8d,xmm6\nmov WORD PTR [rdi],r8w\nshr r8d,0x10\nmov WORD PTR [rdi+rsi*1],r8w\nlea rdi,[rdi+rsi*2]\nsub r9d,0x2",
+    "saved": 3,
+    "why": "Consume the old xmm3 and xmm2 values with destructive multiplies before installing their final values. Construct the aligned unpack directly in xmm2 to remove another copy."
+  },
+  "ddac5b6f2d": {
+    "rewrite": "pshufd xmm15,xmm15,0x0\npaddd xmm14,xmm8\nmovdqa xmm8,xmm14\npand xmm8,xmm10\npsrld xmm8,0x6\npaddd xmm15,xmm8\npshufd xmm7,xmm15,0xee\nmovd r8d,xmm15\nmovd r14d,xmm7\npsrldq xmm15,0x4\npsrldq xmm7,0x4\nmovd eax,xmm15\nmovd r12d,xmm7",
+    "saved": 1,
+    "why": "PSHUFD places the two upper dwords in the low qword in one instruction, replacing the copy and shift without changing any extracted value."
+  },
+  "e15b98baf5": {
+    "rewrite": "pshufb xmm14,xmm5\npaddb xmm14,xmm6\nmovq xmm10,r8\nmovq xmm3,QWORD PTR [rdx]\nmovhps xmm3,QWORD PTR [rdx+rcx*1]\nlea rdx,[rdx+rcx*2]\npunpcklbw xmm10,xmm10\npsraw xmm10,0x8\npunpckldq xmm15,xmm7\npunpcklqdq xmm15,xmm15\npand xmm11,xmm9\npandn xmm9,xmm15\npor xmm9,xmm11\npshufd xmm15,xmm10,0x0\npshufd xmm8,xmm10,0x55\npshufd xmm11,xmm10,0xff\npshufd xmm10,xmm10,0xaa\npshufb xmm0,xmm14\npshufb xmm1,xmm14\npshufb xmm3,xmm14\npmaddubsw xmm0,xmm9\npmaddubsw xmm1,xmm9\npmaddubsw xmm3,xmm9\nphaddw xmm1,xmm3\npslldq xmm3,0x8\nphaddw xmm0,xmm3\npmulhrsw xmm0,xmm12\npmulhrsw xmm1,xmm12\npshufd xmm2,xmm0,0xd4\npshufd xmm1,xmm1,0xd4\nmovdqa xmm3,xmm2\npunpcklwd xmm3,xmm1\npunpckhwd xmm2,xmm1",
+    "saved": 1,
+    "why": "Consume the unshifted xmm3 in xmm1's horizontal add first, then shift xmm3 itself for xmm0's horizontal add, eliminating the temporary copy."
+  },
+  "251326f89c": {
+    "rewrite": "movq xmm6,QWORD PTR [rdx]\nmovq xmm7,QWORD PTR [rdx+rcx*1]\nmovhps xmm6,QWORD PTR [rdx+rcx*2]\nmovhps xmm7,QWORD PTR [rdx+rbp*1]\nlea rdx,[rdx+rcx*4]\npmaddwd xmm3,xmm15\nmovdqa xmm4,xmm2\npmaddwd xmm4,xmm8\npaddd xmm4,xmm3\npaddd xmm4,xmm13\npshufb xmm6,xmm14\npshufb xmm7,xmm14\npmaddubsw xmm6,xmm9\npmaddubsw xmm7,xmm9\nphaddw xmm6,xmm7\npmulhrsw xmm6,xmm12\nshufps xmm0,xmm6,0x4e\nshufps xmm1,xmm6,0xee\npshufd xmm3,xmm0,0xe9\npshufd xmm2,xmm0,0xe9\npshufd xmm7,xmm1,0xe9\npunpcklwd xmm3,xmm7\npunpckhwd xmm2,xmm7\nmovdqa xmm6,xmm3\npmaddwd xmm6,xmm10\nmovdqa xmm7,xmm2\npmaddwd xmm7,xmm11\npaddd xmm6,xmm7\npaddd xmm4,xmm6\npsrad xmm4,0xa\npackssdw xmm4,xmm4\npackuswb xmm4,xmm4\nmovd r8d,xmm4\nmov WORD PTR [rdi],r8w\nshr r8d,0x10\nmov WORD PTR [rdi+rsi*1],r8w\nlea rdi,[rdi+rsi*2]\nsub r9d,0x2",
+    "saved": 6,
+    "why": "Two SHUFPS instructions directly form the carried qword concatenations, and PSHUFD writes the unpack inputs directly into their destinations. Destructively multiplying the old xmm3 removes one further copy."
+  },
+  "15ae9861b4": {
+    "rewrite": null,
+    "why": "The four independent dword inputs require the three unpacks, and every remaining load, shift, comparison, duplication, and pointer update produces a required result."
+  },
+  "6ab10f6bbe": {
+    "rewrite": "movdqu xmm4,XMMWORD PTR [rdx]\nmovdqu xmm5,XMMWORD PTR [rdx+rcx*1]\nlea rdx,[rdx+rcx*2]\npand xmm11,xmm8\npandn xmm8,xmm15\npor xmm8,xmm11\npaddb xmm14,xmm6\nmovq xmm11,r8\npunpcklbw xmm11,xmm11\npsraw xmm11,0x8\npshufb xmm0,xmm14\npshufb xmm2,xmm14\npshufb xmm1,xmm14\npshufb xmm3,xmm14\npshufb xmm4,xmm14\npshufb xmm5,xmm14\npmaddubsw xmm0,xmm8\npmaddubsw xmm2,xmm8\npmaddubsw xmm1,xmm8\npmaddubsw xmm3,xmm8\npmaddubsw xmm4,xmm8\npmaddubsw xmm5,xmm8\nphaddw xmm0,xmm2\nphaddw xmm1,xmm3\nphaddw xmm4,xmm5\npmulhrsw xmm0,xmm12\npmulhrsw xmm1,xmm12\npmulhrsw xmm4,xmm12\npshufd xmm15,xmm11,0x0\npshufd xmm9,xmm11,0x55\npshufd xmm10,xmm11,0xaa\npshufd xmm11,xmm11,0xff\npshufd xmm5,xmm4,0xee\nmovdqa xmm2,xmm0\npunpckhwd xmm2,xmm1\npunpcklwd xmm0,xmm1\npunpcklwd xmm4,xmm5",
+    "saved": 1,
+    "why": "The final unpack consumes only the low qword of xmm5, so one PSHUFD replaces its copy and eight-byte shift."
+  },
+  "903ac3a39b": {
+    "rewrite": "pmaddwd xmm0,xmm15\nmovdqa xmm5,xmm2\npmaddwd xmm5,xmm15\npmaddwd xmm2,xmm9\npaddd xmm2,xmm0\npaddd xmm2,xmm13\nmovdqa xmm0,xmm4\nmovdqa xmm7,xmm4\npmaddwd xmm7,xmm9\npmaddwd xmm4,xmm10\npaddd xmm2,xmm4\npaddd xmm5,xmm13\npaddd xmm5,xmm7\nmovdqu xmm6,XMMWORD PTR [rdx]\nmovdqu xmm7,XMMWORD PTR [rdx+rcx*1]\nmovdqu xmm4,XMMWORD PTR [rdx+rcx*2]\nmovdqu xmm1,XMMWORD PTR [rdx+rbp*1]\nlea rdx,[rdx+rcx*4]\npshufb xmm6,xmm14\npshufb xmm7,xmm14\npshufb xmm4,xmm14\npshufb xmm1,xmm14\npmaddubsw xmm6,xmm8\npmaddubsw xmm7,xmm8\npmaddubsw xmm4,xmm8\npmaddubsw xmm1,xmm8\nphaddw xmm6,xmm7\nphaddw xmm4,xmm1\npmulhrsw xmm6,xmm12\npmulhrsw xmm4,xmm12\npshufd xmm7,xmm6,0xee\npshufd xmm1,xmm4,0xee\npunpcklwd xmm6,xmm7\npunpcklwd xmm4,xmm1\nmovdqa xmm1,xmm6\npmaddwd xmm1,xmm11\npaddd xmm1,xmm2\nmovdqa xmm2,xmm6\npmaddwd xmm6,xmm10\nmovdqa xmm7,xmm4\npmaddwd xmm7,xmm11\npaddd xmm5,xmm6\npaddd xmm5,xmm7\npsrad xmm1,0xa\npsrad xmm5,0xa\npackssdw xmm1,xmm5\npackuswb xmm1,xmm1\npshufd xmm6,xmm1,0x55\nmovd DWORD PTR [rdi],xmm1\nmovd DWORD PTR [rdi+rsi*1],xmm6\nlea rdi,[rdi+rsi*2]\nsub r9d,0x2",
+    "saved": 5,
+    "why": "Install xmm0's final value early, consume the old xmm4 destructively, and compute its replacement directly in xmm4 to remove two copies. Three PSHUFD instructions replace copy-and-shift pairs used by the unpacks and second store."
+  },
+  "09e7a4f68c": {
+    "rewrite": "movq xmm10,r9\npunpcklbw xmm10,xmm10\npsraw xmm10,0x8\npshufd xmm7,xmm10,0x0\npshufd xmm8,xmm10,0x55\npshufd xmm9,xmm10,0xaa\npshufd xmm10,xmm10,0xff\npmaddwd xmm7,xmm15\npmaddwd xmm8,xmm1\npmaddwd xmm9,xmm2\npmaddwd xmm10,xmm3\npaddd xmm7,xmm8\npaddd xmm9,xmm10\npaddd xmm7,xmm13\npaddd xmm7,xmm9\npsrad xmm7,0x6\npackssdw xmm7,xmm7\nmovq QWORD PTR [rdi],xmm7\nadd rdi,0x8\ndec r8d",
+    "saved": 4,
+    "why": "Use the four disposable coefficient registers as the destinations of the commutative multiplies, eliminating all four input copies."
+  },
+  "74721ff0f6": {
+    "rewrite": "pmaddwd xmm0,xmm15\nmovdqa xmm5,xmm2\npmaddwd xmm5,xmm15\npmaddwd xmm2,xmm9\npaddd xmm2,xmm0\npaddd xmm2,xmm13\nmovdqa xmm0,xmm4\nmovdqa xmm7,xmm4\npmaddwd xmm7,xmm9\npmaddwd xmm4,xmm10\npaddd xmm2,xmm4\npaddd xmm5,xmm13\npaddd xmm5,xmm7\nmovdqu xmm6,XMMWORD PTR [rsi]\nmovdqu xmm7,XMMWORD PTR [rsi+rdx*1]\nmovdqu xmm4,XMMWORD PTR [rsi+rdx*2]\nmovdqu xmm1,XMMWORD PTR [rsi+rbx*1]\nlea rsi,[rsi+rdx*4]\npshufb xmm6,xmm14\npshufb xmm7,xmm14\npshufb xmm4,xmm14\npshufb xmm1,xmm14\npmaddubsw xmm6,xmm8\npmaddubsw xmm7,xmm8\npmaddubsw xmm4,xmm8\npmaddubsw xmm1,xmm8\nphaddw xmm6,xmm7\nphaddw xmm4,xmm1\npmulhrsw xmm6,xmm12\npmulhrsw xmm4,xmm12\npshufd xmm7,xmm6,0xee\npshufd xmm1,xmm4,0xee\npunpcklwd xmm6,xmm7\npunpcklwd xmm4,xmm1\nmovdqa xmm1,xmm6\npmaddwd xmm1,xmm11\npaddd xmm1,xmm2\nmovdqa xmm2,xmm6\npmaddwd xmm6,xmm10\nmovdqa xmm7,xmm4\npmaddwd xmm7,xmm11\npaddd xmm5,xmm6\npaddd xmm5,xmm7\npsrad xmm1,0x6\npsrad xmm5,0x6\npackssdw xmm1,xmm5\nmovdqa XMMWORD PTR [rdi],xmm1\nadd rdi,0x10\nsub r8d,0x2",
+    "saved": 4,
+    "why": "Preserve the old xmm4 directly in its final destination xmm0, then reuse xmm4 for its product and replacement to remove two copies. PSHUFD replaces both copy-and-shift pairs before the word unpacks."
+  },
+  "478d327c8a": {
+    "rewrite": "xchg rcx,rdx\npsubw xmm0,xmm4\nmovdqa xmm4,xmm0",
+    "saved": 2,
+    "why": "A register-register XCHG replaces the three-move swap without changing flags; the temporary value in rax is dead."
+  },
+  "3de896a35a": {
+    "rewrite": null,
+    "why": "Both subtractions, the shift and saturating pack, both stores, and the counter update are required, while preserving xmm7 necessitates the initial copy."
+  },
+  "fd11f28781": {
+    "rewrite": null,
+    "why": "Both subtraction paths, their separate shifts, the live xmm3 result, both stores, and the flag-setting counter update require the existing instructions."
+  },
+  "89143ca34c": {
+    "rewrite": null,
+    "why": "The two subtraction paths and stores are required, and preserving xmm7 and the separately shifted xmm3 prevents eliminating either copy or shift."
+  }
+}

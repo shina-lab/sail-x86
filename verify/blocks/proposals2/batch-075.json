@@ -1,0 +1,89 @@
+{
+  "267552f611": {
+    "rewrite": null,
+    "why": "Both SADs already use memory operands, leaving only the two necessary loads, accumulation, and counter update."
+  },
+  "056e305e00": {
+    "rewrite": null,
+    "why": "The source vectors may be unaligned, so folding their movdqu loads into alignment-requiring SSE2 psadbw operands is unsafe, and the remaining arithmetic is necessary."
+  },
+  "432aeaf084": {
+    "rewrite": null,
+    "why": "The unaligned neighboring-byte loads must remain explicit for SSE2, and both averages, SADs, their sum, and the counter update are needed."
+  },
+  "ec8d4866f8": {
+    "rewrite": "movdqu xmm3,XMMWORD PTR [rdx]\nmovdqu xmm0,XMMWORD PTR [rdx+rcx*1]\nmovdqu xmm1,XMMWORD PTR [rdx+rcx*2]\npavgb xmm3,xmm0\npavgb xmm0,xmm1\npsadbw xmm3,XMMWORD PTR [rsi]\npsadbw xmm0,XMMWORD PTR [rsi+rcx*1]\npaddw xmm0,xmm3\nadd rdx,rcx\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Load the final row directly into xmm1 and use dead xmm3 for the first-row calculation, eliminating the final register copy."
+  },
+  "6720014191": {
+    "rewrite": null,
+    "why": "The two zero vectors, constant load, pointer update, and widening and addition of both byte operands are all needed for the live outputs."
+  },
+  "0d748e346c": {
+    "rewrite": null,
+    "why": "The unpack and rounding operands are arbitrary at entry, while the final sums, intermediate vectors, pointer updates, and subtraction flags are all live."
+  },
+  "56aaefb57d": {
+    "rewrite": null,
+    "why": "SSE2 needs separate widening and addition for both halves, and the copies, zero vectors, constant, and pointer update all support required outputs."
+  },
+  "6b06e2551d": {
+    "rewrite": "movdqu xmm3,XMMWORD PTR [rdx]\nmovdqu xmm4,XMMWORD PTR [rdx+0x1]\nmovdqa xmm5,xmm3\nmovdqa xmm7,xmm4\npunpckhbw xmm5,xmm1\npunpckhbw xmm7,xmm1\npaddw xmm7,xmm5\npaddw xmm7,xmm8\npaddw xmm6,xmm7\npsraw xmm6,0x2\npunpcklbw xmm3,xmm1\npunpcklbw xmm4,xmm1\npaddw xmm3,xmm4\npaddw xmm3,xmm8\npaddw xmm2,xmm3\npsraw xmm2,0x2\npackuswb xmm2,xmm6\npsadbw xmm2,XMMWORD PTR [rsi]\npaddw xmm0,xmm2\nmovdqu xmm2,XMMWORD PTR [rdx+rcx*1]\nmovdqu xmm4,XMMWORD PTR [rdx+rcx*1+0x1]\nmovdqa xmm5,xmm2\nmovdqa xmm6,xmm4\npunpckhbw xmm5,xmm1\npunpckhbw xmm6,xmm1\npaddw xmm6,xmm5\npaddw xmm7,xmm6\npsraw xmm7,0x2\nmovdqa xmm5,XMMWORD PTR [rsi+rcx*1]\npunpcklbw xmm2,xmm1\npunpcklbw xmm4,xmm1\npaddw xmm2,xmm4\npaddw xmm3,xmm2\npsraw xmm3,0x2\npackuswb xmm3,xmm7\npsadbw xmm3,xmm5\npaddw xmm0,xmm3\nsub r8d,0x2\nlea rsi,[rsi+rcx*2]\nlea rdx,[rdx+rcx*2]",
+    "saved": 1,
+    "why": "Fold the first aligned load from [rsi] into psadbw because that xmm5 value has no other uses; the later load supplying xmm5's final value remains."
+  },
+  "7bd4e76bb7": {
+    "rewrite": "movdqa xmm4,XMMWORD PTR [CONST_1]\nmovdqu xmm3,XMMWORD PTR [rdx]\nmovdqu xmm0,XMMWORD PTR [rdx+rcx*1]\nmovdqu xmm1,XMMWORD PTR [rdx+rcx*2]\nmovdqu xmm5,XMMWORD PTR [rdx+0x1]\nmovdqu xmm6,XMMWORD PTR [rdx+rcx*1+0x1]\nmovdqu xmm2,XMMWORD PTR [rdx+rcx*2+0x1]\npavgb xmm3,xmm5\npavgb xmm0,xmm6\npavgb xmm1,xmm2\npsubusb xmm0,xmm4\npavgb xmm3,xmm0\npavgb xmm0,xmm1\npsadbw xmm3,XMMWORD PTR [rsi]\npsadbw xmm0,XMMWORD PTR [rsi+rcx*1]\npaddw xmm0,xmm3\nadd rdx,rcx\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Compute the retained last-row average directly in xmm1 and use dead xmm3 for the first-row SAD, removing the final copy without changing the unaligned loads."
+  },
+  "72a5c67fe0": {
+    "rewrite": null,
+    "why": "Both the loaded xmm2 value and the SAD in xmm0 are live, so folding a load would require a compensating copy."
+  },
+  "413f3d5bb9": {
+    "rewrite": null,
+    "why": "Both unaligned inputs must be loaded, xmm2 must retain its input vector, and the SAD and counter update are necessary."
+  },
+  "8da3fc622f": {
+    "rewrite": null,
+    "why": "The unaligned subtraction operands require explicit loads, and the two differences, byte biases, SAD, and live xmm1 and xmm4 values prevent further removal."
+  },
+  "2872f1df53": {
+    "rewrite": null,
+    "why": "The unaligned loads cannot safely become SSE2 arithmetic memory operands, and the difference, bias, SAD, and counter operations all contribute to required outputs."
+  },
+  "8308f8df3a": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi]\npshufd xmm2,xmm0,0xb1\npshufd xmm3,XMMWORD PTR [rsi],0xb1\npmuldq xmm0,XMMWORD PTR [rsi]\npmuldq xmm3,xmm2\npaddq xmm0,xmm3\nmovdqa xmm1,XMMWORD PTR [rdi+0x10]\nmovdqa xmm2,XMMWORD PTR [rsi+0x10]\npshufd xmm3,xmm1,0xb1\npshufd xmm4,xmm2,0xb1\npmuldq xmm1,xmm2\npmuldq xmm4,xmm3\npaddq xmm0,xmm1\npaddq xmm0,xmm4\npshufd xmm1,xmm0,0xe\npaddq xmm0,xmm1\nmovq rbx,xmm0\nmovzx ecx,BYTE PTR [rdx]\nsar rbx,0xe\nand ebx,ebp\nadd ebx,ecx\nmov DWORD PTR [rdi+r9*1],ebx\nadd rdx,0x8\nadd rdi,0x20\ncmp rdx,r14",
+    "saved": 1,
+    "why": "Read the first [rsi] vector directly in pshufd and pmuldq, eliminating its temporary load into xmm1, which is later overwritten."
+  },
+  "e546e370c5": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi]\npshufd xmm2,xmm0,0xb1\npshufd xmm3,XMMWORD PTR [rsi],0xb1\npmuldq xmm0,XMMWORD PTR [rsi]\npmuldq xmm3,xmm2\npaddq xmm0,xmm3\npshufd xmm1,xmm0,0xe\npaddq xmm0,xmm1\nmovq rbx,xmm0\nmovzx ecx,BYTE PTR [rdx]\nsar rbx,0xe\nand ebx,ebp\nadd ebx,ecx\nmov DWORD PTR [rdi+r9*1],ebx\nadd rdx,0x8\nadd rdi,0x20\ncmp rdx,r14",
+    "saved": 1,
+    "why": "Fold the aligned [rsi] load into its shuffle and multiply uses, retaining the later shuffle that defines xmm1's final value."
+  },
+  "a3adf47e2f": {
+    "rewrite": "vmovdqa ymm0,YMMWORD PTR [rdi]\nvpshufd ymm2,ymm0,0xb1\nvpshufd ymm3,YMMWORD PTR [rsi],0xb1\nvpmuldq ymm0,ymm0,YMMWORD PTR [rsi]\nvpmuldq ymm3,ymm3,ymm2\nvpaddq ymm0,ymm0,ymm3\nvextracti128 xmm1,ymm0,0x1\nvpaddq xmm0,xmm0,xmm1\nvpshufd xmm1,xmm0,0xe\nvpaddq xmm0,xmm0,xmm1\nvmovq rbx,xmm0\nmovzx ecx,BYTE PTR [rdx]\nsar rbx,0xe\nand ebx,ebp\nadd ebx,ecx\nmov DWORD PTR [rdi+r9*1],ebx\nadd rdx,0x8\nadd rdi,0x20\ncmp rdx,r14",
+    "saved": 1,
+    "why": "Use [rsi] directly in vpshufd and vpmuldq, eliminating the temporary ymm1 load while preserving all later VEX operations and upper-half zeroing."
+  },
+  "6b8a0774cb": {
+    "rewrite": "vmovdqa xmm0,XMMWORD PTR [rdi]\nvpshufd xmm2,xmm0,0xb1\nvpshufd xmm3,XMMWORD PTR [rsi],0xb1\nvpmuldq xmm0,xmm0,XMMWORD PTR [rsi]\nvpmuldq xmm3,xmm3,xmm2\nvpaddq xmm0,xmm0,xmm3\nvpshufd xmm1,xmm0,0xe\nvpaddq xmm0,xmm0,xmm1\nvmovq rbx,xmm0\nmovzx ecx,BYTE PTR [rdx]\nsar rbx,0xe\nand ebx,ebp\nadd ebx,ecx\nmov DWORD PTR [rdi+r9*1],ebx\nadd rdx,0x8\nadd rdi,0x20\ncmp rdx,r14",
+    "saved": 1,
+    "why": "Fold the [rsi] load into the shuffle and multiply, with the later VEX shuffle still producing xmm1 and zeroing ymm1's upper half."
+  },
+  "2d7fa4788b": {
+    "rewrite": null,
+    "why": "The saved input in xmm0, every scalar update, and the final comparison producing CF and ZF all have required results."
+  },
+  "e8785087f7": {
+    "rewrite": null,
+    "why": "Each vector needs its load, rounded multiply, addition, and store, and the index update must also preserve its flags."
+  },
+  "da9842714f": {
+    "rewrite": null,
+    "why": "The two live broadcasts select different words of the shifted input, requiring the shared unpack, both shuffles, and the distinct dword and word shifts."
+  }
+}

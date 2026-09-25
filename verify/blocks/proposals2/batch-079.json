@@ -1,0 +1,82 @@
+{
+  "b5aa8884c4": {
+    "rewrite": null,
+    "why": "The 16-byte copy needs a load and a store, followed by separate updates to the live destination pointer and counter with the required ZF."
+  },
+  "bf81d4b767": {
+    "rewrite": null,
+    "why": "The load and store are necessary, and both pointer advances and the counter decrement produce required final values."
+  },
+  "d9b36349a0": {
+    "rewrite": null,
+    "why": "SSE2 needs the byte load, scalar replication, transfer and shuffle to broadcast the byte, and the move to r9 is required for its final value."
+  },
+  "411be2462b": {
+    "rewrite": null,
+    "why": "The byte load and store preserve the required partial-register result in RAX, while both pointer updates and the decrement remain necessary."
+  },
+  "70808307cb": {
+    "rewrite": null,
+    "why": "The word load and store preserve the required partial-register result in RAX, while both pointer updates and the decrement remain necessary."
+  },
+  "0e6c619875": {
+    "rewrite": null,
+    "why": "Both stores are required, and the rotations expose the third byte then restore EAX while clearing the upper half of RAX, leaving no removable instruction."
+  },
+  "38b2e41d76": {
+    "rewrite": null,
+    "why": "The exact three-byte copy needs both loads and stores, and the rotations also construct the required final RAX containing the original AH."
+  },
+  "294ca278bf": {
+    "rewrite": null,
+    "why": "The load establishes the required zero-extended XMM0 value, and the store, two pointer advances and counter decrement are all necessary."
+  },
+  "030ea26793": {
+    "rewrite": null,
+    "why": "Both overlapping stores contribute required bytes to the five-byte destination, and the pointer advance and counter decrement cannot be removed."
+  },
+  "ce17b9087f": {
+    "rewrite": null,
+    "why": "Both loads establish live XMM values and both stores are needed for the five-byte copy, in addition to the required pointer and counter updates."
+  },
+  "8a11bf27d1": {
+    "rewrite": null,
+    "why": "Both overlapping stores contribute required bytes to the six-byte destination, and the pointer advance and counter decrement cannot be removed."
+  },
+  "c1cada4398": {
+    "rewrite": null,
+    "why": "Both loads establish live XMM values and both stores are needed for the six-byte copy, in addition to the required pointer and counter updates."
+  },
+  "f41b4f8b28": {
+    "rewrite": null,
+    "why": "Both overlapping stores contribute required bytes to the seven-byte destination, and the pointer advance and counter decrement cannot be removed."
+  },
+  "695ab2e58d": {
+    "rewrite": null,
+    "why": "Both loads establish live XMM values and both stores are needed for the seven-byte copy, in addition to the required pointer and counter updates."
+  },
+  "f049bd979d": {
+    "rewrite": null,
+    "why": "The load establishes the required zero-extended XMM0 value, and the store, two pointer advances and counter decrement are all necessary."
+  },
+  "3f3d43d29b": {
+    "rewrite": null,
+    "why": "Both stores contribute required bytes to the nine-byte destination, and SSE2 cannot combine them into a single exact-width store or combine the pointer and counter updates."
+  },
+  "3a948e73d1": {
+    "rewrite": null,
+    "why": "Both loads establish live XMM values and both stores are needed for the nine-byte copy, in addition to the required pointer and counter updates."
+  },
+  "806f556f44": {
+    "rewrite": null,
+    "why": "Both stores contribute required bytes to the ten-byte destination, and SSE2 cannot combine them into a single exact-width store or combine the pointer and counter updates."
+  },
+  "867c8c5160": {
+    "rewrite": null,
+    "why": "Both loads establish live XMM values and both stores are needed for the ten-byte copy, in addition to the required pointer and counter updates."
+  },
+  "fbadf6e31d": {
+    "rewrite": null,
+    "why": "Both stores contribute required bytes to the eleven-byte destination, and SSE2 cannot combine them into a single exact-width store or combine the pointer and counter updates."
+  }
+}

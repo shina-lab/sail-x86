@@ -1,0 +1,91 @@
+{
+  "cace0d7f4a": {
+    "rewrite": "lea rbx,[r9+0x1]\nimul rbx,r8\nneg rbx\nlea rbp,[rbx+r8*1]",
+    "saved": 1,
+    "why": "Factor rbx as -r8*(r9+1) and recover rbp by adding r8, eliminating one instruction with no live flags."
+  },
+  "50c65a211e": {
+    "rewrite": "mov r14,r9\nimul r15,r12,0xffffffffffffffff\nand r14,r12\nmul r9\nadd r14,rdx\nadc r15,0x0\nadd r14,r13\nmov r13,rax\nmov rax,rbp\nlea r10,[rbx+r11*1]\nadc r15,0x0\nmul rcx\nand r12,rbp\nadd r11,r12",
+    "saved": 1,
+    "why": "Use an immediate -1 imul to copy and negate r12 in one instruction; all subsequent carry chains remain unchanged."
+  },
+  "4d149b6414": {
+    "rewrite": null,
+    "why": "The limb additions, carry mask, store, decrement, and copies needed for both live result registers each require an instruction."
+  },
+  "07ee5b0466": {
+    "rewrite": "imul r14,r12,0xffffffffffffffff\nand r12,r8\nsub rax,r12\nmov rcx,rax\nsub rax,r8",
+    "saved": 1,
+    "why": "Fold the copy and negation of r12 into a three-operand imul; the final sub still determines CF."
+  },
+  "4ca2b46075": {
+    "rewrite": null,
+    "why": "Both loaded limbs and both difference limbs are live, so the loads, copies, and borrow-propagating subtractions are all needed."
+  },
+  "d9c61c4123": {
+    "rewrite": null,
+    "why": "The two independent conditions require separate materialization, and their OR must produce both the live byte result and ZF."
+  },
+  "e1d53194d2": {
+    "rewrite": null,
+    "why": "Both variable shifts and both stores are required to preserve the live limbs, memory, and final flags."
+  },
+  "010dfe714e": {
+    "rewrite": null,
+    "why": "The product's high half remains live, and the two loaded limbs plus the variable double-width shift each require an instruction."
+  },
+  "f96dbc4eb4": {
+    "rewrite": null,
+    "why": "The two subtractions and their separate borrow accumulations are required, including preservation of rbx's upper 56 bits."
+  },
+  "6b6cce046a": {
+    "rewrite": null,
+    "why": "The high product, shifted load, two subtractions, quotient multiplication, and store all contribute to required outputs."
+  },
+  "ad66b54402": {
+    "rewrite": null,
+    "why": "All three copied values and the addition result are live, including the addition flags."
+  },
+  "501a434634": {
+    "rewrite": "mov r10,QWORD PTR [rsi+rbx*8]\nmul r9\nadd rax,r10\nadc rdx,rbp\nmov r13,rdx\nimul rdx,r8\nsub r10,rdx\ncmp r10,rax\nlea rax,[r8+r10*1]",
+    "saved": 2,
+    "why": "Compare against the low sum while it is still in rax, removing its temporary copy, then use flag-preserving lea for the final sum."
+  },
+  "5bda01e84e": {
+    "rewrite": "mov r10,QWORD PTR [rsi+rbx*8]\nshl rbp,cl\nneg ecx\nshr r10,cl\nneg ecx\nor rbp,r10\nmul r9\nadd rax,rbp\nadc rdx,r11\nmov r13,rdx\nimul rdx,r8\nsub rbp,rdx\ncmp rbp,rax\nlea rax,[r8+rbp*1]",
+    "saved": 2,
+    "why": "Compare against the low sum directly in rax and form the final sum with lea, removing the temporary copy and one addition instruction."
+  },
+  "b623fbc1fa": {
+    "rewrite": "shl rbp,cl\nmul r9\nadd rax,rbp\nadc rdx,r11\nmov r13,rdx\nimul rdx,r8\nsub rbp,rdx\ncmp rbp,rax\nlea rax,[r8+rbp*1]",
+    "saved": 2,
+    "why": "Keep the low sum in rax until the comparison, then compute the final sum with lea while preserving the comparison's CF."
+  },
+  "5f2330cc99": {
+    "rewrite": "mul r9\nadd rdx,r11\nmov r13,rdx\nimul rdx,rbp\ncmp rdx,rax\nlea rax,[r8+rdx*1]",
+    "saved": 2,
+    "why": "Compare directly against the low product in rax, then replace the final move/add pair with lea without changing CF."
+  },
+  "f305a3fdc2": {
+    "rewrite": null,
+    "why": "All four loaded values and the zeroed r15 are live, and the comparison must supply both CF and ZF."
+  },
+  "23084ee33a": {
+    "rewrite": null,
+    "why": "The incoming carry and new comparison must be materialized separately before their OR produces the live byte result and ZF."
+  },
+  "6b896b1be7": {
+    "rewrite": "mov r9,r11\nmov rdi,rax\nimul r9,rax\nmul r8\nxor ecx,ecx\nadd r9,r8\nadc rcx,0xffffffffffffffff\nadd r9,rdx\nadc rcx,0x0",
+    "saved": 1,
+    "why": "Form the low product directly in r9, eliminating the intermediate copy through rdx while preserving both carry accumulations and final SF."
+  },
+  "fec71e0db8": {
+    "rewrite": null,
+    "why": "Both two-limb subtractions, both register zeroings, and the final comparison are required."
+  },
+  "8e39cdefc4": {
+    "rewrite": "movzx ecx,WORD PTR [r8+rax*2]\nmov rsi,rdi\nimul eax,ecx,0x800\nimul ecx,ecx\nshr rsi,0x18\ninc rsi\nimul rcx,rsi\nshr rcx,0x28\ndec eax\nsub eax,ecx\nmovabs rcx,0x1000000000000000\nimul rsi,rax\nsub rcx,rsi\nimul rcx,rax\nshl rax,0xd\nshr rcx,0x2f\nadd rcx,rax\nmov rsi,rdi\nshr rsi,1\nsbb rax,rax\nsub rsi,rax\nimul rsi,rcx\nand rax,rcx\nshr rax,1\nsub rax,rsi\nmul rcx\nshl rcx,0x1f\nshr rdx,1\nadd rcx,rdx\nmov rax,rdi\nmul rcx\nadd rax,rdi\nmov rax,rcx\nadc rdx,rdi\nsub rax,rdx",
+    "saved": 1,
+    "why": "Compute the zero-extended 32-bit scaled table value with imul eax,ecx,0x800, combining its copy and later left shift; intervening flag differences are overwritten."
+  }
+}

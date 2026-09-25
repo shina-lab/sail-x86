@@ -1,0 +1,83 @@
+{
+  "f6101e2e04": {
+    "rewrite": null,
+    "why": "Both permuted input vectors and the broadcast coefficient are live, and each input still needs its rounded multiplication."
+  },
+  "39b5d92cda": {
+    "rewrite": null,
+    "why": "Both final interleavings and the high-word intermediate are live, so none of the four unpack operations is redundant."
+  },
+  "bf055654a0": {
+    "rewrite": null,
+    "why": "Each of the four instructions produces a distinct required register value."
+  },
+  "01d4c0e969": {
+    "rewrite": null,
+    "why": "Both final interleavings and the low-word intermediate are live, so all four unpack operations are needed."
+  },
+  "e14c35de3e": {
+    "rewrite": null,
+    "why": "Both inserted vectors, both shuffled outputs, and the broadcast are live, while word negation still requires the zero and subtraction."
+  },
+  "fb50ab2811": {
+    "rewrite": null,
+    "why": "The biased scalar rounding stages and final shift flags are required, and the store and both vector destinations need their separate writes."
+  },
+  "c82a51847b": {
+    "rewrite": null,
+    "why": "The six extractions each produce a distinct required register value."
+  },
+  "a90732bc2f": {
+    "rewrite": null,
+    "why": "The insertions assemble independent 128-bit pieces, YMM20 is a required intermediate, and the final broadcast and within-lane shuffle remain necessary."
+  },
+  "12948291de": {
+    "rewrite": null,
+    "why": "The coefficient, multiplied high-word intermediate, and both final interleavings are live, leaving no redundant unpack or rounded multiply."
+  },
+  "9216d28bce": {
+    "rewrite": null,
+    "why": "The coefficient, multiplied low-word intermediate, and both final interleavings are live, leaving no redundant unpack or rounded multiply."
+  },
+  "cff43a44ab": {
+    "rewrite": null,
+    "why": "Both rounded products and the independent broadcast are live, and separately saturated doubling and addition cannot be combined for arbitrary inputs."
+  },
+  "274ccd2160": {
+    "rewrite": null,
+    "why": "The unknown coefficients prevent collapsing the four successive rounded multiplications, and XMM18 and both broadcast outputs must also be preserved."
+  },
+  "d28210a490": {
+    "rewrite": null,
+    "why": "The shared broadcast and four multiplies with memory operands already produce all four required XMM results without redundant temporaries."
+  },
+  "88fc859637": {
+    "rewrite": null,
+    "why": "The assembled YMM19 and broadcast shuffle mask are live, and each output still needs its dword selection and arbitrary byte shuffle."
+  },
+  "ebcf3045fc": {
+    "rewrite": null,
+    "why": "Each dot product needs the unknown bias, its own coefficients, and a separate shift before saturation, while the packed high result and final shifted YMM19 are also live."
+  },
+  "67e4ef38c0": {
+    "rewrite": null,
+    "why": "The broadcast coefficient and four independently scaled outputs are live, and two outputs additionally require their qword swaps."
+  },
+  "519e0fa1e7": {
+    "rewrite": null,
+    "why": "The inserted inputs, high-word intermediate, and its saturated negation feed required results, so neither the unpack stages nor the zero/subtract pair is redundant."
+  },
+  "c863399b6e": {
+    "rewrite": null,
+    "why": "The assembled YMM18 and low-word YMM19 are live, and the saturated negation and two final interleavings still require the remaining instructions."
+  },
+  "e7056ab9a4": {
+    "rewrite": "vmovdqu32 zmm18,ZMMWORD PTR [rdx]\nvshufi32x4 zmm16,zmm18,zmm18,0xdd\nvshufi32x4 zmm18,zmm18,zmm18,0x88\nvpbroadcastd ymm19,DWORD PTR [r9-0x8c]\nvpunpcklwd ymm17,ymm18,ymm16\nvpunpckhwd ymm18,ymm18,ymm16\nvpmulhrsw ymm17,ymm17,ymm19\nvpmulhrsw ymm18,ymm18,ymm19\nvpunpcklwd ymm16,ymm17,ymm18\nvpunpckhwd ymm17,ymm17,ymm18\nvpaddsw ymm16,ymm16,ymm16\nvpaddsw ymm17,ymm17,ymm17",
+    "saved": 1,
+    "why": "One 64-byte load over the original byte range and two lane shuffles replace the four loads/inserts. The subsequent YMM operations reproduce every final value and clear the upper ZMM halves."
+  },
+  "d925491a24": {
+    "rewrite": null,
+    "why": "Both rounded products are required final values, and each source also needs its own saturated addition after multiplication by the unknown coefficient."
+  }
+}

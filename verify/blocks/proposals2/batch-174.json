@@ -1,0 +1,82 @@
+{
+  "5ab6b13b1b": {
+    "rewrite": null,
+    "why": "Both halves of the product must be copied to their required destinations, and RBP must be independently cleared."
+  },
+  "d0e2b2c76c": {
+    "rewrite": null,
+    "why": "The full-width product, three independently cleared registers, and incremented R11 are all required outputs."
+  },
+  "02bdce639e": {
+    "rewrite": null,
+    "why": "Both product halves must be relocated, RBX and RCX cleared, and the separate load and index adjustment retained."
+  },
+  "fa442b2a1f": {
+    "rewrite": null,
+    "why": "Each multiplication and carry-propagating addition contributes to the stored limb or required RBX, RCX, and RBP outputs."
+  },
+  "c0eb56db6a": {
+    "rewrite": null,
+    "why": "All three products, the extracted carry, and the RBX store are needed, with final CF supplied by the last addition."
+  },
+  "7c5f75e39e": {
+    "rewrite": null,
+    "why": "The accumulated product, outgoing carry in RBX, RCX clear, store, and reload into RAX all contribute to required outputs."
+  },
+  "5ecd6ac2d0": {
+    "rewrite": null,
+    "why": "Both full-width products, the carry chain, the store, and the index update that sets SF are required."
+  },
+  "5ba7af502c": {
+    "rewrite": null,
+    "why": "Every arithmetic result, store, and final copy is required, and the last ADC must also reproduce all five requested flags."
+  },
+  "68fe671179": {
+    "rewrite": null,
+    "why": "The load, addition, carry rotate, full-width carry extraction, and masked-count comparison all feed required outputs."
+  },
+  "824c024249": {
+    "rewrite": null,
+    "why": "The load, subtraction, carry rotate, full-width carry extraction, and masked-count comparison all feed required outputs."
+  },
+  "a5a2466025": {
+    "rewrite": null,
+    "why": "Every loaded limb participates in the carry chain, and all rotated limbs, stores, pointer updates, and final flags are required."
+  },
+  "0ebcebd485": {
+    "rewrite": null,
+    "why": "Every loaded limb participates in the borrow chain, and all rotated limbs, stores, pointer updates, and final flags are required."
+  },
+  "eb2fc0c7ed": {
+    "rewrite": null,
+    "why": "Four independently cleared registers and the required copy into RBX need the existing five instructions."
+  },
+  "8f5e4f2264": {
+    "rewrite": null,
+    "why": "Each selected limb needs a load, mask, and OR, while the mask, surviving temporaries, counters, pointer, and final ZF are all required."
+  },
+  "30311bea42": {
+    "rewrite": null,
+    "why": "Both masked values, their OR accumulations, the mask, counter updates, pointer update, and final ZF are required."
+  },
+  "77a1cf3ef7": {
+    "rewrite": null,
+    "why": "The mask, selected value, accumulator, pointer, and counter are all required, and the final ADD must reproduce every requested flag."
+  },
+  "e0130a45a8": {
+    "rewrite": null,
+    "why": "The two-limb carry chain and its two stores are required, including CF from the high-limb ADC."
+  },
+  "b1ff04ef17": {
+    "rewrite": null,
+    "why": "The three loads, two carry-propagating doublings, carry capture, address sum, full-width square, and index update all produce required values."
+  },
+  "03675f2d0f": {
+    "rewrite": null,
+    "why": "The three carry-propagating additions and three stores are all required, and the last ADC supplies the requested final flags."
+  },
+  "a2149f5d49": {
+    "rewrite": null,
+    "why": "The doubling carry and addition carry must be materialized separately, while the arithmetic, store, and three pointer updates are all required."
+  }
+}

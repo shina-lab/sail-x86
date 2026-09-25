@@ -1,0 +1,83 @@
+{
+  "3859b139b5": {
+    "rewrite": "lea eax,[r8*4+0x0]\nadd rdx,rax\nneg rax\nmov r10,rdi\npxor xmm2,xmm2\nmovdqa xmm3,XMMWORD PTR [CONST_1]\nmovdqa xmm4,XMMWORD PTR [CONST_2]",
+    "saved": 1,
+    "why": "Compute the wrapping 32-bit scaled index directly in eax, then negate rax after updating rdx. Since r8 is dead, this removes the copy into rax while preserving the zero extension before the 64-bit negation."
+  },
+  "8a0b896f43": {
+    "rewrite": null,
+    "why": "The two loads, two packed additions, packing, clamps with arbitrary incoming bounds, store, and live pointer updates have no removable instruction at SSE4.1."
+  },
+  "1aaa686ad1": {
+    "rewrite": null,
+    "why": "All three address updates are live, and producing the negative logical half of the original rdx still requires both the shift and negation."
+  },
+  "6a4fa9ac10": {
+    "rewrite": null,
+    "why": "SSE2 needs both byte unpacks and a copy to retain their shared input, while the potentially unaligned second load cannot safely be folded into legacy unpack memory operands."
+  },
+  "90d9f8b0e8": {
+    "rewrite": null,
+    "why": "All three address updates are live, and producing the negative logical half of the original rdx still requires both the shift and negation."
+  },
+  "55ea17f348": {
+    "rewrite": null,
+    "why": "All three initialized vector registers and both updated scalar registers are live, with one instruction already used for each result."
+  },
+  "0fc0b8a452": {
+    "rewrite": null,
+    "why": "The four byte-prefix stages require their copies, shifts, and additions under SSSE3, and the addition into xmm2, store, shuffle, and index update are all observable."
+  },
+  "933bb295e1": {
+    "rewrite": null,
+    "why": "The AVX sequence already folds the load into the XOR and uses three-operand shifts and additions, leaving no redundant prefix stage, store, shuffle, or index update."
+  },
+  "e12ef4b9dc": {
+    "rewrite": null,
+    "why": "Each of the three live vector results needs its own initialization, including zeroing the upper halves of ymm1 and ymm2, and both scalar updates are live."
+  },
+  "d3a6c0a934": {
+    "rewrite": null,
+    "why": "The lane-local prefix sums, additions into xmm2, cross-lane extraction, two stores, arbitrary-mask shuffles, and final index update are all required."
+  },
+  "3ed914ebe5": {
+    "rewrite": null,
+    "why": "Every zeroed register and the rcx-to-r9 copy is live, and SSE4.1 provides no instruction to initialize these independent destinations together."
+  },
+  "498611eb5f": {
+    "rewrite": null,
+    "why": "The arbitrary 32-bit products and live accumulators need the broadcast, multiplies, and additions, while potentially unaligned sample loads prevent safe folding into legacy PMULLD memory operands."
+  },
+  "ad17123bd2": {
+    "rewrite": null,
+    "why": "The three shifted accumulators remain live, and each residual requires its load, subtraction, and store in addition to the live scalar updates."
+  },
+  "06fdaaa96e": {
+    "rewrite": null,
+    "why": "Both products and accumulations, both loads into live vector registers, and the flag-setting index increment are necessary."
+  },
+  "e39834e43f": {
+    "rewrite": null,
+    "why": "The updated xmm2 and full final xmm0 value must be retained, so a scalar memory add cannot replace the load-add-store sequence."
+  },
+  "bb621774d6": {
+    "rewrite": null,
+    "why": "Although xmm1 is dead, replacing the final three SIMD instructions with an extract and scalar memory add would clobber the required incoming flags."
+  },
+  "258e74c7c6": {
+    "rewrite": null,
+    "why": "The full shifted xmm2 and final xmm0 values are live, preventing a scalar-only replacement of the final load-add-store sequence."
+  },
+  "3ea04f704c": {
+    "rewrite": null,
+    "why": "Although xmm1 is dead, replacing the final three SIMD instructions with an extract and scalar memory add would clobber the required incoming flags."
+  },
+  "54907085ff": {
+    "rewrite": null,
+    "why": "The wrapping 32-bit scale, 64-bit pointer addition and negation, and live xmm4 initialization each require an instruction."
+  },
+  "6daf857321": {
+    "rewrite": null,
+    "why": "SSE2 requires a load, packed shift, and store for each 128-bit chunk, and the index update must also reproduce SF and OF."
+  }
+}

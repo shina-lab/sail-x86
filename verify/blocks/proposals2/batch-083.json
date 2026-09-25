@@ -1,0 +1,82 @@
+{
+  "64cb300f9b": {
+    "rewrite": null,
+    "why": "The shuffle masks, multiply coefficients, and averaging operand are arbitrary, and both vector results plus the pointer and counter updates are live, leaving no removable stage in this SSSE3 sequence."
+  },
+  "dc8cb8c3e1": {
+    "rewrite": null,
+    "why": "The two independent loads and stores, both pointer updates, and the flag-producing counter subtraction are all required."
+  },
+  "ffff88b20e": {
+    "rewrite": null,
+    "why": "Both 128-bit loads and stores are required at independently indexed addresses, and the pointer and counter updates must also be preserved."
+  },
+  "acec298906": {
+    "rewrite": null,
+    "why": "Four separately addressed 128-bit stores and the live pointer and counter updates already require six instructions under SSE2."
+  },
+  "f432c5cfc5": {
+    "rewrite": null,
+    "why": "SSE2 cannot widen the eight required 128-bit stores, and both the pointer update and flag-producing decrement remain necessary."
+  },
+  "a3b7379519": {
+    "rewrite": null,
+    "why": "SSSE3 provides no wider store to combine the four independently addressed writes, and the pointer update and decrement are live."
+  },
+  "b2987eca26": {
+    "rewrite": null,
+    "why": "All eight 128-bit stores and both scalar updates are required, and SSSE3 has no wider vector store."
+  },
+  "0c8145bdd1": {
+    "rewrite": null,
+    "why": "The four separately indexed stores cannot be combined under SSE2, and the final pointer, counter, and flags require both scalar instructions."
+  },
+  "2c53b863af": {
+    "rewrite": null,
+    "why": "The eight stores write two distinct live vectors across unknown strides, and SSE2 offers no wider store to reduce their count."
+  },
+  "5c112a2d8e": {
+    "rewrite": null,
+    "why": "The two unpacks and two shuffles construct the required byte repetitions in both live vectors, while all four stores and both scalar updates remain necessary."
+  },
+  "8785960a26": {
+    "rewrite": null,
+    "why": "The shared byte and word duplication enables one shuffle per required broadcast, and all four broadcast results, stores, and scalar updates are live."
+  },
+  "9161793c13": {
+    "rewrite": null,
+    "why": "The four live byte broadcasts already share their expansion steps, and SSE2 cannot combine the eight required stores into wider writes."
+  },
+  "678e6f046a": {
+    "rewrite": null,
+    "why": "The two arbitrary shuffle masks require separate destructive PSHUFB operations and a source copy, with both resulting vectors and all stores live."
+  },
+  "c25a3bf367": {
+    "rewrite": null,
+    "why": "Four arbitrary live masks require four separate PSHUFB results, and legacy SSSE3 needs the source copies before those destructive shuffles."
+  },
+  "9b63bf07e5": {
+    "rewrite": null,
+    "why": "The four arbitrary masked shuffles need their source copies, and all eight stores are required at the maximum vector width allowed by SSSE3."
+  },
+  "f6bcdf05c1": {
+    "rewrite": null,
+    "why": "SSE2 requires the byte widening and word replication steps, and the zero vector, corner broadcast, difference, and final rcx value must all be preserved."
+  },
+  "35292a3db1": {
+    "rewrite": null,
+    "why": "Both broadcasts and additions feed required row results, and the full word sum in xmm2 remains live after packing, preventing elimination of that intermediate."
+  },
+  "ce614951c6": {
+    "rewrite": null,
+    "why": "The two broadcasts feed four separate word sums, with xmm5 and xmm7 also live after packing, so the copies and arithmetic remain necessary under SSE2."
+  },
+  "03a0fe6f48": {
+    "rewrite": null,
+    "why": "All eight word additions feed required results, four unpacked sums remain live, and SSE2 needs the existing broadcasts, copies, packs, and stores."
+  },
+  "4e211fd9b0": {
+    "rewrite": null,
+    "why": "The zeroing is needed for byte-to-word widening, and both loaded masks plus the corner broadcast and difference must be preserved."
+  }
+}

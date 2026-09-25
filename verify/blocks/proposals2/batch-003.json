@@ -1,0 +1,89 @@
+{
+  "c2f43b223c": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+r11*2-0xa6]\nmovdqu xmm7,XMMWORD PTR [rsi+r11*4]\nphaddw xmm7,xmm7\nmovdqa xmm12,xmm0\npsrldq xmm12,0x2\npshufd xmm14,xmm0,0x39\npunpcklwd xmm0,xmm12\npmulhrsw xmm7,xmm6\npunpcklwd xmm14,xmm7\npmaddwd xmm0,xmm4\npmaddwd xmm14,xmm5\npaddd xmm0,xmm14\npaddd xmm0,xmm3",
+    "saved": 1,
+    "why": "PSHUFD places the original dwords 1 and 2 in xmm14's low half in one instruction, replacing the copy and four-byte shift. The following low-word unpack discards the differing upper half."
+  },
+  "b5f479145a": {
+    "rewrite": null,
+    "why": "Both unpacked products and their separate arithmetic shifts are needed, and the final load into live xmm14 cannot be folded away."
+  },
+  "8a8dfb66ed": {
+    "rewrite": null,
+    "why": "The store, both pointer increments, and counter decrement each produce required effects, including carry from the second addition and the other flags from the decrement."
+  },
+  "e1b6a460d2": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdi+r11*2-0xa6]\nmovq xmm7,QWORD PTR [rsi+r11*2]\nmovdqa xmm2,xmm0\npsrldq xmm2,0x2\npshufd xmm14,xmm0,0x39\npunpcklwd xmm0,xmm2\npunpcklwd xmm14,xmm7\npmaddwd xmm0,xmm4\npmaddwd xmm14,xmm5\npaddd xmm0,xmm14\npaddd xmm0,xmm3",
+    "saved": 1,
+    "why": "Replace the copy and four-byte shift with PSHUFD, which supplies the same low four words to the following unpack. The preserved two-byte shift in xmm2 remains unchanged."
+  },
+  "f821524adf": {
+    "rewrite": null,
+    "why": "SSSE3 needs a load and shuffle to broadcast the four-byte constant without overreading, while the bit toggle and masked ZF test have distinct required effects."
+  },
+  "a37cc58760": {
+    "rewrite": null,
+    "why": "The signed widening, arbitrary byte shuffle, high-word unpack, two independent dot products, and final sum are all needed, including the live ymm1 result."
+  },
+  "2fb5a49479": {
+    "rewrite": null,
+    "why": "The extraction, vector shift, scalar arithmetic, signed byte load, and final SF-producing comparison all contribute to required register or flag results."
+  },
+  "a1f561ecdb": {
+    "rewrite": null,
+    "why": "The seed needs multiplication, addition, rotation, and zero-extension before the memory XOR, and each of the three address updates is live."
+  },
+  "61f1143098": {
+    "rewrite": "vmovdqu xmm4,XMMWORD PTR [rsi]\nvinserti128 ymm4,ymm4,XMMWORD PTR [rsi+0x20],0x1\nvmovdqu xmm0,XMMWORD PTR [rsi+0x52]\nvinserti128 ymm0,ymm0,XMMWORD PTR [rsi+0x72],0x1\nvmovdqu xmm5,XMMWORD PTR [rsi+0x10]\nvinserti128 ymm5,ymm5,XMMWORD PTR [rsi+0x30],0x1\nvmovdqu xmm1,XMMWORD PTR [rsi+0x62]\nvinserti128 ymm1,ymm1,XMMWORD PTR [rsi+0x82],0x1\nvpmaddubsw ymm4,ymm7,ymm4\nvpmaddubsw ymm0,ymm7,ymm0\nvpmaddubsw ymm5,ymm7,ymm5\nvpmaddubsw ymm1,ymm7,ymm1\nvpaddw ymm4,ymm4,ymm0\nvpaddw ymm5,ymm5,ymm1\nvpmulhrsw ymm4,ymm4,ymm6\nvpmulhrsw ymm5,ymm5,ymm6\nvpmullw ymm4,ymm4,ymm2\nvpmullw ymm5,ymm5,ymm2\nvpmulhrsw ymm4,ymm4,ymm3\nvpmulhrsw ymm5,ymm5,ymm3\nvmovdqu ymm1,YMMWORD PTR [rdi]\nvpcmpgtb ymm8,ymm12,ymm1\nvpunpcklbw ymm0,ymm1,ymm8\nvpunpckhbw ymm1,ymm1,ymm8\nvpaddw ymm0,ymm0,ymm4\nvpaddw ymm1,ymm1,ymm5\nvpacksswb ymm0,ymm0,ymm1\nvmovdqu YMMWORD PTR [rdi],ymm0\nvpmaddubsw xmm4,xmm7,XMMWORD PTR [rsi+0x40]\nvpmaddubsw xmm5,xmm7,XMMWORD PTR [rsi+0x92]\nvpaddw xmm4,xmm4,xmm5\nvmovq xmm0,QWORD PTR [rdi+0x20]\nvpmulhrsw xmm4,xmm4,xmm6\nvpmullw xmm4,xmm4,xmm2\nvpmulhrsw xmm4,xmm4,xmm3\nvpcmpgtb xmm5,xmm12,xmm0\nvpunpcklbw xmm5,xmm0,xmm5\nvpaddw xmm4,xmm4,xmm5\nvpacksswb xmm4,xmm4,xmm4\nvpblendw xmm0,xmm4,xmm0,0x8\nvmovq QWORD PTR [rdi+0x20],xmm0\nadd rdi,0x52\nadd rsi,0xa4\ndec edx",
+    "saved": 2,
+    "why": "Fold both 128-bit tail loads into the memory operands of VPMADDUBSW. The addresses, signed operand positions, and zeroed upper YMM halves remain identical."
+  },
+  "443e11d18d": {
+    "rewrite": null,
+    "why": "The extraction and vector shift are both live, and the multiply, additions, variable shift, signed byte load, and SF-producing comparison have no removable step."
+  },
+  "fd7f3c96ce": {
+    "rewrite": "vmovdqu xmm4,XMMWORD PTR [rsi]\nvinserti128 ymm4,ymm4,XMMWORD PTR [rsi+0x20],0x1\nvmovdqu xmm5,XMMWORD PTR [rsi+0x10]\nvinserti128 ymm5,ymm5,XMMWORD PTR [rsi+0x30],0x1\nvpmaddubsw ymm4,ymm7,ymm4\nvpmaddubsw ymm5,ymm7,ymm5\nvpmulhrsw ymm4,ymm4,ymm6\nvpmulhrsw ymm5,ymm5,ymm6\nvpmullw ymm4,ymm4,ymm2\nvpmullw ymm5,ymm5,ymm2\nvpmulhrsw ymm4,ymm4,ymm3\nvpmulhrsw ymm5,ymm5,ymm3\nvmovdqu ymm1,YMMWORD PTR [rdi]\nvpcmpgtb ymm8,ymm12,ymm1\nvpunpcklbw ymm0,ymm1,ymm8\nvpunpckhbw ymm1,ymm1,ymm8\nvpaddw ymm0,ymm0,ymm4\nvpaddw ymm1,ymm1,ymm5\nvpacksswb ymm0,ymm0,ymm1\nvmovdqu YMMWORD PTR [rdi],ymm0\nvpmaddubsw xmm4,xmm7,XMMWORD PTR [rsi+0x40]\nvmovq xmm0,QWORD PTR [rdi+0x20]\nvpmulhrsw xmm4,xmm4,xmm6\nvpmullw xmm4,xmm4,xmm2\nvpmulhrsw xmm4,xmm4,xmm3\nvpcmpgtb xmm5,xmm12,xmm0\nvpunpcklbw xmm5,xmm0,xmm5\nvpaddw xmm4,xmm4,xmm5\nvpacksswb xmm4,xmm4,xmm4\nvpblendw xmm0,xmm4,xmm0,0x8\nvmovq QWORD PTR [rdi+0x20],xmm0\nadd rdi,0x52\nadd rsi,0x52\ndec edx",
+    "saved": 1,
+    "why": "Fold the 128-bit tail load into VPMADDUBSW's signed memory operand. The resulting xmm4 and its zeroed upper YMM half match the original load-and-multiply sequence."
+  },
+  "f3e1baa1c2": {
+    "rewrite": null,
+    "why": "The byte comparisons use an unconstrained ymm12 and cannot become ordinary sign extensions, while both separate scaling paths are needed for the required store."
+  },
+  "43a943ae7a": {
+    "rewrite": null,
+    "why": "The arbitrary comparison threshold, distinct high-half multiplier, live vector intermediates, and required pointer and counter flags leave no removable instruction."
+  },
+  "29c11ee2c7": {
+    "rewrite": null,
+    "why": "Both input vectors require their own saturating byte dot product and rounded word multiply before the final signed pack."
+  },
+  "487b4ef382": {
+    "rewrite": "movsx edx,BYTE PTR [rsi+0x63]\nmovd xmm4,DWORD PTR [rsi+0x60]\nmov ecx,DWORD PTR [rsi+0xb0]\npxor xmm6,xmm6\npunpcklbw xmm4,xmm4\npsraw xmm4,0x8",
+    "saved": 1,
+    "why": "Duplicating each byte and arithmetically shifting each word by eight sign-extends the same bytes in two instructions. The temporary sign mask in xmm7 is dead, while xmm6 remains zero."
+  },
+  "8a4f883b5b": {
+    "rewrite": null,
+    "why": "Each of the five instructions independently supplies a required vector shuffle, pointer update, or scalar constant."
+  },
+  "a518309db3": {
+    "rewrite": "movq xmm0,QWORD PTR [r10+rdi*1-0x53]\nmovdqa xmm7,xmm6\npcmpgtb xmm7,xmm0\npunpcklbw xmm0,xmm7\nmovdqa xmm2,xmm0\npsrldq xmm2,0x2\npshufd xmm1,xmm0,0x39\npunpcklwd xmm0,xmm2\npunpcklwd xmm1,xmm3\npmaddwd xmm0,xmm4\npmaddwd xmm1,xmm5\npaddd xmm0,xmm1",
+    "saved": 1,
+    "why": "PSHUFD supplies the same low four words as copying xmm0 and shifting it right by four bytes. The following unpack discards its upper half, preserving the final product in xmm1."
+  },
+  "3ad4f5fb5c": {
+    "rewrite": null,
+    "why": "Every extraction, shift, arithmetic operation, and load feeds a required register result, and the final comparison is needed to reproduce SF."
+  },
+  "7db527472a": {
+    "rewrite": "movq xmm0,QWORD PTR [rsi+0x60]\nmovd xmm1,DWORD PTR [rsi+0x68]\npxor xmm15,xmm15\npshuflw xmm6,xmm6,0x0\npunpcklwd xmm6,xmm15\npunpcklbw xmm0,xmm0\npsraw xmm0,0x8\npunpcklbw xmm1,xmm1\npsraw xmm1,0x8\npshufd xmm4,xmm1,0x0\npshufd xmm5,xmm1,0x55\npshufd xmm3,xmm0,0xff\npshufd xmm2,xmm0,0xaa\npshufd xmm1,xmm0,0x55\npshufd xmm0,xmm0,0x0\nsub rdi,0x161d\nmov edx,0x46",
+    "saved": 2,
+    "why": "Replace each zero-copy, signed comparison, and byte unpack with a self-unpack followed by an arithmetic word shift. The temporary masks in xmm4 and xmm5 are overwritten by the original broadcasts, so all required outputs remain identical."
+  },
+  "4b747f7dc3": {
+    "rewrite": null,
+    "why": "Each full word broadcast needs two instructions with the available SSSE3 inputs, and the dword broadcast, shifted mask, and three live scalar updates are also required."
+  }
+}

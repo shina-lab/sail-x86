@@ -1,0 +1,82 @@
+{
+  "ff55af25ec": {
+    "rewrite": null,
+    "why": "The byte store, return pointer, destination increment, and flag-producing count decrement are all required."
+  },
+  "cf2ecff916": {
+    "rewrite": null,
+    "why": "The three live register additions, bit scan, and final carry-producing comparison have no redundant instruction."
+  },
+  "748a1d106e": {
+    "rewrite": null,
+    "why": "The source increment, bit scan, constant addition, index subtraction, and carry comparison all contribute required outputs."
+  },
+  "4f14111b13": {
+    "rewrite": null,
+    "why": "The loaded word remains live in rdx, and the store, two pointer results, and flag-producing count subtraction must all be retained."
+  },
+  "4f1572a36a": {
+    "rewrite": null,
+    "why": "The loaded word remains live in rcx, both stores are required, and the pointer results and subtraction flags leave no removable instruction."
+  },
+  "ec2da7cb86": {
+    "rewrite": null,
+    "why": "The loaded dword remains live in rdx, and the store, two pointer results, and flag-producing count subtraction must all be retained."
+  },
+  "4423069611": {
+    "rewrite": null,
+    "why": "Both copies and pointer outputs are required, and merging the two count subtractions would change the flags produced by the final subtraction of one."
+  },
+  "75be57ad96": {
+    "rewrite": null,
+    "why": "Both loaded qwords remain live, both stores and pointer outputs are required, and folding the subtractions would change the required final flags."
+  },
+  "3abd130cf9": {
+    "rewrite": null,
+    "why": "Both vector loads must retain their zero-extended zmm results, and the stores, pointer outputs, and final subtraction flags prevent reducing the remaining instructions."
+  },
+  "239f2d6e20": {
+    "rewrite": null,
+    "why": "Both vector loads must retain their zero-extended zmm results, and the stores, pointer outputs, and final subtraction flags prevent reducing the remaining instructions."
+  },
+  "e3aec2df59": {
+    "rewrite": null,
+    "why": "The store, aligned destination, retained low-bit offset, adjusted count, and carry from the final subtraction require the existing operations."
+  },
+  "e8cc36ec89": {
+    "rewrite": null,
+    "why": "Widening the repeated stores requires constructing a duplicated vector while preserving every zmm register, so it does not shorten this block."
+  },
+  "e3cda7a791": {
+    "rewrite": null,
+    "why": "The two stores and two live scalar updates are necessary because the unconstrained upper half of zmm16 cannot substitute for a second copy of ymm16."
+  },
+  "50f1f57a6b": {
+    "rewrite": null,
+    "why": "The zeroed rcx, comparison mask in k1, its copy in rdx, and updated r8 with its flags are all required."
+  },
+  "f64f3191aa": {
+    "rewrite": null,
+    "why": "The comparison mask and its scalar copy are both live, and the store and two independent scalar updates cannot be removed."
+  },
+  "ddac03776f": {
+    "rewrite": null,
+    "why": "The comparison mask and its scalar copy are both live, and the store and two independent scalar updates cannot be removed."
+  },
+  "0fad2e8d13": {
+    "rewrite": null,
+    "why": "The live mask, its scanned scalar result, the store, both updated pointers, and the final carry comparison require the existing instructions."
+  },
+  "a1a4d6b296": {
+    "rewrite": null,
+    "why": "The vector equality result, extracted byte mask, updated r10, and comparison flags are all live."
+  },
+  "2deffa6017": {
+    "rewrite": null,
+    "why": "The load cannot be folded away because xmm3 must retain it, and the store, comparison, mask extraction, and scalar updates are all required."
+  },
+  "759533f477": {
+    "rewrite": null,
+    "why": "Both loads remain live, and SSE2 needs the zero initialization, byte comparison, mask extraction, and scalar comparison to produce the remaining outputs."
+  }
+}

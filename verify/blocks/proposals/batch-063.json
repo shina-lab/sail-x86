@@ -1,0 +1,85 @@
+{
+  "bc346fde1e": {
+    "rewrite": "mov r9d,edx\nshl r9d,0x1e\nshrd r9d,ecx,0x6\nshr r9d,0x12\nadd r9,QWORD PTR [rsi+0x10]\nmovzx r8d,WORD PTR [rsi+0x18]\ntest r8w,r8w",
+    "saved": 4,
+    "why": "The shifts construct ((ecx & 0x3f) << 8) | ((edx & 3) << 6) directly in r9d, then add the original base load. MOVZX reproduces the zero upper bits of the final r8, and the unchanged word TEST preserves SF."
+  },
+  "3e3400bce5": {
+    "rewrite": "mov r9d,edx\nshl r9d,0x1d\nshrd r9d,ecx,0x7\nshr r9d,0x10\nadd r9,QWORD PTR [rsi+0x10]\nmovzx r8d,WORD PTR [rsi+0x18]\ntest r8w,r8w",
+    "saved": 4,
+    "why": "The shifts construct ((ecx & 0x7f) << 9) | ((edx & 7) << 6) directly in r9d, then add the original base load. MOVZX reproduces the zero upper bits of the final r8, and the unchanged word TEST preserves SF."
+  },
+  "f368199264": {
+    "rewrite": "mov r9d,edx\nshl r9d,0x1c\nshrd r9d,ecx,0x8\nshr r9d,0xe\nadd r9,QWORD PTR [rsi+0x10]\nmovzx r8d,WORD PTR [rsi+0x18]\ntest r8w,r8w",
+    "saved": 4,
+    "why": "The shifts construct ((ecx & 0xff) << 10) | ((edx & 0xf) << 6) directly in r9d, then add the original base load. MOVZX reproduces the zero upper bits of the final r8, and the unchanged word TEST preserves SF."
+  },
+  "bc63861030": {
+    "rewrite": null,
+    "why": "The five loads, two count differences, two negative products, and two pointer adjustments all produce required values with no removable instruction."
+  },
+  "a90843b7a6": {
+    "rewrite": null,
+    "why": "The zero-extending load, arbitrary byte shuffle, store, and two live index updates each require an instruction, with the final update also supplying ZF."
+  },
+  "05edcbcb36": {
+    "rewrite": null,
+    "why": "Each instruction computes a distinct required register result, and the decrement also supplies the required ZF."
+  },
+  "d9c4f597b9": {
+    "rewrite": null,
+    "why": "The five loads, two count differences, two negative products, and two pointer adjustments all produce required values with no removable instruction."
+  },
+  "d0f515db64": {
+    "rewrite": null,
+    "why": "The zero-extending load, arbitrary byte shuffle, store, and two live index updates each require an instruction, with the final update also supplying ZF."
+  },
+  "b9c731e282": {
+    "rewrite": null,
+    "why": "Each instruction computes a distinct required register result, and the decrement also supplies the required ZF."
+  },
+  "849c0af050": {
+    "rewrite": null,
+    "why": "The five loads, two count differences, two negative products, and two pointer adjustments all produce required values with no removable instruction."
+  },
+  "86d57716b5": {
+    "rewrite": null,
+    "why": "The zero-extending load, arbitrary byte shuffle, store, and two live index updates each require an instruction, with the final update also supplying ZF."
+  },
+  "4ead3d478d": {
+    "rewrite": null,
+    "why": "Each instruction computes a distinct required register result, and the decrement also supplies the required ZF."
+  },
+  "4ed76e2e4a": {
+    "rewrite": null,
+    "why": "The five loads, two count differences, two negative products, and two pointer adjustments all produce required values with no removable instruction."
+  },
+  "145160bd31": {
+    "rewrite": null,
+    "why": "The load, arbitrary byte shuffle, store, and two live index updates each require an instruction, with the final update also supplying ZF."
+  },
+  "7fc8df43ba": {
+    "rewrite": null,
+    "why": "Each instruction computes a distinct required register result, and the decrement also supplies the required ZF."
+  },
+  "a175fc1787": {
+    "rewrite": null,
+    "why": "The five loads, two count differences, two negative products, and two pointer adjustments all produce required values with no removable instruction."
+  },
+  "f19a178033": {
+    "rewrite": null,
+    "why": "The load, arbitrary byte shuffle, store, and two live index updates each require an instruction, with the final update also supplying ZF."
+  },
+  "1f10a87e45": {
+    "rewrite": null,
+    "why": "Each instruction computes a distinct required register result, and the decrement also supplies the required ZF."
+  },
+  "fcf09b514a": {
+    "rewrite": null,
+    "why": "The five loads, two count differences, two negative products, and two pointer adjustments all produce required values with no removable instruction."
+  },
+  "8668b670b3": {
+    "rewrite": null,
+    "why": "The zero-extending load, arbitrary byte shuffle, store, and two live index updates each require an instruction, with the final update also supplying ZF."
+  }
+}

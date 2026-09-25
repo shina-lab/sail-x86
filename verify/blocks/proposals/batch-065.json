@@ -1,0 +1,87 @@
+{
+  "8e73f19997": {
+    "rewrite": null,
+    "why": "The load, arbitrary byte shuffle, store, and two live index updates each require a separate instruction."
+  },
+  "0acbf5cbfd": {
+    "rewrite": null,
+    "why": "All five scalar results are live, and the decrement must also produce the final ZF."
+  },
+  "a5a5322ac3": {
+    "rewrite": null,
+    "why": "The loads, dimension updates, preserved negative offset, and two pointer adjustments have no instruction-count reduction under the fixed addressing constraints."
+  },
+  "b18e3c28ca": {
+    "rewrite": null,
+    "why": "The arbitrary PSHUFB data load cannot be folded into its mask operand, and the store and index update are required."
+  },
+  "35f3d0eca5": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct live scalar result, with the decrement supplying the required ZF."
+  },
+  "80b815b62d": {
+    "rewrite": null,
+    "why": "The broadcast already folds its load, and the remaining loads and scalar updates all produce required results."
+  },
+  "49f4d0f48d": {
+    "rewrite": null,
+    "why": "VPSHUFB permits memory only for the shuffle mask, so its data load, shuffle, store, and live index update remain separate."
+  },
+  "aadf610aa0": {
+    "rewrite": null,
+    "why": "The two pointer additions, preserved offset multiplication, and counter decrement are independent required results."
+  },
+  "38dbe45dd8": {
+    "rewrite": null,
+    "why": "The broadcast already includes its load, and all pointer loads, dimension updates, and offset calculations remain necessary."
+  },
+  "9844009083": {
+    "rewrite": null,
+    "why": "The arbitrary byte shuffle cannot absorb its data load with the permitted AVX-512 subsets, and the store and index update are required."
+  },
+  "6848adee61": {
+    "rewrite": null,
+    "why": "Each of the four instructions writes a distinct required scalar result, and the decrement supplies the final ZF."
+  },
+  "68f42b7e7c": {
+    "rewrite": null,
+    "why": "Both loads and both pointer increments are live, with the last increment determining all required flags."
+  },
+  "a856c01ddb": {
+    "rewrite": null,
+    "why": "The three independent loads and three live pointer increments cannot be combined into fewer permitted instructions."
+  },
+  "b18bdeac72": {
+    "rewrite": null,
+    "why": "The live scalar load, two stores to distinct bases, and two required pointer increments each need an instruction."
+  },
+  "25775e6729": {
+    "rewrite": null,
+    "why": "Both shuffled intermediates and the mask must be preserved, while each output needs a copy and a qword merge under legacy SSE."
+  },
+  "df427402ec": {
+    "rewrite": "movdqa xmm12,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nmovdqu xmm8,XMMWORD PTR [r10]\nmovdqu xmm1,XMMWORD PTR [r10+0xc]\nmovdqu xmm9,XMMWORD PTR [r10+0x18]\nmovdqu xmm3,XMMWORD PTR [r10+0x24]\npshufb xmm8,xmm12\npshufb xmm1,xmm12\npshufb xmm9,xmm12\npshufb xmm3,xmm12\nmovdqa xmm10,xmm8\npunpckhdq xmm10,xmm1\npunpckldq xmm8,xmm1\nmovdqa xmm11,xmm9\npunpckhdq xmm11,xmm3\npunpckldq xmm9,xmm3\nmovdqa xmm0,xmm8\npunpcklqdq xmm0,xmm9\nmovdqa xmm1,xmm8\npunpckhqdq xmm1,xmm9\nmovdqa xmm2,xmm10\npunpcklqdq xmm2,xmm11\nadd r10,0x30\nadd rsi,0x20",
+    "saved": 6,
+    "why": "Load directly into the shuffle registers and form the low dword unpacks in place after saving the high inputs. This removes six copies while preserving every intermediate, the shuffled xmm3, and the final flags."
+  },
+  "b76c8b8da8": {
+    "rewrite": "movdqa xmm12,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nmovdqu xmm8,XMMWORD PTR [r10]\nmovdqu xmm1,XMMWORD PTR [r10+0x10]\nmovdqu xmm9,XMMWORD PTR [r10+0x20]\nmovdqu xmm3,XMMWORD PTR [r10+0x30]\npshufb xmm8,xmm12\npshufb xmm1,xmm12\npshufb xmm9,xmm12\npshufb xmm3,xmm12\nmovdqa xmm10,xmm8\npunpckhdq xmm10,xmm1\npunpckldq xmm8,xmm1\nmovdqa xmm11,xmm9\npunpckhdq xmm11,xmm3\npunpckldq xmm9,xmm3\nmovdqa xmm0,xmm8\npunpcklqdq xmm0,xmm9\nmovdqa xmm1,xmm8\npunpckhqdq xmm1,xmm9\nmovdqa xmm2,xmm10\npunpcklqdq xmm2,xmm11\nmovdqa xmm3,xmm10\npunpckhqdq xmm3,xmm11\nadd r10,0x40\nadd rsi,0x20",
+    "saved": 6,
+    "why": "Loading directly into the shuffle registers removes four copies, and forming the low dword unpacks in place removes two more. All four output vectors and all required intermediate vectors retain their original values."
+  },
+  "55b82cec22": {
+    "rewrite": "movdqa xmm12,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nmovdqa xmm8,xmm0\npunpcklbw xmm8,xmm1\nmovdqa xmm9,xmm0\npunpckhbw xmm9,xmm1\nmovdqu XMMWORD PTR [rax],xmm8\nmovdqu XMMWORD PTR [rax+0x10],xmm9\nadd rax,0x20",
+    "saved": 2,
+    "why": "Each qword unpack followed by the constant byte shuffle is exactly a byte unpack of the corresponding input halves. Retaining the mask load preserves xmm12."
+  },
+  "5d6136091a": {
+    "rewrite": "movdqa xmm12,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nmovdqa xmm10,xmm0\npunpckhdq xmm10,xmm1\npunpckldq xmm0,xmm1\nmovdqa xmm9,xmm2\npunpckldq xmm9,xmm3\npunpckhdq xmm2,xmm3\nmovdqa xmm8,xmm0\nmovlhps xmm8,xmm9\nmovhlps xmm9,xmm0\nmovdqa xmm0,xmm8\nmovdqa xmm1,xmm9\nmovdqa xmm11,xmm2\nmovhlps xmm11,xmm10\nmovdqa xmm3,xmm11\nmovlhps xmm10,xmm2\nmovdqa xmm2,xmm10\npshufb xmm8,xmm12\npshufb xmm9,xmm12\npshufb xmm10,xmm12\npshufb xmm11,xmm12\nmovdqu XMMWORD PTR [rax],xmm8\nmovdqu XMMWORD PTR [rax+0xc],xmm9\nmovdqu XMMWORD PTR [rax+0x18],xmm10\nmovdqu XMMWORD PTR [rax+0x24],xmm11\nadd rax,0x30",
+    "saved": 4,
+    "why": "Reuse consumed input registers for dword unpacks and use MOVLHPS/MOVHLPS to assemble the transposed qword pairs with fewer copies. Both the unshuffled outputs and shuffled temporaries match, including the values and order of the overlapping stores."
+  },
+  "8a074dc406": {
+    "rewrite": "movdqa xmm12,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nmovdqa xmm10,xmm0\npunpckhdq xmm10,xmm1\npunpckldq xmm0,xmm1\nmovdqa xmm9,xmm2\npunpckldq xmm9,xmm3\npunpckhdq xmm2,xmm3\nmovdqa xmm8,xmm0\nmovlhps xmm8,xmm9\nmovhlps xmm9,xmm0\nmovdqa xmm0,xmm8\nmovdqa xmm1,xmm9\nmovdqa xmm11,xmm2\nmovhlps xmm11,xmm10\nmovdqa xmm3,xmm11\nmovlhps xmm10,xmm2\nmovdqa xmm2,xmm10\npshufb xmm8,xmm12\npshufb xmm9,xmm12\npshufb xmm10,xmm12\npshufb xmm11,xmm12\nmovdqu XMMWORD PTR [rax],xmm8\nmovdqu XMMWORD PTR [rax+0x10],xmm9\nmovdqu XMMWORD PTR [rax+0x20],xmm10\nmovdqu XMMWORD PTR [rax+0x30],xmm11\nadd rax,0x40",
+    "saved": 4,
+    "why": "Reuse consumed input registers for dword unpacks and combine qword halves with MOVLHPS/MOVHLPS, removing four copies. The transposed outputs, shuffled temporaries, stores, pointer update, and final flags are preserved."
+  }
+}

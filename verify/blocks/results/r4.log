@@ -1,0 +1,9 @@
+=== 8 test functions for 4 blocks -> /home/ruiu/sail-x86/verify/blocks/blocks_tests.sail
+=== Isla IR: 1 chunk(s), 2 in parallel
+    chunk0.ir: 7,850,268 bytes, 172s
+=== Isla traces (40 parallel)
+=== Z3 (40 parallel, 60s each)
+
+  linux          timeout                      3
+  linux          unsat                        1
+wrote results/r4.json

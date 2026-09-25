@@ -1,0 +1,83 @@
+{
+  "2dcac76ea6": {
+    "rewrite": "lea r8,[r8+rax*2]\nmovdqa xmm1,xmm4\npunpckldq xmm4,xmm5\npunpckhdq xmm1,xmm5\npaddd xmm4,xmm1\nmovhlps xmm0,xmm4\npaddd xmm0,xmm4\npaddd xmm0,xmm7\npsrad xmm0,0xb\nmovdqa xmm4,xmm2\npcmpgtd xmm4,xmm0\npxor xmm0,xmm2\npand xmm0,xmm4\npxor xmm0,xmm2\nmovq QWORD PTR [rsi+rdx*4],xmm0\nadd rdx,0x2",
+    "saved": 1,
+    "why": "Unpacking dwords before addition directly produces the same lane order as the original qword unpacks, addition, and PSHUFD. This removes the shuffle while preserving the complete intermediate vector and all subsequent results."
+  },
+  "5ef55bf398": {
+    "rewrite": null,
+    "why": "Both sign-extended loads, both vector zeroings, and the register copy produce independently required live values."
+  },
+  "ccc61aadff": {
+    "rewrite": null,
+    "why": "The two independent load, unpack, multiply-add, and accumulation chains are required for arbitrary xmm3, and the live pointer updates and final comparison cannot be removed."
+  },
+  "cd52e7604b": {
+    "rewrite": null,
+    "why": "The two accumulation chains require their loads, unpacks, and multiply-adds under SSSE3, with xmm0, both updated pointers, and the final comparison flags also live."
+  },
+  "c2312de04d": {
+    "rewrite": null,
+    "why": "Two horizontal additions are needed for the full reductions, followed by distinct arithmetic shifting, saturating packing, storage, and live pointer updates."
+  },
+  "83b0db960a": {
+    "rewrite": null,
+    "why": "Each independent dot-product accumulation already folds its coefficient load into PMADDWD, and the live pointer updates and comparison remain necessary."
+  },
+  "b23128677d": {
+    "rewrite": null,
+    "why": "Both dot-product accumulations are compact SSSE3 sequences, and the required xmm0 result, pointer updates, and comparison flags preclude deleting any operation."
+  },
+  "77845ca507": {
+    "rewrite": null,
+    "why": "The horizontal reductions, arithmetic shift, and signed saturating pack perform distinct required operations, alongside the store and live pointer updates."
+  },
+  "c43ab902a8": {
+    "rewrite": null,
+    "why": "The full vector result requires both horizontal additions, the arithmetic shift, and saturating packing, while the store and pointer updates are also live."
+  },
+  "e23c8c9baa": {
+    "rewrite": null,
+    "why": "SSSE3 cannot combine the required dword reductions, arithmetic shift, and signed saturating pack into fewer instructions, and the remaining operations have live effects."
+  },
+  "65805eb9c2": {
+    "rewrite": null,
+    "why": "The two horizontal additions, shift, saturating pack, store, and pointer updates each contribute to required final state."
+  },
+  "c661224a43": {
+    "rewrite": null,
+    "why": "The arbitrary word subtractions must precede the two signed multiply-add accumulations, whose coefficient loads are already folded, and the scalar updates and comparison are required."
+  },
+  "a642798c48": {
+    "rewrite": null,
+    "why": "The two load, subtraction, multiply-add, and accumulation chains are needed, with xmm0, both updated pointers, and the final comparison flags also required."
+  },
+  "1091ea6b86": {
+    "rewrite": null,
+    "why": "The full horizontal reductions, arbitrary xmm7 addition, arithmetic shift, saturating pack, store, and pointer updates all have distinct required effects."
+  },
+  "f3a4053eee": {
+    "rewrite": null,
+    "why": "The reduction and shift are compact, and SSSE3 lacks signed dword minimum or blending instructions to shorten the comparison and selection while retaining the live mask."
+  },
+  "93ff9cabaf": {
+    "rewrite": null,
+    "why": "Both horizontal additions and the shift are needed, and the live comparison mask and selected dwords require the existing comparison and Boolean selection under SSSE3."
+  },
+  "9da0f7c115": {
+    "rewrite": null,
+    "why": "The reduction, shift, and signed dword selection are already compact for SSSE3, especially because the comparison mask must also be preserved."
+  },
+  "fb01798afd": {
+    "rewrite": null,
+    "why": "The required reduction, scaling, comparison mask, and selected dwords have no shorter SSSE3 sequence, and the store and pointer updates remain live."
+  },
+  "44469adc70": {
+    "rewrite": null,
+    "why": "SSSE3 provides no signed dword minimum or blend to replace the existing selection, and the reductions, shift, live mask, store, and pointer updates are required."
+  },
+  "cdb6590c98": {
+    "rewrite": null,
+    "why": "The reductions and arbitrary xmm7 addition must precede scaling, and the signed dword selection with a live comparison mask cannot be shortened using SSSE3."
+  }
+}

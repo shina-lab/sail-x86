@@ -1,0 +1,55 @@
+{
+  "9e9c0125eb": {
+    "rewrite": "vpshufb xmm1,xmm1,XMMWORD PTR [rax+rcx*1-0x10]\nvinserti128 ymm5,ymm5,xmm1,0x1\nvpclmullqlqdq ymm1,ymm5,YMMWORD PTR [rdi+0x180]\nvpclmulhqlqdq ymm2,ymm5,YMMWORD PTR [rdi+0x180]\nvpclmullqhqdq ymm3,ymm5,YMMWORD PTR [rdi+0x180]\nvpxor ymm2,ymm2,ymm3\nvpclmulhqlqdq ymm3,ymm7,ymm1\nvpshufd ymm1,ymm1,0x4e\nvpxor ymm2,ymm2,ymm1\nvpxor ymm2,ymm2,ymm3\nvpclmulhqhqdq ymm5,ymm5,YMMWORD PTR [rdi+0x180]\nvpclmulhqlqdq ymm1,ymm7,ymm2\nvpshufd ymm2,ymm2,0x4e\nvpxor ymm5,ymm5,ymm2\nvpxor ymm5,ymm5,ymm1\nvextracti128 xmm0,ymm5,0x1\nvpxor xmm5,xmm5,xmm0",
+    "saved": 1,
+    "why": "Fold the shared memory load into all four carry-less multiplications, removing vmovdqu. The required final ymm0 value is still produced by vextracti128."
+  },
+  "0f34ebae55": {
+    "rewrite": null,
+    "why": "One 128-bit key broadcast already serves all four required YMM AES rounds, and the preserved pointer update and ZF-setting comparison need separate instructions."
+  },
+  "afdb6bd256": {
+    "rewrite": null,
+    "why": "Each stored and preserved YMM result requires both the key/data XOR and final AES round, while both scalar updates remain live."
+  },
+  "68e7e61bee": {
+    "rewrite": null,
+    "why": "One 128-bit key broadcast already serves both required YMM AES rounds, and the preserved pointer update and ZF-setting comparison need separate instructions."
+  },
+  "ade0ae8b3f": {
+    "rewrite": null,
+    "why": "All four carry-less products feed preserved accumulators, the loaded key and shifted AES states remain live, and the final comparison supplies the required SF and OF."
+  },
+  "c5bfa3f29e": {
+    "rewrite": null,
+    "why": "The broadcast must produce the preserved zmm9 value, and the AES round, pointer increment, and ZF-setting comparison each perform distinct required work."
+  },
+  "c812eb84c3": {
+    "rewrite": null,
+    "why": "The reduction intermediates and three extracted lanes are all preserved outputs, and the four-lane XOR already uses ternary logic."
+  },
+  "5890897bce": {
+    "rewrite": null,
+    "why": "VPSHUFB requires its data input in a register, while the carry-less products, ternary XORs, and required scalar updates and comparison are already compact."
+  },
+  "cff3d4be84": {
+    "rewrite": null,
+    "why": "The data loads are already folded into ternary XORs, and both carry-less products per accumulator plus the preserved pointer/count updates and comparison remain necessary."
+  },
+  "b4f1be7d9a": {
+    "rewrite": null,
+    "why": "All four loaded plaintext registers are preserved outputs, so folding their loads into the XORs would lose required values."
+  },
+  "e609e46b70": {
+    "rewrite": null,
+    "why": "Both AES transformations are required, and the loaded xmm1 value and rax copy are preserved outputs."
+  },
+  "876a1f9179": {
+    "rewrite": null,
+    "why": "Both AES decryption transformations are required, and the loaded xmm1 value and rax copy are preserved outputs."
+  },
+  "393c80e4e5": {
+    "rewrite": null,
+    "why": "The six AES rounds, preserved key load, pointer update, and counter decrement remain necessary, and wider VAES rounds are unavailable at this ISA level."
+  }
+}

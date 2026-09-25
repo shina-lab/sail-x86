@@ -1,0 +1,88 @@
+{
+  "599a52640c": {
+    "rewrite": null,
+    "why": "The vector copy, addition, duplicated sum, and r8 initialization all produce required results, and the extended-register operands cannot be accessed under AVX2."
+  },
+  "58dfbcc1ef": {
+    "rewrite": null,
+    "why": "The live ChaCha rounds, six lane permutations, and loop decrement have no removable work, and AVX2 expansion of the rotations would increase the instruction count."
+  },
+  "208fb5bf1e": {
+    "rewrite": null,
+    "why": "All four independent vector sums and the length subtraction produce required outputs, including CF and ZF."
+  },
+  "f244b1b7af": {
+    "rewrite": "vinserti128 ymm4,ymm0,xmm1,0x1\nvinserti128 ymm5,ymm2,xmm3,0x1\nvpxor ymm4,ymm4,YMMWORD PTR [rsi]\nvpxor ymm5,ymm5,YMMWORD PTR [rsi+0x20]\nlea rsi,[rsi+0x40]\nvmovdqu YMMWORD PTR [rdi],ymm4\nvmovdqu YMMWORD PTR [rdi+0x20],ymm5\nlea rdi,[rdi+0x40]",
+    "saved": 2,
+    "why": "Combine each pair of low XMM halves into one YMM register, allowing two wider XORs and stores to replace four of each. The accessed bytes, stored values, preserved source registers, pointer updates, and ZF are unchanged."
+  },
+  "71afd5e388": {
+    "rewrite": null,
+    "why": "Each extraction produces a distinct preserved YMM value with its upper half cleared, and the subtraction is required for rdx, CF, and ZF."
+  },
+  "289c709a85": {
+    "rewrite": null,
+    "why": "The required copies from ymm16 and ymm17 need AVX-512, preventing a legal equivalent rewrite under the stated AVX2 ceiling."
+  },
+  "6ecf02dfc7": {
+    "rewrite": null,
+    "why": "The vector copy, zeroing, pointer subtraction, and comparison each produce required results, and the copy from ymm19 additionally needs AVX-512."
+  },
+  "47acf9e274": {
+    "rewrite": null,
+    "why": "Both vector copies, the rsi increment, and the comparison producing CF and ZF are independently required."
+  },
+  "d2157872cc": {
+    "rewrite": null,
+    "why": "Both vector copies, the rsi increment, and the comparison producing CF and ZF are independently required."
+  },
+  "a853132324": {
+    "rewrite": null,
+    "why": "Both vector copies, the rsi increment, and the comparison producing CF and ZF are independently required."
+  },
+  "358d3f17fb": {
+    "rewrite": null,
+    "why": "Both vector copies, the pointer increment, and the comparison are required, and the copy from ymm18 is unavailable under AVX2."
+  },
+  "86e7b018ba": {
+    "rewrite": null,
+    "why": "Both vector copies, the rsi increment, and the comparison producing CF and ZF are independently required."
+  },
+  "13ef76b30a": {
+    "rewrite": null,
+    "why": "Both vector copies, the rsi increment, and the comparison producing CF and ZF are independently required."
+  },
+  "b165472c9b": {
+    "rewrite": "mulx r10,r9,r14\nmulx r11,rcx,r15\nmov rax,rdx\nmovq xmm1,r14\nmulx r12,rbp,r8\nmov rdx,r14\nxor r13,r13\nadox r10,rcx\nmovq xmm2,r15\nadox r11,rbp\nmulx rbp,rcx,r15\nadcx r11,rcx\nadox r12,rbp\nmulx rbp,rcx,r8\nmov rdx,r15\nadcx r12,rcx\nadox r13,rbp\nadc r13,0x0\nmulx r14,rcx,r8\nmov rdx,rax\nmovq xmm3,r8\nxor r15,r15\nadcx r9,r9\nadox r13,rcx\nadcx r10,r10\nadox r14,r15\nmulx rbp,r8,rdx\nmovq rdx,xmm1\nadcx r11,r11\nadox r9,rbp\nadcx r12,r12\nmulx rax,rcx,rdx\nmovq rdx,xmm2\nadcx r13,r13\nadox r10,rcx\nadcx r14,r14\nmulx rbp,rcx,rdx",
+    "saved": 1,
+    "why": "Zero r13 earlier and carry the first additions through OF so the existing adox r12,rbp incorporates their carry directly. A product's high half cannot overflow when incremented by one, so this removes adc r12,0x0 while preserving the subsequent carry chains."
+  },
+  "f03f0cec56": {
+    "rewrite": "mulx r10,r9,r14\nmulx r11,rcx,r15\nxor r13,r13\nadox r10,rcx\nmulx r12,rbp,r8\nmov rdx,r14\nadox r11,rbp\nmulx rbp,rcx,r15\nadcx r11,rcx\nadox r12,rbp\nmulx rbp,rcx,r8\nmov rdx,r15\nadcx r12,rcx\nadox r13,rbp\nadc r13,0x0\nmulx r14,rcx,r8\nmov rdx,QWORD PTR [rsi+0x80]\nxor r15,r15\nadcx r9,r9\nadox r13,rcx\nadcx r10,r10\nadox r14,r15\nmulx rbp,r8,rdx\nmov rdx,QWORD PTR [rsi+0x88]\nadcx r11,r11\nadox r9,rbp\nadcx r12,r12\nmulx rax,rcx,rdx\nmov rdx,QWORD PTR [rsi+0x90]\nadcx r13,r13\nadox r10,rcx\nadcx r14,r14",
+    "saved": 2,
+    "why": "Move xor r13,r13 ahead of the first additions and use ADOX so their carry feeds adox r12,rbp directly, eliminating adc r12,0x0. This also eliminates xor eax,eax because the later MULX overwrites rax before its value is used."
+  },
+  "75c2ff8ade": {
+    "rewrite": null,
+    "why": "The load, constant assignment, and four carry-dependent additions each produce a distinct preserved register, with the ADOX chain also determining final OF."
+  },
+  "621e6b99bf": {
+    "rewrite": "movdqa xmm15,xmm8\npaddd xmm8,xmm0\npcmpeqd xmm15,xmm1\nmovdqa xmm9,XMMWORD PTR [rsi]\nmovdqa xmm10,XMMWORD PTR [rsi+0x10]\nmovdqa xmm11,XMMWORD PTR [rsi+0x20]\nmovdqa xmm12,XMMWORD PTR [rsi+0x30]\nmovdqa xmm13,XMMWORD PTR [rsi+0x40]\npand xmm9,xmm15\npand xmm10,xmm15\npor xmm2,xmm9\npand xmm11,xmm15\npor xmm3,xmm10\npand xmm12,xmm15\npor xmm4,xmm11\npand xmm13,xmm15\npor xmm5,xmm12\npand xmm15,XMMWORD PTR [rsi+0x50]\npor xmm6,xmm13\npor xmm7,xmm15\nlea rsi,[rsi+0x60]\ndec rax",
+    "saved": 1,
+    "why": "After the other masked values are computed, consume the dead comparison mask with a memory-source PAND for the last value. This replaces its separate load and mask operation with one instruction."
+  },
+  "f1eb311bb1": {
+    "rewrite": "movdqa xmm12,xmm8\npaddd xmm8,xmm0\npcmpeqd xmm12,xmm1\nmovdqa xmm9,XMMWORD PTR [rsi]\npand xmm9,xmm12\npor xmm2,xmm9\nmovdqa xmm10,XMMWORD PTR [rsi+0x10]\npand xmm10,xmm12\npor xmm3,xmm10\nmovdqa xmm11,XMMWORD PTR [rsi+0x20]\npand xmm11,xmm12\npor xmm4,xmm11\npand xmm12,XMMWORD PTR [rsi+0x30]\nlea rsi,[rsi+0x40]",
+    "saved": 1,
+    "why": "Build the comparison mask in xmm12, use it for the three accumulator updates, then consume it with a memory-source PAND. This preserves the required final xmm12 value while removing its separate load."
+  },
+  "73499c4a29": {
+    "rewrite": "vpcmpeqd ymm9,ymm5,ymm1\nvpcmpeqd ymm14,ymm10,ymm1\nvpaddd ymm5,ymm5,ymm0\nvpaddd ymm10,ymm10,ymm0\nvpand ymm6,ymm9,YMMWORD PTR [rsi]\nvpand ymm7,ymm9,YMMWORD PTR [rsi+0x20]\nvpand ymm8,ymm9,YMMWORD PTR [rsi+0x40]\nvpand ymm11,ymm14,YMMWORD PTR [rsi+0x60]\nvpand ymm12,ymm14,YMMWORD PTR [rsi+0x80]\nvpand ymm13,ymm14,YMMWORD PTR [rsi+0xa0]\nvpxor ymm2,ymm2,ymm6\nvpxor ymm3,ymm3,ymm7\nvpxor ymm4,ymm4,ymm8\nvpxor ymm2,ymm2,ymm11\nvpxor ymm3,ymm3,ymm12\nvpxor ymm4,ymm4,ymm13\nlea rsi,[rsi+0xc0]\ndec rax",
+    "saved": 6,
+    "why": "Fold all six vector loads into the corresponding three-operand VPAND instructions. Advance rsi after these reads so every memory operand retains its original base and displacement."
+  },
+  "15533beda9": {
+    "rewrite": null,
+    "why": "All three stores are required, and vzeroupper must remain because the preserved ymm0 must have its upper half cleared."
+  }
+}

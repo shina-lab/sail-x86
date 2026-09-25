@@ -1,0 +1,86 @@
+{
+  "e9237ba31e": {
+    "rewrite": null,
+    "why": "Both loaded registers and the shifted vector are live, and the pointer increment must also produce the required flags."
+  },
+  "fcb3c001bb": {
+    "rewrite": null,
+    "why": "The loaded count register, scalar load, two independently shifted vectors, and pointer increment all contribute required final values."
+  },
+  "42cb874c70": {
+    "rewrite": null,
+    "why": "All four vectors require independent shifts, while both loaded registers and the flag-setting pointer increment must be preserved."
+  },
+  "12fd4203bf": {
+    "rewrite": null,
+    "why": "The shifted component registers are live, and AVX2 requires separate shifts and binary OR operations to form both packed results for arbitrary inputs."
+  },
+  "0c96402e8a": {
+    "rewrite": null,
+    "why": "The shifted component registers are live, and neither the distinct shifts nor the two OR operations per packed result can be combined using AVX2."
+  },
+  "3928fa20fc": {
+    "rewrite": null,
+    "why": "Each channel needs low-half widening plus extraction and widening of the high half, with all six widened outputs required."
+  },
+  "0f49787255": {
+    "rewrite": null,
+    "why": "AVX2 needs an extraction and two widening instructions per channel to produce all eight required vectors in the specified order."
+  },
+  "67dbdaea15": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nvpermq ymm0,ymm0,0xd8\nvpunpckhbw ymm4,ymm0,ymm0\nvpunpcklbw ymm0,ymm0,ymm0\nvbroadcasti128 ymm8,XMMWORD PTR [CONST_1]\nadd rsi,0x20",
+    "saved": 2,
+    "why": "Permuting qwords to order 0,2,1,3 lets self-unpacks duplicate each byte into a word in the required low-half and high-half outputs. The constant broadcast remains to preserve ymm8."
+  },
+  "e47c9e5039": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nvpermq ymm0,ymm0,0xd8\nvpunpckhbw ymm4,ymm0,ymm0\nvpunpcklbw ymm0,ymm0,ymm0\nvpermq ymm3,ymm3,0xd8\nvpunpckhbw ymm7,ymm3,ymm3\nvpunpcklbw ymm3,ymm3,ymm3\nvbroadcasti128 ymm8,XMMWORD PTR [CONST_1]\nadd rsi,0x20",
+    "saved": 4,
+    "why": "Each channel uses one qword permutation and two self-unpacks instead of extraction, two widenings, and two byte shuffles. The output byte order and the required constant in ymm8 are preserved."
+  },
+  "b4215357bd": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nvpermq ymm0,ymm0,0xd8\nvpunpckhbw ymm4,ymm0,ymm0\nvpunpcklbw ymm0,ymm0,ymm0\nvpermq ymm1,ymm1,0xd8\nvpunpckhbw ymm5,ymm1,ymm1\nvpunpcklbw ymm1,ymm1,ymm1\nvpermq ymm2,ymm2,0xd8\nvpunpckhbw ymm6,ymm2,ymm2\nvpunpcklbw ymm2,ymm2,ymm2\nvbroadcasti128 ymm8,XMMWORD PTR [CONST_1]\nadd rsi,0x20",
+    "saved": 6,
+    "why": "Permuting qwords to order 0,2,1,3 followed by high and low self-unpacks performs the same byte duplication with two fewer instructions per channel. The constant broadcast and flag-setting pointer increment are retained."
+  },
+  "ccd6bfa930": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nvmovdqu xmm0,XMMWORD PTR [r10]\nvmovdqu xmm1,XMMWORD PTR [r10+0xc]\nvmovdqu xmm2,XMMWORD PTR [r10+0x18]\nvmovdqu xmm3,XMMWORD PTR [r10+0x24]\nvinserti128 ymm0,ymm0,XMMWORD PTR [r10+0x30],0x1\nvinserti128 ymm1,ymm1,XMMWORD PTR [r10+0x3c],0x1\nvinserti128 ymm2,ymm2,XMMWORD PTR [r10+0x48],0x1\nvinserti128 ymm3,ymm3,XMMWORD PTR [r10+0x54],0x1\nvpunpckldq ymm8,ymm0,ymm1\nvpunpckldq ymm9,ymm2,ymm3\nvpunpckhdq ymm10,ymm0,ymm1\nvpunpckhdq ymm11,ymm2,ymm3\nvpunpcklqdq ymm0,ymm8,ymm9\nvpunpckhqdq ymm1,ymm8,ymm9\nvpunpcklqdq ymm2,ymm10,ymm11\nvmovdqu xmm4,XMMWORD PTR [r10+0x60]\nvmovdqu xmm5,XMMWORD PTR [r10+0x6c]\nvmovdqu xmm6,XMMWORD PTR [r10+0x78]\nvmovdqu xmm7,XMMWORD PTR [r10+0x84]\nvinserti128 ymm4,ymm4,XMMWORD PTR [r10+0x90],0x1\nvinserti128 ymm5,ymm5,XMMWORD PTR [r10+0x9c],0x1\nvinserti128 ymm6,ymm6,XMMWORD PTR [r10+0xa8],0x1\nvinserti128 ymm7,ymm7,XMMWORD PTR [r10+0xb4],0x1\nvpunpckldq ymm8,ymm4,ymm5\nvpunpckldq ymm9,ymm6,ymm7\nvpunpckhdq ymm10,ymm4,ymm5\nvpunpckhdq ymm11,ymm6,ymm7\nvpunpcklqdq ymm4,ymm8,ymm9\nvpunpckhqdq ymm5,ymm8,ymm9\nvpunpcklqdq ymm6,ymm10,ymm11\nadd r10,0xc0\nadd rsi,0x20",
+    "saved": 8,
+    "why": "Loading directly into ymm0 through ymm7 eliminates all eight register copies before the transpose operations. The unchanged unpacks reproduce every required output, including ymm3, ymm7, and the final values of ymm8 through ymm11."
+  },
+  "5e6dc084ac": {
+    "rewrite": null,
+    "why": "All shifted component registers are live, and combining four arbitrary components still requires three binary OR instructions per output under AVX2."
+  },
+  "122768fe9f": {
+    "rewrite": null,
+    "why": "The three distinct shifts per group must preserve their live results, and AVX2 has no ternary OR to shorten the remaining combinations."
+  },
+  "c8e1e2a6b7": {
+    "rewrite": null,
+    "why": "AVX2 byte-to-dword widening reads the low eight bytes, so each channel also requires a shift and a second widening to produce its other eight outputs."
+  },
+  "0271aea058": {
+    "rewrite": null,
+    "why": "Both saturation stages, the lane reorder, and the live extracted words are needed, while vzeroupper also clears upper halves of other required registers."
+  },
+  "350751b017": {
+    "rewrite": null,
+    "why": "The required packed high-half temporaries prevent removing the extractions, and the saturation stages, lane reorders, and global upper-half clearing remain necessary."
+  },
+  "dcc0cfa85a": {
+    "rewrite": null,
+    "why": "Each channel needs two word-to-dword widenings and an extraction to make the original upper half available to the second widening."
+  },
+  "8d634fee86": {
+    "rewrite": null,
+    "why": "All six widened vectors are required, and AVX2 needs a separate upper-half extraction in addition to the two widenings per channel."
+  },
+  "5328eb6d3c": {
+    "rewrite": null,
+    "why": "AVX2 packing operates separately within each 128-bit lane, so both saturated outputs still require their qword permutations."
+  },
+  "d3a66c0bad": {
+    "rewrite": null,
+    "why": "Each channel requires both signed-dword-to-unsigned-word saturation and a cross-lane permutation to obtain the specified final element order."
+  }
+}

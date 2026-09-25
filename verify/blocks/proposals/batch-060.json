@@ -1,0 +1,102 @@
+{
+  "d55c9d805a": {
+    "rewrite": "movq xmm11,QWORD PTR [rcx]\npshufd xmm10,xmm11,0x0\npshufd xmm11,xmm11,0x55\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r10d,0x200400\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 2,
+    "why": "One 64-bit load supplies the first two coefficient broadcasts, eliminating one load without accessing new bytes. The xmm9 zeroing is dead and can also be removed."
+  },
+  "c3dabd970b": {
+    "rewrite": "movq xmm11,QWORD PTR [rcx]\npshufd xmm10,xmm11,0x0\npshufd xmm11,xmm11,0x55\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r10d,0x200400\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 2,
+    "why": "One 64-bit load supplies the first two coefficient broadcasts, eliminating one load without accessing new bytes. The xmm9 zeroing is dead and can also be removed."
+  },
+  "d6cd848043": {
+    "rewrite": "movq xmm11,QWORD PTR [rcx]\npshufd xmm10,xmm11,0x0\npshufd xmm11,xmm11,0x55\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r10d,0x801000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 2,
+    "why": "One 64-bit load supplies the first two coefficient broadcasts, eliminating one load without accessing new bytes. The xmm9 zeroing is dead and can also be removed."
+  },
+  "369f7a67e5": {
+    "rewrite": "movq xmm11,QWORD PTR [rcx]\npshufd xmm10,xmm11,0x0\npshufd xmm11,xmm11,0x55\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r10d,0x801000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 2,
+    "why": "One 64-bit load supplies the first two coefficient broadcasts, eliminating one load without accessing new bytes. The xmm9 zeroing is dead and can also be removed."
+  },
+  "2ce86d252d": {
+    "rewrite": "movq xmm11,QWORD PTR [rcx]\npshufd xmm10,xmm11,0x0\npshufd xmm11,xmm11,0x55\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r10d,0x2004000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 2,
+    "why": "One 64-bit load supplies the first two coefficient broadcasts, eliminating one load without accessing new bytes. The xmm9 zeroing is dead and can also be removed."
+  },
+  "094ea54775": {
+    "rewrite": "movq xmm11,QWORD PTR [rcx]\npshufd xmm10,xmm11,0x0\npshufd xmm11,xmm11,0x55\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r10d,0x2004000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 2,
+    "why": "One 64-bit load supplies the first two coefficient broadcasts, eliminating one load without accessing new bytes. The xmm9 zeroing is dead and can also be removed."
+  },
+  "013a5540e4": {
+    "rewrite": "movq xmm11,QWORD PTR [rcx]\npshufd xmm10,xmm11,0x0\npshufd xmm11,xmm11,0x55\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r10d,0x8004000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 2,
+    "why": "One 64-bit load supplies the first two coefficient broadcasts, eliminating one load without accessing new bytes. The xmm9 zeroing is dead and can also be removed."
+  },
+  "03dd984711": {
+    "rewrite": "movq xmm11,QWORD PTR [rcx]\npshufd xmm10,xmm11,0x0\npshufd xmm11,xmm11,0x55\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r10d,0x8004000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 2,
+    "why": "One 64-bit load supplies the first two coefficient broadcasts, eliminating one load without accessing new bytes. The xmm9 zeroing is dead and can also be removed."
+  },
+  "83abdce7ad": {
+    "rewrite": "movq xmm11,QWORD PTR [rcx]\npshufd xmm10,xmm11,0x0\npshufd xmm11,xmm11,0x55\nmovss xmm12,DWORD PTR [rcx+0x8]\nshufps xmm12,xmm12,0x0\npxor xmm9,xmm9\nmovdqu xmm8,XMMWORD PTR [CONST_1]\nmovdqu xmm7,XMMWORD PTR [CONST_2]\nmov r10d,0x8004000\nmovq xmm6,r10\nshufps xmm6,xmm6,0x0\nmov r9,QWORD PTR [rsi]\nmov rax,QWORD PTR [rsi+0x8]\nmov r8,QWORD PTR [rsi+0x10]\nxor r10,r10",
+    "saved": 1,
+    "why": "One 64-bit load supplies the first two coefficient broadcasts, eliminating one load while preserving every coefficient bit and accessing only the original bytes."
+  },
+  "efdf625444": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r11d,0x400100\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 5,
+    "why": "One unaligned 128-bit load and one 64-bit load supply all six broadcasts from the original byte range, saving four loads. Removing the dead xmm9 zeroing saves one more instruction."
+  },
+  "e5f22db3a8": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r11d,0x800200\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 5,
+    "why": "One unaligned 128-bit load and one 64-bit load supply all six broadcasts from the original byte range, saving four loads. Removing the dead xmm9 zeroing saves one more instruction."
+  },
+  "b3d019f0e2": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r11d,0x800200\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 5,
+    "why": "One unaligned 128-bit load and one 64-bit load supply all six broadcasts from the original byte range, saving four loads. Removing the dead xmm9 zeroing saves one more instruction."
+  },
+  "1d887e7372": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r11d,0x1000400\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 5,
+    "why": "One unaligned 128-bit load and one 64-bit load supply all six broadcasts from the original byte range, saving four loads. Removing the dead xmm9 zeroing saves one more instruction."
+  },
+  "6393637a7b": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r11d,0x1000400\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 5,
+    "why": "One unaligned 128-bit load and one 64-bit load supply all six broadcasts from the original byte range, saving four loads. Removing the dead xmm9 zeroing saves one more instruction."
+  },
+  "b3d8cbbeaf": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r11d,0x4001000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 5,
+    "why": "One unaligned 128-bit load and one 64-bit load supply all six broadcasts from the original byte range, saving four loads. Removing the dead xmm9 zeroing saves one more instruction."
+  },
+  "67eb953aac": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r11d,0x4001000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 5,
+    "why": "One unaligned 128-bit load and one 64-bit load supply all six broadcasts from the original byte range, saving four loads. Removing the dead xmm9 zeroing saves one more instruction."
+  },
+  "3fa26c941e": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r11d,0x10004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 5,
+    "why": "One unaligned 128-bit load and one 64-bit load supply all six broadcasts from the original byte range, saving four loads. Removing the dead xmm9 zeroing saves one more instruction."
+  },
+  "bc133c1c9d": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r11d,0x10004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 5,
+    "why": "One unaligned 128-bit load and one 64-bit load supply all six broadcasts from the original byte range, saving four loads. Removing the dead xmm9 zeroing saves one more instruction."
+  },
+  "908827b185": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmov r11d,0x40004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 5,
+    "why": "One unaligned 128-bit load and one 64-bit load supply all six broadcasts from the original byte range, saving four loads. Removing the dead xmm9 zeroing saves one more instruction."
+  },
+  "78f9888da8": {
+    "rewrite": "movdqu xmm13,XMMWORD PTR [r8+0xc]\npshufd xmm10,xmm13,0x0\npshufd xmm11,xmm13,0x55\npshufd xmm12,xmm13,0xaa\npshufd xmm13,xmm13,0xff\nmovq xmm15,QWORD PTR [r8+0x1c]\npshufd xmm14,xmm15,0x0\npshufd xmm15,xmm15,0x55\nmovdqu xmm7,XMMWORD PTR [CONST_1]\nmovdqu xmm8,XMMWORD PTR [CONST_2]\nmov r11d,0x40004000\nmovq xmm6,r11\nshufps xmm6,xmm6,0x0\nmov rax,QWORD PTR [rdx]\nmov r10,QWORD PTR [rdx+0x8]\nmov r9,QWORD PTR [rdx+0x10]\nxor r11,r11",
+    "saved": 5,
+    "why": "One unaligned 128-bit load and one 64-bit load supply all six broadcasts from the original byte range, saving four loads. Removing the dead xmm9 zeroing saves one more instruction."
+  }
+}

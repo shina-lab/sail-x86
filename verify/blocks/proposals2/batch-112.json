@@ -1,0 +1,82 @@
+{
+  "1ab7b7519d": {
+    "rewrite": null,
+    "why": "xmm6 is unconstrained, so zero-extension cannot replace the unpacks, and the copy preserves the intermediate needed to produce both live shifted outputs."
+  },
+  "56838732ab": {
+    "rewrite": null,
+    "why": "Both inputs require shifting before the two-stage saturating pack, while the shifted xmm1 value, packed xmm2 value, store, counter updates, and final flags must all match."
+  },
+  "fd4fe1d356": {
+    "rewrite": null,
+    "why": "Unsigned packing removes negative values but still permits values above 511, so the clamp remains necessary alongside both shifts, the store, and the counter updates."
+  },
+  "3791bdf664": {
+    "rewrite": null,
+    "why": "Unsigned packing removes negative values but still permits values above 511, so the clamp remains necessary alongside both shifts, the store, and the counter updates."
+  },
+  "53e33fb3fb": {
+    "rewrite": null,
+    "why": "Unsigned packing removes negative values but still permits values above 1023, so the clamp remains necessary alongside both shifts, the store, and the counter updates."
+  },
+  "c3bdb3b0c3": {
+    "rewrite": null,
+    "why": "Unsigned packing removes negative values but still permits values above 1023, so the clamp remains necessary alongside both shifts, the store, and the counter updates."
+  },
+  "47c3a4a6ac": {
+    "rewrite": null,
+    "why": "Both input shifts, signed saturation, and the subsequent 0x8000 word bias affect required outputs, and SSE4.1 provides no shorter fusion of these operations."
+  },
+  "7568c1e662": {
+    "rewrite": null,
+    "why": "Both input shifts, signed saturation, and the subsequent 0x8000 word bias affect required outputs, and SSE4.1 provides no shorter fusion of these operations."
+  },
+  "b7031cd928": {
+    "rewrite": null,
+    "why": "The VEX forms already avoid a source copy, and arbitrary xmm6 values require the three unpacks and both shifts to construct the two live outputs."
+  },
+  "fa7639bba2": {
+    "rewrite": null,
+    "why": "Both shifts and both packing stages are needed for the preserved scaled and saturated outputs, and AVX offers no permitted 256-bit integer operation to combine them."
+  },
+  "9d5b35948f": {
+    "rewrite": null,
+    "why": "The two shifts, unsigned packing, and explicit 511 clamp perform distinct required transformations, with the VEX destinations also providing the required zero upper halves."
+  },
+  "fd4bbd791d": {
+    "rewrite": null,
+    "why": "The two shifts, unsigned packing, and explicit 511 clamp perform distinct required transformations, with the VEX destinations also providing the required zero upper halves."
+  },
+  "3989558c30": {
+    "rewrite": null,
+    "why": "The two shifts, unsigned packing, and explicit 1023 clamp perform distinct required transformations, with the VEX destinations also providing the required zero upper halves."
+  },
+  "54d495db25": {
+    "rewrite": null,
+    "why": "The two shifts, unsigned packing, and explicit 1023 clamp perform distinct required transformations, with the VEX destinations also providing the required zero upper halves."
+  },
+  "6ba4386bb8": {
+    "rewrite": null,
+    "why": "Preserving xmm2 and xmm3 prevents folding the loads into destructive SSE2 adds without compensating copies, and both shifts and the saturating pack remain necessary."
+  },
+  "6e6b9beabe": {
+    "rewrite": null,
+    "why": "Preserving xmm2 and xmm3 prevents folding the loads into destructive SSE2 adds without compensating copies, and both shifts and the saturating pack remain necessary."
+  },
+  "decfddd508": {
+    "rewrite": null,
+    "why": "The preserved addend and clamp registers are arbitrary, so each output requires its load, saturating add, shift, and both signed clamps under SSE2."
+  },
+  "328dac2706": {
+    "rewrite": null,
+    "why": "The preserved addend and clamp registers are arbitrary, so each output requires its load, saturating add, shift, and both signed clamps under SSE2."
+  },
+  "1bfd1ae505": {
+    "rewrite": null,
+    "why": "The preserved addend and clamp registers are arbitrary, so each output requires its load, saturating add, shift, and both signed clamps under SSE2."
+  },
+  "1fdb71be7f": {
+    "rewrite": null,
+    "why": "The preserved addend and clamp registers are arbitrary, so each output requires its load, saturating add, shift, and both signed clamps under SSE2."
+  }
+}

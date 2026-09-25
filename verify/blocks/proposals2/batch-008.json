@@ -1,0 +1,84 @@
+{
+  "d1be3f1305": {
+    "rewrite": null,
+    "why": "The four independently indexed stores and two required register updates need all six instructions."
+  },
+  "4f2482053b": {
+    "rewrite": null,
+    "why": "All loaded data feeds required vector outputs, and preserving ymm0 rules out folding its load into the multiplication."
+  },
+  "952a418e13": {
+    "rewrite": null,
+    "why": "The high-word shuffle, lane insertion, addition, and multiplication each contribute independently to the required ymm1 value."
+  },
+  "b91e02d31a": {
+    "rewrite": null,
+    "why": "The input vector and both broadcasts remain live, while the two word products and their sum have no fused AVX2 equivalent."
+  },
+  "e94b5a8866": {
+    "rewrite": null,
+    "why": "The edge-word duplication and memory blend are required, and both doubled word sums feed live results."
+  },
+  "84f5277344": {
+    "rewrite": null,
+    "why": "Four independently indexed stores and the required scalar mask need all five instructions."
+  },
+  "8c4841b532": {
+    "rewrite": null,
+    "why": "The four independent stores and two required register updates cannot be combined with the permitted ISA."
+  },
+  "2ab5f55629": {
+    "rewrite": null,
+    "why": "The four coefficient products, lane duplication, saturating pack, clamp, and two stores all contribute to required outputs."
+  },
+  "3c29aeaee2": {
+    "rewrite": null,
+    "why": "The blend produces a live vector, the two stores use distinct indexed addresses, and both scalar updates must be preserved."
+  },
+  "065f0b9a10": {
+    "rewrite": "vpermq ymm8,ymm9,0xd8\nvextracti128 xmm0,ymm8,0x1\nvpshufd xmm11,xmm11,0x4e\nvpblendd xmm0,xmm0,xmm11,0x2\nvpshufd xmm6,xmm8,0x7\nvpshuflw xmm6,xmm6,0xf4\nvpblendw xmm0,xmm0,xmm6,0x6\nvpshufb xmm0,xmm0,XMMWORD PTR [rax-0x2b4]\nvinserti128 ymm0,ymm0,xmm0,0x1\nvpshufd ymm6,ymm0,0x0\nvpmaddwd ymm6,ymm6,ymm2\nvpshufd ymm7,ymm0,0x55\nvpmaddwd ymm7,ymm7,ymm3\nvpaddd ymm6,ymm6,ymm1\nvpaddd ymm6,ymm6,ymm7\nvpshufd ymm7,ymm0,0xaa\nvpmaddwd ymm7,ymm7,ymm4\nvpaddd ymm6,ymm6,ymm7\nvpshufd ymm7,ymm0,0xff\nvpmaddwd ymm7,ymm7,ymm5\nvpaddd ymm6,ymm6,ymm7\nvpsrad ymm6,ymm6,0x4\nvpackusdw ymm6,ymm6,ymm6\nvpminsw ymm6,ymm15,ymm6\nvpermq ymm12,ymm13,0x72\nvpblendd ymm12,ymm12,ymm10,0xcc\nvpblendd ymm9,ymm9,ymm6,0xcc\nvmovdqa XMMWORD PTR [rdi],xmm12\nvmovdqa XMMWORD PTR [rdi+0x10],xmm9\nvextracti128 XMMWORD PTR [rdi+rsi*1],ymm12,0x1\nvextracti128 XMMWORD PTR [rdi+rsi*1+0x10],ymm9,0x1",
+    "saved": 1,
+    "why": "Two immediate shuffles place xmm8 words 7 and 3 into positions 1 and 2, allowing one word blend to replace the two shifts and two blends. Subsequent instructions overwrite both scratch registers."
+  },
+  "815fcf03ad": {
+    "rewrite": "vpermq ymm8,ymm9,0xd8\nvextracti128 xmm0,ymm8,0x1\nvpshufd xmm11,xmm11,0x4e\nvpblendd xmm0,xmm0,xmm11,0x2\nvpshufd xmm6,xmm8,0x7\nvpshuflw xmm6,xmm6,0xf4\nvpblendw xmm0,xmm0,xmm6,0x6\nvpshufb xmm0,xmm0,XMMWORD PTR [rax-0x2b4]\nvinserti128 ymm0,ymm0,xmm0,0x1\nvpshufd ymm6,ymm0,0x0\nvpmaddwd ymm6,ymm6,ymm2\nvpshufd ymm7,ymm0,0x55\nvpmaddwd ymm7,ymm7,ymm3\nvpaddd ymm6,ymm6,ymm1\nvpaddd ymm6,ymm6,ymm7\nvpshufd ymm7,ymm0,0xaa\nvpmaddwd ymm7,ymm7,ymm4\nvpaddd ymm6,ymm6,ymm7\nvpshufd ymm7,ymm0,0xff\nvpmaddwd ymm7,ymm7,ymm5\nvpaddd ymm6,ymm6,ymm7\nvpsrad ymm6,ymm6,0x4\nvpackusdw ymm6,ymm6,ymm6\nvpminsw ymm6,ymm15,ymm6\nvpermq ymm12,ymm13,0x72\nvpblendd ymm12,ymm12,ymm10,0xcc\nvpblendd ymm9,ymm9,ymm6,0xcc\nvmovdqa XMMWORD PTR [rdi],xmm12\nvmovdqa XMMWORD PTR [rdi+0x10],xmm9\nvextracti128 XMMWORD PTR [rdi+rsi*1],ymm12,0x1\nvextracti128 XMMWORD PTR [rdi+rsi*1+0x10],ymm9,0x1\nvzeroupper",
+    "saved": 2,
+    "why": "The two shifts and two word blends become two immediate shuffles and one word blend with identical selected words. The final rsp write is unobserved and is omitted to obey the no-rsp rule."
+  },
+  "d12111d3a9": {
+    "rewrite": null,
+    "why": "Both sets of four signed multiply-adds feed required results, and the duplicated input lanes, shifted accumulator, and final temporary are also live."
+  },
+  "b51b4de775": {
+    "rewrite": null,
+    "why": "Sign restoration cannot be moved through rounded multiplication for arbitrary 16-bit inputs, and the clamps, stores, and scalar updates all remain required."
+  },
+  "1dc731ebec": {
+    "rewrite": null,
+    "why": "The absolute-value, rounded-multiply, and sign-restoration sequence handles arbitrary signed words, while both output vectors, stores, and scalar updates are required."
+  },
+  "060d946852": {
+    "rewrite": null,
+    "why": "The store, vector accumulation, destination increment, and counter subtraction each produce a required effect."
+  },
+  "ca85de0a00": {
+    "rewrite": null,
+    "why": "Both multiply-add loads and the accumulation are required, and packing across the two 128-bit lanes still needs extraction before the store."
+  },
+  "1f16255438": {
+    "rewrite": null,
+    "why": "The replicated final dword is live and feeds both the packed store and accumulator, leaving no removable shuffle or arithmetic."
+  },
+  "69cd7eccbc": {
+    "rewrite": null,
+    "why": "Both broadcast vectors and both blended vectors are required final values, so none of the four instructions can be removed."
+  },
+  "45f0e0d77e": {
+    "rewrite": null,
+    "why": "Each output needs two AVX2 operations to combine its loaded low lane with a repeated final dword in the high lane."
+  },
+  "b2114948e0": {
+    "rewrite": null,
+    "why": "All four products feed required sums or live temporaries, and the packed output still requires the cross-lane permutation."
+  }
+}

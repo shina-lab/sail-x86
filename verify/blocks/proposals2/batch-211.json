@@ -1,0 +1,88 @@
+{
+  "beef242ca8": {
+    "rewrite": "vmovdqu xmm6,XMMWORD PTR [rbx]\nvpxor xmm8,xmm8,xmm8\nvpcmpgtd xmm7,xmm6,xmm8\nvpaddd xmm6,xmm6,xmm7\nvpand xmm10,xmm10,xmm7\nvpand xmm11,xmm11,xmm7\nvpaddd xmm10,xmm10,XMMWORD PTR [rdi]\nvpand xmm12,xmm12,xmm7\nvpaddd xmm11,xmm11,XMMWORD PTR [rdi+0x20]\nvpand xmm13,xmm13,xmm7\nvpaddd xmm12,xmm12,XMMWORD PTR [rdi+0x40]\nvpand xmm14,xmm14,xmm7\nvpaddd xmm13,xmm13,XMMWORD PTR [rdi+0x60]\nvpaddd xmm14,xmm14,XMMWORD PTR [rdi+0x80]\nvmovdqu XMMWORD PTR [rdi],xmm10\nvmovdqu XMMWORD PTR [rdi+0x20],xmm11\nvmovdqu XMMWORD PTR [rdi+0x40],xmm12\nvmovdqu XMMWORD PTR [rdi+0x60],xmm13\nvmovdqu XMMWORD PTR [rdi+0x80],xmm14\nvmovdqu XMMWORD PTR [rbx],xmm6\nvmovdqu xmm5,XMMWORD PTR [rbp+0x60]\ndec edx",
+    "saved": 1,
+    "why": "The three-operand VEX comparison can read xmm6 directly, eliminating the copy into xmm7 while preserving the full YMM results."
+  },
+  "356ee63d33": {
+    "rewrite": null,
+    "why": "All seven instructions produce a required vector result or store, and AVX2 cannot merge these independent operations."
+  },
+  "17ca74b518": {
+    "rewrite": null,
+    "why": "Each instruction writes a distinct required vector result, with no redundant copy or operation to remove."
+  },
+  "59a6de4675": {
+    "rewrite": null,
+    "why": "AVX2 needs both operations for (ymm1 & ymm2) ^ ymm6 and both XORs for ymm11, while the remaining add, shift, and store are required."
+  },
+  "ff8cbe2794": {
+    "rewrite": null,
+    "why": "Both reversed vectors must remain in their registers and supply the two stores, so neither shuffle nor store can be removed."
+  },
+  "3c39167166": {
+    "rewrite": null,
+    "why": "The rotate and all three operations implementing the bitwise selection are needed for the preserved RBX and RBP values."
+  },
+  "52ce2ef6f2": {
+    "rewrite": "add DWORD PTR [r8],edx\nadd DWORD PTR [r8+0x4],esi\nadd DWORD PTR [r8+0x8],ebp\nadd DWORD PTR [r8+0xc],ebx\nadd DWORD PTR [r8+0x10],ecx\nmov eax,DWORD PTR [r8]\nmov ebp,DWORD PTR [r8+0x4]\nmov ecx,DWORD PTR [r8+0x8]\nmov edx,DWORD PTR [r8+0xc]\nmov esi,DWORD PTR [r8+0x10]\ncmp r9,r10",
+    "saved": 6,
+    "why": "Memory-destination ADDs perform the same five stores, and each sum is then loaded directly into its required final register. All loads use original addresses, and the final CMP preserves the required flags."
+  },
+  "8f45f2de65": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdi-0x40]\nvmovdqu ymm2,YMMWORD PTR [rdi-0x20]\nvperm2i128 ymm1,ymm0,YMMWORD PTR [r13+0x0],0x31\nvperm2i128 ymm0,ymm0,YMMWORD PTR [r13+0x0],0x20\nvperm2i128 ymm3,ymm2,YMMWORD PTR [r13+0x20],0x31\nvperm2i128 ymm2,ymm2,YMMWORD PTR [r13+0x20],0x20",
+    "saved": 2,
+    "why": "Load adjacent 128-bit chunks together and use memory-source VPERM2I128 instructions to construct the four original lane pairs. The wider reads cover only bytes loaded by the original block."
+  },
+  "630213a602": {
+    "rewrite": "vzeroupper\nmov r14,QWORD PTR [r11-0x28]\nmov r13,QWORD PTR [r11-0x20]\nmov r12,QWORD PTR [r11-0x18]\nmov rbp,QWORD PTR [r11-0x10]\nmov rbx,QWORD PTR [r11-0x8]",
+    "saved": 1,
+    "why": "The final LEA writes only RSP, which is not a required output and must remain untouched by the rewrite. All required register restores and upper-vector clearing remain."
+  },
+  "d0aa406e4a": {
+    "rewrite": null,
+    "why": "The shift and Boolean results are live, and two-operand SSE requires the copy before computing xmm4 while preserving xmm13 and xmm14."
+  },
+  "6b16226dc0": {
+    "rewrite": null,
+    "why": "Every operation feeds a required result, and the two-operand SSE operations need the source-preserving copies."
+  },
+  "cde2b15110": {
+    "rewrite": null,
+    "why": "Both shifts, the add, the AND, and the two XORs contribute to required outputs with no redundant operation."
+  },
+  "f5a416f0a2": {
+    "rewrite": null,
+    "why": "All arithmetic feeds xmm8 or xmm12, and producing xmm8 from preserved xmm10 still needs a copy under two-operand SSE."
+  },
+  "41ba7688ee": {
+    "rewrite": null,
+    "why": "The SHA operations, vector sums, and final copies are all required; sharing the repeated load still requires a replacement copy."
+  },
+  "4199aea058": {
+    "rewrite": null,
+    "why": "Each instruction supplies a required register value or SHA input, including both updates of the implicit xmm0 operand."
+  },
+  "67c2870b40": {
+    "rewrite": null,
+    "why": "The two SHA rounds, their xmm0 setup, the final copy, the xmm2 load/add, and the flag-producing comparison are all needed."
+  },
+  "a172b6a294": {
+    "rewrite": null,
+    "why": "The live sums and Boolean terms require the current operations, including both shift pairs that implement rotations within the allowed ISA."
+  },
+  "a4222fded9": {
+    "rewrite": null,
+    "why": "The two XORs and two additions form the required three-input XOR and sum, and the remaining instructions update required registers."
+  },
+  "59ddeec82d": {
+    "rewrite": "adc DWORD PTR [rdx],0xffffffbe\nand al,0x82",
+    "saved": 15,
+    "why": "All TEST results are overwritten, and the repeated AND masks combine to 0xbe & 0xc3 = 0x82. Keeping ADC first preserves its incoming carry and store, while the single AND produces the same AL and required final flags."
+  },
+  "84d0edd7fe": {
+    "rewrite": "or ch,BYTE PTR [rdx+0x76]\nmov ebx,0xbb766a0a",
+    "saved": 5,
+    "why": "OR with the unchanged memory byte is idempotent, and every MOV writes the same constant. One of each preserves CH, the zero-extended RBX value, and all required flags."
+  }
+}

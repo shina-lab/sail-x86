@@ -1,0 +1,82 @@
+{
+  "1884627630": {
+    "rewrite": null,
+    "why": "The vector load and store, live index update, and comparison producing the required SF and OF each remain necessary."
+  },
+  "46b3c1b287": {
+    "rewrite": null,
+    "why": "All four signed scalar results require extraction and sign extension, and the separate upper-half extraction into xmm1 is also live."
+  },
+  "2901f6b30d": {
+    "rewrite": null,
+    "why": "Each qword extraction supplies two signed dword results using a sign extension and an arithmetic shift, with all four scalar results required."
+  },
+  "677a508478": {
+    "rewrite": null,
+    "why": "The four independent byte shuffles each produce a required vector result using a different arbitrary shuffle mask."
+  },
+  "cc856c59c2": {
+    "rewrite": null,
+    "why": "The four scalar extractions and the upper-half vector extraction each produce a distinct required result."
+  },
+  "b156a083e0": {
+    "rewrite": null,
+    "why": "Each instruction directly produces one of the four required zero-extended scalar results."
+  },
+  "3bab98182d": {
+    "rewrite": null,
+    "why": "The widening, products, horizontal sums, and extracted upper half have live results, and arbitrary inputs prevent replacing the arithmetic with narrower multiply or rounding operations."
+  },
+  "c5cfd1af2b": {
+    "rewrite": null,
+    "why": "The broadcast and qword shift form distinct inputs for arbitrary word coefficients, whose products, two wrapping additions, and final shift cannot be shortened."
+  },
+  "3a9717b83b": {
+    "rewrite": null,
+    "why": "Both loads are already folded into word multiplies, and the arbitrary products and bias still require two wrapping additions and the final shift."
+  },
+  "f9a374aa6c": {
+    "rewrite": null,
+    "why": "The two memory multiplies, two wrapping additions, shift, and insertion into the live ymm16 result all remain necessary for arbitrary inputs."
+  },
+  "11c73d4feb": {
+    "rewrite": null,
+    "why": "The two products, two wrapping additions, and shift are necessary, as is duplicating the computed low half into the upper half of zmm16."
+  },
+  "e21c493d70": {
+    "rewrite": null,
+    "why": "The memory loads are already folded into the two multiplies, and arbitrary coefficients and bias prevent eliminating either addition or the final logical shift."
+  },
+  "8992f7dac1": {
+    "rewrite": null,
+    "why": "All six instructions produce required scalar results, and the final subtraction must also establish all five specified flags."
+  },
+  "3d6b255877": {
+    "rewrite": null,
+    "why": "The unknown row stride requires separate row loads and assembly, while the arithmetic results, store, pointer updates, and subtraction flags are all live."
+  },
+  "0d9df8f6c3": {
+    "rewrite": null,
+    "why": "The qword loads cannot be folded into wider memory multiplies without reading extra addresses or changing upper lanes, and xmm0, xmm1, and the broadcast result are all live."
+  },
+  "4c6e2618a4": {
+    "rewrite": null,
+    "why": "The arbitrary word arithmetic needs both products, subtraction, addition, and shift, followed by the insertion that duplicates the low 128 bits into the highest lane."
+  },
+  "059439ed3b": {
+    "rewrite": null,
+    "why": "The two folded-load products, subtraction, addition, and arithmetic shift are necessary, and the final insertion must duplicate the result across both zmm halves."
+  },
+  "0d467dd0a0": {
+    "rewrite": null,
+    "why": "Both memory loads are folded into multiplies, and arbitrary coefficients and bias require the separate wrapping subtraction, addition, and arithmetic shift."
+  },
+  "3e30ae889b": {
+    "rewrite": null,
+    "why": "Each full-width output needs its own two products, bias subtraction, addition, and arithmetic shift, with no known coefficient identity allowing shared arithmetic."
+  },
+  "1987a34ba5": {
+    "rewrite": null,
+    "why": "The dot products already use fused VNNI accumulation, and both accumulators, shuffle temporaries, packed result, store, and index-update flags are live."
+  }
+}

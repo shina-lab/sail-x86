@@ -1,0 +1,84 @@
+{
+  "4b5ce16fac": {
+    "rewrite": null,
+    "why": "The byte broadcast, two exact-width stores, pointer update, and flag-producing decrement each have required effects."
+  },
+  "49d0b0df79": {
+    "rewrite": null,
+    "why": "The constant load, 32-bit scaling, two pointer updates, and 64-bit negation each produce required final values."
+  },
+  "6a5982b16d": {
+    "rewrite": "sub rsi,rdx\npxor xmm7,xmm7\nmovq xmm3,QWORD PTR [rcx]\npunpcklwd xmm3,xmm3\npshufd xmm4,xmm3,0x0\npshufd xmm5,xmm3,0x55\npshufd xmm6,xmm3,0xaa\npshufd xmm3,xmm3,0xff\nlea rcx,[rsp-0xb8]\nmov r9d,0xb",
+    "saved": 1,
+    "why": "Compute the original final RCX directly with LEA, replacing the stack-pointer subtraction and copy with one instruction. This leaves RSP untouched and preserves the coefficient broadcasts and other required final values."
+  },
+  "d928155136": {
+    "rewrite": null,
+    "why": "SSE2 needs the four load/unpack/multiply paths and their distinct wrapping and saturating sums before the word store."
+  },
+  "0bcbb04858": {
+    "rewrite": null,
+    "why": "All three product/accumulator registers are live, and SSE2 cannot fuse the required word multiplies, saturation, shift, and packing."
+  },
+  "93702bddbe": {
+    "rewrite": null,
+    "why": "The shuffle, pair-products, high-half copy, saturation, rounding, and packing all contribute to preserved registers or the store."
+  },
+  "5189c5063a": {
+    "rewrite": null,
+    "why": "The high-half copy remains live, and SSSE3 has no fused operation for the required shuffle, multiply, saturated sum, rounding, and pack."
+  },
+  "22baa72fe5": {
+    "rewrite": null,
+    "why": "Both output stores and all pipeline-state copies are required, while SSSE3 lacks a direct memory store of the second packed dword."
+  },
+  "166c7e1974": {
+    "rewrite": null,
+    "why": "The three different byte shuffles and their products require separate SSSE3 destinations, and the final saturation and rounding cannot be fused."
+  },
+  "f17f1025e3": {
+    "rewrite": null,
+    "why": "The three live vector constants and the live scaled index each require an instruction."
+  },
+  "784751bc37": {
+    "rewrite": null,
+    "why": "Both shuffled multiply paths are needed, and SSSE3 cannot fold the source copy into a three-operand shuffle."
+  },
+  "978ceea4fd": {
+    "rewrite": null,
+    "why": "The input products, packed output, and preserved pipeline registers require the copies and arithmetic under SSSE3."
+  },
+  "3b30b56d63": {
+    "rewrite": null,
+    "why": "The three pair-products and live pipeline state require separate destinations, leaving no removable copy or arithmetic operation."
+  },
+  "5f83c7dbf6": {
+    "rewrite": null,
+    "why": "All four word products and both partial sums are needed, and arbitrary input registers prevent replacing the SSE2 widening and arithmetic with averaging."
+  },
+  "ffd82df431": {
+    "rewrite": null,
+    "why": "The six widened products and distinct wrapping and saturating sums are needed, including the preserved intermediate vector results."
+  },
+  "4000531ad6": {
+    "rewrite": null,
+    "why": "The new unpacked row must remain in two final registers, and the other copies preserve rows before their destructive SSE2 multiplies."
+  },
+  "4ed607d1b9": {
+    "rewrite": "movdqa xmm6,xmm4\npmullw xmm6,XMMWORD PTR [rax+0x40]\nmovq xmm5,QWORD PTR [rdx+rcx*1]\npunpcklbw xmm5,xmm7\npmullw xmm0,XMMWORD PTR [rax]\npaddw xmm6,XMMWORD PTR [CONST_1]\npaddw xmm6,xmm0\nmovdqa xmm0,xmm1\npmullw xmm1,XMMWORD PTR [rax+0x10]\npaddw xmm6,xmm1\nmovdqa xmm1,xmm2\npmullw xmm2,XMMWORD PTR [rax+0x20]\npaddw xmm6,xmm2\nmovdqa xmm2,xmm3\npmullw xmm3,XMMWORD PTR [rax+0x30]\nadd rdx,rcx\npaddsw xmm6,xmm3\nmovdqa xmm3,xmm4\nmovdqa xmm4,xmm5\npmullw xmm5,XMMWORD PTR [rax+0x50]\npaddsw xmm6,xmm5\npsraw xmm6,0x7\npackuswb xmm6,xmm7\nmovq QWORD PTR [rdi],xmm6\nadd rdi,rsi\ndec r8d",
+    "saved": 1,
+    "why": "Preserve the original xmm1 in its final destination xmm0 after consuming xmm0, then multiply xmm1 in place. Reordering the wrapping word additions removes the temporary copy into xmm5 while preserving both saturated additions and all final registers."
+  },
+  "7bb8326114": {
+    "rewrite": null,
+    "why": "The middle row needs two differently weighted products, and the live intermediates prevent removing its copy or combining the two rounding paths."
+  },
+  "4a3759a6ca": {
+    "rewrite": null,
+    "why": "The four load/unpack/multiply paths and two independent rounding paths are required for the preserved vectors and two stores."
+  },
+  "25ebd3b70d": {
+    "rewrite": null,
+    "why": "The two products and rounding paths feed separate stores, while the final copy restores the required next-row value in xmm0."
+  }
+}

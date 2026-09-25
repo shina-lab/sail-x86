@@ -1,0 +1,85 @@
+{
+  "3583e55274": {
+    "rewrite": null,
+    "why": "With arbitrary zmm18 and zmm19, both unpack-and-add paths are needed before packing, along with the two loads, two stores, and pointer and counter updates."
+  },
+  "3544991e63": {
+    "rewrite": "mov r10,rsp\nsub ecx,0x87",
+    "saved": 2,
+    "why": "The two rsp adjustments contribute to no listed output or memory access, so removing them also respects the rule against touching rsp. The initial rsp value is still saved in r10, and the final subtraction produces the required rcx and flags."
+  },
+  "21eeafcd8e": {
+    "rewrite": null,
+    "why": "Both shuffle stages contribute to required register values, including the intermediate values that remain live, with no redundant shuffle or copy."
+  },
+  "c0a483d938": {
+    "rewrite": null,
+    "why": "All three unpack stages feed required transpose outputs, and the final counter initialization and vector zeroing are also required."
+  },
+  "74d41bf90b": {
+    "rewrite": null,
+    "why": "The four separated stores cannot be combined without writing additional bytes, and the subtraction is required for both rcx and the flags."
+  },
+  "b1aea02f37": {
+    "rewrite": null,
+    "why": "The two shuffle stages construct distinct required outputs, and all vector registers, including surviving intermediate values, must be preserved."
+  },
+  "90e608284c": {
+    "rewrite": null,
+    "why": "VPMULHRSW cannot fold these dword broadcasts into scalar memory operands, and both zmm16 and zmm20 must receive the final product."
+  },
+  "20d780fd0c": {
+    "rewrite": null,
+    "why": "Every broadcast supplies a required rounded multiplication, and VPMULHRSW has no scalar memory broadcast form to combine those operations."
+  },
+  "207be587e7": {
+    "rewrite": null,
+    "why": "Each instruction establishes a distinct required vector register, so none of the loads or the zeroing operation is redundant."
+  },
+  "f7b1f1680b": {
+    "rewrite": null,
+    "why": "The arbitrary input vectors require all eight unpack-and-multiply paths, and SSE2 provides no fused replacement preserving the wrapping sums and final signed saturation."
+  },
+  "06fc5ebf68": {
+    "rewrite": null,
+    "why": "All eight SSE2 filtering paths are needed, and folding the final qword load into PAVGB would read extra bytes and change the preserved upper half of xmm0."
+  },
+  "ca02114d11": {
+    "rewrite": null,
+    "why": "All five vector results are required, and constructing the repeated 0xffc0 word without a matching memory constant needs both the comparison and shift."
+  },
+  "6c77655829": {
+    "rewrite": null,
+    "why": "Arbitrary shuffle masks and arithmetic inputs require the existing filtering steps, while preservation of all of xmm0 prevents simplifying only the four stored bytes."
+  },
+  "ccb566873d": {
+    "rewrite": null,
+    "why": "The filtering must preserve the full xmm0 result, and the dword destination load cannot be folded into PAVGB without additional reads and different upper-byte results."
+  },
+  "c4a18fc463": {
+    "rewrite": null,
+    "why": "Each byte pair feeds an independent required multiply-add, and folding the qword loads into unpack memory operands would access bytes outside the original load range."
+  },
+  "972fcff618": {
+    "rewrite": null,
+    "why": "The paired qword loads cannot be folded into wider unpack operands within the original load range, and the final qword average also requires its zero-extending load."
+  },
+  "4d7660ca41": {
+    "rewrite": null,
+    "why": "Both halves of each input pair require the copies and unpack operations; folding the unaligned loads into legacy SSE unpack operands would introduce alignment requirements."
+  },
+  "d0e3a62d24": {
+    "rewrite": null,
+    "why": "The high and low filtering paths are both required, legacy SSE unpack memory operands cannot replace the unaligned loads safely, and the final average already uses a memory operand."
+  },
+  "d963ef0c5c": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdx-0x3]\nvmovdqu ymm2,YMMWORD PTR [rdx-0x1]\nvmovdqu ymm4,YMMWORD PTR [rdx+0x1]\nvmovdqu ymm6,YMMWORD PTR [rdx+0x3]\nvpunpckhbw ymm12,ymm0,YMMWORD PTR [rdx-0x2]\nvpunpcklbw ymm0,ymm0,YMMWORD PTR [rdx-0x2]\nvpunpckhbw ymm1,ymm2,YMMWORD PTR [rdx]\nvpunpcklbw ymm2,ymm2,YMMWORD PTR [rdx]\nvpunpckhbw ymm3,ymm4,YMMWORD PTR [rdx+0x2]\nvpunpcklbw ymm4,ymm4,YMMWORD PTR [rdx+0x2]\nvpunpckhbw ymm5,ymm6,YMMWORD PTR [rdx+0x4]\nvpunpcklbw ymm6,ymm6,YMMWORD PTR [rdx+0x4]\nadd rdx,rcx\nvpmaddubsw ymm0,ymm0,ymm8\nvpmaddubsw ymm12,ymm12,ymm8\nvpmaddubsw ymm2,ymm2,ymm9\nvpmaddubsw ymm1,ymm1,ymm9\nvpmaddubsw ymm4,ymm4,ymm10\nvpmaddubsw ymm3,ymm3,ymm10\nvpmaddubsw ymm6,ymm6,ymm11\nvpmaddubsw ymm5,ymm5,ymm11\nvpaddw ymm0,ymm0,ymm4\nvpaddw ymm12,ymm12,ymm3\nvpaddw ymm2,ymm2,ymm6\nvpaddw ymm1,ymm1,ymm5\nvpaddsw ymm0,ymm0,ymm2\nvpaddsw ymm12,ymm12,ymm1\nvpmulhrsw ymm0,ymm13,ymm0\nvpmulhrsw ymm12,ymm12,ymm13\nvpackuswb ymm0,ymm0,ymm12\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 4,
+    "why": "Fold four vector loads into both consuming VEX unpack instructions, which allow unaligned memory operands. Move the rdx update after these reads so every effective address, required result, store, and flag is preserved."
+  },
+  "c4e9fc1dbc": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rdx-0x3]\nvmovdqu ymm2,YMMWORD PTR [rdx-0x1]\nvmovdqu ymm4,YMMWORD PTR [rdx+0x1]\nvmovdqu ymm6,YMMWORD PTR [rdx+0x3]\nvpunpckhbw ymm12,ymm0,YMMWORD PTR [rdx-0x2]\nvpunpcklbw ymm0,ymm0,YMMWORD PTR [rdx-0x2]\nvpunpckhbw ymm1,ymm2,YMMWORD PTR [rdx]\nvpunpcklbw ymm2,ymm2,YMMWORD PTR [rdx]\nvpunpckhbw ymm3,ymm4,YMMWORD PTR [rdx+0x2]\nvpunpcklbw ymm4,ymm4,YMMWORD PTR [rdx+0x2]\nvpunpckhbw ymm5,ymm6,YMMWORD PTR [rdx+0x4]\nvpunpcklbw ymm6,ymm6,YMMWORD PTR [rdx+0x4]\nadd rdx,rcx\nvpmaddubsw ymm0,ymm0,ymm8\nvpmaddubsw ymm12,ymm12,ymm8\nvpmaddubsw ymm2,ymm2,ymm9\nvpmaddubsw ymm1,ymm1,ymm9\nvpmaddubsw ymm4,ymm4,ymm10\nvpmaddubsw ymm3,ymm3,ymm10\nvpmaddubsw ymm6,ymm6,ymm11\nvpmaddubsw ymm5,ymm5,ymm11\nvpaddw ymm0,ymm0,ymm4\nvpaddw ymm12,ymm12,ymm3\nvpaddw ymm2,ymm2,ymm6\nvpaddw ymm1,ymm1,ymm5\nvpaddsw ymm0,ymm0,ymm2\nvpaddsw ymm12,ymm12,ymm1\nvpmulhrsw ymm0,ymm13,ymm0\nvpmulhrsw ymm12,ymm12,ymm13\nvpackuswb ymm0,ymm0,ymm12\nvpavgb ymm0,ymm0,YMMWORD PTR [rdi]\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 4,
+    "why": "Fold four vector loads into their two VEX unpack consumers and postpone the rdx update until those reads finish. The rewrite reads only original addresses and retains the filtering, averaging, store, and final flag-producing operations."
+  }
+}

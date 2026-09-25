@@ -1,0 +1,88 @@
+{
+  "dcfc2718d8": {
+    "rewrite": null,
+    "why": "Every load and arithmetic stage contributes to a required register value or store, and SSE2 provides no shorter fused form for these arbitrary inputs."
+  },
+  "d6ef2b266c": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [CONST_1]\npxor xmm0,xmm0\nimul rax,r9,0xfffffffffffffff8\nsub rdi,rax\nsub rsi,rax\nsub rdx,rax\nmovd xmm2,ecx\nmovd xmm3,r8d\npshuflw xmm2,xmm2,0x0\npunpcklqdq xmm2,xmm2\npshuflw xmm3,xmm3,0x0\npunpcklqdq xmm3,xmm3",
+    "saved": 2,
+    "why": "IMUL forms -(r9*8) directly in rax, and subtracting it from the three pointers produces the original positive offsets; final flags are not live."
+  },
+  "6ede3fe4b9": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [CONST_1]\npxor xmm0,xmm0\nimul rax,r9,0xfffffffffffffff0\nsub rdi,rax\nsub rsi,rax\nsub rdx,rax\nmovd xmm2,ecx\nmovd xmm3,r8d\npshuflw xmm2,xmm2,0x0\npunpcklqdq xmm2,xmm2\npshuflw xmm3,xmm3,0x0\npunpcklqdq xmm3,xmm3",
+    "saved": 2,
+    "why": "IMUL forms -(r9*16) directly in rax, and subtracting it from the three pointers produces the original positive offsets; final flags are not live."
+  },
+  "b49e11024e": {
+    "rewrite": null,
+    "why": "The widening, word shifts, high products, and rounded products are distinct for arbitrary live inputs, and xmm5, xmm6, and xmm7 must also retain their final values."
+  },
+  "b3591c41d7": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [CONST_1]\npxor xmm0,xmm0\nimul rax,r9,0xfffffffffffffff8\nsub rdi,rax\nsub rsi,rax\nsub rdx,rax\nmovd xmm2,ecx\nmovd xmm3,r8d\npunpcklbw xmm3,xmm2\npshuflw xmm3,xmm3,0x0\npunpcklqdq xmm3,xmm3",
+    "saved": 2,
+    "why": "IMUL forms -(r9*8) directly in rax, and subtracting it from the three pointers produces the original positive offsets; final flags are not live."
+  },
+  "8b9b32ac89": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [CONST_1]\npxor xmm0,xmm0\nimul rax,r9,0xfffffffffffffff0\nsub rdi,rax\nsub rsi,rax\nsub rdx,rax\nmovd xmm2,ecx\nmovd xmm3,r8d\npunpcklbw xmm3,xmm2\npshuflw xmm3,xmm3,0x0\npunpcklqdq xmm3,xmm3",
+    "saved": 2,
+    "why": "IMUL forms -(r9*16) directly in rax, and subtracting it from the three pointers produces the original positive offsets; final flags are not live."
+  },
+  "39441afeca": {
+    "rewrite": null,
+    "why": "The interleaving, saturated multiply-adds, rounding, packing, store, and flag-producing index update are already direct SSSE3 operations with all temporaries live."
+  },
+  "03e4ccbe24": {
+    "rewrite": null,
+    "why": "Both zeroed vector registers and the copied, shifted rdx value are required, including the shift's ZF, so none of the four instructions can be removed."
+  },
+  "82de407999": {
+    "rewrite": null,
+    "why": "The loaded xmm1 and both interleaved results must survive, so the SSE2 copy and shuffle sequence, stores, pointer updates, and final comparison are all needed."
+  },
+  "7c37b84b1c": {
+    "rewrite": null,
+    "why": "Each of the four required vector results needs a load, sign-bit XOR, and store, followed by the live pointer update and comparison."
+  },
+  "64313c1d47": {
+    "rewrite": null,
+    "why": "The load and r9d shift are required, and sign-extending ecx before decrementing rcx cannot be combined into a single baseline instruction for arbitrary inputs."
+  },
+  "8f530bd050": {
+    "rewrite": null,
+    "why": "Each instruction computes a different required output, so the six updates have no removable intermediate."
+  },
+  "38250ddbf0": {
+    "rewrite": null,
+    "why": "The five instructions independently establish five required final register values and contain no redundant intermediate."
+  },
+  "ba9c213c36": {
+    "rewrite": null,
+    "why": "SSE2 needs separate operations for the two distinct shuffles while preserving xmm0, and the XOR, stores, and pointer updates are all required."
+  },
+  "dd9e8dd9d3": {
+    "rewrite": "pshufd xmm0,xmm0,0x0\nlea r8,[r8*4-0x780]\nneg r8\nand r8,0xffffffffffffff00\nmov r9d,0x20",
+    "saved": 2,
+    "why": "Compute the equivalent value (0x780-4*r8)&-0x100 directly in r8, avoiding the temporary copy and separate shift."
+  },
+  "ef4991333c": {
+    "rewrite": null,
+    "why": "The four instructions update four distinct live general-purpose registers, with no dead result or combination available."
+  },
+  "f64dc23def": {
+    "rewrite": "vpbroadcastd ymm0,xmm0\nlea r9,[r8*4-0x780]\nneg r9\nand r9,0xffffffffffffff00\nvxorps ymm3,ymm3,ymm3\nvxorps ymm4,ymm4,ymm4\nvmovaps ymm1,YMMWORD PTR [rsi]\nvmovaps ymm2,YMMWORD PTR [rsi+0x40]\nvxorps ymm9,ymm9,ymm9\nvxorps ymm10,ymm10,ymm10\nvmovaps ymm7,YMMWORD PTR [rsi+0x20]\nvmovaps ymm8,YMMWORD PTR [rsi+0x60]\nlea r11,[rdx]\nlea rax,[rdi]\nmov r10,rdi\nmov rbx,r9",
+    "saved": 2,
+    "why": "VPBROADCASTD replaces the shuffle and lane insertion while reproducing the full ymm0 value. Forming 4*(0x1e0-r8) before masking with -0x100 also removes one scalar instruction."
+  },
+  "571cdf7eaa": {
+    "rewrite": null,
+    "why": "The four instructions update four distinct live general-purpose registers, with no dead result or combination available."
+  },
+  "9c67ef8011": {
+    "rewrite": null,
+    "why": "Each 128-bit output requires a load, memory-source addition, and store under SSE2, and the final index update must preserve its flags."
+  },
+  "eed2d2c859": {
+    "rewrite": null,
+    "why": "Each 128-bit output requires a load, memory-source subtraction, and store under SSE2, and the final index update must preserve its flags."
+  }
+}

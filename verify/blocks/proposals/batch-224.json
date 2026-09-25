@@ -1,0 +1,84 @@
+{
+  "69d8264cf2": {
+    "rewrite": null,
+    "why": "Both shift-and-blend results, the register copies, and the scalar updates are live, and SSE4.1 offers no distinct-destination packed shift to remove either initial copy."
+  },
+  "bd39b9cc13": {
+    "rewrite": "movzx eax,WORD PTR [rsi]\nmovzx ecx,BYTE PTR [rdi+0x19]\nmov r8,QWORD PTR [rdi+0x10]\nmov edx,DWORD PTR [rdi+0x18]\nmov r9d,eax\nand eax,0xffffffc0\nimul ecx,eax\nmov r10,r8\nshr ecx,0x7\nadd ecx,0x4\nshrd rax,rcx,0x10\nsub edx,ecx\nsub r8,rax\nsetb al",
+    "saved": 1,
+    "why": "The masked, zero-extended word in rax is below 2^16, so shrd rax,rcx,0x10 yields exactly rcx shifted left by 48. Computing the scaled value in ecx removes one copy while preserving the final subtraction and CF."
+  },
+  "13a95f5a86": {
+    "rewrite": null,
+    "why": "The loaded values, modified and shifted copies, and both subtraction results are all required, with no shorter SSE2 sequence apparent."
+  },
+  "eb5e7be35b": {
+    "rewrite": null,
+    "why": "Capturing incoming CF and computing the reverse subtraction followed by the flag-producing shift each require the existing instructions."
+  },
+  "73f3a4e753": {
+    "rewrite": null,
+    "why": "Every loaded or initialized register is live, and the final test is needed to produce the required flags."
+  },
+  "a3a6aee3c7": {
+    "rewrite": null,
+    "why": "The load, multiply-add, saturating pack, store, and three live scalar updates have no removable intermediate under SSSE3."
+  },
+  "4e64c1d49d": {
+    "rewrite": null,
+    "why": "Both multiply-add results feed the required packed store, and all three scalar updates are live."
+  },
+  "43431fd6b8": {
+    "rewrite": null,
+    "why": "Both multiply-adds, the saturating pack and store, and the pointer and counter updates are necessary under SSSE3."
+  },
+  "efd59a7548": {
+    "rewrite": null,
+    "why": "SSSE3 requires two 128-bit stores for this output, followed by the live pointer and flag-producing counter updates."
+  },
+  "e5e4db080a": {
+    "rewrite": null,
+    "why": "The two independent multiply-adds feed the packed output, and the store, pointer updates, and decrement all contribute required results."
+  },
+  "854af612e6": {
+    "rewrite": null,
+    "why": "Four 128-bit stores are needed for the arbitrary repeated vector under SSSE3, and both scalar updates are live."
+  },
+  "e92a1cbff1": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks require two paths from the original vector, and both multiply-add and packed results remain live."
+  },
+  "7ca5eedb9f": {
+    "rewrite": null,
+    "why": "The copied intermediate feeds xmm0 while the second shuffle feeds xmm1, so all three multiply-adds and both packs remain necessary."
+  },
+  "0150d71e1b": {
+    "rewrite": null,
+    "why": "Both multiply-adds feed the packed result, both subsequent loads are live, and the comparison supplies the required SF and OF."
+  },
+  "c917a16154": {
+    "rewrite": null,
+    "why": "The two distinct 128-bit stores and all three scalar updates are required, with no combined store-and-update form for these vector values."
+  },
+  "f3c030ef89": {
+    "rewrite": null,
+    "why": "SSSE3 needs four stores for the two arbitrary repeated vectors, and the pointer and counter updates must also be preserved."
+  },
+  "9990abdda5": {
+    "rewrite": "lea eax,[r8-0x1]\nand eax,0xf\npxor xmm0,xmm0",
+    "saved": 4,
+    "why": "Only the masked value in rax and the zeroed xmm0 are live outputs; the load, movd, shuffle, and minimum compute dead xmm4 and xmm5 values."
+  },
+  "b19cc50588": {
+    "rewrite": null,
+    "why": "Both independent multiply-adds feed the packed store, and widening them would require extra input assembly and coefficient replication while all scalar updates remain live."
+  },
+  "b9433a3392": {
+    "rewrite": null,
+    "why": "AVX2 requires the GPR-to-vector transfer, byte broadcast, duplicated memory load, and minimum to form the full ymm3 result."
+  },
+  "e71fe97f42": {
+    "rewrite": null,
+    "why": "The multiply-adds and pack produce live ymm0, while the separate permutation is needed for the stored ordering and all scalar updates remain live."
+  }
+}

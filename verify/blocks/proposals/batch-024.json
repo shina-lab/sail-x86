@@ -1,0 +1,86 @@
+{
+  "64313c1d47": {
+    "rewrite": null,
+    "why": "The load, sign extension, decrement, and 32-bit shift each contribute to required outputs, and combining the sign extension with the decrement would change boundary cases."
+  },
+  "8f530bd050": {
+    "rewrite": null,
+    "why": "Each instruction computes a distinct required register value, with no redundant operation to remove."
+  },
+  "38250ddbf0": {
+    "rewrite": null,
+    "why": "The five instructions establish five independent required values, including the vector sign mask."
+  },
+  "ba9c213c36": {
+    "rewrite": null,
+    "why": "Preserving xmm0 requires the shuffle copy, and both loads, distinct shuffles, sign-mask XOR, stores, and pointer updates remain necessary under SSE2."
+  },
+  "dd9e8dd9d3": {
+    "rewrite": "pshufd xmm0,xmm0,0x0\nneg r8\nlea r8,[r8*4+0x780]\nand r8,0xffffffffffffff00\nmov r9d,0x20",
+    "saved": 2,
+    "why": "Compute the offset directly in r8 using ((0x1e0 - x) & -64) << 2 = (0x780 - 4*x) & -256 modulo 2^64. This removes the temporary-register copy and folds the scaling into LEA."
+  },
+  "ef4991333c": {
+    "rewrite": null,
+    "why": "All four arithmetic instructions update distinct required registers using independent inputs."
+  },
+  "f64dc23def": {
+    "rewrite": "neg r8\nlea r9,[r8*4+0x780]\nand r9,0xffffffffffffff00\nvmovd r8d,xmm0\nvzeroall\nvmovd xmm0,r8d\nvpbroadcastd ymm0,xmm0\nvmovaps ymm1,YMMWORD PTR [rsi]\nvmovaps ymm2,YMMWORD PTR [rsi+0x40]\nvmovaps ymm7,YMMWORD PTR [rsi+0x20]\nvmovaps ymm8,YMMWORD PTR [rsi+0x60]\nlea r11,[rdx]\nlea rax,[rdi]\nmov r10,rdi\nmov rbx,r9",
+    "saved": 3,
+    "why": "Shorten the masked offset calculation to (0x780 - 4*r8) & -256 using the dead r8 register. Save xmm0's low dword across vzeroall, then broadcast it to restore ymm0 while obtaining all four required zero vectors."
+  },
+  "571cdf7eaa": {
+    "rewrite": null,
+    "why": "Each of the four arithmetic instructions produces a distinct required register result."
+  },
+  "9c67ef8011": {
+    "rewrite": null,
+    "why": "Each independent vector sum needs a load, a memory-source addition, and a store, followed by the required index and flag update."
+  },
+  "eed2d2c859": {
+    "rewrite": null,
+    "why": "Each independent vector difference needs a load, a memory-source subtraction, and a store, followed by the required index and flag update."
+  },
+  "e2671d432f": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi+rdx*1]\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm3,XMMWORD PTR [rdi+rdx*1+0x10]\nmovdqa xmm4,XMMWORD PTR [rsi+rdx*1+0x10]\nmovdqa xmm2,xmm1\npsrad xmm2,0x1\npsrad xmm4,0x1\npsubd xmm0,xmm2\npsubd xmm3,xmm4\npaddd xmm1,xmm0\nmovdqa XMMWORD PTR [rdi+rdx*1],xmm0\nmovdqa XMMWORD PTR [rsi+rdx*1],xmm1\nmovdqa XMMWORD PTR [rdi+rdx*1+0x10],xmm3\npaddd xmm3,XMMWORD PTR [rsi+rdx*1+0x10]\nmovdqa XMMWORD PTR [rsi+rdx*1+0x10],xmm3\nadd rdx,0x20",
+    "saved": 1,
+    "why": "Shift xmm4 directly and reuse xmm3 after storing its first result, folding the original second source vector into a memory-source paddd. The reread precedes that source's overwrite, and xmm0 and the final index flags remain unchanged."
+  },
+  "339c6031b0": {
+    "rewrite": null,
+    "why": "The 32-bit scaling and truncation, two pointer additions, and 64-bit negation all contribute to required outputs."
+  },
+  "bb53449329": {
+    "rewrite": null,
+    "why": "Both independent 256-bit sums already use memory-source additions and require their loads, stores, and final index update."
+  },
+  "1eb374d8db": {
+    "rewrite": null,
+    "why": "Both independent 256-bit differences already use memory-source subtractions and require their loads, stores, and final index update."
+  },
+  "8001f07da2": {
+    "rewrite": null,
+    "why": "The three-operand arithmetic already avoids copies, and AVX2 immediate arithmetic shifts require register data operands, leaving no load or arithmetic instruction to remove."
+  },
+  "ebc6f4d1d2": {
+    "rewrite": null,
+    "why": "The scalar setup is necessary, and SSE4.1 needs the separate GPR-to-vector move and shuffle to broadcast the multiplier while retaining the other required vectors."
+  },
+  "8c70fc9565": {
+    "rewrite": null,
+    "why": "Arbitrary shift counts, multiplier, and rounding vector require every arithmetic stage, and the loads, store, and final flagged index update have no redundancy."
+  },
+  "f175eaada2": {
+    "rewrite": null,
+    "why": "AVX2 requires both vmovd and vpbroadcastd for the GPR multiplier, and the remaining instructions perform necessary scalar setup or establish required vector values."
+  },
+  "e7b475309c": {
+    "rewrite": null,
+    "why": "The variable-count shift requires its data in a register, and the remaining arithmetic, store, and flagged index update are necessary for arbitrary inputs."
+  },
+  "f2eeff8c97": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+r11*1]\npsubb xmm0,xmm3\nmovdqa xmm1,xmm0\npaddb xmm0,XMMWORD PTR [rdi+r11*1]\npaddb xmm1,XMMWORD PTR [rdx+r11*1]\nmovdqa XMMWORD PTR [rdi+r11*1],xmm0\nmovdqa XMMWORD PTR [rdx+r11*1],xmm1\nadd r11,0x10",
+    "saved": 1,
+    "why": "Copy the shared byte correction and fold both destination-buffer loads into paddb instructions. This preserves xmm0, both stores, and the final index flags while removing one instruction."
+  }
+}

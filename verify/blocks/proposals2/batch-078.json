@@ -1,0 +1,85 @@
+{
+  "e2671d432f": {
+    "rewrite": null,
+    "why": "The shifted inputs and both decorrelated outputs are all live, so SSE2's two-operand operations leave no removable copies or loads."
+  },
+  "339c6031b0": {
+    "rewrite": null,
+    "why": "The two pointer updates and final negation are required, and the 32-bit shift's truncation prevents folding the scaling into 64-bit address calculations."
+  },
+  "bb53449329": {
+    "rewrite": null,
+    "why": "Each result already uses one load, one memory-source add, and one store, followed by the required index update."
+  },
+  "1eb374d8db": {
+    "rewrite": null,
+    "why": "Each result already uses one load, one memory-source subtraction, and one store, followed by the required index update."
+  },
+  "8001f07da2": {
+    "rewrite": "vmovdqa ymm0,YMMWORD PTR [rdi+rdx*1]\nvmovdqa ymm3,YMMWORD PTR [rdi+rdx*1+0x20]\nvpsrad ymm2,YMMWORD PTR [rsi+rdx*1],0x1\nvpsrad ymm5,YMMWORD PTR [rsi+rdx*1+0x20],0x1\nvpsubd ymm0,ymm0,ymm2\nvpsubd ymm3,ymm3,ymm5\nvpaddd ymm1,ymm0,YMMWORD PTR [rsi+rdx*1]\nvpaddd ymm4,ymm3,YMMWORD PTR [rsi+rdx*1+0x20]\nvmovdqa YMMWORD PTR [rdi+rdx*1],ymm0\nvmovdqa YMMWORD PTR [rsi+rdx*1],ymm1\nvmovdqa YMMWORD PTR [rdi+rdx*1+0x20],ymm3\nvmovdqa YMMWORD PTR [rsi+rdx*1+0x20],ymm4\nadd rdx,0x40",
+    "saved": 2,
+    "why": "Fold the side-input loads into vpsrad and reread those same addresses as vpaddd memory operands, eliminating two standalone loads. All six vector results, stores, and final flags are preserved."
+  },
+  "ebc6f4d1d2": {
+    "rewrite": null,
+    "why": "The pointer setup requires the 32-bit scaling and negation, while SSE4.1 needs separate instructions to transfer and broadcast the general-purpose register value."
+  },
+  "f175eaada2": {
+    "rewrite": null,
+    "why": "The pointer setup is necessary, and AVX2 requires a separate vmovd before broadcasting the general-purpose register value."
+  },
+  "f2eeff8c97": {
+    "rewrite": null,
+    "why": "The adjusted green vector and both color outputs are live, and SSE2 needs a separate load or copy before each two-operand color addition."
+  },
+  "4c73f10c9e": {
+    "rewrite": null,
+    "why": "The four instructions independently update four live registers, and the final subtraction supplies the required flags."
+  },
+  "2bff566dd5": {
+    "rewrite": "vmovdqa ymm1,YMMWORD PTR [rsi+r11*1]\nvpsubb ymm1,ymm1,ymm3\nvpaddb ymm0,ymm1,YMMWORD PTR [rdi+r11*1]\nvpaddb ymm2,ymm1,YMMWORD PTR [rdx+r11*1]\nvmovdqa YMMWORD PTR [rdi+r11*1],ymm0\nvmovdqa YMMWORD PTR [rdx+r11*1],ymm2\nadd r11,0x20",
+    "saved": 2,
+    "why": "Use the adjusted green vector as the register source of both additions and fold the two color loads into their memory operands. The vector results, stores, and index-update flags remain identical."
+  },
+  "80173fd598": {
+    "rewrite": null,
+    "why": "SSE2 requires separate loads or copies for both live color outputs, and each output also needs its own addition, mask, and store."
+  },
+  "46a2e75b72": {
+    "rewrite": "vmovdqa ymm1,YMMWORD PTR [rsi+r11*1]\nvpsubw ymm1,ymm1,ymm3\nvpaddw ymm0,ymm1,YMMWORD PTR [rdi+r11*1]\nvpaddw ymm2,ymm1,YMMWORD PTR [rdx+r11*1]\nvpand ymm0,ymm0,ymm4\nvpand ymm2,ymm2,ymm4\nvmovdqa YMMWORD PTR [rdi+r11*1],ymm0\nvmovdqa YMMWORD PTR [rdx+r11*1],ymm2\nadd r11,0x20",
+    "saved": 2,
+    "why": "Fold the two color loads into vpaddw using the adjusted green vector as the register source. Retaining both masks and the final index update preserves every required result and flag."
+  },
+  "2d9aca8c4a": {
+    "rewrite": null,
+    "why": "Each instruction produces a distinct required register value, with the scaled pointer update already combined into one lea."
+  },
+  "7ea88d0078": {
+    "rewrite": null,
+    "why": "The four scalar instructions update distinct live registers, and each required vector constant already takes one load."
+  },
+  "5bf50571ce": {
+    "rewrite": null,
+    "why": "The three pointer updates and shift-negate sequence are required, and the two live constants and zero vector already take one instruction each."
+  },
+  "2485baa421": {
+    "rewrite": null,
+    "why": "The scalar setup has no redundant operation, and each vector instruction establishes a required value with the correct zeroed upper half."
+  },
+  "19ea1dc8a2": {
+    "rewrite": null,
+    "why": "The pointer updates require the original and halved index values, and all six live vector constants already use one instruction each."
+  },
+  "a9d8ad1faa": {
+    "rewrite": null,
+    "why": "The scalar setup is necessary, and all six live vector constants are established in one instruction each with their required upper bits cleared."
+  },
+  "b9c1b51500": {
+    "rewrite": null,
+    "why": "The pointer updates and shift-negate sequence are necessary, and all five live ZMM constants already take one instruction each."
+  },
+  "92e944cfbc": {
+    "rewrite": null,
+    "why": "The copy needs both a load and a store, while the live index update and the comparison's distinct SF and OF results require separate instructions."
+  }
+}

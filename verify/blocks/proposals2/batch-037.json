@@ -1,0 +1,86 @@
+{
+  "60701313d2": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and coefficients require the separate products and additions, and the saturated results, offset vectors, broadcast constant, stores, and index flags must all be preserved."
+  },
+  "74e68917eb": {
+    "rewrite": null,
+    "why": "Each shuffle, product, offset calculation, and saturation contributes to a required final value, with no available AVX2 instruction combining the remaining operations."
+  },
+  "50ef328490": {
+    "rewrite": null,
+    "why": "AVX2 needs both instructions to broadcast the GPR byte, and the noncommutative subtraction, unsigned minimum, and final shuffle are required alongside the preserved broadcast and mask."
+  },
+  "2cbfaf3a24": {
+    "rewrite": null,
+    "why": "The shuffled values feed required word sums and paired square sums, and the unpack, multiply, and accumulation steps have no redundant operations under AVX2."
+  },
+  "58e7281fbb": {
+    "rewrite": null,
+    "why": "The partial sums, scaled results, intermediate store, and final index flags are required, with memory operands already folded into additions."
+  },
+  "a4e619faf2": {
+    "rewrite": "mov rbp,r12\nxchg r12,r15\nadd rdi,rsi",
+    "saved": 1,
+    "why": "After saving the original r12 in rbp, XCHG produces both required exchanged register values in one instruction while leaving the final ADD flags unchanged."
+  },
+  "e677a78087": {
+    "rewrite": null,
+    "why": "The dot products already fuse multiplication and accumulation, while their arbitrary initial bias, separate shuffles, saturated packing, shifts, and preserved intermediate results prevent eliminating instructions."
+  },
+  "6620fe8944": {
+    "rewrite": null,
+    "why": "Both independent dot-product accumulators require the arbitrary bias, and the shuffles, saturated packing, shift, store, and live intermediate registers leave no removable instructions."
+  },
+  "c9fe93f8fe": {
+    "rewrite": null,
+    "why": "VNNI already combines the paired square products with accumulation, and the separate word sums, unpacked values, and arbitrary zmm20 contributions must be retained."
+  },
+  "bae86ff9e2": {
+    "rewrite": "mov rbp,r12\nxchg r12,r15\nadd rdi,rsi",
+    "saved": 1,
+    "why": "Saving the original r12 in rbp and exchanging r12 with r15 replaces the three moves with two instructions without changing the final ADD flags."
+  },
+  "b4b829a801": {
+    "rewrite": null,
+    "why": "SSE2 requires the three steps to broadcast an arbitrary low byte, and both bitwise selections need their AND, AND-NOT, and OR results with all affected registers preserved."
+  },
+  "3ba7173434": {
+    "rewrite": null,
+    "why": "The zeroed xmm3 and broadcast xmm2 are required outputs, and SSSE3 provides no shorter replacement for the two arbitrary bitwise selections with their preserved AND-NOT results."
+  },
+  "665941463c": {
+    "rewrite": null,
+    "why": "SSSE3 requires copies for the destructive shuffles and multiplies, and the products, constant, offset vectors, saturated results, stores, and index flags remain required."
+  },
+  "28ce0bde6d": {
+    "rewrite": "add rdi,rsi\nmov r13,r12\nxchg r12,r15\nxchg r15,r14\nxchg r14,rbp\nxchg rbp,r10\nxchg r10,rbx",
+    "saved": 1,
+    "why": "Five exchanges implement the six-register rotation while the move retains the required original r12 in r13. The exchanges preserve the ADD flags."
+  },
+  "c18ad04483": {
+    "rewrite": null,
+    "why": "This is an open copy chain with every destination live and r10 unchanged, so exchanges cannot shorten the five required transfers."
+  },
+  "9073ffff10": {
+    "rewrite": null,
+    "why": "The destructive SSSE3 shuffles and multiplies require their copies, and all products, offsets, saturated results, stores, and index flags contribute to required outputs."
+  },
+  "63415a881d": {
+    "rewrite": "add rdi,rsi\nmov r15,r14\nxchg r14,rbp\nxchg rbp,r10\nxchg r10,rbx",
+    "saved": 1,
+    "why": "Three exchanges rotate r14, rbp, r10, and rbx while the move preserves the original r14 in r15. This removes one instruction and retains the ADD flags."
+  },
+  "f2e14acbb4": {
+    "rewrite": null,
+    "why": "The two shuffled inputs, comparison after wrapping byte subtraction, and bitwise selection are all required, with no SSSE3 blend instruction eliminating an operation."
+  },
+  "c2c651c2d9": {
+    "rewrite": null,
+    "why": "The unsigned products require separate high and low halves plus unpacking, and the preserved intermediate registers prevent shortening the subsequent shifts, saturation, rounded multiply, and store."
+  },
+  "bcd09cc257": {
+    "rewrite": null,
+    "why": "The copy into xmm3 is a required final value, and the arbitrary shuffles, wrapping subtraction, signed comparison, and bitwise selection cannot be shortened within SSSE3."
+  }
+}

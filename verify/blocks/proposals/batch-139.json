@@ -1,0 +1,84 @@
+{
+  "d639bf0f23": {
+    "rewrite": null,
+    "why": "The live load and unpack results are required, and the saturated multiply-adds cannot absorb the following wrapping additions for arbitrary inputs."
+  },
+  "1663415866": {
+    "rewrite": null,
+    "why": "The broadcast, arbitrary shuffle, two saturated products, additions, shifts, packing, separate stores, and live pointer updates have no redundant instruction."
+  },
+  "1129e660ef": {
+    "rewrite": null,
+    "why": "Both unpacked vectors remain live, and each output needs its saturated multiply-add followed by two wrapping additions."
+  },
+  "5e9e789b8d": {
+    "rewrite": null,
+    "why": "Both independent saturated products require their additions and shifts before packing, while the store and register updates are required."
+  },
+  "57abdb06c8": {
+    "rewrite": null,
+    "why": "All four unpacked vectors and accumulated products remain live, and arbitrary input values prevent folding the additions into the saturated multiply-adds."
+  },
+  "4c7fd931b8": {
+    "rewrite": null,
+    "why": "The broadcast is already shared across four independent products, and both packed stores and the final register and flag values require the remaining operations."
+  },
+  "78f630b397": {
+    "rewrite": null,
+    "why": "The independently saturated products cannot be combined algebraically for arbitrary inputs, and the packed result, extracted YMM value, four stores, and comparison are required."
+  },
+  "6fad12b3eb": {
+    "rewrite": null,
+    "why": "Independent saturation prevents merging the arithmetic, and the four stores use unknown indices that prevent combining them into wider stores."
+  },
+  "a8dd8bae32": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and independent saturated products require both computation paths, followed by packing, two stores, and live register updates."
+  },
+  "a90f4ef3c3": {
+    "rewrite": "dec rdx\nvmovdqu ymm0,YMMWORD PTR [r9-0x3e0]\nvperm2i128 ymm4,ymm0,YMMWORD PTR [r9-0x3c0],0x20\nvperm2i128 ymm5,ymm0,YMMWORD PTR [r9-0x3c0],0x31",
+    "saved": 1,
+    "why": "Load the first two adjacent 128-bit chunks together, then select the required halves with two memory-operand permutations. All loaded bytes and address displacements occur in the original block."
+  },
+  "17e709a149": {
+    "rewrite": null,
+    "why": "The byte broadcast and unpack handle an arbitrary second input, and both saturated products need separate additions and shifts before the required packed store."
+  },
+  "c0f41e66d3": {
+    "rewrite": null,
+    "why": "The broadcasts and unpack are already shared, while all four independently saturated products and both packed stores are necessary."
+  },
+  "60c92447b5": {
+    "rewrite": null,
+    "why": "Independent saturation and rounded unsigned averaging prevent folding the arithmetic, and the live packed vectors, four indexed stores, and pointer update require the remaining instructions."
+  },
+  "f075a7e5d9": {
+    "rewrite": null,
+    "why": "The saturated products and rounded averages must retain their ordering, and the four stores and live pointer and flag updates contain no redundant instruction."
+  },
+  "abc16ce9be": {
+    "rewrite": "dec rdx\nvpmaddubsw ymm9,ymm7,ymm5\nvpmaddubsw ymm10,ymm8,ymm5\nvmovdqu ymm0,YMMWORD PTR [rax-0x3b8]\nvperm2i128 ymm5,ymm0,YMMWORD PTR [rax-0x398],0x20\nvperm2i128 ymm6,ymm0,YMMWORD PTR [rax-0x398],0x31\nvpaddw ymm0,ymm7,ymm3\nvpaddw ymm3,ymm8,ymm3\nvpaddw ymm9,ymm9,ymm0\nvpaddw ymm10,ymm10,ymm3",
+    "saved": 1,
+    "why": "Replace the four load/insert instructions with one adjacent-pair load and two memory-operand permutations, using only originally loaded bytes and displacements. Both products still consume the original YMM5 before it is replaced."
+  },
+  "11c6805242": {
+    "rewrite": null,
+    "why": "The three independently weighted shuffle results require separate saturated products, and the rounded scaling, live scalar assignments, and final comparison are necessary."
+  },
+  "203152fc05": {
+    "rewrite": null,
+    "why": "The broadcasts produce required outputs, and the VEX-encoded XMM copy intentionally zeroes the upper half before addition to form distinct lower and upper YMM6 values."
+  },
+  "9b1361b93e": {
+    "rewrite": null,
+    "why": "The live vectors require distinct loaded and clamped halves, while the two saturated products, byte load, and flag-producing index update have no redundant instruction."
+  },
+  "a1b3615bc3": {
+    "rewrite": null,
+    "why": "The live vector multiplication, arithmetic shift, scalar addition, stack-pointer copy, and final sign-flag computation each require an instruction."
+  },
+  "2aa7197dfd": {
+    "rewrite": null,
+    "why": "Packing the upper half before the lower half requires both extraction and signed-to-unsigned saturation, and both original stores must be retained."
+  }
+}

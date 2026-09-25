@@ -1,0 +1,88 @@
+{
+  "83cf370d39": {
+    "rewrite": "mov r8d,ecx\nlea esi,[rcx+rdx*1]\nand rdi,0xffffffffffffffe0\nsub esi,0x20",
+    "saved": 1,
+    "why": "LEA combines the copy and 32-bit addition, while the final SUB preserves the required CF and ZF."
+  },
+  "e5addc87a1": {
+    "rewrite": "vpcmpeqb k1,ymm16,YMMWORD PTR [rdi]\nkmovd eax,k1\nsar eax,cl\nxor ecx,ecx\nbts ecx,edx\nlea edx,[rcx-0x1]\nand eax,edx",
+    "saved": 2,
+    "why": "BTS constructs the one-bit value using the same modulo-32 count as SHL, saving one mask-building instruction. The final AND already produces the required ZF, making TEST redundant."
+  },
+  "a812e20fde": {
+    "rewrite": "vpcmpeqb k1,ymm16,YMMWORD PTR [rdi+0x20]\nxor edx,edx\nbts edx,esi\nsub edx,0x1\nkmovd eax,k1\nand eax,edx",
+    "saved": 2,
+    "why": "BTS uses esi modulo 32 directly to construct the one-bit value, eliminating the count copy. The final AND supplies the required ZF without TEST."
+  },
+  "e4913c08bb": {
+    "rewrite": null,
+    "why": "The mask extraction and variable shift are necessary, and TEST must set ZF when the masked shift count is zero."
+  },
+  "5359a5f85b": {
+    "rewrite": null,
+    "why": "Advancing and aligning rdi requires two operations, and the independent rdx adjustment requires another two."
+  },
+  "3d7742ecef": {
+    "rewrite": null,
+    "why": "The preserved comparison vector, scalar mask, and zero flag require the load, comparison, movemask, and test."
+  },
+  "9b7c7eb5d4": {
+    "rewrite": null,
+    "why": "Advancing and aligning rdi requires two operations, and computing rdx plus 64 minus rcx requires another two."
+  },
+  "74dca56385": {
+    "rewrite": null,
+    "why": "SSE2 needs the four loads and comparisons, three mask reductions, and movemask/test pair while preserving the required comparison vectors."
+  },
+  "1ce21a39e8": {
+    "rewrite": null,
+    "why": "Two comparison results must coexist, so the load, two comparisons, mask extraction, and ZF test are all needed."
+  },
+  "9b53e35745": {
+    "rewrite": "pcmpeqb xmm1,XMMWORD PTR [rdi]\nxor ecx,ecx\nbts ecx,edx\nlea edx,[rcx-0x1]\npmovmskb eax,xmm1\nand eax,edx",
+    "saved": 2,
+    "why": "BTS uses the same low five count bits as the original shift and builds the mask in three instructions. AND already sets the required ZF, so TEST can be removed."
+  },
+  "d19835b750": {
+    "rewrite": null,
+    "why": "SSE2 needs three instructions to broadcast an arbitrary low byte, and the remaining instructions compute the preserved rdx, rcx, and ZF."
+  },
+  "f9eb198cf2": {
+    "rewrite": null,
+    "why": "Updating only dh while preserving the other rdx bits and the byte subtraction flags leaves no removable operation alongside the required rsi copy and rdi alignment."
+  },
+  "8b86b63bc1": {
+    "rewrite": "pcmpeqb xmm1,XMMWORD PTR [rdi]\npmovmskb eax,xmm1\nsar eax,cl\nxor ecx,ecx\nbts ecx,edx\nlea edx,[rcx-0x1]\nand eax,edx",
+    "saved": 2,
+    "why": "After the original cl is consumed, BTS builds the same modulo-32 mask in three instructions. The final AND also supplies ZF, eliminating TEST."
+  },
+  "1002cdb66c": {
+    "rewrite": "movdqa xmm2,XMMWORD PTR [rdi+0x10]\npcmpeqb xmm2,xmm1\npmovmskb eax,xmm2\nmov cl,dh\nmov edx,0x1\nshl edx,cl\nsub edx,0x1\nand eax,edx",
+    "saved": 1,
+    "why": "AND already sets ZF according to the final eax value, so the following TEST is redundant."
+  },
+  "4d439432d6": {
+    "rewrite": null,
+    "why": "The comparison, mask extraction, and shift setup are needed, and TEST must establish ZF when the shift count is zero."
+  },
+  "20e1be3601": {
+    "rewrite": null,
+    "why": "AVX2 needs separate scalar transfer and broadcast instructions in addition to the required length scaling, return pointer, and comparison."
+  },
+  "d2db403cd1": {
+    "rewrite": null,
+    "why": "The vector zero, return pointer, length copy, cleared rsi, and comparison flags each require a separate instruction."
+  },
+  "9bb70bf6cc": {
+    "rewrite": null,
+    "why": "The two 256-bit stores, preserved pointer update, and length comparison all have independent required effects."
+  },
+  "486cf16a65": {
+    "rewrite": null,
+    "why": "Both 256-bit stores, the rdi adjustment, and the comparison producing CF and ZF are required."
+  },
+  "2087cc59bf": {
+    "rewrite": null,
+    "why": "AVX2 requires four stores for these 128 bytes, followed by the preserved pointer update and unsigned comparison."
+  }
+}

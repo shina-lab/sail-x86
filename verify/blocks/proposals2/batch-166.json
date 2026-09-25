@@ -1,0 +1,86 @@
+{
+  "1018f44b4a": {
+    "rewrite": null,
+    "why": "The wrapping 32-bit add cannot be folded into the subsequent 64-bit addition, and RDI, the final shift flags, and VZEROUPPER effects are all live."
+  },
+  "c0a8b748be": {
+    "rewrite": null,
+    "why": "Forming the offset requires both the increment and subtraction, followed by the 32-bit shift and the comparison that supplies the live flags."
+  },
+  "de333a62cf": {
+    "rewrite": null,
+    "why": "RCX needs the offset addition, subtraction, and signed 32-bit shift, while the mask comparison and RSI subtraction are independently live."
+  },
+  "d4b9e91533": {
+    "rewrite": "mov ecx,0x502\nbextr ecx,edi,ecx\nadd rsi,rcx\nand rdi,0xffffffffffffff80",
+    "saved": 1,
+    "why": "BMI1 BEXTR with start 2 and length 5 directly extracts the bits produced by masking EDI with 0x7f and shifting right twice. Loading its control and extracting replace three instructions with two."
+  },
+  "4834b18eb1": {
+    "rewrite": null,
+    "why": "Both minima, the loaded vector, both comparison masks, the pointer update, and the final zero flag are live."
+  },
+  "a15aaf04b9": {
+    "rewrite": null,
+    "why": "The retained comparison mask must be transferred to a general register before TZCNT, and CMP supplies the independently required final flags."
+  },
+  "26cfe2d486": {
+    "rewrite": null,
+    "why": "RSI's masking, K0's comparison, RAX's mask value, and the test supplying ZF are all required."
+  },
+  "20c82b75db": {
+    "rewrite": null,
+    "why": "The retained comparison mask must be transferred to a general register before TZCNT, and CMP supplies the independently required final flags."
+  },
+  "1918b2c315": {
+    "rewrite": "lea r11,[rdi+rsi*4]\nmov r10,r11\nand r10,0xffffffffffffffc0\npxor xmm0,xmm0\npxor xmm1,xmm1\npxor xmm2,xmm2\npxor xmm3,xmm3\nmov rax,rdi\nmov rcx,rdi\nand rcx,0xfff\ncmp rcx,0xfcf",
+    "saved": 2,
+    "why": "LEA forms the wrapped 64-bit sum directly in R11, and copying and aligning it produces R10 without updating dead RSI. The final comparison and all four vector zeroings are retained."
+  },
+  "145fbd8ee5": {
+    "rewrite": null,
+    "why": "The four input vectors must be reduced, and the comparison in XMM0, its byte mask in RDX, and the independent zero flag all remain live."
+  },
+  "5e3e64268f": {
+    "rewrite": null,
+    "why": "The comparison vectors and scalar mask results are live, including RCX's shifted upper half, so the extraction and mask concatenation operations are needed."
+  },
+  "de8123d355": {
+    "rewrite": null,
+    "why": "BTS and BSF produce the required index in RDX, and the subsequent add, subtract, and shift are required for RAX and its final flags."
+  },
+  "31d8160a44": {
+    "rewrite": null,
+    "why": "AVX2 requires a separate general-register-to-XMM move before broadcasting, and the vector zeroing, masked RCX, and comparison flags are all live."
+  },
+  "f4ae933a5b": {
+    "rewrite": null,
+    "why": "The loaded vector, both comparison vectors, both byte masks, updated pointer, and final ZF are all live."
+  },
+  "762813f0be": {
+    "rewrite": null,
+    "why": "The loaded vector and both comparison vectors must survive, while RAX's extracted mask, their union in RCX, the pointer update, and ZF are required."
+  },
+  "5a207a66d6": {
+    "rewrite": "and ecx,0x11111111\nand eax,0x11111111\nlea r8d,[rcx-0x1]\nxor r8d,ecx\nand eax,r8d",
+    "saved": 2,
+    "why": "LEA replaces the copy and decrement while preserving the 32-bit wrapped result in R8D. The final AND already produces the same CF, PF, ZF, SF, and OF as the removed TEST."
+  },
+  "f038d355df": {
+    "rewrite": null,
+    "why": "The broadcast and zeroed vector are distinct live outputs, and forming masked RCX plus the comparison flags still needs three scalar instructions."
+  },
+  "268b929edf": {
+    "rewrite": null,
+    "why": "The loaded vector, both predicate masks, both scalar copies, pointer update, and final test result are live."
+  },
+  "f4ff0bc273": {
+    "rewrite": null,
+    "why": "The loaded vector and both predicate masks must survive, while the scalar mask in RAX, union in RCX, pointer update, and ZF are independently required."
+  },
+  "fc807a7323": {
+    "rewrite": "movq xmm1,rsi\nmov rcx,rdi\npshufd xmm1,xmm1,0x0\npxor xmm2,xmm2\nand rcx,0x3f\ncmp rcx,0x30",
+    "saved": 1,
+    "why": "A single SSE2 PSHUFD broadcasts the low dword to all four lanes, replacing both self-unpacks. The other register values and comparison flags are unchanged."
+  }
+}

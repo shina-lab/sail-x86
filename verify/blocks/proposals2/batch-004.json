@@ -1,0 +1,84 @@
+{
+  "d3716fc1c2": {
+    "rewrite": null,
+    "why": "The unaligned source loads cannot safely be folded into legacy PMADDUBSW, and the live sign mask and widened high half prevent simplifying their construction."
+  },
+  "d7996f483c": {
+    "rewrite": null,
+    "why": "The unaligned dot-product loads must remain separate, while the sign mask, blend results, pointer updates, and final flags are all live."
+  },
+  "a7f73fa19d": {
+    "rewrite": null,
+    "why": "The zero register is shared by both widening paths, and the live broadcasts and scalar setup have no shorter SSSE3 replacement."
+  },
+  "f182a2ca99": {
+    "rewrite": "movdqu xmm8,XMMWORD PTR [rcx+rdx*1+0x78]\npunpcklbw xmm0,xmm8\npunpckhbw xmm8,xmm8\npsraw xmm0,0x8\npsraw xmm8,0x8",
+    "saved": 1,
+    "why": "Unpack each source byte into the high byte of a word, then arithmetic-shift by eight to sign-extend it. The discarded low bytes need no initialization, eliminating one instruction."
+  },
+  "1d7ec53f42": {
+    "rewrite": null,
+    "why": "Every dword broadcast is live, and broadcasting the low word across all 128 bits requires the existing two instructions under SSSE3."
+  },
+  "2d0bacddfe": {
+    "rewrite": null,
+    "why": "The two-instruction word broadcast, single dword broadcast, and three independent scalar results are all required."
+  },
+  "a41cd69d51": {
+    "rewrite": null,
+    "why": "The zero-extended word broadcast needs three instructions without an available constant mask, and the other broadcasts and scalar updates are live."
+  },
+  "80bfe63c9a": {
+    "rewrite": null,
+    "why": "The three word broadcasts require two instructions each, and the live dword broadcast, shifted mask, and scalar setup provide no removable work."
+  },
+  "fcf8b44aad": {
+    "rewrite": null,
+    "why": "The unaligned source loads cannot safely be folded into legacy PMADDUBSW, and the sign mask and widened high half must retain their final values."
+  },
+  "2bea57a19c": {
+    "rewrite": null,
+    "why": "The unaligned source load must remain separate from PMADDUBSW, and the live sign mask, blend results, pointers, and flags leave no removable instructions."
+  },
+  "b50b968f28": {
+    "rewrite": null,
+    "why": "The zero register is shared by both widening paths, and the live broadcasts and scalar setup have no shorter SSSE3 replacement."
+  },
+  "2718a3c208": {
+    "rewrite": null,
+    "why": "The two-instruction word broadcast, single dword broadcast, and three independent scalar results are all required."
+  },
+  "c1589ecdc3": {
+    "rewrite": null,
+    "why": "The zero-extended word broadcast needs three instructions without an available constant mask, and the other broadcasts and scalar updates are live."
+  },
+  "949d88f9e5": {
+    "rewrite": null,
+    "why": "Both full-width word broadcasts, the dword broadcast, the shifted all-ones mask, and the scalar updates are live and already use minimal SSSE3 sequences."
+  },
+  "7bb717948f": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi+rcx*1]\npunpcklbw xmm0,xmm2\npunpckhbw xmm2,xmm2\npsraw xmm0,0x8\npsraw xmm2,0x8\npmullw xmm0,xmm5\npmullw xmm2,xmm5\npmulhrsw xmm0,xmm4\npmulhrsw xmm2,xmm4\nmovdqu xmm8,XMMWORD PTR [rdi+rcx*1]\npxor xmm9,xmm9\npcmpgtb xmm9,xmm8\nmovdqa xmm3,xmm8\npunpckhbw xmm3,xmm9\nmovdqa xmm6,xmm8\npunpcklbw xmm6,xmm9\npaddw xmm2,xmm3\npaddw xmm0,xmm6\npacksswb xmm0,xmm2\nadd ecx,0x10\ncmp ecx,0x50",
+    "saved": 1,
+    "why": "Use unpacking and arithmetic shifts to widen the first input in five instructions instead of six. Its temporary sign mask in xmm6 is overwritten later, so its construction can be omitted."
+  },
+  "6661cc7bc6": {
+    "rewrite": null,
+    "why": "The blend must preserve xmm0 and xmm1 while producing both xmm2 and the masked xmm8, and the store, pointer updates, and decrement are required."
+  },
+  "33dee0f4e2": {
+    "rewrite": null,
+    "why": "The zero register is shared by unsigned word widening and signed byte widening, while the broadcast results and scalar setup remain live."
+  },
+  "116561c0b4": {
+    "rewrite": null,
+    "why": "Every dword broadcast and scalar update is live, and the full-width word broadcast needs the existing two instructions under SSSE3."
+  },
+  "07cb752eba": {
+    "rewrite": null,
+    "why": "Zero-extending and broadcasting an arbitrary low word needs the existing three SSE instructions, and all three scalar results are live."
+  },
+  "d3fc8aef69": {
+    "rewrite": null,
+    "why": "The reduction must preserve all 256 bits of both ymm0 and ymm1, and its 64-bit zero-extending load cannot be folded into a 256-bit add."
+  }
+}

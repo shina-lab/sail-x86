@@ -1,0 +1,83 @@
+{
+  "5fd5a633da": {
+    "rewrite": null,
+    "why": "Each instruction supplies a distinct required register update, and the final subtraction must also supply all five required flags."
+  },
+  "838ab0e0d2": {
+    "rewrite": null,
+    "why": "The five required register updates are independent, and the final subtraction's flags must be preserved."
+  },
+  "47f86f3c20": {
+    "rewrite": null,
+    "why": "Both pointer advances, both constant assignments, and the counter subtraction are required final results."
+  },
+  "480f27bcbc": {
+    "rewrite": null,
+    "why": "All five scalar destinations are live, and AVX offers no way to combine these independent updates into fewer instructions."
+  },
+  "d20a5f6d05": {
+    "rewrite": null,
+    "why": "The copied-and-shifted index, cleared counter, address, constant vector, and loaded-and-shifted word each require the existing operations under SSSE3."
+  },
+  "3e4cba9085": {
+    "rewrite": null,
+    "why": "Both xmm2 and xmm4 must retain the loaded vector while xmm1 is aligned and transformed, so the copies and separate arithmetic remain necessary."
+  },
+  "696796ad63": {
+    "rewrite": null,
+    "why": "The two word loads and three boundary stores are needed, as are the cleared counter, masked index, and final comparison flags."
+  },
+  "65fc1b6bb8": {
+    "rewrite": null,
+    "why": "The required final vectors keep the copy and unpack operations live, and the unaligned load cannot safely be folded into legacy packed arithmetic."
+  },
+  "3228e78398": {
+    "rewrite": null,
+    "why": "SSE2 provides no single instruction to copy and halve this scalar index, and the other three instructions each produce a required output."
+  },
+  "69b00f4e0a": {
+    "rewrite": null,
+    "why": "The arbitrary xmm3 operand and wrapping word addition require the separate signed shift and subtraction, with both resulting vectors live."
+  },
+  "b687c7729f": {
+    "rewrite": null,
+    "why": "The sum and both interleaved halves are required final values, so SSE2 needs the copy and both destructive unpacks."
+  },
+  "f717f452d3": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [r9+rcx*2]\nmovdqa xmm0,XMMWORD PTR [rsi+rcx*2]\npaddw xmm0,xmm3\npaddw xmm1,xmm0\npsraw xmm0,0x1\npsraw xmm1,0x1\nmovdqa xmm2,xmm0\npunpcklwd xmm0,xmm1\npunpckhwd xmm2,xmm1\nmovdqa XMMWORD PTR [rdi+rcx*4],xmm0\nmovdqa XMMWORD PTR [rdi+rcx*4+0x10],xmm2\nadd rcx,0x8\ncmp rcx,r8",
+    "saved": 1,
+    "why": "Add xmm3 to xmm0 before adding xmm0 to xmm1, sharing the bias addition between both results. Word addition is associative modulo 65536, so both inputs to the signed shifts and all final values remain identical."
+  },
+  "6996a33ba7": {
+    "rewrite": null,
+    "why": "Rounding r8d takes the addition and mask, and the constant load, two sign extensions, and two required copies each need their own instruction."
+  },
+  "0b87c8b55c": {
+    "rewrite": null,
+    "why": "Each of the four instructions updates a different required register, and the subtraction also supplies the required flags."
+  },
+  "cc4a0390d8": {
+    "rewrite": null,
+    "why": "The three address updates, counter subtraction, and counter reload all produce independent required final values."
+  },
+  "1bdb122d3d": {
+    "rewrite": null,
+    "why": "SSE2 requires the separate byte unpacks and word arithmetic for arbitrary xmm7, with the constant loads already folded and the final temporary vectors all live."
+  },
+  "dc89b8bcbf": {
+    "rewrite": null,
+    "why": "The first accumulator loads are unaligned and cannot safely be folded into legacy SSE2 arithmetic, while the second loads also provide required final xmm2 and xmm3 values."
+  },
+  "7788939c88": {
+    "rewrite": null,
+    "why": "The accumulator loads must remain in xmm2 and xmm3 at exit, and SSE2 requires the separate byte unpacks and word products."
+  },
+  "a1230b6476": {
+    "rewrite": null,
+    "why": "The accumulator load supplies the required final xmm1 value, and the two byte expansions, product, sum, store, and scalar updates are all necessary."
+  },
+  "7d7666124e": {
+    "rewrite": null,
+    "why": "The arbitrary multiplier and offset require the magnitude, wrapped arithmetic, logical shift, and sign restoration, while both vector results and all scalar updates are live."
+  }
+}

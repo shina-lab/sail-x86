@@ -1,0 +1,5 @@
+batches*/
+codex-logs*/
+__pycache__/
+*.pyc
+proposals-trial/

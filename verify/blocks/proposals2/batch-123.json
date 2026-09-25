@@ -1,0 +1,86 @@
+{
+  "7823e2fc27": {
+    "rewrite": "mov r11,rax\nsub r11,rdx\nbsf rcx,r11\nand rcx,0xfffffffffffffff8\nsar rax,cl\nmovzx eax,al\nsar rdx,cl\nmovzx edx,dl\nsub eax,edx",
+    "saved": 1,
+    "why": "Arithmetic right shift by three followed by left shift by three simply clears the lowest three bits. A single 64-bit AND preserves rcx, and the final subtraction supplies the required flags."
+  },
+  "1d38151990": {
+    "rewrite": "lea r11,[rdx+rdi*1]\nmov r8,rdi\nand r8,0xf",
+    "saved": 1,
+    "why": "LEA combines the copy and addition into one instruction, while the unchanged final AND preserves r8 and ZF."
+  },
+  "5e792fe157": {
+    "rewrite": null,
+    "why": "Both the raw loaded value in xmm0 and the comparison result in xmm1 are live, so the loads, comparison, mask extraction, and subtraction are required."
+  },
+  "8f9880b1a6": {
+    "rewrite": null,
+    "why": "The comparison already folds one load, and the live vector result, scalar result, and ZF require the remaining instructions."
+  },
+  "967eaf7fb1": {
+    "rewrite": null,
+    "why": "The comparison already folds one load, and the live vector result, scalar result, and ZF require the remaining instructions."
+  },
+  "0c99dadb9c": {
+    "rewrite": null,
+    "why": "The comparison, mask extraction, increment, and BZHI produce required results and flags, while VZEROUPPER must clear the upper halves of the other live vector registers."
+  },
+  "adc650e443": {
+    "rewrite": null,
+    "why": "The exact vector comparison and incremented scalar mask are live, and VZEROUPPER is needed to reproduce the upper halves of all affected vector registers."
+  },
+  "e529253fbe": {
+    "rewrite": null,
+    "why": "Both comparisons and their conjunction are live, and mask extraction, increment, and VZEROUPPER each supply required final state."
+  },
+  "41665d19c1": {
+    "rewrite": null,
+    "why": "The tail load in edi remains live alongside both arithmetic results, so folding that load into the subtraction would still require a separate load."
+  },
+  "34f4080af0": {
+    "rewrite": null,
+    "why": "Both vector results and the complemented scalar mask are live, and the existing sequence also preserves all incoming flags."
+  },
+  "4e7bc2b903": {
+    "rewrite": null,
+    "why": "The tail load in rdi remains live alongside both arithmetic results, so folding that load into the subtraction would still require a separate load."
+  },
+  "b256806dfc": {
+    "rewrite": null,
+    "why": "The full 32-bit difference of zero-extended words and the zero-extended wrapping byte difference both contribute to the live results, preventing narrower arithmetic from removing a load."
+  },
+  "c1cf456267": {
+    "rewrite": null,
+    "why": "The bounded mask in ecx and k2, BZHI flags, masked merge in zmm18, and comparison mask in k1 and eax all require the existing operations."
+  },
+  "736cfaac4d": {
+    "rewrite": null,
+    "why": "The XOR and ternary result are both live, the memory operands are already folded, and the byte mask must be produced in both k1 and eax."
+  },
+  "d7a826c73a": {
+    "rewrite": null,
+    "why": "The low difference must remain in edx while eax receives the OR of both halves, requiring the subtraction, copy, shift, and final flag-setting OR."
+  },
+  "79820a8026": {
+    "rewrite": null,
+    "why": "Three independent register results require their existing writes, and the separate comparison supplies the required CF and ZF."
+  },
+  "8a3c0aa5aa": {
+    "rewrite": "vmovups zmm4,ZMMWORD PTR [rsi]\nvmovups zmm5,ZMMWORD PTR [rsi+0x40]\nmov r11,rdi\nmov r8,rdi\nor r8,0xffffffffffffff80\nsub rdi,r8\nsub rsi,r8\nadd rdx,r8",
+    "saved": 1,
+    "why": "OR with -128 directly computes r8 as (original rdi modulo 128) minus 128. Subtracting this value advances rdi to the next 128-byte boundary and preserves both subsequent adjustments."
+  },
+  "d78961bd78": {
+    "rewrite": "vmovups zmm4,ZMMWORD PTR [rcx-0x80]\nvmovups zmm5,ZMMWORD PTR [rcx-0x40]\nmov r8,r9\nand r9d,0x7f\nsub rcx,r9\nsub rdx,r9\nxor r9,r8",
+    "saved": 1,
+    "why": "Keep the original r9 in r8 and use r9 for the low seven-bit adjustment. XOR with the saved original then produces the aligned r9 without restoring r8."
+  },
+  "1760f4e947": {
+    "rewrite": null,
+    "why": "The sign-change bit in r8 and ZF from combining it with original rcx bits 8 through 11 require the addition, XOR, shift, masking, and final combination."
+  },
+  "6921433f26": {
+    "rewrite": null,
+    "why": "The source adjustment, rounded destination, independent end-pointer calculation, and final subtraction flags all remain live and require the existing operations."
+  }
+}

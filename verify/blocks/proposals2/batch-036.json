@@ -1,0 +1,88 @@
+{
+  "3deb96ee89": {
+    "rewrite": "vmovdqa ymm0,YMMWORD PTR [rdi+rbp*1]\nvmovdqa ymm5,YMMWORD PTR [r14+rbp*2+0x660]\nvpmulhuw ymm1,ymm0,YMMWORD PTR [r15+rbp*1+0x320]\nvpmullw ymm3,ymm0,YMMWORD PTR [r15+rbp*1+0x320]\nvpunpcklwd ymm2,ymm3,ymm1\nvpunpckhwd ymm3,ymm3,ymm1\nvperm2i128 ymm1,ymm5,YMMWORD PTR [r14+rbp*2+0x640],0x2\nvperm2i128 ymm4,ymm5,YMMWORD PTR [r14+rbp*2+0x640],0x13\nvpsubd ymm1,ymm1,ymm2\nvpsubd ymm4,ymm4,ymm3\nvpsrad ymm1,ymm1,0x8\nvpsrad ymm4,ymm4,0x8\nvpackssdw ymm1,ymm1,ymm4\nvpmulhrsw ymm1,ymm1,ymm7\nvpaddw ymm0,ymm0,ymm1\nvpmaxsw ymm0,ymm0,ymm6\nvpminsw ymm0,ymm15,ymm0\nvmovdqa YMMWORD PTR [rdi+rbp*1],ymm0\nadd rbp,0x20",
+    "saved": 2,
+    "why": "Fold the weight load into both multiplies and the first accumulator load into two VPERM2I128 operations, adjusting the selectors to preserve the original lane order."
+  },
+  "f00c4787cc": {
+    "rewrite": null,
+    "why": "The broadcast, both loaded masks, and both blend outputs are all required final values, leaving no removable instruction."
+  },
+  "d52d55dbf0": {
+    "rewrite": null,
+    "why": "The shuffles, wrapping word additions, and initialized dot-product accumulators are needed, and the saturating pack cannot be combined with the following arithmetic shift."
+  },
+  "b44e607132": {
+    "rewrite": "mov r13,r12\nxchg r12,r15\nxchg r15,r14\nxchg r14,rbx\nxchg rbx,r10\nxchg r10,r11\nadd rdi,rsi",
+    "saved": 1,
+    "why": "Five exchanges implement the six-register rotation after retaining the required copy in r13, and the unchanged ADD produces the required flags."
+  },
+  "28b69ae9cf": {
+    "rewrite": null,
+    "why": "Each move supplies a required value in this open copy chain, and exchanges would still require five transfers while preserving r10."
+  },
+  "ae6ade96bb": {
+    "rewrite": null,
+    "why": "The two independently initialized dot-product accumulators and live shuffled intermediates are necessary, while saturation prevents merging the shifts across the pack."
+  },
+  "c3729e4892": {
+    "rewrite": "mov r15,r14\nxchg r14,rbx\nxchg rbx,r10\nxchg r10,r11\nadd rdi,rsi",
+    "saved": 1,
+    "why": "Three exchanges implement the four-register rotation after retaining the required copy in r15, and the unchanged ADD produces the required flags."
+  },
+  "da623906fb": {
+    "rewrite": null,
+    "why": "The aligned vectors and unpacks feed the required word sums and pairwise square sums, and the dead final zmm1 value does not make its intermediate uses removable."
+  },
+  "c122b55423": {
+    "rewrite": "vmovdqa32 zmm0,ZMMWORD PTR [r14+rbp*2+0x680]\nvmovdqa32 zmm1,ZMMWORD PTR [r14+rbp*2+0x6c0]\nvpunpcklwd zmm17,zmm22,ZMMWORD PTR [rdi+rbp*1]\nvpunpcklwd zmm18,zmm22,ZMMWORD PTR [r15+rbp*1+0x340]\nvpmaddwd zmm18,zmm18,zmm17\nvpunpckhwd zmm17,zmm22,ZMMWORD PTR [rdi+rbp*1]\nvpunpckhwd zmm19,zmm22,ZMMWORD PTR [r15+rbp*1+0x340]\nvpmaddwd zmm19,zmm19,zmm17\nvshufi32x4 zmm17,zmm0,zmm1,0x88\nvshufi32x4 zmm0,zmm0,zmm1,0xdd\nvpsubd zmm17,zmm17,zmm18\nvpsubd zmm0,zmm0,zmm19\nvpsrad zmm17,zmm17,0x8\nvpsrad zmm0,zmm0,0x8\nvpackssdw zmm17,zmm17,zmm0\nvpmulhrsw zmm17,zmm17,zmm23\nvpaddw zmm16,zmm17,ZMMWORD PTR [rdi+rbp*1]\nvpmaxsw zmm16,zmm16,zmm22\nvpminsw zmm16,zmm16,zmm30\nvmovdqa32 ZMMWORD PTR [rdi+rbp*1],zmm16\nadd rbp,0x40",
+    "saved": 2,
+    "why": "Reversing the word order in both unpacked operands preserves each VPMADDWD result while allowing the pixel and weight loads to fold into the unpacks. Folding the remaining pixel use into VPADDW eliminates both standalone loads."
+  },
+  "3ff12f7f4e": {
+    "rewrite": null,
+    "why": "SSSE3 needs the explicit byte broadcast and separate wrapping subtraction and unsigned clamp for each shuffle mask, with the final mask and constants also live."
+  },
+  "8bd68d9aaf": {
+    "rewrite": null,
+    "why": "The destructive SSSE3 shuffles require the copies to retain their shared inputs, and the constant load and arithmetic intermediates are required final values."
+  },
+  "82a85da6c3": {
+    "rewrite": "mov r13,r12\nxchg r12,r15\nxchg r15,r14\nxchg r14,rbx\nxchg rbx,r10\nxchg r10,r11\nadd rdi,rsi",
+    "saved": 1,
+    "why": "Five exchanges implement the six-register rotation after retaining the required copy in r13, and the unchanged ADD produces the required flags."
+  },
+  "b2b78e7ba7": {
+    "rewrite": null,
+    "why": "Each move supplies a required value in this open copy chain, and exchanges would still require five transfers while preserving r10."
+  },
+  "9e9732d1a8": {
+    "rewrite": null,
+    "why": "Both shuffle masks need their own wrapping subtraction and unsigned clamp, and SSSE3 provides no shorter byte broadcast while preserving all final values."
+  },
+  "43267372cb": {
+    "rewrite": null,
+    "why": "The copies preserve inputs needed by multiple destructive shuffles, and the live products and saturation between shifts prevent removing the remaining arithmetic."
+  },
+  "f1bbd64ec9": {
+    "rewrite": "mov r15,r14\nxchg r14,rbx\nxchg rbx,r10\nxchg r10,r11\nadd rdi,rsi",
+    "saved": 1,
+    "why": "Three exchanges implement the four-register rotation after retaining the required copy in r15, and the unchanged ADD produces the required flags."
+  },
+  "6c3f083de5": {
+    "rewrite": null,
+    "why": "The comparison masks and masked contributions are needed by both blends, and SSSE3 lacks a blend instruction that could replace their three logical operations."
+  },
+  "6f2f647d61": {
+    "rewrite": null,
+    "why": "The separate unsigned product halves and unpacks are required final values, while destructive SSE arithmetic requires the copies and loaded accumulators."
+  },
+  "ab9a782308": {
+    "rewrite": null,
+    "why": "The broadcast, comparison, and masked contribution must be retained, and SSSE3 needs the three logical operations to perform the blend."
+  },
+  "e9661f5f5c": {
+    "rewrite": null,
+    "why": "AVX2 needs the GPR-to-XMM move before broadcasting the byte, and both independently clamped masks plus the broadcast and index vector are required final values."
+  }
+}

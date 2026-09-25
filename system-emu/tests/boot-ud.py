@@ -25,3 +25,18 @@ assert log.count('trace address 0x7c19 at instruction') == 1
 assert 'HLT with IF=0' in log
 assert (root / 'diagnostic-ud.png').read_bytes().startswith(b'\x89PNG\r\n\x1a\n')
 print('Real-mode INT 6 and #UD frames, opcodes, recent execution and text PNG: PASS')
+
+subprocess.run(['python3', 'system-emu/run-boot.py', '--name', 'diagnostic-ud-window',
+                '--timeout', '120', '--', os.environ.get('BOOT_SMOKE_EMULATOR', 'build/system-emu/sail-x86-system'),
+                '-ips', '4', '-m', '16', '-b', 'build/bios.bin', '-hda', str(disk)],
+               env=dict(os.environ, SAIL_X86_TRACE_ADDRESS='0x7c19',
+                        SAIL_X86_TRACE_ADDRESS_STEPS='4'), check=True)
+window = (root / 'diagnostic-ud-window.stderr').read_text()
+start = int(re.search(r'trace address 0x7c19 at instruction (\d+)', window)[1])
+end = int(re.search(r'stopping at trace end (\d+) instructions', window)[1])
+assert end == start + 4
+counts = [int(n) for n in re.findall(r'^\[(\d+)\] CS:RIP=', window, re.M)]
+assert counts == list(range(start, end + 1)), counts
+assert 'HLT with IF=0' not in window
+assert (root / 'diagnostic-ud-window.ram').stat().st_size == 16 * 1024 * 1024
+print('Address-triggered STEP=1 window and exact stop/RAM dump: PASS')

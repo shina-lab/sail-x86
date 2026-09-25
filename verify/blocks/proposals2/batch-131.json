@@ -1,0 +1,82 @@
+{
+  "c2362c4d2e": {
+    "rewrite": null,
+    "why": "The word load, store, result-pointer calculation, and clearing of live upper vector lanes each require their instruction."
+  },
+  "de7c204a70": {
+    "rewrite": null,
+    "why": "Both independently addressed word loads and stores are required, as are the live scalar results and VZEROUPPER."
+  },
+  "2d47631e8a": {
+    "rewrite": null,
+    "why": "The unknown index prevents combining the two dword copies, and both loaded registers, the result pointer, and upper-lane clearing are observable."
+  },
+  "43c67453e7": {
+    "rewrite": null,
+    "why": "Both independently addressed qword copies, their live register results, the result pointer, and VZEROUPPER must be retained."
+  },
+  "2e34b5c028": {
+    "rewrite": null,
+    "why": "Both vector copies and the result pointer are required, and VZEROUPPER also clears live upper halves of registers other than ymm2 and ymm3."
+  },
+  "6ded53cac3": {
+    "rewrite": null,
+    "why": "The unknown index requires separate vector copies, and the result pointer and final clearing of live upper vector halves remain necessary."
+  },
+  "20c960e08c": {
+    "rewrite": null,
+    "why": "Copying 65 bytes requires both AVX2 vector copies and the byte copy, while rcx, the result pointer, and VZEROUPPER effects are all live."
+  },
+  "7d0e0aec1f": {
+    "rewrite": null,
+    "why": "Alignment must retain both the rounded pointer and its remainder, and combining the r8 adjustments into LEA would lose the required subtraction carry flag."
+  },
+  "1ed673b127": {
+    "rewrite": null,
+    "why": "Four stores are required at AVX2 width, followed by two independent live register updates that also produce the required carry flag."
+  },
+  "95dd0b2041": {
+    "rewrite": null,
+    "why": "Both AVX2 stores and both live register updates are necessary, with the final subtraction supplying the required SF and OF."
+  },
+  "a2367c8c83": {
+    "rewrite": null,
+    "why": "Zeroing rcx, producing the live vector comparison and scalar mask, and updating r8 with its required flags are distinct necessary operations."
+  },
+  "b622745079": {
+    "rewrite": null,
+    "why": "The live vector comparison, scalar mask, store, and two independent scalar updates each require an instruction."
+  },
+  "5babd7a064": {
+    "rewrite": null,
+    "why": "The comparison and mask extraction both have live outputs, and the store and independent rcx and r8 updates cannot be removed."
+  },
+  "99af50d327": {
+    "rewrite": null,
+    "why": "The live vector comparison, scalar bit scan, store, two pointer calculations, and final carry-producing comparison have no redundant instruction."
+  },
+  "17a627816f": {
+    "rewrite": null,
+    "why": "The comparison already folds its memory load, while k1, rdx, the updated r10, and the final comparison flags are all required."
+  },
+  "6ea1ce7e78": {
+    "rewrite": null,
+    "why": "Folding the load into the comparison would lose the required zmm19 result, and the store, mask transfer, and scalar updates are also live."
+  },
+  "30943a1109": {
+    "rewrite": null,
+    "why": "The store needs the original ymm18 and the load must establish its live replacement, followed by the required mask outputs and scalar updates."
+  },
+  "268d2230d8": {
+    "rewrite": null,
+    "why": "The loaded zmm19 value must survive independently of the comparison mask, and the store, mask transfer, and scalar updates remain necessary."
+  },
+  "1b887e249e": {
+    "rewrite": null,
+    "why": "Both loaded vector registers, the mask register, the scalar mask, and the final comparison flags are live, preventing load folding or instruction removal."
+  },
+  "1af5570704": {
+    "rewrite": null,
+    "why": "The store, vector comparison, scalar mask transfer, and flag-producing scalar comparison each supply a distinct required effect."
+  }
+}

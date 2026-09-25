@@ -1,0 +1,90 @@
+{
+  "a4cb695e9c": {
+    "rewrite": null,
+    "why": "Both rows require their byte widening, word differences, squared pair sums, accumulation, and live pointer and counter updates."
+  },
+  "00566c198a": {
+    "rewrite": null,
+    "why": "Both byte halves and their absolute differences are needed, and the arbitrary xmm0 operand prevents replacing the widened magnitudes with signed differences."
+  },
+  "1b118bbf80": {
+    "rewrite": "pxor xmm0,xmm0\npsubw xmm0,XMMWORD PTR [rdi]\npmaxsw xmm0,XMMWORD PTR [rdi]\npxor xmm1,xmm1\npsubw xmm1,XMMWORD PTR [rdi+0x10]\npmaxsw xmm1,XMMWORD PTR [rdi+0x10]\npxor xmm2,xmm2\npsubw xmm2,XMMWORD PTR [rdi+0x20]\npmaxsw xmm2,XMMWORD PTR [rdi+0x20]\npaddusw xmm0,xmm2\npxor xmm2,xmm2\npsubw xmm2,XMMWORD PTR [rdi+0x30]\npmaxsw xmm2,XMMWORD PTR [rdi+0x30]\npaddusw xmm1,xmm2\npxor xmm2,xmm2\npsubw xmm2,XMMWORD PTR [rdi+0x40]\npmaxsw xmm2,XMMWORD PTR [rdi+0x40]\npaddusw xmm0,xmm2\npxor xmm2,xmm2\npsubw xmm2,XMMWORD PTR [rdi+0x50]\npmaxsw xmm2,XMMWORD PTR [rdi+0x50]\npaddusw xmm1,xmm2\npxor xmm2,xmm2\npsubw xmm2,XMMWORD PTR [rdi+0x60]\npmaxsw xmm2,XMMWORD PTR [rdi+0x60]\npaddusw xmm0,xmm2\npxor xmm2,xmm2\npsubw xmm2,XMMWORD PTR [rdi+0x70]\npmaxsw xmm2,XMMWORD PTR [rdi+0x70]\npaddusw xmm1,xmm2\npaddusw xmm0,xmm1\nmovhlps xmm1,xmm0\npaddusw xmm0,xmm1\npshuflw xmm1,xmm0,0xe\npaddusw xmm0,xmm1\npshuflw xmm1,xmm0,0x1\npaddusw xmm0,xmm1\npextrw eax,xmm0,0x0",
+    "saved": 13,
+    "why": "Compute max(-x,x) using the original aligned memory operands and seed each accumulator with its first magnitude, preserving both accumulator streams and the full vector reduction. Pextrw replaces the final extraction and mask."
+  },
+  "180a6d64d5": {
+    "rewrite": "pabsw xmm0,XMMWORD PTR [rdi]\npabsw xmm1,XMMWORD PTR [rdi+0x10]\npabsw xmm2,XMMWORD PTR [rdi+0x20]\npaddusw xmm0,xmm2\npabsw xmm2,XMMWORD PTR [rdi+0x30]\npaddusw xmm1,xmm2\npabsw xmm2,XMMWORD PTR [rdi+0x40]\npaddusw xmm0,xmm2\npabsw xmm2,XMMWORD PTR [rdi+0x50]\npaddusw xmm1,xmm2\npabsw xmm2,XMMWORD PTR [rdi+0x60]\npaddusw xmm0,xmm2\npabsw xmm2,XMMWORD PTR [rdi+0x70]\npaddusw xmm1,xmm2\npaddusw xmm0,xmm1\nmovhlps xmm1,xmm0\npaddusw xmm0,xmm1\npshuflw xmm1,xmm0,0xe\npaddusw xmm0,xmm1\npshuflw xmm1,xmm0,0x1\npaddusw xmm0,xmm1\npextrw eax,xmm0,0x0",
+    "saved": 13,
+    "why": "Fold aligned loads into pabsw and seed both accumulators directly with their first magnitudes, retaining the exact full-vector reduction. Pextrw replaces movd and the low-word mask."
+  },
+  "956b6dcbde": {
+    "rewrite": "movdqa xmm4,XMMWORD PTR [CONST_1]\nmovdqa xmm5,XMMWORD PTR [CONST_2]\nsub edx,0x2\nmovq xmm0,QWORD PTR [rdi]\nmovdqa xmm2,xmm0\npshufb xmm2,xmm5\npshufb xmm0,xmm4\npsubw xmm0,xmm2\nmovq xmm3,QWORD PTR [rdi+rsi*1]\nmovdqa xmm2,xmm3\npshufb xmm2,xmm5\npshufb xmm3,xmm4\npsubw xmm3,xmm2\nlea rdi,[rdi+rsi*2]\npsubw xmm0,xmm3\npabsw xmm0,xmm0",
+    "saved": 2,
+    "why": "Compute the first row difference and final magnitude directly in xmm0, eliminating its initial zeroing and addition to zero."
+  },
+  "5a943fa482": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks require both shuffled copies, and the row differences, magnitudes, and accumulator updates all contribute to preserved outputs."
+  },
+  "f0a2c176e5": {
+    "rewrite": null,
+    "why": "The unsigned widening and reduction must reproduce all of xmm0, including upper lanes affected by the partial movhlps writes."
+  },
+  "dc0827ab3a": {
+    "rewrite": "pxor xmm4,xmm4\nsub edx,0x2\npcmpeqw xmm7,xmm7\npsrlw xmm7,0x7\nxor eax,eax\nmovdqu xmm2,XMMWORD PTR [rdi]\nmovdqa xmm0,xmm2\npsrldq xmm0,0x1\nmovdqa xmm5,xmm0\npunpcklbw xmm0,xmm2\npunpckhbw xmm5,xmm2\npmaddubsw xmm0,xmm7\npmaddubsw xmm5,xmm7\npinsrw xmm5,eax,0x7\nmovdqu xmm2,XMMWORD PTR [rdi+rsi*1]\nmovdqa xmm3,xmm2\npsrldq xmm3,0x1\nmovdqa xmm6,xmm3\npunpcklbw xmm3,xmm2\npunpckhbw xmm6,xmm2\npmaddubsw xmm3,xmm7\npmaddubsw xmm6,xmm7\npinsrw xmm6,eax,0x7\nlea rdi,[rdi+rsi*2]\npsubw xmm0,xmm3\npsubw xmm5,xmm6\npabsw xmm0,xmm0\npabsw xmm5,xmm5\npaddw xmm0,xmm5",
+    "saved": 7,
+    "why": "Interleave each shifted row with its original bytes and use pmaddubsw with repeated signed coefficients (-1,1) to compute adjacent differences without saturation. Pinsrw restores each discarded final lane to zero, and computing directly in xmm0 removes its zero-and-add initialization."
+  },
+  "dbf15d4434": {
+    "rewrite": "pcmpeqw xmm7,xmm7\npsrlw xmm7,0x7\nxor eax,eax\nmovdqu xmm2,XMMWORD PTR [rdi]\nmovdqa xmm1,xmm2\npsrldq xmm1,0x1\nmovdqa xmm5,xmm1\npunpcklbw xmm1,xmm2\npunpckhbw xmm5,xmm2\npmaddubsw xmm1,xmm7\npmaddubsw xmm5,xmm7\npinsrw xmm5,eax,0x7\npsubw xmm3,xmm1\npsubw xmm6,xmm5\npabsw xmm3,xmm3\npabsw xmm6,xmm6\npaddw xmm3,xmm6\npaddw xmm0,xmm3\nmovdqu xmm2,XMMWORD PTR [rdi+rsi*1]\nmovdqa xmm3,xmm2\npsrldq xmm3,0x1\nmovdqa xmm6,xmm3\npunpcklbw xmm3,xmm2\npunpckhbw xmm6,xmm2\npmaddubsw xmm3,xmm7\npmaddubsw xmm6,xmm7\npinsrw xmm6,eax,0x7\nlea rdi,[rdi+rsi*2]\npsubw xmm1,xmm3\npsubw xmm5,xmm6\npabsw xmm1,xmm1\npabsw xmm5,xmm5\npaddw xmm1,xmm5\npaddw xmm0,xmm1\nsub edx,0x2",
+    "saved": 5,
+    "why": "Use pmaddubsw with repeated signed coefficients (-1,1) on interleaved neighboring bytes to form exact word differences. Pinsrw restores the zero final lanes, while the original accumulation and final flag-setting subtraction are retained."
+  },
+  "a48dc56389": {
+    "rewrite": null,
+    "why": "The arbitrary unpack operand and required full xmm0 result prevent replacing this reduction with a plain horizontal add."
+  },
+  "267552f611": {
+    "rewrite": null,
+    "why": "The block already folds both source loads into psadbw and needs both row results, their sum, and the live counter update."
+  },
+  "056e305e00": {
+    "rewrite": null,
+    "why": "The four unaligned loads cannot be folded into legacy SSE2 psadbw operands without introducing an unsupported alignment requirement."
+  },
+  "432aeaf084": {
+    "rewrite": null,
+    "why": "Both averages and SAD results are needed, and folding the unaligned shifted loads into legacy pavgb would introduce an unsupported alignment requirement."
+  },
+  "ec8d4866f8": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rdx]\nmovdqu xmm0,XMMWORD PTR [rdx+rcx*1]\npavgb xmm2,xmm0\npsadbw xmm2,XMMWORD PTR [rsi]\nmovdqu xmm1,XMMWORD PTR [rdx+rcx*2]\npavgb xmm0,xmm1\npsadbw xmm0,XMMWORD PTR [rsi+rcx*1]\npaddw xmm0,xmm2\nadd rdx,rcx\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Use a scratch register for the first SAD and load the final row directly into its required output register xmm1, eliminating the final copy."
+  },
+  "6720014191": {
+    "rewrite": null,
+    "why": "SSE2 needs both byte-to-word unpacks and their sum, and the two zero outputs, constant register, and updated pointer are all live."
+  },
+  "0d748e346c": {
+    "rewrite": null,
+    "why": "The arbitrary unpack and packing operands affect preserved results, and the eight-byte loads cannot be folded into sixteen-byte arithmetic memory operands."
+  },
+  "56aaefb57d": {
+    "rewrite": null,
+    "why": "Both low and high word sums are live and require their separate SSE2 unpacks, while the zero registers, constant, and updated pointer must also be preserved."
+  },
+  "6b06e2551d": {
+    "rewrite": "movdqu xmm3,XMMWORD PTR [rdx]\nmovdqu xmm4,XMMWORD PTR [rdx+0x1]\nmovdqa xmm5,xmm3\nmovdqa xmm7,xmm4\npunpckhbw xmm5,xmm1\npunpckhbw xmm7,xmm1\npaddw xmm7,xmm5\npaddw xmm7,xmm8\npaddw xmm6,xmm7\npsraw xmm6,0x2\npunpcklbw xmm3,xmm1\npunpcklbw xmm4,xmm1\npaddw xmm3,xmm4\npaddw xmm3,xmm8\npaddw xmm2,xmm3\npsraw xmm2,0x2\npackuswb xmm2,xmm6\npsadbw xmm2,XMMWORD PTR [rsi]\npaddw xmm0,xmm2\nmovdqu xmm2,XMMWORD PTR [rdx+rcx*1]\nmovdqu xmm4,XMMWORD PTR [rdx+rcx*1+0x1]\nmovdqa xmm5,xmm2\nmovdqa xmm6,xmm4\npunpckhbw xmm5,xmm1\npunpckhbw xmm6,xmm1\npaddw xmm6,xmm5\npaddw xmm7,xmm6\npsraw xmm7,0x2\npunpcklbw xmm2,xmm1\npunpcklbw xmm4,xmm1\npaddw xmm2,xmm4\npaddw xmm3,xmm2\npsraw xmm3,0x2\npackuswb xmm3,xmm7\npsadbw xmm3,XMMWORD PTR [rsi+rcx*1]\npaddw xmm0,xmm3\nsub r8d,0x2\nlea rsi,[rsi+rcx*2]\nlea rdx,[rdx+rcx*2]",
+    "saved": 2,
+    "why": "Fold the two aligned rsi loads into their sole psadbw consumers, eliminating both temporary loads without changing any live result."
+  },
+  "7bd4e76bb7": {
+    "rewrite": "movdqa xmm4,XMMWORD PTR [CONST_1]\nmovdqu xmm2,XMMWORD PTR [rdx]\nmovdqu xmm0,XMMWORD PTR [rdx+rcx*1]\nmovdqu xmm1,XMMWORD PTR [rdx+rcx*2]\nmovdqu xmm5,XMMWORD PTR [rdx+0x1]\nmovdqu xmm6,XMMWORD PTR [rdx+rcx*1+0x1]\nmovdqu xmm3,XMMWORD PTR [rdx+rcx*2+0x1]\npavgb xmm2,xmm5\npavgb xmm0,xmm6\npavgb xmm1,xmm3\npsubusb xmm0,xmm4\npavgb xmm2,xmm0\npavgb xmm0,xmm1\npsadbw xmm2,XMMWORD PTR [rsi]\npsadbw xmm0,XMMWORD PTR [rsi+rcx*1]\npaddw xmm0,xmm2\nadd rdx,rcx\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Compute the third row average directly in its required final register xmm1 and keep the first SAD in a scratch register, removing the final vector copy."
+  },
+  "72a5c67fe0": {
+    "rewrite": null,
+    "why": "Both loaded vectors are needed because xmm2 is live, so folding its load into psadbw would lose a required final value."
+  }
+}

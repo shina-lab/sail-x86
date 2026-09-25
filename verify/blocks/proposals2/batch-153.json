@@ -1,0 +1,83 @@
+{
+  "315749a67d": {
+    "rewrite": null,
+    "why": "The word and byte copies are required, and clearing CH must preserve the rest of RCX while producing the live flags and terminator."
+  },
+  "2375b54354": {
+    "rewrite": null,
+    "why": "The dword load and store preserve the required RDX value, while the CH clear and terminator store each have a required effect."
+  },
+  "8ad5ffa610": {
+    "rewrite": null,
+    "why": "Both copy pairs are required, and the tail byte in DL cannot be combined with the zero in CH without additional instructions or changing live registers."
+  },
+  "b83c1ca537": {
+    "rewrite": null,
+    "why": "The dword and word copies must retain their loaded register values apart from CH, whose separate clear also establishes all five live flags."
+  },
+  "5f0787c3de": {
+    "rewrite": null,
+    "why": "Both overlapping dword copies, the CH clear, and the separate terminator store are needed to preserve the live registers and specified stores."
+  },
+  "9df0efab2f": {
+    "rewrite": null,
+    "why": "The qword load and store are required, and neither clearing CH and the live flags nor writing the terminator can be omitted."
+  },
+  "8dddce0f6b": {
+    "rewrite": null,
+    "why": "The qword and byte copies are required, and combining DL with the zero terminator would require extra work to preserve RDX and RCX."
+  },
+  "6438030c02": {
+    "rewrite": null,
+    "why": "The qword and word copies require both load/store pairs, followed by the required CH clear and separate terminator store."
+  },
+  "9f0970bf1e": {
+    "rewrite": null,
+    "why": "The overlapping qword and dword copies preserve required register values, and their stores cannot absorb the terminator without additional work or extra memory writes."
+  },
+  "8a5c0660e6": {
+    "rewrite": null,
+    "why": "The qword and dword copy pairs are needed, and widening the tail store to include the terminator would also write beyond the original destination range."
+  },
+  "21a7c11001": {
+    "rewrite": null,
+    "why": "Both overlapping qword copies and their live register results are required, along with clearing CH and storing the separate zero terminator."
+  },
+  "e8cd5dd3f0": {
+    "rewrite": null,
+    "why": "The two overlapping qword copies already use one load and one store each, and the CH clear and terminator store have distinct required effects."
+  },
+  "8a6d28f64a": {
+    "rewrite": null,
+    "why": "A wider source load would read beyond the original range, while both existing qword copies and the CH clear and terminator store are required."
+  },
+  "9da6e65972": {
+    "rewrite": null,
+    "why": "The vector load and store must retain XMM0, and clearing CH and the live flags requires an instruction separate from storing the terminator."
+  },
+  "44594e4546": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi]\nmov cl,BYTE PTR [rsi+0x10]\nmovdqu XMMWORD PTR [rdi],xmm0\nxor ch,ch\nmov WORD PTR [rdi+0x10],cx",
+    "saved": 1,
+    "why": "After clearing CH, CX contains the final source byte followed by the zero terminator, so one word store replaces the two adjacent byte stores. The original XOR preserves the required RCX value and all five flags."
+  },
+  "0f33a1db5f": {
+    "rewrite": null,
+    "why": "The loaded word must be stored before CH is cleared, and the following terminator cannot be merged into that word store while preserving both source bytes."
+  },
+  "6d928c3d24": {
+    "rewrite": null,
+    "why": "The overlapping vector and dword copies are required, and the dword must be stored before clearing CH and writing the separate terminator."
+  },
+  "591d4f743a": {
+    "rewrite": null,
+    "why": "The vector and dword load/store pairs are required, and clearing CH for the live RCX value and flags cannot eliminate the separate terminator store."
+  },
+  "099ff0f547": {
+    "rewrite": null,
+    "why": "All three copy pairs preserve required outputs, and DL and the zero in CH cannot form a combined tail store without extra instructions to preserve live registers."
+  },
+  "62876d8061": {
+    "rewrite": null,
+    "why": "The overlapping vector and qword copies must preserve XMM0 and RCX, and the required CH clear and separate terminator store provide no removable instruction."
+  }
+}

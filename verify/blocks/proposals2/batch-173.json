@@ -1,0 +1,84 @@
+{
+  "824dd40fda": {
+    "rewrite": null,
+    "why": "Both product halves, the carry mask, and the CF-producing index update are needed, while the loaded multiplier must remain in r11."
+  },
+  "29224627a5": {
+    "rewrite": null,
+    "why": "The mask, independent address calculation, full-width product, addition carry, and final load all produce required results."
+  },
+  "509c788099": {
+    "rewrite": null,
+    "why": "The sum needs a copy of rcx before rcx becomes a carry mask, and the final subtraction must produce the required CF."
+  },
+  "cc1cb4022f": {
+    "rewrite": "mul QWORD PTR [r8+0x10]\nadd rbp,rax\nadc rdx,0x0\nmov rax,rdx\nshld rax,rbp,cl\nshl rbp,cl",
+    "saved": 1,
+    "why": "Accumulate the carry directly into the product's high half in rdx, then copy it to rax. This removes the zeroed r9 accumulator."
+  },
+  "6b0fa15445": {
+    "rewrite": null,
+    "why": "Both the negated copy and the product are live, all three stores are required, and the 32-bit copy and test have distinct required register and flag effects."
+  },
+  "04f4cce2b9": {
+    "rewrite": null,
+    "why": "The initialized double shift, multiplication, right shift, and store each contribute required values or flags."
+  },
+  "3a1701374c": {
+    "rewrite": null,
+    "why": "Both full-width products and both carry-propagating additions are required, and retaining the first product needs both register copies."
+  },
+  "f40f8d76dc": {
+    "rewrite": null,
+    "why": "The three full-width products, carry chains, operand setup, and CF-producing index update all feed required outputs."
+  },
+  "3a18820851": {
+    "rewrite": null,
+    "why": "The two loads and the two halves of the carry-propagating addition each produce a distinct required register value."
+  },
+  "6cf0d06d16": {
+    "rewrite": null,
+    "why": "The product accumulator needs its high-half initialization and carry propagation, while the address and index updates and the final full-width product remain live."
+  },
+  "69b1a92d17": {
+    "rewrite": null,
+    "why": "Besides the required load, the multiply needs rax initialized and the live sum in r8 needs the independent r9 value plus the product and its carry."
+  },
+  "2582981330": {
+    "rewrite": null,
+    "why": "The low product, transformed high product, updated r12, shifted store, and comparison flags are all required."
+  },
+  "0b51ecc75a": {
+    "rewrite": null,
+    "why": "All loaded and copied values are live, and extracting the low two bits of esi requires both the copy and mask at this ISA level."
+  },
+  "6d8033bceb": {
+    "rewrite": null,
+    "why": "All five full-width products, the accumulated low and high halves, and the final duplicate outputs are live, and the first carry also requires initializing rcx."
+  },
+  "44b2a10025": {
+    "rewrite": null,
+    "why": "The low product, transformed high product, updated r12, shifted store, and comparison flags are all required."
+  },
+  "c8763efda2": {
+    "rewrite": null,
+    "why": "The masked fold and both portions of the loaded limb contribute to rax, while rsi, rdx, and the final addition flags must also match."
+  },
+  "a22b36b40f": {
+    "rewrite": null,
+    "why": "Every carry propagation and limb split affects a required result, and the final addition must retain all specified arithmetic flags."
+  },
+  "72746d8a2b": {
+    "rewrite": null,
+    "why": "The multiply chain needs the initial subtraction and carry update, and the loaded subtraction, partial-byte result, and index increment all remain live."
+  },
+  "b13acb75a6": {
+    "rewrite": "mov r8,QWORD PTR [rcx]\nmov r9,QWORD PTR [rcx+0x8]\nmov rax,QWORD PTR [rsi]\nimul r11,rdx,0xffffffffffffffff\nlea rsi,[rsi+rdx*8-0x8]\nlea rdi,[rdi+rdx*8-0x8]\nand edx,0x3",
+    "saved": 1,
+    "why": "Three-operand imul with an immediate of -1 computes -rdx directly in r11, replacing the copy and negation. The final and produces the required ZF."
+  },
+  "d8a05fd6af": {
+    "rewrite": null,
+    "why": "Both multiplication results feed live outputs, and the zeroing, operand load, index decrement, and final carry-producing addition are all required."
+  }
+}

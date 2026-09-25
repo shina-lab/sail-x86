@@ -1,0 +1,58 @@
+{
+  "977a10561c": {
+    "rewrite": "movaps xmm0,XMMWORD PTR [CONST_1]\nshl ecx,0x2\nmov r8d,ecx\nneg r8d\nand r8d,0xf",
+    "saved": 1,
+    "why": "Remove the stack adjustment, whose result is not a required output, while retaining all required register values and leaving rsp untouched."
+  },
+  "1068e3708e": {
+    "rewrite": "vmovaps xmm0,XMMWORD PTR [CONST_1]\nshl ecx,0x2\nmov r8d,ecx\nneg r8d\nand r8d,0xf",
+    "saved": 1,
+    "why": "Remove the stack adjustment, whose result is not a required output, and retain the VEX load so the upper half of ymm0 is still zeroed."
+  },
+  "90ef6d362c": {
+    "rewrite": null,
+    "why": "The SSE2 copies retain operands for both unpack or multiply-add paths, and the arithmetic, packing, interleaving and loop comparison all contribute to required outputs."
+  },
+  "5266c6a0b9": {
+    "rewrite": "shl ecx,1\nmovdqa xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,XMMWORD PTR [CONST_2]\nmovdqa xmm10,XMMWORD PTR [CONST_3]\nmovsx r8,WORD PTR [rsi]\nmovsx r9,WORD PTR [rsi+0x2]\nmovsx r10,WORD PTR [rsi+0x4]\nmovsx r11,WORD PTR [rdx]\nlea r9,[r8+r9*4]\nlea r10,[r10+r11*8]\nsub r9,r10\nimul r10,r8,0xc\nsub r10,r9\nadd r10,0x4\nsar r10,0x4\nlea r9,[r9+r8*4+0x4]\nsar r9,0x4\nmovd xmm0,r10d\npinsrw xmm0,r9d,0x1\npmaxsw xmm0,XMMWORD PTR [CONST_4]\npminsw xmm0,XMMWORD PTR [CONST_5]\npextrw r9d,xmm0,0x0\nmov WORD PTR [rdi],r9w\npextrw r9d,xmm0,0x1\nmov WORD PTR [rdi+0x2],r9w\nmov r8d,0x0",
+    "saved": 13,
+    "why": "Compute both filtered results from a shared signed intermediate, folding each pair of arithmetic right shifts into one shift by four. Clamp their low 16-bit words together and retain the two original word stores."
+  },
+  "c6b9e7f8fe": {
+    "rewrite": null,
+    "why": "Both SSE2 multiply-add branches feed the clipped stores, and arbitrary incoming coefficient vectors prevent replacing their arithmetic with a specialized narrow-lane filter."
+  },
+  "df8f543823": {
+    "rewrite": "shl ecx,1\nmovdqa xmm8,XMMWORD PTR [CONST_1]\nmovdqa xmm9,XMMWORD PTR [CONST_2]\nmovdqa xmm10,XMMWORD PTR [CONST_3]\nmovsx r8,WORD PTR [rsi]\nmovsx r9,WORD PTR [rsi+0x2]\nmovsx r10,WORD PTR [rsi+0x4]\nmovsx r11,WORD PTR [rdx]\nlea r9,[r8+r9*4]\nlea r10,[r10+r11*8]\nsub r9,r10\nimul r10,r8,0xc\nsub r10,r9\nadd r10,0x4\nsar r10,0x4\nlea r9,[r9+r8*4+0x4]\nsar r9,0x4\nmovd xmm0,r10d\npinsrw xmm0,r9d,0x1\npmaxsw xmm0,XMMWORD PTR [CONST_4]\npminsw xmm0,XMMWORD PTR [CONST_5]\npextrw r9d,xmm0,0x0\nmov WORD PTR [rdi],r9w\npextrw r9d,xmm0,0x1\nmov WORD PTR [rdi+0x2],r9w\nmov r8d,0x0",
+    "saved": 13,
+    "why": "Compute both filtered results from a shared signed intermediate, folding each pair of arithmetic right shifts into one shift by four. Clamp their low 16-bit words together and retain the two original word stores."
+  },
+  "289fe51935": {
+    "rewrite": null,
+    "why": "Both SSE2 multiply-add branches feed the clipped stores, and arbitrary incoming coefficient vectors prevent replacing their arithmetic with a specialized narrow-lane filter."
+  },
+  "c93a45efaf": {
+    "rewrite": null,
+    "why": "Both filter outputs require their multiply-add, rounding and packing paths, and retaining the reloaded inputs would replace each load with an SSE2 register copy without reducing instruction count."
+  },
+  "5fd5a633da": {
+    "rewrite": null,
+    "why": "Each instruction produces a required scalar register value, and the final decrement also supplies the required flags."
+  },
+  "69b00f4e0a": {
+    "rewrite": null,
+    "why": "The two loads, wrapping word addition, signed shift, subtraction, store and loop-control operations are all needed for the required result and flags."
+  },
+  "6996a33ba7": {
+    "rewrite": null,
+    "why": "The constant load, two-step alignment calculation, sign extensions and register copies each produce required final values."
+  },
+  "04bc5baed5": {
+    "rewrite": null,
+    "why": "Both loads and byte unpacks are required, and combining the two lower-half stores would require another lane permutation without saving an instruction."
+  },
+  "30c79ce2ed": {
+    "rewrite": null,
+    "why": "All three vector destinations and both scalar updates are required, with the VEX instructions also establishing the required zero upper halves."
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "8d427d3128": {
+    "rewrite": null,
+    "why": "The live rdx copy and ymm0 zeroing are required, and extracting the page offset and comparing it are needed to preserve both CF and ZF."
+  },
+  "553168c18b": {
+    "rewrite": "tzcnt eax,eax\nsub edi,edx\nlea eax,[rax+rdi*1+0x1]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the increment and addition modulo 32 bits while preserving the zero-extended rax result; vzeroupper retains the required upper-half clearing of ymm0."
+  },
+  "243f6ea0aa": {
+    "rewrite": "tzcnt eax,eax\nsub edi,edx\nlea eax,[rax+rdi*1+0x41]\nvzeroupper",
+    "saved": 1,
+    "why": "LEA combines the constant adjustment and addition modulo 32 bits while preserving the zero-extended rax result; vzeroupper retains the required upper-half clearing of ymm0."
+  },
+  "a58a40ac5d": {
+    "rewrite": null,
+    "why": "The four input vectors and equality comparison are needed for live xmm0, and SSE2 needs mask extraction plus a scalar test to produce ZF."
+  },
+  "da3536e9b9": {
+    "rewrite": null,
+    "why": "All four comparison masks contribute to the live 64-bit bit-scan result, and SSE2 requires explicit mask extraction and concatenation before the final pointer arithmetic."
+  },
+  "6d025cd369": {
+    "rewrite": null,
+    "why": "Both masked offsets, the saved rdx value and all three constants are live, and the final comparison is needed to preserve CF and ZF."
+  },
+  "4fb200ef7c": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x2\nlea r10,[rdi+0x2]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are dead."
+  },
+  "6b777623ba": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x3\nlea r10,[rdi+0x3]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are dead."
+  },
+  "d7112a7290": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x4\nlea r10,[rdi+0x4]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are dead."
+  },
+  "f98f761701": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x6\nlea r10,[rdi+0x6]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are dead."
+  },
+  "e78bd12e52": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0x9\nlea r10,[rdi+0x9]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are dead."
+  },
+  "6c29cd156c": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xb\nlea r10,[rdi+0xb]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are dead."
+  },
+  "532a315c14": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xc\nlea r10,[rdi+0xc]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are dead."
+  },
+  "1adb72bffa": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xd\nlea r10,[rdi+0xd]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are dead."
+  },
+  "e76e1e116d": {
+    "rewrite": "mov r11,r9\npxor xmm0,xmm0\nmov rcx,0x10\nmov r9d,0xe\nlea r10,[rdi+0xe]\nor r10,0xfffffffffffff000",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are dead."
+  },
+  "84af4cc610": {
+    "rewrite": null,
+    "why": "Both masked offsets, the saved rdx value and all three constants are live, and the final comparison is needed to preserve CF and ZF."
+  },
+  "cbadd4c6b4": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x1\nlea r10,[rdi+0x1]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are dead."
+  },
+  "0a66e8d667": {
+    "rewrite": null,
+    "why": "The live r10 adjustment, loaded and shifted xmm0, string index in rcx and final CF comparison each require the existing operations."
+  },
+  "2778ffe85e": {
+    "rewrite": "mov r11,r9\nmov rcx,0x10\nmov r9d,0x2\nlea r10,[rdi+0x2]\nor r10,0xfffffffffffff000\nmov rdx,rcx",
+    "saved": 1,
+    "why": "For any 64-bit x, (x & 0xfff) - 0x1000 equals x | 0xfffffffffffff000; the flags are dead."
+  },
+  "600bf429bd": {
+    "rewrite": null,
+    "why": "The live r10 adjustment, loaded and shifted xmm0, string index in rcx and final CF comparison each require the existing operations."
+  }
+}

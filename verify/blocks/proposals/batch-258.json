@@ -1,0 +1,85 @@
+{
+  "c2362c4d2e": {
+    "rewrite": null,
+    "why": "The load must produce the preserved RDX value, while the store, return-pointer calculation, and clearing of YMM0's upper half each remain necessary."
+  },
+  "de7c204a70": {
+    "rewrite": "movzx edx,WORD PTR [rsi+r8*1-0x2]\nmov WORD PTR [rdi+r8*1-0x2],dx\nlea rax,[rdi+r8*1]\nmovs WORD PTR es:[rdi],WORD PTR ds:[rsi]\nvzeroupper",
+    "saved": 1,
+    "why": "A single MOVS combines the first load and store; its direction-dependent pointer updates are dead. The indexed copy still produces RDX, and any overlap between the two destinations receives identical bytes."
+  },
+  "2d47631e8a": {
+    "rewrite": "mov edx,DWORD PTR [rsi+r8*1-0x4]\nmov DWORD PTR [rdi+r8*1-0x4],edx\nlea rax,[rdi+r8*1]\nmovs DWORD PTR es:[rdi],DWORD PTR ds:[rsi]\nvzeroupper",
+    "saved": 1,
+    "why": "A single MOVS combines the first load and store; its direction-dependent pointer updates are dead. The indexed copy still produces RDX, and any overlap between the two destinations receives identical bytes."
+  },
+  "43c67453e7": {
+    "rewrite": "mov rdx,QWORD PTR [rsi+r8*1-0x8]\nmov QWORD PTR [rdi+r8*1-0x8],rdx\nlea rax,[rdi+r8*1]\nmovs QWORD PTR es:[rdi],QWORD PTR ds:[rsi]\nvzeroupper",
+    "saved": 1,
+    "why": "A single MOVS combines the first load and store; its direction-dependent pointer updates are dead. The indexed copy still produces RDX, and any overlap between the two destinations receives identical bytes."
+  },
+  "2e34b5c028": {
+    "rewrite": null,
+    "why": "Both 16-byte copies use distinct required address expressions, and the return-pointer calculation and clearing of YMM0's upper half are observable."
+  },
+  "6ded53cac3": {
+    "rewrite": null,
+    "why": "Both 32-byte copies use distinct required address expressions, and the return-pointer calculation and clearing of YMM0's upper half are observable."
+  },
+  "20c960e08c": {
+    "rewrite": null,
+    "why": "The two 32-byte copies and trailing byte copy are required, and RAX and the cleared upper half of YMM0 are both live."
+  },
+  "7d0e0aec1f": {
+    "rewrite": null,
+    "why": "Aligning RDI and compensating R8 require the low five address bits, and combining the count adjustments would lose the required carry flag from the final subtraction."
+  },
+  "1ed673b127": {
+    "rewrite": null,
+    "why": "All four stores, both register updates, and the final subtraction's carry flag are required."
+  },
+  "95dd0b2041": {
+    "rewrite": null,
+    "why": "Both stores and both register updates are required, including the sign and overflow flags from the final subtraction."
+  },
+  "a2367c8c83": {
+    "rewrite": null,
+    "why": "RCX must be zero, RDX needs the full 32-byte equality mask, and the R8 update must produce the preserved arithmetic flags."
+  },
+  "b622745079": {
+    "rewrite": null,
+    "why": "The equality comparison and mask extraction, store, and two live counter updates are all necessary, including the final CF and ZF values."
+  },
+  "5babd7a064": {
+    "rewrite": null,
+    "why": "The equality comparison and mask extraction, store, and two live counter updates are all necessary, including the final CF and ZF values."
+  },
+  "99af50d327": {
+    "rewrite": null,
+    "why": "Producing RDX requires comparison, mask extraction, and BSF, while the store, both pointer updates, and final carry comparison remain observable."
+  },
+  "17a627816f": {
+    "rewrite": null,
+    "why": "The equality mask needs both vector comparison and mask transfer, and the scalar flags must compare R8 against R10 after its increment."
+  },
+  "6ea1ce7e78": {
+    "rewrite": null,
+    "why": "ZMM19 must retain the loaded vector with its upper half cleared, so the load cannot be folded away into the comparison; the store, mask transfer, and both counter updates are also required."
+  },
+  "30943a1109": {
+    "rewrite": null,
+    "why": "ZMM18 must retain the loaded vector with its upper half cleared, so the load cannot be folded away into the comparison; the store, mask transfer, and both counter updates are also required."
+  },
+  "268d2230d8": {
+    "rewrite": null,
+    "why": "ZMM19 must retain the loaded vector with its upper half cleared, so the load cannot be folded away into the comparison; the store, mask transfer, and both counter updates are also required."
+  },
+  "1b887e249e": {
+    "rewrite": null,
+    "why": "Both loaded vectors are preserved, and the equality mask and final scalar comparison require the remaining instructions."
+  },
+  "1af5570704": {
+    "rewrite": null,
+    "why": "The store, vector equality comparison, transfer to RDX, and flag-setting scalar comparison all produce required effects."
+  }
+}

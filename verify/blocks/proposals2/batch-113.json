@@ -1,0 +1,84 @@
+{
+  "c9438c5c81": {
+    "rewrite": null,
+    "why": "SSE2 cannot fuse the arbitrary dword additions, arithmetic shifts, signed packing, and word additions, and all resulting registers, stores, and the index update are live."
+  },
+  "db96bf60ad": {
+    "rewrite": null,
+    "why": "SSE2 cannot fuse the arbitrary dword additions, arithmetic shifts, signed packing, and word additions, and the unaligned stores and index update are required."
+  },
+  "8964ee11a5": {
+    "rewrite": null,
+    "why": "The load/add/shift chains and unsigned saturated packs have no shorter SSE4.1 equivalent for arbitrary inputs with all vector results preserved."
+  },
+  "b65fc52eaf": {
+    "rewrite": null,
+    "why": "The load/add/shift chains and unsigned saturated packs have no shorter SSE4.1 equivalent, and both unaligned stores and the index update remain necessary."
+  },
+  "1ce59e6c0b": {
+    "rewrite": null,
+    "why": "Both loads are already folded into saturating additions, and the shifts, unsigned byte pack, store, and flag-producing index update have live effects."
+  },
+  "15134c6cc8": {
+    "rewrite": null,
+    "why": "Both loads are already folded into saturating additions, and the shifts, unsigned byte pack, unaligned store, and index update cannot be eliminated."
+  },
+  "76692ef19c": {
+    "rewrite": null,
+    "why": "The clamp bounds are arbitrary register inputs, so both signed extrema are needed for each vector, and AVX does not allow combining these into 256-bit integer operations."
+  },
+  "6497434915": {
+    "rewrite": null,
+    "why": "The arbitrary signed clamp bounds require both extrema on each vector, while the memory-folded additions, shifts, unaligned stores, and index update are already compact."
+  },
+  "e8688ad737": {
+    "rewrite": null,
+    "why": "Neither clamp can be dropped with arbitrary bound registers, and AVX provides no fused saturating-add, shift, or clamp operation to shorten either vector chain."
+  },
+  "90d7a7d849": {
+    "rewrite": null,
+    "why": "Both arbitrary signed clamp bounds, both shifted saturating sums, the unaligned stores, and the index update are required under the AVX limit."
+  },
+  "993b610f00": {
+    "rewrite": null,
+    "why": "The loads are already folded into dword additions, and AVX cannot combine the required integer shifts and saturated packs into wider operations."
+  },
+  "53885288e4": {
+    "rewrite": null,
+    "why": "The memory-folded dword additions, arithmetic shifts, saturated packs, unaligned stores, and index update contain no removable work under the AVX limit."
+  },
+  "b3985c4c90": {
+    "rewrite": null,
+    "why": "The clamp bounds and permutation masks are arbitrary, both full vector results are live, and the stores, two counter updates, and final comparison have distinct required effects."
+  },
+  "6010e9456b": {
+    "rewrite": null,
+    "why": "Three separate live vector destinations must receive their constants and r12 must be cleared, requiring all four instructions even though two constants are identical."
+  },
+  "ea421ad00a": {
+    "rewrite": null,
+    "why": "SSE2 needs separate word sign extension, transfer, and broadcast operations without reading extra bytes, and the independent pointer load is also live."
+  },
+  "576b48a7bf": {
+    "rewrite": "punpcklwd xmm1,xmm1\npsrad xmm1,0x10\npshufd xmm7,xmm1,0xb1\npshufd xmm8,xmm0,0xb1\npmuludq xmm7,xmm8\npmuludq xmm1,xmm0\nshufps xmm1,xmm7,0x88\npshufd xmm1,xmm1,0xd8\npaddd xmm4,xmm1\ninc r12d\ncmp r12d,ecx",
+    "saved": 1,
+    "why": "SHUFPS selects the four low product dwords and PSHUFD interleaves them, replacing two separate product shuffles and an unpack with two instructions. The accumulator, counter, and final comparison remain unchanged."
+  },
+  "64e8d516d7": {
+    "rewrite": "punpcklwd xmm2,xmm2\npsrad xmm2,0x10\npshufd xmm7,xmm1,0xb1\npshufd xmm8,xmm0,0xb1\npmuludq xmm7,xmm8\npmuludq xmm1,xmm0\nshufps xmm1,xmm7,0x88\npshufd xmm1,xmm1,0xd8\npshufd xmm7,xmm2,0xb1\npmuludq xmm7,xmm8\npmuludq xmm2,xmm0\nshufps xmm2,xmm7,0x88\npshufd xmm2,xmm2,0xd8\npaddd xmm5,xmm1\npaddd xmm6,xmm2\ninc r12d\ncmp r12d,r10d",
+    "saved": 3,
+    "why": "Each multiplication uses SHUFPS plus PSHUFD to assemble the low product dwords in two instructions instead of three. Reusing the unchanged shuffled multiplier in xmm8 removes the repeated PSHUFD as well."
+  },
+  "c595ca8dc3": {
+    "rewrite": null,
+    "why": "All three vector copies initialize distinct live destinations, and clearing the live r12 requires the fourth instruction."
+  },
+  "84487c36ed": {
+    "rewrite": null,
+    "why": "SSE4.1 still requires separate writes to all three live vector destinations and a separate instruction to clear r12."
+  },
+  "70873510f9": {
+    "rewrite": null,
+    "why": "SSE4.1 cannot combine this two-byte sign-extending load and dword broadcast into fewer instructions without overreading, and the pointer load must also remain."
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "fb3e5a2910": {
+    "rewrite": null,
+    "why": "The doubled edx must be zero-extended before both pointer additions and the 64-bit negation, and xmm2 also requires zeroing."
+  },
+  "e811df3bed": {
+    "rewrite": null,
+    "why": "The load, multiply-add, accumulation, and index update are distinct required operations, with one load already folded into vpmaddwd."
+  },
+  "d1184dd50e": {
+    "rewrite": null,
+    "why": "SSE2 requires a scalar transfer and a shuffle for each independent general-register broadcast."
+  },
+  "40b29d7779": {
+    "rewrite": null,
+    "why": "SSE4.1 still requires a scalar transfer and a shuffle for each independent general-register broadcast."
+  },
+  "ba7e381541": {
+    "rewrite": null,
+    "why": "Each vector needs loading, both signed clipping operations, and storing, while the two pointer updates and flag-producing counter update are also live."
+  },
+  "24160fe256": {
+    "rewrite": "vxorps ymm0,ymm0,ymm0\nvmovaps YMMWORD PTR [rdi],ymm0\nvmovaps YMMWORD PTR [rdi+0x20],ymm0\nvmovaps YMMWORD PTR [rdi+0x40],ymm0\nvmovaps YMMWORD PTR [rdi+0x60],ymm0",
+    "saved": 1,
+    "why": "The only live vector register, ymm0, is already entirely zero, so vzeroupper changes no required final value."
+  },
+  "ec758539d6": {
+    "rewrite": null,
+    "why": "AVX needs all eight 32-byte stores, and the index update must preserve both rsi and the resulting SF."
+  },
+  "b747a0d031": {
+    "rewrite": null,
+    "why": "The four stores use independently specified addresses, and both the pointer advance and flag-producing counter update are required."
+  },
+  "238e644f7e": {
+    "rewrite": null,
+    "why": "The four qword stores cannot be merged for arbitrary indices, and both the pointer advance and flag-producing counter update are required."
+  },
+  "860fd48af5": {
+    "rewrite": null,
+    "why": "The unaligned load cannot safely fold into a legacy SSE2 memory shuffle, and the remaining shuffles and shifts produce the stored bytes and live xmm0 value."
+  },
+  "79a596ec7b": {
+    "rewrite": "pshuflw xmm0,XMMWORD PTR [rsi],0xb1\npshuflw xmm1,XMMWORD PTR [rsi+0x10],0xb1\npshufhw xmm0,xmm0,0xb1\npshufhw xmm1,xmm1,0xb1\nmovdqa xmm2,xmm0\nmovdqa xmm3,xmm1\npsllw xmm0,0x8\npsllw xmm1,0x8\npsrlw xmm2,0x8\npsrlw xmm3,0x8\npor xmm2,xmm0\npor xmm3,xmm1\nmovdqa XMMWORD PTR [rdi],xmm2\nmovdqa XMMWORD PTR [rdi+0x10],xmm3\nadd rdi,0x20\nadd rsi,0x20\ndec ecx",
+    "saved": 2,
+    "why": "Each aligned load folds into its following pshuflw memory operand, preserving the byte swaps, live xmm0, and final ZF."
+  },
+  "aa9f1207ef": {
+    "rewrite": "pshuflw xmm0,XMMWORD PTR [rsi],0xb1\npshufhw xmm0,xmm0,0xb1\nmovdqa xmm2,xmm0\npsllw xmm0,0x8\npsrlw xmm2,0x8\npor xmm2,xmm0\nmovdqa XMMWORD PTR [rdi],xmm2\nadd rsi,0x10\nadd rdi,0x10",
+    "saved": 1,
+    "why": "The aligned load folds into pshuflw, leaving the stored bytes, live xmm0, and pointer updates unchanged."
+  },
+  "3fdd2ce007": {
+    "rewrite": null,
+    "why": "The live shuffle mask requires its load, and testing the combined low pointer bits requires a copy, OR, and masked test while preserving both pointers."
+  },
+  "e853365f4c": {
+    "rewrite": null,
+    "why": "PSHUFB cannot take its data operand from memory, so both load-shuffle-store sequences and all three scalar updates remain necessary."
+  },
+  "f0ce7e813e": {
+    "rewrite": null,
+    "why": "PSHUFB requires register-resident data, leaving the load, shuffle, store, and two live pointer updates necessary."
+  },
+  "049c285539": {
+    "rewrite": null,
+    "why": "VPSHUFB permits memory only for its shuffle-control operand, so the two data loads, shuffles, stores, and three scalar updates cannot be combined."
+  },
+  "393dfa7626": {
+    "rewrite": null,
+    "why": "VPSHUFB cannot fold the data load, and the store and both live pointer updates are also required."
+  },
+  "cec6337e31": {
+    "rewrite": null,
+    "why": "The data load cannot fold into VPSHUFB, and the VEX result, store, and two pointer updates are all required."
+  },
+  "bf27c59cb8": {
+    "rewrite": null,
+    "why": "The loads, unpacks, arithmetic, and packing remain necessary under SSE2 for arbitrary incoming xmm3, xmm4, and xmm5 values."
+  },
+  "39ccfeeb08": {
+    "rewrite": "movaps xmm0,XMMWORD PTR [CONST_1]\nshl ecx,0x2\nimul r8d,ecx,0xffffffff\nand r8d,0xf",
+    "saved": 2,
+    "why": "Omit the stack adjustment because rsp is outside the required final-value set and the rewrite must not touch it. Three-operand IMUL computes the negated ecx directly in r8d, replacing the copy and negation with no live flags to preserve."
+  }
+}

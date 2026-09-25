@@ -1,0 +1,82 @@
+{
+  "f3a4053eee": {
+    "rewrite": null,
+    "why": "The horizontal reductions and shift are required, and SSSE3 needs the explicit signed-dword compare-and-select clamp while xmm0's comparison mask remains live."
+  },
+  "93ff9cabaf": {
+    "rewrite": null,
+    "why": "The horizontal reductions and shift are required, and SSSE3 needs the explicit signed-dword compare-and-select clamp while xmm0's comparison mask remains live."
+  },
+  "9da0f7c115": {
+    "rewrite": null,
+    "why": "The horizontal reductions and shift are required, and SSSE3 needs the explicit signed-dword compare-and-select clamp while xmm0's comparison mask remains live."
+  },
+  "fb01798afd": {
+    "rewrite": null,
+    "why": "The horizontal reductions and shift are required, and SSSE3 needs the explicit signed-dword compare-and-select clamp while xmm0's comparison mask remains live."
+  },
+  "44469adc70": {
+    "rewrite": null,
+    "why": "The horizontal reductions and shift are required, and SSSE3 needs the explicit signed-dword compare-and-select clamp while xmm0's comparison mask remains live."
+  },
+  "cdb6590c98": {
+    "rewrite": null,
+    "why": "The reductions, addition of arbitrary xmm7, and shift are required, and SSSE3 has no shorter signed-dword clamp that also preserves xmm0's comparison mask."
+  },
+  "f656dcaa1f": {
+    "rewrite": null,
+    "why": "The two sign-extending loads, two vector zeroings, and register copy each directly produce a distinct required final register value."
+  },
+  "1d3a56f775": {
+    "rewrite": null,
+    "why": "The unpacking uses arbitrary xmm3 bytes and cannot become zero-extension loads, while both products, accumulators, pointer updates, and comparison flags must be retained."
+  },
+  "ef558140e5": {
+    "rewrite": null,
+    "why": "Both horizontal reductions, the arithmetic shift, signed minimum, store, and two register updates are required, with the final add also supplying the required flags."
+  },
+  "726e38b8f5": {
+    "rewrite": null,
+    "why": "SSE4.1 cannot fuse the loads, multiply-adds, and accumulations, and both products, accumulators, pointer updates, and final comparison flags are live."
+  },
+  "f4211a8bfd": {
+    "rewrite": null,
+    "why": "Both horizontal reductions, the arithmetic shift, signed minimum, store, and two register updates are required, with the final add also supplying the required flags."
+  },
+  "063242e4eb": {
+    "rewrite": null,
+    "why": "Both horizontal reductions, the arithmetic shift, signed minimum, store, and two register updates are required, with the final add also supplying the required flags."
+  },
+  "fe50409bb8": {
+    "rewrite": null,
+    "why": "Both horizontal reductions, the arithmetic shift, signed minimum, store, and two register updates are required, with the final add also supplying the required flags."
+  },
+  "f7d06e57fb": {
+    "rewrite": null,
+    "why": "Both horizontal reductions, the arithmetic shift, signed minimum, store, and two register updates are required, with the final add also supplying the required flags."
+  },
+  "609be09e79": {
+    "rewrite": null,
+    "why": "The word subtractions use arbitrary xmm6 and cannot be dropped or fused with the multiply-adds, while both products, accumulators, pointer updates, and comparison flags remain live."
+  },
+  "c3a6126513": {
+    "rewrite": null,
+    "why": "The reductions, addition of arbitrary xmm7, shift, and signed minimum are distinct required operations, as are the store, register updates, and final flags."
+  },
+  "8adab4f0ac": {
+    "rewrite": null,
+    "why": "Each load and zeroing produces a required final register value, and vzeroall would destroy other preserved vector registers."
+  },
+  "46c221da9f": {
+    "rewrite": null,
+    "why": "The horizontal sums, shifts, saturating pack, and arbitrary-index permutation are all necessary, and ymm6, both register updates, the store, and comparison flags remain observable."
+  },
+  "3065218a37": {
+    "rewrite": null,
+    "why": "The load and three zeroings each produce a distinct required register value, including the upper-half zeroing supplied by the VEX instructions."
+  },
+  "eaa8486c69": {
+    "rewrite": null,
+    "why": "AVX2 cannot fuse the horizontal sum, arithmetic shift, and saturating pack, and the complete ymm5 result, store, two register updates, and comparison flags must all match."
+  }
+}

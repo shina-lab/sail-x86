@@ -1,0 +1,87 @@
+{
+  "855ef18815": {
+    "rewrite": null,
+    "why": "Folding the 32-bit add into the 64-bit sum would change wraparound behavior, and the upper half of YMM0 must still be cleared."
+  },
+  "f7ecc6c460": {
+    "rewrite": null,
+    "why": "EAX can initially be 0xffffffff, so the increment's 32-bit wraparound prevents merging it with the 64-bit addition."
+  },
+  "133f4385b2": {
+    "rewrite": null,
+    "why": "The preserved RSI and RAX require the masking and comparison-mask extraction, while a separate test is needed to produce ZF."
+  },
+  "0148a9f003": {
+    "rewrite": null,
+    "why": "The vector comparison, mask extraction, trailing-zero count, and comparison against ESI each contribute required outputs."
+  },
+  "30ceb8aa7d": {
+    "rewrite": null,
+    "why": "The addition of 0x61 must wrap at 32 bits before the 64-bit addition, preventing a LEA fold, and clearing YMM0's upper half remains necessary."
+  },
+  "edb42a8bcc": {
+    "rewrite": "tzcnt eax,eax\nsub rdi,rdx\nlea rax,[rdi+rax*1+0x1]\nshr rax,0x2\nvzeroupper",
+    "saved": 1,
+    "why": "TZCNT produces a zero-extended value from 0 through 32, so LEA can combine the increment with the 64-bit addition."
+  },
+  "c1d2083008": {
+    "rewrite": "tzcnt eax,eax\nsub rdi,rdx\nlea rax,[rdi+rax*1+0x21]\nshr rax,0x2\nvzeroupper",
+    "saved": 1,
+    "why": "TZCNT bounds EAX to 0..32, so adding 0x21 cannot wrap at 32 bits and can be folded into the 64-bit LEA."
+  },
+  "1018f44b4a": {
+    "rewrite": null,
+    "why": "The addition of 0x41 must wrap at 32 bits before the 64-bit addition, preventing a LEA fold, and clearing YMM0's upper half remains necessary."
+  },
+  "c0a8b748be": {
+    "rewrite": null,
+    "why": "The wrapped 32-bit distance must be shifted before its unsigned 64-bit comparison with RSI, with no dead computation to remove."
+  },
+  "de333a62cf": {
+    "rewrite": null,
+    "why": "RCX, RSI, K0, and CF are live, requiring the distance calculation, arithmetic shift, vector comparison, and final subtraction."
+  },
+  "d4b9e91533": {
+    "rewrite": "mov ecx,0x502\nbextr ecx,edi,ecx\nadd rsi,rcx\nand rdi,0xffffffffffffff80",
+    "saved": 1,
+    "why": "BMI1 BEXTR extracts bits 2 through 6 of EDI directly, replacing the copy, mask, and shift with two instructions."
+  },
+  "4834b18eb1": {
+    "rewrite": null,
+    "why": "Both comparison masks, the full final ZMM19 value, the updated RDI, and ZF are live, leaving no removable operation."
+  },
+  "a15aaf04b9": {
+    "rewrite": null,
+    "why": "Producing RAX and CF requires the mask comparison, transfer, trailing-zero count, and final scalar comparison."
+  },
+  "26cfe2d486": {
+    "rewrite": null,
+    "why": "RSI needs its mask, RAX needs the comparison-mask transfer, and ZF requires the final test."
+  },
+  "20c82b75db": {
+    "rewrite": null,
+    "why": "Producing RAX and CF requires the mask comparison, transfer, trailing-zero count, and final scalar comparison."
+  },
+  "1918b2c315": {
+    "rewrite": "lea r11,[rdi+rsi*4]\nmov r10,r11\nand r10,0xffffffffffffffc0\npxor xmm0,xmm0\npxor xmm1,xmm1\npxor xmm2,xmm2\npxor xmm3,xmm3\nmov rax,rdi\nmov rcx,rdi\nand rcx,0xfff\ncmp rcx,0xfcf",
+    "saved": 2,
+    "why": "RSI's final value is dead, so LEA can compute R11 = RDI + 4*RSI directly before copying and aligning R10."
+  },
+  "145fbd8ee5": {
+    "rewrite": null,
+    "why": "All four loads contribute to the minimum, and the comparison vector, extracted mask, and zero flag are all required."
+  },
+  "5e3e64268f": {
+    "rewrite": "pxor xmm0,xmm0\npcmpeqd xmm0,XMMWORD PTR [rax]\npcmpeqd xmm1,XMMWORD PTR [rax+0x10]\npcmpeqd xmm2,XMMWORD PTR [rax+0x20]\npcmpeqd xmm3,XMMWORD PTR [rax+0x30]\nmovdqa xmm4,xmm0\npackssdw xmm4,xmm1\npackssdw xmm2,xmm3\npacksswb xmm4,xmm2\npsraw xmm4,0x4\npacksswb xmm4,xmm4\nmovq rdx,xmm4",
+    "saved": 3,
+    "why": "Signed packing followed by PSRAW by four turns each pair of 0/-1 bytes into the required two four-bit masks. A final pack and MOVQ assemble RDX, with XMM0 preserved by packing its copy."
+  },
+  "de8123d355": {
+    "rewrite": null,
+    "why": "BTS guarantees a nonzero scan input and BSF produces the preserved RDX, while the address sum, subtraction, and shift are all needed for RAX."
+  },
+  "31d8160a44": {
+    "rewrite": null,
+    "why": "AVX2 needs separate scalar-to-XMM transfer and broadcast instructions, and RCX, YMM0, CF, and ZF all require their remaining operations."
+  }
+}

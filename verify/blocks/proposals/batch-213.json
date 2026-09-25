@@ -1,0 +1,92 @@
+{
+  "66cb20b198": {
+    "rewrite": null,
+    "why": "The live sliding-window registers require the copies and alignment operations, and the arbitrary filter coefficients prevent simplifying the arithmetic or final packing."
+  },
+  "10027ab416": {
+    "rewrite": "vmovdqu xmm6,XMMWORD PTR [rsi]\nvmovdqu xmm7,XMMWORD PTR [rsi+rdx*1]\nvinserti128 ymm6,ymm6,XMMWORD PTR [rsi+rdx*2],0x1\nvinserti128 ymm7,ymm7,XMMWORD PTR [rsi+rbx*1],0x1\nlea rsi,[rsi+rdx*4]\nvpmaddwd ymm4,ymm8,ymm0\nvpmaddwd ymm5,ymm9,ymm1\nvpshufb ymm6,ymm6,ymm14\nvpshufb ymm7,ymm7,ymm14\nvpmaddubsw ymm6,ymm6,ymm15\nvpmaddubsw ymm7,ymm7,ymm15\nvphaddw ymm6,ymm6,ymm6\nvphaddw ymm7,ymm7,ymm7\nvpunpcklwd ymm6,ymm6,ymm7\nvpmulhrsw ymm6,ymm12,ymm6\nvpaddd ymm4,ymm4,ymm5\nvperm2i128 ymm0,ymm1,ymm6,0x21\nvmovdqa ymm1,ymm6\nvpmaddwd ymm6,ymm10,ymm0\nvpmaddwd ymm7,ymm11,ymm1\nvpaddd ymm4,ymm13,ymm4\nvpaddd ymm6,ymm6,ymm7\nvpaddd ymm4,ymm4,ymm6\nvpsrad ymm4,ymm4,0x6\nvextracti128 xmm5,ymm4,0x1\nvpackssdw xmm4,xmm4,xmm5\nvmovdqa XMMWORD PTR [rdi],xmm4\nadd rdi,0x10\nsub r8d,0x2",
+    "saved": 2,
+    "why": "Two horizontal word additions followed by a low-word interleave produce the same alternating pair sums as the two shifts, two additions, and blend, including 16-bit wraparound."
+  },
+  "4c23914437": {
+    "rewrite": null,
+    "why": "The shifts, saturating pack, arbitrary rounded multiply, permutation, two stores, and flag-preserving decrement all contribute required results."
+  },
+  "ce472cf452": {
+    "rewrite": null,
+    "why": "Both output vectors are live, and the shifts, unsigned saturation, arbitrary unsigned average, extraction, and byte packing have distinct required effects."
+  },
+  "5a26c62cd8": {
+    "rewrite": null,
+    "why": "Each instruction independently establishes a required scalar or vector register, with no redundant load or initialization."
+  },
+  "1f9f293abe": {
+    "rewrite": null,
+    "why": "The four separately addressed stores, live upper-lane extraction, and required comparison flag each need their existing instruction."
+  },
+  "f6d09dd6ce": {
+    "rewrite": "xchg rcx,rdx\nvpxor ymm0,ymm0,ymm0\nvpsubw ymm4,ymm0,ymm4",
+    "saved": 2,
+    "why": "A register exchange replaces the three-move swap because rax is dead; the word negation and all required flags are unchanged."
+  },
+  "9023bd1684": {
+    "rewrite": "vmovd xmm0,DWORD PTR [rdi]\nvpinsrd xmm0,xmm0,DWORD PTR [rdi+rsi*1],0x1\nvpbroadcastd xmm1,DWORD PTR [rdi+rsi*2]\nvpinsrd xmm1,xmm1,DWORD PTR [rdi+rax*1],0x3\nvpsubb xmm3,xmm4,XMMWORD PTR [r9]\nvpunpcklbw xmm2,xmm3,XMMWORD PTR [r9]\nvpunpckhbw xmm3,xmm3,XMMWORD PTR [r9]\nvpunpcklbw xmm0,xmm0,XMMWORD PTR [r9+rdx*1]\nvpunpckhbw xmm1,xmm1,XMMWORD PTR [r9+rdx*1]\nadd r9,0x10\nvpmaddubsw xmm0,xmm0,xmm2\nvpmaddubsw xmm1,xmm1,xmm3\nvpmulhrsw xmm0,xmm0,xmm5\nvpmulhrsw xmm1,xmm1,xmm5\nvpackuswb xmm0,xmm0,xmm1\nvmovd DWORD PTR [rdi],xmm0\nvpextrd DWORD PTR [rdi+rsi*1],xmm0,0x1\nvpextrd DWORD PTR [rdi+rsi*2],xmm0,0x2\nvpextrd DWORD PTR [rdi+rax*1],xmm0,0x3\nlea rdi,[rdi+rsi*4]\nsub r8d,0x4",
+    "saved": 2,
+    "why": "Fold both temporary vector loads into their consumers using the original 16-byte memory operands, and advance r9 after those reads."
+  },
+  "52034b70e4": {
+    "rewrite": "vmovq xmm1,QWORD PTR [rdi]\nvmovhps xmm1,xmm1,QWORD PTR [rdi+rsi*1]\nvmovq xmm2,QWORD PTR [rdi+rsi*2]\nvmovhps xmm2,xmm2,QWORD PTR [rdi+rax*1]\nvinserti128 ymm1,ymm1,xmm2,0x1\nvpsubb ymm3,ymm4,YMMWORD PTR [r9]\nvpunpcklbw ymm2,ymm3,YMMWORD PTR [r9]\nvpunpckhbw ymm3,ymm3,YMMWORD PTR [r9]\nvpunpcklbw ymm0,ymm1,YMMWORD PTR [r9+rdx*1]\nvpunpckhbw ymm1,ymm1,YMMWORD PTR [r9+rdx*1]\nadd r9,0x20\nvpmaddubsw ymm0,ymm0,ymm2\nvpmaddubsw ymm1,ymm1,ymm3\nvpmulhrsw ymm0,ymm0,ymm5\nvpmulhrsw ymm1,ymm1,ymm5\nvpackuswb ymm0,ymm0,ymm1\nvextracti128 xmm1,ymm0,0x1\nvmovq QWORD PTR [rdi],xmm0\nvmovhps QWORD PTR [rdi+rsi*1],xmm0\nvmovq QWORD PTR [rdi+rsi*2],xmm1\nvmovhps QWORD PTR [rdi+rax*1],xmm1\nlea rdi,[rdi+rsi*4]\nsub r8d,0x4",
+    "saved": 3,
+    "why": "Build the upper 128-bit lane with two qword loads and one insertion instead of two broadcasts and two blends. Fold the mask and source vector loads into their consumers before advancing r9."
+  },
+  "444f8ce2c2": {
+    "rewrite": "vmovdqa xmm1,XMMWORD PTR [rdi]\nvinserti128 ymm1,ymm1,XMMWORD PTR [rdi+rsi*1],0x1\nvpsubb ymm3,ymm4,YMMWORD PTR [r9]\nvpunpcklbw ymm2,ymm3,YMMWORD PTR [r9]\nvpunpckhbw ymm3,ymm3,YMMWORD PTR [r9]\nvpunpcklbw ymm0,ymm1,YMMWORD PTR [r9+rdx*1]\nvpunpckhbw ymm1,ymm1,YMMWORD PTR [r9+rdx*1]\nadd r9,0x20\nvpmaddubsw ymm0,ymm0,ymm2\nvpmaddubsw ymm1,ymm1,ymm3\nvpmulhrsw ymm0,ymm0,ymm5\nvpmulhrsw ymm1,ymm1,ymm5\nvpackuswb ymm0,ymm0,ymm1\nvmovdqa XMMWORD PTR [rdi],xmm0\nvextracti128 XMMWORD PTR [rdi+rsi*1],ymm0,0x1\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 2,
+    "why": "Use the original mask and source memory operands directly in the subtraction and unpacks, eliminating both temporary loads while delaying the r9 update until all reads finish."
+  },
+  "a92d4bd428": {
+    "rewrite": "vmovdqa ymm1,YMMWORD PTR [rdi]\nvpsubb ymm3,ymm4,YMMWORD PTR [r9]\nvpunpcklbw ymm2,ymm3,YMMWORD PTR [r9]\nvpunpckhbw ymm3,ymm3,YMMWORD PTR [r9]\nvpunpcklbw ymm0,ymm1,YMMWORD PTR [r9+rdx*1]\nvpunpckhbw ymm1,ymm1,YMMWORD PTR [r9+rdx*1]\nadd r9,0x20\nvpmaddubsw ymm0,ymm0,ymm2\nvpmaddubsw ymm1,ymm1,ymm3\nvpmulhrsw ymm0,ymm0,ymm5\nvpmulhrsw ymm1,ymm1,ymm5\nvpackuswb ymm0,ymm0,ymm1\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 2,
+    "why": "Fold the two temporary vector loads into their consumers with unchanged addresses and widths, advancing r9 only after those reads."
+  },
+  "2bed4470bc": {
+    "rewrite": null,
+    "why": "The narrow source load cannot be folded into a 16-byte unpack without reading additional addresses, and the remaining instructions establish required packed results, stores, pointers, or flags."
+  },
+  "2fd166fa4f": {
+    "rewrite": null,
+    "why": "The 8-byte source load cannot become a 16-byte unpack memory operand, and the separate row loads and arbitrary coefficient arithmetic offer no shorter equivalent sequence."
+  },
+  "4920ba4eee": {
+    "rewrite": "vmovq xmm0,QWORD PTR [rdi]\nvpbroadcastq xmm1,QWORD PTR [rdi+rsi*1]\nvpunpcklbw xmm0,xmm0,XMMWORD PTR [rdx]\nvpunpckhbw xmm1,xmm1,XMMWORD PTR [rdx]\nadd rdx,0x10\nvpmaddubsw xmm0,xmm0,xmm3\nvpmaddubsw xmm1,xmm1,xmm3\nvpmulhrsw xmm0,xmm0,xmm5\nvpmulhrsw xmm1,xmm1,xmm5\nvpackuswb xmm0,xmm0,xmm1\nvmovq QWORD PTR [rdi],xmm0\nvmovhps QWORD PTR [rdi+rsi*1],xmm0\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Fold the 16-byte source load into both unpacks and advance rdx afterwards; the temporary xmm2 value is dead."
+  },
+  "0e79807ead": {
+    "rewrite": "vmovdqa xmm1,XMMWORD PTR [rdi]\nvinserti128 ymm1,ymm1,XMMWORD PTR [rdi+rsi*1],0x1\nvpunpcklbw ymm0,ymm1,YMMWORD PTR [rdx]\nvpunpckhbw ymm1,ymm1,YMMWORD PTR [rdx]\nadd rdx,0x20\nvpmaddubsw ymm0,ymm0,ymm3\nvpmaddubsw ymm1,ymm1,ymm4\nvpmulhrsw ymm0,ymm0,ymm5\nvpmulhrsw ymm1,ymm1,ymm5\nvpackuswb ymm0,ymm0,ymm1\nvmovdqa XMMWORD PTR [rdi],xmm0\nvextracti128 XMMWORD PTR [rdi+rsi*1],ymm0,0x1\nlea rdi,[rdi+rsi*2]\nsub r8d,0x2",
+    "saved": 1,
+    "why": "Fold the source vector load into both unpacks at the original address, then perform the unchanged pointer update."
+  },
+  "6e60407f20": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [r9+0x40]\nvperm2i128 ymm3,ymm0,YMMWORD PTR [r9+0x60],0x20\nvperm2i128 ymm4,ymm0,YMMWORD PTR [r9+0x60],0x31",
+    "saved": 1,
+    "why": "Load the first adjacent pair of 128-bit chunks together and select matching halves with two memory-source permutations. These reads cover only the original bytes 64 through 127, without requiring stronger alignment."
+  },
+  "009a082f1c": {
+    "rewrite": "vmovdqa ymm1,YMMWORD PTR [rdi]\nvpunpcklbw ymm0,ymm1,YMMWORD PTR [rdx]\nvpunpckhbw ymm1,ymm1,YMMWORD PTR [rdx]\nadd rdx,0x20\nvpmaddubsw ymm0,ymm0,ymm3\nvpmaddubsw ymm1,ymm1,ymm4\nvpmulhrsw ymm0,ymm0,ymm5\nvpmulhrsw ymm1,ymm1,ymm5\nvpackuswb ymm0,ymm0,ymm1\nvmovdqa YMMWORD PTR [rdi],ymm0\nadd rdi,rsi\ndec r8d",
+    "saved": 1,
+    "why": "Replace the dead temporary source load with memory operands on both unpacks, keeping the reads before the rdx update and store."
+  },
+  "d9660c5dce": {
+    "rewrite": null,
+    "why": "The coefficient duplication and narrow input loads are needed for the arbitrary weighted blend, whose full packed vector result and scalar updates must be preserved."
+  },
+  "9ae4e5cd9e": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle mask requires the coefficient load and shuffle, while folding the narrow data load into the unpack would read additional addresses."
+  },
+  "116ac181bd": {
+    "rewrite": null,
+    "why": "The two row gathers, lane arrangement, arbitrary coefficient shuffle and rounding, and final live packed vector each require the existing operations."
+  }
+}

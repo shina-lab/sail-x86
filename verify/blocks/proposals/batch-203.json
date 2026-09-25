@@ -1,0 +1,84 @@
+{
+  "c252cee9ae": {
+    "rewrite": null,
+    "why": "All vector results and stores are required, and the dot product needs its accumulator initialized from the preserved zmm30."
+  },
+  "185b18f670": {
+    "rewrite": null,
+    "why": "The two word sums, initialized dot products, byte permutation, stores, and flag-setting counter update all contribute required results."
+  },
+  "0d52c0ce62": {
+    "rewrite": null,
+    "why": "Both word sums and biased dot products are live, and each dot product requires its own accumulator initialization."
+  },
+  "e839d9c303": {
+    "rewrite": "sub rdx,0xffffffffffffff80",
+    "saved": 39,
+    "why": "Only the rdx update affects a required final value; all loaded data, vector calculations, and the rcx update are dead. There are no stores or required flags."
+  },
+  "0ac9644bd5": {
+    "rewrite": "vpmovzxbw ymm3,XMMWORD PTR [r9]\nvmovq xmm0,QWORD PTR [rdi]\nvmovhps xmm0,xmm0,QWORD PTR [rdi+rsi*1]\nvmovq xmm1,QWORD PTR [rdi+rsi*2]\nvmovhps xmm1,xmm1,QWORD PTR [rdi+rax*1]\nvinserti128 ymm0,ymm0,xmm1,0x1\nvpmullw ymm3,ymm3,ymm22\nvpsubw ymm1,ymm0,YMMWORD PTR [rdx]\nadd r9,0x10\nadd rdx,0x20\nvpmulhrsw ymm1,ymm1,ymm3\nvpaddw ymm0,ymm0,ymm1\nvextracti128 xmm1,ymm0,0x1\nvmovq QWORD PTR [rdi],xmm0\nvmovhps QWORD PTR [rdi+rsi*1],xmm0\nvmovq QWORD PTR [rdi+rsi*2],xmm1\nvmovhps QWORD PTR [rdi+rax*1],xmm1\nlea rdi,[rdi+rsi*4]\nsub r8d,0x4",
+    "saved": 1,
+    "why": "Assemble the upper two qwords with vmovq and vmovhps, then insert that half with vinserti128, replacing two broadcasts and two blends with three instructions. The loads, stores, final zmm0 including its zero upper bits, and required flags remain identical."
+  },
+  "b8fa1e77f1": {
+    "rewrite": null,
+    "why": "Each separately addressed row already uses one load or insertion and one store or extraction, while the weight arithmetic and pointer updates remain necessary."
+  },
+  "db3a3dc241": {
+    "rewrite": null,
+    "why": "The qword source load cannot be folded into an unmasked packed-word subtraction without reading beyond the original eight bytes, and the remaining operations produce required results."
+  },
+  "90a3124e64": {
+    "rewrite": null,
+    "why": "The two row loads and stores are already minimal, and the subtraction, rounded multiplication, addition, and scalar updates are all required."
+  },
+  "512921941f": {
+    "rewrite": null,
+    "why": "The block already combines the two rows with one insertion, folds the source load into subtraction, and stores the upper row directly with an extraction."
+  },
+  "7f07fac0cf": {
+    "rewrite": null,
+    "why": "The block already uses one insertion to assemble the two rows and one direct extraction store, with no redundant arithmetic or scalar updates."
+  },
+  "34d26441aa": {
+    "rewrite": null,
+    "why": "Both full-width rows require their own load, subtraction, rounded multiplication, addition, and store, and all three scalar updates are live."
+  },
+  "555787b746": {
+    "rewrite": null,
+    "why": "Duplicating each of the two loaded weight words requires the unpack, and folding either narrow source load into a full-width operation would read additional bytes."
+  },
+  "08a8cd3753": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle control requires the zero-extended weight load and shuffle, while the remaining blend operations, stores, and updates are necessary."
+  },
+  "06cdbb41c9": {
+    "rewrite": null,
+    "why": "The dword broadcast and arbitrary byte shuffle cannot be merged into one supported instruction, and the row assembly, blend, stores, and updates are already tight."
+  },
+  "4a9ffde833": {
+    "rewrite": null,
+    "why": "The broadcast weight needs the arbitrary byte shuffle before multiplication, and each remaining instruction supplies a required load, blend operation, store, or update."
+  },
+  "c51cad4cfb": {
+    "rewrite": null,
+    "why": "Each row needs its own broadcast weight and blend arithmetic, and vpmulhrsw cannot fold a scalar word broadcast into its memory operand."
+  },
+  "278940e71d": {
+    "rewrite": null,
+    "why": "The clamped values, shifted differences, and masked phase values are live, and testing all 512 difference bits for ZF requires both the vector mask test and the scalar flag test."
+  },
+  "fd807e36c5": {
+    "rewrite": null,
+    "why": "All four independently shuffled vector destinations are live, so each requires its own instruction."
+  },
+  "f53abdc477": {
+    "rewrite": null,
+    "why": "All four destination mask registers must receive k6, and each copy writes only one destination."
+  },
+  "a1c8b4e5a9": {
+    "rewrite": null,
+    "why": "The biased dot-product sum, signed shift, unsigned packing, arbitrary qword permutation, and signed minimum all affect the store, while the vector update, index update, and comparison are live."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "712e543da3": {
+    "rewrite": null,
+    "why": "The swap must also leave the original ymm0 in ymm8, so all three vector moves, the scalar load, and the flag-setting pointer increment are required."
+  },
+  "8f77541680": {
+    "rewrite": null,
+    "why": "Both independent vector swaps need temporary storage, and the required final ymm8 value prevents removing any of the six moves."
+  },
+  "725caae3ce": {
+    "rewrite": null,
+    "why": "Each vector copy produces a required register value, and the scalar load and pointer increment are independently required."
+  },
+  "db4757c62d": {
+    "rewrite": null,
+    "why": "All three vector destinations require distinct assignments, in addition to the required scalar load and pointer increment."
+  },
+  "f619bc9472": {
+    "rewrite": null,
+    "why": "The four vector moves each produce a required destination value, and neither the scalar load nor the pointer increment can be removed."
+  },
+  "bc51c71982": {
+    "rewrite": null,
+    "why": "The broadcast mask in ymm8 is a required output, so its load cannot be eliminated by folding a memory operand into the shuffle."
+  },
+  "1b3bf85d69": {
+    "rewrite": null,
+    "why": "The two vector shuffles and their shared broadcast mask all produce required outputs, alongside the scalar load and pointer increment."
+  },
+  "08452e577b": {
+    "rewrite": null,
+    "why": "AVX2 requires a separate shuffle for each of the three vector outputs, and the broadcast mask, scalar load, and pointer increment must also be preserved."
+  },
+  "5093bcbc79": {
+    "rewrite": null,
+    "why": "Each of the four vector outputs needs its own shuffle, while the broadcast mask, scalar load, and pointer increment remain required."
+  },
+  "949018322c": {
+    "rewrite": null,
+    "why": "The two full-width vector loads, scalar load, and two independent pointer increments each produce required register values."
+  },
+  "b009f3027b": {
+    "rewrite": null,
+    "why": "All four vector loads, the scalar load, and the three pointer increments are required, and AVX2 cannot combine them into fewer instructions."
+  },
+  "db1e5705a6": {
+    "rewrite": null,
+    "why": "Both 32-byte stores, the scalar load, and the pointer increment are required, and vzeroupper must preserve its observable clearing of vector upper halves."
+  },
+  "62466fcb2f": {
+    "rewrite": null,
+    "why": "All four stores and both pointer increments are required, as are the scalar load and the observable upper-half clearing by vzeroupper."
+  },
+  "bf3c87e72a": {
+    "rewrite": "vpmovzxbw ymm0,XMMWORD PTR [r10]\nvpmovzxbw ymm4,XMMWORD PTR [r10+0x10]\nvbroadcasti128 ymm8,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nadd r10,0x20\nvpsllw ymm1,ymm0,0x8\nvpsllw ymm5,ymm4,0x8\nvpsrlw ymm0,ymm0,0x4\nvpsrlw ymm4,ymm4,0x4\nvpand ymm1,ymm8,ymm1\nvpand ymm5,ymm8,ymm5\nvpor ymm0,ymm0,ymm1\nvpor ymm4,ymm4,ymm5\nadd rsi,0x20",
+    "saved": 2,
+    "why": "Fold each 16-byte load directly into its VPMOVZXBW memory operand before updating r10. The subsequent nibble operations, required temporaries, and final flags are unchanged."
+  },
+  "8813056960": {
+    "rewrite": "vpbroadcastd ymm0,DWORD PTR [r10]\nvpbroadcastd ymm4,DWORD PTR [r10+0x4]\nvmovdqa ymm8,YMMWORD PTR [CONST_1]\nvbroadcasti128 ymm9,XMMWORD PTR [CONST_2]\nvbroadcasti128 ymm10,XMMWORD PTR [CONST_3]\nmov r8,QWORD PTR [rsi]\nadd r10,0x8\nvpshufb ymm0,ymm0,ymm8\nvpshufb ymm4,ymm4,ymm8\nvpand ymm0,ymm9,ymm0\nvpand ymm4,ymm9,ymm4\nvpminub ymm0,ymm0,ymm10\nvpminub ymm4,ymm4,ymm10\nadd rsi,0x20",
+    "saved": 2,
+    "why": "After masking with ymm9, each byte is either zero or its nonzero single-bit mask. Unsigned minimum with the 0x01 bytes in ymm10 converts these to 0 or 1, replacing each comparison followed by AND."
+  },
+  "81c0f1780a": {
+    "rewrite": null,
+    "why": "The shifts and shuffles produce required vector values, both movemasks and stores are needed, and the scalar outputs and vzeroupper effects must also match."
+  },
+  "d6210e5cbb": {
+    "rewrite": null,
+    "why": "The constant vector in ymm8 is a required output, and both comparisons, the scalar load, and the pointer increment are independently necessary."
+  },
+  "3789af1a30": {
+    "rewrite": null,
+    "why": "For arbitrary input bits, each output requires both shifts and both OR operations, and AVX2 has no fused instruction that reduces this sequence while preserving the shifted temporaries."
+  },
+  "6eea66c41f": {
+    "rewrite": null,
+    "why": "The arbitrary input vectors require both shifts and both OR operations per result, with the shifted ymm1 and ymm5 values also required as outputs."
+  },
+  "b15c9a1f5f": {
+    "rewrite": null,
+    "why": "Neither pair of shifts and OR operations can be combined under AVX2 for arbitrary input values while retaining all required vector results."
+  }
+}

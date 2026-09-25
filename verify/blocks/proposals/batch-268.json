@@ -1,0 +1,91 @@
+{
+  "4e064a6ab4": {
+    "rewrite": null,
+    "why": "The vector comparison, preserved scalar mask, pointer update, and required zero flag each need their own instruction."
+  },
+  "c44a844de1": {
+    "rewrite": null,
+    "why": "The vector comparison, preserved scalar mask, pointer update, and required zero flag each need their own instruction."
+  },
+  "a1c091935f": {
+    "rewrite": null,
+    "why": "Although YMM1 is dead, computing the preserved scalar mask still requires the comparison and mask extraction in addition to the pointer update and zero test."
+  },
+  "74d307f108": {
+    "rewrite": "vmovaps ymm5,YMMWORD PTR [rax]\nvpminub ymm5,ymm5,YMMWORD PTR [rax+0x20]\nvpminub ymm5,ymm5,YMMWORD PTR [rax+0x40]\nvpminub ymm5,ymm5,YMMWORD PTR [rax+0x60]\nadd rax,0x80\nvpcmpeqb ymm5,ymm6,ymm5\nvptest ymm5,ymm5",
+    "saved": 2,
+    "why": "Associativity of unsigned byte minimum lets one load feed three memory-operand minima. Since RDX is dead and comparison bytes are zero or all ones, VPTEST produces the same ZF as mask extraction followed by TEST."
+  },
+  "ca2b33e16d": {
+    "rewrite": null,
+    "why": "The preserved comparison vector and scalar mask, pointer subtraction, and mask-dependent zero flag require all four instructions."
+  },
+  "ceb3e5ff56": {
+    "rewrite": "vpcmpeqb ymm3,ymm6,YMMWORD PTR [rax+0x80]\nvpmovmskb edx,ymm3\nsub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x80]",
+    "saved": 1,
+    "why": "LEA combines the two final additions while preserving the 64-bit result; no final flags are required."
+  },
+  "ec2ea87237": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x20]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition, and the final arithmetic flags are dead."
+  },
+  "c313176472": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x40]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition, and the final arithmetic flags are dead."
+  },
+  "02bb46ed18": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x60]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition, and the final arithmetic flags are dead."
+  },
+  "ea45c35924": {
+    "rewrite": "sub rax,rdi\nbsf rdx,rdx\nlea rax,[rax+rdx*1+0x80]",
+    "saved": 1,
+    "why": "LEA combines the register addition and constant addition, and the final arithmetic flags are dead."
+  },
+  "5829206e06": {
+    "rewrite": null,
+    "why": "The required address sum, RAX copy, masked RCX value, zeroed YMM0, and comparison flags leave no removable instruction."
+  },
+  "7cebf7a15f": {
+    "rewrite": "mov BYTE PTR [rdi+0x2],0x0\nmovs WORD PTR es:[rdi],WORD PTR ds:[rsi]\nvzeroupper",
+    "saved": 1,
+    "why": "Store the terminator first, then use one MOVS for the word load/store pair at the original addresses. RSI and RDI are dead, and the source and destination buffers do not overlap."
+  },
+  "409d123e58": {
+    "rewrite": "mov ecx,DWORD PTR [rsi+rdx*1-0x3]\nmov DWORD PTR [rdi+rdx*1-0x3],ecx\nmovs DWORD PTR es:[rdi],DWORD PTR ds:[rsi]\nvzeroupper",
+    "saved": 1,
+    "why": "Copy the indexed dword first, then replace the base load/store pair with MOVS while RSI and RDI are still unchanged. Their final values are dead, the buffers do not overlap, and any overlapping destination bytes receive identical source bytes."
+  },
+  "afbc36e873": {
+    "rewrite": "mov r9,QWORD PTR [rsi+rdx*1-0x7]\nmov QWORD PTR [rdi+rdx*1-0x7],r9\nmovs QWORD PTR es:[rdi],QWORD PTR ds:[rsi]\nvzeroupper",
+    "saved": 1,
+    "why": "Copy the indexed qword first, then replace the base load/store pair with MOVS while RSI and RDI are still unchanged. Their final values are dead, the buffers do not overlap, and any overlapping destination bytes receive identical source bytes."
+  },
+  "9deb0b0029": {
+    "rewrite": null,
+    "why": "The unknown index requires both 16-byte loads and stores, and VZEROUPPER is needed to clear the preserved YMM0 upper half."
+  },
+  "6f1f0a866a": {
+    "rewrite": null,
+    "why": "The unknown index requires both 32-byte loads and stores, and VZEROUPPER is needed to clear the preserved YMM0 upper half."
+  },
+  "f7457fdea9": {
+    "rewrite": null,
+    "why": "The preserved pointer copy, zero RAX, masked RCX, zero ZMM16, and comparison flags require all six instructions."
+  },
+  "6d8fc11863": {
+    "rewrite": null,
+    "why": "The comparison mask must reach preserved RDX, and neither the comparison nor KMOVD supplies the required ZF, so the pointer update and zero test remain necessary."
+  },
+  "efb29252f1": {
+    "rewrite": null,
+    "why": "The comparison mask must reach preserved RDX, and neither the comparison nor KMOVD supplies the required ZF, so the pointer update and zero test remain necessary."
+  },
+  "fcded78b29": {
+    "rewrite": null,
+    "why": "The comparison mask must reach preserved RDX, and neither the comparison nor KMOVD supplies the required ZF, so the pointer update and zero test remain necessary."
+  }
+}

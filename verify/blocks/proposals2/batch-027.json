@@ -1,0 +1,83 @@
+{
+  "e6ac62ce33": {
+    "rewrite": null,
+    "why": "Every butterfly result and shuffle is live, and AVX2 cannot fuse these 32-bit additions or subtractions with the required shifts or permutations."
+  },
+  "7903c8f47d": {
+    "rewrite": null,
+    "why": "The saturating packs and distinct byte, qword, and 128-bit lane permutations are needed to produce the required final registers."
+  },
+  "06ccd41a36": {
+    "rewrite": null,
+    "why": "Shared additions are already reused, and factoring the repeated offsets would require additional operations to reconstruct the live sums."
+  },
+  "12268faca1": {
+    "rewrite": null,
+    "why": "The arithmetic shifts must precede signed saturation, while the shifted ymm6 and ymm7 results and both broadcast constants are also live."
+  },
+  "63084991d2": {
+    "rewrite": "vpsubd ymm15,ymm0,YMMWORD PTR [rax-0x80]\nvpaddd ymm0,ymm0,YMMWORD PTR [rax-0x80]\nvpsubd ymm14,ymm1,YMMWORD PTR [rax-0x60]\nvpaddd ymm1,ymm1,YMMWORD PTR [rax-0x60]\nvpsubd ymm13,ymm2,YMMWORD PTR [rax-0x40]\nvpaddd ymm2,ymm2,YMMWORD PTR [rax-0x40]\nvpsubd ymm12,ymm3,YMMWORD PTR [rax-0x20]\nvpaddd ymm3,ymm3,YMMWORD PTR [rax-0x20]\nvpsubd ymm11,ymm4,YMMWORD PTR [rax]\nvpaddd ymm4,ymm4,YMMWORD PTR [rax]\nvpsubd ymm10,ymm5,YMMWORD PTR [rax+0x20]\nvpaddd ymm5,ymm5,YMMWORD PTR [rax+0x20]\nvpsubd ymm9,ymm6,YMMWORD PTR [rax+0x40]\nvpaddd ymm6,ymm6,YMMWORD PTR [rax+0x40]\nvpsubd ymm8,ymm7,YMMWORD PTR [rax+0x60]\nvpaddd ymm7,ymm7,YMMWORD PTR [rax+0x60]",
+    "saved": 7,
+    "why": "Fold the seven temporary vector loads into memory operands of their additions and subtractions. Each loaded temporary is subsequently overwritten, and the repeated loads use exactly the original addresses."
+  },
+  "00b14853ee": {
+    "rewrite": null,
+    "why": "The full transpose requires the packing and successive word, dword, qword, and 128-bit lane rearrangements, including the live intermediate result in ymm8."
+  },
+  "e11cc0d805": {
+    "rewrite": null,
+    "why": "The block already uses one arithmetic instruction for each of its sixteen distinct live vector results."
+  },
+  "218437840b": {
+    "rewrite": null,
+    "why": "The extra copy preserves the original ymm15 across the dependency cycle between the final ymm0 and ymm15 results."
+  },
+  "0a7471a47d": {
+    "rewrite": null,
+    "why": "The block already uses one instruction for each of its nine distinct live vector results."
+  },
+  "66d635d435": {
+    "rewrite": null,
+    "why": "Each of the sixteen live vector registers requires its own arithmetic shift under AVX2."
+  },
+  "75fabb7530": {
+    "rewrite": null,
+    "why": "The full-width butterfly sums and differences require separate arithmetic shifts, and AVX2 provides no fused equivalent for these operations."
+  },
+  "c6920c1a8f": {
+    "rewrite": null,
+    "why": "The arbitrary runtime byte-shuffle mask and required intermediate vector results prevent eliminating the packing and transpose stages."
+  },
+  "b0063e69c7": {
+    "rewrite": null,
+    "why": "All eight products are live, and the shifted operands can still require twenty signed bits, preventing a direct replacement with narrower multiply instructions."
+  },
+  "dcd9e04c7b": {
+    "rewrite": null,
+    "why": "The shifted operands can require twenty signed bits, so the rotations need full-width products and cannot be collapsed into word multiply-add instructions."
+  },
+  "6dcb6232dd": {
+    "rewrite": null,
+    "why": "The eight distinct coefficient products are live, and twenty-bit shifted operands prevent replacing their 32-bit multiplies with word multiplies."
+  },
+  "76eb252d60": {
+    "rewrite": null,
+    "why": "The rotations operate on potentially twenty-bit signed values, and AVX2 has no fused 32-bit integer multiply-add to remove their separate products and sums."
+  },
+  "7bc7e19e8f": {
+    "rewrite": null,
+    "why": "The scalar multiplications and rounding shifts must preserve eax, while the store, ecx update, saturating word addition, and broadcasts each produce required effects."
+  },
+  "b0ec764dc5": {
+    "rewrite": null,
+    "why": "Both saturation stages, stores, and scalar updates are required, including carry from the pointer addition and the remaining flags from the decrement."
+  },
+  "2e5d4d4471": {
+    "rewrite": null,
+    "why": "All transpose intermediates are live, and combining the 128-bit stores would require additional lane-assembly instructions that cancel the instruction savings."
+  },
+  "e562e2abb3": {
+    "rewrite": null,
+    "why": "Four separate 32-byte stores are required under AVX2, followed by the live index subtraction and its flags."
+  }
+}

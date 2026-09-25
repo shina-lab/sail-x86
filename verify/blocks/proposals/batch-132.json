@@ -1,0 +1,86 @@
+{
+  "b72455ad3f": {
+    "rewrite": "vpermw zmm19,zmm18,zmm22\nvpaddw zmm18,zmm18,zmm31\nvpermw zmm17,zmm18,zmm22\nvpsubw zmm16,zmm17,zmm19\nvpmulhrsw zmm16,zmm16,zmm20\nvpaddw zmm18,zmm18,zmm31\nvpaddw zmm16,zmm16,zmm19\nvmovdqa32 XMMWORD PTR [rdi],xmm16\nvextracti32x4 XMMWORD PTR [rdi+rdx*1],ymm16,0x1\nvextracti32x4 XMMWORD PTR [rdi+rdx*2],zmm16,0x2\nvextracti32x4 XMMWORD PTR [rdi+rcx*1],zmm16,0x3\nadd rdi,rsi\nsub r8d,0x4",
+    "saved": 1,
+    "why": "The final copy into zmm19 is dead because zmm19 is not preserved and is not subsequently read."
+  },
+  "e331d8bc43": {
+    "rewrite": null,
+    "why": "The maximum determines one permutation's indices, both permutation results are live, and TEST supplies the required flags."
+  },
+  "23aedc6154": {
+    "rewrite": null,
+    "why": "The two-table permutation must preserve its index and tables, while interpolation needs the old zmm19 value and the new sample must remain in zmm19."
+  },
+  "80b5f1fcf0": {
+    "rewrite": "",
+    "saved": 26,
+    "why": "Every computed vector is dead, no stores occur, and none of the required registers or flags change, so the entire block can be removed."
+  },
+  "a9b715746b": {
+    "rewrite": "",
+    "saved": 11,
+    "why": "All instructions write only unpreserved vector registers and have no memory or flag effects, so the entire block can be removed."
+  },
+  "29cf3d401f": {
+    "rewrite": null,
+    "why": "Both interpolations need their old samples while the new permuted samples, saturated index, tables, and multipliers must survive."
+  },
+  "def3f76ac0": {
+    "rewrite": null,
+    "why": "The separate load is required because zmm29 must retain the unpermuted data, and both permutation results and TEST flags are live."
+  },
+  "4a2d067e4a": {
+    "rewrite": null,
+    "why": "The arbitrary alignment inputs and wrapping word arithmetic require the neighbor construction, rounded average, additions, and final shift."
+  },
+  "8ac1704376": {
+    "rewrite": null,
+    "why": "The expansion, multishift, permutation, upper-half extraction, four distinct stores, and live pointer and counter updates are all required."
+  },
+  "5c62fc7b6a": {
+    "rewrite": null,
+    "why": "The input transformation already uses three instructions, and the four stores and three live scalar updates leave no removable instructions."
+  },
+  "d48d319b0b": {
+    "rewrite": null,
+    "why": "The 256-bit load must zero the upper half before the byte permutation, while the separate low-byte and high-byte word lookups feed required stores."
+  },
+  "28f73c650f": {
+    "rewrite": null,
+    "why": "Each multishift result needs two distinct palette lookups, and all four stores and scalar updates are required."
+  },
+  "8934cb22c1": {
+    "rewrite": null,
+    "why": "Both multishift results need separate low-byte and high-byte palette lookups to supply the four stores, and all scalar updates are live."
+  },
+  "f50445848b": {
+    "rewrite": null,
+    "why": "All five instructions produce required register values, and the final ADD must also reproduce the arithmetic flags."
+  },
+  "3786dbc7b8": {
+    "rewrite": null,
+    "why": "Both loaded vectors are live, and the unpacked merge value must remain available for arbitrary k1 bits in the final masked shuffle."
+  },
+  "43209bc936": {
+    "rewrite": null,
+    "why": "The zero-extended accumulator seed, two dot products, cross-half reduction, packing, variable shifts, permutation, and both stores all affect required memory values."
+  },
+  "0117a0b2c9": {
+    "rewrite": "",
+    "saved": 10,
+    "why": "All computed vectors are unpreserved, and the block has no memory or flag effects, so every instruction can be removed."
+  },
+  "5f14887935": {
+    "rewrite": null,
+    "why": "Both seeded dot-product chains and their reductions are needed before packing, shifting, and selecting the values for the two stores."
+  },
+  "022930ba39": {
+    "rewrite": null,
+    "why": "Both trailing-zero counts and both XMM results are live, so the address sum and two scalar-to-vector transfers are necessary."
+  },
+  "cbef074595": {
+    "rewrite": null,
+    "why": "The wrapping word sums, arbitrary unpack operands, and full 128-bit output make the unpack and reduction steps necessary."
+  }
+}

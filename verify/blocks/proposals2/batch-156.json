@@ -1,0 +1,82 @@
+{
+  "d8de5a6886": {
+    "rewrite": null,
+    "why": "Both 32-byte loads and stores are required, and vzeroupper must clear the upper halves of all affected live YMM registers."
+  },
+  "f5cc388422": {
+    "rewrite": null,
+    "why": "The two vector copies, separate byte copy into live CL, and vzeroupper each contribute required memory or register results."
+  },
+  "1b1ad742e9": {
+    "rewrite": null,
+    "why": "Both loaded vectors, the byte-comparison mask in K0 and EDX, and the independent R8 comparison flags are required outputs."
+  },
+  "73206e5de7": {
+    "rewrite": null,
+    "why": "The store, byte comparison, mask transfer to EDX, and independent R8 comparison each produce a required result."
+  },
+  "c8e8070d73": {
+    "rewrite": null,
+    "why": "The zero-extended load into RDX, word store, flag-setting R8 subtraction, and RDI update are all required."
+  },
+  "04a7e8106e": {
+    "rewrite": null,
+    "why": "The live zero-extended RCX result, word and zero-byte stores, and separate count and pointer updates leave no removable instruction."
+  },
+  "33105c3233": {
+    "rewrite": null,
+    "why": "The live zero-extended RDX load result, dword store, R8 subtraction flags, and RDI update each require their existing instruction."
+  },
+  "3e77ff5c59": {
+    "rewrite": null,
+    "why": "The unknown index requires both copies, and the final subtraction by one supplies CF and OF that a combined subtraction would not generally reproduce."
+  },
+  "ca2ec04268": {
+    "rewrite": null,
+    "why": "Both qword copies and their live load results are required, while the count update must retain the flags of the separate subtraction by one."
+  },
+  "ec85e5af21": {
+    "rewrite": null,
+    "why": "Both indexed vector copies and final vector values are required, and combining the count subtractions would not generally preserve CF and OF."
+  },
+  "c794218f77": {
+    "rewrite": null,
+    "why": "The unknown index prevents merging the two vector copies, and the separate subtraction by one is needed for the required final flags."
+  },
+  "1d895ff2ec": {
+    "rewrite": null,
+    "why": "SSE2 needs the zeroing and byte comparison to construct live XMM0, with both loaded vectors, the extracted mask, and R8 comparison flags also required."
+  },
+  "dc67b7b971": {
+    "rewrite": null,
+    "why": "The live byte-comparison result, vector store, extracted EDX mask, and independent R8 comparison flags each require an instruction."
+  },
+  "3242a18ccf": {
+    "rewrite": null,
+    "why": "The word load must preserve the upper bits of RDX, and its store, flag-setting R8 subtraction, and RDI update are all required."
+  },
+  "e7c1010b62": {
+    "rewrite": null,
+    "why": "The partial RCX load, word store, separate store of arbitrary DH, and count and pointer updates all produce required results."
+  },
+  "42591714be": {
+    "rewrite": null,
+    "why": "The zero-extended RDX result, dword store, flag-setting count decrement, and pointer increment cannot be shortened within SSE2."
+  },
+  "aa8cb147bd": {
+    "rewrite": null,
+    "why": "The live dword load result, separate stores of the dword and arbitrary DH byte, and count and pointer updates are all necessary."
+  },
+  "c3e610b998": {
+    "rewrite": null,
+    "why": "Both load results are live, including the preserved upper bits of RDX, and a wider copy would access bytes outside the original six-byte range."
+  },
+  "2cc8924659": {
+    "rewrite": null,
+    "why": "Both overlapping dword loads produce live results and required stores, while a qword copy would access an additional byte."
+  },
+  "d9a26aaf31": {
+    "rewrite": null,
+    "why": "The live RDX load result, qword store, flag-setting R8 subtraction, and RDI increment each require their existing instruction."
+  }
+}

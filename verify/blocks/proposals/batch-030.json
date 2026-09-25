@@ -1,0 +1,75 @@
+{
+  "5c112a2d8e": {
+    "rewrite": null,
+    "why": "SSE2 needs the two unpack steps and two shuffles to form the four stored byte broadcasts, and both pointer and counter updates are live."
+  },
+  "8785960a26": {
+    "rewrite": null,
+    "why": "The load, two unpacks, four broadcast shuffles and four stores are all needed, along with the live pointer and counter updates."
+  },
+  "9161793c13": {
+    "rewrite": null,
+    "why": "SSE2 requires four distinct broadcasts and eight 16-byte stores here, leaving no removable instruction in the expansion or state updates."
+  },
+  "683d5314ec": {
+    "rewrite": null,
+    "why": "The two arbitrary shuffle masks produce distinct required row pairs, and every store and state update is needed."
+  },
+  "d05478fbd4": {
+    "rewrite": null,
+    "why": "Four independent byte-shuffle results feed eight required stores, and using wider AVX stores would require additional lane-replication instructions."
+  },
+  "dcc4d6e527": {
+    "rewrite": "mov ecx,0x1",
+    "saved": 8,
+    "why": "All MMX results are dead and there are no stores, so the loads and MMX computations can be removed. Only the final assignment to rcx is required."
+  },
+  "c288e96ffe": {
+    "rewrite": null,
+    "why": "The scalar byte broadcast and both widened, subtracted halves are needed, and SSE2 cannot fold the widening or eliminate the copy while preserving both outputs."
+  },
+  "15f89f5e42": {
+    "rewrite": null,
+    "why": "All four widened differences are live, and the shared zero vector, byte broadcast and two copies support the necessary SSE2 operations."
+  },
+  "4e211fd9b0": {
+    "rewrite": null,
+    "why": "Both loaded constants and the broadcast value are live, while SSSE3 still requires the zero vector and unpack to widen the eight independent input bytes."
+  },
+  "f9f6677fd6": {
+    "rewrite": null,
+    "why": "The copies preserve values needed by the two arbitrary shuffles and four additions, and both packed stores and the final xmm7 value are required."
+  },
+  "e969ac9880": {
+    "rewrite": null,
+    "why": "Both constants are live, and SSSE3 needs separate widening and subtraction operations for each of the four output vectors."
+  },
+  "d9d0dce865": {
+    "rewrite": null,
+    "why": "Both shuffled vectors are needed for their additions and packed stores, with ymm2 and the pointer and counter results also live."
+  },
+  "07fc0e79d5": {
+    "rewrite": null,
+    "why": "The fixed-address input loads feed four live widened differences, and eliminating the shared zero vector would require additional high-half extraction instructions under AVX."
+  },
+  "b2a7c5be24": {
+    "rewrite": null,
+    "why": "Every shift and OR supplies either a stored row or live final data, and the movhlps instructions must also preserve xmm4's existing upper 64 bits."
+  },
+  "09c4d44fc1": {
+    "rewrite": null,
+    "why": "SSE2 lacks PALIGNR, so joining the input vectors requires the existing copy, shifts and OR while retaining all stores and live values."
+  },
+  "c6cd1b6104": {
+    "rewrite": null,
+    "why": "The VEX instructions already form the joined vector and shuffled output directly, and all stores, pointer updates and final vector values are needed."
+  },
+  "137074a8e5": {
+    "rewrite": null,
+    "why": "Both successive shift-and-OR stages are observable in the stores or live xmm1 and xmm2 values, and SSE2 cannot combine a byte shift with an arbitrary OR mask."
+  },
+  "1f4ae4e9b8": {
+    "rewrite": null,
+    "why": "SSE2 requires the explicit copies, byte shifts and ORs to join each row's vectors while preserving the separate shifted results and all stores."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "038d2bde1d": {
+    "rewrite": null,
+    "why": "Both vectors need their original values for the final additions, and the loads, rounded products, stores, and live pointer updates have no removable instruction."
+  },
+  "8fa403829a": {
+    "rewrite": null,
+    "why": "The independent row loads and arbitrary coefficient vectors require both products, both additions, the shift, and the existing stores and updates."
+  },
+  "0c7b0f2bc8": {
+    "rewrite": null,
+    "why": "The arbitrary merge mask requires both the original assembled vector and the separately loaded unpack sources before multiplication and subtraction."
+  },
+  "fe8f90a629": {
+    "rewrite": null,
+    "why": "Each output vector requires two row loads, multiplication, subtraction, and a store, while all scalar updates are live."
+  },
+  "05503a26c4": {
+    "rewrite": "vmovdqu32 xmm17,XMMWORD PTR [rsi]\nvinserti32x4 ymm17,ymm17,XMMWORD PTR [rsi+rdx*2],0x1\nvmovdqu32 xmm18,XMMWORD PTR [rsi+rdx*1]\nvinserti32x4 ymm18,ymm18,XMMWORD PTR [rsi+rax*1],0x1\nlea rsi,[rsi+rdx*4]\nvpunpcklqdq ymm16,ymm17,ymm18\nvpunpckhqdq ymm17,ymm17,ymm18\nvpshrdq ymm17,ymm16,ymm17,0x10\nvpmullw ymm16,ymm16,ymm20\nvpmullw ymm17,ymm17,ymm21\nvpsubw ymm16,ymm16,ymm22\nvpaddw ymm16,ymm16,ymm17\nvpsraw ymm16,ymm16,0x2\nvmovdqa32 YMMWORD PTR [rdi],ymm16\nadd rdi,0x20\nsub r8d,0x4",
+    "saved": 1,
+    "why": "Interleave the low and high qwords separately, then use VPSHRDQ by 16 bits to form the same shifted low qwords. This replaces two byte shifts and an unpack with one high unpack and one double shift."
+  },
+  "f286cf9b7d": {
+    "rewrite": null,
+    "why": "The four rows each require both overlapping loads, and arbitrary coefficient lanes prevent replacing the two products and word arithmetic with a shorter dot product."
+  },
+  "3d6b255877": {
+    "rewrite": null,
+    "why": "Both overlapping row pairs and both arbitrary coefficient vectors contribute to the stored result, with no dead arithmetic or scalar update."
+  },
+  "059439ed3b": {
+    "rewrite": null,
+    "why": "The loads are already folded into the two products, and the subtraction, addition, arithmetic shift, and duplication are all needed for the preserved full zmm16 value."
+  },
+  "68649432f9": {
+    "rewrite": null,
+    "why": "All three permutations and dot products contribute, and replacing the extraction and signed-to-unsigned pack with unsigned narrowing would change negative results."
+  },
+  "d9781bea6e": {
+    "rewrite": null,
+    "why": "The two accumulators need their shared bias, distinct shuffled inputs, and shared middle input before the required shifts, saturation, clamp, and stores."
+  },
+  "1987a34ba5": {
+    "rewrite": null,
+    "why": "Every shuffle and dot product contributes to one of the packed outputs, and the accumulator copies preserve the live bias register."
+  },
+  "1f5a94bcac": {
+    "rewrite": "vmovdqa32 zmm19,ZMMWORD PTR [CONST_2]\nvmovdqa32 zmm17,zmm26\nvpshufb zmm20,zmm20,zmm22\nvpshufb xmm21,xmm21,xmm22\nvpunpcklqdq zmm18,zmm20,zmm21\nvpdpwssd zmm17,zmm24,zmm18\nvmovdqa32 ymm22,YMMWORD PTR [CONST_3]\nvpunpckhqdq zmm20,zmm20,zmm21\nvmovdqa32 xmm21,XMMWORD PTR [CONST_4]\nvpdpwssd zmm17,zmm25,zmm20\nvpermb zmm17,zmm19,zmm17\nvextracti32x4 xmm18,ymm17,0x1",
+    "saved": 1,
+    "why": "The initial broadcast of CONST_1 into zmm18 is dead because VPUNPCKLQDQ overwrites the entire register before any read."
+  },
+  "398cb652dd": {
+    "rewrite": null,
+    "why": "Both arithmetic paths and the final lane rearrangements feed preserved outputs, and the constant loads establish live vectors or a reused permutation index."
+  },
+  "860eb50198": {
+    "rewrite": null,
+    "why": "The shared dword shuffle prepares two distinct qwords for the broadcasts, and both constants and the adjusted pointer are live."
+  },
+  "beb3f431a8": {
+    "rewrite": null,
+    "why": "The row assembly, two dot products, signed-to-unsigned packing, and clamp are all necessary, including the zeroed upper bits of preserved zmm0."
+  },
+  "b992a4e0b9": {
+    "rewrite": null,
+    "why": "All four permutations and dot products contribute, and the extraction plus pack preserves signed-to-unsigned saturation and the required output ordering."
+  },
+  "b40df961ff": {
+    "rewrite": null,
+    "why": "The block already shares the middle shuffled inputs between two accumulators, and every remaining operation contributes to the outputs or live scalar state."
+  },
+  "04f8ed0519": {
+    "rewrite": null,
+    "why": "The three overlapping loads supply distinct shuffled inputs that are already reused across both accumulators, with no dead operation before the store and index update."
+  },
+  "a6240ccad8": {
+    "rewrite": null,
+    "why": "The broadcast mask is used by both shuffles, both unpacked vectors contribute to the dot products, and the remaining loads and extracts establish preserved outputs."
+  },
+  "7a70c92376": {
+    "rewrite": null,
+    "why": "Both independently accumulated vectors can be selected by the arbitrary final byte permutation, so their loads, shuffles, bias copies, and dot products remain necessary."
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "295716a610": {
+    "rewrite": null,
+    "why": "Both stores, both word additions, the pointer increment, and the counter decrement contribute to required outputs."
+  },
+  "a9cd895db3": {
+    "rewrite": null,
+    "why": "The shifts isolate unsigned word halves, so signed PMADDWD is not equivalent, while zero-extension followed by horizontal addition needs the same instruction count."
+  },
+  "87c45ed2c5": {
+    "rewrite": "movd r9d,xmm5\npsrad xmm5,0x1\ntzcnt esi,r9d\npaddd xmm4,xmm5\nmovd xmm1,esi\nmovdqa xmm0,xmm4\nphaddd xmm0,xmm0\nphaddd xmm0,xmm0\npsrad xmm0,xmm1\npackssdw xmm0,xmm0\nmov rdi,r10",
+    "saved": 1,
+    "why": "A copy and two PHADDD instructions replace the four-instruction shuffle/add reduction, producing the same wrapping dword sum in every lane."
+  },
+  "82bf47c6af": {
+    "rewrite": null,
+    "why": "The vector subtraction requires a load, subtraction, and store, and both scalar updates produce required register values and flags."
+  },
+  "527fb91b00": {
+    "rewrite": null,
+    "why": "Four independently addressed qword loads assemble the two vectors, and their multiply-adds, stores, accumulations, and loop updates are all required."
+  },
+  "9bb2ee6ca2": {
+    "rewrite": null,
+    "why": "Each loaded vector supplies a required saturated result, store, and accumulation, and PMADDUBSW cannot absorb the unsigned input load into its signed source operand."
+  },
+  "f0e972417e": {
+    "rewrite": null,
+    "why": "The duplicated loads, multiply-adds, upper-word shuffles, stores, accumulations, and loop updates each contribute to required outputs."
+  },
+  "9b5d3a7fb3": {
+    "rewrite": null,
+    "why": "Both stores and both wrapping word additions are required, and doubling xmm0 cannot shorten the sequence while preserving its final value."
+  },
+  "e4cdb2d339": {
+    "rewrite": null,
+    "why": "All four saturated products are stored and accumulated, and the unsigned input loads cannot be folded into PMADDUBSW's signed source operands."
+  },
+  "9b06cdc566": {
+    "rewrite": "movddup xmm1,QWORD PTR [rsi]\npmaddubsw xmm1,xmm2\npshufhw xmm1,xmm1,0xff\nmovdqa XMMWORD PTR [rdi],xmm1\npaddw xmm5,xmm1\npunpckhqdq xmm1,xmm1\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\npaddw xmm5,xmm1\nmovddup xmm1,QWORD PTR [rsi+rdx*1]\npmaddubsw xmm1,xmm2\npshufhw xmm1,xmm1,0xff\nmovdqa XMMWORD PTR [rdi+0x20],xmm1\npaddw xmm4,xmm1\npshufd xmm0,xmm1,0xee\nmovdqa XMMWORD PTR [rdi+0x30],xmm0\npaddw xmm4,xmm0\nlea rsi,[rsi+rdx*2]\nadd rdi,0x40\nsub eax,0x2",
+    "saved": 1,
+    "why": "PSHUFD with immediate 0xee copies and duplicates xmm1's high qword into xmm0, replacing MOVDQA plus PUNPCKHQDQ."
+  },
+  "2e84d3e4c1": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi]\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi],xmm1\npaddw xmm5,xmm1\npshufhw xmm1,xmm1,0xff\npunpckhqdq xmm1,xmm1\nmovdqa XMMWORD PTR [rdi+0x10],xmm1\npaddw xmm5,xmm1\nmovdqa xmm1,XMMWORD PTR [rsi+rdx*1]\npmaddubsw xmm1,xmm2\nmovdqa XMMWORD PTR [rdi+0x20],xmm1\npaddw xmm4,xmm1\npshufhw xmm0,xmm1,0xff\npunpckhqdq xmm0,xmm0\nmovdqa XMMWORD PTR [rdi+0x30],xmm0\npaddw xmm4,xmm0\nlea rsi,[rsi+rdx*2]\nadd rdi,0x40\nsub eax,0x2",
+    "saved": 1,
+    "why": "PSHUFHW accepts a distinct source register, so it absorbs the preceding copy from xmm1 to xmm0."
+  },
+  "80f3654e0c": {
+    "rewrite": null,
+    "why": "The loads, saturated products, upper-word replication, stores, accumulations, and loop updates all affect required outputs."
+  },
+  "3a1b5f3f14": {
+    "rewrite": null,
+    "why": "The four stores, four word additions, and two scalar updates are required, and preserving xmm0 and xmm1 prevents destructive doubling from shortening the block."
+  },
+  "e8bf553352": {
+    "rewrite": null,
+    "why": "The shifted coefficients feed two live dot products, and the two-operand SSE instructions still require a copy to place the second result in xmm0."
+  },
+  "55275a90ab": {
+    "rewrite": "pxor xmm1,xmm1\nmovdqa xmm0,xmm5\npunpcklwd xmm5,xmm1\npunpckhwd xmm0,xmm1\nphaddd xmm5,xmm0\nmovdqa xmm0,xmm4\npunpcklwd xmm0,xmm1\npunpckhwd xmm4,xmm1\nphaddd xmm0,xmm4",
+    "saved": 1,
+    "why": "Zero-extending the words before PHADDD computes the same unsigned adjacent-word sums. Sharing the zero vector across both reductions saves one instruction."
+  },
+  "19dcdc1872": {
+    "rewrite": "paddd xmm0,xmm5\nmovd r9d,xmm6\npsrad xmm6,0x1\ntzcnt esi,r9d\npaddd xmm0,xmm6\nmovd xmm1,esi\nphaddd xmm0,xmm0\nphaddd xmm0,xmm0\npsrad xmm0,xmm1\npackssdw xmm0,xmm0\nmov rdi,r10",
+    "saved": 2,
+    "why": "Accumulate directly in xmm0 because xmm5 is dead, then use two PHADDD instructions to replace the four-instruction shuffle/add reduction."
+  },
+  "49c82c9afc": {
+    "rewrite": null,
+    "why": "Combining independently addressed dword loads and duplicating their bytes requires the existing unpack operations under SSSE3, and all subsequent arithmetic and stores are live."
+  },
+  "85399dd337": {
+    "rewrite": null,
+    "why": "Each qword load needs byte duplication before multiplication by unconstrained signed coefficients, and every product is stored and accumulated."
+  },
+  "fba3982e18": {
+    "rewrite": null,
+    "why": "The unpacks establish byte duplication and qword replication, while the subsequent upper-word shuffle selects products formed with unconstrained coefficients."
+  },
+  "77cd6c1f03": {
+    "rewrite": null,
+    "why": "The two stores, two independent accumulator additions, pointer increment, and counter subtraction all produce required effects."
+  }
+}

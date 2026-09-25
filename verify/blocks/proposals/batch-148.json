@@ -1,0 +1,82 @@
+{
+  "76ecbc965b": {
+    "rewrite": null,
+    "why": "The broadcast, shuffle, two saturating products, separate word additions, and byte permutation all feed the four required stores, while both pointer updates are preserved."
+  },
+  "4246d0a279": {
+    "rewrite": null,
+    "why": "Both saturating products and their independent word additions are needed before the arbitrary byte permutation, and the two stores and scalar updates are required."
+  },
+  "fd694643cd": {
+    "rewrite": null,
+    "why": "The word broadcast already supplies both saturating products directly, and each remaining instruction contributes to the required store, register values, or flags."
+  },
+  "7972ce26f5": {
+    "rewrite": null,
+    "why": "The copy supplies required inactive bytes for the merging shuffle, and the three saturated products and subsequent additions cannot be combined for arbitrary inputs."
+  },
+  "7794ab2dd4": {
+    "rewrite": null,
+    "why": "The merging shuffle needs its copied fallback value, and all three saturated products, shared additions, stores, and scalar updates contribute to observable results."
+  },
+  "5689e3bb7e": {
+    "rewrite": null,
+    "why": "The rotate, scalar updates, independent broadcasts, word doubling, and half insertion each contribute to preserved register values."
+  },
+  "e0727a6c1a": {
+    "rewrite": null,
+    "why": "The mask and both interpolation paths affect preserved zmm0, and the four independent stores already share one narrowing operation and one half extraction."
+  },
+  "2c2bedb3d5": {
+    "rewrite": null,
+    "why": "Both independent rounded word multiplications are needed before saturation and packing, followed by two required stores and the counter update."
+  },
+  "3867d812bc": {
+    "rewrite": null,
+    "why": "Both permutation and interpolation paths contribute to the packed result, while both byte-index updates and the scalar updates must also be preserved."
+  },
+  "4b7e4d6b2d": {
+    "rewrite": null,
+    "why": "Index formation, unsigned clamping, table lookup, and the final flag-setting test are all required, including the complete byte values in preserved zmm17."
+  },
+  "8519a94771": {
+    "rewrite": null,
+    "why": "The saturating index update and interpolation result are both observable, and the four independent stores already share the narrowing operation and half extraction."
+  },
+  "d22e8fdcb5": {
+    "rewrite": null,
+    "why": "Arbitrary inputs require forming, negating, and masking the sum, while the load, broadcast, maximum, and comparison each produce required results."
+  },
+  "d16d8390f8": {
+    "rewrite": null,
+    "why": "Every instruction produces a distinct preserved register value, and all incoming flags must remain unchanged."
+  },
+  "6a06e3089e": {
+    "rewrite": null,
+    "why": "The accumulator seeds, merge-mask fallback values, and both filter stages affect preserved outputs, so none of the copies or broadcasts is dead."
+  },
+  "83f90f7fdf": {
+    "rewrite": null,
+    "why": "The dot-product accumulators need their preserved seed, and preserving both shifted zmm20 and packed zmm16 requires retaining the incoming zmm20 across the shift."
+  },
+  "7fbceb2cb0": {
+    "rewrite": null,
+    "why": "The independent dot-product accumulators need their seed copies, and the later copy retains incoming zmm16 while its shifted replacement and packed zmm17 must both be preserved."
+  },
+  "01c0974e64": {
+    "rewrite": null,
+    "why": "The two independent dot-product sums need separate accumulators initialized from preserved xmm22 before the final saturating pack."
+  },
+  "9a414d7937": {
+    "rewrite": null,
+    "why": "Each arithmetic stage contributes to preserved xmm0 or xmm1, with unconstrained weights, offset, and shift count preventing simpler sum or averaging substitutions."
+  },
+  "782efaf45d": {
+    "rewrite": null,
+    "why": "Each of the four unsigned-by-signed saturated products contributes to the required reduction, and xmm1's shuffled intermediate is also preserved."
+  },
+  "d3c1e232f5": {
+    "rewrite": null,
+    "why": "SSSE3 needs the zero shuffle control and byte broadcast followed by three copies to produce all four preserved vectors."
+  }
+}

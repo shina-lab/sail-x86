@@ -1,0 +1,88 @@
+{
+  "79a5f0aac9": {
+    "rewrite": null,
+    "why": "The blend uses all three widened inputs and the arbitrary preserved coefficient registers, with no redundant operation."
+  },
+  "d5be305887": {
+    "rewrite": null,
+    "why": "The zero result, signed extension followed by a 64-bit decrement, masked remainder, and final comparison each require their existing operations."
+  },
+  "b0afc3cf6d": {
+    "rewrite": null,
+    "why": "The two rounded averages and subsequent blend depend on arbitrary incoming mask and coefficient registers, leaving no safe shorter sequence."
+  },
+  "98e1b6876d": {
+    "rewrite": "lea rsi,[rcx+r9*1]\nxor rax,rax\nmovsxd r8,r8d\nsub r8,0x1\nmov r9,r8\nand r9,0x7\ncmp r8,0x8",
+    "saved": 1,
+    "why": "LEA combines the copy and addition forming rsi; the final comparison still supplies the required flags."
+  },
+  "69f4883d84": {
+    "rewrite": null,
+    "why": "All four vector destinations and the subtraction result are live, so even the duplicate constants require separate register assignments."
+  },
+  "71cf06b30b": {
+    "rewrite": null,
+    "why": "The absolute differences, both unpack halves, and squared sums are needed, and arbitrary xmm6 prevents replacing them with differences of zero-extended inputs."
+  },
+  "faefd7e3e7": {
+    "rewrite": "add edx,0x20\nmovhlps xmm0,xmm7\npaddd xmm7,xmm0\npshufd xmm0,xmm7,0x1\npaddd xmm7,xmm0\nmovd eax,xmm7",
+    "saved": 1,
+    "why": "The initial add already sets ZF from the final edx value, and every intervening instruction preserves that flag, making test redundant."
+  },
+  "9e0d2e5387": {
+    "rewrite": null,
+    "why": "Both byte loads, the full-width difference and square, the accumulation, and the flag-setting decrement are necessary."
+  },
+  "3c8365d227": {
+    "rewrite": null,
+    "why": "The unaligned loads, word differences and squares, and live widening and accumulation results leave no redundant instruction."
+  },
+  "b76b28d7bb": {
+    "rewrite": "add edx,0x20\nmovhlps xmm0,xmm7\npaddq xmm7,xmm0\nmovq rax,xmm7",
+    "saved": 1,
+    "why": "The initial add produces the required final ZF, which the vector operations and movq preserve, so the final test can be removed."
+  },
+  "096a8c3c5d": {
+    "rewrite": null,
+    "why": "The two word loads, difference, square, 64-bit accumulation, and flag-setting decrement each contribute to a required result."
+  },
+  "ead99081ec": {
+    "rewrite": null,
+    "why": "Both eight-byte loads, the SAD and accumulation, and all three live pointer or counter updates are necessary."
+  },
+  "b09f65250c": {
+    "rewrite": "movq xmm2,QWORD PTR [rdi]\nmovq xmm3,QWORD PTR [rsi]\nadd rdi,rdx\nadd rsi,rdx\npunpcklbw xmm2,xmm6\npunpcklbw xmm3,xmm6\npaddw xmm2,xmm0\npaddw xmm0,xmm0\npaddw xmm1,xmm3\npsubw xmm0,xmm1\npabsw xmm0,xmm0\npaddw xmm5,xmm0\nmovdqa xmm1,xmm3\npaddw xmm3,xmm3\npsubw xmm3,xmm2\npabsw xmm3,xmm3\npaddw xmm5,xmm3\ndec rcx",
+    "saved": 2,
+    "why": "Accumulate the original xmm0 directly into the disposable xmm2 instead of copying it to xmm4. The final copy into xmm2 is also dead."
+  },
+  "ba6d3a45ef": {
+    "rewrite": null,
+    "why": "The live full xmm0 result has nonuniform upper lanes and contributions from arbitrary xmm6, preventing a simple horizontal-add replacement."
+  },
+  "736ca4cef5": {
+    "rewrite": null,
+    "why": "All eight neighbors contribute to both extrema, and the final clamp, store, live maximum, and pointer updates leave no redundant work."
+  },
+  "6ff5256ba3": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rsi+r8*1-0x1]\nmovdqu xmm2,XMMWORD PTR [rsi+r8*1]\nmovdqu xmm3,XMMWORD PTR [rsi+r8*1+0x1]\nmovdqu xmm4,XMMWORD PTR [rsi-0x1]\nmovdqu xmm0,XMMWORD PTR [rsi]\nmovdqu xmm5,XMMWORD PTR [rsi+0x1]\nmovdqu xmm6,XMMWORD PTR [rsi+rdx*1-0x1]\nmovdqu xmm7,XMMWORD PTR [rsi+rdx*1]\nmovdqu xmm8,XMMWORD PTR [rsi+rdx*1+0x1]\nmovdqa xmm9,xmm1\npminub xmm1,xmm8\npmaxub xmm8,xmm9\nmovdqa xmm10,xmm2\npminub xmm2,xmm7\npmaxub xmm7,xmm10\nmovdqa xmm11,xmm3\npminub xmm3,xmm6\npmaxub xmm6,xmm11\nmovdqa xmm12,xmm4\npminub xmm4,xmm5\npmaxub xmm5,xmm12\npsubb xmm8,xmm1\npsubb xmm7,xmm2\npsubb xmm6,xmm3\npsubb xmm5,xmm4\npminub xmm8,xmm7\npminub xmm8,xmm6\npminub xmm8,xmm5\npcmpeqb xmm7,xmm8\npcmpeqb xmm6,xmm8\npcmpeqb xmm5,xmm8\npand xmm3,xmm6\npandn xmm6,xmm1\npor xmm6,xmm3\npand xmm2,xmm7\npandn xmm7,xmm6\npor xmm7,xmm2\npand xmm4,xmm5\npandn xmm5,xmm7\npor xmm5,xmm4\npaddb xmm8,xmm5\npmaxub xmm5,xmm0\npminub xmm5,xmm8\nmovdqu XMMWORD PTR [rdi],xmm5\nadd rsi,0x10\nadd rdi,0x10\nsub ecx,0x10",
+    "saved": 9,
+    "why": "Select the lower endpoint of the minimum-width interval using the original tie order, then reconstruct its upper endpoint by adding the minimum width. Clamping once replaces the four separate candidate clamps and their copies."
+  },
+  "922d9d5f75": {
+    "rewrite": null,
+    "why": "All nine weighted inputs contribute, and arbitrary xmm0 prevents treating the unpacks as zero-extension or replacing the exact sum with rounded byte averages."
+  },
+  "a9358e662e": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rsi+r8*1-0x1]\nmovdqu xmm2,XMMWORD PTR [rsi+rdx*1+0x1]\nmovdqa xmm0,xmm1\npminub xmm1,xmm2\npmaxub xmm0,xmm2\npsubb xmm0,xmm1\nmovdqu xmm3,XMMWORD PTR [rsi+r8*1+0x1]\nmovdqu xmm4,XMMWORD PTR [rsi+rdx*1-0x1]\nmovdqa xmm5,xmm3\npminub xmm3,xmm4\npmaxub xmm5,xmm4\npsubb xmm5,xmm3\npminub xmm0,xmm5\npcmpeqb xmm5,xmm0\npand xmm3,xmm5\npandn xmm5,xmm1\npor xmm5,xmm3\nmovdqu xmm2,XMMWORD PTR [rsi+r8*1]\nmovdqu xmm3,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm4,xmm2\npminub xmm2,xmm3\npmaxub xmm4,xmm3\npsubb xmm4,xmm2\npminub xmm0,xmm4\npcmpeqb xmm4,xmm0\npand xmm2,xmm4\npandn xmm4,xmm5\npor xmm4,xmm2\nmovdqa xmm1,xmm4\npaddb xmm1,xmm0\npavgb xmm4,xmm1\nmovdqu XMMWORD PTR [rdi],xmm4\nadd rsi,0x10\nadd rdi,0x10\nsub ecx,0x10",
+    "saved": 3,
+    "why": "Compute each pair's minimum and unsigned distance, then select its minimum with the original tie order. Reconstruct and average only the winning pair, while preserving the minimum distance in xmm0."
+  },
+  "3baffac4f2": {
+    "rewrite": null,
+    "why": "Both extrema of every pair feed the final bounds, which can cross and therefore still require ordering before the live result is clamped."
+  },
+  "3747297663": {
+    "rewrite": null,
+    "why": "The exact rounded sum requires all eight inputs, and arbitrary xmm0 rules out assuming zero-extended lanes or substituting repeated rounded byte averages."
+  }
+}

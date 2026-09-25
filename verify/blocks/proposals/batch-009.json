@@ -1,0 +1,89 @@
+{
+  "acad0c6d37": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi]\nmovdqa xmm2,XMMWORD PTR [rsi+r8*1]\nmovdqa xmm4,XMMWORD PTR [rsi+rax*1]\nmovdqa xmm6,XMMWORD PTR [rsi+r11*1]\nmovdqa xmm8,xmm0\npunpckldq xmm0,XMMWORD PTR [rsi+rdx*1]\npunpckhdq xmm8,XMMWORD PTR [rsi+rdx*1]\nmovdqa xmm1,xmm2\npunpckldq xmm2,XMMWORD PTR [rsi+r9*1]\npunpckhdq xmm1,XMMWORD PTR [rsi+r9*1]\nmovdqa xmm3,xmm4\npunpckldq xmm4,XMMWORD PTR [rsi+r10*1]\npunpckhdq xmm3,XMMWORD PTR [rsi+r10*1]\nmovdqa xmm5,xmm6\npunpckldq xmm6,XMMWORD PTR [rsi+rbx*1]\npunpckhdq xmm5,XMMWORD PTR [rsi+rbx*1]\nmovdqa xmm7,xmm0\npunpcklqdq xmm0,xmm2\npunpckhqdq xmm7,xmm2\nmovdqa xmm2,xmm8\npunpcklqdq xmm8,xmm1\npunpckhqdq xmm2,xmm1\nmovdqa xmm1,xmm4\npunpcklqdq xmm4,xmm6\npunpckhqdq xmm1,xmm6\nmovdqa xmm6,xmm3\npunpcklqdq xmm3,xmm5\npunpckhqdq xmm6,xmm5\npslld xmm0,xmm9\npslld xmm4,xmm9\npslld xmm7,xmm9\npslld xmm1,xmm9\npslld xmm8,xmm9\npslld xmm3,xmm9\npslld xmm2,xmm9\npslld xmm6,xmm9\nmovdqa XMMWORD PTR [rdi],xmm0\nmovdqa XMMWORD PTR [rdi+0x10],xmm4\nmovdqa XMMWORD PTR [rdi+0x20],xmm7\nmovdqa XMMWORD PTR [rdi+0x30],xmm1\nmovdqa XMMWORD PTR [rdi+0x40],xmm8\nmovdqa XMMWORD PTR [rdi+0x50],xmm3\nmovdqa XMMWORD PTR [rdi+0x60],xmm2\nmovdqa XMMWORD PTR [rdi+0x70],xmm6\nadd rsi,0x10\nsub rdi,0xffffffffffffff80\nsub ecx,0x4",
+    "saved": 4,
+    "why": "Fold four aligned input loads into the corresponding low and high unpack instructions, using the same memory operands before any stores. The transpose, shifts, live registers, and final flags are unchanged."
+  },
+  "c5e042209d": {
+    "rewrite": null,
+    "why": "Every pointer load and subtraction contributes a live result, and the VEX move must preserve the original shift count while clearing the rest of ymm5."
+  },
+  "ac9483829f": {
+    "rewrite": "vmovdqa xmm0,XMMWORD PTR [rsi]\nvmovdqa xmm2,XMMWORD PTR [rsi+r8*1]\nvpunpckhdq xmm4,xmm0,XMMWORD PTR [rsi+rdx*1]\nvpunpckldq xmm0,xmm0,XMMWORD PTR [rsi+rdx*1]\nvpunpckhdq xmm1,xmm2,XMMWORD PTR [rsi+r9*1]\nvpunpckldq xmm2,xmm2,XMMWORD PTR [rsi+r9*1]\nvpunpckhqdq xmm3,xmm0,xmm2\nvpunpcklqdq xmm0,xmm0,xmm2\nvpunpckhqdq xmm2,xmm4,xmm1\nvpunpcklqdq xmm4,xmm4,xmm1\nvpslld xmm0,xmm0,xmm5\nvpslld xmm3,xmm3,xmm5\nvpslld xmm4,xmm4,xmm5\nvpslld xmm2,xmm2,xmm5\nvmovdqa XMMWORD PTR [rdi],xmm0\nvmovdqa XMMWORD PTR [rdi+0x10],xmm3\nvmovdqa XMMWORD PTR [rdi+0x20],xmm4\nvmovdqa XMMWORD PTR [rdi+0x30],xmm2\nadd rsi,0x10\nadd rdi,0x40\nsub ecx,0x4",
+    "saved": 2,
+    "why": "Read the second input of each initial unpack pair directly from its original memory operand, eliminating two explicit loads. All vector operations remain VEX-encoded 128-bit instructions."
+  },
+  "e8e19f6586": {
+    "rewrite": null,
+    "why": "The five pointer differences, both dereferenced bases, and the shift count in ymm7 are all live and have no redundant computation."
+  },
+  "db57f9376b": {
+    "rewrite": "vmovdqa xmm0,XMMWORD PTR [rsi]\nvmovdqa xmm2,XMMWORD PTR [rsi+r8*1]\nvmovdqa xmm4,XMMWORD PTR [rsi+rax*1]\nvpunpckhdq xmm6,xmm0,XMMWORD PTR [rsi+rdx*1]\nvpunpckldq xmm0,xmm0,XMMWORD PTR [rsi+rdx*1]\nvpunpckhdq xmm1,xmm2,XMMWORD PTR [rsi+r9*1]\nvpunpckldq xmm2,xmm2,XMMWORD PTR [rsi+r9*1]\nvpunpckhdq xmm3,xmm4,XMMWORD PTR [rsi+r10*1]\nvpunpckldq xmm4,xmm4,XMMWORD PTR [rsi+r10*1]\nvpunpcklqdq xmm5,xmm0,xmm2\nvpunpckhqdq xmm2,xmm2,xmm4\nvshufps xmm4,xmm4,xmm0,0xe4\nvpunpcklqdq xmm0,xmm6,xmm1\nvpunpckhqdq xmm1,xmm1,xmm3\nvshufps xmm3,xmm3,xmm6,0xe4\nvpslld xmm5,xmm5,xmm7\nvpslld xmm4,xmm4,xmm7\nvpslld xmm2,xmm2,xmm7\nvpslld xmm0,xmm0,xmm7\nvpslld xmm3,xmm3,xmm7\nvpslld xmm1,xmm1,xmm7\nvmovdqa XMMWORD PTR [rdi],xmm5\nvmovdqa XMMWORD PTR [rdi+0x10],xmm4\nvmovdqa XMMWORD PTR [rdi+0x20],xmm2\nvmovdqa XMMWORD PTR [rdi+0x30],xmm0\nvmovdqa XMMWORD PTR [rdi+0x40],xmm3\nvmovdqa XMMWORD PTR [rdi+0x50],xmm1\nadd rsi,0x10\nadd rdi,0x60\nsub ecx,0x4",
+    "saved": 3,
+    "why": "Fold three input loads into the low and high VEX unpack operations that consume them. The later shuffles, shifts, stores, and scalar updates remain identical."
+  },
+  "b55a41615e": {
+    "rewrite": null,
+    "why": "All seven pointer differences, both dereferenced bases, and the shift count in ymm5 are live, leaving no redundant scalar setup instructions."
+  },
+  "ea42dd933c": {
+    "rewrite": null,
+    "why": "The loads are already folded into the saturating packs where possible, and all transpose stages, word shifts, stores, and scalar updates contribute required results."
+  },
+  "bddd17b464": {
+    "rewrite": "vmovdqa xmm0,XMMWORD PTR [rsi]\nvmovdqa xmm2,XMMWORD PTR [rsi+r8*1]\nvmovdqa xmm4,XMMWORD PTR [rsi+rax*1]\nvmovdqa xmm6,XMMWORD PTR [rsi+r11*1]\nvpunpckhdq xmm8,xmm0,XMMWORD PTR [rsi+rdx*1]\nvpunpckldq xmm0,xmm0,XMMWORD PTR [rsi+rdx*1]\nvpunpckhdq xmm1,xmm2,XMMWORD PTR [rsi+r9*1]\nvpunpckldq xmm2,xmm2,XMMWORD PTR [rsi+r9*1]\nvpunpckhdq xmm3,xmm4,XMMWORD PTR [rsi+r10*1]\nvpunpckldq xmm4,xmm4,XMMWORD PTR [rsi+r10*1]\nvpunpckhdq xmm5,xmm6,XMMWORD PTR [rsi+rbx*1]\nvpunpckldq xmm6,xmm6,XMMWORD PTR [rsi+rbx*1]\nvpunpckhqdq xmm7,xmm0,xmm2\nvpunpcklqdq xmm0,xmm0,xmm2\nvpunpckhqdq xmm2,xmm8,xmm1\nvpunpcklqdq xmm8,xmm8,xmm1\nvpunpckhqdq xmm1,xmm4,xmm6\nvpunpcklqdq xmm4,xmm4,xmm6\nvpunpckhqdq xmm6,xmm3,xmm5\nvpunpcklqdq xmm3,xmm3,xmm5\nvpslld xmm0,xmm0,xmm9\nvpslld xmm4,xmm4,xmm9\nvpslld xmm7,xmm7,xmm9\nvpslld xmm1,xmm1,xmm9\nvpslld xmm8,xmm8,xmm9\nvpslld xmm3,xmm3,xmm9\nvpslld xmm2,xmm2,xmm9\nvpslld xmm6,xmm6,xmm9\nvmovdqa XMMWORD PTR [rdi],xmm0\nvmovdqa XMMWORD PTR [rdi+0x10],xmm4\nvmovdqa XMMWORD PTR [rdi+0x20],xmm7\nvmovdqa XMMWORD PTR [rdi+0x30],xmm1\nvmovdqa XMMWORD PTR [rdi+0x40],xmm8\nvmovdqa XMMWORD PTR [rdi+0x50],xmm3\nvmovdqa XMMWORD PTR [rdi+0x60],xmm2\nvmovdqa XMMWORD PTR [rdi+0x70],xmm6\nadd rsi,0x10\nsub rdi,0xffffffffffffff80\nsub ecx,0x4",
+    "saved": 4,
+    "why": "Replace four explicit input loads with memory operands on their consuming unpack pairs. This preserves all eight output vectors and the zeroed upper half of live ymm0 without requiring AVX2."
+  },
+  "8e2dbe35af": {
+    "rewrite": null,
+    "why": "The broadcast, wrapping 32-bit shift, two pointer additions, and 64-bit negation all contribute distinct required outputs."
+  },
+  "f6736c4321": {
+    "rewrite": null,
+    "why": "Both pointer updates and the negated offset are live, and the 32-bit shift truncation prevents combining the scaling with those 64-bit operations."
+  },
+  "56fbe2ef4c": {
+    "rewrite": null,
+    "why": "Each of the four independently addressed rows needs its load and store, while the counter, pointers, and loaded rax value are live."
+  },
+  "7748053e94": {
+    "rewrite": null,
+    "why": "The four independently addressed vector copies and the live counter and pointer updates contain no redundant instructions."
+  },
+  "25165a6e84": {
+    "rewrite": null,
+    "why": "Each row already uses a load, a memory-source rounded byte average, and a store, followed by the required counter and pointer updates."
+  },
+  "c40eb03a17": {
+    "rewrite": null,
+    "why": "The unaligned input loads, separate signed multiply-add paths, and reduction into the full live xmm0 leave no safe SSE2 instruction-count reduction."
+  },
+  "04185a3296": {
+    "rewrite": null,
+    "why": "The live 64-bit product requires the original 32-bit shift truncation, and each low-word broadcast still needs both shuffle steps at SSSE3."
+  },
+  "27a48f9274": {
+    "rewrite": "movq xmm1,QWORD PTR [rsi+rdx*1]\nmovq xmm2,QWORD PTR [rsi+rdx*1+0x1]\nmovq xmm3,QWORD PTR [rsi+rdx*2]\nmovq xmm4,QWORD PTR [rsi+rdx*2+0x1]\nlea rsi,[rsi+rdx*2]\npunpcklbw xmm1,xmm2\nmovdqa xmm2,xmm1\npunpcklbw xmm3,xmm4\npmaddubsw xmm0,xmm7\npmaddubsw xmm1,xmm6\npmaddubsw xmm2,xmm7\npaddw xmm0,xmm5\npaddw xmm2,xmm5\npaddw xmm1,xmm0\nmovdqa xmm0,xmm3\npmaddubsw xmm3,xmm6\npaddw xmm3,xmm2\npsrlw xmm1,0x6\npsrlw xmm3,0x6\npackuswb xmm1,xmm3\nmovq QWORD PTR [rdi],xmm1\nmovhps QWORD PTR [rdi+rdx*1],xmm1\nsub ecx,0x2\nlea rdi,[rdi+rdx*2]",
+    "saved": 1,
+    "why": "After the first sum consumes the old xmm0, copy the unpacked final row directly from xmm3 into xmm0 before multiplying xmm3. This removes the intermediate copy through xmm4."
+  },
+  "67928f24e1": {
+    "rewrite": "movdqa xmm6,XMMWORD PTR [CONST_1]\nimul r8d,r8d,0xff\nadd r8d,0x8\nmovd xmm7,r8d\npshuflw xmm7,xmm7,0x0\nmovlhps xmm7,xmm7",
+    "saved": 2,
+    "why": "The original coefficient has low 32 bits equal to 255 times the input plus 8, so IMUL and ADD replace the copy, shift, addition, and subtraction. Only its low word is broadcast, and neither r8 nor r9 is live."
+  },
+  "01be842e32": {
+    "rewrite": null,
+    "why": "Both independent rows require their byte interleaves, saturating multiply-adds, additions, shifts, and shared pack, with no redundant copies to remove."
+  },
+  "32e9a39599": {
+    "rewrite": "movq xmm0,QWORD PTR [rsi]\nmovq xmm2,QWORD PTR [rsi+rdx*1]\nmovq xmm3,QWORD PTR [rsi+rdx*2]\nlea rsi,[rsi+rdx*2]\npunpcklbw xmm0,xmm2\npunpcklbw xmm2,xmm3\npmaddubsw xmm0,xmm7\npmaddubsw xmm2,xmm7\npaddw xmm0,xmm6\npaddw xmm2,xmm6\npsrlw xmm0,0x3\npsrlw xmm2,0x3\npackuswb xmm0,xmm2\nmovq QWORD PTR [rdi],xmm0\nmovhps QWORD PTR [rdi+rdx*1],xmm0\nsub ecx,0x2\nlea rdi,[rdi+rdx*2]",
+    "saved": 1,
+    "why": "Load the middle row directly into xmm2 and use it as the source of the first unpack before the second unpack overwrites it. This eliminates the copy from xmm1 to xmm2."
+  },
+  "635e31120b": {
+    "rewrite": null,
+    "why": "The live 64-bit product prevents replacing the truncated shift and subtraction with a simple multiply, while both coefficient broadcasts and the byte interleave remain necessary."
+  }
+}

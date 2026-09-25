@@ -1,0 +1,84 @@
+{
+  "296fcc3a42": {
+    "rewrite": "pxor xmm9,xmm9\npunpcklbw xmm1,xmm8\npunpcklbw xmm3,xmm2\npsraw xmm1,0x8\npsraw xmm3,0x8",
+    "saved": 2,
+    "why": "Each arithmetic shift discards the low byte of every unpacked word, so the initial contents of xmm1 and xmm3 do not matter. Remove their zero copies while retaining the required zero in xmm9."
+  },
+  "ae53e7edfb": {
+    "rewrite": null,
+    "why": "Both independently addressed loads and stores are needed, along with the live pointer updates and flag-producing count subtraction."
+  },
+  "7c2ab62850": {
+    "rewrite": null,
+    "why": "The two loads, arbitrary shuffle and coefficient operations, packing, separate stores, and live scalar updates are all required."
+  },
+  "894fbe2007": {
+    "rewrite": null,
+    "why": "The independent row loads already assemble the vector directly, and its shuffle, arithmetic, packing, stores, and scalar updates have no removable step."
+  },
+  "23b8568d56": {
+    "rewrite": null,
+    "why": "Combining the two row computations into a wider vector would require duplicating the arbitrary low halves of three coefficient registers and reassembling the packed output, eliminating any instruction savings."
+  },
+  "50c78223ea": {
+    "rewrite": null,
+    "why": "Both offset streams require their loads and arithmetic, and the packed result, two stores, and live pointer and count updates leave no removable instruction."
+  },
+  "19fe5f6cb6": {
+    "rewrite": null,
+    "why": "Both overlapping input vectors contribute through arbitrary shuffle and coefficient operations to the packed store, and all scalar updates remain live."
+  },
+  "92014cdfca": {
+    "rewrite": null,
+    "why": "Both output vectors must be stored, requiring all four input streams and their arithmetic as well as the live pointer and count updates."
+  },
+  "773f5e7ab2": {
+    "rewrite": null,
+    "why": "The scalar calculation, constant broadcast, flag-producing pointer addition, and two-step transfer and word broadcast are all required under AVX2."
+  },
+  "ce0f99b55d": {
+    "rewrite": null,
+    "why": "Every scalar and vector result is live, and AVX2 requires separate instructions to transfer the scalar value into an xmm register and broadcast its low word."
+  },
+  "094be4e77f": {
+    "rewrite": null,
+    "why": "The shuffle constant must remain in ymm4, and the duplicated data load, byte shuffle, and multiply-add each perform a necessary operation."
+  },
+  "b00c5575af": {
+    "rewrite": "vpermq ymm0,YMMWORD PTR [rdx],0x94\nvpshufb ymm0,ymm0,ymm4\nvpmaddubsw ymm0,ymm0,ymm5",
+    "saved": 1,
+    "why": "The load and insertion construct qwords [0,1,1,2] from the original 32-byte input. A memory-source VPERMQ with immediate 0x94 constructs that vector in one instruction using the original load address and width."
+  },
+  "b2c618dcd9": {
+    "rewrite": null,
+    "why": "Both result vectors are live, and each needs its own load, arbitrary byte shuffle, and saturating multiply-add."
+  },
+  "65886b342c": {
+    "rewrite": null,
+    "why": "Both incremented values and their copies are live, as are the extracted byte, decremented eax, and subtraction flags."
+  },
+  "e7e836e04b": {
+    "rewrite": null,
+    "why": "The four independently addressed dword loads already assemble one vector directly, followed by necessary widening, scaling, storage, and live scalar updates."
+  },
+  "2bd9f2f465": {
+    "rewrite": null,
+    "why": "The four independent loads feed two required stores, and each output needs both byte widening and scaling before the live scalar updates."
+  },
+  "30434f3007": {
+    "rewrite": null,
+    "why": "Each independently addressed source already uses a widening memory load followed by the required shift and store, with all three scalar updates live."
+  },
+  "7df89edef5": {
+    "rewrite": null,
+    "why": "Each output requires its existing widening memory load, shift, and store, while combining adjacent loads would add unpacking or lane rearrangement instructions."
+  },
+  "b854aa84fc": {
+    "rewrite": null,
+    "why": "The four widening loads, four scaling shifts, and four stores directly produce the required output, and the pointer and count updates are live."
+  },
+  "346183f1ca": {
+    "rewrite": null,
+    "why": "Four independently addressed qwords must be assembled across both vector lanes before the arbitrary shuffle and multiply-add, leaving no removable load, insertion, store, or scalar update."
+  }
+}

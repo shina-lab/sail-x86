@@ -1,0 +1,92 @@
+{
+  "0c34e22f74": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, two pointer additions, negation, and copy-and-mask each produce required live results."
+  },
+  "453f6d3467": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nmov cl,r9b\nror r9d,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 4,
+    "why": "A dword load, byte rotation, and dword store implement the 1230 permutation over exactly the original four bytes. Copying the original low byte to CL preserves RCX, and the final counter updates preserve the required flags."
+  },
+  "a2a810769e": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, two pointer additions, negation, and copy-and-mask each produce required live results."
+  },
+  "978a21132c": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nrol r9d,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nmov cl,BYTE PTR [rdi+rdx*1+0x2]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 4,
+    "why": "Rotating the loaded dword left by eight bits implements the 3012 permutation over exactly the original four bytes. The final CL value and counter updates are retained."
+  },
+  "c9af881cc6": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, two pointer additions, negation, and copy-and-mask each produce required live results."
+  },
+  "4b03cb7e49": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nmov cl,r9b\nbswap r9d\nmov DWORD PTR [rsi+rdx*1],r9d\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 4,
+    "why": "BSWAP reverses exactly the four loaded bytes for the 3210 permutation. Saving the original low byte in CL and retaining the counter updates preserves all required register and flag results."
+  },
+  "cc72c90e17": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, two pointer additions, negation, and copy-and-mask each produce required live results."
+  },
+  "3beb18d337": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nror r9w,0x8\nrol r9d,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nmov cl,BYTE PTR [rdi+rdx*1+0x2]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 3,
+    "why": "Swapping the low two bytes and then rotating the dword left by eight bits produces the 3102 permutation. The final CL load and counter updates retain the required register and flag results."
+  },
+  "461d6c8dbd": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, two pointer additions, negation, and copy-and-mask each produce required live results."
+  },
+  "474f28cc57": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nror r9w,0x8\nbswap r9d\nror r9d,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nmov cl,BYTE PTR [rdi+rdx*1+0x3]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 2,
+    "why": "Swapping the low pair, reversing the dword, and rotating right by eight bits produces the 2013 permutation using only the original four bytes. The final CL load and counter updates are retained."
+  },
+  "964ca67232": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, two pointer additions, negation, and copy-and-mask each produce required live results."
+  },
+  "ac2ebead58": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nmov cl,r9b\nror r9d,0x8\nror r9w,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 3,
+    "why": "Rotating the dword right by eight bits and swapping its low pair produces the 2130 permutation. Copying the original low byte to CL and retaining the counter updates preserves the required register and flag results."
+  },
+  "ca4343a36e": {
+    "rewrite": null,
+    "why": "The broadcast, sign extension, two pointer additions, negation, and copy-and-mask each produce required live results."
+  },
+  "78ee1466a3": {
+    "rewrite": "mov r9d,DWORD PTR [rdi+rdx*1]\nbswap r9d\nror r9d,0x8\nror r9w,0x8\nmov DWORD PTR [rsi+rdx*1],r9d\nmov cl,BYTE PTR [rdi+rdx*1+0x3]\nadd rdx,0x4\nsub r8,0x4",
+    "saved": 2,
+    "why": "Reversing the dword, rotating right by eight bits, and swapping the low pair produces the 1203 permutation using only the original four bytes. The final CL load and counter updates are retained."
+  },
+  "6d0cc3d334": {
+    "rewrite": "mov r15,r8\nneg r8\nlea rbx,[r8+r8*1]\nneg rbp\nand r15,0x1f",
+    "saved": 2,
+    "why": "Doubling the already-negated R8 with LEA computes the original RBX result modulo 2^64 in one instruction. The original R15 mask remains last to preserve ZF."
+  },
+  "b3e4b6bf95": {
+    "rewrite": null,
+    "why": "All four additions, three register copies, the shift, and the decrement produce required live results, with no shorter combination available in SSE2."
+  },
+  "1f60a70121": {
+    "rewrite": "mov r15,r8\nneg r8\nlea rbx,[r8+r8*1]\nneg rbp\nand r15,0x1f",
+    "saved": 2,
+    "why": "Doubling the already-negated R8 with LEA computes the original RBX result modulo 2^64 in one instruction. The original R15 mask remains last to preserve ZF."
+  },
+  "661ae0af2a": {
+    "rewrite": null,
+    "why": "All four additions, three register copies, the shift, and the decrement produce required live results, with no shorter combination available in the allowed ISA."
+  },
+  "1b050e061e": {
+    "rewrite": "mov r15,r8\nneg r8\nlea rbx,[r8+r8*1]\nneg rbp\nand r15,0x3f",
+    "saved": 2,
+    "why": "Doubling the already-negated R8 with LEA computes the original RBX result modulo 2^64 in one instruction. The original R15 mask remains last to preserve ZF."
+  },
+  "d48e494270": {
+    "rewrite": null,
+    "why": "All four additions, three register copies, the shift, and the decrement produce required live results, with no shorter combination available in the allowed ISA."
+  }
+}

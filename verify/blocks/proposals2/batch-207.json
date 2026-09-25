@@ -1,0 +1,87 @@
+{
+  "f244b1b7af": {
+    "rewrite": null,
+    "why": "The four live XOR results, four stores, and two flag-preserving pointer updates each require their own instruction."
+  },
+  "71afd5e388": {
+    "rewrite": null,
+    "why": "All four extracted vectors and the subtraction result and flags are live, so none of the five instructions can be removed."
+  },
+  "289c709a85": {
+    "rewrite": null,
+    "why": "All results and stores are live, and the required copies from ymm16 and ymm17 cannot be expressed within the stated AVX2-only ISA."
+  },
+  "6ecf02dfc7": {
+    "rewrite": null,
+    "why": "Each instruction supplies a distinct required result, and accessing ymm19 additionally requires AVX-512, which the stated ISA excludes."
+  },
+  "47acf9e274": {
+    "rewrite": null,
+    "why": "The two vector copies, pointer update, and comparison flags are independent required effects."
+  },
+  "d2157872cc": {
+    "rewrite": null,
+    "why": "The two vector copies, pointer update, and comparison flags are independent required effects."
+  },
+  "a853132324": {
+    "rewrite": null,
+    "why": "The two vector copies, pointer update, and comparison flags are independent required effects."
+  },
+  "358d3f17fb": {
+    "rewrite": null,
+    "why": "Each instruction supplies a distinct required result, and accessing ymm18 additionally requires AVX-512, which the stated ISA excludes."
+  },
+  "86e7b018ba": {
+    "rewrite": null,
+    "why": "The two vector copies, pointer update, and comparison flags are independent required effects."
+  },
+  "13ef76b30a": {
+    "rewrite": null,
+    "why": "The two vector copies, pointer update, and comparison flags are independent required effects."
+  },
+  "b165472c9b": {
+    "rewrite": "mulx r10,r9,r14\nmulx r11,rcx,r15\nmovq xmm1,r14\nmulx r12,rbp,r8\nadd r10,rcx\nmovq xmm2,r15\nadc r11,rbp\nadc r12,0x0\nmovq xmm3,r8\nmov r14,r8\nmulx rax,r8,rdx\nmovq rdx,xmm1\nxor r13,r13\nmulx rbp,rcx,r15\nadcx r11,rcx\nadox r12,rbp\nmulx rbp,rcx,r14\nmov rdx,r15\nadcx r12,rcx\nadox r13,rbp\nadc r13,0x0\nmulx r14,rcx,r14\nxor r15,r15\nadcx r9,r9\nadox r13,rcx\nadcx r10,r10\nadox r14,r15\nmovq rdx,xmm1\nadcx r11,r11\nadox r9,rax\nadcx r12,r12\nmulx rax,rcx,rdx\nmovq rdx,xmm2\nadcx r13,r13\nadox r10,rcx\nadcx r14,r14\nmulx rbp,rcx,rdx",
+    "saved": 1,
+    "why": "Compute the initial rdx square before changing rdx, retaining its high half in rax and its low half in r8 while r14 holds the original r8 operand. This replaces saving and restoring the initial rdx with one operand copy and preserves both carry chains and all final register values."
+  },
+  "f03f0cec56": {
+    "rewrite": "mulx r10,r9,r14\nmulx r11,rcx,r15\nadd r10,rcx\nmulx r12,rbp,r8\nmov rdx,r14\nadc r11,rbp\nadc r12,0x0\nxor r13,r13\nmulx rbp,rcx,r15\nadcx r11,rcx\nadox r12,rbp\nmulx rbp,rcx,r8\nmov rdx,r15\nadcx r12,rcx\nadox r13,rbp\nadc r13,0x0\nmulx r14,rcx,r8\nmov rdx,QWORD PTR [rsi+0x80]\nxor r15,r15\nadcx r9,r9\nadox r13,rcx\nadcx r10,r10\nadox r14,r15\nmulx rbp,r8,rdx\nmov rdx,QWORD PTR [rsi+0x88]\nadcx r11,r11\nadox r9,rbp\nadcx r12,r12\nmulx rax,rcx,rdx\nmov rdx,QWORD PTR [rsi+0x90]\nadcx r13,r13\nadox r10,rcx\nadcx r14,r14",
+    "saved": 1,
+    "why": "The initial zero in eax is overwritten before it is read. Replacing the first adc with add reproduces its zero-carry addition and flags, allowing the xor to be removed."
+  },
+  "75c2ff8ade": {
+    "rewrite": null,
+    "why": "The load, constant assignment, and four carry-dependent additions each produce a distinct live register result."
+  },
+  "621e6b99bf": {
+    "rewrite": null,
+    "why": "Every mask, masked load, accumulator, and scalar update is live, and SSE2 cannot combine these load-and-mask pairs without an equally costly mask copy."
+  },
+  "f1eb311bb1": {
+    "rewrite": null,
+    "why": "All four masked vectors and the comparison mask are live, and SSE2 requires separate initialization and masking instructions for each loaded vector."
+  },
+  "73499c4a29": {
+    "rewrite": "vpcmpeqd ymm9,ymm5,ymm1\nvpcmpeqd ymm14,ymm10,ymm1\nvpaddd ymm5,ymm5,ymm0\nvpaddd ymm10,ymm10,ymm0\nvpand ymm6,ymm9,YMMWORD PTR [rsi]\nvpand ymm7,ymm9,YMMWORD PTR [rsi+0x20]\nvpand ymm8,ymm9,YMMWORD PTR [rsi+0x40]\nvpand ymm11,ymm14,YMMWORD PTR [rsi+0x60]\nvpand ymm12,ymm14,YMMWORD PTR [rsi+0x80]\nvpand ymm13,ymm14,YMMWORD PTR [rsi+0xa0]\nlea rsi,[rsi+0xc0]\nvpxor ymm2,ymm2,ymm6\nvpxor ymm3,ymm3,ymm7\nvpxor ymm4,ymm4,ymm8\nvpxor ymm2,ymm2,ymm11\nvpxor ymm3,ymm3,ymm12\nvpxor ymm4,ymm4,ymm13\ndec rax",
+    "saved": 6,
+    "why": "Fold all six vector loads into the memory operands of their vpand instructions, preserving every masked vector and accumulator."
+  },
+  "15533beda9": {
+    "rewrite": null,
+    "why": "All three stores are required, and vzeroupper is necessary to reproduce the preserved registers' final upper halves."
+  },
+  "69b281c8e6": {
+    "rewrite": "vpcmpeqd ymm7,ymm4,ymm1\nvpcmpeqd ymm11,ymm8,ymm1\nvpcmpeqd ymm15,ymm12,ymm1\nvpaddd ymm4,ymm4,ymm0\nvpaddd ymm8,ymm8,ymm0\nvpaddd ymm12,ymm12,ymm0\nvpand ymm5,ymm7,YMMWORD PTR [rsi]\nvpand ymm6,ymm7,YMMWORD PTR [rsi+0x20]\nvpand ymm9,ymm11,YMMWORD PTR [rsi+0x40]\nvpand ymm10,ymm11,YMMWORD PTR [rsi+0x60]\nvpand ymm13,ymm15,YMMWORD PTR [rsi+0x80]\nvpand ymm14,ymm15,YMMWORD PTR [rsi+0xa0]\nlea rsi,[rsi+0xc0]\nvpxor ymm2,ymm2,ymm5\nvpxor ymm3,ymm3,ymm6\nvpxor ymm2,ymm2,ymm9\nvpxor ymm3,ymm3,ymm10\nvpxor ymm2,ymm2,ymm13\nvpxor ymm3,ymm3,ymm14\ndec rax",
+    "saved": 6,
+    "why": "Fold all six vector loads into their vpand instructions while retaining the comparison masks, counters, live masked vectors, and XOR results."
+  },
+  "b2a5fd90c5": {
+    "rewrite": "vpcmpeqd ymm7,ymm4,ymm1\nvpand ymm5,ymm7,YMMWORD PTR [rsi]\nvpand ymm6,ymm7,YMMWORD PTR [rsi+0x20]\nvpxor ymm2,ymm2,ymm5\nvpxor ymm3,ymm3,ymm6\nvmovdqu YMMWORD PTR [rdi],ymm2\nvmovdqu YMMWORD PTR [rdi+0x20],ymm3\nvzeroupper",
+    "saved": 2,
+    "why": "Fold both loads into their vpand instructions, preserving the stores and retaining vzeroupper for the required final upper halves."
+  },
+  "8f374dfb08": {
+    "rewrite": null,
+    "why": "Both carry chains, the saved intermediate sums, and the final extended-limb result and flags are live, leaving no removable instruction."
+  }
+}

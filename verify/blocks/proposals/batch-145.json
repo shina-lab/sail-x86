@@ -1,0 +1,83 @@
+{
+  "8fece97158": {
+    "rewrite": null,
+    "why": "The loaded vector is live, and the two saturated subtractions plus OR compute full-range unsigned byte absolute differences without a shorter direct equivalent."
+  },
+  "307f26bb02": {
+    "rewrite": null,
+    "why": "The constant vectors and unpacked bytes are live, and the saturated multiply-add followed by two wrapping word additions cannot be fused."
+  },
+  "b5525a55fd": {
+    "rewrite": null,
+    "why": "The data path, live extraction, four independently addressed stores, and flag-producing index update have no removable instruction."
+  },
+  "7d4e016342": {
+    "rewrite": null,
+    "why": "The broadcast and unpack produce a live vector, while the constant loads and saturation-sensitive arithmetic all contribute to required outputs."
+  },
+  "0c5c967895": {
+    "rewrite": null,
+    "why": "The arithmetic and permutation feed four independent stores, whose upper-half data still requires extraction, and both address updates are live."
+  },
+  "6dd1a88f02": {
+    "rewrite": null,
+    "why": "Both unpacked vectors and both arithmetic results are live, and each saturated multiply-add needs its subsequent wrapping word additions."
+  },
+  "484af7800a": {
+    "rewrite": null,
+    "why": "The broadcast, two unpacks, constant loads, and two saturation-sensitive arithmetic paths all contribute to live vector outputs."
+  },
+  "0970efb9dc": {
+    "rewrite": null,
+    "why": "Both unpacks consume the loaded vector as their register-only first source, and their live results and subsequent arithmetic prevent removing the load or either path."
+  },
+  "8b8b020591": {
+    "rewrite": null,
+    "why": "The masked shuffle needs a copy of its preserved merge source, and the arithmetic, live extraction, independent stores, and index update remain necessary."
+  },
+  "835e601546": {
+    "rewrite": null,
+    "why": "The preserved merge source prevents eliminating its copy, and the remaining arithmetic, extraction, four stores, and address updates have no removable step."
+  },
+  "0bb370570d": {
+    "rewrite": null,
+    "why": "Each of the four instructions directly produces a distinct required constant vector."
+  },
+  "3ef2f0573e": {
+    "rewrite": null,
+    "why": "All four constant vectors are live, and the cross-256-bit lane shuffle still needs the loaded vector as its register source."
+  },
+  "d691d6b050": {
+    "rewrite": null,
+    "why": "All constant vectors and the unpacked input are live, and saturation prevents folding the two wrapping additions into the multiply-add."
+  },
+  "e76fa68e11": {
+    "rewrite": null,
+    "why": "The merge copy protects a live source, and both arithmetic paths, averaging, permutation, live extraction, independent stores, and scalar updates remain necessary."
+  },
+  "ae9a8c760c": {
+    "rewrite": null,
+    "why": "The broadcast and unpack, four required constant results, and saturation-sensitive arithmetic contain no dead or directly fusible instruction."
+  },
+  "62f8b8cd45": {
+    "rewrite": null,
+    "why": "The masked merge and arithmetic feed the rounded average and permutation, while four independent stores require extraction and all scalar updates are live."
+  },
+  "130a25a465": {
+    "rewrite": null,
+    "why": "The eight-byte load feeds both shifting and interleaving, and folding it into an unmasked vector shift would read beyond the original load."
+  },
+  "f20b343551": {
+    "rewrite": "vpshufb xmm1,xmm3,XMMWORD PTR [rcx]\nvpsrlw xmm2,XMMWORD PTR [rcx],0x4\nadd rcx,0x10\nvpshufb xmm2,xmm3,xmm2\nvpunpcklbw xmm0,xmm1,xmm2\nvpunpckhbw xmm1,xmm1,xmm2\nvmovq QWORD PTR [rdi],xmm0\nvmovhps QWORD PTR [rdi+rsi*1],xmm0\nvmovq QWORD PTR [rdi+rsi*2],xmm1\nvmovhps QWORD PTR [rdi+rax*1],xmm1\nlea rdi,[rdi+rsi*4]\nsub r9d,0x4",
+    "saved": 1,
+    "why": "Fold the original load into both vpshufb and vpsrlw, which read the same original 16 bytes. Place the rcx increment after those reads to preserve all addresses and final values."
+  },
+  "880706c0aa": {
+    "rewrite": null,
+    "why": "The widening load is already folded, and the bit extraction, byte lookup, four independently addressed stores, and scalar updates have no removable instruction."
+  },
+  "e71979caec": {
+    "rewrite": null,
+    "why": "The load is already folded into the permutation, and both variable bit-extraction paths, byte lookups, four stores, and scalar updates contribute to required results."
+  }
+}

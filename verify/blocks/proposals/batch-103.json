@@ -1,0 +1,87 @@
+{
+  "2de08f7a16": {
+    "rewrite": null,
+    "why": "The two noncontiguous qword loads and the independent live r10 and xmm0 initializations each require an instruction."
+  },
+  "494c8f9aca": {
+    "rewrite": "pxor xmm6,xmm6\npcmpgtw xmm6,xmm0\npaddw xmm0,xmm6\npmulhrsw xmm0,xmm15\npaddw xmm4,xmm0\npackuswb xmm4,xmm4\nmovd DWORD PTR [rdi],xmm4\npextrd DWORD PTR [rdi+rsi*1],xmm4,0x1\nadd r8,0x40\nlea rdi,[rdi+rsi*2]\ndec edx",
+    "saved": 1,
+    "why": "SSE4.1 PEXTRD stores the second packed dword directly, replacing the shift and MOVD pair. The final value of xmm4 is not required."
+  },
+  "b2ec7fce93": {
+    "rewrite": null,
+    "why": "All five instructions establish required register outputs, including both live copies of the loaded vector."
+  },
+  "4826225f9b": {
+    "rewrite": null,
+    "why": "The sign correction, rounded multiply, two clamps, packing, store, and live pointer and counter updates have no redundant operation under SSSE3."
+  },
+  "d969d8706d": {
+    "rewrite": null,
+    "why": "The corrected rounded product must remain in xmm0, and the accumulation, packing, store, and live scalar updates are all required."
+  },
+  "65cd4980ea": {
+    "rewrite": null,
+    "why": "The noncontiguous loads and both live vector copies are required along with the independent r10 and xmm0 initializations."
+  },
+  "d22a93fdd3": {
+    "rewrite": null,
+    "why": "Both signed clamps and both strided dword stores are required, and SSSE3 lacks PEXTRD to combine the shift and second store."
+  },
+  "d2096d7204": {
+    "rewrite": null,
+    "why": "The two noncontiguous qword loads and the independent live r10 and xmm0 initializations each require an instruction."
+  },
+  "925bba741f": {
+    "rewrite": null,
+    "why": "SSSE3 requires a separate shuffle or shift to expose the second stored dword, and the remaining arithmetic and scalar updates are required."
+  },
+  "462f796333": {
+    "rewrite": null,
+    "why": "All five instructions establish required register outputs, including both live copies of the loaded vector."
+  },
+  "b5d0d43885": {
+    "rewrite": null,
+    "why": "The noncontiguous loads and both live vector copies are required along with the independent r10 and xmm0 initializations."
+  },
+  "241716ae73": {
+    "rewrite": null,
+    "why": "Both independently weighted word-pair streams contribute to the entire live result vector, requiring their shifts, unpacks, multiply-adds, and final sum."
+  },
+  "8f6dc26776": {
+    "rewrite": null,
+    "why": "The vector extraction and live vector shift, scalar multiply and additions, arithmetic shift, signed-word load, and flag-producing comparison are all required."
+  },
+  "cc3264d3bc": {
+    "rewrite": null,
+    "why": "The live shifted vectors, rounded and clamped calculation, word store, and insertion into xmm0 leave no redundant instruction."
+  },
+  "8a0eb31540": {
+    "rewrite": "vpmaddwd xmm2,xmm10,xmm1\nvphaddd xmm2,xmm2,xmm2\nvpaddd xmm2,xmm2,xmm0\nvpsrldq xmm0,xmm0,0x4\nvpsrad xmm2,xmm2,XMMWORD PTR [rsi+0xb0]\nvpminsd xmm2,xmm12,xmm2\nvpmaxsd xmm2,xmm13,xmm2\nvpextrw WORD PTR [rdi+rcx*2],xmm2,0x0\nvpslldq xmm2,xmm2,0x4\nvpsrldq xmm1,xmm1,0x2\nvpblendw xmm1,xmm1,xmm2,0x4\ninc rcx",
+    "saved": 1,
+    "why": "Only the lowest computed dword contributes to the stored and inserted word. VPHADDD followed by VPADDD produces its original modular sum in two instructions instead of a shuffle and two additions."
+  },
+  "45bc0a0cf7": {
+    "rewrite": null,
+    "why": "The multiply/add seed calculation still needs its rotation and truncation, and all three address-related register updates are live."
+  },
+  "788960247e": {
+    "rewrite": "vmovdqu xmm0,XMMWORD PTR [rdi+r11*2-0xa6]\nvmovdqu xmm2,XMMWORD PTR [rsi+r11*4]\nvpaddw xmm2,xmm2,XMMWORD PTR [rsi+r11*4+0xa4]\nvphaddw xmm2,xmm2,xmm2\nvpmulhrsw xmm2,xmm2,xmm6\nvpsrldq xmm1,xmm0,0x4\nvpunpcklwd xmm1,xmm1,xmm2\nvpsrldq xmm2,xmm0,0x2\nvpunpcklwd xmm0,xmm0,xmm2\nvpmaddwd xmm1,xmm1,xmm5\nvpmaddwd xmm0,xmm0,xmm4\nvpaddd xmm1,xmm1,xmm3\nvpaddd xmm0,xmm0,xmm1",
+    "saved": 1,
+    "why": "Adding the two rows before horizontally summing adjacent words preserves the four low word sums modulo 65536 and removes the high-qword duplication. Only those four words feed the subsequent unpack."
+  },
+  "2b20c141f2": {
+    "rewrite": null,
+    "why": "The shifted live vectors and clipped word must be preserved, including both its store and its insertion into xmm0."
+  },
+  "cec1b7daf6": {
+    "rewrite": "vpmaddwd xmm2,xmm10,xmm1\nvphaddd xmm2,xmm2,xmm2\nvpaddd xmm2,xmm2,xmm0\nvpsrldq xmm0,xmm0,0x4\nvpsrad xmm2,xmm2,XMMWORD PTR [rdx+0xb0]\nvpsrldq xmm1,xmm1,0x2\nvpminsd xmm2,xmm12,xmm2\nvpmaxsd xmm2,xmm13,xmm2\nvpextrw WORD PTR [rdi+r9*2],xmm2,0x0\nvpslldq xmm2,xmm2,0x4\nvpblendw xmm1,xmm1,xmm2,0x4\ninc r9",
+    "saved": 1,
+    "why": "Only the lowest computed dword contributes to the stored and inserted word. VPHADDD followed by VPADDD produces its original modular sum in two instructions instead of a shuffle and two additions."
+  },
+  "bcccc85ed2": {
+    "rewrite": "vmovdqu ymm0,YMMWORD PTR [rsi]\nvphaddw ymm0,ymm0,YMMWORD PTR [rsi+0x20]\nvpermq ymm0,ymm0,0xd8\nvmovdqu ymm1,YMMWORD PTR [rsi+0x40]\nvphaddw ymm1,ymm1,YMMWORD PTR [rsi+0x60]\nvpermq ymm1,ymm1,0xd8\nvpmulhrsw ymm0,ymm0,ymm5\nvpmulhrsw ymm1,ymm1,ymm5\nvpaddw ymm0,ymm0,ymm0\nvpaddw ymm1,ymm1,ymm1\nvpmulhrsw ymm0,ymm0,ymm4\nvpmulhrsw ymm1,ymm1,ymm4\nvpaddw ymm0,ymm0,YMMWORD PTR [rdi]\nvpaddw ymm1,ymm1,YMMWORD PTR [rdi+0x20]\nvpminsw ymm0,ymm0,ymm6\nvpminsw ymm1,ymm1,ymm6\nvpmaxsw ymm0,ymm0,ymm7\nvpmaxsw ymm1,ymm1,ymm7\nvmovdqu YMMWORD PTR [rdi],ymm0\nvmovdqu YMMWORD PTR [rdi+0x20],ymm1\nvmovdqu xmm0,XMMWORD PTR [rsi+0x80]\nvphaddw xmm0,xmm0,XMMWORD PTR [rsi+0x90]\nvmovdqu xmm1,XMMWORD PTR [rdi+0x40]\nvpmulhrsw xmm0,xmm0,xmm5\nvpaddw xmm0,xmm0,xmm0\nvpmulhrsw xmm0,xmm0,xmm4\nvpaddw xmm0,xmm0,xmm1\nvpminsw xmm0,xmm0,xmm6\nvpmaxsw xmm0,xmm0,xmm7\nvpblendd xmm0,xmm0,xmm1,0x8\nvmovdqu XMMWORD PTR [rdi+0x40],xmm0\nadd rdi,0xa4\nadd rsi,0xa4\ndec edx",
+    "saved": 5,
+    "why": "Each initial horizontal-sum sequence becomes a contiguous 256-bit load, a memory-source VPHADDW, and a qword permutation, preserving lane order while saving two instructions and reading the same bytes. Folding the tail load into VPHADDW saves one more instruction."
+  }
+}

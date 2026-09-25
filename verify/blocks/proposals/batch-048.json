@@ -1,0 +1,92 @@
+{
+  "edfae5c280": {
+    "rewrite": "vmovdqu xmm2,XMMWORD PTR [rsi+r8*2]\nvpmovzxwd ymm3,XMMWORD PTR [rdi+r8*2]\nvpmovzxwd ymm4,XMMWORD PTR [rdx+r8*2]\nvpmovzxwd ymm5,xmm2\nvpslld ymm5,ymm5,0x1\nvpsubd ymm5,ymm5,ymm3\nvpsubd ymm5,ymm5,ymm4\nvpabsd ymm5,ymm5\nvextracti128 xmm3,ymm5,0x1\nvpaddd xmm5,xmm5,xmm3\nvpmovzxwd ymm3,xmm1\nvextracti128 xmm4,ymm3,0x1\nvpaddd xmm3,xmm3,xmm4\nvpslld xmm3,xmm3,0x11\nvpaddd xmm0,xmm0,xmm5\nvpaddd xmm0,xmm0,xmm3\nadd r8,0x8\ncmp r8d,ecx",
+    "saved": 8,
+    "why": "For each word, the two absolute-difference terms sum to abs(2*A-B-C), computed exactly after zero-extension to dwords. Separately adding twice xmm1's unpack contribution preserves the result even when xmm1 is nonzero."
+  },
+  "e32b8a2005": {
+    "rewrite": null,
+    "why": "The preserved vector includes the shuffle's other lanes and dependence on the incoming xmm2, so a simple horizontal-sum instruction would not reproduce it."
+  },
+  "d3a0375f46": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi+r8*1]\nmovdqu xmm3,XMMWORD PTR [rdi+r8*1]\nmovdqa xmm5,xmm2\npsubusb xmm5,xmm3\npsubusb xmm3,xmm2\nmovdqu xmm4,XMMWORD PTR [rdx+r8*1]\nmovdqa xmm6,xmm4\npsubusb xmm4,xmm2\npsubusb xmm2,xmm6\npsadbw xmm3,xmm2\npaddq xmm0,xmm3\npsadbw xmm5,xmm4\npaddq xmm1,xmm5\nadd r8,0x10\ncmp r8d,ecx",
+    "saved": 1,
+    "why": "Consume each loaded source before overwriting it, allowing the four saturated differences to use two copies instead of three. The two SAD accumulations, index update, and final comparison remain equivalent."
+  },
+  "6c1b67518a": {
+    "rewrite": null,
+    "why": "Both additions and the lane move contribute to the preserved full xmm0 value, and the scalar extraction is also required."
+  },
+  "2600651b35": {
+    "rewrite": "vmovdqu ymm2,YMMWORD PTR [rsi+r8*1]\nvmovdqu ymm3,YMMWORD PTR [rdi+r8*1]\nvpsubusb ymm5,ymm2,ymm3\nvpsubusb ymm4,ymm3,ymm2\nvmovdqu ymm3,YMMWORD PTR [rdx+r8*1]\nadd r8,0x20\ncmp r8d,ecx\nvpsubusb ymm6,ymm2,ymm3\nvpsubusb ymm3,ymm3,ymm2\nvpsadbw ymm4,ymm4,ymm6\nvpaddq ymm0,ymm0,ymm4\nvpsadbw ymm5,ymm5,ymm3\nvpaddq ymm1,ymm1,ymm5",
+    "saved": 2,
+    "why": "Three-operand subtraction can read the original sources directly, eliminating both vector copies by consuming the rdi load before overwriting it."
+  },
+  "accd775f08": {
+    "rewrite": "vpaddq ymm0,ymm0,ymm1\nvextracti128 xmm1,ymm0,0x1\nvpaddq xmm0,xmm0,xmm1\nvmovhlps xmm1,xmm1,xmm0\nvpaddq xmm0,xmm0,xmm1\nvmovd eax,xmm0",
+    "saved": 1,
+    "why": "The VEX-encoded xmm0 additions already clear the upper half of the only preserved vector, making vzeroupper redundant."
+  },
+  "d20d607b0d": {
+    "rewrite": "vmovdqu32 zmm18,ZMMWORD PTR [rsi+r8*1]\nvmovdqu32 zmm19,ZMMWORD PTR [rdi+r8*1]\nvpsubusb zmm21,zmm18,zmm19\nvpsubusb zmm20,zmm19,zmm18\nvmovdqu32 zmm19,ZMMWORD PTR [rdx+r8*1]\nadd r8,0x40\ncmp r8d,ecx\nvpsubusb zmm22,zmm18,zmm19\nvpsubusb zmm19,zmm19,zmm18\nvpsadbw zmm20,zmm20,zmm22\nvpaddq zmm16,zmm16,zmm20\nvpsadbw zmm21,zmm21,zmm19\nvpaddq zmm17,zmm17,zmm21",
+    "saved": 2,
+    "why": "Use the original load registers as subtraction sources and compute the reverse difference before overwriting zmm19, eliminating both vector copies."
+  },
+  "ffd4b3baf4": {
+    "rewrite": "vpaddq zmm16,zmm16,zmm17\nvpmovqd ymm1,zmm16\nvextracti128 xmm2,ymm1,0x1\nvpaddd xmm1,xmm1,xmm2\nvphaddd xmm1,xmm1,xmm1\nvphaddd xmm1,xmm1,xmm1\nvmovd eax,xmm1",
+    "saved": 1,
+    "why": "Only the low 32 bits of the sum are preserved, so truncate the qword lanes to dwords and use horizontal dword additions. The preserved zmm0 remains untouched."
+  },
+  "e521223782": {
+    "rewrite": null,
+    "why": "Every register update and mask initialization is required, and the final bit test supplies a ZF value that the preceding arithmetic does not reproduce."
+  },
+  "7145db774e": {
+    "rewrite": "lea rdi,[rdi+rsi*2]\nlea rdx,[rdx+rsi*2]\nadd rcx,rdx\nadd r8,rdx\nimul rsi,rsi,0xfffffffffffffffe\npcmpeqw xmm6,xmm6\ntest rsi,0x10",
+    "saved": 1,
+    "why": "Scaled LEAs incorporate the original doubling into the pointer updates, while one multiply by -2 replaces the shift and negation of rsi. The final test preserves ZF."
+  },
+  "606d635827": {
+    "rewrite": null,
+    "why": "All five scalar results, the vector mask with cleared upper bits, and the separately computed bit-test ZF are required."
+  },
+  "f189c59076": {
+    "rewrite": "lea rdi,[rdi+rsi*2]\nlea rdx,[rdx+rsi*2]\nadd rcx,rdx\nadd r8,rdx\nimul rsi,rsi,0xfffffffffffffffe\nvpcmpeqw xmm6,xmm6,xmm6\ntest rsi,0x10",
+    "saved": 1,
+    "why": "Scaled LEAs handle the doubled offsets, and multiplying the original rsi by -2 replaces its shift and negation. The VEX mask initialization and final bit test retain their original effects."
+  },
+  "c7cf5cfe51": {
+    "rewrite": null,
+    "why": "The five scalar updates, full-width vector mask initialization, and independent bit test each produce a required result."
+  },
+  "4d6dfaaee9": {
+    "rewrite": "lea rdi,[rdi+rsi*2]\nlea rdx,[rdx+rsi*2]\nadd rcx,rdx\nadd r8,rdx\nimul rsi,rsi,0xfffffffffffffffe\nvpcmpeqw ymm6,ymm6,ymm6\ntest rsi,0x20",
+    "saved": 1,
+    "why": "Fold the positive scaling into the pointer LEAs and compute the final rsi directly with a multiply by -2. The vector mask and bit-test ZF are unchanged."
+  },
+  "0c4c731979": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rdx+rcx*1]\nmovdqu xmm2,XMMWORD PTR [rdx+r8*1]\nmovdqa xmm1,xmm0\nmovdqa xmm3,xmm2\npunpcklbw xmm0,xmm7\npunpcklbw xmm2,xmm7\npunpckhbw xmm1,xmm7\npunpckhbw xmm3,xmm7\npaddw xmm0,xmm2\npaddw xmm1,xmm3\nmovdqa xmm6,xmm0\nmovdqa xmm5,xmm1\nmovdqu xmm2,XMMWORD PTR [rdx]\nmovdqa xmm3,xmm2\npunpcklbw xmm2,xmm7\npunpckhbw xmm3,xmm7\npaddw xmm0,xmm2\npaddw xmm1,xmm3\npsllw xmm2,0x1\npsllw xmm3,0x1\npaddw xmm0,xmm2\npaddw xmm1,xmm3\npsllw xmm0,0x1\npsllw xmm1,0x1\npcmpgtw xmm6,xmm2\npcmpgtw xmm5,xmm3\npacksswb xmm6,xmm5\nmovdqu xmm2,XMMWORD PTR [rdx+rcx*2]\nmovdqu xmm4,XMMWORD PTR [rdx+r8*2]\nmovdqa xmm3,xmm2\nmovdqa xmm5,xmm4\npunpcklbw xmm2,xmm7\npunpcklbw xmm4,xmm7\npunpckhbw xmm3,xmm7\npunpckhbw xmm5,xmm7\npaddw xmm2,xmm4\npaddw xmm3,xmm5\npaddw xmm0,XMMWORD PTR [CONST_1]\npaddw xmm1,XMMWORD PTR [CONST_1]\npsubusw xmm0,xmm2\npsubusw xmm1,xmm3\npsrlw xmm0,0x3\npsrlw xmm1,0x3\npackuswb xmm0,xmm1\nmovdqu xmm2,XMMWORD PTR [rdx]\npxor xmm0,xmm6\npxor xmm2,xmm6\npminub xmm0,xmm2\npxor xmm0,xmm6\nmovdqu XMMWORD PTR [rdi],xmm0\nadd rdi,0x10\nadd rdx,0x10\nsub esi,0x10",
+    "saved": 2,
+    "why": "The packed comparison produces only 0x00 or 0xff bytes, so XOR both candidates with the mask, take their unsigned minimum, and XOR back. This selects the minimum for zero mask bytes and the maximum for all-one mask bytes with two fewer instructions."
+  },
+  "77afe4a0f8": {
+    "rewrite": null,
+    "why": "The load, two independent bounds, store, and flag-producing index update are all required while both bound registers must remain unchanged."
+  },
+  "0a204fa486": {
+    "rewrite": null,
+    "why": "The word clamp needs both bounds as well as the load, store, and flag-producing index update, with both bound registers preserved."
+  },
+  "84b26820a9": {
+    "rewrite": null,
+    "why": "Each instruction updates a distinct preserved scalar register, and the final subtraction also supplies the required flags."
+  },
+  "8aa435d8d4": {
+    "rewrite": null,
+    "why": "Zeroing rax, sign-extending r8, copying and masking r9, and computing the comparison flags are separate required operations at SSE4.1."
+  },
+  "7123ebb34e": {
+    "rewrite": null,
+    "why": "The subtraction and three constant loads each establish a distinct preserved register value."
+  }
+}

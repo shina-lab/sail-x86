@@ -1,0 +1,83 @@
+{
+  "37120cb8a2": {
+    "rewrite": null,
+    "why": "The broadcasts, arbitrary byte shuffles, word scaling, stores, accumulation, and loop updates have no shorter equivalent under AVX2."
+  },
+  "33a713a77b": {
+    "rewrite": null,
+    "why": "Both stores, the live accumulator update, and the pointer and counter updates are required."
+  },
+  "1debf1c3f0": {
+    "rewrite": null,
+    "why": "The widening loads, shifts, stores, live arithmetic intermediates, and loop updates are all required."
+  },
+  "01a56f824c": {
+    "rewrite": null,
+    "why": "Each instruction performs a required store or updates a preserved register and cannot be removed."
+  },
+  "94379c34b9": {
+    "rewrite": "vextracti128 xmm1,ymm4,0x1\ntzcnt esi,r10d\nvpaddd xmm0,xmm4,xmm1\nvmovd xmm2,esi\nvmovd xmm3,r10d\nvphaddd xmm0,xmm0,xmm0\nvphaddd xmm0,xmm0,xmm0\nvpsrad xmm3,xmm3,0x1\nvpaddd xmm0,xmm0,xmm3\nvpsrad xmm0,xmm0,xmm2\nvpbroadcastw ymm0,xmm0",
+    "saved": 2,
+    "why": "Two horizontal adds replace four shuffle-and-add instructions while preserving the low dword sum modulo 2^32. Only its shifted low word is broadcast, and the required RSI, YMM2, and YMM3 results are unchanged."
+  },
+  "e5f0ded763": {
+    "rewrite": null,
+    "why": "The permutation, two palette lookups, two interleaves, stores, and loop updates are required, and all vector results are preserved."
+  },
+  "c556ea9cb8": {
+    "rewrite": null,
+    "why": "All palette expansion results and loop updates are live, including the carry flag produced by the destination pointer addition."
+  },
+  "76deaabb04": {
+    "rewrite": null,
+    "why": "The dot product and reduction must preserve the complete XMM0, XMM1, XMM2, and XMM18 results, preventing a scalar-only horizontal-sum shortcut."
+  },
+  "952210e4cb": {
+    "rewrite": null,
+    "why": "The reduction intermediates are preserved, and the unsigned input load cannot be folded into the signed memory operand of VPDPBUSD."
+  },
+  "6e65f23c43": {
+    "rewrite": null,
+    "why": "The extracted upper half and all lanes of the reduction outputs are live, while VPDPBUSD cannot directly load its unsigned operand from memory."
+  },
+  "b5b05bd430": {
+    "rewrite": null,
+    "why": "Both dot products, the preserved second input and extracted upper half, and the complete reduction outputs are required."
+  },
+  "b0668cdf57": {
+    "rewrite": null,
+    "why": "Materializing and variably shifting the constant, transferring its preserved result to XMM1, and multiplying the words each require an instruction."
+  },
+  "15f653bf3a": {
+    "rewrite": null,
+    "why": "The three broadcasts and the zeroing instruction each establish a distinct preserved vector result."
+  },
+  "4ba4fd5f07": {
+    "rewrite": null,
+    "why": "The broadcast and constant vector are live, and arbitrary unsigned byte absolute differences still require three arithmetic instructions."
+  },
+  "365d95f1b7": {
+    "rewrite": null,
+    "why": "The broadcast and duplicated constant vector are preserved, and the unsigned byte absolute difference has no shorter equivalent here."
+  },
+  "6ad79cfbc9": {
+    "rewrite": null,
+    "why": "Both loaded vector results are live, and replacing the saturated differences with signed byte absolute value would fail for large differences."
+  },
+  "4c112ae035": {
+    "rewrite": null,
+    "why": "The broadcast, the copy that also zeroes the upper half of ZMM25, and the unsigned absolute-difference calculation are required."
+  },
+  "ed17574ad0": {
+    "rewrite": null,
+    "why": "The distance calculations, both selections, all final intermediate vectors, the final mask, stores, and loop flags are required for arbitrary input registers."
+  },
+  "8fece97158": {
+    "rewrite": null,
+    "why": "The loaded vector is preserved, and its unsigned byte absolute difference from ZMM21 requires both saturated subtractions and their combination."
+  },
+  "307f26bb02": {
+    "rewrite": null,
+    "why": "The loaded constants and unpacked vector are live, and the saturating multiply-add followed by two modular word additions cannot be fused under the allowed ISA."
+  }
+}

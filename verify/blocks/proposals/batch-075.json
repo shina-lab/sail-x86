@@ -1,0 +1,86 @@
+{
+  "5692972bf8": {
+    "rewrite": null,
+    "why": "The saturating pack and cross-lane permutation are both required, as are the preserved load result and pointer update with flags."
+  },
+  "8b782a8fac": {
+    "rewrite": null,
+    "why": "Each independent output requires its own saturating pack and cross-lane permutation, and both scalar instructions have required results."
+  },
+  "13428debd4": {
+    "rewrite": null,
+    "why": "AVX2 requires a pack and a separate cross-lane permutation for each of the three outputs, while the scalar results and flags must also be preserved."
+  },
+  "20cbc8e322": {
+    "rewrite": null,
+    "why": "All four pack/permutation pairs produce required outputs, and neither the load nor the flag-setting pointer update can be removed."
+  },
+  "c7d5832f75": {
+    "rewrite": null,
+    "why": "The count load establishes the required ymm8 value, each of six independent vectors needs its own shift, and the scalar results are live."
+  },
+  "f06e7289fc": {
+    "rewrite": null,
+    "why": "The shared count load and all eight vector shifts produce required register values, alongside the required scalar load and pointer update."
+  },
+  "21b03e4662": {
+    "rewrite": null,
+    "why": "Each of six vectors needs its own logical shift, and the loaded count register, scalar load result, pointer, and final flags must all match."
+  },
+  "65ecc7f721": {
+    "rewrite": null,
+    "why": "All eight logical shifts and the shared count load are necessary for live vector results, and both scalar instructions have required effects."
+  },
+  "177c7ff512": {
+    "rewrite": "vpshufd ymm8,YMMWORD PTR [r10],0xd8\nvpshufd ymm9,YMMWORD PTR [r10+0x20],0xd8\nvpshufd ymm10,YMMWORD PTR [r10+0x40],0xd8\nvpshufd ymm11,YMMWORD PTR [r10+0x60],0xd8\nmov r8,QWORD PTR [rsi]\nsub r10,0xffffffffffffff80\nvunpcklpd ymm0,ymm8,ymm9\nvunpckhpd ymm1,ymm8,ymm9\nvunpcklpd ymm4,ymm10,ymm11\nvunpckhpd ymm5,ymm10,ymm11\nvpermq ymm0,ymm0,0xd8\nvpermq ymm1,ymm1,0xd8\nvpermq ymm4,ymm4,0xd8\nvpermq ymm5,ymm5,0xd8\nadd rsi,0x20",
+    "saved": 4,
+    "why": "Each self-source vshufps with immediate 0xd8 is the same dword permutation as vpshufd, whose memory operand absorbs the preceding load."
+  },
+  "077637c797": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nvpermq ymm0,ymm0,0xd8\nvpermq ymm1,ymm1,0xd8\nvpermq ymm4,ymm4,0xd8\nvpermq ymm5,ymm5,0xd8\nvunpcklps ymm8,ymm0,ymm1\nvunpckhps ymm9,ymm0,ymm1\nvunpcklps ymm10,ymm4,ymm5\nvunpckhps ymm11,ymm4,ymm5\nvmovdqu YMMWORD PTR [rax],ymm8\nvmovdqu YMMWORD PTR [rax+0x20],ymm9\nvmovdqu YMMWORD PTR [rax+0x40],ymm10\nvmovdqu YMMWORD PTR [rax+0x60],ymm11\nsub rax,0xffffffffffffff80\nvzeroupper",
+    "saved": 4,
+    "why": "A qword unpack followed by the self-source dword shuffle 0xd8 equals the corresponding dword unpack, eliminating four shuffles while preserving every store and final register."
+  },
+  "b99c1863a5": {
+    "rewrite": "mov r8,QWORD PTR [rsi]\nvpunpckldq ymm8,ymm0,ymm1\nvpunpckldq ymm9,ymm2,ymm3\nvpunpckhdq ymm10,ymm0,ymm1\nvpunpckhdq ymm11,ymm2,ymm3\nvpunpcklqdq ymm0,ymm8,ymm9\nvpunpckhqdq ymm1,ymm8,ymm9\nvpunpcklqdq ymm2,ymm10,ymm11\nvpunpckhqdq ymm3,ymm10,ymm11\nvmovdqu XMMWORD PTR [rax],xmm0\nvmovdqu XMMWORD PTR [rax+0xc],xmm1\nvmovdqu XMMWORD PTR [rax+0x18],xmm2\nvmovdqu XMMWORD PTR [rax+0x24],xmm3\nvextracti128 XMMWORD PTR [rax+0x30],ymm0,0x1\nvextracti128 XMMWORD PTR [rax+0x3c],ymm1,0x1\nvextracti128 XMMWORD PTR [rax+0x48],ymm2,0x1\nvextracti128 XMMWORD PTR [rax+0x54],ymm3,0x1\nvpunpckldq ymm8,ymm4,ymm5\nvpunpckldq ymm9,ymm6,ymm7\nvpunpckhdq ymm10,ymm4,ymm5\nvpunpckhdq ymm11,ymm6,ymm7\nvpunpcklqdq ymm4,ymm8,ymm9\nvpunpckhqdq ymm5,ymm8,ymm9\nvpunpcklqdq ymm6,ymm10,ymm11\nvpunpckhqdq ymm7,ymm10,ymm11\nvmovdqa ymm8,ymm4\nvmovdqa ymm9,ymm5\nvmovdqa ymm10,ymm6\nvmovdqa ymm11,ymm7\nvmovdqu XMMWORD PTR [rax+0x60],xmm8\nvmovdqu XMMWORD PTR [rax+0x6c],xmm9\nvmovdqu XMMWORD PTR [rax+0x78],xmm10\nvmovdqu XMMWORD PTR [rax+0x84],xmm11\nvextracti128 XMMWORD PTR [rax+0x90],ymm8,0x1\nvextracti128 XMMWORD PTR [rax+0x9c],ymm9,0x1\nvextracti128 XMMWORD PTR [rax+0xa8],ymm10,0x1\nvextracti128 XMMWORD PTR [rax+0xb4],ymm11,0x1\nadd rax,0xc0\nvzeroupper",
+    "saved": 4,
+    "why": "Store the first transpose directly from ymm0 through ymm3, removing four copies into temporaries that the second transpose overwrites. All overlapping stores retain their original addresses, widths, values, and order."
+  },
+  "d0b92bcb90": {
+    "rewrite": null,
+    "why": "The interior and low bit fields require both shifting and truncation, and synthesizing masks does not shorten the extraction of both inputs while preserving all registers."
+  },
+  "45e735c7de": {
+    "rewrite": null,
+    "why": "The high two-bit fields already use single shifts, and constructing a shared ten-bit mask only offsets the savings from replacing the two low-field shift pairs."
+  },
+  "5b761ff4ae": {
+    "rewrite": null,
+    "why": "Both widened outputs are live, and AVX2 requires a separate extraction to bring the upper eight source bytes into position for widening."
+  },
+  "d0bccc572c": {
+    "rewrite": null,
+    "why": "Each channel needs two widening instructions and one extraction of its upper eight bytes, with no dead output or removable scalar instruction."
+  },
+  "fefdb1002d": {
+    "rewrite": null,
+    "why": "All eight widened vectors are required, and each source needs its own upper-byte extraction in addition to its two widening instructions."
+  },
+  "65926c32bd": {
+    "rewrite": null,
+    "why": "The two halves need separate widening and byte replication, and alternate shuffle-mask setup costs more than it saves for one channel."
+  },
+  "0937c5045e": {
+    "rewrite": null,
+    "why": "The two channels already share their replication mask, and constructing and restoring alternate masks would exceed the available instruction savings."
+  },
+  "16ff9dd7ad": {
+    "rewrite": null,
+    "why": "The three channels already share their replication mask, and constructing and restoring alternate masks does not reduce the instruction count."
+  },
+  "119bb6afc7": {
+    "rewrite": "movabs r8,0x706050403020100\nvmovq xmm8,r8\nvpmovzxbd ymm8,xmm8\nvbroadcasti128 ymm7,XMMWORD PTR [CONST_1]\nvpshufb ymm8,ymm8,ymm7\nvpshufd ymm7,ymm7,0xaa\nvpaddb ymm7,ymm8,ymm7\nvinserti128 ymm0,ymm0,xmm0,0x1\nvpshufb ymm4,ymm0,ymm7\nvpshufb ymm0,ymm0,ymm8\nvinserti128 ymm1,ymm1,xmm1,0x1\nvpshufb ymm5,ymm1,ymm7\nvpshufb ymm1,ymm1,ymm8\nvinserti128 ymm2,ymm2,xmm2,0x1\nvpshufb ymm6,ymm2,ymm7\nvpshufb ymm2,ymm2,ymm8\nvinserti128 ymm3,ymm3,xmm3,0x1\nvpshufb ymm7,ymm3,ymm7\nvpshufb ymm3,ymm3,ymm8\nvbroadcasti128 ymm8,XMMWORD PTR [CONST_1]\nmov r8,QWORD PTR [rsi]\nadd rsi,0x20",
+    "saved": 1,
+    "why": "Duplicate each source's low 128 bits and use two shared byte-shuffle masks, reducing five instructions per channel to three. Restoring the required ymm8 constant and r8 load leaves a net saving of one instruction."
+  }
+}

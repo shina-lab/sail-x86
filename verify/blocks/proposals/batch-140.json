@@ -1,0 +1,82 @@
+{
+  "bf9e3a4eb6": {
+    "rewrite": null,
+    "why": "The broadcasts, byte-to-word conversion, lane doubling and blending, subtraction, and scalar updates all contribute required outputs without a redundant AVX2 step."
+  },
+  "dc8e3be1c4": {
+    "rewrite": null,
+    "why": "The unknown stride requires separate stores, and both the pointer update and count subtraction with its flags are required."
+  },
+  "82986968c4": {
+    "rewrite": null,
+    "why": "Both rounded vector products, the shift and offset of r9d, the stack-pointer copy, and the comparison sign flag are required."
+  },
+  "fc46f83f5d": {
+    "rewrite": null,
+    "why": "The indexed byte store must remain, and producing the full vector store requires both saturating packing and the cross-lane permutation."
+  },
+  "5eae811516": {
+    "rewrite": null,
+    "why": "The broadcasts, two subtractions, doubled vector, lane blend, and scalar updates all feed distinct required outputs."
+  },
+  "d05519024a": {
+    "rewrite": null,
+    "why": "Each independent 32-byte output requires its own saturating pack and store under AVX2."
+  },
+  "55afdb3371": {
+    "rewrite": null,
+    "why": "Both copies of the broadcast word vector are live, and the remaining broadcasts, subtractions, and scalar updates are necessary."
+  },
+  "04c0a3ddb0": {
+    "rewrite": null,
+    "why": "The two scalar-to-word broadcasts, offset calculation, index update, scalar copy, and three distinct constant-vector outputs are all required."
+  },
+  "f17960bd81": {
+    "rewrite": null,
+    "why": "All loads and scalar assignments are live, and the multiplication needs the low-word replication with zero upper words while the test supplies the required ZF."
+  },
+  "a972dd9cd5": {
+    "rewrite": null,
+    "why": "The arbitrary input vectors require the byte subtraction, masking, signed comparison, and mask extraction after the scalar broadcast."
+  },
+  "2e7b3c0b65": {
+    "rewrite": null,
+    "why": "The live packed vector, vector and scalar updates, four independently addressed stores, and extraction needed to access the upper lane leave no redundant instruction."
+  },
+  "bf72992bea": {
+    "rewrite": null,
+    "why": "Both the comparison vector and scalar mask are live, and arbitrary operands prevent simplifying the preceding broadcast, subtraction, or masking."
+  },
+  "7cedeebe1e": {
+    "rewrite": null,
+    "why": "Three independently addressed broadcasts produce three required vectors, and the comparison supplies the required ZF."
+  },
+  "20b2c09da9": {
+    "rewrite": null,
+    "why": "Both rounded products and the pack are needed, while the live updates and four independently addressed stores also require access to the upper lane."
+  },
+  "d7150d49a1": {
+    "rewrite": null,
+    "why": "The arbitrary operands require the full vector calculation, and the live scalar mask and ZF require both mask extraction and a flag-setting test."
+  },
+  "de612ff063": {
+    "rewrite": null,
+    "why": "An arbitrary signed dword requires both saturation stages to become replicated signed bytes under AVX2, and the comparison flags must also be preserved."
+  },
+  "c35d9e1f88": {
+    "rewrite": null,
+    "why": "The overlapping loads build distinct lanes, and arbitrary shuffle masks and coefficients require all three saturated multiply-add terms, their sum, and the final rounded multiplication."
+  },
+  "2ca75c0a06": {
+    "rewrite": null,
+    "why": "The rounded products and packed, permuted vector are live, and the two stride-dependent stores and three arithmetic updates are all required."
+  },
+  "61c7d89136": {
+    "rewrite": null,
+    "why": "The loads build distinct required vectors from offset windows, and the arbitrary signed dword requires both packing stages for saturation to bytes."
+  },
+  "347a1ce12f": {
+    "rewrite": null,
+    "why": "The unknown indices require four separate stores, followed by the required pointer update and count subtraction that establishes the final flags."
+  }
+}

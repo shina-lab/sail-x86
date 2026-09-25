@@ -1,0 +1,92 @@
+{
+  "aedf62dc97": {
+    "rewrite": null,
+    "why": "The load, byte comparison, mask extraction, and zero test are all needed to preserve xmm0, rax, and ZF at SSE2."
+  },
+  "9bf85f3b06": {
+    "rewrite": null,
+    "why": "The comparison mask must be incremented in eax and independently truncated into edx, whose BZHI also supplies the required ZF."
+  },
+  "f46a7de2b7": {
+    "rewrite": "movzx eax,WORD PTR [rdi]\nmovzx ecx,WORD PTR [rsi]\nshl eax,0x8\nshl ecx,0x8\nbswap eax\nbswap ecx\nmov al,BYTE PTR [rdi+rdx*1-0x1]\nmov cl,BYTE PTR [rsi+rdx*1-0x1]\nsub eax,ecx",
+    "saved": 2,
+    "why": "The shifts and byte swaps leave the low bytes of eax and ecx zero. Loading the final bytes directly into al and cl replaces both MOVZX-plus-OR pairs."
+  },
+  "1365b3d4ca": {
+    "rewrite": null,
+    "why": "The two-buffer comparison, mask extraction, and subtraction are all needed to produce the exact rax value and ZF."
+  },
+  "7823e2fc27": {
+    "rewrite": "mov r11,rax\nsub r11,rdx\nbsf rcx,r11\nand rcx,0xfffffffffffffff8\nsar rax,cl\nmovzx eax,al\nsar rdx,cl\nmovzx edx,dl\nsub eax,edx",
+    "saved": 1,
+    "why": "Arithmetic right shift by three followed by left shift by three simply clears the low three bits of rcx, which one AND reproduces."
+  },
+  "adc650e443": {
+    "rewrite": null,
+    "why": "The comparison and increment are necessary, and VZEROUPPER cannot be dropped because it clears the preserved upper half of ymm0."
+  },
+  "c1cf456267": {
+    "rewrite": null,
+    "why": "The dynamic mask must be constructed before both masked memory accesses, and the comparison and result extraction already take one instruction each."
+  },
+  "d7a826c73a": {
+    "rewrite": null,
+    "why": "Both the low 32 bits of the difference in rdx and the OR of its two halves in rax are live, requiring all four operations."
+  },
+  "d78961bd78": {
+    "rewrite": null,
+    "why": "Both vector loads and the scalar operations producing the original r9 in r8, aligned r9, and adjusted rcx and rdx are needed."
+  },
+  "1760f4e947": {
+    "rewrite": "lea r8,[rcx+rdx*1]\nxor r8,rcx\nshld rcx,r8,0x1\ntest ecx,0x1e01",
+    "saved": 1,
+    "why": "SHLD places the XOR sign bit in bit zero and moves the original rcx bits 8..11 to bits 9..12. Testing those bits together reproduces the required ZF."
+  },
+  "6921433f26": {
+    "rewrite": "sub rsi,rdi\nadd rdi,0x3f\nand rdi,0xffffffffffffffc0\nadd rsi,rdi",
+    "saved": 2,
+    "why": "The end-pointer calculation in rcx and its final subtraction are dead because neither rcx nor the flags must be preserved."
+  },
+  "4a9c66e52c": {
+    "rewrite": "vmovdqu64 ZMMWORD PTR [rdi],zmm16\nmov r8,rdi\nor r8,0xffffffffffffffc0\nsub rsi,r8\nsub rdi,r8\nadd rdx,r8\nnot ecx\ntest ecx,0xe00",
+    "saved": 1,
+    "why": "For every rdi, (rdi & 0x3f) - 0x40 equals rdi OR 0xffffffffffffffc0, replacing the AND and SUB with one OR."
+  },
+  "fa7731ad68": {
+    "rewrite": "vmovdqu64 zmm17,ZMMWORD PTR [rsi]\nvmovdqu64 zmm18,ZMMWORD PTR [rsi+0x40]\nsub rsi,0xffffffffffffff80\nvmovdqu64 ZMMWORD PTR [rdi],zmm17\nvmovdqu64 ZMMWORD PTR [rdi+0x40],zmm18\nsub rdi,0xffffffffffffff80\ncmp rdx,rdi",
+    "saved": 4,
+    "why": "Pair adjacent 32-byte transfers into 64-byte AVX-512 loads and unaligned stores covering exactly the same bytes. The scratch vectors are dead, and the pointer updates and final comparison remain unchanged."
+  },
+  "221ad77452": {
+    "rewrite": null,
+    "why": "All four vector load results, including their zeroed upper halves, and both computed pointers are live, leaving no redundant instruction."
+  },
+  "25b1d98b82": {
+    "rewrite": "vmovdqu64 zmm17,ZMMWORD PTR [rsi+0x40]\nvmovdqu64 zmm19,ZMMWORD PTR [rsi]\nadd rsi,0xffffffffffffff80\nvmovdqu64 ZMMWORD PTR [rcx+0x40],zmm17\nvmovdqu64 ZMMWORD PTR [rcx],zmm19\nadd rcx,0xffffffffffffff80\ncmp rdi,rcx",
+    "saved": 4,
+    "why": "Pair adjacent 32-byte transfers into 64-byte AVX-512 loads and unaligned stores covering exactly the same bytes. The scratch vectors are dead, and the pointer updates and final CF remain unchanged."
+  },
+  "b7836f7d4a": {
+    "rewrite": "vinserti64x4 zmm17,zmm16,YMMWORD PTR [rsi+0x20],0x1\nvmovdqu64 ZMMWORD PTR [rdi],zmm17\nmov r8,rdi\nor r8,0xffffffffffffffc0\nsub rsi,r8\nsub rdi,r8\nadd rdx,r8\nnot ecx\ntest ecx,0xf00",
+    "saved": 2,
+    "why": "Insert the loaded 32 bytes above the original ymm16 value and write both halves with one 64-byte store. Also replace (rdi & 0x3f) - 0x40 with rdi OR 0xffffffffffffffc0."
+  },
+  "dda1067a3e": {
+    "rewrite": "vmovdqu64 zmm16,ZMMWORD PTR [rsi]\nvmovdqu64 zmm18,ZMMWORD PTR [rsi+0x40]\nsub rsi,0xffffffffffffff80\nadd edx,0xffffff80\nvmovdqu64 ZMMWORD PTR [rdi],zmm16\nvmovdqu64 ZMMWORD PTR [rdi+0x40],zmm18\nsub rdi,0xffffffffffffff80\ncmp edx,0x80",
+    "saved": 4,
+    "why": "Pair adjacent 32-byte transfers into 64-byte AVX-512 loads and unaligned stores covering exactly the same bytes. The pointer updates, 32-bit counter update, and final comparison remain unchanged."
+  },
+  "62efa52647": {
+    "rewrite": "lea r8,[rcx+rdx*1]\nxor r8,rcx\nshld rcx,r8,0x1\ntest ecx,0x1e01",
+    "saved": 1,
+    "why": "SHLD places the XOR sign bit in bit zero and moves the original rcx bits 8..11 to bits 9..12. Testing those bits together reproduces the required ZF using baseline instructions."
+  },
+  "16f0334a9f": {
+    "rewrite": null,
+    "why": "At SSE2 width the four vector loads and four stores are needed, and both pointer updates and the final comparison have live results."
+  },
+  "782c776bae": {
+    "rewrite": null,
+    "why": "All four loaded vectors and both computed pointers are preserved outputs, so neither the loads nor the alignment arithmetic can be removed."
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "131d2a7c58": {
+    "rewrite": null,
+    "why": "The widened loads, products, saturated subtraction, maximum/XOR result, mask update, accumulator update and index update are all needed, with no shorter AVX2 fusion."
+  },
+  "c12bc92a77": {
+    "rewrite": null,
+    "why": "All computed outputs are live, and AVX2 has no unsigned saturating dword subtraction to replace the maximum/subtraction pair."
+  },
+  "acf3858ccf": {
+    "rewrite": null,
+    "why": "The two broadcasts and two scalar updates each produce a distinct required output."
+  },
+  "fa9c009c54": {
+    "rewrite": null,
+    "why": "The loaded zmm20 value, both extrema and the updated index are all required, so folding the load into an extremum would lose a live output."
+  },
+  "5649e6a02b": {
+    "rewrite": null,
+    "why": "The four-input Boolean result needs both vector operations, and the live k1 mask and required scalar flags need their separate tests."
+  },
+  "4d89ce7e78": {
+    "rewrite": null,
+    "why": "Both word broadcasts and both scalar updates produce independent required outputs."
+  },
+  "d0a0a5887f": {
+    "rewrite": null,
+    "why": "The loaded zmm20 value, both word extrema and the index update must all be preserved, preventing load elimination."
+  },
+  "d5138904e6": {
+    "rewrite": "vmovdqu32 zmm18,ZMMWORD PTR [rdx+r10*1]\nvpandd zmm22,zmm22,zmm18\nvpmaxub zmm17,zmm18,ZMMWORD PTR [rdi+r10*1]\nvpternlogq zmm16,zmm17,zmm18,0xf6\nadd r10,0x40",
+    "saved": 1,
+    "why": "Unsigned byte maximum is commutative, so the rdi load can be folded into vpmaxub while preserving the final zmm17 and zmm18 values."
+  },
+  "3403a6b51d": {
+    "rewrite": null,
+    "why": "The vector result, mask, Boolean byte, accumulator and scalar updates are all live, and the mask-to-flags test is needed for setne."
+  },
+  "21f150b799": {
+    "rewrite": "vmovdqu32 zmm18,ZMMWORD PTR [rdx+r10*1]\nvpandd zmm22,zmm22,zmm18\nvpmaxuw zmm17,zmm18,ZMMWORD PTR [rdi+r10*1]\nvpternlogq zmm16,zmm17,zmm18,0xf6\nadd r10,0x40",
+    "saved": 1,
+    "why": "Unsigned word maximum is commutative, allowing the rdi load to be folded into vpmaxuw without changing any required result."
+  },
+  "b658bbb07a": {
+    "rewrite": null,
+    "why": "The loads must widen bytes before multiplication, all resulting outputs are live, and the accumulator already uses a single ternary-logic instruction."
+  },
+  "31c292cec1": {
+    "rewrite": null,
+    "why": "The widened products and live outputs are required, and the allowed ISA has no unsigned saturating dword subtraction to shorten the maximum/subtraction pair."
+  },
+  "938eb763d5": {
+    "rewrite": null,
+    "why": "All initialized registers are live, and SSE4.1 cannot broadcast the four-byte constant in one instruction without loading additional addresses."
+  },
+  "e4cb1e9d8a": {
+    "rewrite": null,
+    "why": "Each broadcast, pointer load, extension and zeroing produces a required register value, while the comparison supplies the required flags."
+  },
+  "d5539ae73a": {
+    "rewrite": null,
+    "why": "Producing both the low-four-bit remainder and the aligned original rsi still requires three scalar instructions, in addition to the live constant load."
+  },
+  "85bfbc1ca0": {
+    "rewrite": null,
+    "why": "SSE2 needs the existing word-broadcast sequences, and the sign extensions, zeroed registers, scalar split and final comparison all produce required outputs."
+  },
+  "061fef0c79": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rdi]\nmovdqa xmm2,xmm1\npunpcklbw xmm1,xmm0\npunpckhbw xmm2,xmm0\npsllw xmm1,0x4\npsllw xmm2,0x4\npmulhw xmm1,xmm3\npmulhw xmm2,xmm3\npaddw xmm1,xmm4\npaddw xmm2,xmm4\npackuswb xmm1,xmm2\nmovdqu XMMWORD PTR [rsi],xmm1\nadd rdi,0x10\nadd rsi,0x10\nsub r8d,0x1",
+    "saved": 1,
+    "why": "The subtraction already sets ZF according to whether the updated r8d is zero, making the final comparison redundant when only ZF must match."
+  },
+  "9e1e487a15": {
+    "rewrite": null,
+    "why": "The scalar arithmetic, full packed xmm1 result, extracted edx result, byte store and three scalar updates are all required under SSE2."
+  },
+  "28dd187f3b": {
+    "rewrite": null,
+    "why": "Both unpacked halves and their arithmetic are needed, and arbitrary weights and rounding values prevent replacing the sequence with a fixed average."
+  },
+  "3bf8016934": {
+    "rewrite": null,
+    "why": "Each of the four scalar instructions updates a different required register, and the final subtraction also supplies all required flags."
+  }
+}

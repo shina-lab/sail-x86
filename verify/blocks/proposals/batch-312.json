@@ -1,0 +1,6 @@
+{
+  "f83b2e5e9c": {
+    "rewrite": null,
+    "why": "Both multiplies and the signed division contribute to the required result, and the intervening low-byte OR and subtraction have no evident shorter equivalent."
+  }
+}

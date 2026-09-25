@@ -1,0 +1,86 @@
+{
+  "413f3d5bb9": {
+    "rewrite": null,
+    "why": "Both unaligned loads, the SAD result, and the counter update are needed to preserve the specified registers."
+  },
+  "8da3fc622f": {
+    "rewrite": null,
+    "why": "The unaligned subtrahend loads cannot safely be folded into legacy SSE2 arithmetic, and the remaining operations produce required differences, bias, SAD, and counter values."
+  },
+  "2872f1df53": {
+    "rewrite": null,
+    "why": "The unaligned loads cannot safely be folded into legacy SSE2 arithmetic, and both biased differences are needed for the preserved vector results."
+  },
+  "8308f8df3a": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi]\npshufd xmm2,xmm0,0xb1\npshufd xmm3,XMMWORD PTR [rsi],0xb1\npmuldq xmm0,XMMWORD PTR [rsi]\npmuldq xmm3,xmm2\npaddq xmm0,xmm3\nmovdqa xmm1,XMMWORD PTR [rdi+0x10]\npshufd xmm3,xmm1,0xb1\npshufd xmm4,XMMWORD PTR [rsi+0x10],0xb1\npmuldq xmm1,XMMWORD PTR [rsi+0x10]\npmuldq xmm4,xmm3\npaddq xmm0,xmm1\npaddq xmm0,xmm4\npshufd xmm1,xmm0,0xe\npaddq xmm0,xmm1\nmovq rbx,xmm0\nmovzx ecx,BYTE PTR [rdx]\nsar rbx,0xe\nand ebx,ebp\nadd ebx,ecx\nmov DWORD PTR [rdi+r9*1],ebx\nadd rdx,0x8\nadd rdi,0x20\ncmp rdx,r14",
+    "saved": 2,
+    "why": "Fold each coefficient load into its shuffle and even-lane multiply, removing two explicit loads while reading only the original aligned addresses. All products, the complete final xmm0 value, the store, and the final comparison remain unchanged."
+  },
+  "e546e370c5": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rdi]\npshufd xmm2,xmm0,0xb1\npshufd xmm3,XMMWORD PTR [rsi],0xb1\npmuldq xmm0,XMMWORD PTR [rsi]\npmuldq xmm3,xmm2\npaddq xmm0,xmm3\npshufd xmm1,xmm0,0xe\npaddq xmm0,xmm1\nmovq rbx,xmm0\nmovzx ecx,BYTE PTR [rdx]\nsar rbx,0xe\nand ebx,ebp\nadd ebx,ecx\nmov DWORD PTR [rdi+r9*1],ebx\nadd rdx,0x8\nadd rdi,0x20\ncmp rdx,r14",
+    "saved": 1,
+    "why": "Use the original aligned coefficient address directly in both pshufd and pmuldq, eliminating the explicit coefficient load. The reduction and all subsequent operations are unchanged."
+  },
+  "a3adf47e2f": {
+    "rewrite": "vmovdqa ymm0,YMMWORD PTR [rdi]\nvpshufd ymm2,ymm0,0xb1\nvpshufd ymm3,YMMWORD PTR [rsi],0xb1\nvpmuldq ymm0,ymm0,YMMWORD PTR [rsi]\nvpmuldq ymm3,ymm3,ymm2\nvpaddq ymm0,ymm0,ymm3\nvextracti128 xmm1,ymm0,0x1\nvpaddq xmm0,xmm0,xmm1\nvpshufd xmm1,xmm0,0xe\nvpaddq xmm0,xmm0,xmm1\nvmovq rbx,xmm0\nmovzx ecx,BYTE PTR [rdx]\nsar rbx,0xe\nand ebx,ebp\nadd ebx,ecx\nmov DWORD PTR [rdi+r9*1],ebx\nadd rdx,0x8\nadd rdi,0x20\ncmp rdx,r14",
+    "saved": 1,
+    "why": "Fold the coefficient load into the shuffle and even-lane multiply at the same address. Keeping the original VEX reduction also preserves the zero upper half of ymm0."
+  },
+  "6b8a0774cb": {
+    "rewrite": "vmovdqa xmm0,XMMWORD PTR [rdi]\nvpshufd xmm2,xmm0,0xb1\nvpshufd xmm3,XMMWORD PTR [rsi],0xb1\nvpmuldq xmm0,xmm0,XMMWORD PTR [rsi]\nvpmuldq xmm3,xmm3,xmm2\nvpaddq xmm0,xmm0,xmm3\nvpshufd xmm1,xmm0,0xe\nvpaddq xmm0,xmm0,xmm1\nvmovq rbx,xmm0\nmovzx ecx,BYTE PTR [rdx]\nsar rbx,0xe\nand ebx,ebp\nadd ebx,ecx\nmov DWORD PTR [rdi+r9*1],ebx\nadd rdx,0x8\nadd rdi,0x20\ncmp rdx,r14",
+    "saved": 1,
+    "why": "Read the coefficients directly in vpshufd and vpmuldq to remove their explicit load. The unchanged VEX arithmetic preserves the entire final ymm0, including its zero upper half."
+  },
+  "2d7fa4788b": {
+    "rewrite": null,
+    "why": "Each instruction establishes a distinct required register value or the final CF and ZF comparison results."
+  },
+  "e8785087f7": {
+    "rewrite": null,
+    "why": "Each vector needs a load, rounded multiply, addition, and store, followed by the required index update and SF result."
+  },
+  "da9842714f": {
+    "rewrite": null,
+    "why": "The shifts, word duplication, and separate broadcasts are needed to produce both preserved vectors from arbitrary initial xmm0 bits."
+  },
+  "03aa1dba86": {
+    "rewrite": null,
+    "why": "The independent rounded and low-word products require separate destructive computations before their sum, memory addition, store, and index update."
+  },
+  "afa8101923": {
+    "rewrite": null,
+    "why": "With arbitrary xmm6, the comparison masks, conditional negations, saturation, and widening cannot be simplified as ordinary zero-based absolute-value operations."
+  },
+  "694d91af8d": {
+    "rewrite": null,
+    "why": "Four independent SAD computations and four additions are required, and folding a load would require an equally costly copy of the preserved xmm5."
+  },
+  "fb79e8a568": {
+    "rewrite": null,
+    "why": "The four widened halves depend on arbitrary xmm0 bytes and each needs its own square-and-add computation before accumulation."
+  },
+  "bb39a2f06f": {
+    "rewrite": null,
+    "why": "Each of the five instructions produces a distinct required vector value, including the required clearing of its upper YMM half."
+  },
+  "9cdbaee99d": {
+    "rewrite": null,
+    "why": "SSE2 needs separate byte widening and word subtraction for each row, along with the four loads, two stores, and three required address updates."
+  },
+  "b520db780a": {
+    "rewrite": null,
+    "why": "Both vector additions already fold one source load, and the stores, index update, and flag-producing comparison are required."
+  },
+  "34c9a93ea2": {
+    "rewrite": null,
+    "why": "An SSE2 memory-source paddb would read sixteen bytes instead of the permitted eight, so the two qword loads, addition, store, and index update remain necessary."
+  },
+  "91c93f7bc7": {
+    "rewrite": null,
+    "why": "The byte load, memory-source addition, byte store, and index increment each produce a required effect."
+  },
+  "35db6636c7": {
+    "rewrite": null,
+    "why": "Arbitrary widening and coefficient registers prevent narrowing the word arithmetic, while the exact qword loads, saturated output, and pointer and flag updates remain necessary."
+  }
+}

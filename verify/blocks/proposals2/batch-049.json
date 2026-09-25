@@ -1,0 +1,86 @@
+{
+  "66ce51ba7c": {
+    "rewrite": null,
+    "why": "The overlapping lane inputs require two loads within the original 24-byte range, followed by the arbitrary shuffle and multiply-add."
+  },
+  "21d0326a4b": {
+    "rewrite": "vpermq ymm0,YMMWORD PTR [rsi],0x94\nvpermq ymm1,YMMWORD PTR [rsi+0x8],0xe9\nvpshufb ymm0,ymm0,ymm4\nvpshufb ymm1,ymm1,ymm4\nvpmaddubsw ymm0,ymm0,ymm5\nvpmaddubsw ymm1,ymm1,ymm5",
+    "saved": 2,
+    "why": "Two memory-source permutations construct the overlapping lane inputs directly, replacing four loads and inserts. Both 32-byte loads stay within the original loaded bytes 0..39."
+  },
+  "f44ee60309": {
+    "rewrite": null,
+    "why": "All six instructions produce required register values, and the final subtraction must also reproduce the flags."
+  },
+  "e5a6689d37": {
+    "rewrite": null,
+    "why": "The strided loads and stores, arbitrary filter operands, and required vector, pointer, counter, and flag results leave no removable operation."
+  },
+  "36e202c89b": {
+    "rewrite": null,
+    "why": "Both row computations and the intermediate result in ymm1 are required, with no redundant step in the shuffle, multiply, reduction, and packing sequence."
+  },
+  "ceb7df257c": {
+    "rewrite": null,
+    "why": "The three arbitrary filter terms, shifted upper lane in ymm1, packed result, and strided stores all remain observable."
+  },
+  "97485f8418": {
+    "rewrite": null,
+    "why": "Both overlapping windows require their own shuffle and saturated multiply-add chains, and the final intermediate vectors and row stores are required."
+  },
+  "dc418c4c5b": {
+    "rewrite": null,
+    "why": "The arbitrary shuffle masks and coefficients prevent combining the two filter computations, while the final intermediate vectors and index flags must be retained."
+  },
+  "b81cd4e117": {
+    "rewrite": null,
+    "why": "Each instruction updates a different required register, with the second add and the decrement jointly determining the required final flags."
+  },
+  "142f47772d": {
+    "rewrite": "vpbroadcastd ymm7,DWORD PTR [CONST_1]\nvpunpcklbw ymm0,ymm0,ymm0\nvpbroadcastd ymm8,DWORD PTR [CONST_2]\nvpsraw ymm0,ymm0,0x8\nimul r11,rcx,0xffffffffffffffff\nvpshufd ymm9,ymm0,0x0\nvpshufd ymm10,ymm0,0x55\nvpshufd ymm11,ymm0,0xaa\ncmp r8d,0x4",
+    "saved": 1,
+    "why": "A three-operand multiply by -1 replaces the copy and negation of rcx. The final comparison still produces the required zero flag."
+  },
+  "3e0dabe662": {
+    "rewrite": null,
+    "why": "Three independent coefficient broadcasts, two distinct scalar results, and the comparison's sign flag each require their existing operation."
+  },
+  "bcd1013839": {
+    "rewrite": null,
+    "why": "Both pointer increments, the byte extraction, and the flag-producing subtraction are independently required."
+  },
+  "71648b6c2f": {
+    "rewrite": null,
+    "why": "The arbitrary filter terms, horizontal reduction, upper-lane extraction, packing, and strided stores all contribute to required final values."
+  },
+  "e2aad698d9": {
+    "rewrite": null,
+    "why": "The two independently shuffled filter windows and all final intermediate vectors are live, leaving no redundant arithmetic or load."
+  },
+  "92a86897c0": {
+    "rewrite": null,
+    "why": "Both filter windows need their arbitrary-coefficient computations, and their intermediate results, packed store, and index flags remain live."
+  },
+  "c6eaad78ca": {
+    "rewrite": "vpbroadcastd ymm9,DWORD PTR [CONST_1]\nvpbroadcastw ymm6,WORD PTR [rax]\nimul r10,rdx,0xffffffffffffffff\nvpbroadcastw ymm7,WORD PTR [rax+0x2]\nvpbroadcastw ymm8,WORD PTR [rax+0x4]\ncmp ecx,0x8",
+    "saved": 1,
+    "why": "A three-operand multiply by -1 replaces the copy and negation of rdx, while the final comparison preserves all required flags."
+  },
+  "7ebf5af504": {
+    "rewrite": "vpbroadcastq ymm0,QWORD PTR [rsi+rdx*2]\nvpbroadcastq ymm2,QWORD PTR [rsi+rdx*1]\nvinserti128 ymm4,ymm2,xmm0,0x1\nmovlps xmm2,QWORD PTR [rsi]\nvpbroadcastq ymm1,QWORD PTR [rsi+r10*1]\nvinserti128 ymm3,ymm1,xmm2,0x1\nmovlps xmm1,QWORD PTR [rsi+r10*2]\nvpunpcklbw ymm1,ymm1,ymm3\nvpunpcklbw ymm2,ymm2,ymm4",
+    "saved": 2,
+    "why": "Legacy movlps replaces only a low qword while preserving the upper YMM lane, folding two blends into existing loads. Two lane inserts supply the other interleave operands without changing any loaded addresses."
+  },
+  "94ec66499f": {
+    "rewrite": null,
+    "why": "Both pointer increments, the byte extraction, and the flag-producing subtraction are independently required."
+  },
+  "9be0f2b78f": {
+    "rewrite": null,
+    "why": "The three arbitrary shuffle-and-multiply terms, both sums, rounded multiply, store, and pointer and counter updates all produce required results."
+  },
+  "e44b483228": {
+    "rewrite": null,
+    "why": "Each row needs its own three-term filter and store, and the required final vectors and scalar updates prevent eliminating additional operations."
+  }
+}

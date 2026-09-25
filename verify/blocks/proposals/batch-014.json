@@ -1,0 +1,96 @@
+{
+  "8517b4bfd6": {
+    "rewrite": "movdqu xmm2,XMMWORD PTR [rsi-0x4]\nmovdqu xmm0,XMMWORD PTR [rsi+0x6]\nmovdqa xmm6,xmm0\npaddw xmm6,xmm2\npsrldq xmm0,0x6\nmovdqa xmm7,xmm2\nshufpd xmm7,xmm0,0x1\nmovdqa xmm4,xmm2\nshufps xmm4,xmm7,0x99\npextrw r9d,xmm0,0x0\npsrldq xmm2,0x2\npinsrw xmm2,r9d,0x7\npaddw xmm7,xmm2\npslldq xmm0,0xa\npsrldq xmm2,0x4\npor xmm0,xmm2\npaddw xmm4,xmm0\npaddw xmm6,xmm8\npsubw xmm6,xmm7\npsraw xmm6,0x2\npsubw xmm6,xmm7\npaddw xmm6,xmm4\npsraw xmm6,0x2\npaddw xmm6,xmm4\npsraw xmm6,0x1\npxor xmm0,xmm0\npmaxsw xmm6,xmm0\npminsw xmm6,xmm1\nmovdqu xmm3,XMMWORD PTR [r8]\npavgw xmm6,xmm3\npavgw xmm6,XMMWORD PTR [rdi]\nmovdqa XMMWORD PTR [rdi],xmm6\nadd rdi,rdx\nadd rsi,rdx\nadd r8,rdx\ndec ecx",
+    "saved": 10,
+    "why": "SHUFPD and SHUFPS form two windows directly, while PEXTRW/PINSRW and destructive shifts build the other two with fewer copies. The overlapping bytes in the final OR are identical, preserving the original filter arithmetic, stores, live registers, and flags."
+  },
+  "e8fb2116f9": {
+    "rewrite": "nop",
+    "saved": 18,
+    "why": "Only unlisted MMX and pointer registers change, and there are no stores or required flags; XMM0 is distinct from MM0 and remains unchanged."
+  },
+  "e625d70622": {
+    "rewrite": "nop",
+    "saved": 18,
+    "why": "All MMX results and pointer updates are dead under the preservation list, with no stores or required flags."
+  },
+  "613a9f4426": {
+    "rewrite": "nop",
+    "saved": 18,
+    "why": "All MMX results and pointer updates are dead under the preservation list, with no stores or required flags."
+  },
+  "e8425dc0a0": {
+    "rewrite": "nop",
+    "saved": 18,
+    "why": "All MMX results and pointer updates are dead under the preservation list, with no stores or required flags."
+  },
+  "59b0a26f32": {
+    "rewrite": "movdqu xmm5,XMMWORD PTR [rsi]\npaddw xmm0,xmm5\npaddw xmm1,xmm4\npaddw xmm2,xmm3\npaddw xmm0,XMMWORD PTR [CONST_1]\npsubw xmm0,xmm1\npsraw xmm0,0x2\npsubw xmm0,xmm1\npaddw xmm0,xmm2\npsraw xmm0,0x2\npaddw xmm0,xmm2\npsraw xmm0,0x1\npmaxsw xmm0,XMMWORD PTR [CONST_2]\npminsw xmm0,XMMWORD PTR [CONST_3]",
+    "saved": 5,
+    "why": "Accumulate the two tap sums in dead XMM1 and XMM2 to remove both copies, and omit the three dead pointer updates. The unaligned load and all arithmetic producing XMM0 are preserved."
+  },
+  "a8fa926236": {
+    "rewrite": null,
+    "why": "The loaded XMM7 value, both successive rounded averages, and the store are all required outputs."
+  },
+  "f9cf1c790e": {
+    "rewrite": "nop",
+    "saved": 17,
+    "why": "The entire computation and final load affect only unlisted MMX registers, with no stores or required flags."
+  },
+  "46a7c8bdbd": {
+    "rewrite": "nop",
+    "saved": 17,
+    "why": "The entire computation and final load affect only unlisted MMX registers, with no stores or required flags."
+  },
+  "b29b35074a": {
+    "rewrite": "nop",
+    "saved": 17,
+    "why": "The entire computation and final load affect only unlisted MMX registers, with no stores or required flags."
+  },
+  "f0300f6e19": {
+    "rewrite": "nop",
+    "saved": 17,
+    "why": "The entire computation and final load affect only unlisted MMX registers, with no stores or required flags."
+  },
+  "8e17b5680b": {
+    "rewrite": "movdqu xmm5,XMMWORD PTR [r8-0x4]\nmovdqu xmm7,XMMWORD PTR [r8+0x6]\npaddw xmm5,xmm7\nmovdqu xmm6,XMMWORD PTR [r8-0x2]\nmovdqu xmm7,XMMWORD PTR [r8+0x4]\npaddw xmm6,xmm7\npaddw xmm5,XMMWORD PTR [CONST_1]\npsubw xmm5,xmm6\npsraw xmm5,0x2\npsubw xmm5,xmm6\nmovdqu xmm6,XMMWORD PTR [r8]\nmovdqu xmm7,XMMWORD PTR [r8+0x2]\npaddw xmm6,xmm7\npaddw xmm5,xmm6\npsraw xmm5,0x2\npaddw xmm5,xmm6\npsraw xmm5,0x1\npmaxsw xmm5,XMMWORD PTR [CONST_2]\npminsw xmm5,XMMWORD PTR [CONST_3]\npavgw xmm0,xmm5",
+    "saved": 1,
+    "why": "The trailing load into XMM5 is dead after the final average into the preserved XMM0."
+  },
+  "3d67b510c8": {
+    "rewrite": "nop",
+    "saved": 30,
+    "why": "All computed MMX values and the RSI update are unlisted outputs, and the block has no stores or required flags."
+  },
+  "0d547b2ca3": {
+    "rewrite": "nop",
+    "saved": 25,
+    "why": "Every computed vector and the RSI update are dead; the only preserved vector, XMM0, is merely read, and there are no stores or required flags."
+  },
+  "3847f36ac2": {
+    "rewrite": null,
+    "why": "Each instruction initializes a distinct required register, leaving no removable setup operation within SSE2."
+  },
+  "170cee2477": {
+    "rewrite": null,
+    "why": "The average, store, destination-pointer update, and counter decrement each produce required memory, register, or flag effects."
+  },
+  "0e7095d682": {
+    "rewrite": null,
+    "why": "Every initialized register is preserved, and the R8 zeroing also supplies required flags, so each setup instruction is necessary."
+  },
+  "0ea43829da": {
+    "rewrite": null,
+    "why": "The modular word bias, logical shift, subtraction, two arbitrary-register clamps, average, store, and loop updates all contribute required outputs."
+  },
+  "a8dc2f5dc3": {
+    "rewrite": null,
+    "why": "The exact word arithmetic, both arbitrary-register clamps, successive rounded averages, store, and loop updates all contribute required outputs."
+  },
+  "57df4fadcf": {
+    "rewrite": "mov ecx,0x4\nxor r8d,r8d",
+    "saved": 2,
+    "why": "RCX and R8 are the only listed registers changed by this block; keeping their assignments drops the dead MMX load and leaves RSP untouched as required."
+  }
+}

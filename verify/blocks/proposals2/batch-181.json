@@ -1,0 +1,85 @@
+{
+  "8c0ddfa6f0": {
+    "rewrite": null,
+    "why": "The store, pointer increment, lane swap, and count decrement each produce a required effect."
+  },
+  "f55e153bfd": {
+    "rewrite": null,
+    "why": "The qword store, pointer increment, count decrement, and vector shift each produce a required effect."
+  },
+  "2144b0231c": {
+    "rewrite": null,
+    "why": "The dword store, pointer increment, count decrement, and vector shift each produce a required effect."
+  },
+  "98e0c8d426": {
+    "rewrite": null,
+    "why": "All four effects are required, and combining the store and pointer increment with stosw would depend on the unspecified direction flag."
+  },
+  "fb69d49a80": {
+    "rewrite": null,
+    "why": "Both stores, both vector assignments, and both scalar updates are required and cannot be combined into fewer AVX2 instructions."
+  },
+  "1c6a9456e2": {
+    "rewrite": null,
+    "why": "The store, vector assignment, pointer increment, and count decrement each produce a required effect."
+  },
+  "151b299038": {
+    "rewrite": null,
+    "why": "The store, lane swap, pointer increment, and count decrement each produce a required effect."
+  },
+  "e0b54b5932": {
+    "rewrite": null,
+    "why": "The qword store, pointer increment, count decrement, and vector shift each produce a required effect."
+  },
+  "55bd17a2d6": {
+    "rewrite": null,
+    "why": "The two stores, vector assignment, pointer increment, and count decrement are all required and already use one instruction apiece."
+  },
+  "bc2660a757": {
+    "rewrite": null,
+    "why": "The store, vector assignment, pointer increment, and count decrement each produce a required effect."
+  },
+  "81b765ed75": {
+    "rewrite": null,
+    "why": "The qword store, pointer increment, count decrement, and vector shift each produce a required effect."
+  },
+  "0766288645": {
+    "rewrite": null,
+    "why": "The dword store, pointer increment, count decrement, and vector shift each produce a required effect."
+  },
+  "b0b4edddc8": {
+    "rewrite": null,
+    "why": "All four effects are required, and combining the store and pointer increment with stosw would depend on the unspecified direction flag."
+  },
+  "12994cac0d": {
+    "rewrite": null,
+    "why": "Both stores, both vector assignments, and both scalar updates are required and cannot be combined into fewer SSE2 instructions."
+  },
+  "acb2afc63a": {
+    "rewrite": null,
+    "why": "The store, vector assignment, pointer increment, and count decrement each produce a required effect."
+  },
+  "e720f5d5f7": {
+    "rewrite": null,
+    "why": "The qword store, pointer increment, count decrement, and vector shift each produce a required effect."
+  },
+  "fdc9e84bfa": {
+    "rewrite": "vmovdqu ymm7,YMMWORD PTR [rsi]\nvpsllw ymm6,ymm7,0x8\nvpsrlw ymm6,ymm6,0x8\nvpsrlw ymm7,ymm7,0x8\nvpaddw ymm1,ymm0,ymm7\nvpaddw ymm0,ymm0,ymm6\nvpackuswb ymm0,ymm0,ymm0\nvpackuswb ymm1,ymm1,ymm1\nvpaddw ymm3,ymm2,ymm7\nvpaddw ymm2,ymm2,ymm6\nvpackuswb ymm2,ymm2,ymm2\nvpackuswb ymm3,ymm3,ymm3\nvpaddw ymm5,ymm4,ymm7\nvpaddw ymm4,ymm4,ymm6\nvpackuswb ymm4,ymm4,ymm4\nvpackuswb ymm5,ymm5,ymm5\nvpunpcklbw ymm0,ymm0,ymm2\nvpunpcklbw ymm4,ymm4,ymm1\nvpunpcklbw ymm3,ymm3,ymm5\nvpsrldq ymm7,ymm0,0x2\nvpunpckhwd ymm6,ymm0,ymm4\nvpunpcklwd ymm0,ymm0,ymm4\nvpsrldq ymm4,ymm4,0x2\nvpsrldq ymm1,ymm3,0x2\nvpunpckhwd ymm2,ymm3,ymm7\nvpunpcklwd ymm3,ymm3,ymm7\nvpunpckhwd ymm5,ymm4,ymm1\nvpunpcklwd ymm4,ymm4,ymm1\nvpshufd ymm7,ymm0,0x4e\nvpunpckldq ymm0,ymm0,ymm3\nvpunpckhdq ymm3,ymm3,ymm4\nvpunpckldq ymm4,ymm4,ymm7\nvpshufd ymm7,ymm6,0x4e\nvpunpckldq ymm6,ymm6,ymm2\nvpunpckhdq ymm2,ymm2,ymm5\nvpunpckldq ymm5,ymm5,ymm7\nvpunpcklqdq ymm7,ymm0,ymm4\nvpunpcklqdq ymm6,ymm3,ymm6\nvpunpcklqdq ymm2,ymm5,ymm2\nvperm2i128 ymm0,ymm7,ymm6,0x20\nvperm2i128 ymm3,ymm2,ymm7,0x30\nvperm2i128 ymm5,ymm6,ymm2,0x31\ncmp rcx,0x20",
+    "saved": 4,
+    "why": "Two word shifts replace the three-instruction low-byte masking sequence. Computing each high-byte sum directly from its original source eliminates three vector copies."
+  },
+  "ac050d297f": {
+    "rewrite": "vmovdqu ymm7,YMMWORD PTR [rsi]\nvpsllw ymm6,ymm7,0x8\nvpsrlw ymm6,ymm6,0x8\nvpsrlw ymm7,ymm7,0x8\nvpaddw ymm1,ymm0,ymm7\nvpaddw ymm0,ymm0,ymm6\nvpackuswb ymm0,ymm0,ymm0\nvpackuswb ymm1,ymm1,ymm1\nvpaddw ymm3,ymm2,ymm7\nvpaddw ymm2,ymm2,ymm6\nvpackuswb ymm2,ymm2,ymm2\nvpackuswb ymm3,ymm3,ymm3\nvpaddw ymm5,ymm4,ymm7\nvpaddw ymm4,ymm4,ymm6\nvpackuswb ymm4,ymm4,ymm4\nvpackuswb ymm5,ymm5,ymm5\nvpcmpeqb ymm6,ymm6,ymm6\nvpunpcklbw ymm0,ymm0,ymm2\nvpunpcklbw ymm4,ymm4,ymm6\nvpunpcklbw ymm1,ymm1,ymm3\nvpunpcklbw ymm5,ymm5,ymm6\nvpunpckhwd ymm2,ymm0,ymm4\nvpunpcklwd ymm0,ymm0,ymm4\nvpunpckhwd ymm6,ymm1,ymm5\nvpunpcklwd ymm1,ymm1,ymm5\nvpunpckhdq ymm4,ymm0,ymm1\nvpunpckldq ymm1,ymm0,ymm1\nvpunpckhdq ymm5,ymm2,ymm6\nvpunpckldq ymm6,ymm2,ymm6\nvperm2i128 ymm0,ymm1,ymm4,0x20\nvperm2i128 ymm3,ymm6,ymm5,0x20\nvperm2i128 ymm2,ymm1,ymm4,0x31\nvperm2i128 ymm7,ymm6,ymm5,0x31\ncmp rcx,0x20",
+    "saved": 5,
+    "why": "Word shifts shorten low-byte extraction, and direct three-operand additions eliminate three copies. Both alpha unpacks can share ymm6's all-ones value, eliminating the redundant mask construction in ymm7 before its final overwrite."
+  },
+  "4875f11a8a": {
+    "rewrite": null,
+    "why": "The store, pointer increment, lane swap, and count decrement each produce a required effect."
+  },
+  "a3ad61aa99": {
+    "rewrite": "vmovdqu ymm7,YMMWORD PTR [rsi]\nvpsllw ymm6,ymm7,0x8\nvpsrlw ymm6,ymm6,0x8\nvpsrlw ymm7,ymm7,0x8\nvpaddw ymm1,ymm0,ymm7\nvpaddw ymm0,ymm0,ymm6\nvpackuswb ymm0,ymm0,ymm0\nvpackuswb ymm1,ymm1,ymm1\nvpaddw ymm3,ymm2,ymm7\nvpaddw ymm2,ymm2,ymm6\nvpackuswb ymm2,ymm2,ymm2\nvpackuswb ymm3,ymm3,ymm3\nvpaddw ymm5,ymm4,ymm7\nvpaddw ymm4,ymm4,ymm6\nvpackuswb ymm4,ymm4,ymm4\nvpackuswb ymm5,ymm5,ymm5\nvpunpcklbw ymm4,ymm4,ymm2\nvpunpcklbw ymm0,ymm0,ymm5\nvpunpcklbw ymm3,ymm3,ymm1\nvpsrldq ymm7,ymm4,0x2\nvpunpckhwd ymm6,ymm4,ymm0\nvpunpcklwd ymm4,ymm4,ymm0\nvpsrldq ymm0,ymm0,0x2\nvpsrldq ymm5,ymm3,0x2\nvpunpckhwd ymm2,ymm3,ymm7\nvpunpcklwd ymm3,ymm3,ymm7\nvpunpckhwd ymm1,ymm0,ymm5\nvpunpcklwd ymm0,ymm0,ymm5\nvpshufd ymm7,ymm4,0x4e\nvpunpckldq ymm4,ymm4,ymm3\nvpunpckhdq ymm3,ymm3,ymm0\nvpunpckldq ymm0,ymm0,ymm7\nvpshufd ymm7,ymm6,0x4e\nvpunpckldq ymm6,ymm6,ymm2\nvpunpckhdq ymm2,ymm2,ymm1\nvpunpckldq ymm1,ymm1,ymm7\nvpunpcklqdq ymm7,ymm4,ymm0\nvpunpcklqdq ymm6,ymm3,ymm6\nvpunpcklqdq ymm2,ymm1,ymm2\nvperm2i128 ymm4,ymm7,ymm6,0x20\nvperm2i128 ymm3,ymm2,ymm7,0x30\nvperm2i128 ymm1,ymm6,ymm2,0x31\ncmp rcx,0x20",
+    "saved": 4,
+    "why": "Two word shifts replace the three-instruction low-byte masking sequence. Computing each high-byte sum directly from its original source eliminates three vector copies."
+  }
+}

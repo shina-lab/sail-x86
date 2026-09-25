@@ -21,5 +21,24 @@ int main() {
   // A20 commands must not consume the next keyboard command.
   kbd.write(0x60, 0xF4);
   assert(kbd.read(0x60) == 0xFA);
+  assert(!kbd.has_data());
+  assert(kbd.read(0x60) == 0xFA); // DBBOUT is retained after OBF clears.
+
+  // ScanDisk's INT09 hook reads the key before chaining to the BIOS,
+  // which reads it again. A queued release must not replace the make code
+  // in that interval or cause an extra interrupt on an empty output buffer.
+  kbd.push_scancode(0x1C);
+  kbd.push_scancode(0x9C);
+  assert(kbd.has_data() && (kbd.read(0x64) & 1));
+  assert(kbd.read(0x60) == 0x1C);
+  assert(!kbd.has_data() && !(kbd.read(0x64) & 1));
+  assert(kbd.read(0x60) == 0x1C);
+  kbd.tick();
+  assert(!kbd.has_data() && kbd.read(0x60) == 0x1C);
+  kbd.tick();
+  assert(kbd.has_data() && (kbd.read(0x64) & 1));
+  assert(kbd.read(0x60) == 0x9C);
+  assert(!kbd.has_data() && kbd.read(0x60) == 0x9C);
   puts("8042 A20 output port and gate commands: PASS");
+  puts("8042 output latch and paced scancodes: PASS");
 }

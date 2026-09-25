@@ -1,0 +1,91 @@
+{
+  "62c90a5dae": {
+    "rewrite": "mov ecx,0x8\nxor r8d,r8d\nmovdqa xmm6,XMMWORD PTR [CONST_1]",
+    "saved": 1,
+    "why": "The stack adjustment affects no required final register or flag, so it can be removed while leaving rsp untouched."
+  },
+  "5529d8dbe6": {
+    "rewrite": null,
+    "why": "The two register copies are required, and reproducing all five flags from the aligned stack subtraction without touching rsp does not give a shorter sequence."
+  },
+  "dec1c2c0fa": {
+    "rewrite": null,
+    "why": "The shifted word windows and arithmetic are needed for arbitrary incoming xmm6 and xmm7, including the required final value of xmm0."
+  },
+  "2913d423a9": {
+    "rewrite": null,
+    "why": "The shifted word windows, filter arithmetic, and destination average are needed for arbitrary incoming xmm6 and xmm7 while preserving xmm0."
+  },
+  "77ca040b6d": {
+    "rewrite": null,
+    "why": "Each instruction initializes a different required register, so none can be removed."
+  },
+  "067cb8bfd2": {
+    "rewrite": null,
+    "why": "The six byte loads and word expansions feed distinct filter terms with arbitrary incoming padding and coefficients, and the live packed result requires the final average."
+  },
+  "734f1663d9": {
+    "rewrite": null,
+    "why": "The word filter must handle arbitrary incoming padding and coefficients, and both successive rounded averages contribute to the required xmm0 value."
+  },
+  "d6fcc77c16": {
+    "rewrite": null,
+    "why": "All four instructions independently initialize required registers."
+  },
+  "838a01c1f3": {
+    "rewrite": null,
+    "why": "Both halves of each input require expansion with arbitrary xmm7, and folding the unaligned loads into SSE2 arithmetic would add alignment requirements."
+  },
+  "b6d8c83d26": {
+    "rewrite": null,
+    "why": "The arbitrary word operands require both filter halves, while the destination average is already folded and the other loads may be unaligned."
+  },
+  "4fe4ae3dde": {
+    "rewrite": null,
+    "why": "The five aligned word windows, arbitrary coefficient arithmetic, and eight-byte average all contribute to the required register value or store."
+  },
+  "b589edae80": {
+    "rewrite": null,
+    "why": "The word windows and arbitrary coefficient arithmetic are required, and both eight-byte averages affect the store."
+  },
+  "f116ccaab0": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi+0xa]\nmovdqu xmm1,XMMWORD PTR [rsi+0x2]\nmovdqu xmm4,XMMWORD PTR [rsi+0x8]\nmovdqu xmm2,XMMWORD PTR [rsi+0x4]\npaddw xmm0,XMMWORD PTR [rsi]\nmovdqu xmm3,XMMWORD PTR [rsi+0x6]\npaddw xmm1,xmm4\npsubw xmm0,xmm1\npsraw xmm0,0x2\npaddw xmm2,xmm3\npsubw xmm0,xmm1\npaddsw xmm0,xmm2\npsraw xmm0,0x2\npaddw xmm0,xmm2\npsraw xmm0,0x6\npackuswb xmm0,xmm0\nmovq QWORD PTR [rdi],xmm0\nadd rsi,0x30\nadd rdi,rdx\ndec ecx",
+    "saved": 1,
+    "why": "Commuting the first word addition lets its aligned [rsi] load become the paddw memory operand. All later arithmetic, stores, and required flags are unchanged."
+  },
+  "4ee92ef42b": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi+0xa]\nmovdqu xmm1,XMMWORD PTR [rsi+0x2]\nmovdqu xmm4,XMMWORD PTR [rsi+0x8]\nmovdqu xmm2,XMMWORD PTR [rsi+0x4]\npaddw xmm0,XMMWORD PTR [rsi]\nmovdqu xmm3,XMMWORD PTR [rsi+0x6]\npaddw xmm1,xmm4\npsubw xmm0,xmm1\npsraw xmm0,0x2\npaddw xmm2,xmm3\npsubw xmm0,xmm1\npaddsw xmm0,xmm2\npsraw xmm0,0x2\npaddw xmm0,xmm2\npsraw xmm0,0x6\nmovdqu xmm5,XMMWORD PTR [rsi+0x1a]\nmovdqu xmm1,XMMWORD PTR [rsi+0x12]\nmovdqu xmm4,XMMWORD PTR [rsi+0x18]\nmovdqu xmm2,XMMWORD PTR [rsi+0x14]\npaddw xmm5,XMMWORD PTR [rsi+0x10]\nmovdqu xmm3,XMMWORD PTR [rsi+0x16]\npaddw xmm1,xmm4\npsubw xmm5,xmm1\npsraw xmm5,0x2\npaddw xmm2,xmm3\npsubw xmm5,xmm1\npaddsw xmm5,xmm2\npsraw xmm5,0x2\npaddw xmm5,xmm2\npsraw xmm5,0x6\npackuswb xmm0,xmm5\nmovdqa XMMWORD PTR [rdi],xmm0\nadd rsi,0x30\nadd rdi,rdx\ndec ecx",
+    "saved": 2,
+    "why": "Commute the first word addition in each half and fold the aligned loads at [rsi] and [rsi+0x10] into paddw. The unaligned loads and all subsequent calculations retain their original semantics."
+  },
+  "2ec7f08910": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi+0xa]\nmovdqu xmm1,XMMWORD PTR [rsi+0x2]\nmovdqu xmm4,XMMWORD PTR [rsi+0x8]\nmovdqu xmm2,XMMWORD PTR [rsi+0x4]\npaddw xmm0,XMMWORD PTR [rsi]\nmovdqu xmm3,XMMWORD PTR [rsi+0x6]\npaddw xmm1,xmm4\npsubw xmm0,xmm1\npsraw xmm0,0x2\npaddw xmm2,xmm3\npsubw xmm0,xmm1\npaddsw xmm0,xmm2\npsraw xmm0,0x2\npaddw xmm0,xmm2\npsraw xmm0,0x6\npackuswb xmm0,xmm0\nmovq xmm3,QWORD PTR [rdi]\npavgb xmm0,xmm3\nmovq QWORD PTR [rdi],xmm0\nadd rsi,0x30\nadd rdi,rdx\ndec ecx",
+    "saved": 1,
+    "why": "Commute the first addition and fold its aligned [rsi] load into paddw. The filter, destination average, full xmm0 result, and final counter flags remain identical."
+  },
+  "47538f4df0": {
+    "rewrite": "movdqu xmm0,XMMWORD PTR [rsi+0xa]\nmovdqu xmm1,XMMWORD PTR [rsi+0x2]\nmovdqu xmm4,XMMWORD PTR [rsi+0x8]\nmovdqu xmm2,XMMWORD PTR [rsi+0x4]\npaddw xmm0,XMMWORD PTR [rsi]\nmovdqu xmm3,XMMWORD PTR [rsi+0x6]\npaddw xmm1,xmm4\npsubw xmm0,xmm1\npsraw xmm0,0x2\npaddw xmm2,xmm3\npsubw xmm0,xmm1\npaddsw xmm0,xmm2\npsraw xmm0,0x2\npaddw xmm0,xmm2\npsraw xmm0,0x6\nmovdqu xmm5,XMMWORD PTR [rsi+0x1a]\nmovdqu xmm1,XMMWORD PTR [rsi+0x12]\nmovdqu xmm4,XMMWORD PTR [rsi+0x18]\nmovdqu xmm2,XMMWORD PTR [rsi+0x14]\npaddw xmm5,XMMWORD PTR [rsi+0x10]\nmovdqu xmm3,XMMWORD PTR [rsi+0x16]\npaddw xmm1,xmm4\npsubw xmm5,xmm1\npsraw xmm5,0x2\npaddw xmm2,xmm3\npsubw xmm5,xmm1\npaddsw xmm5,xmm2\npsraw xmm5,0x2\npaddw xmm5,xmm2\npsraw xmm5,0x6\npackuswb xmm0,xmm5\npavgb xmm0,XMMWORD PTR [rdi]\nmovdqa XMMWORD PTR [rdi],xmm0\nadd rsi,0x30\nadd rdi,rdx\ndec ecx",
+    "saved": 2,
+    "why": "The first addition in each half can use the original aligned load as a memory operand after commuting its inputs. Both filtered halves and the destination average are preserved."
+  },
+  "9cd0510e36": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+0x10]\nmovdqa xmm2,xmm1\nmovdqa xmm3,xmm1\nmovdqa xmm4,xmm1\nmovdqa xmm0,xmm1\npalignr xmm0,XMMWORD PTR [rsi],0xa\npalignr xmm4,XMMWORD PTR [rsi],0x8\npalignr xmm3,XMMWORD PTR [rsi],0x6\npalignr xmm2,XMMWORD PTR [rsi],0x4\npalignr xmm1,XMMWORD PTR [rsi],0x2\npaddw xmm0,XMMWORD PTR [rsi]\npaddw xmm1,xmm4\npaddw xmm2,xmm3\npsubw xmm0,xmm1\npsraw xmm0,0x2\npsubw xmm0,xmm1\npaddw xmm0,xmm2\npsraw xmm0,0x2\npaddw xmm0,xmm2\npsraw xmm0,0x6\npackuswb xmm0,xmm0\nmovq QWORD PTR [rdi],xmm0\nadd rsi,0x30\nadd rdi,rdx\ndec ecx",
+    "saved": 1,
+    "why": "Use the original aligned [rsi] input directly in palignr and paddw, eliminating its standalone load. Building the ten-byte-shifted window in xmm0 preserves the required final result without an extra copy."
+  },
+  "c1d3c2049d": {
+    "rewrite": "movdqa xmm4,XMMWORD PTR [rsi+0x20]\nmovdqa xmm5,XMMWORD PTR [rsi+0x10]\nmovdqa xmm3,xmm4\nmovdqa xmm2,xmm4\nmovdqa xmm1,xmm4\nmovdqa xmm0,xmm4\npalignr xmm0,xmm5,0xa\npalignr xmm1,xmm5,0x8\npalignr xmm2,xmm5,0x6\npalignr xmm3,xmm5,0x4\npalignr xmm4,xmm5,0x2\npaddw xmm0,xmm5\npaddw xmm1,xmm4\npaddw xmm2,xmm3\nmovdqa xmm6,xmm5\nmovdqa xmm4,xmm5\nmovdqa xmm3,xmm5\npalignr xmm4,XMMWORD PTR [rsi],0x8\npalignr xmm6,XMMWORD PTR [rsi],0x2\npalignr xmm3,XMMWORD PTR [rsi],0xa\npaddw xmm4,xmm6\nmovdqa xmm6,xmm5\npalignr xmm5,XMMWORD PTR [rsi],0x6\npalignr xmm6,XMMWORD PTR [rsi],0x4\npaddw xmm3,XMMWORD PTR [rsi]\npaddw xmm5,xmm6\npsubw xmm0,xmm1\npsubw xmm3,xmm4\npsraw xmm0,0x2\npsraw xmm3,0x2\npsubw xmm0,xmm1\npsubw xmm3,xmm4\npaddw xmm0,xmm2\npaddw xmm3,xmm5\npsraw xmm0,0x2\npsraw xmm3,0x2\npaddw xmm0,xmm2\npaddw xmm3,xmm5\npsraw xmm0,0x6\npsraw xmm3,0x6\npackuswb xmm3,xmm0\nmovdqa XMMWORD PTR [rdi],xmm3\nadd rsi,0x30\nadd rdi,rdx\ndec ecx",
+    "saved": 1,
+    "why": "Replace every use of the temporary xmm7 with the same aligned [rsi] memory operand and remove its load. The stored vector and the independently required xmm0 result are unchanged."
+  },
+  "4d736fcb8e": {
+    "rewrite": "movdqa xmm1,XMMWORD PTR [rsi+0x10]\nmovdqa xmm2,xmm1\nmovdqa xmm3,xmm1\nmovdqa xmm4,xmm1\nmovdqa xmm0,xmm1\npalignr xmm0,XMMWORD PTR [rsi],0xa\npalignr xmm4,XMMWORD PTR [rsi],0x8\npalignr xmm3,XMMWORD PTR [rsi],0x6\npalignr xmm2,XMMWORD PTR [rsi],0x4\npalignr xmm1,XMMWORD PTR [rsi],0x2\npaddw xmm0,XMMWORD PTR [rsi]\npaddw xmm1,xmm4\npaddw xmm2,xmm3\npsubw xmm0,xmm1\npsraw xmm0,0x2\npsubw xmm0,xmm1\npaddw xmm0,xmm2\npsraw xmm0,0x2\npaddw xmm0,xmm2\npsraw xmm0,0x6\npackuswb xmm0,xmm0\nmovq xmm5,QWORD PTR [rdi]\npavgb xmm0,xmm5\nmovq QWORD PTR [rdi],xmm0\nadd rsi,0x30\nadd rdi,rdx\ndec ecx",
+    "saved": 1,
+    "why": "Fold the aligned [rsi] input into the alignment and addition instructions, building the shifted accumulator directly in xmm0. This removes one load while preserving the packed result and destination average."
+  },
+  "88192d8bf6": {
+    "rewrite": "movdqa xmm4,XMMWORD PTR [rsi+0x20]\nmovdqa xmm5,XMMWORD PTR [rsi+0x10]\nmovdqa xmm3,xmm4\nmovdqa xmm2,xmm4\nmovdqa xmm1,xmm4\nmovdqa xmm0,xmm4\npalignr xmm0,xmm5,0xa\npalignr xmm1,xmm5,0x8\npalignr xmm2,xmm5,0x6\npalignr xmm3,xmm5,0x4\npalignr xmm4,xmm5,0x2\npaddw xmm0,xmm5\npaddw xmm1,xmm4\npaddw xmm2,xmm3\nmovdqa xmm6,xmm5\nmovdqa xmm4,xmm5\nmovdqa xmm3,xmm5\npalignr xmm4,XMMWORD PTR [rsi],0x8\npalignr xmm6,XMMWORD PTR [rsi],0x2\npalignr xmm3,XMMWORD PTR [rsi],0xa\npaddw xmm4,xmm6\nmovdqa xmm6,xmm5\npalignr xmm5,XMMWORD PTR [rsi],0x6\npalignr xmm6,XMMWORD PTR [rsi],0x4\npaddw xmm3,XMMWORD PTR [rsi]\npaddw xmm5,xmm6\npsubw xmm0,xmm1\npsubw xmm3,xmm4\npsraw xmm0,0x2\npsraw xmm3,0x2\npsubw xmm0,xmm1\npsubw xmm3,xmm4\npaddw xmm0,xmm2\npaddw xmm3,xmm5\npsraw xmm0,0x2\npsraw xmm3,0x2\npaddw xmm0,xmm2\npaddw xmm3,xmm5\npsraw xmm0,0x6\npsraw xmm3,0x6\npackuswb xmm3,xmm0\npavgb xmm3,XMMWORD PTR [rdi]\nmovdqa XMMWORD PTR [rdi],xmm3\nadd rsi,0x30\nadd rdi,rdx\ndec ecx",
+    "saved": 1,
+    "why": "Fold the temporary xmm7 load into its palignr and paddw consumers using the original aligned [rsi] address. Both the averaged store and the required xmm0 value retain the original arithmetic."
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "98993e4065": {
+    "rewrite": null,
+    "why": "The three pointer updates, saved r10 value in r11, and zeroing of r10 with CF cleared each require their existing instruction."
+  },
+  "a086e49036": {
+    "rewrite": null,
+    "why": "All three pointer updates and the zeroing of r11 with CF cleared are required."
+  },
+  "476fbdf2f3": {
+    "rewrite": null,
+    "why": "Each pointer adjustment is live, and preserving the old r10 in r11 while clearing r10 and CF requires both remaining instructions."
+  },
+  "df30532ee6": {
+    "rewrite": "cld\nlods rax,QWORD PTR ds:[rsi]\nnot rax\nstos QWORD PTR es:[rdi],rax\ndec rdx\nsub rdx,0xe",
+    "saved": 1,
+    "why": "Clearing DF lets LODS and STOS combine the qword transfers with their pointer increments. Retaining DEC followed by SUB preserves CF even when the initial rdx is zero."
+  },
+  "68df5ce696": {
+    "rewrite": null,
+    "why": "Each of the seven vectors needs a load, XOR with the arbitrary preserved xmm7, and store, and both pointer updates are live."
+  },
+  "6409dd520c": {
+    "rewrite": null,
+    "why": "SSE2 requires the existing load, XOR, and store for each vector, together with both live pointer updates."
+  },
+  "d6e282335b": {
+    "rewrite": null,
+    "why": "Both vector results must be stored, xmm0 and xmm7 must be preserved as specified, and neither pointer update is dead."
+  },
+  "f2f35dbe53": {
+    "rewrite": null,
+    "why": "Producing the XOR in the required xmm0 and storing it needs three SSE2 instructions, in addition to both pointer updates."
+  },
+  "b59aac7367": {
+    "rewrite": null,
+    "why": "The displaced qword load and store, two pointer decrements, and counter decrement all contribute required results."
+  },
+  "42bada3b3b": {
+    "rewrite": "movdqu xmm1,XMMWORD PTR [rsi]\nmovq rax,xmm1\nmovdqu XMMWORD PTR [rdi],xmm1\ntest dl,0x1",
+    "saved": 1,
+    "why": "A single unaligned SSE2 load and store copy the same sixteen bytes, while MOVQ preserves the required low qword in rax. The original TEST preserves ZF, and rcx is dead."
+  },
+  "e7885914d1": {
+    "rewrite": null,
+    "why": "All saved operands and arithmetic results are live, and the two borrow-dependent subtractions require their existing carry dependencies."
+  },
+  "dfe8044e76": {
+    "rewrite": "imul r10,rax,0xffffffffffffffff\nshlx r9,rdi,r10\nshrx rsi,rsi,rax\nshrx rdi,rdi,rax\nor rsi,r9\ntest rdx,rdx",
+    "saved": 1,
+    "why": "Three-operand IMUL by minus one replaces zeroing r10 and subtracting rax, producing the same negated shift count. The shifts retain their original behavior for every count, and the final TEST supplies the required ZF."
+  },
+  "44f74455f5": {
+    "rewrite": null,
+    "why": "Both zeroed registers, both saved operands, the trailing-zero count, and the subtraction result are live, with CF required from the subtraction."
+  },
+  "fadf94ef1d": {
+    "rewrite": null,
+    "why": "The memory XOR needs two instructions, copying and masking edx without changing rdx needs two more, and rcx must also be cleared."
+  },
+  "49727f2d13": {
+    "rewrite": null,
+    "why": "Both scalar XOR results, the zeroed rbp, and the updated rdx with its subtraction flags are required."
+  },
+  "41e85a4666": {
+    "rewrite": null,
+    "why": "The two independent qword loads and the two live pointer updates each already use one instruction."
+  },
+  "9cf0609bc1": {
+    "rewrite": null,
+    "why": "All three scalar XOR results, the cleared rbx, both pointer updates, and the counter subtraction with its flags are live."
+  },
+  "aa1114f332": {
+    "rewrite": null,
+    "why": "Both loaded qwords, the updated pointer, and the accumulated rax are independent required results."
+  },
+  "14afd23bcb": {
+    "rewrite": null,
+    "why": "The two memory XORs, pointer update, accumulator addition, and counter subtraction each produce a required result."
+  },
+  "88d8e0f5c4": {
+    "rewrite": null,
+    "why": "Each scalar XOR needs its load and XOR, and clearing rbx plus updating both pointers remains necessary."
+  }
+}

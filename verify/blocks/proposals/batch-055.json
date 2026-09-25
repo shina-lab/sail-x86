@@ -1,0 +1,90 @@
+{
+  "1a43b1eb3a": {
+    "rewrite": "movdqa xmm0,XMMWORD PTR [rsi+rdx*4]\nmovdqa xmm2,XMMWORD PTR [rsi+rdx*4+0x10]\npshufb xmm0,xmm6\npshufb xmm2,xmm6\npxor xmm4,xmm4\npunpcklwd xmm4,xmm0\npxor xmm1,xmm1\npunpckhwd xmm1,xmm0\npxor xmm3,xmm3\npunpckhwd xmm3,xmm2\npunpcklqdq xmm0,xmm2\npxor xmm2,xmm2\npunpckhwd xmm2,xmm0\nmovdqa XMMWORD PTR [rdi+rdx*4],xmm4\nmovdqa XMMWORD PTR [rcx+rdx*4],xmm1\nmovdqa XMMWORD PTR [rdi+rdx*4+0x10],xmm2\nmovdqa XMMWORD PTR [rcx+rdx*4+0x10],xmm3\nadd rdx,0x8",
+    "saved": 2,
+    "why": "Expand the high words directly from each shuffled input, eliminating the copy and high-qword concatenation. Keep the low-qword concatenation required for xmm0 and preserve all four stores."
+  },
+  "b31298ed93": {
+    "rewrite": null,
+    "why": "All three address calculations, the index negation, and both constant loads produce required final register values."
+  },
+  "9baeb8d920": {
+    "rewrite": null,
+    "why": "The saved count, seven pointer loads, and five pointer differences all produce required final values without redundant intermediates."
+  },
+  "2037b5f845": {
+    "rewrite": "vmovdqu xmm0,XMMWORD PTR [rsi]\nvmovdqu xmm2,XMMWORD PTR [rsi+rcx*1]\nvmovdqu xmm4,XMMWORD PTR [rsi+r9*1]\nvunpcklps xmm6,xmm0,XMMWORD PTR [rsi+rdx*1]\nvunpckhps xmm0,xmm0,XMMWORD PTR [rsi+rdx*1]\nvunpcklps xmm1,xmm2,XMMWORD PTR [rsi+r8*1]\nvunpckhps xmm2,xmm2,XMMWORD PTR [rsi+r8*1]\nvunpcklps xmm3,xmm4,XMMWORD PTR [rsi+rax*1]\nvunpckhps xmm4,xmm4,XMMWORD PTR [rsi+rax*1]\nvblendps xmm5,xmm3,xmm6,0xc\nvmovlhps xmm6,xmm6,xmm1\nvmovhlps xmm3,xmm3,xmm1\nvblendps xmm1,xmm4,xmm0,0xc\nvmovlhps xmm0,xmm0,xmm2\nvmovhlps xmm4,xmm4,xmm2\nvmovups XMMWORD PTR [rdi],xmm6\nvmovups XMMWORD PTR [rdi+0x10],xmm5\nvmovups XMMWORD PTR [rdi+0x20],xmm3\nvmovups XMMWORD PTR [rdi+0x30],xmm0\nvmovups XMMWORD PTR [rdi+0x40],xmm1\nvmovups XMMWORD PTR [rdi+0x50],xmm4\nadd rsi,0x10\nadd rdi,0x60\nsub r10d,0x4",
+    "saved": 3,
+    "why": "Fold three explicit loads into the memory operands of their low and high unpacks, rereading only original input addresses. The remaining shuffle, store, and counter operations are unchanged."
+  },
+  "8687f5102f": {
+    "rewrite": null,
+    "why": "Every move produces a required register value, and the alignment test is needed to reproduce the required flags."
+  },
+  "e22dd73e59": {
+    "rewrite": null,
+    "why": "Each of the five subtractions independently updates a required final register value."
+  },
+  "aac7e76ecd": {
+    "rewrite": "vmovdqa xmm0,XMMWORD PTR [rsi]\nvmovdqa xmm2,XMMWORD PTR [rsi+rcx*1]\nvmovdqa xmm4,XMMWORD PTR [rsi+r9*1]\nvunpcklps xmm6,xmm0,XMMWORD PTR [rsi+rdx*1]\nvunpckhps xmm0,xmm0,XMMWORD PTR [rsi+rdx*1]\nvunpcklps xmm1,xmm2,XMMWORD PTR [rsi+r8*1]\nvunpckhps xmm2,xmm2,XMMWORD PTR [rsi+r8*1]\nvunpcklps xmm3,xmm4,XMMWORD PTR [rsi+rax*1]\nvunpckhps xmm4,xmm4,XMMWORD PTR [rsi+rax*1]\nvblendps xmm5,xmm3,xmm6,0xc\nvmovlhps xmm6,xmm6,xmm1\nvmovhlps xmm3,xmm3,xmm1\nvblendps xmm1,xmm4,xmm0,0xc\nvmovlhps xmm0,xmm0,xmm2\nvmovhlps xmm4,xmm4,xmm2\nvmovaps XMMWORD PTR [rdi],xmm6\nvmovaps XMMWORD PTR [rdi+0x10],xmm5\nvmovaps XMMWORD PTR [rdi+0x20],xmm3\nvmovaps XMMWORD PTR [rdi+0x30],xmm0\nvmovaps XMMWORD PTR [rdi+0x40],xmm1\nvmovaps XMMWORD PTR [rdi+0x50],xmm4\nadd rsi,0x10\nadd rdi,0x60\nsub r10d,0x4",
+    "saved": 3,
+    "why": "Fold three explicit loads into the memory operands of their low and high unpacks. All stores, required final ymm0 bits, and counter flags are preserved."
+  },
+  "f20de6bf11": {
+    "rewrite": "vmovdqu xmm0,XMMWORD PTR [rsi]\nvmovdqu xmm1,XMMWORD PTR [rsi+0x10]\nvmovdqu xmm2,XMMWORD PTR [rsi+0x20]\nvunpcklps xmm6,xmm0,XMMWORD PTR [rsi+0x30]\nvunpckhps xmm0,xmm0,XMMWORD PTR [rsi+0x30]\nvunpcklps xmm3,xmm1,XMMWORD PTR [rsi+0x40]\nvunpckhps xmm1,xmm1,XMMWORD PTR [rsi+0x40]\nvunpcklps xmm4,xmm2,XMMWORD PTR [rsi+0x50]\nvunpckhps xmm2,xmm2,XMMWORD PTR [rsi+0x50]\nvunpcklps xmm5,xmm6,xmm1\nvunpckhps xmm6,xmm6,xmm1\nvunpcklps xmm1,xmm0,xmm4\nvunpckhps xmm0,xmm0,xmm4\nvunpcklps xmm4,xmm3,xmm2\nvunpckhps xmm3,xmm3,xmm2\nvmovups XMMWORD PTR [rdi],xmm5\nvmovups XMMWORD PTR [rdi+rdx*1],xmm6\nvmovups XMMWORD PTR [rdi+rcx*1],xmm1\nvmovups XMMWORD PTR [rdi+r8*1],xmm0\nvmovups XMMWORD PTR [rdi+r9*1],xmm4\nvmovups XMMWORD PTR [rdi+rax*1],xmm3\nadd rsi,0x60\nadd rdi,0x10\nsub r10d,0x4",
+    "saved": 3,
+    "why": "Use the original last three input addresses directly in both unpacks that consume each input, removing their explicit loads. Preserve the second unpack stage, store order, and counter updates."
+  },
+  "b7e7ee7aec": {
+    "rewrite": null,
+    "why": "Every move produces a required register value, and the alignment test is necessary for the required flags."
+  },
+  "79442a897f": {
+    "rewrite": "vmovdqa xmm0,XMMWORD PTR [rsi]\nvmovdqa xmm1,XMMWORD PTR [rsi+0x10]\nvmovdqa xmm2,XMMWORD PTR [rsi+0x20]\nvunpcklps xmm6,xmm0,XMMWORD PTR [rsi+0x30]\nvunpckhps xmm0,xmm0,XMMWORD PTR [rsi+0x30]\nvunpcklps xmm3,xmm1,XMMWORD PTR [rsi+0x40]\nvunpckhps xmm1,xmm1,XMMWORD PTR [rsi+0x40]\nvunpcklps xmm4,xmm2,XMMWORD PTR [rsi+0x50]\nvunpckhps xmm2,xmm2,XMMWORD PTR [rsi+0x50]\nvunpcklps xmm5,xmm6,xmm1\nvunpckhps xmm6,xmm6,xmm1\nvunpcklps xmm1,xmm0,xmm4\nvunpckhps xmm0,xmm0,xmm4\nvunpcklps xmm4,xmm3,xmm2\nvunpckhps xmm3,xmm3,xmm2\nvmovaps XMMWORD PTR [rdi],xmm5\nvmovaps XMMWORD PTR [rdi+rdx*1],xmm6\nvmovaps XMMWORD PTR [rdi+rcx*1],xmm1\nvmovaps XMMWORD PTR [rdi+r8*1],xmm0\nvmovaps XMMWORD PTR [rdi+r9*1],xmm4\nvmovaps XMMWORD PTR [rdi+rax*1],xmm3\nadd rsi,0x60\nadd rdi,0x10\nsub r10d,0x4",
+    "saved": 3,
+    "why": "Fold the last three explicit input loads into the low and high unpacks that consume them. The original stores, final ymm0 value, and counter flags are retained."
+  },
+  "a0c9af79f0": {
+    "rewrite": null,
+    "why": "The saved count, pointer loads, pointer differences, and scale load all produce required final register values."
+  },
+  "7467fc5e07": {
+    "rewrite": null,
+    "why": "All five pointer differences and the constant loaded into ymm7 are required final values."
+  },
+  "9cc9b52453": {
+    "rewrite": "vcvtdq2ps xmm0,XMMWORD PTR [rsi]\nvcvtdq2ps xmm1,XMMWORD PTR [rsi+rdx*1]\nvcvtdq2ps xmm2,XMMWORD PTR [rsi+rcx*1]\nvcvtdq2ps xmm3,XMMWORD PTR [rsi+r8*1]\nvcvtdq2ps xmm4,XMMWORD PTR [rsi+r9*1]\nvcvtdq2ps xmm5,XMMWORD PTR [rsi+rax*1]\nvunpcklps xmm6,xmm0,xmm1\nvunpckhps xmm0,xmm0,xmm1\nvunpcklps xmm1,xmm2,xmm3\nvunpckhps xmm2,xmm2,xmm3\nvunpcklps xmm3,xmm4,xmm5\nvunpckhps xmm4,xmm4,xmm5\nvblendps xmm5,xmm3,xmm6,0xc\nvmovlhps xmm6,xmm6,xmm1\nvmovhlps xmm3,xmm3,xmm1\nvblendps xmm1,xmm4,xmm0,0xc\nvmovlhps xmm0,xmm0,xmm2\nvmovhlps xmm4,xmm4,xmm2\nvmulps xmm6,xmm6,xmm7\nvmulps xmm5,xmm5,xmm7\nvmulps xmm3,xmm3,xmm7\nvmulps xmm0,xmm0,xmm7\nvmulps xmm1,xmm1,xmm7\nvmulps xmm4,xmm4,xmm7\nvmovaps XMMWORD PTR [rdi],xmm6\nvmovaps XMMWORD PTR [rdi+0x10],xmm5\nvmovaps XMMWORD PTR [rdi+0x20],xmm3\nvmovaps XMMWORD PTR [rdi+0x30],xmm0\nvmovaps XMMWORD PTR [rdi+0x40],xmm1\nvmovaps XMMWORD PTR [rdi+0x50],xmm4\nadd rsi,0x10\nadd rdi,0x60\nsub r10d,0x4",
+    "saved": 6,
+    "why": "Move the lane-independent integer-to-float conversions before the transpose and fold all six loads into VCVTDQ2PS. Scaling remains after transposition so arbitrary xmm7 lane values retain their original effect."
+  },
+  "9c33817e86": {
+    "rewrite": null,
+    "why": "The saved count, pointer loads, pointer differences, and scale load all contribute required final register values."
+  },
+  "29d2e8b558": {
+    "rewrite": null,
+    "why": "The five independent subtractions and the scale constant load each produce a required final register value."
+  },
+  "e343b4a66b": {
+    "rewrite": "vmovdqa xmm0,XMMWORD PTR [rsi]\nvmovdqa xmm2,XMMWORD PTR [rsi+rcx*1]\nvmovdqa xmm4,XMMWORD PTR [rsi+r9*1]\nvunpcklps xmm6,xmm0,XMMWORD PTR [rsi+rdx*1]\nvunpckhps xmm0,xmm0,XMMWORD PTR [rsi+rdx*1]\nvunpcklps xmm1,xmm2,XMMWORD PTR [rsi+r8*1]\nvunpckhps xmm2,xmm2,XMMWORD PTR [rsi+r8*1]\nvunpcklps xmm3,xmm4,XMMWORD PTR [rsi+rax*1]\nvunpckhps xmm4,xmm4,XMMWORD PTR [rsi+rax*1]\nvblendps xmm5,xmm3,xmm6,0xc\nvmovlhps xmm6,xmm6,xmm1\nvmovhlps xmm3,xmm3,xmm1\nvblendps xmm1,xmm4,xmm0,0xc\nvmovlhps xmm0,xmm0,xmm2\nvmovhlps xmm4,xmm4,xmm2\nvmulps xmm6,xmm6,xmm7\nvmulps xmm5,xmm5,xmm7\nvcvtps2dq xmm2,xmm6\nvcmpnltps xmm6,xmm6,xmm7\nvpaddd xmm6,xmm6,xmm2\nvcvtps2dq xmm2,xmm5\nvcmpnltps xmm5,xmm5,xmm7\nvpaddd xmm5,xmm5,xmm2\nvmulps xmm3,xmm3,xmm7\nvmulps xmm0,xmm0,xmm7\nvcvtps2dq xmm2,xmm3\nvcmpnltps xmm3,xmm3,xmm7\nvpaddd xmm3,xmm3,xmm2\nvcvtps2dq xmm2,xmm0\nvcmpnltps xmm0,xmm0,xmm7\nvpaddd xmm0,xmm0,xmm2\nvmulps xmm1,xmm1,xmm7\nvmulps xmm4,xmm4,xmm7\nvcvtps2dq xmm2,xmm1\nvcmpnltps xmm1,xmm1,xmm7\nvpaddd xmm1,xmm1,xmm2\nvcvtps2dq xmm2,xmm4\nvcmpnltps xmm4,xmm4,xmm7\nvpaddd xmm4,xmm4,xmm2\nvmovaps XMMWORD PTR [rdi],xmm6\nvmovaps XMMWORD PTR [rdi+0x10],xmm5\nvmovaps XMMWORD PTR [rdi+0x20],xmm3\nvmovaps XMMWORD PTR [rdi+0x30],xmm0\nvmovaps XMMWORD PTR [rdi+0x40],xmm1\nvmovaps XMMWORD PTR [rdi+0x50],xmm4\nadd rsi,0x10\nadd rdi,0x60\nsub r10d,0x4",
+    "saved": 3,
+    "why": "Remove three explicit loads by using the same input addresses as memory operands in their unpacks. Keep every floating-point conversion, comparison, correction, and store unchanged."
+  },
+  "3d192a7d89": {
+    "rewrite": null,
+    "why": "All nine pointer loads and seven pointer differences produce distinct required final register values."
+  },
+  "4abca79772": {
+    "rewrite": "vmovdqu xmm0,XMMWORD PTR [rsi]\nvmovdqu xmm1,XMMWORD PTR [rsi+rcx*1]\nvmovdqu xmm2,XMMWORD PTR [rsi+r8*1]\nvmovdqu xmm3,XMMWORD PTR [rsi+r9*1]\nvinsertf128 ymm0,ymm0,XMMWORD PTR [rsi+rax*1],0x1\nvinsertf128 ymm1,ymm1,XMMWORD PTR [rsi+r10*1],0x1\nvinsertf128 ymm2,ymm2,XMMWORD PTR [rsi+r11*1],0x1\nvinsertf128 ymm3,ymm3,XMMWORD PTR [rsi+rbx*1],0x1\nvunpckhps ymm4,ymm0,ymm1\nvunpcklps ymm0,ymm0,ymm1\nvunpckhps ymm1,ymm2,ymm3\nvunpcklps ymm2,ymm2,ymm3\nvunpckhpd ymm3,ymm0,ymm2\nvunpcklpd ymm0,ymm0,ymm2\nvunpckhpd ymm2,ymm4,ymm1\nvunpcklpd ymm4,ymm4,ymm1\nvmovdqu XMMWORD PTR [rdi],xmm0\nvextractf128 XMMWORD PTR [rdi+0x10],ymm0,0x1\nvmovdqu XMMWORD PTR [rdi+0x20],xmm3\nvextractf128 XMMWORD PTR [rdi+0x30],ymm3,0x1\nvmovdqu XMMWORD PTR [rdi+0x40],xmm4\nvextractf128 XMMWORD PTR [rdi+0x50],ymm4,0x1\nvmovdqu XMMWORD PTR [rdi+0x60],xmm2\nvextractf128 XMMWORD PTR [rdi+0x70],ymm2,0x1\nvmovaps xmm0,xmm0\nadd rsi,0x10\nsub rdi,0xffffffffffffff80\nsub edx,0x4",
+    "saved": 7,
+    "why": "Pair corresponding channels in the two YMM halves and perform both four-channel transposes with AVX floating-point unpacks, preserving all eight original 128-bit stores. A final VEX move restores the required zero upper half of ymm0."
+  },
+  "dbe4ecf804": {
+    "rewrite": null,
+    "why": "All nine pointer loads are required, and the alignment test supplies the required final flags."
+  },
+  "ea678ae553": {
+    "rewrite": null,
+    "why": "Each subtraction produces a different required pointer offset, leaving no removable operation."
+  }
+}
