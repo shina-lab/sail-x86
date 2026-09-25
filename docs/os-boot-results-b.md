@@ -20,7 +20,7 @@ disk was last written at 11:58 JST; no completed runner JSON exists for
 that interrupted attempt, so its exact final instruction count is unknown.
 
 `win95-clean2.img` is preserved. A private copy, `win95-recovery3.img`,
-is being used to attempt Setup Safe Recovery. All disk images, RAM dumps,
+is being used for Setup Safe Recovery. All disk images, RAM dumps,
 and unfiltered diagnostics remain in `/tmp/sail-x86-os2-win95-20260925/`.
 The supplied product number is read only from the external source file
 and is omitted from repository files and input logs.
@@ -31,6 +31,28 @@ including 81 basic cases and the reset suite. The freshly linked vm86
 harness passes all 416 model cases and all 416 KVM comparisons.
 [Validation record](os-boot/b-win95-recovery-validation.txt). No official
 Sail compiler, CMake build, or CTest invocation is used.
+
+### Safe Recovery from the interrupted copy
+
+`b-win95-recovery3` boots the preserved copy, selects
+[Use Safe Recovery](os-boot/b-win95-recovery3-safe-recovery.png), passes
+the installed-components and free-space checks, and accepts the supplied
+number ([next page](os-boot/b-win95-recovery3-key-accepted.png)). It uses
+Compact setup, `Sail Test`, an empty company field, and the default
+components. It passes the earlier User Information stop and reaches
+[Start Copying Files](os-boot/b-win95-recovery3-ready.png).
+[COM1 through this point](os-boot/b-win95-recovery3-ready.serial).
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
+  --name b-win95-recovery3 --out /tmp/sail-x86-os2-win95-20260925 \
+  --timeout 8200 --send '8:\n' --send '40:\n' -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-recovery3.img -boot c
+```
+
+Later wizard input is sent through the private keyboard helper. This run
+uses the tested `2447ad0` LLVM executable, without diagnostic model changes.
 
 ## Resumption after 10:50 JST on 2026-09-25
 
