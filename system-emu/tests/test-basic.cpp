@@ -1356,6 +1356,73 @@ static void init_call_gate(x86::Model &model, bool tss32, bool gate32,
   model.phys_mem.write_bytes(0x10100, call, sizeof(call));
 }
 
+TEST(legacy_jmp_call_gate) {
+  // SDM Vol.2A JMP, CALL-GATE: gate width selects the offset; JMP
+  // ignores parameter count and never switches stacks or privilege.
+  for (bool gate32 : {false, true}) for (bool operand32 : {false, true})
+      for (bool indirect : {false, true}) {
+    x86::Model m; init_call_gate(m, true, gate32, 31, 3);
+    write_gdt_code_desc(m, 0x1000, 2, 0x20000, 0x1ffff, 3, false, true);
+    m.phys_mem.write8(0x1015, 0xfa); // code A=0
+    if (gate32) m.phys_mem.write16(0x1036, 1); // offset 10300h
+    m.zTR_limit = 0; // JMP must not read a privilege stack.
+    m.phys_mem.write32(0x307fc, 0x12345678);
+    std::vector<u8> code;
+    if (operand32) code.push_back(0x66);
+    if (indirect) {
+      m.zGPR.data[3] = 0x700;
+      m.phys_mem.write32(0x700, 0xdeadbeef);
+      m.phys_mem.write16(0x700 + (operand32 ? 4 : 2), 0x33);
+      code.insert(code.end(), {0xff, 0x2f}); // JMP FAR [BX]
+    } else {
+      code.insert(code.end(), {0xea, 0xef, 0xbe});
+      if (operand32) code.insert(code.end(), {0xad, 0xde});
+      code.insert(code.end(), {0x33, 0});
+    }
+    m.phys_mem.write_bytes(0x10100, code.data(), code.size());
+    m.zstep(UNIT);
+    ASSERT_EQ(m.zfault_pending, false);
+    ASSERT_EQ(m.zRIP, gate32 ? 0x10300U : 0x300U);
+    ASSERT_EQ(m.zSegReg.data[x86::SEG_CS], 0x13U);
+    ASSERT_EQ(m.zcur_cpl, 3U);
+    ASSERT_EQ(m.zGPR.data[4], 0x800U);
+    ASSERT_EQ(m.zSegReg.data[x86::SEG_SS], 0x1bU);
+    ASSERT_EQ(m.phys_mem.read32(0x307fc), 0x12345678U);
+    ASSERT_EQ(m.phys_mem.read8(0x1015), 0xfbU);
+    m.model_fini();
+  }
+  for (unsigned variant = 0; variant < 8; ++variant) {
+    x86::Model m; init_call_gate(m, true, false, 0, 3);
+    const u8 jmp[] = {0xea, 0, 0, 0x33, 0};
+    m.phys_mem.write_bytes(0x10100, jmp, sizeof(jmp));
+    if (variant == 0) m.phys_mem.write8(0x1035, 0xc4); // gate DPL2
+    if (variant == 1) m.phys_mem.write8(0x1035, 0x64); // gate absent
+    if (variant == 2) m.phys_mem.write16(0x1032, 0); // null target
+    if (variant == 3) m.phys_mem.write8(0x1015, 0xda); // inward nonconforming
+    if (variant == 4) m.phys_mem.write8(0x1015, 0x7a); // absent target
+    if (variant == 5) m.phys_mem.write16(0x1010, 0x2ff); // offset > limit
+    if (variant == 6) m.phys_mem.write8(0x1015, 0xf2); // data target
+    if (variant == 7) m.phys_mem.write8(0x1015, 0xde); // conforming DPL2: valid
+    m.zstep(UNIT);
+    if (variant == 7) {
+      ASSERT_EQ(m.zfault_pending, false);
+      ASSERT_EQ(m.zRIP, 0x300U);
+      ASSERT_EQ(m.zcur_cpl, 3U);
+      ASSERT_EQ(m.zSegReg.data[x86::SEG_CS], 0x13U);
+    } else {
+      ASSERT_EQ(m.zfault_pending, true);
+      ASSERT_EQ(m.zfault_vector, variant == 1 || variant == 4 ? 11U : 13U);
+      ASSERT_EQ(m.zfault_error_code, variant < 2 ? 0x30U :
+          variant == 2 || variant == 5 ? 0U : 0x10U);
+      ASSERT_EQ(m.zRIP, 0x100U);
+      ASSERT_EQ(m.zSegReg.data[x86::SEG_CS], 0xbU);
+      ASSERT_EQ(m.zcur_cpl, 3U);
+    }
+    ASSERT_EQ(m.zGPR.data[4], 0x800U);
+    m.model_fini();
+  }
+}
+
 TEST(legacy_call_gate_privilege_stacks) {
   // Gate width and TSS width are independent. Check both TSS layouts,
   // CPL0/CPL1 targets, nonzero stack bases, copied parameters and ignored
@@ -2961,6 +3028,7 @@ int main() {
   printf("\nProtected mode far transfer tests:\n");
   run_test_segment_descriptor_accessed_bits();
   run_test_far_pointer_load_destination_width_and_faults();
+  run_test_legacy_jmp_call_gate();
   run_test_legacy_call_gate_privilege_stacks();
   run_test_legacy_call_gate_same_privilege_and_faults();
   run_test_legacy_privilege_stack_descriptor_faults();

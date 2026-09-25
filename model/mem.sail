@@ -523,7 +523,32 @@ function exec_far_jmp(selector, offset, os) = match cur_mode {
       _  => zero_extend(offset[31..0]),
     })
   },
-  _ => finish_far_transfer(validate_far_jmp_cs(selector), selector, offset, os),
+  _ => {
+    if selector[15..2] == zeros() then raise_GP0();
+    let desc = read_descriptor(selector);
+    if EFER[10] == 0b0 & desc.seg_s == 0b0 &
+       (desc.seg_type == 0x4 | desc.seg_type == 0xC) then {
+      // SDM Vol.2A JMP, CALL-GATE: unlike CALL, JMP cannot enter a
+      // more-privileged nonconforming segment and never changes stacks.
+      let err = selector_error_code(selector);
+      if desc.seg_dpl < cur_cpl | unsigned(selector[1..0]) > desc.seg_dpl then raise_GP(err);
+      if desc.seg_present == 0b0 then throw Fault(EXN_NP, err);
+      let gate : qword = read_mem_implicit(descriptor_address(selector));
+      let target_sel : word = gate[31..16];
+      if target_sel[15..2] == zeros() then raise_GP0();
+      let target = read_descriptor(target_sel);
+      let target_err = selector_error_code(target_sel);
+      if target.seg_s == 0b0 | target.seg_type[3] == 0b0 |
+         (target.seg_type[2] == 0b1 & target.seg_dpl > cur_cpl) |
+         (target.seg_type[2] == 0b0 & target.seg_dpl != cur_cpl) then raise_GP(target_err);
+      if target.seg_present == 0b0 then throw Fault(EXN_NP, target_err);
+      let width : {16, 32} = if desc.seg_type == 0x4 then 16 else 32;
+      let dest : qword = if width == 16 then zero_extend(gate[15..0])
+                         else zero_extend(gate[63..48] @ gate[15..0]);
+      if unsigned(dest) > unsigned(target.seg_limit) then raise_GP0();
+      finish_far_transfer(target, target_sel, dest, width)
+    } else finish_far_transfer(validate_far_jmp_cs(selector), selector, offset, os)
+  },
 }
 
 // Execute far CALL: push CS:RIP, then load CS:RIP from selector:offset.

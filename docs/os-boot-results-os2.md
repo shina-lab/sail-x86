@@ -374,7 +374,7 @@ LSS/LFS/LGS in 64-bit code, including all valid destination widths and
 invalid-selector restart with unchanged GPR/segment state (58 cases).
 
 The regression fails before the fix; all 15 sail-llvm system suites pass
-afterward (82 basic tests). [Validation](os-boot/os2-tests-far-load.txt).
+afterward (81 basic tests). [Validation](os-boot/os2-tests-far-load.txt).
 [Exception trace](os-boot/os2-far-load-trace.txt).
 
 ### os2-18-far-load
@@ -509,7 +509,7 @@ and defined arithmetic flags, register and memory operands, no prefix/66h/LOCK,
 real mode, 16/32-bit protected and compatibility code, and 64-bit rejection.
 It also checks fault restart, unchanged operands and adjacent bytes. The
 288-case regression fails before the fix.
-All 15 system suites pass after rebuilding (83 basic tests).
+All 15 system suites pass after rebuilding (82 basic tests).
 [Validation](os-boot/os2-tests-opcode82.txt).
 
 
@@ -547,7 +547,7 @@ Reviewed and imported the existing fix and regressions from repository
 commit `115a374`. Its real-mode matrix fails against this branch's old
 sail-llvm object, including the zero-count case executing a forbidden element.
 The connection to SYS3175 remains a hypothesis until a fixed-model retry.
-All 15 system suites pass after rebuilding (84 basic tests); all 416 VM86
+All 15 system suites pass after rebuilding (83 basic tests); all 416 VM86
 comparisons against KVM pass. [Validation](os-boot/os2-tests-f2.txt).
 
 ### os2-24-access
@@ -645,7 +645,7 @@ followed by invalid links; [selected trace](os-boot/os2-double-shift-trace.txt).
 The new regression checks 64 cases across 16/32/64-bit operands, immediate
 and CL counts, left/right shifts, zero counts, GPR preservation, adjacent
 memory and narrow destinations ending exactly at a segment limit. It fails
-before the fix. All 15 sail-llvm system suites pass afterward (85 basic tests).
+before the fix. All 15 sail-llvm system suites pass afterward (84 basic tests).
 A repeat of the reduced probe now retains `04bbbbcc`.
 
 The CS filter is verified by attempt 29: 8032 register snapshots inside the
@@ -812,7 +812,7 @@ The [regression log](os-boot/os2-accessed-validation.txt) includes the
 failing-before case (descriptor 0x92 remained unchanged, expected 0x93).
 The final regression covers GDT/LDT loads of five data segments, WP/A-bit
 combinations at CPL 3, the IRETD fault ordering, and a far JMP: 16 cases.
-All **15 system suites pass**, including **86 basic tests**. Two additional
+All **15 system suites pass**, including **85 basic tests**. Two additional
 VM86 monitor tests compare the CS/SS descriptor writes with KVM for
 16/32-bit gates under two initial memory fills. The final model passes
 **484 KVM comparisons, zero failures**, after recompiling the harness
@@ -832,3 +832,76 @@ Attempt 38: **229.287 s**, **777,438,816** instructions, exit `0`.
 The source ISO SHA-256 was rechecked at 04:15 UTC and still equals the
 original value recorded above. All reference boots use separate disk
 copies; the native completed first-stage checkpoint is preserved.
+
+### os2-39-earlier-exit
+
+Boot the final accessed-bit model on another checkpoint clone. Trace
+CS=005b from instructions 423000000 through 423770000. This produces
+17159 user snapshots and [locates an earlier transition](os-boot/os2-earlier-exit-trace.txt):
+`1fe78bfa -> 1fea3534 -> 1fea355f`, then a far jump to `febf:00a9`.
+The first observed exit callback is `1fec0534` at instruction 423727188.
+The intervening execution changes privilege level: flat CS=005b is a
+conforming DPL-2 segment, and runs as selector 005a at CPL 2. The CS=005b
+filter therefore omits the driver-side work. A full-segment trace follows.
+[Screen at trace stop](os-boot/os2-earlier-exit.png).
+
+Attempt 39: **171.078 s**, **423,770,000** instructions, exit `0`.
+
+### Preserved checkpoint and next boot
+
+`build/os-boot/os2-hdd-first-stage.img` is 536870912 bytes and SHA-256
+`2aa5948cc9a9dcad517aac984f840b831dcf5d3fb1ddb13dc88cf823dc1ab59b`.
+It was installed by Sail, including native partitioning and HPFS formatting.
+The QEMU reference disks are separate copies. Both reference VMs were
+stopped after their screenshots and RAM snapshots were saved.
+
+To resume native IDE boot without altering the checkpoint:
+
+```sh
+cp --reflink=auto build/os-boot/os2-hdd-first-stage.img build/os-boot/os2-next-hdd.img
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 \
+python3 system-emu/run-boot.py --name os2-next --timeout 1800 -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda build/os-boot/os2-next-hdd.img \
+  -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot c
+```
+
+Every model/device correction in this session has regression evidence in
+the same commit. The pending FDC diagnostics from the interrupted session
+were reviewed and retained in `bc262e1`. All compilation used sail-llvm;
+no official Sail compiler or generated-model CMake/CTest target was run.
+
+### os2-40-driver-thunk: original #GP isolated
+
+The final full-segment trace spans 423280680–423727200, following the
+CPL-2 display-driver call omitted by attempt 39. It identifies the original
+fault at **005a:1fea35d7**, `66 EA 0000 980B` (`JMP 0b98:0000`).
+GDT entry 0b98 is a present DPL-3 16-bit call gate targeting `fec6:0224`,
+a DPL-2 code segment containing `RETF`. The emulator rejects all system
+descriptors in far JMP, so this valid gate raises #GP and invokes the
+exit callbacks that later trigger the secondary SINGLEQ$ trap.
+[Fault trace](os-boot/os2-jmp-gate-trace.txt),
+[screen at trace stop](os-boot/os2-driver-thunk.png).
+
+Attempt 40: **196.482 s**, **423,727,200** instructions, exit `0`.
+
+Intel SDM revision 090 Vol. 2A, JMP **CALL-GATE**, pp. 3-509–3-510,
+explicitly permits JMP through 16/32-bit call gates with the appropriate
+gate privilege/presence and destination-code checks. Unlike CALL, it
+cannot switch privilege to a nonconforming destination, and it neither
+reads a TSS stack nor pushes a frame. The gate width supplies the offset;
+the instruction's offset and gate parameter count are ignored.
+
+The new regression fails before the model change. It covers 16/32-bit
+gates, 16/32-bit instruction operands, direct/indirect encodings, ignored
+operand offsets and parameter counts, stack preservation, accessed bits,
+and eight privilege/presence/type/limit variants (16 total cases).
+The model change is restricted to legacy call gates; long-mode call
+gates and task switches are outside this correction.
+
+After the call-gate fix, all **15 system suites pass**, including
+**86 basic tests**, and the rebuilt harness passes **484 KVM comparisons**.
+[Failing-before and passing-after validation](os-boot/os2-jmp-gate-validation.txt).
+Historical basic-test counts above are corrected to match their logs:
+the old test wrapper increments its pass counter even after an assertion
+reports failure, so adding its printed pass and fail totals overcounts.
