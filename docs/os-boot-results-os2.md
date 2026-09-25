@@ -5,12 +5,19 @@ Session started 2026-09-25 01:19 UTC. Builds and system tests use
 **sail-llvm only**; no official Sail compiler, CMake model target or CTest.
 
 
-Current result at 2026-09-25 04:15 UTC: **native first-stage installation
-completed** on the fresh IDE disk. The checkpoint is
-`build/os-boot/os2-hdd-first-stage.img`. Native IDE boot runs CHKDSK, then
-traps in SINGLEQ$ while cleaning up an earlier initialization failure.
-Full installation and the Workplace Shell have **not** been reached in Sail.
-A separate KVM reference boot of a checkpoint copy reaches graphical Setup.
+Current result at 2026-09-25 04:30 UTC: **native first-stage installation
+completed**, and the IDE disk now boots into graphical **OS/2 Setup and
+Installation → System Configuration** in Sail.
+[Native screenshot](os-boot/os2-native-system-configuration.png).
+The SINGLEQ$ trap was secondary to a missing JMP-through-call-gate operation;
+that model error is fixed and regression-tested. Stopped at the time budget
+while the installer waits for configuration input. Full installation and
+a normal Workplace Shell boot have **not** been completed.
+
+The first-stage checkpoint is `build/os-boot/os2-hdd-first-stage.img`; the
+latest native disk is `build/os-boot/os2-jmp-gate-hdd.img`. Neither was
+written by the separate KVM reference boots. All OS/2 VMs from this session
+are stopped; raw logs and RAM snapshots remain under `build/os-boot/`.
 
 ## Media and platform
 
@@ -858,7 +865,7 @@ stopped after their screenshots and RAM snapshots were saved.
 To resume native IDE boot without altering the checkpoint:
 
 ```sh
-cp --reflink=auto build/os-boot/os2-hdd-first-stage.img build/os-boot/os2-next-hdd.img
+cp --reflink=auto build/os-boot/os2-jmp-gate-hdd.img build/os-boot/os2-next-hdd.img
 SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 \
 python3 system-emu/run-boot.py --name os2-next --timeout 1800 -- \
   build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
@@ -905,3 +912,31 @@ After the call-gate fix, all **15 system suites pass**, including
 Historical basic-test counts above are corrected to match their logs:
 the old test wrapper increments its pass counter even after an assertion
 reports failure, so adding its printed pass and fail totals overcounts.
+
+### os2-41-jmp-gate: native graphical installer reached
+
+Boot another untouched first-stage copy with `cc09983`, using the same
+IDE/CD command as attempt 35 and `SAIL_X86_TRACE_EVENT_ADDRESS=0x1fea35d7`.
+The former #GP does not recur. Native startup proceeds through
+[Creating objects — OS/2 System](os-boot/os2-native-object-creation.png),
+then launches **OS/2 Setup and Installation**. At 04:29 UTC it reaches
+[System Configuration](os-boot/os2-native-system-configuration.png), showing
+United States locale/keyboard, PS/2 pointing device, VGA, and IDE CD-ROM.
+This screenshot is from **Sail**, not the earlier KVM reference.
+[Machine state and stop metadata](os-boot/os2-native-system-configuration.txt).
+
+Stopped at the configuration screen at 04:30 UTC after about 158 minutes
+of resumed work. No additional guest failure was observed after the
+call-gate fix. The installer still needs configuration and its remaining
+installation stages; a normal Workplace Shell boot is not yet verified.
+
+Attempt 41: **296.700 s**, **634,817,073** instructions, host-requested stop,
+exit `0`. Latest native disk: `build/os-boot/os2-jmp-gate-hdd.img`, SHA-256
+`6ce060acdd56bbbf40b0655d43a02001079f0fe5ed19a87dbcace2bf254ac6e3`.
+The original ISO hash was rechecked after stopping and is unchanged.
+The boot command above now clones this latest disk; the clean first-stage
+checkpoint remains available for reproducible model comparisons.
+
+The session's final build is `build/llvm/sail-x86-system`, produced by
+`sail-llvm` in `build/os-boot/os2-jmp-gate-build.log`. Final validation is
+15 passing system suites (86 basic tests) and 484 passing KVM comparisons.
