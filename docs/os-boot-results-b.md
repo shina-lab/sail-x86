@@ -1,5 +1,37 @@
 # Operating-system boots: worktree B
 
+## Resumption after 11:58 JST on 2026-09-25
+
+The worktree starts at `2447ad0`, with no uncommitted source changes.
+The four reset-related files named in the continuation request are already
+part of that commit. Review confirms that its A20 change is in the platform
+reset helper, leaves the Sail model unchanged, and has a regression using
+the same helper. SDM rev.090 Vol.3A §12.1.4, p.12-5, specifies the high-ROM
+first fetch. The regression passes again, including four resets with a
+poisoned old IVT and subsequent firmware A20 control.
+
+The previous emulator process is gone. Its last saved screen shows
+[89% file copy](os-boot/b-win95-clean-copy89.png), with
+[sanitized COM1](os-boot/b-win95-clean-copy89.serial). The previously
+uncommitted [44%](os-boot/b-win95-clean-copy44.png),
+[50%](os-boot/b-win95-clean-copy50.png), and
+[80%](os-boot/b-win95-clean-copy80.png) screens are also retained. The
+disk was last written at 11:58 JST; no completed runner JSON exists for
+that interrupted attempt, so its exact final instruction count is unknown.
+
+`win95-clean2.img` is preserved. A private copy, `win95-recovery3.img`,
+is being used to attempt Setup Safe Recovery. All disk images, RAM dumps,
+and unfiltered diagnostics remain in `/tmp/sail-x86-os2-win95-20260925/`.
+The supplied product number is read only from the external source file
+and is omitted from repository files and input logs.
+
+Only sail-llvm `54a10b8` is used. The emulator was rebuilt with
+`system-emu/build-llvm.sh`; all 15 freshly rebuilt C++ system suites pass,
+including 81 basic cases and the reset suite. The freshly linked vm86
+harness passes all 416 model cases and all 416 KVM comparisons.
+[Validation record](os-boot/b-win95-recovery-validation.txt). No official
+Sail compiler, CMake build, or CTest invocation is used.
+
 ## Resumption after 10:50 JST on 2026-09-25
 
 This run starts from `bd5d0b3` and uses only sail-llvm compiler `54a10b8`.
