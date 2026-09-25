@@ -1,0 +1,271 @@
+sail-x86-system: VGA BIOS loaded (39424 bytes, checksum OK)
+sail-x86-system: BIOS=build/bios.bin (131072 bytes), RAM=16MB
+sail-x86-system: reset vector CS:IP=f000:fff0 (linear 0xfffffff0)
+sail-x86-system: HDA=build/os-boot/msdos622.img
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+BUILD: gcc: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 binutils: (GNU Binutils for Ubuntu) 2.42
+Found QEMU fw_cfg
+qemu/e820: fw_cfg file etc/e820 not found
+RamSize: 0x01000000 [cmos]
+Relocating init from 0x000e8fa0 to 0x00fb6320 (size 40000)
+RamSizeOver4G: 0x0000000000000000 [cmos]
+=== PCI bus & bridge init ===
+PCI: pci_bios_init_bus_rec bus = 0x0
+=== PCI device probing ===
+Found 5 PCI devices (max PCI bus is 00)
+=== PCI new allocation pass #1 ===
+PCI: check devices
+=== PCI new allocation pass #2 ===
+PCI: IO: c000 - c00f
+PCI: 32: 0000000080000000 - 00000000fec00000
+PCI: map device bdf=00:01.1  bar 4, addr 0000c000, size 00000010 [io]
+PCI: map device bdf=00:02.0  bar 6, addr febf0000, size 00010000 [mem]
+PCI: map device bdf=00:02.0  bar 0, addr fd000000, size 01000000 [prefmem]
+PCI: init bdf=00:00.0 id=8086:1237
+PCI: init bdf=00:01.0 id=8086:7000
+PIIX3/PIIX4 init: elcr=00 0c
+PCI: init bdf=00:01.1 id=8086:7010
+PCI: init bdf=00:01.3 id=8086:7113
+Using pmtimer, ioport 0xb008
+PCI: init bdf=00:02.0 id=1234:1111
+PCI: Using 00:02.0 for primary VGA
+Found 1 cpu(s) max supported 1 cpu(s)
+Copying MPTABLE from 0x00006e20/fadc20 to 0x000f2b10
+ACPI DSDT=0x00ffe4f0
+Copying ACPI RSDP from 0x00006dfc to 0x000f2af0
+Scan for VGA option rom
+Running option rom at c000:0003
+Start SeaVGABIOS (version 1.16.3-20260925_004617-odyssey)
+VGABUILD: gcc: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 binutils: (GNU Binutils for Ubuntu) 2.42
+enter vga_post:
+   a=00000010  b=0000ffff  c=00000000  d=0000ffff ds=0000 es=f000 ss=0000
+  si=00000000 di=00008d21 bp=00000000 sp=00006da2 cs=f000 ip=d692  f=0000
+VBE DISPI: bdf 00:02.0, bar 0
+VBE DISPI: lfb_addr=fd000000, size 16 MB
+Removing mode 199
+Removing mode 19a
+Removing mode 19b
+Removing mode 19c
+Removing mode 19d
+Removing mode 19e
+Attempting to allocate 512 bytes lowmem via pmm call to f000:d734
+pmm call arg1=0
+VGA stack allocated at ef580
+Turning on vga text mode console
+set VGA mode 3
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+PS2 keyboard initialized
+ATA controller 1 at 1f0/3f4/0 (irq 14 dev 9)
+ata0-0: Sail-x86 Virtual Disk ATA-6 Hard-Disk (128 MiBytes)
+Searching bootorder for: /pci@i0cf8/*@1,1/drive@0/disk@0
+Searching bios-geometry for: /pci@i0cf8/*@1,1/drive@0/disk@0
+ATA controller 2 at 170/374/0 (irq 15 dev 9)
+Searching bootorder for: HALT
+Found 1 serial ports
+Scan for option roms
+Searching bootorder for: HALT
+drive 0x000f2a90: PCHS=260/16/63 translation=none LCHS=260/16/63 s=262144
+Space available for UMB: ca000-ef000, f0000-f2a70
+Returned 253952 bytes of ZoneHigh
+e820 map has 6 items:
+  0: 0000000000000000 - 000000000009fc00 = 1 RAM
+  1: 000000000009fc00 - 00000000000a0000 = 2 RESERVED
+  2: 00000000000f0000 - 0000000000100000 = 2 RESERVED
+  3: 0000000000100000 - 0000000000ffe000 = 1 RAM
+  4: 0000000000ffe000 - 0000000001000000 = 2 RESERVED
+  5: 00000000fffc0000 - 0000000100000000 = 2 RESERVED
+enter handle_19:
+  NULL
+Booting from Hard Disk...
+Booting from 0000:7c00
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/msdos-hdd-03.png
+[38387048] CS:RIP=f000:0000ff53 mode=R
+  RAX=0000000000004500 RBX=0000000000000000 RCX=0000000000000100 RDX=0000000000000080
+  RSP=0000000000007bf8 RBP=0000000000000000 RSI=0000000000007c02 RDI=0000000000000602
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=f000 DS=0000 ES=0000 SS=0000 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=0
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=0000000000000000:0000 IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[1] base=00000000000f0000 limit=0000ffff D/B=0 DPL=0 type=b
+  SEG[2] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=9596762000 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=22044 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=00 A=26 B=02 C=50 D=80 time=12:00:09 ticks=314466 second=9
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=1439432750 ns status=40 error=00 features=00 count=01 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)                                
+Booting from Hard Disk...                                                       
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/msdos-hdd-03.png
+[105522326] CS:RIP=f000:0000ff53 mode=R
+  RAX=0000000000004500 RBX=0000000000000000 RCX=0000000000000100 RDX=0000000000000080
+  RSP=0000000000007bf8 RBP=0000000000000000 RSI=0000000000007c02 RDI=0000000000000602
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=f000 DS=0000 ES=0000 SS=0000 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=0
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=0000000000000000:0000 IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[1] base=00000000000f0000 limit=0000ffff D/B=0 DPL=0 type=b
+  SEG[2] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=26380581500 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=52748 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=00 A=26 B=02 C=50 D=80 time=12:00:26 ticks=864438 second=26
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=1439432750 ns status=40 error=00 features=00 count=01 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)                                
+Booting from Hard Disk...                                                       
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: exited after 106767116 instructions
