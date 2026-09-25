@@ -1,0 +1,95 @@
+RIP=ffffffff81e412df mode=L
+  RAX=0000000000000000 RBX=0000000000000000 RCX=0000000000000000 RDX=0000000000000000
+  RSP=ffffffff82a03e70 RBP=ffffffff82a12940 RSI=0000000000000000 RDI=0000000000000000
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=ffffffff82a12038 R15=0000000000013c70
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0010 DS=0000 ES=0000 SS=0018 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000080050033 CR2=00007fd55b7cd000 CR3=0000000004448000 CR4=00000000000416b0 EFER=0000000000000d01
+  CPL=0 GDTR=fffffe0000001000:007f IDTR=fffffe0000000000:0fff LDTR=0000
+  SEG[0] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[1] base=0000000000000000 limit=ffffffff D/B=0 DPL=0 type=b
+  SEG[2] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=3
+  SEG[3] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=ff1100009b757000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=1292359238127 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=00 IMR=e8 ISR=00  slave IRR=00 IMR=3d ISR=00  halted
+  IOAPIC id=0 select=01
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=4 count=17258 reload=32767 gate=1 output=1
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=00 A=26 B=02 C=50 D=80 time=12:21:32 ticks=42348027 second=1292
+  IDE channel 1f0 selected=1 IRQ=0 pending=0
+  IDE 1f0.0 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=000001 dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=000001 dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a0 at=572893609878 ns status=40 error=00 features=00 count=03 lba=7c0000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=96256/96256 block_end=96256 limit=64512 write_lba=0 packet=1 cdb_pos=12 CDB=28 00 00 00 17 5b 00 00 2f 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=fc0000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+Alpine initramfs: APK signature verification failed                             
+Linux (none) 6.18.52-0-virt #1-Alpine SMP PREEMPT_DYNAMIC 2026-09-15 05:37:48 x8
+6_64 Linux                                                                      
+uid=0(root) gid=0(root)                                                         
+rootfs on / type rootfs (rw,size=232080k,nr_inodes=58020,inode64)               
+sysfs on /sys type sysfs (rw,nosuid,nodev,noexec,relatime)                      
+devtmpfs on /dev type devtmpfs (rw,nosuid,relatime,size=232080k,nr_inodes=58020,
+mode=755,inode64)                                                               
+proc on /proc type proc (rw,nosuid,nodev,noexec,relatime)                       
+devpts on /dev/pts type devpts (rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmod
+e=000)                                                                          
+shm on /dev/shm type tmpfs (rw,nosuid,nodev,noexec,relatime,inode64)            
+tracefs on /sys/kernel/tracing type tracefs (rw,relatime)                       
+/dev/sr0 on /media/cdrom type iso9660 (ro,relatime,nojoliet,check=s,map=n,blocks
+ize=2048,iocharset=utf8)                                                        
+tmpfs on /sysroot type tmpfs (rw,relatime,mode=755,inode64)                     
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: exited after 4508946370 instructions

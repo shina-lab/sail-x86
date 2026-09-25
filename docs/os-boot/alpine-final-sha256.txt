@@ -1,0 +1,5 @@
+3ab424762af704b2c2a9e57df1dc37f982af260071504d977f2fb96822e7130b  /home/ruiu/os-images/alpine-virt-3.24.2-x86_64.iso
+888830e2b45d64866b461ebfc27aaaa6fa60e993f557a8dd1cc5abad2bd36d44  build/bios.bin
+62c8300e0fa564fd26b596fa4327b081fc159e828a0330ec45b61cd428919d55  build/vgabios.bin
+60eaefa41c3f376270c9e83e7aaaa640ac7deec21de5158e9e26f99843045fbc  build/llvm-unsigned/sail-x86-system
+9d8f99b48c5681fd660a5c9ef49662e9ded68925a47b71389f0831e0d0eff3c7  build/sail-llvm-unsigned/build/sailc

@@ -1,0 +1,6 @@
+PASS mul 10000 cases
+PASS div 10000 cases
+PASS adc 10000 cases
+PASS sbb 10000 cases
+PASS adcx 10000 cases
+PASS adox 10000 cases

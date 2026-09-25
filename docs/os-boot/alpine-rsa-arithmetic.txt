@@ -1,0 +1,6 @@
+PASS mul 10000 cases
+FAIL div i=0 a=08d23fba8f3254e1 b=b0a526350a0b27ea hi=afe1f3ed928c2ab1 c=1 result=8be42791d45df611 high=cfbf99e8e417d257 expected=fee51d66fc2d6163 high=13fb37ed16a03b63 fault=0
+PASS adc 10000 cases
+PASS sbb 10000 cases
+PASS adcx 10000 cases
+PASS adox 10000 cases

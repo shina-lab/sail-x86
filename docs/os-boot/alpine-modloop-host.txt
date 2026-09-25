@@ -1,0 +1,19 @@
+Found a valid SQUASHFS 4:0 superblock on build/os-boot/alpine-media/modloop-virt.
+Creation or last append time Fri Sep 18 02:32:01 2026
+Filesystem size 22943504 bytes (22405.77 Kbytes / 21.88 Mbytes)
+Compression xz
+	Dictionary size 131072
+	Filters selected: x86
+Block size 131072
+Filesystem is exportable via NFS
+Inodes are compressed
+Data is compressed
+Uids/Gids (Id table) are compressed
+Fragments are compressed
+Always-use-fragments option is not specified
+Xattrs are compressed
+Duplicates are removed
+Number of fragments 319
+Number of inodes 1158
+Number of ids 1
+Number of xattr ids 0

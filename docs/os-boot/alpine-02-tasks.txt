@@ -1,0 +1,123 @@
+CR3=4658000 RIP=ffffffff81e412df pv_native_safe_halt+0xf
+task=ffffffff82a12940 pid=   0 state=0000 sp=ffffffff82a03dd8 swapper/0
+  stack=ffffffff82a00000 mm=0
+    ffffffff82a03e10: ffffffff813e25a7 tick_nohz_stop_tick+0x57
+    ffffffff82a03e50: ffffffff813e3090 tick_nohz_idle_stop_tick+0x80
+    ffffffff82a03e60: ffffffff81e4213f ct_kernel_exit.isra.0+0x7f
+    ffffffff82a03e70: ffffffff81e42f49 default_idle+0x9
+    ffffffff82a03e78: ffffffff81e43208 default_idle_call+0x28
+    ffffffff82a03e80: ffffffff81360733 do_idle+0x233
+    ffffffff82a03ec8: ffffffff81360964 cpu_startup_entry+0x24
+    ffffffff82a03ed8: ffffffff81e43a37 rest_init+0xc7
+    ffffffff82a03f40: ffffffff8128cdf3 common_startup_64+0x13b
+task=ff1100000397ce80 pid=   1 state=0001 sp=ffa000000000fb38 init
+  stack=ffa000000000c000 mm=ff11000003855900
+    ffa000000000fb68: ffffffff81e4711e __schedule+0x3ce
+    ffa000000000fc20: ffffffff81e485b2 schedule+0x22
+    ffa000000000fc30: ffffffff812fa2ae do_wait+0x4e
+    ffa000000000fc58: ffffffff812fa9a1 kernel_wait4+0xb1
+    ffa000000000fc98: ffffffff812f7cc0 child_wait_callback+0x0
+    ffa000000000fce8: ffffffff812fab12 __do_sys_wait4+0xb2
+    ffa000000000fcf8: ffffffff815b6478 __folio_mod_stat+0x28
+    ffa000000000fd90: ffffffff8134a760 __dequeue_entity+0x500
+    ffa000000000fdb8: ffffffff81e3c0e8 do_syscall_64+0x88
+    ffa000000000fdd0: ffffffff8134bf56 set_next_entity+0xf6
+    ffa000000000fe00: ffffffff812a0719 save_fpregs_to_fpstate+0x49
+    ffa000000000fe18: ffffffff8133da17 finish_task_switch.isra.0+0x97
+    ffa000000000fe58: ffffffff81e47126 __schedule+0x3d6
+    ffa000000000fe90: ffffffff815a4d49 handle_mm_fault+0x159
+    ffa000000000fee0: ffffffff812a0921 restore_fpregs_from_fpstate+0x41
+    ffa000000000ff00: ffffffff812a0a16 switch_fpu_return+0x56
+    ffa000000000ff40: ffffffff8100012f entry_SYSCALL_64_after_hwframe+0x76
+  saved user regs: r15=7ff1fa7b9eb0 r14=7ff1fa7b98b0 r13=7ff1fa7b96d0 r12=0 bp=3d bx=7ff1fa7b8b28 r11=246 r10=0 r9=0 r8=0 ax=ffffffffffffffda cx=7ff1fa77b8f3 dx=0 si=7ffd3de1673c di=ffffffffffffffff orig_ax=3d ip=7ff1fa77b8f3 flags=246 sp=7ffd3de166c8
+  user code: c3 e9 e7 d8 ff ff 41 56 b8 02 00 00 00 49 89 f6 be 00 88 08 00 53 48 81
+  user stack: 7ff1fa779262 7ff1fa7b8b64 0 7ff1fa7b9eb0 1 7ff1fa7b98b0 7ff1fa76f19b 0 562f7da44960 0 562f7da454ef 100000001 0 0 562f7da4f2b3 1 0 0 7ff1fa741ec4 ffffffff 7ff1fa6f224b 0 7ff1fa772ad2 0 2 130 1 81ed 0 0 8890 1000
+  auxv: {3: '0x562f7da04040', 7: '0x7ff1fa712000', 9: '0x562f7da0aed1'}
+task=ff11000003978000 pid=   2 state=0001 sp=ffa0000000017df0 kthreadd
+task=ff1100000397a740 pid=   3 state=0001 sp=ffa000000001fd80 pool_workqueue_
+task=ff110000039a2740 pid=   4 state=0402 sp=ffa0000000027d30 kworker/R-rcu_g
+task=ff110000039a4e80 pid=   5 state=0402 sp=ffa000000002fd30 kworker/R-sync_
+task=ff110000039a0000 pid=   6 state=0402 sp=ffa0000000037d30 kworker/R-kvfre
+task=ff110000039a8000 pid=   7 state=0402 sp=ffa000000003fd30 kworker/R-slub_
+task=ff110000039aa740 pid=   8 state=0402 sp=ffa0000000047d30 kworker/R-netns
+task=ff110000039ace80 pid=   9 state=0402 sp=ffa000000004fd78 kworker/0:0
+task=ff110000039f2740 pid=  10 state=0402 sp=ffa0000000057d78 kworker/0:0H
+task=ff110000039fce80 pid=  13 state=0402 sp=ffa000000006fd30 kworker/R-mm_pe
+task=ff110000039fa740 pid=  15 state=0001 sp=ffa000000007fd98 ksoftirqd/0
+task=ff11000003a00000 pid=  16 state=0402 sp=ffa0000000087d80 rcu_preempt
+task=ff11000003a02740 pid=  17 state=0001 sp=ffa000000008fd80 rcu_exp_par_gp_
+task=ff11000003a04e80 pid=  18 state=0001 sp=ffa0000000097d80 rcu_exp_gp_kthr
+task=ff11000003a12740 pid=  19 state=0001 sp=ffa000000009fd98 migration/0
+task=ff11000003a14e80 pid=  20 state=0001 sp=ffa00000000a7d98 cpuhp/0
+task=ff11000003a10000 pid=  21 state=0001 sp=ffa00000000afce0 kdevtmpfs
+task=ff11000003aa0000 pid=  22 state=0402 sp=ffa00000000b7d30 kworker/R-inet_
+task=ff11000003aa2740 pid=  23 state=0402 sp=ffa00000000bfd30 rcu_tasks_kthre
+task=ff11000003aa4e80 pid=  24 state=0402 sp=ffa00000000c7d30 rcu_tasks_trace
+task=ff11000003aa8000 pid=  25 state=2001 sp=ffa00000000cfd50 kauditd
+task=ff11000003aaa740 pid=  26 state=2001 sp=ffa00000000d7d50 oom_reaper
+task=ff11000003aace80 pid=  27 state=0402 sp=ffa00000000dfd30 kworker/R-write
+task=ff110000041c0000 pid=  28 state=2001 sp=ffa00000000e7cf0 kcompactd0
+task=ff110000041c2740 pid=  29 state=2001 sp=ffa00000000efcb8 ksmd
+task=ff110000041c4e80 pid=  30 state=0402 sp=ffa00000000f7d30 kworker/R-kbloc
+task=ff110000041d0000 pid=  32 state=0402 sp=ffa0000000107d30 kworker/R-blkcg
+task=ff110000041d2740 pid=  33 state=0402 sp=ffa000000010fd30 kworker/R-kinte
+task=ff110000041e0000 pid=  34 state=0001 sp=ffa0000000117d30 irq/9-acpi
+task=ff110000041e2740 pid=  35 state=0402 sp=ffa000000011fd78 kworker/0:2
+task=ff110000041e4e80 pid=  36 state=0402 sp=ffa0000000127d78 kworker/u4:3
+task=ff1100000420a740 pid=  37 state=0402 sp=ffa000000012fd30 kworker/R-ata_s
+task=ff1100000420ce80 pid=  38 state=0402 sp=ffa0000000137d30 kworker/R-md_bi
+task=ff11000004208000 pid=  39 state=0001 sp=ffa000000013fd80 watchdogd
+task=ff1100000428a740 pid=  40 state=0402 sp=ffa0000000147d30 kworker/R-quota
+task=ff1100000428ce80 pid=  41 state=0402 sp=ffa000000014fd78 kworker/0:1H
+task=ff110000043f8000 pid=  51 state=0001 sp=ffa000000019fd38 kswapd0
+task=ff11000004410000 pid=  58 state=0402 sp=ffa00000001d7d30 kworker/R-kthro
+task=ff110000044cce80 pid=  64 state=0402 sp=ffa0000000207d78 kworker/u4:4
+task=ff110000047ca740 pid= 123 state=0402 sp=ffa00000003dfd30 kworker/R-mld
+task=ff110000047e2740 pid= 129 state=0402 sp=ffa000000040fd30 kworker/R-ipv6_
+task=ff11000004808000 pid= 130 state=0402 sp=ffa0000000417d30 kworker/R-kstrp
+task=ff11000004f70000 pid= 314 state=0402 sp=ffa00000009dfd78 kworker/u4:6
+task=ff11000005160000 pid= 397 state=0402 sp=ffa0000000c77d78 kworker/u5:0
+task=ff110000043fce80 pid= 446 state=2001 sp=ffa000000015fbe8 nlplug-findfs
+  stack=ffa000000015c000 mm=ff11000003857840
+    ffa000000015fc18: ffffffff81e4711e __schedule+0x3ce
+    ffa000000015fc48: ffffffff81e255ad plist_add+0xdd
+    ffa000000015fcd0: ffffffff81e485b2 schedule+0x22
+    ffa000000015fce0: ffffffff813eef55 futex_do_wait+0x45
+    ffa000000015fcf8: ffffffff813ef7a9 __futex_wait+0x89
+    ffa000000015fd38: ffffffff813ee5a0 futex_wake_mark+0x0
+    ffa000000015fdc0: ffffffff813ef8a3 futex_wait+0x73
+    ffa000000015fdc8: ffffffff81e3c120 do_syscall_64+0xc0
+    ffa000000015fe50: ffffffff813eac9c do_futex+0xfc
+    ffa000000015fe58: ffffffff813eaf2c __x64_sys_futex+0x12c
+    ffa000000015fe70: ffffffff8163f5c4 count_memcg_events+0xf4
+    ffa000000015fe90: ffffffff815a4d49 handle_mm_fault+0x159
+    ffa000000015fec8: ffffffff81e3c0e8 do_syscall_64+0x88
+    ffa000000015fed0: ffffffff812d80d4 do_user_addr_fault+0x224
+    ffa000000015ff18: ffffffff81e41739 exc_page_fault+0x69
+    ffa000000015ff40: ffffffff8100012f entry_SYSCALL_64_after_hwframe+0x76
+  saved user regs: r15=7fd70c728bd0 r14=6 r13=563694bd3ed8 r12=563694bd3a20 bp=7fd70c728ba0 bx=7fd70c728b80 r11=246 r10=0 r9=563694bd3a20 r8=ffffffff ax=ffffffffffffffda cx=7fd70c6eb613 dx=ffffffffffffffff si=80 di=7fd70c72c004 orig_ax=ca ip=7fd70c6eb613 flags=246 sp=7ffd46928c28
+  user code: 48 83 f8 da 75 c4 31 f6 b8 ca 00 00 00 0f 05 eb b9 8b 07 85 c0 78 01 c3
+  user stack: 7fd70c6b4dba 3000000010 7ffd46928d20 10000 182154681b1c0029 5636d1605798 563694bd3f02 0 1e0 0 0 5636d1605798 563694bcf321 7fd70c634c4c 5636d1604b08 5636d1604b08 5636d1604b08 5636d16056f8 7fd70c6bfe90 3d6 563694bd3a70 0 563694bd3a20 563694bd3ed8 6 563694bd3b80 563694bcea83 2 563694bd3120 0 563694bcddd4 0
+  futex value: 0xffffffff
+  auxv: {3: '0x563694bca040', 7: '0x7fd70c685000', 9: '0x563694bcdf0b'}
+task=ff110000043fa740 pid= 447 state=2001 sp=ffa000000016fbf8 nlplug-findfs
+  stack=ffa000000016c000 mm=ff11000003857840
+    ffa000000016fc28: ffffffff81e4711e __schedule+0x3ce
+    ffa000000016fc30: ffffffff81001466 asm_common_interrupt+0x26
+    ffa000000016fce0: ffffffff81e485b2 schedule+0x22
+    ffa000000016fcf0: ffffffff813eef55 futex_do_wait+0x45
+    ffa000000016fd08: ffffffff813ef7a9 __futex_wait+0x89
+    ffa000000016fd48: ffffffff813ee5a0 futex_wake_mark+0x0
+    ffa000000016fdd0: ffffffff813ef8a3 futex_wait+0x73
+    ffa000000016fe60: ffffffff813eac9c do_futex+0xfc
+    ffa000000016fe68: ffffffff813eaf2c __x64_sys_futex+0x12c
+    ffa000000016fe78: ffffffff81e3c120 do_syscall_64+0xc0
+    ffa000000016fed8: ffffffff81e3c0e8 do_syscall_64+0x88
+    ffa000000016fee0: ffffffff812a0921 restore_fpregs_from_fpstate+0x41
+    ffa000000016ff00: ffffffff812a0a16 switch_fpu_return+0x56
+    ffa000000016ff40: ffffffff8100012f entry_SYSCALL_64_after_hwframe+0x76
+  saved user regs: r15=0 r14=7ffd469292a8 r13=7ffd469292d0 r12=0 bp=ca bx=7fd70bf85b38 r11=246 r10=0 r9=0 r8=0 ax=ffffffffffffffda cx=7fd70c6ee8f3 dx=2 si=80 di=7fd70bf849a4 orig_ax=ca ip=7fd70c6ee8f3 flags=246 sp=7fd70bf848e8
+  user code: c3 e9 e7 d8 ff ff 41 56 b8 02 00 00 00 49 89 f6 be 00 88 08 00 53 48 81
+  user stack: 7fd70c6ec262 7fd70bf85b74 0 7fd70bf849a4 7fd70bf849a4 7ffd469292a8 7fd70c6eb71e 0 7fd70bf84a00 2 0 7fd70bf84a00 0 80 0 2 7fd70c6ec5ff 0 1 2000 beff000 0 0 200000000 0 0 0 7ffd46928ee8 7ffd469292a8 23000 7fd70c634c10 7fd70bf85aa8
+  futex value: 0x2
+  auxv: {3: '0x563694bca040', 7: '0x7fd70c685000', 9: '0x563694bcdf0b'}

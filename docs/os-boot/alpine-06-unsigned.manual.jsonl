@@ -1,0 +1,7 @@
+{"utc": "2026-09-25T03:00:41.312085+00:00", "emulator_wall_seconds": 1571.74, "text": "root\n"}
+{"utc": "2026-09-25T03:01:37.169021+00:00", "text": "uname -a\nid\nmount\ncat /etc/alpine-release\ndmesg | tail -n 80\n"}
+{"utc": "2026-09-25T03:02:41.010664+00:00", "text": "printf \"\\033[2J\\033[HAlpine 3.24.2: serial login as root\\n\" > /dev/tty1\n(uname -a; id -u; mount) | tee -a /dev/tty1\n"}
+{"utc": "2026-09-25T03:03:05.131152+00:00", "text": "dd if=/media/cdrom/boot/modloop-virt of=/tmp/root-meta.xz bs=1 skip=22926980 count=1912\nsha256sum /tmp/root-meta.xz\nbusybox xz -dc /tmp/root-meta.xz > /tmp/root-meta.raw\necho XZ_STATUS=$?\nsha256sum /tmp/root-meta.raw\n"}
+{"utc": "2026-09-25T03:04:10.740520+00:00", "text": "busybox --list | grep -E 'xz|lzma'\nls /media/cdrom/apks/x86_64/*xz* /media/cdrom/apks/x86_64/*lzma*\nbusybox unxz -c /tmp/root-meta.xz > /tmp/root-meta.raw\necho UNXZ_STATUS=$?\nsha256sum /tmp/root-meta.raw\n"}
+{"utc": "2026-09-25T03:05:38.353474+00:00", "text": "printf \"\\033[2J\\033[HAlpine 3.24.2: serial login as root\\n\" > /dev/tty1\n(uname -a; id | cut -d \" \" -f 1-2; mount) | tee -a /dev/tty1\n"}
+{"utc": "2026-09-25T03:06:00.275985+00:00", "text": "printf \"ALPINE_BOOT_VERIFIED\\n\"\n"}

@@ -252,6 +252,7 @@ u64 Model::z__port_in8(u64 port) {
   if (p == 0xB2)             return pm.apmc;
   if (p == 0xB3)             return apmc_status; // APM Status
   if (p == 0x402)            return bios_debug ? 0xE9 : 0xFF; // QEMU debug console readback
+  if (pm.handles_hotplug(p)) return pm.read_hotplug(p);
   // PIIX4 ACPI PM I/O (base 0xB000, range 0x40)
   if (pci.pm_base() <= p && p < pci.pm_base() + 0x40)
     return pm.read(p - pci.pm_base(), tsc);
@@ -346,6 +347,8 @@ unit Model::z__port_out8(u64 port, u64 val) {
   } else if (p == 0xB3) {
     // APM Status: store value
     apmc_status = v;
+  } else if (pm.handles_hotplug(p)) {
+    pm.write_hotplug(p, v);
   } else if (pci.pm_base() <= p && p < pci.pm_base() + 0x40) {
     if (pm.write(p - pci.pm_base(), v)) should_exit = true;
   }

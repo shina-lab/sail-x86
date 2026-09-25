@@ -1,0 +1,23 @@
+762/909 Testing: official_e2e_unsigned_division_128
+762/909 Test: official_e2e_unsigned_division_128
+Command: "/usr/bin/cmake" "-DSAIL=/home/ruiu/sail/bin/sail" "-DSAIL_LIB=/home/ruiu/sail/bin/../share/sail/lib" "-DPython3_EXECUTABLE=/usr/bin/python3" "-DSRC=/home/ruiu/sail-x86-os4/build/sail-llvm-unsigned/test/e2e/unsigned_division_128.sail" "-DOUT=/home/ruiu/sail-x86-os4/build/sail-llvm-unsigned/build/test/e2e/official_unsigned_division_128" "-P" "/home/ruiu/sail-x86-os4/build/sail-llvm-unsigned/test/run_official_e2e.cmake"
+Directory: /home/ruiu/sail-x86-os4/build/sail-llvm-unsigned/build/test
+"official_e2e_unsigned_division_128" start time: Sep 25 11:31 JST
+Output:
+----------------------------------------------------------
+-- Skipping official Sail e2e for /home/ruiu/sail-x86-os4/build/sail-llvm-unsigned/test/e2e/unsigned_division_128.sail: upstream sail rejected the source
+[93mType error[0m:
+[96m/home/ruiu/sail-x86-os4/build/sail-llvm-unsigned/build/test/e2e/official_unsigned_division_128.prepared.sail[0m:8.26-27:
+8[96m |[0m  let quotient = dividend / divisor;
+ [91m |[0m                          [91m^[0m
+ [91m |[0m Function (operator /) not found
+
+<end of output>
+Test time =   0.54 sec
+----------------------------------------------------------
+Test Passed.
+"official_e2e_unsigned_division_128" end time: Sep 25 11:31 JST
+"official_e2e_unsigned_division_128" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Sep 25 11:31 JST

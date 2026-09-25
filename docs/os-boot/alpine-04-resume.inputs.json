@@ -1,0 +1,6 @@
+[
+  {
+    "wall_seconds": 3.626,
+    "text": "/boot/vmlinuz-virt initrd=/boot/initramfs-virt console=ttyS0,115200 modules=loop,squashfs,sd-mod,usb-storage noapic nolapic tsc=reliable nokaslr debug_init\n"
+  }
+]

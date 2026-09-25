@@ -1,0 +1,2 @@
+ACPI GPE reset status: 0x0000
+Sail APIC MMIO, MSRs and PIC/APIC interrupt dispatch: PASS

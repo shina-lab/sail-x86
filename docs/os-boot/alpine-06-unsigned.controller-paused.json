@@ -1,0 +1,7 @@
+{
+  "controller": 3256378,
+  "runner": 3256379,
+  "emulator": 3256380,
+  "utc": "2026-09-25T02:54:58.225858+00:00",
+  "reason": "Pause automatic input to collect modloop failure diagnostics after manual root login."
+}

@@ -10,6 +10,39 @@ int main() {
   x86::enable_all_features(m);
   assert(m.phys_mem.init(0x100000));
   m.zsystem_mode = false; // explicit IRQ acknowledgements, no guest IDT
+
+  // SeaBIOS's GPE.1 handler interprets each PCI_DOWN bit as an eject
+  // request. Unmapped reads of all ones removed the IDE controller during
+  // Alpine's initial ACPI scan. This fixed platform has no hotplug events.
+  printf("ACPI GPE reset status: 0x%04lx\n", m.z__port_in16(0xAFE0));
+  fflush(stdout);
+  for (unsigned port = 0xAFE0; port < 0xAFE4; ++port)
+    assert(m.z__port_in8(port) == 0);
+  for (unsigned port = 0xAE00; port < 0xAE10; ++port)
+    assert(m.z__port_in8(port) == 0);
+  m.z__port_out16(0xAFE0, 0xFFFF); // Acknowledge GPE status (write-one-clear).
+  m.z__port_out16(0xAFE2, 0xFFFF); // Enable all GPEs, as ACPI initialization does.
+  assert(m.z__port_in32(0xAFE0) == 0xFFFF0000);
+  assert((m.z__port_in16(0xAFE0) & m.z__port_in16(0xAFE2)) == 0);
+  m.z__port_out8(0xAFE2, 2);
+  assert(m.z__port_in16(0xAFE2) == 0xFF02);
+  m.z__port_out8(0xAFE3, 0);
+  assert(m.z__port_in16(0xAFE2) == 2);
+  assert(m.z__port_in32(0xAE00) == 0); // No insertion notifications.
+  assert(m.z__port_in32(0xAE04) == 0); // No removal notifications.
+  assert(m.z__port_in32(0xAE08) == 0); // Base hotplug feature set.
+  assert(m.z__port_in32(0xAE0C) == 0); // No removable slots.
+  for (unsigned port = 0xAE00; port < 0xAE10; port += 4) {
+    m.z__port_out32(port, 0xFFFFFFFF);
+    assert(m.z__port_in32(port) == 0);
+  }
+  m.z__port_out32(0xCF8, 0x80000900);
+  assert(m.z__port_in32(0xCFC) == 0x70108086); // Fixed IDE device remains present.
+  assert(m.z__port_in8(0xAFDF) == 0xFF); // Adjacent unmapped ports stay open bus.
+  assert(m.z__port_in8(0xAFE4) == 0xFF);
+  assert(m.z__port_in8(0xAE10) == 0xFF);
+  m.z__port_out16(0xAFE2, 0);
+
   m.z__port_out8(0xB2, 0xF1);
   assert(!m.smi_pending && (m.pm.control & 1));
   m.z__port_out32(0xCF8, 0x80000B58);

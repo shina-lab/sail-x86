@@ -1,0 +1,29 @@
+  legacy_interrupt_segmented_stacks                 PASS
+Exception delivery tests:
+  divide_error_delivery                             PASS
+  gp_fault_delivery_with_error_code                 PASS
+  interrupt_gate_clears_if                          PASS
+  trap_gate_preserves_if                            PASS
+  tf_nt_rf_cleared_on_delivery                      PASS
+  stack_alignment_16byte                            PASS
+  int3_software_interrupt                           PASS
+  int_n_no_error_code_for_gp_vector                 PASS
+  int_n_saved_rip                                   PASS
+  triple_fault                                      PASS
+  pm32_divide_error_delivery                        PASS
+  pm32_interrupt_gate_clears_if                     PASS
+  pm32_trap_gate_preserves_if                       PASS
+  pm32_interrupt_reloads_ss_cache                   PASS
+  real_mode_ivt_delivery                            PASS
+  pm32_external_interrupt_vector8_no_error_code     PASS
+  sti_delays_pending_interrupt_one_instruction      PASS
+  external_interrupt_vector8_no_error_code          PASS
+  sti_defers_pending_irq_one_instruction            PASS
+  sti_with_if_set_does_not_inhibit_irq              PASS
+  repeated_sti_does_not_extend_inhibition           PASS
+  sti_cli_keeps_irq_pending                         PASS
+  sti_does_not_block_fault_and_event_ends_inhibitionPASS
+  sti_does_not_suppress_single_step                 PASS
+  sti_sysexit_delivers_irq_in_user_context          PASS
+
+  26 passed, 0 failed
