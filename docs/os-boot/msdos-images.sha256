@@ -1,0 +1,8 @@
+c00f4612390689b1c6c4512177cce1cc3cbc7ad98c9bb8357e61529b0f19eb77  /home/ruiu/os-images/msdos622.iso
+4bea54ad20f7128d1a504348a31c2a8f7d89f81d8bb1fdf17e7a0b280d792e97  /home/ruiu/os-images/win31.iso
+888830e2b45d64866b461ebfc27aaaa6fa60e993f557a8dd1cc5abad2bd36d44  build/bios.bin
+62c8300e0fa564fd26b596fa4327b081fc159e828a0330ec45b61cd428919d55  build/vgabios.bin
+b10f30955a23db5ea4ad0bed75ddc99f76ce7a02003a3a92fea1aefe9926f235  build/os-boot/msdos622-verified.img
+da565807c69ecb9afeb32ad7be10649be54cedce96b8291d95e1cbcae530e138  build/os-boot/win31-msdos-clean.img
+6d96e03c48110f7d9591b65a1afae9eeaf1179715987266c988f4a9ee1f14ba6  build/os-boot/win31-msdos-installed.img
+66fd1fdf2f91c1bd5df10fcdbe8de1fabe144256cbe082146677b4934cc8eb65  build/os-boot/win31-msdos-enhanced.img

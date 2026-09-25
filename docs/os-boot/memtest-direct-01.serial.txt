@@ -1,0 +1,33 @@
+      Memtest86+ v7.20
+| Sail x86-64 Emulator
+CLK/Temp: 1010MHz           | Pass   %
+L1 Cache:   N/A             | Test   %
+L2 Cache:   N/A             | Test #
+L3 Cache:   N/A             | Testing:
+Memory  :   59MB            | Pattern:
+--------------------------------------------------------------------------------
+CPU: 1 Cores 1 Threads    SMP: Disabled   | Time:           Status: Testing  -
+Using:                                    | Pass:  0        Errors: 0
+--------------------------------------------------------------------------------
+ <ESC> Exit  <F1> Configuration  <Space> Scroll Lock            7.20.52c6c.x64
+  0%
+ 25% ##########
+ #0  [Address test, walking ones, no cache]
+ing: 0KB - 4MB [4MB of 58.6MB]
+ern: 0x0000000000000000
+CPU: 1 Cores 1 Threads    SMP: Disabled   | Time:  0:00:00  Status: Testing  /
+Using: Core #0                            | Pass:  0        Errors: 0
+  0%
+ 50% ####################
+ #0  [Address test, walking ones, no cache]
+ing: 0KB - 4MB [4MB of 58.6MB]
+ern: 0xffffffffffffffff
+CPU: 1 Cores 1 Threads    SMP: Disabled   | Time:  0:00:00  Status: Testing  /
+Using: Core #0                            | Pass:  0        Errors: 0
+  0%
+ 63% #########################
+ #3  [Moving inversions, 1s & 0s]
+ing: 0KB - 4MB [4MB of 58.6MB]
+ern: 0xffffffffffffffff
+CPU: 1 Cores 1 Threads    SMP: Disabled   | Time:  0:00:32  Status: Testing  |
+Using: All Cores                          | Pass:  0        Errors: 0

@@ -254,6 +254,9 @@ function exec_cmps(os, asz, pfx) = {
 
 enum RepPrefix = { REP_none, REP_rep, REP_repe, REP_repne }
 
+// SDM Vol.2A 2.1.1: F2 and F3 repeat string and I/O instructions.
+// The ZF termination conditions apply only to CMPS/SCAS (Vol.1 7.3.9.2);
+// either prefix uses count-only repetition for MOVS/STOS/LODS/INS/OUTS.
 enum StringOp = { STR_movs, STR_stos, STR_lods, STR_cmps, STR_scas, STR_ins, STR_outs }
 
 val exec_rep : (RepPrefix, StringOp, operand_size, address_size, Prefixes) -> unit
@@ -1043,7 +1046,7 @@ function decode_execute() = {
       108 => {
         vmx_exit_if_io(v(RDX), 8, true);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_ins, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_ins, 8, asz, pfx)
         else exec_ins(8, asz)
       },
       // 6D: INSW/INSD — Input word/dword from port DX to ES:[RDI]
@@ -1051,14 +1054,14 @@ function decode_execute() = {
         let os = opsize(pfx);
         vmx_exit_if_io(v(RDX), os, true);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_ins, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_ins, os, asz, pfx)
         else exec_ins(os, asz)
       },
       // 6E: OUTSB — Output byte from DS:[RSI] to port DX
       110 => {
         vmx_exit_if_io(v(RDX), 8, false);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_outs, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_outs, 8, asz, pfx)
         else exec_outs(8, asz, pfx)
       },
       // 6F: OUTSW/OUTSD — Output word/dword from DS:[RSI] to port DX
@@ -1066,7 +1069,7 @@ function decode_execute() = {
         let os = opsize(pfx);
         vmx_exit_if_io(v(RDX), os, false);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_outs, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_outs, os, asz, pfx)
         else exec_outs(os, asz, pfx)
       },
 
@@ -1366,7 +1369,7 @@ function decode_execute() = {
       // A4: MOVSB
       164 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_movs, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_movs, 8, asz, pfx)
         else exec_movs(8, asz, pfx)
       },
 
@@ -1374,7 +1377,7 @@ function decode_execute() = {
       165 => {
         let os = opsize(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_movs, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_movs, os, asz, pfx)
         else exec_movs(os, asz, pfx)
       },
 
@@ -1415,7 +1418,7 @@ function decode_execute() = {
       // AA: STOSB
       170 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_stos, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_stos, 8, asz, pfx)
         else exec_stos(8, asz)
       },
 
@@ -1423,14 +1426,14 @@ function decode_execute() = {
       171 => {
         let os = opsize(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_stos, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_stos, os, asz, pfx)
         else exec_stos(os, asz)
       },
 
       // AC: LODSB
       172 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_lods, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_lods, 8, asz, pfx)
         else exec_lods(8, asz, pfx)
       },
 
@@ -1438,7 +1441,7 @@ function decode_execute() = {
       173 => {
         let os = opsize(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_lods, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_lods, os, asz, pfx)
         else exec_lods(os, asz, pfx)
       },
 

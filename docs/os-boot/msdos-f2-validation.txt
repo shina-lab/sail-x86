@@ -1,0 +1,664 @@
+sail-llvm validation, 2026-09-25 UTC
+
+Build: system-emu/build-llvm.sh
+Tests: direct clang++ builds against build/llvm/sail_x86_model.o
+No official Sail compiler or CMake/CTest build used.
+
+Before fix: basic new matrix fails; 368 VM86 cases pass, 48 new cases fail.
+
+msdos-test-a20-after.log
+A20 gate tests:
+  a20_disabled_aliases_1mb                          PASS
+  a20_enabled_no_wrap                               PASS
+  a20_port92_enable                                 PASS
+  a20_port92_disable                                PASS
+  a20_kbd_controller_enable                         PASS
+  a20_affects_paging                                PASS
+  a20_bit20_only                                    PASS
+
+7 passed, 0 failed
+
+msdos-test-apic-after.log
+APIC MMIO, priority, IPI, timers, edge/level routing: PASS
+
+msdos-test-apic-cpu-after.log
+Sail APIC MMIO, MSRs and PIC/APIC interrupt dispatch: PASS
+
+msdos-test-basic-after.log
+System emulator tests:
+  phys_mem_read_write                               PASS
+  phys_mem_bulk                                     PASS
+  mov_eax_imm32_hlt                                 PASS
+  mov_rax_imm64_hlt                                 PASS
+  add_rax_rbx_hlt                                   PASS
+  mem_store_load_hlt                                PASS
+  push_pop_hlt                                      PASS
+  jmp_forward_hlt                                   PASS
+  loop_counter_hlt                                  PASS
+  system_regs_initial_values                        PASS
+  ide_busmaster_pci_io                              PASS
+  sse_shuffle_rip_relative_immediate                PASS
+
+Privileged instruction tests:
+  mov_cr0_read_write                                PASS
+  mov_cr3_write                                     PASS
+  lgdt_sgdt                                         PASS
+  lidt_sidt                                         PASS
+  wrmsr_rdmsr_star                                  PASS
+  wrmsr_rdmsr_efer                                  PASS
+  swapgs                                            PASS
+  cli_sti                                           PASS
+  wbinvd                                            PASS
+  clts                                              PASS
+
+String I/O tests:
+  insb_single                                       PASS
+  outsb_single                                      PASS
+  rep_insb                                          PASS
+  rep_outsb                                         PASS
+  rep_insd                                          PASS
+  insb_df_backward                                  PASS
+
+Direct store tests:
+  movdiri_32                                        PASS
+  movdiri_64                                        PASS
+  movdir64b                                         PASS
+  movdir64b_unaligned_faults                        PASS
+
+32-bit protected mode tests:
+  lgdt_sgdt_32bit                                   PASS
+  lidt_sidt_32bit                                   PASS
+
+Segment limit checking tests:
+  seg_limit_byte_within                             PASS
+  seg_limit_dword_crosses                           PASS
+  seg_limit_dword_within                            PASS
+  seg_limit_ss_fault                                PASS
+
+Real mode tests:
+  f2_string_repetition                              PASS
+  real_mode_mov_ax_hlt                              PASS
+  xlat_segmented_table                              PASS
+  xlat_address_size_and_segment_limit               PASS
+  real_mode_far_jmp_ea                              PASS
+  real_mode_far_call_9a                             PASS
+
+Protected mode far transfer tests:
+  legacy_call_gate_privilege_stacks                 PASS
+  legacy_call_gate_same_privilege_and_faults        PASS
+  legacy_privilege_stack_descriptor_faults          PASS
+  legacy_retf_code_validation                       PASS
+  legacy_retf_outer_parameters_and_faults           PASS
+  ldt_cached_descriptor_lookup                      PASS
+  lldt_descriptor_validation                        PASS
+  protected_mode_far_jmp_ea                         PASS
+  protected_mode_far_jmp_ff5                        PASS
+
+Mode transition tests:
+  real_to_protected_mode_transition                 PASS
+  lmsw_enters_protected_mode                        PASS
+  lmsw_preserves_cr0_and_cached_segments            PASS
+  lmsw_preserves_pe_and_long_mode                   PASS
+  xlat_segmented_table_lookup                       PASS
+  xlat_segment_limit_fault                          PASS
+
+IRET tests:
+  real_mode_iret_no_pop_sp_ss                       PASS
+  x87_save_restore_large_memory_operand             PASS
+  real_mode_iret_with_nt                            PASS
+  real_mode_int_iret_preserves_regs                 PASS
+  protected_mode_iret_same_privilege                PASS
+  ia32e_iretq_to_compat_loads_ss_descriptor         PASS
+  ia32e_sysenter_switches_to_long_mode              PASS
+  mov_gs_at_cpl3_uses_implicit_access               PASS
+  compat_seg_linear_wraps_at_32bit                  PASS
+
+PUSHA/POPA tests:
+  pushad_popad_32bit                                PASS
+  pushad_stack_layout_32bit                         PASS
+  pusha_popa_16bit                                  PASS
+  popad_skips_esp_slot                              PASS
+  pusha_ud_in_64bit                                 PASS
+
+PUSH/POP segment register tests:
+  push_es_16bit                                     PASS
+  push_ds_pop_es_32bit                              PASS
+  push_cs_16bit                                     PASS
+  push_ss_pop_ss_16bit                              PASS
+  pop_ds_real_mode                                  PASS
+  push_seg_ud_in_64bit                              PASS
+
+79 passed, 0 failed
+
+msdos-test-exceptions-after.log
+  legacy_interrupt_segmented_stacks                 PASS
+Exception delivery tests:
+  divide_error_delivery                             PASS
+  gp_fault_delivery_with_error_code                 PASS
+  interrupt_gate_clears_if                          PASS
+  trap_gate_preserves_if                            PASS
+  tf_nt_rf_cleared_on_delivery                      PASS
+  stack_alignment_16byte                            PASS
+  int3_software_interrupt                           PASS
+  int_n_no_error_code_for_gp_vector                 PASS
+  int_n_saved_rip                                   PASS
+  triple_fault                                      PASS
+  pm32_divide_error_delivery                        PASS
+  pm32_interrupt_gate_clears_if                     PASS
+  pm32_trap_gate_preserves_if                       PASS
+  pm32_interrupt_reloads_ss_cache                   PASS
+  real_mode_ivt_delivery                            PASS
+  pm32_external_interrupt_vector8_no_error_code     PASS
+  sti_delays_pending_interrupt_one_instruction      PASS
+  external_interrupt_vector8_no_error_code          PASS
+  sti_defers_pending_irq_one_instruction            PASS
+  sti_with_if_set_does_not_inhibit_irq              PASS
+  repeated_sti_does_not_extend_inhibition           PASS
+  sti_cli_keeps_irq_pending                         PASS
+  sti_does_not_block_fault_and_event_ends_inhibitionPASS
+  sti_does_not_suppress_single_step                 PASS
+  sti_sysexit_delivers_irq_in_user_context          PASS
+
+  26 passed, 0 failed
+
+msdos-test-fw-cfg-after.log
+fw_cfg CPU count, IRQ0 override and VGA directory: PASS
+
+msdos-test-ide-after.log
+IDE channel tests:
+  atapi_signature_and_identify                      PASS
+  pci_bus_master_pio_interrupt_latch                PASS
+  atapi_inquiry_capacity_and_read                   PASS
+  atapi_inter_block_busy_and_interrupt              PASS
+  ata_disk_read_write                               PASS
+  master_slave_independent_transfers                PASS
+  busmaster_pio_interrupt_status                    PASS
+
+  7 passed, 0 failed
+
+msdos-test-keyboard-after.log
+8042 A20 output port and gate commands: PASS
+8042 output latch and paced scancodes: PASS
+
+msdos-test-paging-after.log
+Paging tests:
+  identity_map_2mb                                  PASS
+  non_identity_4kb_mapping                          PASS
+  page_fault_not_present                            PASS
+  accessed_dirty_bits                               PASS
+  write_protect                                     PASS
+  huge_page_1gb                                     PASS
+  store_through_paging                              PASS
+  cross_page_instruction_fetch_fault                PASS
+  cross_page_data_faults                            PASS
+  la57_identity_map_4kb                             PASS
+  la57_non_identity_4kb                             PASS
+  la57_1gb_huge_page                                PASS
+  la57_accessed_dirty                               PASS
+  paging_32bit_identity_4kb                         PASS
+  paging_32bit_4mb_page                             PASS
+  paging_32bit_fault_not_present                    PASS
+  paging_pae_identity_2mb                           PASS
+  paging_pae_4kb                                    PASS
+
+18 passed, 0 failed
+
+msdos-test-rtc-after.log
+RTC rates, flags, PIC/IOAPIC routing, SET, UIP and leap day: PASS
+
+msdos-test-smm-after.log
+SMM tests:
+  smi_saves_state_at_smbase_plus_8000h              PASS
+  smbase_relocation_moves_handler_and_save_area     PASS
+  rsm_restores_virtual_8086_context                 PASS
+
+3 passed, 0 failed
+
+msdos-test-vbe-after.log
+Bochs DISPI, LFB/banking, PCI BAR, pitch and pixel formats: PASS
+
+msdos-test-vga-after.log
+VGA planes, latches, read/write modes, chain-4, DAC, mode 12h/13h: PASS
+
+msdos-test-vm86-after.log
+PASS nop [fill=zeros]
+PASS nop [fill=ones]
+PASS VIF/VIP survive monitor entry [fill=zeros]
+PASS VIF/VIP survive monitor entry [fill=ones]
+PASS 16-bit arithmetic [fill=zeros]
+PASS 16-bit arithmetic [fill=ones]
+PASS 32-bit arithmetic [fill=zeros]
+PASS 32-bit arithmetic [fill=ones]
+PASS DS memory [fill=zeros]
+PASS DS memory [fill=ones]
+PASS 32-bit address/operand [fill=zeros]
+PASS 32-bit address/operand [fill=ones]
+PASS null data segment [fill=zeros]
+PASS null data segment [fill=ones]
+PASS segment low bits are address bits [fill=zeros]
+PASS segment low bits are address bits [fill=ones]
+PASS FS/GS loads [fill=zeros]
+PASS FS/GS loads [fill=ones]
+PASS push/pop 16 [fill=zeros]
+PASS push/pop 16 [fill=ones]
+PASS push/pop 32 [fill=zeros]
+PASS push/pop 32 [fill=ones]
+PASS 16-bit stack wrap [fill=zeros]
+PASS 16-bit stack wrap [fill=ones]
+PASS MOVS [fill=zeros]
+PASS MOVS [fill=ones]
+PASS REP MOVS [fill=zeros]
+PASS REP MOVS [fill=ones]
+PASS F2 string opcode=164 wide=0 DF=0 [fill=zeros]
+PASS F2 string opcode=164 wide=0 DF=0 [fill=ones]
+PASS F2 string opcode=164 wide=0 DF=1 [fill=zeros]
+PASS F2 string opcode=164 wide=0 DF=1 [fill=ones]
+PASS F2 string opcode=164 wide=1 DF=0 [fill=zeros]
+PASS F2 string opcode=164 wide=1 DF=0 [fill=ones]
+PASS F2 string opcode=164 wide=1 DF=1 [fill=zeros]
+PASS F2 string opcode=164 wide=1 DF=1 [fill=ones]
+PASS F2 string opcode=165 wide=0 DF=0 [fill=zeros]
+PASS F2 string opcode=165 wide=0 DF=0 [fill=ones]
+PASS F2 string opcode=165 wide=0 DF=1 [fill=zeros]
+PASS F2 string opcode=165 wide=0 DF=1 [fill=ones]
+PASS F2 string opcode=165 wide=1 DF=0 [fill=zeros]
+PASS F2 string opcode=165 wide=1 DF=0 [fill=ones]
+PASS F2 string opcode=165 wide=1 DF=1 [fill=zeros]
+PASS F2 string opcode=165 wide=1 DF=1 [fill=ones]
+PASS F2 string opcode=170 wide=0 DF=0 [fill=zeros]
+PASS F2 string opcode=170 wide=0 DF=0 [fill=ones]
+PASS F2 string opcode=170 wide=0 DF=1 [fill=zeros]
+PASS F2 string opcode=170 wide=0 DF=1 [fill=ones]
+PASS F2 string opcode=170 wide=1 DF=0 [fill=zeros]
+PASS F2 string opcode=170 wide=1 DF=0 [fill=ones]
+PASS F2 string opcode=170 wide=1 DF=1 [fill=zeros]
+PASS F2 string opcode=170 wide=1 DF=1 [fill=ones]
+PASS F2 string opcode=171 wide=0 DF=0 [fill=zeros]
+PASS F2 string opcode=171 wide=0 DF=0 [fill=ones]
+PASS F2 string opcode=171 wide=0 DF=1 [fill=zeros]
+PASS F2 string opcode=171 wide=0 DF=1 [fill=ones]
+PASS F2 string opcode=171 wide=1 DF=0 [fill=zeros]
+PASS F2 string opcode=171 wide=1 DF=0 [fill=ones]
+PASS F2 string opcode=171 wide=1 DF=1 [fill=zeros]
+PASS F2 string opcode=171 wide=1 DF=1 [fill=ones]
+PASS F2 string opcode=172 wide=0 DF=0 [fill=zeros]
+PASS F2 string opcode=172 wide=0 DF=0 [fill=ones]
+PASS F2 string opcode=172 wide=0 DF=1 [fill=zeros]
+PASS F2 string opcode=172 wide=0 DF=1 [fill=ones]
+PASS F2 string opcode=172 wide=1 DF=0 [fill=zeros]
+PASS F2 string opcode=172 wide=1 DF=0 [fill=ones]
+PASS F2 string opcode=172 wide=1 DF=1 [fill=zeros]
+PASS F2 string opcode=172 wide=1 DF=1 [fill=ones]
+PASS F2 string opcode=173 wide=0 DF=0 [fill=zeros]
+PASS F2 string opcode=173 wide=0 DF=0 [fill=ones]
+PASS F2 string opcode=173 wide=0 DF=1 [fill=zeros]
+PASS F2 string opcode=173 wide=0 DF=1 [fill=ones]
+PASS F2 string opcode=173 wide=1 DF=0 [fill=zeros]
+PASS F2 string opcode=173 wide=1 DF=0 [fill=ones]
+PASS F2 string opcode=173 wide=1 DF=1 [fill=zeros]
+PASS F2 string opcode=173 wide=1 DF=1 [fill=ones]
+PASS CS selector zero [fill=zeros]
+PASS CS selector zero [fill=ones]
+PASS far jump [fill=zeros]
+PASS far jump [fill=ones]
+PASS far call/return [fill=zeros]
+PASS far call/return [fill=ones]
+PASS IRET in vm86 [fill=zeros]
+PASS IRET in vm86 [fill=ones]
+PASS IRETD in vm86 [fill=zeros]
+PASS IRETD in vm86 [fill=ones]
+PASS HLT IOPL=0 [fill=zeros]
+PASS HLT IOPL=0 [fill=ones]
+PASS HLT IOPL=3 [fill=zeros]
+PASS HLT IOPL=3 [fill=ones]
+PASS CLI IOPL=0 [fill=zeros]
+PASS CLI IOPL=0 [fill=ones]
+PASS CLI IOPL=3 [fill=zeros]
+PASS CLI IOPL=3 [fill=ones]
+PASS STI IOPL=0 [fill=zeros]
+PASS STI IOPL=0 [fill=ones]
+PASS STI IOPL=3 [fill=zeros]
+PASS STI IOPL=3 [fill=ones]
+PASS PUSHF IOPL=0 [fill=zeros]
+PASS PUSHF IOPL=0 [fill=ones]
+PASS PUSHF IOPL=3 [fill=zeros]
+PASS PUSHF IOPL=3 [fill=ones]
+PASS PUSHFD IOPL=0 [fill=zeros]
+PASS PUSHFD IOPL=0 [fill=ones]
+PASS PUSHFD IOPL=3 [fill=zeros]
+PASS PUSHFD IOPL=3 [fill=ones]
+PASS POPF IOPL=0 [fill=zeros]
+PASS POPF IOPL=0 [fill=ones]
+PASS POPF IOPL=3 [fill=zeros]
+PASS POPF IOPL=3 [fill=ones]
+PASS POPFD IOPL=0 [fill=zeros]
+PASS POPFD IOPL=0 [fill=ones]
+PASS POPFD IOPL=3 [fill=zeros]
+PASS POPFD IOPL=3 [fill=ones]
+PASS IRET IOPL=0 [fill=zeros]
+PASS IRET IOPL=0 [fill=ones]
+PASS INT IOPL=0 [fill=zeros]
+PASS INT IOPL=0 [fill=ones]
+PASS INT IOPL=3 [fill=zeros]
+PASS INT IOPL=3 [fill=ones]
+PASS ARPL #UD [fill=zeros]
+PASS ARPL #UD [fill=ones]
+PASS SLDT #UD [fill=zeros]
+PASS SLDT #UD [fill=ones]
+PASS STR #UD [fill=zeros]
+PASS STR #UD [fill=ones]
+PASS LLDT #UD [fill=zeros]
+PASS LLDT #UD [fill=ones]
+PASS LTR #UD [fill=zeros]
+PASS LTR #UD [fill=ones]
+PASS VERR #UD [fill=zeros]
+PASS VERR #UD [fill=ones]
+PASS VERW #UD [fill=zeros]
+PASS VERW #UD [fill=ones]
+PASS LAR #UD [fill=zeros]
+PASS LAR #UD [fill=ones]
+PASS LSL #UD [fill=zeros]
+PASS LSL #UD [fill=ones]
+PASS BLSI #UD in vm86 [fill=zeros]
+PASS BLSI #UD in vm86 [fill=ones]
+PASS VZEROUPPER #UD in vm86 [fill=zeros]
+PASS VZEROUPPER #UD in vm86 [fill=ones]
+PASS VMXON #UD in vm86 [fill=zeros]
+PASS VMXON #UD in vm86 [fill=ones]
+PASS MOV CR0 #GP [fill=zeros]
+PASS MOV CR0 #GP [fill=ones]
+PASS CLTS #GP [fill=zeros]
+PASS CLTS #GP [fill=ones]
+PASS LGDT #GP [fill=zeros]
+PASS LGDT #GP [fill=ones]
+PASS LIDT #GP [fill=zeros]
+PASS LIDT #GP [fill=ones]
+PASS IN denied IOPL=0 [fill=zeros]
+PASS IN denied IOPL=0 [fill=ones]
+PASS OUT denied IOPL=0 [fill=zeros]
+PASS OUT denied IOPL=0 [fill=ones]
+PASS INS denied IOPL=0 [fill=zeros]
+PASS INS denied IOPL=0 [fill=ones]
+PASS OUTS denied IOPL=0 [fill=zeros]
+PASS OUTS denied IOPL=0 [fill=ones]
+PASS IN allowed IOPL=0 [fill=zeros]
+PASS IN allowed IOPL=0 [fill=ones]
+PASS OUT allowed IOPL=0 [fill=zeros]
+PASS OUT allowed IOPL=0 [fill=ones]
+PASS INS allowed IOPL=0 [fill=zeros]
+PASS INS allowed IOPL=0 [fill=ones]
+PASS OUTS allowed IOPL=0 [fill=zeros]
+PASS OUTS allowed IOPL=0 [fill=ones]
+PASS IN denied IOPL=3 [fill=zeros]
+PASS IN denied IOPL=3 [fill=ones]
+PASS OUT denied IOPL=3 [fill=zeros]
+PASS OUT denied IOPL=3 [fill=ones]
+PASS INS denied IOPL=3 [fill=zeros]
+PASS INS denied IOPL=3 [fill=ones]
+PASS OUTS denied IOPL=3 [fill=zeros]
+PASS OUTS denied IOPL=3 [fill=ones]
+PASS IN allowed IOPL=3 [fill=zeros]
+PASS IN allowed IOPL=3 [fill=ones]
+PASS OUT allowed IOPL=3 [fill=zeros]
+PASS OUT allowed IOPL=3 [fill=ones]
+PASS INS allowed IOPL=3 [fill=zeros]
+PASS INS allowed IOPL=3 [fill=ones]
+PASS OUTS allowed IOPL=3 [fill=zeros]
+PASS OUTS allowed IOPL=3 [fill=ones]
+PASS user page protection [fill=zeros]
+PASS user page protection [fill=ones]
+PASS data segment limit [fill=zeros]
+PASS data segment limit [fill=ones]
+PASS stack segment limit [fill=zeros]
+PASS stack segment limit [fill=ones]
+PASS IRETD entry truncates EIP [fill=zeros]
+PASS IRETD entry truncates EIP [fill=ones]
+PASS INT3 ignores IOPL [fill=zeros]
+PASS INT3 ignores IOPL [fill=ones]
+PASS INT3 gate DPL [fill=zeros]
+PASS INT3 gate DPL [fill=ones]
+PASS nonzero monitor SS base [fill=zeros]
+PASS nonzero monitor SS base [fill=ones]
+PASS monitor IRETD resumes vm86 [fill=zeros]
+PASS monitor IRETD resumes vm86 [fill=ones]
+PASS 16-bit interrupt gate [fill=zeros]
+PASS 16-bit interrupt gate [fill=ones]
+PASS 16-bit gate with error code [fill=zeros]
+PASS 16-bit gate with error code [fill=ones]
+PASS INTO at IOPL 0 [fill=zeros]
+PASS INTO at IOPL 0 [fill=ones]
+PASS VME CLI IOPL=0 VIF=0 VIP=0 [fill=zeros]
+PASS VME CLI IOPL=0 VIF=0 VIP=0 [fill=ones]
+PASS VME STI IOPL=0 VIF=0 VIP=0 [fill=zeros]
+PASS VME STI IOPL=0 VIF=0 VIP=0 [fill=ones]
+PASS VME PUSHF IOPL=0 VIF=0 VIP=0 [fill=zeros]
+PASS VME PUSHF IOPL=0 VIF=0 VIP=0 [fill=ones]
+PASS VME PUSHFD IOPL=0 VIF=0 VIP=0 [fill=zeros]
+PASS VME PUSHFD IOPL=0 VIF=0 VIP=0 [fill=ones]
+PASS VME POPF IF=0 IOPL=0 VIF=0 VIP=0 [fill=zeros]
+PASS VME POPF IF=0 IOPL=0 VIF=0 VIP=0 [fill=ones]
+PASS VME POPF IF=1 IOPL=0 VIF=0 VIP=0 [fill=zeros]
+PASS VME POPF IF=1 IOPL=0 VIF=0 VIP=0 [fill=ones]
+PASS VME POPFD IOPL=0 VIF=0 VIP=0 [fill=zeros]
+PASS VME POPFD IOPL=0 VIF=0 VIP=0 [fill=ones]
+PASS VME IRET IOPL=0 VIF=0 VIP=0 [fill=zeros]
+PASS VME IRET IOPL=0 VIF=0 VIP=0 [fill=ones]
+PASS VME IRET IF=1 IOPL=0 VIF=0 VIP=0 [fill=zeros]
+PASS VME IRET IF=1 IOPL=0 VIF=0 VIP=0 [fill=ones]
+PASS VME IRET TF=1 IOPL=0 VIF=0 VIP=0 [fill=zeros]
+PASS VME IRET TF=1 IOPL=0 VIF=0 VIP=0 [fill=ones]
+PASS VME IRETD IOPL=0 VIF=0 VIP=0 [fill=zeros]
+PASS VME IRETD IOPL=0 VIF=0 VIP=0 [fill=ones]
+PASS VME INT IOPL=0 state=0 monitored [fill=zeros]
+PASS VME INT IOPL=0 state=0 monitored [fill=ones]
+PASS VME INT IOPL=0 state=0 redirected [fill=zeros]
+PASS VME INT IOPL=0 state=0 redirected [fill=ones]
+PASS VME CLI IOPL=0 VIF=1 VIP=0 [fill=zeros]
+PASS VME CLI IOPL=0 VIF=1 VIP=0 [fill=ones]
+PASS VME STI IOPL=0 VIF=1 VIP=0 [fill=zeros]
+PASS VME STI IOPL=0 VIF=1 VIP=0 [fill=ones]
+PASS VME PUSHF IOPL=0 VIF=1 VIP=0 [fill=zeros]
+PASS VME PUSHF IOPL=0 VIF=1 VIP=0 [fill=ones]
+PASS VME PUSHFD IOPL=0 VIF=1 VIP=0 [fill=zeros]
+PASS VME PUSHFD IOPL=0 VIF=1 VIP=0 [fill=ones]
+PASS VME POPF IF=0 IOPL=0 VIF=1 VIP=0 [fill=zeros]
+PASS VME POPF IF=0 IOPL=0 VIF=1 VIP=0 [fill=ones]
+PASS VME POPF IF=1 IOPL=0 VIF=1 VIP=0 [fill=zeros]
+PASS VME POPF IF=1 IOPL=0 VIF=1 VIP=0 [fill=ones]
+PASS VME POPFD IOPL=0 VIF=1 VIP=0 [fill=zeros]
+PASS VME POPFD IOPL=0 VIF=1 VIP=0 [fill=ones]
+PASS VME IRET IOPL=0 VIF=1 VIP=0 [fill=zeros]
+PASS VME IRET IOPL=0 VIF=1 VIP=0 [fill=ones]
+PASS VME IRET IF=1 IOPL=0 VIF=1 VIP=0 [fill=zeros]
+PASS VME IRET IF=1 IOPL=0 VIF=1 VIP=0 [fill=ones]
+PASS VME IRET TF=1 IOPL=0 VIF=1 VIP=0 [fill=zeros]
+PASS VME IRET TF=1 IOPL=0 VIF=1 VIP=0 [fill=ones]
+PASS VME IRETD IOPL=0 VIF=1 VIP=0 [fill=zeros]
+PASS VME IRETD IOPL=0 VIF=1 VIP=0 [fill=ones]
+PASS VME INT IOPL=0 state=1 monitored [fill=zeros]
+PASS VME INT IOPL=0 state=1 monitored [fill=ones]
+PASS VME INT IOPL=0 state=1 redirected [fill=zeros]
+PASS VME INT IOPL=0 state=1 redirected [fill=ones]
+PASS VME CLI IOPL=0 VIF=0 VIP=1 [fill=zeros]
+PASS VME CLI IOPL=0 VIF=0 VIP=1 [fill=ones]
+PASS VME STI IOPL=0 VIF=0 VIP=1 [fill=zeros]
+PASS VME STI IOPL=0 VIF=0 VIP=1 [fill=ones]
+PASS VME PUSHF IOPL=0 VIF=0 VIP=1 [fill=zeros]
+PASS VME PUSHF IOPL=0 VIF=0 VIP=1 [fill=ones]
+PASS VME PUSHFD IOPL=0 VIF=0 VIP=1 [fill=zeros]
+PASS VME PUSHFD IOPL=0 VIF=0 VIP=1 [fill=ones]
+PASS VME POPF IF=0 IOPL=0 VIF=0 VIP=1 [fill=zeros]
+PASS VME POPF IF=0 IOPL=0 VIF=0 VIP=1 [fill=ones]
+PASS VME POPF IF=1 IOPL=0 VIF=0 VIP=1 [fill=zeros]
+PASS VME POPF IF=1 IOPL=0 VIF=0 VIP=1 [fill=ones]
+PASS VME POPFD IOPL=0 VIF=0 VIP=1 [fill=zeros]
+PASS VME POPFD IOPL=0 VIF=0 VIP=1 [fill=ones]
+PASS VME IRET IOPL=0 VIF=0 VIP=1 [fill=zeros]
+PASS VME IRET IOPL=0 VIF=0 VIP=1 [fill=ones]
+PASS VME IRET IF=1 IOPL=0 VIF=0 VIP=1 [fill=zeros]
+PASS VME IRET IF=1 IOPL=0 VIF=0 VIP=1 [fill=ones]
+PASS VME IRET TF=1 IOPL=0 VIF=0 VIP=1 [fill=zeros]
+PASS VME IRET TF=1 IOPL=0 VIF=0 VIP=1 [fill=ones]
+PASS VME IRETD IOPL=0 VIF=0 VIP=1 [fill=zeros]
+PASS VME IRETD IOPL=0 VIF=0 VIP=1 [fill=ones]
+PASS VME INT IOPL=0 state=2 monitored [fill=zeros]
+PASS VME INT IOPL=0 state=2 monitored [fill=ones]
+PASS VME INT IOPL=0 state=2 redirected [fill=zeros]
+PASS VME INT IOPL=0 state=2 redirected [fill=ones]
+PASS VME CLI IOPL=0 VIF=1 VIP=1 [fill=zeros]
+PASS VME CLI IOPL=0 VIF=1 VIP=1 [fill=ones]
+PASS VME STI IOPL=0 VIF=1 VIP=1 [fill=zeros]
+PASS VME STI IOPL=0 VIF=1 VIP=1 [fill=ones]
+PASS VME PUSHF IOPL=0 VIF=1 VIP=1 [fill=zeros]
+PASS VME PUSHF IOPL=0 VIF=1 VIP=1 [fill=ones]
+PASS VME PUSHFD IOPL=0 VIF=1 VIP=1 [fill=zeros]
+PASS VME PUSHFD IOPL=0 VIF=1 VIP=1 [fill=ones]
+PASS VME POPF IF=0 IOPL=0 VIF=1 VIP=1 [fill=zeros]
+PASS VME POPF IF=0 IOPL=0 VIF=1 VIP=1 [fill=ones]
+PASS VME POPF IF=1 IOPL=0 VIF=1 VIP=1 [fill=zeros]
+PASS VME POPF IF=1 IOPL=0 VIF=1 VIP=1 [fill=ones]
+PASS VME POPFD IOPL=0 VIF=1 VIP=1 [fill=zeros]
+PASS VME POPFD IOPL=0 VIF=1 VIP=1 [fill=ones]
+PASS VME IRET IOPL=0 VIF=1 VIP=1 [fill=zeros]
+PASS VME IRET IOPL=0 VIF=1 VIP=1 [fill=ones]
+PASS VME IRET IF=1 IOPL=0 VIF=1 VIP=1 [fill=zeros]
+PASS VME IRET IF=1 IOPL=0 VIF=1 VIP=1 [fill=ones]
+PASS VME IRET TF=1 IOPL=0 VIF=1 VIP=1 [fill=zeros]
+PASS VME IRET TF=1 IOPL=0 VIF=1 VIP=1 [fill=ones]
+PASS VME IRETD IOPL=0 VIF=1 VIP=1 [fill=zeros]
+PASS VME IRETD IOPL=0 VIF=1 VIP=1 [fill=ones]
+PASS VME INT IOPL=0 state=3 monitored [fill=zeros]
+PASS VME INT IOPL=0 state=3 monitored [fill=ones]
+PASS VME INT IOPL=0 state=3 redirected [fill=zeros]
+PASS VME INT IOPL=0 state=3 redirected [fill=ones]
+PASS VME CLI IOPL=3 VIF=0 VIP=0 [fill=zeros]
+PASS VME CLI IOPL=3 VIF=0 VIP=0 [fill=ones]
+PASS VME STI IOPL=3 VIF=0 VIP=0 [fill=zeros]
+PASS VME STI IOPL=3 VIF=0 VIP=0 [fill=ones]
+PASS VME PUSHF IOPL=3 VIF=0 VIP=0 [fill=zeros]
+PASS VME PUSHF IOPL=3 VIF=0 VIP=0 [fill=ones]
+PASS VME PUSHFD IOPL=3 VIF=0 VIP=0 [fill=zeros]
+PASS VME PUSHFD IOPL=3 VIF=0 VIP=0 [fill=ones]
+PASS VME POPF IF=0 IOPL=3 VIF=0 VIP=0 [fill=zeros]
+PASS VME POPF IF=0 IOPL=3 VIF=0 VIP=0 [fill=ones]
+PASS VME POPF IF=1 IOPL=3 VIF=0 VIP=0 [fill=zeros]
+PASS VME POPF IF=1 IOPL=3 VIF=0 VIP=0 [fill=ones]
+PASS VME POPFD IOPL=3 VIF=0 VIP=0 [fill=zeros]
+PASS VME POPFD IOPL=3 VIF=0 VIP=0 [fill=ones]
+PASS VME IRET IOPL=3 VIF=0 VIP=0 [fill=zeros]
+PASS VME IRET IOPL=3 VIF=0 VIP=0 [fill=ones]
+PASS VME IRET IF=1 IOPL=3 VIF=0 VIP=0 [fill=zeros]
+PASS VME IRET IF=1 IOPL=3 VIF=0 VIP=0 [fill=ones]
+PASS VME IRETD IOPL=3 VIF=0 VIP=0 [fill=zeros]
+PASS VME IRETD IOPL=3 VIF=0 VIP=0 [fill=ones]
+PASS VME INT IOPL=3 state=0 monitored [fill=zeros]
+PASS VME INT IOPL=3 state=0 monitored [fill=ones]
+PASS VME INT IOPL=3 state=0 redirected [fill=zeros]
+PASS VME INT IOPL=3 state=0 redirected [fill=ones]
+PASS VME CLI IOPL=3 VIF=1 VIP=0 [fill=zeros]
+PASS VME CLI IOPL=3 VIF=1 VIP=0 [fill=ones]
+PASS VME STI IOPL=3 VIF=1 VIP=0 [fill=zeros]
+PASS VME STI IOPL=3 VIF=1 VIP=0 [fill=ones]
+PASS VME PUSHF IOPL=3 VIF=1 VIP=0 [fill=zeros]
+PASS VME PUSHF IOPL=3 VIF=1 VIP=0 [fill=ones]
+PASS VME PUSHFD IOPL=3 VIF=1 VIP=0 [fill=zeros]
+PASS VME PUSHFD IOPL=3 VIF=1 VIP=0 [fill=ones]
+PASS VME POPF IF=0 IOPL=3 VIF=1 VIP=0 [fill=zeros]
+PASS VME POPF IF=0 IOPL=3 VIF=1 VIP=0 [fill=ones]
+PASS VME POPF IF=1 IOPL=3 VIF=1 VIP=0 [fill=zeros]
+PASS VME POPF IF=1 IOPL=3 VIF=1 VIP=0 [fill=ones]
+PASS VME POPFD IOPL=3 VIF=1 VIP=0 [fill=zeros]
+PASS VME POPFD IOPL=3 VIF=1 VIP=0 [fill=ones]
+PASS VME IRET IOPL=3 VIF=1 VIP=0 [fill=zeros]
+PASS VME IRET IOPL=3 VIF=1 VIP=0 [fill=ones]
+PASS VME IRET IF=1 IOPL=3 VIF=1 VIP=0 [fill=zeros]
+PASS VME IRET IF=1 IOPL=3 VIF=1 VIP=0 [fill=ones]
+PASS VME IRETD IOPL=3 VIF=1 VIP=0 [fill=zeros]
+PASS VME IRETD IOPL=3 VIF=1 VIP=0 [fill=ones]
+PASS VME INT IOPL=3 state=1 monitored [fill=zeros]
+PASS VME INT IOPL=3 state=1 monitored [fill=ones]
+PASS VME INT IOPL=3 state=1 redirected [fill=zeros]
+PASS VME INT IOPL=3 state=1 redirected [fill=ones]
+PASS VME CLI IOPL=3 VIF=0 VIP=1 [fill=zeros]
+PASS VME CLI IOPL=3 VIF=0 VIP=1 [fill=ones]
+PASS VME STI IOPL=3 VIF=0 VIP=1 [fill=zeros]
+PASS VME STI IOPL=3 VIF=0 VIP=1 [fill=ones]
+PASS VME PUSHF IOPL=3 VIF=0 VIP=1 [fill=zeros]
+PASS VME PUSHF IOPL=3 VIF=0 VIP=1 [fill=ones]
+PASS VME PUSHFD IOPL=3 VIF=0 VIP=1 [fill=zeros]
+PASS VME PUSHFD IOPL=3 VIF=0 VIP=1 [fill=ones]
+PASS VME POPF IF=0 IOPL=3 VIF=0 VIP=1 [fill=zeros]
+PASS VME POPF IF=0 IOPL=3 VIF=0 VIP=1 [fill=ones]
+PASS VME POPF IF=1 IOPL=3 VIF=0 VIP=1 [fill=zeros]
+PASS VME POPF IF=1 IOPL=3 VIF=0 VIP=1 [fill=ones]
+PASS VME POPFD IOPL=3 VIF=0 VIP=1 [fill=zeros]
+PASS VME POPFD IOPL=3 VIF=0 VIP=1 [fill=ones]
+PASS VME IRET IOPL=3 VIF=0 VIP=1 [fill=zeros]
+PASS VME IRET IOPL=3 VIF=0 VIP=1 [fill=ones]
+PASS VME IRET IF=1 IOPL=3 VIF=0 VIP=1 [fill=zeros]
+PASS VME IRET IF=1 IOPL=3 VIF=0 VIP=1 [fill=ones]
+PASS VME IRETD IOPL=3 VIF=0 VIP=1 [fill=zeros]
+PASS VME IRETD IOPL=3 VIF=0 VIP=1 [fill=ones]
+PASS VME INT IOPL=3 state=2 monitored [fill=zeros]
+PASS VME INT IOPL=3 state=2 monitored [fill=ones]
+PASS VME INT IOPL=3 state=2 redirected [fill=zeros]
+PASS VME INT IOPL=3 state=2 redirected [fill=ones]
+PASS VME CLI IOPL=3 VIF=1 VIP=1 [fill=zeros]
+PASS VME CLI IOPL=3 VIF=1 VIP=1 [fill=ones]
+PASS VME STI IOPL=3 VIF=1 VIP=1 [fill=zeros]
+PASS VME STI IOPL=3 VIF=1 VIP=1 [fill=ones]
+PASS VME PUSHF IOPL=3 VIF=1 VIP=1 [fill=zeros]
+PASS VME PUSHF IOPL=3 VIF=1 VIP=1 [fill=ones]
+PASS VME PUSHFD IOPL=3 VIF=1 VIP=1 [fill=zeros]
+PASS VME PUSHFD IOPL=3 VIF=1 VIP=1 [fill=ones]
+PASS VME POPF IF=0 IOPL=3 VIF=1 VIP=1 [fill=zeros]
+PASS VME POPF IF=0 IOPL=3 VIF=1 VIP=1 [fill=ones]
+PASS VME POPF IF=1 IOPL=3 VIF=1 VIP=1 [fill=zeros]
+PASS VME POPF IF=1 IOPL=3 VIF=1 VIP=1 [fill=ones]
+PASS VME POPFD IOPL=3 VIF=1 VIP=1 [fill=zeros]
+PASS VME POPFD IOPL=3 VIF=1 VIP=1 [fill=ones]
+PASS VME IRET IOPL=3 VIF=1 VIP=1 [fill=zeros]
+PASS VME IRET IOPL=3 VIF=1 VIP=1 [fill=ones]
+PASS VME IRET IF=1 IOPL=3 VIF=1 VIP=1 [fill=zeros]
+PASS VME IRET IF=1 IOPL=3 VIF=1 VIP=1 [fill=ones]
+PASS VME IRETD IOPL=3 VIF=1 VIP=1 [fill=zeros]
+PASS VME IRETD IOPL=3 VIF=1 VIP=1 [fill=ones]
+PASS VME INT IOPL=3 state=3 monitored [fill=zeros]
+PASS VME INT IOPL=3 state=3 monitored [fill=ones]
+PASS VME INT IOPL=3 state=3 redirected [fill=zeros]
+PASS VME INT IOPL=3 state=3 redirected [fill=ones]
+PASS VME POPF rejects TF [fill=zeros]
+PASS VME POPF rejects TF [fill=ones]
+PASS expand-down monitor stack 16 [fill=zeros]
+PASS expand-down monitor stack 16 [fill=ones]
+PASS expand-down monitor stack 32 [fill=zeros]
+PASS expand-down monitor stack 32 [fill=ones]
+PASS 16-bit monitor stack at zero [fill=zeros]
+PASS 16-bit monitor stack at zero [fill=ones]
+PASS 16-bit monitor stack at zero expand-down [fill=zeros]
+PASS 16-bit monitor stack at zero expand-down [fill=ones]
+vm86: 416 passed, 0 failed
+
+msdos-test-vmx-after.log
+VMX tests:
+  vmxon_basic                                       PASS
+  vmxon_no_vmxe                                     PASS
+  vmcs_write_read                                   PASS
+  vmlaunch_cpuid_exit                               PASS
+  vmcall_exit                                       PASS
+  vmcall_in_root                                    PASS
+  vmxoff                                            PASS
+  msr_vmx_basic                                     PASS
+  vmxon_feature_control_locked                      PASS
+  vmxon_cr0_fixed_bits                              PASS
+  hlt_exit                                          PASS
+  io_exit                                           PASS
+  vmresume                                          PASS
+  msr_bitmap                                        PASS
+  vm86_guest_entry_and_exit                         PASS
+  vm86_guest_segment_checks                         PASS
+
+16 passed, 0 failed
+
+Bochs DISPI, LFB/banking, PCI BAR, pitch and pixel formats: PASS
+PNG CRC, zlib stream, dimensions and RGB pixels: PASS
