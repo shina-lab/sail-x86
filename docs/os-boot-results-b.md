@@ -273,6 +273,41 @@ CPU/memory state only; none edits guest registers, memory or model semantics.
 | `b-win95-bp-any-trace` | 6.404 | 27,880,992 | [PNG](os-boot/b-win95-bp-any-trace-stop.png), [state](os-boot/b-win95-bp-any-trace-stop.txt), [COM1](os-boot/b-win95-bp-any-trace-stop.serial) |
 | `b-win95-bp-lost-trace` | 6.203 | 27,880,992 | [PNG](os-boot/b-win95-bp-lost-trace-stop.png), [state](os-boot/b-win95-bp-lost-trace-stop.txt), [COM1](os-boot/b-win95-bp-lost-trace-stop.serial) |
 
+### SDM fix: ordinary accesses through expand-down segments
+
+With the far-pointer fix, the saved Sail installation passes the former
+VMM loop, reaches CPL 3 Windows code, then displays a
+[fatal application 0D exception](os-boot/b-win95-far-load-fixed-gp-stop.png)
+at `0117:7eeb`. This attempt is stopped after **148.662 s /
+473,401,025 instructions**.
+[State](os-boot/b-win95-far-load-fixed-gp-stop.txt),
+[COM1](os-boot/b-win95-far-load-fixed-gp-stop.serial).
+
+A bounded trace stops after **18.806 s / 66,439,756 instructions**:
+[PNG](os-boot/b-win95-expand-down-trace-stop.png),
+[trace](os-boot/b-win95-expand-down-trace-stop.txt),
+[COM1](os-boot/b-win95-expand-down-trace-stop.serial). FS has base 0,
+limit `ffff`, type 6 (writable expand-down), and D/B=1. The ordinary memory
+helper applies expand-up bounds, allowing the preceding invalid access
+at offset 0 to read IVT bytes, then rejecting the later valid offset
+at `INC dword [FS:EAX+28h]`.
+
+SDM rev.090 Vol.3A §6.3, pp.6-4–6-5, and §3.4.5, p.3-10, require
+expand-down data offsets above the effective limit, with the complete
+access below `ffff` or `ffffffff` according to D/B. The shared segment
+limit helper now implements those bounds, retaining #SS for SS and #GP
+for other segments. It distinguishes a data segment's expand-down bit
+from the identically placed conforming bit in code segments.
+
+The new boundary regression fails on the previous LLVM model. It covers
+16- and 32-bit upper bounds, the lower exclusion, crossing the upper
+bound, an empty segment, FS versus SS exception selection, and readable
+conforming code. After another sail-llvm-only rebuild, **all 15 system
+suites, 86 basic cases, and 416 VM86 model/KVM comparisons pass**.
+[Validation](os-boot/b-win95-expand-down-validation.txt).
+The next ordinary-emulator attempt is `b-win95-expand-down-fixed`, again
+using a private clone of the Sail-installed disk.
+
 ## Resumption after 10:50 JST on 2026-09-25
 
 This run starts from `bd5d0b3` and uses only sail-llvm compiler `54a10b8`.

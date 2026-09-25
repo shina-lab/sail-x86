@@ -948,6 +948,68 @@ TEST(seg_limit_dword_within) {
   model.model_fini();
 }
 
+TEST(expand_down_data_segment_bounds) {
+  // SDM Vol.3A 6.3: offsets must exceed the limit and the entire access
+  // must fit below the upper bound selected by D/B, even for FS or GS.
+  struct Case { bool big; u32 limit, offset; bool fault; };
+  const Case cases[] = {
+    {false, 0xefff, 0xf000, false},
+    {false, 0xefff, 0xfffc, false},
+    {false, 0xefff, 0xefff, true},
+    {false, 0xefff, 0xfffd, true},
+    {false, 0xefff, 0x10000, true},
+    {true, 0xffff, 0x10000, false},
+    {true, 0xffff, 0x20000, false},
+    {true, 0xffff, 0xffff, true},
+    {true, 0xffff, 0, true},
+    {true, 0xffff, 0xfffffffd, true},
+    {true, 0xffffffff, 0xffffffff, true},
+  };
+  for (bool stack : {false, true}) {
+    for (const auto &t : cases) {
+      x86::Model model;
+      init_model_32(model);
+      model.zCR0 &= ~(1ULL << 31); // isolate segment bounds from paging
+      int seg = stack ? x86::SEG_SS : x86::SEG_FS;
+      model.zSegCache.data[seg].zseg_type = 6; // writable expand-down data
+      model.zSegCache.data[seg].zseg_db = t.big;
+      model.zSegCache.data[seg].zseg_limit = t.limit;
+      model.zGPR.data[7] = t.offset;
+      model.zGPR.data[0] = 0xfeedface;
+      if (!t.fault) model.phys_mem.write32(t.offset, 0x12345678);
+      const u8 code[] = {u8(stack ? 0x36 : 0x64), 0x8b, 0x07}; // mov eax,seg:[edi]
+      model.phys_mem.write_bytes(0x100000, code, sizeof(code));
+      model.zRIP = 0x100000;
+      model.zstep(UNIT);
+      ASSERT_EQ(model.zfault_pending, t.fault);
+      if (t.fault) {
+        ASSERT_EQ((u64)model.zfault_vector, stack ? 12UL : 13UL);
+        ASSERT_EQ((u64)model.zfault_error_code, 0UL);
+        ASSERT_EQ((u64)model.zGPR.data[0], 0xfeedfaceUL);
+      } else {
+        ASSERT_EQ((u64)model.zGPR.data[0], 0x12345678UL);
+      }
+      model.model_fini();
+    }
+  }
+}
+
+TEST(conforming_code_segment_keeps_expand_up_bounds) {
+  x86::Model model;
+  init_model_32(model);
+  model.zSegCache.data[x86::SEG_FS].zseg_type = 0xe; // readable conforming code
+  model.zSegCache.data[x86::SEG_FS].zseg_limit = 0xffff;
+  model.zGPR.data[7] = 0x800;
+  model.phys_mem.write32(0x800, 0x12345678);
+  const u8 code[] = {0x64, 0x8b, 0x07};
+  model.phys_mem.write_bytes(0x100000, code, sizeof(code));
+  model.zRIP = 0x100000;
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0x12345678UL);
+  model.model_fini();
+}
+
 TEST(seg_limit_ss_fault) {
   // SS limit violation should raise #SS(0), not #GP(0).
   // MOV [EBP+disp], EAX defaults to SS segment. If the offset exceeds
@@ -2844,6 +2906,8 @@ int main() {
   run_test_seg_limit_dword_crosses();
   run_test_seg_limit_dword_within();
   run_test_seg_limit_ss_fault();
+  run_test_expand_down_data_segment_bounds();
+  run_test_conforming_code_segment_keeps_expand_up_bounds();
 
   printf("\nReal mode tests:\n");
   run_test_f2_string_repetition();
