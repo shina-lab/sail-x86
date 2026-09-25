@@ -2567,3 +2567,36 @@ Timed control: [success PNG](os-boot/reactos-qemu-icount-success.png),
 [driver result](os-boot/reactos-qemu-icount.result.json),
 [fsck](os-boot/reactos-qemu-icount-fsck.log),
 [file comparison](os-boot/reactos-qemu-icount-cabinet-verification.json).
+
+#### Installed-disk QEMU control
+
+A separate clone of the completed **Sail text-install disk**, including
+its recorded FAT defects, completes graphical second-stage setup under
+ordinary QEMU TCG and reaches the desktop on its next boot. This is a
+control result, **not a Sail desktop result**. It establishes that the
+recorded disk defects do not by themselves prevent the tested setup and
+boot sequence. Device-install failures also occur in this control.
+
+The control accepts the setup defaults, retains the default owner and
+computer name, uses a blank administrator password, keeps the Classic
+theme, and declines optional downloads. It has no network device. The
+first VM exits on the setup reboot; the second is stopped with QMP
+`quit` after saving its desktop PNG. Wall time and instruction counts
+were not measured for these two control boots. The primary Sail run
+continues independently from its own copy of the completed text install.
+
+```sh
+cp --reflink=auto --sparse=always build/os-boot/reactos-sailc-fixed-disk.img build/os-boot/reactos-qemu-sail-installed.img
+/usr/bin/qemu-system-i386 -machine pc,accel=tcg,hpet=off -m 128 -smp 1 -bios build/bios.bin -display none -vga none -device VGA,romfile=/home/ruiu/sail-x86-os/build/vgabios.bin -nic none -drive file=build/os-boot/reactos-qemu-sail-installed.img,format=raw,if=ide,index=0 -cdrom build/os-boot/reactos-debug.iso -boot c -serial file:build/os-boot/reactos-qemu-sail-first-boot.serial -qmp unix:build/os-boot/reactos-qemu-sail-first-boot.qmp,server=on,wait=off -no-reboot -rtc base=2024-01-01T12:00:00
+/usr/bin/qemu-system-i386 -machine pc,accel=tcg,hpet=off -m 128 -smp 1 -bios build/bios.bin -display none -vga none -device VGA,romfile=/home/ruiu/sail-x86-os/build/vgabios.bin -nic none -drive file=build/os-boot/reactos-qemu-sail-installed.img,format=raw,if=ide,index=0 -boot c -serial file:build/os-boot/reactos-qemu-sail-desktop.serial -qmp unix:build/os-boot/reactos-qemu-sail-desktop.qmp,server=on,wait=off -no-reboot -rtc base=2024-01-01T12:00:00
+```
+
+Run the second command after the first VM exits.
+[Setup-complete PNG](os-boot/reactos-qemu-sail-first-boot-complete.png) ·
+[Setup serial](os-boot/reactos-qemu-sail-first-boot.serial) ·
+[Setup inputs](os-boot/reactos-qemu-sail-first-boot.input.json) ·
+[Setup result](os-boot/reactos-qemu-sail-first-boot.result.json) ·
+[Desktop PNG](os-boot/reactos-qemu-sail-desktop-desktop.png) ·
+[Desktop serial](os-boot/reactos-qemu-sail-desktop.serial) ·
+[Desktop inputs](os-boot/reactos-qemu-sail-desktop.input.json) ·
+[Desktop result](os-boot/reactos-qemu-sail-desktop.result.json).

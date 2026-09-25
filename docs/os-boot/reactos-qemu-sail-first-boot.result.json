@@ -1,0 +1,10 @@
+{
+  "role": "QEMU control of a clone of the completed Sail text-install disk, not a Sail boot result",
+  "disk": "build/os-boot/reactos-qemu-sail-installed.img",
+  "source_disk": "build/os-boot/reactos-sailc-fixed-disk.img",
+  "stage2_complete": true,
+  "reboot_exitcode": 0,
+  "options": "Default pages; Owner; default computer name; blank administrator password; default date/time and Classic theme; typical networking and WORKGROUP; declined optional downloads",
+  "wall_seconds": null,
+  "instructions": null
+}

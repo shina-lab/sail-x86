@@ -1,0 +1,9 @@
+{
+  "role": "QEMU control, not a Sail boot result",
+  "disk": "build/os-boot/reactos-qemu-sail-installed.img",
+  "desktop_reached": true,
+  "stopped_by": "QMP quit after capturing the desktop",
+  "returncode": 0,
+  "wall_seconds": null,
+  "instructions": null
+}

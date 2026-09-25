@@ -1,0 +1,293 @@
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/arch/i386/hwpci.c:111) err: No valid routing table found!
+(ntoskrnl/kd64/kdinit.c:94) -----------------------------------------------------
+(ntoskrnl/kd64/kdinit.c:95) ReactOS 0.4.17-x86-dev (Build 20260924-0.4.17-dev-915-g3f5fd48) (Commit 3f5fd48b637f96ce589886dc1548b8e9ffb42448)
+(ntoskrnl/kd64/kdinit.c:96) 1 System Processor [128 MB Memory]
+(ntoskrnl/kd64/kdinit.c:100) Command Line: DEBUG DEBUGPORT=COM1 BAUDRATE=115200 SOS
+(ntoskrnl/kd64/kdinit.c:103) ARC Paths: multi(0)disk(0)rdisk(0)partition(1) \ multi(0)disk(0)rdisk(0)partition(1) \ReactOS\
+(ntoskrnl/ke/i386/cpu.c:356) Supported CPU features: KF_RDTSC KF_CR4 KF_CMOV KF_GLOBAL_PAGE KF_LARGE_PAGE KF_CMPXCHG8B KF_MMX KF_WORKING_PTE KF_PAT KF_FXSR KF_FAST_SYSCALL KF_XMMI KF_XMMI64 X86_FEATURE_PAE X86_FEATURE_APIC
+(ntoskrnl/ke/i386/cpu.c:652) Prefetch Cache: 64 bytes	L2 Cache: 2097152 bytes	L2 Cache Line: 64 bytes	L2 Cache Associativity: 8
+(hal/halx86/acpi/halacpi.c:782) ACPI Timer at: 608h (EXT: 0)
+(hal/halx86/acpi/halacpi.c:928) ACPI v1.0-1.0b detected. Tables: [RSDT] [FACP]
+(ntoskrnl/mm/ARM3/mminit.c:1444) HAL I/O Mapping at FFFE0000 is unsafe
+(hal/halx86/generic/x86bios.c:145) *x86BiosMemoryMapping: F000FF53, F000E2C3
+(ntoskrnl/mm/mminit.c:138)           0x80000000 - 0x83400000	Boot Loaded Image
+(ntoskrnl/mm/mminit.c:144)           0x83400000 - 0xB0000000	System PTE Space
+(ntoskrnl/mm/mminit.c:149)           0xB0000000 - 0xB0121000	PFN Database
+(ntoskrnl/mm/mminit.c:153)           0xB0121000 - 0xB0321000	ARM3 Non Paged Pool
+(ntoskrnl/mm/mminit.c:157)           0xB9400000 - 0xBB400000	System View Space
+(ntoskrnl/mm/mminit.c:161)           0xBB400000 - 0xC0000000	Session Space
+(ntoskrnl/mm/mminit.c:164)           0xC0000000 - 0xC03FFFFF	Page Tables
+(ntoskrnl/mm/mminit.c:167)           0xC0300000 - 0xC0300FFF	Page Directories
+(ntoskrnl/mm/mminit.c:170)           0xC0400000 - 0xC07FFFFF	Hyperspace
+(ntoskrnl/mm/mminit.c:173)           0xC1000000 - 0xE0FFFFFF	System Cache
+(ntoskrnl/mm/mminit.c:177)           0xE1000000 - 0xE6800000	ARM3 Paged Pool
+(ntoskrnl/mm/mminit.c:187)           0xFD1F5000 - 0xFFBE0000	Non Paged Pool Expansion PTE Space
+ACPI Compatible Eisa/Isa HAL detected
+(ntoskrnl/io/iomgr/driver.c:658) '\Driver\sacdrv' initialization failed, status (0xc0000037)
+(ntoskrnl/io/iomgr/driver.c:83) Deleting driver object '\Driver\sacdrv'
+(ntoskrnl/io/iomgr/driver.c:923) Driver 'sacdrv.sys' load failed, status (c0000365)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0x9 0x9 vs. 0x9 0x9)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0x9 0x9 vs. 0x9 0x9)
+(drivers/bus/acpi/buspdo.c:846) Failed to find a bus number
+(ntoskrnl/io/iomgr/driver.c:658) '\Driver\BusLogic' initialization failed, status (0xc00000c0)
+(ntoskrnl/io/iomgr/driver.c:83) Deleting driver object '\Driver\BusLogic'
+(ntoskrnl/mm/ARM3/sysldr.c:591) multi(0)disk(0)rdisk(0)partition(1)\ReactOS\system32\drivers\scsiport.sys <scsiport.sys>
+(ntoskrnl/io/iomgr/driver.c:923) Driver 'buslogic.sys' load failed, status (c0000365)
+(ntoskrnl/io/iomgr/driver.c:658) '\Driver\legide' initialization failed, status (0xc0000120)
+(ntoskrnl/io/iomgr/driver.c:83) Deleting driver object '\Driver\legide'
+(ntoskrnl/mm/ARM3/sysldr.c:591) multi(0)disk(0)rdisk(0)partition(1)\ReactOS\System32\drivers\pciidex.sys <pciidex.sys>
+(ntoskrnl/io/iomgr/driver.c:923) Driver 'legide.sys' load failed, status (c0000365)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0xe 0xe vs. 0xe 0xe)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0xe 0xe vs. 0xe 0xe)
+WARNING:  PoRegisterDeviceForIdleDetection at ntoskrnl/po/power.c:638 is UNIMPLEMENTED!
+WARNING:  HalCalculateScatterGatherListSize at hal/halx86/generic/dma.c:1189 is UNIMPLEMENTED!
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0xf 0xf vs. 0xf 0xf)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0xf 0xf vs. 0xf 0xf)
+(drivers/ksfilter/swenum/swenum.c:428) SWENUM loaded
+BOOT DRIVERS LOADED
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\drivers\cdrom.sys at AF553000 with 7c pages
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: WDFKEY 00A0A7A0, QueryULong, !STATUS!
+WARNING:  PoRegisterDeviceForIdleDetection at ntoskrnl/po/power.c:638 is UNIMPLEMENTED!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: WDFKEY 00A0DBA8, QueryULong, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+(ntoskrnl/po/power.c:1036) PowerInformationLevel 0x42 is UNIMPLEMENTED! Have a nice day.
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: WDFKEY 00A0DBA8, QueryULong, !STATUS!
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\drivers\bochsmp.sys at AFFAA000 with b pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\drivers\videoprt.sys at AF522000 with 31 pages
+(win32ss/drivers/videoprt/videoprt.c:828) Using x86 emulator
+(win32ss/drivers/videoprt/int10.c:781) Could not initialize the x86 emulator; falling back to V86 mode
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\drivers\i8042prt.sys at AFF8D000 with 1d pages
+(drivers/input/i8042prt/hwhacks.c:278) SMBiosTables HACK, see CORE-14867
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\drivers\kbdclass.sys at AF50C000 with 16 pages
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0x1 0x1 vs. 0x1 0x1)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0x1 0x1 vs. 0x1 0x1)
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\drivers\mouclass.sys at AF4FD000 with f pages
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0xc 0xc vs. 0xc 0xc)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0xc 0xc vs. 0xc 0xc)
+(ntoskrnl/mm/ARM3/sysldr.c:3222) ZwOpenFile failed for '\SystemRoot\System32\drivers\fdc.sys' with status 0xc0000034
+(ntoskrnl/io/pnpmgr/devaction.c:514) Failed to load driver "fdc" for ACPI\PNP0700\2&ccb86d17&0 (status c0000034)
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\drivers\parport.sys at AF4F2000 with b pages
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0x7 0x7 vs. 0x7 0x7)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0x7 0x7 vs. 0x7 0x7)
+(ntoskrnl/io/pnpmgr/devaction.c:235) IopInitiatePnpIrp(BusQueryDeviceID) failed (Status c00000bb)
+(ntoskrnl/io/pnpmgr/devaction.c:1215) IopCreateDeviceInstancePath() failed with status 0xc00000bb
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\drivers\serial.sys at AF4DF000 with 13 pages
+(ntoskrnl/io/pnpmgr/pnpres.c:631) Resource conflict: Port (0x3f8 to 0x400 vs. 0x3f8 to 0x400)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0x4 0x4 vs. 0x4 0x4)
+(ntoskrnl/io/pnpmgr/pnpres.c:631) Resource conflict: Port (0x3f8 to 0x400 vs. 0x3f8 to 0x400)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0x4 0x4 vs. 0x4 0x4)
+(ntoskrnl/io/pnpmgr/devaction.c:1745) Leaking device ACPI\PNP0501\1, refCount = 3
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\drivers\processr.sys at AF4D6000 with 9 pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\floppy.sys at AF4BC000 with 1a pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\fs_rec.sys at AF4AD000 with f pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\null.sys at AF4A4000 with 9 pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\beep.sys at AF49B000 with 9 pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\blue.sys at AF48C000 with f pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\vgapnp.sys at AF47F000 with d pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\vga.sys at AF474000 with b pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\msfs.sys at AF469000 with b pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\npfs.sys at AF443000 with 26 pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\drivers\tcpip.sys at AF3C6000 with 7d pages
+Unhandled event type: 6
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\drivers\ndisuio.sys at AF3B2000 with 10 pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\afd.sys at AF37F000 with 33 pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\netio.sys at AF36A000 with 15 pages
+KDB: Executing KDBinit file...
+KDB: KDBinit executed
+(ntoskrnl/io/iomgr/driver.c:83) Deleting driver object '\Driver\KdDriver'
+(ntoskrnl/io/pnpmgr/devaction.c:235) IopInitiatePnpIrp(BusQueryDeviceID) failed (Status c00000bb)
+(ntoskrnl/io/pnpmgr/devaction.c:1215) IopCreateDeviceInstancePath() failed with status 0xc00000bb
+WARNING:  RtlCreateTagHeap at sdk/lib/rtl/heap.c:4043 is UNIMPLEMENTED!
+(base/system/smss/pagefile.c:929) SMSS:PFILE: Open volume `\??\D:\' failed with status C0000013
+WARNING:  IoInitializeCrashDump at ntoskrnl/io/iomgr/iomgr.c:658 is UNIMPLEMENTED!
+Boot took 13390815136 cycles!
+Interrupts: 1000 System Calls: 24194 Context Switches: 1261
+(ntoskrnl/config/cmsysini.c:1207) CmpGetRegistryPath: ConfigPath = '\SystemRoot\System32\Config\'
+(ntoskrnl/config/cmsysini.c:1207) CmpGetRegistryPath: ConfigPath = '\SystemRoot\System32\Config\'
+(ntoskrnl/config/cmsysini.c:1207) CmpGetRegistryPath: ConfigPath = '\SystemRoot\System32\Config\'
+(ntoskrnl/config/cmsysini.c:1207) CmpGetRegistryPath: ConfigPath = '\SystemRoot\System32\Config\'
+(ntoskrnl/config/cmsysini.c:1207) CmpGetRegistryPath: ConfigPath = '\SystemRoot\System32\Config\'
+(ntoskrnl/config/cmsysini.c:1207) CmpGetRegistryPath: ConfigPath = '\SystemRoot\System32\Config\'
+(ntoskrnl/config/cmsysini.c:1207) CmpGetRegistryPath: ConfigPath = '\SystemRoot\System32\Config\'
+(ntoskrnl/mm/ARM3/session.c:795) Session 0 is ready to go: 0xBF7F0000 0xAFAB2000, 16ed 0xFF3EC4F0
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\win32k.sys at AEFD5000 with 369 pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\ftfd.dll at AEE61000 with 174 pages
+(win32ss/gdi/ntgdi/d3dkmt.c:27) DxStartupDxgkInt: Entry
+(win32ss/reactx/ntddraw/ddraw.c:57) Warning: trying loading xp/2003/windows7/reactos dxg.sys
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\drivers\dxg.sys at AEE40000 with 11 pages
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\drivers\dxgthk.sys at AEE39000 with 7 pages
+(win32ss/reactx/ntddraw/ddraw.c:112) DirectX interface is activated
+Bochs: detected version 0xb0c5
+(win32ss/gdi/eng/device.c:581) err: EngpPnPTargetRelationRequest() failed with status 0xc0000010
+(win32ss/user/ntuser/winsta.c:255) err: Invalid window station handle
+(win32ss/user/ntuser/clipboard.c:31) err: Cannot open winsta
+(win32ss/user/ntuser/winsta.c:741) err: Initializing input window station
+(win32ss/user/ntuser/winsta.c:785) err: Initializing input window station
+(win32ss/user/ntuser/class.c:2396) err: SYSTEMCUR(ARROW) == NULL, should not happen!!
+(win32ss/user/ntuser/class.c:2396) err: SYSTEMCUR(ARROW) == NULL, should not happen!!
+(win32ss/user/ntuser/class.c:2396) err: SYSTEMCUR(ARROW) == NULL, should not happen!!
+(win32ss/user/ntuser/class.c:2396) err: SYSTEMCUR(ARROW) == NULL, should not happen!!
+(win32ss/user/ntuser/class.c:2396) err: SYSTEMCUR(ARROW) == NULL, should not happen!!
+(win32ss/user/ntuser/class.c:2396) err: SYSTEMCUR(ARROW) == NULL, should not happen!!
+(win32ss/user/ntuser/desktop.c:3502) err: The process 0xFF0BBD80 'winlogon.exe' didn't have an assigned startup desktop before, assigning it now!
+(win32ss/user/ntuser/desktop.c:3440) err: Attempted to change thread desktop although the thread has windows!
+(win32ss/user/winsrv/usersrv/init.c:171) We are logged off
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\kbdus.dll at AEE04000 with 5 pages
+(ntoskrnl/mm/ARM3/sysldr.c:2559) Skipping NT 4 driver @ AEE04000
+(ntoskrnl/kdbg/kdb_symbols.c:231) Trying \SystemRoot\System32\kbdus.dll
+(base/system/services/services.c:64) CheckSetup()
+WARNING:  HvHiveWillShrink at sdk/lib/cmlib/hivewrt.c:574 is UNIMPLEMENTED!
+(win32ss/gdi/eng/mouse.c:811) Failed to lock the DC.
+fixme:(dll/win32/rpcrt4/rpc_server.c:1736) (0x1000): stub
+(base/system/services/services.c:185) ScmLogEvent: RegisterEventSourceW failed 1722
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\System32\framebuf.dll at AED7C000 with c pages
+WARNING:  getMacAddress at base/services/dcomlaunch/network.c:32 is UNIMPLEMENTED!
+(base/services/dcomlaunch/network.c:136) Failed finding a proper MAC address, will generate seed
+(base/system/services/services.c:185) ScmLogEvent: RegisterEventSourceW failed 1722
+WARNING:  LDEVOBJ_bUnloadImage at win32ss/gdi/eng/ldevobj.c:290 is UNIMPLEMENTED!
+(win32ss/reactx/ntddraw/dxeng.c:286) ReactX Calling : DxEngGetHdevData, Type: 12
+(win32ss/reactx/ntddraw/dxeng.c:289) hDev: E166B008
+(win32ss/reactx/ntddraw/dxeng.c:343) requested DxEGShDevData_display
+(win32ss/reactx/ntddraw/dxeng.c:376) retVal: 00000001
+(win32ss/reactx/ntddraw/dxeng.c:286) ReactX Calling : DxEngGetHdevData, Type: 7
+(win32ss/reactx/ntddraw/dxeng.c:289) hDev: E166B008
+(win32ss/reactx/ntddraw/dxeng.c:323) requested DxEGShDevData_eddg
+(win32ss/reactx/ntddraw/dxeng.c:376) retVal: e166b8f0
+(win32ss/reactx/ntddraw/dxeng.c:286) ReactX Calling : DxEngGetHdevData, Type: 6
+(win32ss/reactx/ntddraw/dxeng.c:289) hDev: E166B008
+(win32ss/reactx/ntddraw/dxeng.c:319) requested DxEGShDevData_dhpdev
+(win32ss/reactx/ntddraw/dxeng.c:376) retVal: e15e5db8
+(win32ss/reactx/ntddraw/dxeng.c:534) ReactX Calling : DxEngLockHdev
+(win32ss/reactx/ntddraw/dxeng.c:536) hDev: E166B008
+(win32ss/reactx/ntddraw/dxeng.c:286) ReactX Calling : DxEngGetHdevData, Type: 5
+(win32ss/reactx/ntddraw/dxeng.c:289) hDev: E166B008
+(win32ss/reactx/ntddraw/dxeng.c:315) requested DxEGShDevData_DrvFuncs
+(win32ss/reactx/ntddraw/dxeng.c:376) retVal: e166b2f4
+(win32ss/reactx/ntddraw/dxeng.c:571) ReactX Calling : DxEngUnlockHdev
+err:(win32ss/user/user32/windows/cursoricon.c:274) Loading System Cursors
+(base/system/services/services.c:185) ScmLogEvent: RegisterEventSourceW failed 1722
+err:(dll/win32/lsasrv/lsarpc.c:1452) LsapOpenDbObject(Accounts/S-1-5-11) failed (Status 0xc0000034)
+err:(dll/win32/lsasrv/lsarpc.c:1452) LsapOpenDbObject(Accounts/S-1-5-5-0-7109) failed (Status 0xc0000034)
+err:(dll/win32/lsasrv/lsarpc.c:1452) LsapOpenDbObject(Accounts/S-1-2-0) failed (Status 0xc0000034)
+(base/system/services/database.c:344) AdjustTokenPrivileges() succeeded, but with not all privileges assigned
+(dll/win32/userenv/profile.c:2056) Loading profile S-1-5-20
+err:(win32ss/user/user32/misc/dllmain.c:607) hIconSmWindows 0002006C hIconWindows 0002006A 
+(win32ss/user/ntuser/callback.c:1149) err: hIconSmWindows 0002006C hIconWindows 0002006A 
+(win32ss/user/ntuser/desktop.c:3440) err: Attempted to change thread desktop although the thread has windows!
+err:(win32ss/user/user32/windows/window.c:496) CreateWindowExW RegisterSystemControls
+Boot took 21337395776 cycles!
+Interrupts: 2340 System Calls: 48090 Context Switches: 9753
+(ntoskrnl/config/cmcontrl.c:269) CmpSaveBootControlSet(1)
+(win32ss/user/ntuser/desktop.c:1381) err: ptiLastInput is CLEARED!!
+err:(win32ss/user/imm32/imm.c:962) hImc was NULL
+err:(win32ss/user/imm32/imm.c:1052) pClientImc was NULL
+err:(win32ss/user/imm32/imm.c:962) hImc was NULL
+err:(win32ss/user/imm32/imm.c:962) hImc was NULL
+err:(win32ss/user/imm32/imm.c:1052) pClientImc was NULL
+err:(dll/win32/lsasrv/lsarpc.c:1452) LsapOpenDbObject(Accounts/S-1-5-21-282316324-1177362227-1962769984-513) failed (Status 0xc0000034)
+err:(dll/win32/lsasrv/lsarpc.c:1452) LsapOpenDbObject(Accounts/S-1-5-11) failed (Status 0xc0000034)
+err:(dll/win32/lsasrv/lsarpc.c:1452) LsapOpenDbObject(Accounts/S-1-5-5-0-7285) failed (Status 0xc0000034)
+err:(dll/win32/lsasrv/lsarpc.c:1452) LsapOpenDbObject(Accounts/S-1-2-0) failed (Status 0xc0000034)
+err:(win32ss/user/imm32/imm.c:962) hImc was NULL
+err:(win32ss/user/imm32/imm.c:1052) pClientImc was NULL
+err:(win32ss/user/imm32/imm.c:962) hImc was NULL
+(dll/win32/userenv/profile.c:2056) Loading profile S-1-5-21-282316324-1177362227-1962769984-500
+(ntoskrnl/config/cmapi.c:2449) Open sub keys: 88
+(ntoskrnl/config/cmapi.c:2449) Open sub keys: 90
+(ntoskrnl/config/cminit.c:395) ZwCreateFile(\??\C:\Documents and Settings\Administrator\ntuser.dat) failed, Status 0xc0000043.
+(dll/win32/userenv/profile.c:211) IncrementRefCount(S-1-5-21-282316324-1177362227-1962769984-500 00000000)
+(ntoskrnl/config/cminit.c:395) ZwCreateFile(\??\C:\Documents and Settings\NetworkService\ntuser.dat) failed, Status 0xc0000043.
+(dll/win32/userenv/profile.c:211) IncrementRefCount(S-1-5-20 00000000)
+(base/system/services/database.c:344) AdjustTokenPrivileges() succeeded, but with not all privileges assigned
+(dll/win32/userenv/environment.c:294) RegOpenKeyExW() failed (Error 2)
+(win32ss/user/winsrv/usersrv/init.c:171) We are logged on
+WARNING:  SfcWLEventLogon at dll/win32/sfc_os/sfc_os.c:214 is UNIMPLEMENTED!
+err:(base/system/winlogon/sas.c:456) Failed to open enumeration: 8
+(win32ss/user/ntuser/desktop.c:3440) err: Attempted to change thread desktop although the thread has windows!
+(win32ss/user/ntuser/desktop.c:1381) err: ptiLastInput is CLEARED!!
+Boot took 25008721920 cycles!
+Interrupts: 2889 System Calls: 68584 Context Switches: 15095
+fixme:(dll/win32/rpcrt4/rpc_server.c:1736) (0x1000): stub
+err:(dll/win32/lsasrv/lsarpc.c:1452) LsapOpenDbObject(Accounts/S-1-5-11) failed (Status 0xc0000034)
+err:(dll/win32/lsasrv/lsarpc.c:1452) LsapOpenDbObject(Accounts/S-1-5-5-0-9828) failed (Status 0xc0000034)
+err:(dll/win32/lsasrv/lsarpc.c:1452) LsapOpenDbObject(Accounts/S-1-2-0) failed (Status 0xc0000034)
+(base/system/services/database.c:344) AdjustTokenPrivileges() succeeded, but with not all privileges assigned
+(dll/win32/userenv/profile.c:2052) Profile S-1-5-20 already loaded
+(dll/win32/userenv/profile.c:211) IncrementRefCount(S-1-5-20 00000000)
+(base/system/services/database.c:344) AdjustTokenPrivileges() succeeded, but with not all privileges assigned
+(dll/win32/userenv/environment.c:294) RegOpenKeyExW() failed (Error 2)
+fixme:(dll/win32/rpcrt4/rpc_server.c:1736) (0x1000): stub
+err:(base/services/schedsvc/rpcserver.c:62) RpcServerListen() failed (Status 6b1)
+fixme:(win32ss/printing/providers/localspl/monitors.c:265) InitializePrintMonitor2 loaded.
+fixme:(win32ss/printing/providers/localspl/monitors.c:304) InitializePrintMonitorList Handle 00234B48
+fixme:(win32ss/printing/providers/localspl/forms.c:234) InitializeFormList
+fixme:(win32ss/printing/providers/localspl/printerdrivers.c:784) LocalGetPrinterDriverDirectory((null), Windows NT x86, 1, 00C4F024, 520, 00C4F020)
+fixme:(win32ss/printing/providers/localspl/printerdrivers.c:828) => L"C:\\ReactOS\\System32\\spool\\drivers\\w32x86"
+fixme:(win32ss/printing/providers/localspl/printerdrivers.c:110) DriverPath : C:\ReactOS\System32\spool\drivers\w32x86\3\UniDrv.dll
+(base/services/umpnpmgr/install.c:118) Installing: ACPI\QEMU0002\2&ccb86d17&0
+fixme:(base/services/browser/browser.c:144) ServiceMain(1 00237438)
+err:(base/services/wkssvc/wkssvc.c:82) ServiceInit()
+err:(base/services/wkssvc/rpcserver.c:61) RpcServerListen() failed (Status 6b1)
+err:(base/services/browser/rpcserver.c:42) RpcServerListen() failed (Status 6b1)
+(base/services/w32time/w32time.c:171) Entered SetTime.
+(base/services/w32time/w32time.c:192) Time Server is 'pool.ntp.org'.
+(base/services/wuauserv/wuauserv.c:44) WU UpdateServiceStatus(4) called
+err:(base/services/srvsvc/rpcserver.c:64) RpcServerListen() failed (Status 6b1)
+(base/services/umpnpmgr/event.c:103) Removal pending: ACPI\PNP0501\1
+(base/services/w32time/w32time.c:309) W32Time Service failed to set clock: 0x0000001F
+(dll/win32/kernel32/client/loader.c:386) LoadLibraryExW(rshell.dll) failing with status c0000135
+fixme:(dll/win32/shdocvw/winlist.cpp:81) ()
+err:(dll/win32/newdev/newdev.c:1026) DevInstallW failed with error 259
+fixme:(dll/win32/comctl32/toolbar.c:403) [000300B2] TBSTYLE_REGISTERDROP not implemented
+(base/services/umpnpmgr/install.c:245) InstallDevice failed for DeviceInstance 'ACPI\QEMU0002\2&ccb86d17&0'
+(base/services/umpnpmgr/install.c:118) Installing: HTREE\ROOT\0
+err:(dll/win32/newdev/newdev.c:1026) DevInstallW failed with error 2
+(base/services/umpnpmgr/install.c:245) InstallDevice failed for DeviceInstance 'HTREE\ROOT\0'
+(base/services/umpnpmgr/install.c:118) Installing: Root\VgaSave\0000
+err:(base/shell/explorer/mediabtns.cpp:64) CMultimediaBackend::Initialize: No waveform-audio output devices detected
+err:(dll/win32/newdev/newdev.c:1026) DevInstallW failed with error 259
+(base/services/umpnpmgr/install.c:245) InstallDevice failed for DeviceInstance 'Root\VgaSave\0000'
+connectmanager.cpp:697: Unexpected failure (hr)=800700e8.
+fixme:(dll/win32/shell32/shlexec.cpp:2363) flags ignored: 0x00000100
+fixme:(dll/win32/setupapi/install.c:1494) default path of the installation not changed
+err:(dll/win32/setupapi/queue.c:1215) Unsupported style(s) 0x104
+fixme:(dll/win32/advpack/reg.c:188) SYS_MOD_PATH needs more work
+(win32ss/user/ntuser/painting.c:162) err: SendSyncPaint Found one in the Sent Msg Queue!
+err:(dll/win32/shlwapi/propbag.cpp:322) 00000660 L"Bags\\AllFolders\\Desktop" 0x00000002
+err:(dll/win32/shlwapi/propbag.cpp:322) 00000664 L"Bags\\AllFolders\\Desktop" 0x00000002
+err:(dll/win32/shlwapi/ordinal.c:4942) 0026D298 L"Mode"
+(win32ss/user/ntuser/winpos.c:1449) err: Window is HWND_BOTTOM hwnd 00000001
+(base/services/umpnpmgr/install.c:118) Installing: ACPI\QEMU0002\2&ccb86d17&0
+(base/services/umpnpmgr/rpcserver.c:3673) PNP_SetDeviceProblem(002359C8 ACPI\QEMU0002\2&ccb86d17&0 28 0x00000001)
+(base/services/umpnpmgr/rpcserver.c:277) SetDeviceStatus(ACPI\QEMU0002\2&ccb86d17&0 0x400 0x1c)
+(ntoskrnl/io/pnpmgr/plugplay.c:983) Set status data is NOT SUPPORTED
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\btrfs.sys at AE6D3000 with 2df pages
+WARNING:  NtNotifyChangeMultipleKeys at ntoskrnl/config/ntapi.c:1470 is UNIMPLEMENTED!
+Btrfs ERR : watch_registry : ZwNotifyChangeKey returned c0000002
+Btrfs ERR : volume_arrival : IOCTL_DISK_GET_LENGTH_INFO returned c0000013
+Btrfs ERR : is_btrfs_volume : IOCTL_MOUNTDEV_QUERY_DEVICE_NAME returned c0000185
+Btrfs ERR : check_mount_device : sync_read_phys returned c0000185
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\ext2fs.sys at AE579000 with 156 pages
+Ext2Fsd -- Version 0.69 Checked -- Sep 20 2026 16:18:30.
+Ext2Fsd:~0: 20:00:26:650 b02d2888:   Ext2QueryParameters: HidingPrefix not specified.
+Ext2Fsd:~0: 20:00:26:650 b02d2888:   Ext2QueryParameters: HidingSuffix not specified.
+(base/services/umpnpmgr/rpcserver.c:3673) PNP_SetDeviceProblem(002359C8 ACPI\QEMU0002\2&ccb86d17&0 28 0x00000001)
+(base/services/umpnpmgr/rpcserver.c:277) SetDeviceStatus(ACPI\QEMU0002\2&ccb86d17&0 0x400 0x1c)
+(ntoskrnl/io/pnpmgr/plugplay.c:983) Set status data is NOT SUPPORTED
+(win32ss/user/ntuser/keyboard.c:1326) err: Window is NULL
