@@ -121,6 +121,37 @@ outside the repository. Its installed `WINDOWS/SYSTEM/MSHTML.DLL` is
 The hardware watchpoint is detached before the requested reboot so normal
 firmware RAM initialization is not confused with the earlier overwrite.
 
+### First reboot into the installed system
+
+Finish displays a [remove-floppy prompt](os-boot/b-win95-reboot-floppy-prompt.png),
+which is acknowledged with no floppy attached. The platform handles the
+reboot at **12,622,530,016 instructions**, followed by SeaBIOS's hard-reset
+request 1,571 instructions later. Both reset fetches succeed with the
+reviewed `2447ad0` helper.
+
+The existing bootstrap AUTOEXEC still runs `C:\WIN95\SETUP /IS`, so the
+[Setup welcome page reappears](os-boot/b-win95-first-reboot-setup.png).
+Exiting that rerun allows BootGUI to continue. Setup updates the configuration
+files, and [installed Windows starts loading](os-boot/b-win95-installed-loading.png).
+The installed VMM reaches 32-bit protected mode with paging enabled:
+`CS=0028`, `CR0=80000031`, `CR3=004e3000`, CPL 0, flat 32-bit segments.
+
+Startup then [stalls](os-boot/b-win95-installed-list-stop.png) in a list walk
+at `c0370148–c0370166`, calling the far-pointer conversion at `c0371e96`.
+The first entry is empty, and later entries form a cycle. No transition to
+virtual-8086 mode was observed by the attached mode watchpoint before this
+stop. The cause remains unclassified; no model workaround is applied.
+[Focused state and disassembly](os-boot/b-win95-installed-list-stop.txt),
+[COM1](os-boot/b-win95-installed-list-stop.serial) (no diagnostics).
+The attempt is stopped manually after **3,183.650 seconds**, with
+**2,307,887,519 instructions since the last reset**. RAM and a debugger core
+are retained privately.
+
+A private clone, `win95-installed-cleanboot.img`, removes the old bootstrap
+`SETUP /IS` command from AUTOEXEC.BAT and boots the installed system directly
+using the ordinary rebuilt LLVM emulator. The stopped disk and pre-reboot
+`win95-copy-complete.img` remain unchanged for reproduction.
+
 ## Resumption after 10:50 JST on 2026-09-25
 
 This run starts from `bd5d0b3` and uses only sail-llvm compiler `54a10b8`.
