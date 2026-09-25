@@ -1,0 +1,339 @@
+sail-x86-system: VGA BIOS loaded (39424 bytes, checksum OK)
+sail-x86-system: BIOS=build/bios.bin (131072 bytes), RAM=16MB
+sail-x86-system: reset vector CS:IP=f000:fff0 (linear 0xfffffff0)
+sail-x86-system: HDA=build/os-boot/win31-b-trace.img
+SeaBIOS (version 1.16.3-20260925_070651-odyssey)
+BUILD: gcc: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 binutils: (GNU Binutils for Ubuntu) 2.42
+Found QEMU fw_cfg
+qemu/e820: fw_cfg file etc/e820 not found
+RamSize: 0x01000000 [cmos]
+Relocating init from 0x000e8f80 to 0x00fb6300 (size 40032)
+RamSizeOver4G: 0x0000000000000000 [cmos]
+=== PCI bus & bridge init ===
+PCI: pci_bios_init_bus_rec bus = 0x0
+=== PCI device probing ===
+Found 5 PCI devices (max PCI bus is 00)
+=== PCI new allocation pass #1 ===
+PCI: check devices
+=== PCI new allocation pass #2 ===
+PCI: IO: c000 - c00f
+PCI: 32: 0000000080000000 - 00000000fec00000
+PCI: map device bdf=00:01.1  bar 4, addr 0000c000, size 00000010 [io]
+PCI: map device bdf=00:02.0  bar 6, addr febf0000, size 00010000 [mem]
+PCI: map device bdf=00:02.0  bar 0, addr fd000000, size 01000000 [prefmem]
+PCI: init bdf=00:00.0 id=8086:1237
+PCI: init bdf=00:01.0 id=8086:7000
+PIIX3/PIIX4 init: elcr=00 0c
+PCI: init bdf=00:01.1 id=8086:7010
+PCI: init bdf=00:01.3 id=8086:7113
+Using pmtimer, ioport 0xb008
+PCI: init bdf=00:02.0 id=1234:1111
+PCI: Using 00:02.0 for primary VGA
+Found 1 cpu(s) max supported 1 cpu(s)
+Copying MPTABLE from 0x00006e20/fadc00 to 0x000f2b10
+ACPI DSDT=0x00ffe4f0
+Copying ACPI RSDP from 0x00006dfc to 0x000f2af0
+Scan for VGA option rom
+Running option rom at c000:0003
+Start SeaVGABIOS (version 1.16.3-20260925_070650-odyssey)
+VGABUILD: gcc: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 binutils: (GNU Binutils for Ubuntu) 2.42
+enter vga_post:
+   a=00000010  b=0000ffff  c=00000000  d=0000ffff ds=0000 es=f000 ss=0000
+  si=00000000 di=00008d21 bp=00000000 sp=00006da2 cs=f000 ip=d692  f=0000
+VBE DISPI: bdf 00:02.0, bar 0
+VBE DISPI: lfb_addr=fd000000, size 16 MB
+Removing mode 199
+Removing mode 19a
+Removing mode 19b
+Removing mode 19c
+Removing mode 19d
+Removing mode 19e
+Attempting to allocate 512 bytes lowmem via pmm call to f000:d734
+pmm call arg1=0
+VGA stack allocated at ef580
+Turning on vga text mode console
+set VGA mode 3
+SeaBIOS (version 1.16.3-20260925_070651-odyssey)
+PS2 keyboard initialized
+ATA controller 1 at 1f0/3f4/0 (irq 14 dev 9)
+ata0-0: Sail-x86 Virtual Disk ATA-6 Hard-Disk (32 MiBytes)
+Searching bootorder for: /pci@i0cf8/*@1,1/drive@0/disk@0
+Searching bios-geometry for: /pci@i0cf8/*@1,1/drive@0/disk@0
+ATA controller 2 at 170/374/0 (irq 15 dev 9)
+Searching bootorder for: HALT
+Found 1 serial ports
+Scan for option roms
+Searching bootorder for: HALT
+drive 0x000f2a90: PCHS=65/16/63 translation=none LCHS=65/16/63 s=65536
+Space available for UMB: ca000-ef000, f0000-f2a70
+Returned 253952 bytes of ZoneHigh
+e820 map has 6 items:
+  0: 0000000000000000 - 000000000009fc00 = 1 RAM
+  1: 000000000009fc00 - 00000000000a0000 = 2 RESERVED
+  2: 00000000000f0000 - 0000000000100000 = 2 RESERVED
+  3: 0000000000100000 - 0000000000ffe000 = 1 RAM
+  4: 0000000000ffe000 - 0000000001000000 = 2 RESERVED
+  5: 00000000fffc0000 - 0000000100000000 = 2 RESERVED
+enter handle_19:
+  NULL
+Booting from Hard Disk...
+Booting from 0000:7c00
+set VGA mode 3
+Set active page 00 address 0000
+sail-x86-system: trace address 0x118e77 at instruction 129588259; recent locations:
+  [129588196] 0053:00002b5e: 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b
+  [129588197] 0053:00002b60: 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e
+  [129588198] 0053:00002b64: 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00
+  [129588199] 0053:00002b66: 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b
+  [129588200] 0053:00002b69: eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b 5f 02 89
+  [129588201] 0053:00002b5b: 2e 3b 07 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0
+  [129588202] 0053:00002b5e: 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b
+  [129588203] 0053:00002b60: 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e
+  [129588204] 0053:00002b64: 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00
+  [129588205] 0053:00002b66: 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b
+  [129588206] 0053:00002b69: eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b 5f 02 89
+  [129588207] 0053:00002b5b: 2e 3b 07 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0
+  [129588208] 0053:00002b5e: 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b
+  [129588209] 0053:00002b60: 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e
+  [129588210] 0053:00002b64: 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00
+  [129588211] 0053:00002b66: 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b
+  [129588212] 0053:00002b69: eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b 5f 02 89
+  [129588213] 0053:00002b5b: 2e 3b 07 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0
+  [129588214] 0053:00002b5e: 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b
+  [129588215] 0053:00002b60: 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e
+  [129588216] 0053:00002b64: 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00
+  [129588217] 0053:00002b66: 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b
+  [129588218] 0053:00002b69: eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b 5f 02 89
+  [129588219] 0053:00002b5b: 2e 3b 07 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0
+  [129588220] 0053:00002b5e: 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b
+  [129588221] 0053:00002b60: 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e
+  [129588222] 0053:00002b64: 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00
+  [129588223] 0053:00002b66: 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b
+  [129588224] 0053:00002b69: eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b 5f 02 89
+  [129588225] 0053:00002b5b: 2e 3b 07 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0
+  [129588226] 0053:00002b5e: 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b
+  [129588227] 0053:00002b60: 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e
+  [129588228] 0053:00002b64: 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00
+  [129588229] 0053:00002b66: 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b
+  [129588230] 0053:00002b69: eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b 5f 02 89
+  [129588231] 0053:00002b5b: 2e 3b 07 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0
+  [129588232] 0053:00002b5e: 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b
+  [129588233] 0053:00002b60: 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e
+  [129588234] 0053:00002b64: 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00
+  [129588235] 0053:00002b66: 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b
+  [129588236] 0053:00002b69: eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b 5f 02 89
+  [129588237] 0053:00002b5b: 2e 3b 07 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0
+  [129588238] 0053:00002b5e: 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b
+  [129588239] 0053:00002b60: 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e
+  [129588240] 0053:00002b64: 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00
+  [129588241] 0053:00002b66: 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b
+  [129588242] 0053:00002b69: eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b 5f 02 89
+  [129588243] 0053:00002b5b: 2e 3b 07 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0
+  [129588244] 0053:00002b5e: 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b
+  [129588245] 0053:00002b60: 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e
+  [129588246] 0053:00002b64: 74 05 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00
+  [129588247] 0053:00002b66: 83 c3 04 eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b
+  [129588248] 0053:00002b69: eb f0 bb 87 2b 1e 2e 8e 1e 00 00 2e 8b 5f 02 89
+  [129588249] 0053:00002b5b: 2e 3b 07 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0
+  [129588250] 0053:00002b5e: 74 0e 2e 83 3f ff 74 05 83 c3 04 eb f0 bb 87 2b
+  [129588251] 0053:00002b6e: 1e 2e 8e 1e 00 00 2e 8b 5f 02 89 1e 81 2a 1f 5b
+  [129588252] 0053:00002b6f: 2e 8e 1e 00 00 2e 8b 5f 02 89 1e 81 2a 1f 5b e8
+  [129588253] 0053:00002b74: 2e 8b 5f 02 89 1e 81 2a 1f 5b e8 18 ed ff 36 81
+  [129588254] 0053:00002b78: 89 1e 81 2a 1f 5b e8 18 ed ff 36 81 2a fb c3 c7
+  [129588255] 0053:00002b7c: 1f 5b e8 18 ed ff 36 81 2a fb c3 c7 46 12 00 00
+  [129588256] 0053:00002b7d: 5b e8 18 ed ff 36 81 2a fb c3 c7 46 12 00 00 80
+  [129588257] 0053:00002b7e: e8 18 ed ff 36 81 2a fb c3 c7 46 12 00 00 80 4e
+  [129588258] 0053:00001899: fa 1e 2e 8e 1e 00 00 8f 06 cc 24 55 8b ec ff 76
+  [129588259] 0070:00001157: e8 99 00 e8 96 00 e8 93 00 e8 90 00 e8 8d 00 e8
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/b-win31-first-gp.png
+[129588259] CS:RIP=0070:00001157 mode=P
+  RAX=000000000000000a RBX=0000000000000307 RCX=0000000000000404 RDX=000000000000005a
+  RSP=000000000000309c RBP=000000000000091e RSI=0000000000002247 RDI=0000000000000930
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0070 DS=02ff ES=02f7 SS=0068 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=0
+  CR0=0000000000000031 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=0000000000117c00:011f IDTR=0000000000117400:07ff LDTR=0038
+  SEG[0] base=0000000000022370 limit=00000100 D/B=0 DPL=3 type=2
+  SEG[1] base=0000000000117d20 limit=00004330 D/B=0 DPL=0 type=a
+  SEG[2] base=000000000001cc80 limit=0000ffff D/B=0 DPL=0 type=2
+  SEG[3] base=000000000009df00 limit=0000ffff D/B=0 DPL=3 type=2
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=48341624859 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=64096 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=0b A=26 B=02 C=50 D=80 time=12:00:48 ticks=1584057 second=48
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=48340082609 ns status=40 error=00 features=00 count=01 lba=005e73 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=2137 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=005e73 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup loads Windows. When Windows appears,               
+     you can continue setting up your system.                                   
+                                                                                
+     If Windows does not start, see Troubleshooting in your Windows             
+     documentation, and then run Setup again.                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  Please Wait ...                                                               
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/b-win31-first-gp.png
+[129588260] CS:RIP=0070:000011f3 mode=P
+  RAX=000000000000000a RBX=0000000000000307 RCX=0000000000000404 RDX=000000000000005a
+  RSP=000000000000309a RBP=000000000000091e RSI=0000000000002247 RDI=0000000000000930
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0070 DS=02ff ES=02f7 SS=0068 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=0
+  CR0=0000000000000031 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=0000000000117c00:011f IDTR=0000000000117400:07ff LDTR=0038
+  SEG[0] base=0000000000022370 limit=00000100 D/B=0 DPL=3 type=2
+  SEG[1] base=0000000000117d20 limit=00004330 D/B=0 DPL=0 type=a
+  SEG[2] base=000000000001cc80 limit=0000ffff D/B=0 DPL=0 type=2
+  SEG[3] base=000000000009df00 limit=0000ffff D/B=0 DPL=3 type=2
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=48341625109 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=64096 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=0b A=26 B=02 C=50 D=80 time=12:00:48 ticks=1584057 second=48
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=48340082609 ns status=40 error=00 features=00 count=01 lba=005e73 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=2137 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=005e73 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup loads Windows. When Windows appears,               
+     you can continue setting up your system.                                   
+                                                                                
+     If Windows does not start, see Troubleshooting in your Windows             
+     documentation, and then run Setup again.                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  Please Wait ...                                                               
+sail-x86-system: stopping at trace end 129588260 instructions
+sail-x86-system: exited after 129588260 instructions

@@ -1,5 +1,239 @@
 # Operating-system boots: worktree B
 
+## Resumption after 10:50 JST on 2026-09-25
+
+This run starts from `bd5d0b3` and uses only sail-llvm compiler `54a10b8`.
+The fast emulator and all regression executables were rebuilt. The OUTS
+model workaround is removed in **`8c43bf2`**; its retained regression passes.
+Main `7dcd47f` is merged in **`d4aeb61`**, including F2 string repetition,
+the duplicate IRET privilege fix, and the MS-DOS/Windows 3.1 enhanced-mode
+results. Git reconciled IRET automatically, with no conflict.
+
+Post-merge validation passes: **81 basic cases, all 14 system suites,
+416 VM86 model cases, 416 VM86/KVM comparisons, and PNG validation**.
+[Validation record](os-boot/b-win95-resume-validation.txt).
+No compiler workaround or expected failure remains for OUTS.
+
+Windows 95 Setup is being retried from a private copy of the historical
+44% disk, `/tmp/sail-x86-os2-win95-20260925/win95-fixed.img`.
+The supplied number is read from its original external file; registration
+pages, disk images and raw RAM remain outside the repository.
+
+## Prior continuation through 10:50 JST on 2026-09-25
+
+This continuation uses **sail-llvm only**. No official Sail compiler,
+CMake model build, or CTest target was run. ReactOS and Haiku were not
+booted or investigated in this continuation.
+
+The pending merge of `a9df4ba` is committed as `1440584`; the subsequent
+merge of `3f0d9ba`, including `43db67f`, is committed as `fc60393`.
+The merged tree retains call gates, cached LDT lookup, validated far
+returns, segmented legacy interrupt frames, SS descriptor reloads,
+virtual-8086 mode, page-crossing fault checks, SHUFPD immediate ordering,
+LMSW/XLAT fixes, IDE BAR/PIO interrupt handling, and timed ATAPI phases.
+The PCI conflict uses main's firmware-compatible BAR sizing and API,
+with this branch's edge-latched interrupt status and ATAPI phase timing.
+
+A new call-gate regression distinguishes out-of-bounds stack selectors
+(`#TS(0x1000)`) from an unmapped descriptor page (`#PF(0)`, CR2=`0x2000`).
+The lookup now preserves non-#GP faults. Intel SDM rev.090 Vol.2A CALL,
+pp.3-131 and 3-136, specifies these outcomes.
+
+The first LLVM vm86 run exposed an inferred 128-bit GPR write in the
+monitor-stack expression: the handler began with the old VM86 ESP.
+Explicit `dword` arithmetic and a 32-bit ESP write preserve the intended
+SDM INT behavior (Vol.2A pp.3-475–3-477). This is included in the first
+merge, alongside the vm86 regression and its improved failure diagnostic.
+
+After each merge, `system-emu/build-llvm.sh` rebuilt the emulator, and
+the existing `build/os-boot/build-tests.py` rebuilt all 14 C++ system
+suites against that LLVM object. The vm86 harness was compiled directly
+with clang++ against the same generated header, model object, platform
+objects and sail-llvm runtime. Both `--model-only` and KVM comparisons
+passed all 368 cases. Basic: 78/78. Exceptions: 19/19 after the first
+merge, 26/26 after the second. Device and PNG validation also passed.
+[Validation record](os-boot/b-20260925-llvm-validation.txt).
+
+Windows 95 runs use a private writable image and raw captures under
+`/tmp/sail-x86-os2-win95-20260925/`. The supplied OEM number is read only
+by the keyboard-input helper; it is omitted from commands and input logs.
+This also keeps any installed registration data and RAM captures outside
+the repository. Only inspected screenshots and sanitized text are copied
+into `docs/os-boot/`.
+
+### IRET flag privilege fix
+
+`42d5f05` fixes a shared blocker exposed by the newly enforced CLI/STI
+privilege checks. Windows 3.1 DOSX sets IOPL=3 at ring 0, then executes
+IRET at `0053:1cfb` with IOPL=0 in the frame. The model incorrectly clears
+IOPL at CPL 3; the subsequent CLI at `0053:1899` raises #GP and DOSX loops
+while trying to report the error. [IOPL trace](os-boot/b-win31-iopl.txt).
+Intel SDM rev.090 Vol.2A pp.3-493 and 3-495 requires IOPL to change only
+at CPL 0, and IF only when the original CPL is at most the original IOPL.
+The fix applies those rules to IRET, IRETD and IRETQ, including outward
+returns; it also preserves upper flags for 16-bit returns and applies
+the specified VIF/VIP rules to wider returns.
+
+The added test covers 90 combinations of width, CPL, IOPL, IF and return
+privilege. It fails before the fix. After rebuilding with sail-llvm,
+79 basic cases, all 14 system suites, PNG checks and all 368 vm86 cases
+in both model-only and KVM modes pass.
+
+### OUTS compiler workaround (removed in the next continuation)
+
+`bd5d0b3` explicitly supplied the source width to OUTSB/OUTSW/OUTSD.
+The earlier report incorrectly classified the implicit-width failure as a
+model error. It was the sail-llvm extern-argument inference bug fixed in
+compiler commit `54a10b8`: the nested width-polymorphic source read was
+specialized too widely before truncation to the extern's parameter type.
+The model workaround is removed by `8c43bf2`; the 24-combination regression
+is retained unchanged and passes after a fresh build with that compiler.
+All 14 C++ system suites pass, including 80 basic cases. No expected failure
+is needed. The relationship to the historical installer copy stalls remains
+unproven. [Revert validation](os-boot/b-win95-resume-validation.txt).
+
+### Windows 3.1 result
+
+**Graphical Setup completed, and a fresh standard-mode boot reached the
+Program Manager desktop.** Screens: [name entry](os-boot/b-win31-graphical-name.png),
+[file copy](os-boot/b-win31-graphical-copy.png),
+[setup complete](os-boot/b-win31-setup-complete.png), and
+[installed desktop](os-boot/b-win31-program-manager.png).
+The [desktop COM1 log](os-boot/b-win31-standard.serial) is empty.
+
+The source was copied from the existing `win31-llvm-pristine.img`; all
+writes were to this worktree's own images. Express Setup used the name
+`Sail Test`, no printer, and skipped the tutorial. Returning to FreeDOS
+after the completion page produced an [Invalid Opcode stop](os-boot/b-win31-return-dos-stop.png).
+A fresh default `WIN` boot entered enhanced mode, then returned to a
+[blank screen](os-boot/b-win31-enhanced-stop.png), spinning in WIN.COM at
+real-mode `1cc9:05f1` (`JNZ` to itself). This stop has not been classified
+as a specific model defect. A reference QEMU 11.0.2 TCG/Pentium boot of
+the same installed image reports [Unsupported MS-DOS version](os-boot/b-win31-qemu-enhanced.png),
+then an Invalid Opcode and a FreeDOS halt; its [COM1 log](os-boot/b-win31-qemu-enhanced.serial)
+is empty. This establishes a host-DOS compatibility problem in the
+reference run, although the model's exact failure path differs. On another copy, `WIN /S` reached the installed
+desktop. The preserved disk is `build/os-boot/win31-b-standard.img`;
+`win31-b-iret.img` preserves the completed Setup image, and
+`win31-b-installed.img` preserves the enhanced-mode attempt.
+
+### Recorded Windows 3.1 attempts
+
+All commands below use `SAIL_X86_BIOS_DEBUG=1`. Unless stated otherwise,
+the runner is `python3 system-emu/run-boot.py --name NAME --timeout 2400 --`;
+Setup attempts additionally send Enter at 20 and 23 seconds. Later wizard
+choices were typed through the same keyboard input. Diagnostic copies
+and raw RAM dumps remain under ignored `build/os-boot/`.
+
+| Attempt | Wall seconds | Instructions at stop | Outcome and capture | COM1 |
+|---|---:|---:|---|---|
+| `b-win31-merged` | 171.662 | 924,678,144 | [DOSX privilege-fault loop](os-boot/b-win31-merged-stop.png) | [serial](os-boot/b-win31-merged.serial) |
+| `b-win31-first-gp` | 45.819 | 129,588,260 | [First #GP diagnostic](os-boot/b-win31-first-gp.png), [trace](os-boot/b-win31-first-gp.txt) | [serial](os-boot/b-win31-first-gp.serial) |
+| `b-win31-iopl` | 45.418 | 129,540,260 | [IOPL transition diagnostic](os-boot/b-win31-iopl.png) | [serial](os-boot/b-win31-iopl.serial) |
+| `b-win31-iret` | 350.724 | 1,302,814,768 | Setup completed; [return to FreeDOS stop](os-boot/b-win31-return-dos-stop.png) | [serial](os-boot/b-win31-iret.serial) |
+| `b-win31-installed` | 131.655 | 1,047,316,480 | [Enhanced-mode blank screen](os-boot/b-win31-enhanced-stop.png) | [serial](os-boot/b-win31-installed.serial) |
+| `b-win31-standard` | 92.042 | 384,270,336 | [Program Manager desktop](os-boot/b-win31-program-manager.png) | [serial](os-boot/b-win31-standard.serial) |
+
+Exact emulator commands, in the same order:
+
+```sh
+build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-b.img -boot c
+build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-b-trace.img -boot c
+build/llvm/win31-trace-sim -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-b-iopl.img -boot c
+build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-b-iret.img -boot c
+build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-b-installed.img -boot c
+build/llvm/sail-x86-system -ips 4 -m 16 -kbd -b build/bios.bin -hda build/os-boot/win31-b-standard.img -boot c
+```
+
+The first-#GP run also sets `SAIL_X86_TRACE_ADDRESS=0x118e77` and
+`SAIL_X86_TRACE_ADDRESS_STEPS=1`. The IOPL diagnostic executable is a
+local copy of the emulator with register-transition logging, linked to
+the same LLVM model. The enhanced-mode run sets `SAIL_X86_TRACE_REAL_UD=1`.
+The supplied source disks were never written.
+
+Reference command (QMP captured the screen and then quit; `snapshot=on`
+kept the installed image unchanged):
+
+```sh
+qemu-system-i386 -L /home/ruiu/qemu/pc-bios -machine pc -accel tcg \
+  -cpu pentium -m 16 \
+  -drive file=build/os-boot/win31-b-installed.img,format=raw,snapshot=on \
+  -boot c -display none \
+  -qmp unix:build/os-boot/b-win31-qemu.sock,server=on,wait=off \
+  -serial file:build/os-boot/b-win31-qemu.serial -no-reboot
+```
+
+### Windows 95 continuation
+
+The merged model first reached the recovery wizard and the hard-disk
+check, then stalled at 0% before product-number entry. The IRET privilege
+fix allows this check and the later wizard to complete. Screens:
+[recovery](os-boot/b-win95-resume-recovery.png),
+[safe recovery](os-boot/b-win95-safe-recovery.png), and
+[disk-check stop](os-boot/b-win95-merged-disk-check.png).
+That run lasted 597.998 seconds and stopped at 3,222,863,872 instructions;
+its [COM1 log](os-boot/b-win95-resume.serial) is empty.
+
+After the fix, Setup accepted the supplied OEM number through the emulated
+keyboard and advanced to [User Information](os-boot/b-win95-key-accepted.png).
+The installation uses the name `Sail Test`, Compact setup, and the default
+components without optional network or sound hardware. It reached
+[Start Copying Files](os-boot/b-win95-ready-to-copy.png), then the
+[main installation file copy](os-boot/b-win95-file-copy.png).
+[Sanitized COM1 output](os-boot/b-win95-iret.serial).
+
+This run then [stalled at 44%](os-boot/b-win95-copy-44-stop.png), before
+the first reboot. It was stopped after 2554.187 seconds and
+11,481,858,048 instructions. DOS loops at `ff33:d22e` through a damaged
+disk-buffer list: the header at physical `0x3b10` contains bytes matching
+`ICM32.DLL` offset `0x1eb10`. [Focused state and checks](os-boot/b-win95-copy-stall.txt).
+All 27 source Windows cabinets still match the original image; native
+`7z t` passes the complete 2341-file main cabinet set and 178-file PRECOPY
+set. This rules out changed source archives, but does not yet identify
+the corrupting instruction.
+
+A local emulator copy linked to the same LLVM model adds instruction and
+segment-base fields to `SAIL_X86_TRACE_PHYS_WRITE`. The first diagnostic
+(`b-win95-copy-trace`, 164.467 seconds / 798,457,856 instructions) was
+[stopped during wizard preparation](os-boot/b-win95-trace-retarget.png)
+to retarget the watch from list-head link `0x5002` to first-buffer link
+`0x3b12`; its [COM1 log](os-boot/b-win95-trace-retarget.serial) is empty.
+No model semantics were changed for these diagnostic runs.
+
+A separate QEMU TCG/Pentium control of the 44% disk copy reached the
+product-number form but stopped responding while repeatedly querying A20
+at real-mode `024c:0423` (`IN AL,0x92`). It was stopped and provides no
+conclusion about the Sail copy stall. Its raw screenshot is private
+because it is a product-number page; [COM1 output](os-boot/b-win95-qemu-control.serial)
+is empty. The control uses its own `win95-qemu-control.img`, 64 MiB RAM,
+and explicit IDE geometry 1040/16/63 with `bios-chs-trans=none`.
+
+
+Commands for the stopped merged-model attempt and the subsequent run:
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
+  --name b-win95-resume --out /tmp/sail-x86-os2-win95-20260925 \
+  --timeout 4500 --send '45:\n' -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-install.img -boot c
+
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
+  --name b-win95-iret --out /tmp/sail-x86-os2-win95-20260925 \
+  --timeout 4500 --send '8:\n' --send '55:\n' -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-iret.img -boot c
+```
+
+Later actions use the emulator's stdin keyboard mechanism. Input records
+omit the product number; product-number pages and raw RAM dumps are kept
+outside the repository. The private writable disk preserves the installed
+registration data without committing it.
+
+<!-- continuation-results -->
+
+## Earlier session (historical results)
+
 Worktree `/home/ruiu/sail-x86-os2`, branch `os-boot-b`, starting at
 `365a211`. Work ran 2026-09-24 21:51–23:47 UTC (September 25 in Japan),
 about 1 hour 56 minutes of wall time.
