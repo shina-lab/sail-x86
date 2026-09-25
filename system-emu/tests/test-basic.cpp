@@ -2010,6 +2010,40 @@ TEST(mov_gs_at_cpl3_uses_implicit_access) {
   model.model_fini();
 }
 
+TEST(legacy_instruction_fetch_wraps_at_32bit) {
+  // SDM Vol.3A sections 3.4 and 5.1.1: legacy and compatibility-mode
+  // linear addresses are 32 bits, including CS.base + EIP. OS/2's
+  // loader uses a nonzero CS base with a negative 32-bit code offset.
+  for (bool compat : {false, true}) {
+    for (bool wide : {false, true}) {
+      x86::Model model;
+      init_model(model);
+      if (!compat) {
+        model.zCR0 = 0x31;
+        model.zCR4 = 0;
+        model.zEFER = 0;
+      }
+      model.zcur_mode = compat ? x86::zCompatibilityMode : x86::zProtectedMode;
+      auto &cs = model.zSegCache.data[x86::SEG_CS];
+      cs.zseg_l = 0;
+      cs.zseg_db = wide;
+      cs.zseg_base = wide ? 0x200000 : 0xFFFFC000;
+      cs.zseg_limit = wide ? 0xFFFFFFFF : 0xFFFF;
+      const u64 offset = wide ? 0xFFE06000 : 0xA000;
+      const u8 code32[] = {0xB8, 0x78, 0x56, 0x34, 0x12}; // MOV EAX, imm32
+      const u8 code16[] = {0xB8, 0x78, 0x56}; // MOV AX, imm16
+      model.phys_mem.write_bytes(0x6000, wide ? code32 : code16,
+                                 wide ? sizeof(code32) : sizeof(code16));
+      model.zRIP = offset;
+      model.zstep(UNIT);
+      ASSERT_EQ(model.zfault_pending, false);
+      ASSERT_EQ((u64)model.zGPR.data[0], wide ? 0x12345678 : 0x5678);
+      ASSERT_EQ((u64)model.zRIP, offset + (wide ? 5 : 3));
+      model.model_fini();
+    }
+  }
+}
+
 TEST(compat_seg_linear_wraps_at_32bit) {
   // Regression: in compatibility mode the linear address space is 32 bits
   // (SDM Vol.1 §3.3.3), so segment_base + effective_address must be
@@ -2603,6 +2637,7 @@ int main() {
   run_test_ia32e_iretq_to_compat_loads_ss_descriptor();
   run_test_ia32e_sysenter_switches_to_long_mode();
   run_test_mov_gs_at_cpl3_uses_implicit_access();
+  run_test_legacy_instruction_fetch_wraps_at_32bit();
   run_test_compat_seg_linear_wraps_at_32bit();
 
   printf("\nPUSHA/POPA tests:\n");
