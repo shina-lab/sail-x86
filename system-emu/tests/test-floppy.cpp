@@ -45,7 +45,32 @@ static void check_first_sector(FloppyController &fdc, u8 value) {
   for (unsigned i = 0; i < 7; ++i) fdc.read(0x3F5);
 }
 
+static void test_version_and_invalid_commands() {
+  FloppyController fdc;
+  // Intel 82077AA section 5.2.8: VERSION has no parameters and returns
+  // 90h without an interrupt. It must not absorb the next command.
+  fdc.write(0x3F5, 0x10);
+  assert(fdc.read(0x3F4) == 0xD0);
+  assert(!fdc.irq_pending);
+  assert(fdc.read(0x3F5) == 0x90);
+  assert(fdc.read(0x3F4) == 0x80);
+  for (u8 byte : {0x03, 0xDF, 0x02}) fdc.write(0x3F5, byte);
+  assert(fdc.read(0x3F4) == 0x80);
+  seek(fdc, 7);
+
+  // Table 5-1: an invalid opcode immediately returns ST0=80h. Consume
+  // the result, then ensure a valid multi-byte command is still framed.
+  fdc.write(0x3F5, 0x00);
+  assert(fdc.read(0x3F4) == 0xD0);
+  assert(!fdc.irq_pending);
+  assert(fdc.read(0x3F5) == 0x80);
+  assert(fdc.read(0x3F4) == 0x80);
+  seek(fdc, 3);
+  puts("Floppy VERSION and invalid-command framing: PASS");
+}
+
 int main() {
+  test_version_and_invalid_commands();
   FloppyImage first(0x37), second(0xA9);
   FloppyController fdc;
   assert(fdc.open(first.path.c_str()));

@@ -303,3 +303,16 @@ Diskette 2/drive-error screenshots, ATA regression logs and attempts 8–14.
 The emulator was rebuilt first using `bash system-emu/build-llvm.sh` with
 sail-llvm commit `54a10b8`; no official Sail compiler was used. A new sparse
 512 MiB disk, `build/os-boot/os2-resume-hdd.img`, starts this session's install.
+
+### FDC VERSION command framing
+
+The fresh rebuild reproduces the drive error (`os2-15-rebuilt`).
+The native floppy driver sends `10h` and then SPECIFY/RECALIBRATE.
+The controller incorrectly treated VERSION as a nine-byte command:
+`10 03 df 02 07 00 03 df 02`, swallowing the later commands.
+Implement the one-byte command, returning `90h` without IRQ, and make
+invalid opcodes return `80h` immediately. This follows the Intel
+[82077AA datasheet, table 5-1 and §5.2.8](https://ardent-tool.com/datasheets/Intel_82077AA.pdf).
+The regression fails before the fix and passes afterward, checking MSR,
+response, no IRQ and correct framing of following SPECIFY/SEEK commands.
+[Validation](os-boot/os2-test-version.txt).

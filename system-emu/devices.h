@@ -2479,10 +2479,11 @@ private:
     case 0x0A: return 2;  // READ ID
     case 0x0D: return 6;  // FORMAT TRACK
     case 0x0F: return 3;  // SEEK
+    case 0x10: return 1;  // VERSION
     case 0x12: return 1;  // PERPENDICULAR MODE
     case 0x13: return 4;  // CONFIGURE
     case 0x14: return 1;  // LOCK
-    default:   return 9;  // Unknown — assume max length
+    default:   return 1;  // Invalid opcode enters result phase immediately
     }
   }
 
@@ -2595,6 +2596,14 @@ private:
       irq_pending = true;
       break;
     }
+
+    case 0x10:  // VERSION (82077AA section 5.2.8), no interrupt
+      result_buf[0] = 0x90;
+      result_len = 1;
+      result_pos = 0;
+      cmd_pos = 0;
+      msr = 0xD0;
+      break;
 
     case 0x12:  // PERPENDICULAR MODE
     case 0x13:  // CONFIGURE

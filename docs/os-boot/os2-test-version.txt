@@ -1,0 +1,7 @@
+Before fix (expected failure):
+system_test_floppy: system-emu/tests/test-floppy.cpp:53: void test_version_and_invalid_commands(): Assertion `fdc.read(0x3F4) == 0xD0' failed.
+
+After fix:
+./sail-floppy-6lTSbw/missing: Not a directory
+Floppy VERSION and invalid-command framing: PASS
+Floppy media replacement: PASS
