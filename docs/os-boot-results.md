@@ -14,7 +14,7 @@ planar VGA. It has no HPET or additional CPUs.
 | Linux i386 | Serial `sail#` shell | None for the requested boot |
 | Linux amd64 | `sail#` through BIOS/ISO with ACPI and I/O APIC, and by direct bzImage boot | Neither command line needs `noapic nolapic` |
 | Haiku | COM1 output and graphical kernel debugger at 1024x768 | Boot-volume panic: PCI-ATA requires the missing bus-master IDE BAR/registers; no desktop |
-| ReactOS | Fresh text-mode installation completed successfully and rebooted; installed-disk boot reaches graphics mode | Graphical second stage in progress; offline FAT check found a damaged DirectX-file chain and directory metadata issues |
+| ReactOS | Fresh text installation completed and rebooted into graphical second-stage setup at 800×600: “Installing devices” | Second stage still active; offline FAT check found a damaged DirectX-file chain and directory metadata issues |
 | FreeBSD | CD Loader 1.2 and BTX entry | Fails before loader prompt; virtual-8086 boot path remains unsupported |
 | Windows 3.1 | Express Setup, first-stage copy, protected-mode DOSX startup | LMSW bug fixed; next #GP is an unsupported 16-bit call gate; no graphical screen |
 | Windows 95 | ScanDisk repair UI; `SETUP /IS` copies startup files and enters protected-mode DOSX | R6002 (XLAT) and keyboard bugs fixed; same unsupported 16-bit call gate as Windows 3.1 blocks graphics; subsequent ScanDisk size reports remain unclassified |
@@ -2497,3 +2497,23 @@ applied. The installed system is booted from the exact completed disk copy.
 [Cabinet comparison](os-boot/reactos-sailc-fixed-offline-cabinet-verification.json) ·
 [Read-only fsck log](os-boot/reactos-sailc-fixed-offline-fsck.log) ·
 [Installed boot configuration](os-boot/reactos-sailc-fixed-offline-freeldr.ini).
+
+### reactos-installed-first-boot-17 — graphical second stage
+
+The unmodified installed-disk copy boots the kernel, loads `win32k.sys`,
+starts `winlogon.exe` and `setup.exe`, and displays the **graphical
+second-stage setup at 800×600, 32 bpp**, with **“Please wait… Installing
+devices”**. The saved state is at **721.78 seconds** and
+**2,100,174,486 instructions**. This is an active checkpoint,
+not the desktop or a stop.
+
+The video-port serial log reports fallback to V86 mode after its internal
+x86 emulator could not initialize; the Bochs driver detects DISPI version
+`0xb0c5`. The model's merged virtual-8086 tests passed earlier.
+Startup also logs an invalid alternate registry hive, service/profile
+warnings, and work-queue recovery; these remain in the complete serial
+checkpoint. The primary boot continues to the setup GUI.
+
+[Graphical setup PNG](os-boot/reactos-installed-first-boot-17-devices.png) ·
+[Serial checkpoint](os-boot/reactos-installed-first-boot-17-devices.serial) ·
+[CPU/timing checkpoint](os-boot/reactos-installed-first-boot-17-devices.json).
