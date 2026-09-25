@@ -35,13 +35,41 @@ SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
   -hda /tmp/sail-x86-os2-win95-20260925/win95-fixed.img -boot c
 ```
 
+### Fresh Setup attempt
+
 The next attempt uses `win95-b-final.img` from before file copy, removes
 its temporary `WININST0.400` directory on the private copy, and restores
-AUTOEXEC.BAT to start `C:\WIN95\SETUP /IS` without recovery. The diagnostic
-emulator links the freshly rebuilt LLVM model and stops on an unexpected
-real-mode CS below 0x40 after 100 million instructions, retaining the last
-64 instruction locations. This changes only diagnostics, not model semantics.
-All writable images and raw RAM are under `/tmp/sail-x86-os2-win95-20260925/`.
+AUTOEXEC.BAT to start `C:\WIN95\SETUP /IS`. The wizard's Safe Recovery page
+still appears because SETUPLOG.TXT exists; this attempt selects **Do not
+use Safe Recovery**. The source cabinet directory is unchanged.
+
+The first diagnostic stop (`b-win95-clean`, 21.210 s / 101,296,793
+instructions) was a false positive: HIMEM clears CR0.PE while CS is still
+0x0008 with cached base 0xfffe0, then far-jumps to its real-mode selector.
+[PNG](os-boot/b-win95-clean-diagnostic-stop.png),
+[instruction trace](os-boot/b-win95-clean-diagnostic-stop.txt),
+[COM1](os-boot/b-win95-clean-diagnostic-stop.serial) (empty).
+No model change is indicated. The diagnostic condition is narrowed to
+real-mode CS=0x0001 after 100 million instructions.
+
+The restarted `b-win95-clean2` passes User Information and hardware
+detection and reaches [Start Copying Files](os-boot/b-win95-clean-ready.png).
+It uses `Sail Test`, Compact setup, default components, and no optional
+CD-ROM/network/sound detection. The keyboard helper reads the supplied
+OEM number from its original external path and omits it from input logs.
+The diagnostic emulator links the same freshly rebuilt LLVM model; its
+only additions are instruction-location logging and the stop condition.
+All writable images and raw RAM remain under
+`/tmp/sail-x86-os2-win95-20260925/`.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_ADDRESS=0xffffffffffffffff \
+  python3 system-emu/run-boot.py --name b-win95-clean2 \
+  --out /tmp/sail-x86-os2-win95-20260925 --timeout 7000 --send '45:\n' -- \
+  /tmp/sail-x86-os2-win95-20260925/lowcs-sim \
+  -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-clean2.img -boot c
+```
 
 ## Prior continuation through 10:50 JST on 2026-09-25
 
