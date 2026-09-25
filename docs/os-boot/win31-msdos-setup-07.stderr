@@ -1,0 +1,2604 @@
+sail-x86-system: VGA BIOS loaded (39424 bytes, checksum OK)
+sail-x86-system: BIOS=build/bios.bin (131072 bytes), RAM=16MB
+sail-x86-system: reset vector CS:IP=f000:fff0 (linear 0xfffffff0)
+sail-x86-system: HDA=build/os-boot/win31-msdos.img
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+BUILD: gcc: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 binutils: (GNU Binutils for Ubuntu) 2.42
+Found QEMU fw_cfg
+qemu/e820: fw_cfg file etc/e820 not found
+RamSize: 0x01000000 [cmos]
+Relocating init from 0x000e8fa0 to 0x00fb6320 (size 40000)
+RamSizeOver4G: 0x0000000000000000 [cmos]
+=== PCI bus & bridge init ===
+PCI: pci_bios_init_bus_rec bus = 0x0
+=== PCI device probing ===
+Found 5 PCI devices (max PCI bus is 00)
+=== PCI new allocation pass #1 ===
+PCI: check devices
+=== PCI new allocation pass #2 ===
+PCI: IO: c000 - c00f
+PCI: 32: 0000000080000000 - 00000000fec00000
+PCI: map device bdf=00:01.1  bar 4, addr 0000c000, size 00000010 [io]
+PCI: map device bdf=00:02.0  bar 6, addr febf0000, size 00010000 [mem]
+PCI: map device bdf=00:02.0  bar 0, addr fd000000, size 01000000 [prefmem]
+PCI: init bdf=00:00.0 id=8086:1237
+PCI: init bdf=00:01.0 id=8086:7000
+PIIX3/PIIX4 init: elcr=00 0c
+PCI: init bdf=00:01.1 id=8086:7010
+PCI: init bdf=00:01.3 id=8086:7113
+Using pmtimer, ioport 0xb008
+PCI: init bdf=00:02.0 id=1234:1111
+PCI: Using 00:02.0 for primary VGA
+Found 1 cpu(s) max supported 1 cpu(s)
+Copying MPTABLE from 0x00006e20/fadc20 to 0x000f2b10
+ACPI DSDT=0x00ffe4f0
+Copying ACPI RSDP from 0x00006dfc to 0x000f2af0
+Scan for VGA option rom
+Running option rom at c000:0003
+Start SeaVGABIOS (version 1.16.3-20260925_004617-odyssey)
+VGABUILD: gcc: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 binutils: (GNU Binutils for Ubuntu) 2.42
+enter vga_post:
+   a=00000010  b=0000ffff  c=00000000  d=0000ffff ds=0000 es=f000 ss=0000
+  si=00000000 di=00008d21 bp=00000000 sp=00006da2 cs=f000 ip=d692  f=0000
+VBE DISPI: bdf 00:02.0, bar 0
+VBE DISPI: lfb_addr=fd000000, size 16 MB
+Removing mode 199
+Removing mode 19a
+Removing mode 19b
+Removing mode 19c
+Removing mode 19d
+Removing mode 19e
+Attempting to allocate 512 bytes lowmem via pmm call to f000:d734
+pmm call arg1=0
+VGA stack allocated at ef580
+Turning on vga text mode console
+set VGA mode 3
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+PS2 keyboard initialized
+ATA controller 1 at 1f0/3f4/0 (irq 14 dev 9)
+ata0-0: Sail-x86 Virtual Disk ATA-6 Hard-Disk (128 MiBytes)
+Searching bootorder for: /pci@i0cf8/*@1,1/drive@0/disk@0
+Searching bios-geometry for: /pci@i0cf8/*@1,1/drive@0/disk@0
+ATA controller 2 at 170/374/0 (irq 15 dev 9)
+Searching bootorder for: HALT
+Found 1 serial ports
+Scan for option roms
+Searching bootorder for: HALT
+drive 0x000f2a90: PCHS=260/16/63 translation=none LCHS=260/16/63 s=262144
+Space available for UMB: ca000-ef000, f0000-f2a70
+Returned 253952 bytes of ZoneHigh
+e820 map has 6 items:
+  0: 0000000000000000 - 000000000009fc00 = 1 RAM
+  1: 000000000009fc00 - 00000000000a0000 = 2 RESERVED
+  2: 00000000000f0000 - 0000000000100000 = 2 RESERVED
+  3: 0000000000100000 - 0000000000ffe000 = 1 RAM
+  4: 0000000000ffe000 - 0000000001000000 = 2 RESERVED
+  5: 00000000fffc0000 - 0000000100000000 = 2 RESERVED
+enter handle_19:
+  NULL
+Booting from Hard Disk...
+Booting from 0000:7c00
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/win31-msdos-setup-07.png
+[42217029] CS:RIP=f000:0000c9cd mode=R
+  RAX=000000000000e011 RBX=000000000000ffa8 RCX=0000000000000001 RDX=000000000000e000
+  RSP=000000000000ffa0 RBP=0000000000000a6e RSI=00000000000000ee RDI=00000000000003bc
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=f000 DS=e000 ES=0040 SS=e000 FS=0000 GS=0000
+  FLAGS CF=0 PF=0 AF=0 ZF=0 SF=0 OF=0 DF=0 IF=0
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000000000a5db:0018 IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=0000000000000400 limit=ffffffff D/B=1 DPL=0 type=3
+  SEG[1] base=00000000000f0000 limit=0000ffff D/B=0 DPL=0 type=f
+  SEG[2] base=00000000000e0000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=00000000000e0000 limit=ffffffff D/B=1 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=10554257250 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=58798 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:00:10 ticks=345841 second=10
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=4046405500 ns status=40 error=00 features=00 count=01 lba=000dd6 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=000dd6 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)                                
+Booting from Hard Disk...                                                       
+Starting MS-DOS...                                                              
+                                                                                
+                                                                                
+HIMEM is testing extended memory...done.                                        
+C:\>                                                                            
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+set VGA mode 3
+Set active page 00 address 0000
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/win31-msdos-setup-07.png
+[109747728] CS:RIP=f000:0000c72f mode=R
+  RAX=0000000000000000 RBX=000000000000e000 RCX=000000000000c713 RDX=0000000000000000
+  RSP=0000000000006ede RBP=0000000000000040 RSI=000000000000ffd8 RDI=0000000000003546
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=f000 DS=3546 ES=0040 SS=3546 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000000000a5db:0018 IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=0000000000000400 limit=ffffffff D/B=1 DPL=0 type=3
+  SEG[1] base=00000000000f0000 limit=0000ffff D/B=0 DPL=0 type=f
+  SEG[2] base=0000000000035460 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=0000000000035460 limit=ffffffff D/B=1 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=33039074991 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  halted
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=38417 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:00:33 ticks=1082624 second=33
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=27416696750 ns status=40 error=00 features=00 count=01 lba=00023e dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=00023e dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Welcome to Setup.                                                          
+                                                                                
+     The Setup program for Windows 3.1 prepares Windows                         
+     to run on your computer.                                                   
+                                                                                
+         To learn more about Windows Setup before continuing, press F1.         
+                                                                                
+         To set up Windows now, press ENTER.                                    
+                                                                                
+         To quit Setup without installing Windows, press F3.                    
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  ENTER=Continue  F3=Exit  F1=Help                                              
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/win31-msdos-setup-07.png
+[109776253] CS:RIP=f000:0000c72f mode=R
+  RAX=0000000000000000 RBX=000000000000e000 RCX=000000000000c713 RDX=0000000000000000
+  RSP=0000000000006ede RBP=0000000000000040 RSI=000000000000ffd8 RDI=0000000000003546
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=f000 DS=3546 ES=0040 SS=3546 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000000000a5db:0018 IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=0000000000000400 limit=ffffffff D/B=1 DPL=0 type=3
+  SEG[1] base=00000000000f0000 limit=0000ffff D/B=0 DPL=0 type=f
+  SEG[2] base=0000000000035460 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=0000000000035460 limit=ffffffff D/B=1 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=33646114441 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  halted
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=33969 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:00:33 ticks=1102515 second=33
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=27416696750 ns status=40 error=00 features=00 count=01 lba=00023e dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=00023e dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Windows provides two Setup methods:                                        
+                                                                                
+     Express Setup (Recommended)                                                
+     Express Setup relies on Setup to make decisions,                           
+     so setting up Windows is quick and easy.                                   
+                                                                                
+        To use Express Setup, press ENTER.                                      
+                                                                                
+                                                                                
+     Custom Setup                                                               
+     Custom Setup is for experienced computer users who                         
+     want to control how Windows is set up. To use this Setup method,           
+     you should know how to use a mouse with Windows.                           
+                                                                                
+        To use Custom Setup, press C.                                           
+                                                                                
+     For details about both Setup methods, press F1.                            
+                                                                                
+                                                                                
+                                                                                
+  ENTER=Express Setup  C=Custom Setup  F1=Help  F3=Exit                         
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/win31-msdos-setup-07.png
+[142479401] CS:RIP=2308:000000b7 mode=R
+  RAX=0000000000000ff0 RBX=00000000000002cd RCX=0000000000000000 RDX=0000000000005b44
+  RSP=000000000000679a RBP=00000000000067a6 RSI=0000000000000000 RDI=0000000000000006
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=2308 DS=3546 ES=5238 SS=3546 FS=0000 GS=0000
+  FLAGS CF=0 PF=0 AF=1 ZF=0 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000000000a5db:0018 IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=0000000000052380 limit=ffffffff D/B=1 DPL=0 type=3
+  SEG[1] base=0000000000023080 limit=0000ffff D/B=0 DPL=0 type=f
+  SEG[2] base=0000000000035460 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=0000000000035460 limit=ffffffff D/B=1 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=46726150726 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=27097 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:00:46 ticks=1531122 second=46
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=30 at=46724173226 ns status=40 error=00 features=00 count=01 lba=00510e dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=20751 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=00510e dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup copies files to your hard disk.                    
+                                                                                
+         To quit Setup without installing Windows, press F3.                    
+                                                                                
+     For more information on setting up and using Windows version 3.1,          
+     see your Windows documentation.                                            
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+         Setup is copying files...                                              
+                                        39%                                     
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  F3=Exit                                                 Copying : WINHELP.EXE 
+set VGA mode 12
+sail-x86-system: framebuffer 640x480x4 saved to build/os-boot/win31-msdos-setup-07.png
+[243150167] CS:RIP=06e7:000033fe mode=P
+  RAX=0000000000000001 RBX=0000000000000001 RCX=000000000000fd00 RDX=0000000000000600
+  RSP=0000000000003e6a RBP=0000000000003e6e RSI=000000000000003f RDI=00000000000042b5
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=06e7 DS=08a7 ES=0a0f SS=0b57 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=0 SF=1 OF=0 DF=0 IF=1
+  CR0=0000000000000031 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=3 GDTR=0000000000110800:011f IDTR=0000000000110000:07ff LDTR=0038
+  SEG[0] base=0000000000036b40 limit=0000037f D/B=0 DPL=3 type=3
+  SEG[1] base=000000000002b100 limit=0000ba3f D/B=0 DPL=3 type=b
+  SEG[2] base=0000000000056be0 limit=000052df D/B=0 DPL=3 type=3
+  SEG[3] base=0000000000038e60 limit=000001ff D/B=0 DPL=3 type=3
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=71893842226 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=17161 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:01:11 ticks=2355817 second=71
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=62861987476 ns status=40 error=00 features=00 count=01 lba=005687 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=20751 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=005687 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup loads Windows. When Windows appears,               
+     you can continue setting up your system.                                   
+                                                                                
+     If Windows does not start, see Troubleshooting in your Windows             
+     documentation, and then run Setup again.                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  Please Wait ...                                                               
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 640x480x4 saved to build/os-boot/win31-msdos-setup-07.png
+[306705209] CS:RIP=0baf:000002c8 mode=P
+  RAX=000000000000808d RBX=0000000000000000 RCX=0000000000000080 RDX=0000000000000002
+  RSP=0000000000003828 RBP=0000000000003838 RSI=0000000000000001 RDI=000000000000065f
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0baf DS=0bc7 ES=0d0f SS=0b57 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=1 ZF=0 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000031 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=3 GDTR=0000000000110800:011f IDTR=0000000000110000:07ff LDTR=0038
+  SEG[0] base=0000000000015060 limit=0000107f D/B=0 DPL=3 type=3
+  SEG[1] base=000000000007e0c0 limit=0000033f D/B=0 DPL=3 type=a
+  SEG[2] base=0000000000056be0 limit=000052df D/B=0 DPL=3 type=3
+  SEG[3] base=0000000000070380 limit=0000069f D/B=0 DPL=3 type=3
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=87782602726 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=1488 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:01:27 ticks=2876460 second=87
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=30 at=87765071976 ns status=40 error=00 features=00 count=40 lba=0062ba dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=32768/32768 block_end=32768 limit=512 write_lba=25338 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=40 lba=0062ba dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup loads Windows. When Windows appears,               
+     you can continue setting up your system.                                   
+                                                                                
+     If Windows does not start, see Troubleshooting in your Windows             
+     documentation, and then run Setup again.                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  Please Wait ...                                                               
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 640x480x4 saved to build/os-boot/win31-msdos-setup-07.png
+[420379126] CS:RIP=0baf:0000025b mode=P
+  RAX=0000000000000f01 RBX=000000000000433e RCX=00000000000000fd RDX=000000000000000f
+  RSP=0000000000003828 RBP=0000000000003838 RSI=0000000000000000 RDI=0000000000000005
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0baf DS=0bc7 ES=0d17 SS=0b57 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=0 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000031 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=3 GDTR=0000000000110800:011f IDTR=0000000000110000:07ff LDTR=0038
+  SEG[0] base=0000000000039080 limit=0000801f D/B=0 DPL=3 type=3
+  SEG[1] base=000000000007e0c0 limit=0000033f D/B=0 DPL=3 type=a
+  SEG[2] base=0000000000056be0 limit=000052df D/B=0 DPL=3 type=3
+  SEG[3] base=0000000000070380 limit=0000069f D/B=0 DPL=3 type=3
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=116201081976 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=46462 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:01:56 ticks=3807677 second=116
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=115947978476 ns status=40 error=00 features=00 count=01 lba=00191e dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=29623 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=00191e dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup loads Windows. When Windows appears,               
+     you can continue setting up your system.                                   
+                                                                                
+     If Windows does not start, see Troubleshooting in your Windows             
+     documentation, and then run Setup again.                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  Please Wait ...                                                               
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 640x480x4 saved to build/os-boot/win31-msdos-setup-07.png
+[489266721] CS:RIP=0baf:000002bd mode=P
+  RAX=000000000000800f RBX=0000000000000000 RCX=0000000000000060 RDX=0000000000000002
+  RSP=0000000000003828 RBP=0000000000003838 RSI=0000000000000001 RDI=0000000000000001
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0baf DS=0bc7 ES=0d0f SS=0b57 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000031 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=3 GDTR=0000000000110800:011f IDTR=0000000000110000:07ff LDTR=0038
+  SEG[0] base=0000000000015060 limit=0000107f D/B=0 DPL=3 type=3
+  SEG[1] base=000000000007e0c0 limit=0000033f D/B=0 DPL=3 type=a
+  SEG[2] base=0000000000056be0 limit=000052df D/B=0 DPL=3 type=3
+  SEG[3] base=0000000000070380 limit=0000069f D/B=0 DPL=3 type=3
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=133422980726 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=13384 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:02:13 ticks=4372004 second=133
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=30 at=133263873476 ns status=40 error=00 features=00 count=40 lba=008382 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=32768/32768 block_end=32768 limit=512 write_lba=33730 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=40 lba=008382 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup loads Windows. When Windows appears,               
+     you can continue setting up your system.                                   
+                                                                                
+     If Windows does not start, see Troubleshooting in your Windows             
+     documentation, and then run Setup again.                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  Please Wait ...                                                               
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 640x480x4 saved to build/os-boot/win31-msdos-setup-07.png
+[665380653] CS:RIP=06e7:00004f84 mode=P
+  RAX=0000000000000000 RBX=0000000000000001 RCX=000000000000fd00 RDX=0000000000000600
+  RSP=0000000000003e84 RBP=0000000000003e8e RSI=000000000000003f RDI=00000000000042b5
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=06e7 DS=0a17 ES=0a0f SS=0b57 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000031 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=3 GDTR=0000000000110800:011f IDTR=0000000000110000:07ff LDTR=0038
+  SEG[0] base=0000000000036b40 limit=0000037f D/B=0 DPL=3 type=3
+  SEG[1] base=000000000002b100 limit=0000ba3f D/B=0 DPL=3 type=b
+  SEG[2] base=000000000003c480 limit=000052df D/B=0 DPL=3 type=3
+  SEG[3] base=00000000000692a0 limit=0000203f D/B=0 DPL=3 type=3
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=177451463726 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=46659 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:02:57 ticks=5814729 second=177
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=160656255726 ns status=40 error=00 features=00 count=01 lba=0088c7 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=29626 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=0088c7 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup loads Windows. When Windows appears,               
+     you can continue setting up your system.                                   
+                                                                                
+     If Windows does not start, see Troubleshooting in your Windows             
+     documentation, and then run Setup again.                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  Please Wait ...                                                               
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 640x480x4 saved to build/os-boot/win31-msdos-setup-07.png
+[696872499] CS:RIP=fdc8:00007ca6 mode=R
+  RAX=000000000000008e RBX=0000000000000200 RCX=0000000000000000 RDX=0000000000000000
+  RSP=0000000000000910 RBP=00000000000013ac RSI=00000000000013ac RDI=00000000000001a3
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=fdc8 DS=0116 ES=0116 SS=0116 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=0000000000110800:011f IDTR=0000000000000000:03ff LDTR=0038
+  SEG[0] base=0000000000001160 limit=0000ffff D/B=0 DPL=3 type=2
+  SEG[1] base=00000000000fdc80 limit=0000ffff D/B=0 DPL=0 type=a
+  SEG[2] base=0000000000001160 limit=0000ffff D/B=0 DPL=0 type=2
+  SEG[3] base=0000000000001160 limit=0000ffff D/B=0 DPL=3 type=2
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=3 type=2
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=3 type=2
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=185324425226 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=25818 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:03:05 ticks=6072710 second=185
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=185323781976 ns status=40 error=00 features=00 count=10 lba=007ce1 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=8192/8192 block_end=8192 limit=512 write_lba=29625 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=10 lba=007ce1 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup loads Windows. When Windows appears,               
+     you can continue setting up your system.                                   
+                                                                                
+     If Windows does not start, see Troubleshooting in your Windows             
+     documentation, and then run Setup again.                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  Please Wait ...                                                               
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 640x480x4 saved to build/os-boot/win31-msdos-setup-07.png
+[784959139] CS:RIP=06e7:00004f73 mode=P
+  RAX=0000000000000000 RBX=0000000000000000 RCX=0000000000002000 RDX=00000000ffff0600
+  RSP=00000000000038de RBP=00000000000038e8 RSI=000000000000003f RDI=00000000000042b5
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=06e7 DS=0a17 ES=0a0f SS=0b57 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000031 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=3 GDTR=0000000000110800:011f IDTR=0000000000110000:07ff LDTR=0038
+  SEG[0] base=0000000000036b40 limit=0000037f D/B=0 DPL=3 type=3
+  SEG[1] base=000000000002b100 limit=0000ba3f D/B=0 DPL=3 type=b
+  SEG[2] base=000000000003c480 limit=000059ff D/B=0 DPL=3 type=3
+  SEG[3] base=00000000000692a0 limit=0000203f D/B=0 DPL=3 type=3
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=207346085226 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=34701 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:03:27 ticks=6794316 second=207
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=190661623976 ns status=40 error=00 features=00 count=01 lba=0056b8 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=29626 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=0056b8 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup loads Windows. When Windows appears,               
+     you can continue setting up your system.                                   
+                                                                                
+     If Windows does not start, see Troubleshooting in your Windows             
+     documentation, and then run Setup again.                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  Please Wait ...                                                               
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 640x480x4 saved to build/os-boot/win31-msdos-setup-07.png
+[819039900] CS:RIP=ffff:00000aa5 mode=R
+  RAX=0000000000000201 RBX=0000000000000000 RCX=0000000000000010 RDX=0000000000000013
+  RSP=00000000000008ce RBP=0000000000000002 RSI=0000000000000522 RDI=0000000000000919
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=ffff DS=0070 ES=0070 SS=0116 FS=0000 GS=0000
+  FLAGS CF=0 PF=0 AF=0 ZF=0 SF=0 OF=0 DF=0 IF=0
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=0000000000110800:011f IDTR=0000000000000000:03ff LDTR=0038
+  SEG[0] base=0000000000000700 limit=0000ffff D/B=0 DPL=3 type=2
+  SEG[1] base=00000000000ffff0 limit=0000ffff D/B=0 DPL=0 type=a
+  SEG[2] base=0000000000001160 limit=0000ffff D/B=0 DPL=0 type=2
+  SEG[3] base=0000000000000700 limit=0000ffff D/B=0 DPL=3 type=2
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=3 type=2
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=3 type=2
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=215866275476 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=28421 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:03:35 ticks=7073248 second=215
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=215865903226 ns status=40 error=00 features=00 count=01 lba=004d33 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=29626 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=004d33 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup loads Windows. When Windows appears,               
+     you can continue setting up your system.                                   
+                                                                                
+     If Windows does not start, see Troubleshooting in your Windows             
+     documentation, and then run Setup again.                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  Please Wait ...                                                               
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 640x480x4 saved to build/os-boot/win31-msdos-setup-07.png
+[916429706] CS:RIP=06e7:00004f71 mode=P
+  RAX=0000000000000000 RBX=0000000000000000 RCX=0000000000000804 RDX=00000000ffff0600
+  RSP=000000000000419c RBP=00000000000041a6 RSI=000000000000003f RDI=00000000000042b5
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=06e7 DS=0a17 ES=0a0f SS=0b57 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000031 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=3 GDTR=0000000000110800:011f IDTR=0000000000110000:07ff LDTR=0038
+  SEG[0] base=0000000000036b40 limit=0000037f D/B=0 DPL=3 type=3
+  SEG[1] base=000000000002b100 limit=0000ba3f D/B=0 DPL=3 type=b
+  SEG[2] base=000000000003c480 limit=000059ff D/B=0 DPL=3 type=3
+  SEG[3] base=00000000000692a0 limit=0000203f D/B=0 DPL=3 type=3
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=240213726976 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=13705 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:04:00 ticks=7871323 second=240
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=218800413226 ns status=40 error=00 features=00 count=01 lba=0056ea dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=20751 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=0056ea dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup loads Windows. When Windows appears,               
+     you can continue setting up your system.                                   
+                                                                                
+     If Windows does not start, see Troubleshooting in your Windows             
+     documentation, and then run Setup again.                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  Please Wait ...                                                               
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 640x480x4 saved to build/os-boot/win31-msdos-setup-07.png
+[951727899] CS:RIP=0aef:00003e2a mode=P
+  RAX=0000000000000c00 RBX=0000000000000488 RCX=0000000000000001 RDX=000000000004c783
+  RSP=0000000000003dd4 RBP=0000000000000ff0 RSI=0000000000000242 RDI=000000000000039a
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0aef DS=0e47 ES=0d77 SS=0b57 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=0 SF=0 OF=0 DF=1 IF=1
+  CR0=0000000000000031 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=3 GDTR=0000000000110800:011f IDTR=0000000000110000:07ff LDTR=0038
+  SEG[0] base=0000000000044a00 limit=0000065f D/B=0 DPL=3 type=3
+  SEG[1] base=000000000003c480 limit=000059ff D/B=0 DPL=3 type=b
+  SEG[2] base=000000000003c480 limit=000059ff D/B=0 DPL=3 type=3
+  SEG[3] base=0000000000041e80 limit=000003bf D/B=0 DPL=3 type=3
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=249038275226 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=37969 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:04:09 ticks=8160486 second=249
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=248955845726 ns status=40 error=00 features=00 count=01 lba=005695 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=20751 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=005695 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup loads Windows. When Windows appears,               
+     you can continue setting up your system.                                   
+                                                                                
+     If Windows does not start, see Troubleshooting in your Windows             
+     documentation, and then run Setup again.                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  Please Wait ...                                                               
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: framebuffer 640x480x4 saved to build/os-boot/win31-msdos-setup-07.png
+[1004882547] CS:RIP=06e7:00004f71 mode=P
+  RAX=0000000000000000 RBX=0000000000000001 RCX=0000000000000201 RDX=0000000000000600
+  RSP=0000000000004192 RBP=000000000000419c RSI=000000000000003f RDI=00000000000042b5
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=06e7 DS=0a17 ES=0a0f SS=0b57 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000031 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=3 GDTR=0000000000110800:011f IDTR=0000000000110000:07ff LDTR=0038
+  SEG[0] base=0000000000036b40 limit=0000037f D/B=0 DPL=3 type=3
+  SEG[1] base=000000000002b100 limit=0000ba3f D/B=0 DPL=3 type=b
+  SEG[2] base=000000000003c480 limit=000059ff D/B=0 DPL=3 type=3
+  SEG[3] base=00000000000692a0 limit=0000203f D/B=0 DPL=3 type=3
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=262326937226 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=43904 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:04:22 ticks=8595929 second=262
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=248955845726 ns status=40 error=00 features=00 count=01 lba=005695 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=20751 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=005695 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+ Windows Setup                                                                  
+                                                                                
+                                                                                
+     Please wait while Setup loads Windows. When Windows appears,               
+     you can continue setting up your system.                                   
+                                                                                
+     If Windows does not start, see Troubleshooting in your Windows             
+     documentation, and then run Setup again.                                   
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+  Please Wait ...                                                               
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+set VGA mode 3
+In resume (status=0)
+In 32bit resume
+Attempting a hard reboot
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+BUILD: gcc: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 binutils: (GNU Binutils for Ubuntu) 2.42
+Found QEMU fw_cfg
+qemu/e820: fw_cfg file etc/e820 not found
+RamSize: 0x01000000 [cmos]
+Relocating init from 0x000e8fa0 to 0x00fb6320 (size 40000)
+RamSizeOver4G: 0x0000000000000000 [cmos]
+=== PCI bus & bridge init ===
+PCI: pci_bios_init_bus_rec bus = 0x0
+=== PCI device probing ===
+Found 5 PCI devices (max PCI bus is 00)
+=== PCI new allocation pass #1 ===
+PCI: check devices
+=== PCI new allocation pass #2 ===
+PCI: IO: c000 - c00f
+PCI: 32: 0000000080000000 - 00000000fec00000
+PCI: map device bdf=00:01.1  bar 4, addr 0000c000, size 00000010 [io]
+PCI: map device bdf=00:02.0  bar 6, addr febf0000, size 00010000 [mem]
+PCI: map device bdf=00:02.0  bar 0, addr fd000000, size 01000000 [prefmem]
+PCI: init bdf=00:00.0 id=8086:1237
+PCI: init bdf=00:01.0 id=8086:7000
+PIIX3/PIIX4 init: elcr=00 0c
+PCI: init bdf=00:01.1 id=8086:7010
+PCI: init bdf=00:01.3 id=8086:7113
+Using pmtimer, ioport 0xb008
+PCI: init bdf=00:02.0 id=1234:1111
+PCI: Using 00:02.0 for primary VGA
+Found 1 cpu(s) max supported 1 cpu(s)
+Copying MPTABLE from 0x00006e20/fadc20 to 0x000f2b10
+ACPI DSDT=0x00ffe4f0
+Copying ACPI RSDP from 0x00006dfc to 0x000f2af0
+Scan for VGA option rom
+Running option rom at c000:0003
+Start SeaVGABIOS (version 1.16.3-20260925_004617-odyssey)
+VGABUILD: gcc: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 binutils: (GNU Binutils for Ubuntu) 2.42
+enter vga_post:
+   a=00000010  b=0000ffff  c=00000000  d=0000ffff ds=0000 es=f000 ss=0000
+  si=00000000 di=00008d21 bp=00000000 sp=00006da2 cs=f000 ip=d692  f=0000
+VBE DISPI: bdf 00:02.0, bar 0
+VBE DISPI: lfb_addr=fd000000, size 16 MB
+Removing mode 199
+Removing mode 19a
+Removing mode 19b
+Removing mode 19c
+Removing mode 19d
+Removing mode 19e
+Attempting to allocate 512 bytes lowmem via pmm call to f000:d734
+pmm call arg1=0
+VGA stack allocated at ef580
+Turning on vga text mode console
+set VGA mode 3
+SeaBIOS (version 1.16.3-20260925_004624-odyssey)
+PS2 keyboard initialized
+ATA controller 1 at 1f0/3f4/0 (irq 14 dev 9)
+ata0-0: Sail-x86 Virtual Disk ATA-6 Hard-Disk (128 MiBytes)
+Searching bootorder for: /pci@i0cf8/*@1,1/drive@0/disk@0
+Searching bios-geometry for: /pci@i0cf8/*@1,1/drive@0/disk@0
+ATA controller 2 at 170/374/0 (irq 15 dev 9)
+Searching bootorder for: HALT
+Found 1 serial ports
+Scan for option roms
+Searching bootorder for: HALT
+drive 0x000f2a90: PCHS=260/16/63 translation=none LCHS=260/16/63 s=262144
+Space available for UMB: ca000-ef000, f0000-f2a70
+Returned 253952 bytes of ZoneHigh
+e820 map has 6 items:
+  0: 0000000000000000 - 000000000009fc00 = 1 RAM
+  1: 000000000009fc00 - 00000000000a0000 = 2 RESERVED
+  2: 00000000000f0000 - 0000000000100000 = 2 RESERVED
+  3: 0000000000100000 - 0000000000ffe000 = 1 RAM
+  4: 0000000000ffe000 - 0000000001000000 = 2 RESERVED
+  5: 00000000fffc0000 - 0000000100000000 = 2 RESERVED
+enter handle_19:
+  NULL
+Booting from Hard Disk...
+Booting from 0000:7c00
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/win31-msdos-setup-07.png
+[62526208] CS:RIP=ffff:000000c1 mode=R
+  RAX=0000000000000300 RBX=000000000000037c RCX=0000000000000001 RDX=0000000000000000
+  RSP=0000000000000a70 RBP=0000000000000000 RSI=00000000000000ee RDI=00000000000001fb
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=ffff DS=0070 ES=0116 SS=0116 FS=0000 GS=0000
+  FLAGS CF=1 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000000000a5db:0018 IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=0000000000001160 limit=ffffffff D/B=1 DPL=0 type=3
+  SEG[1] base=00000000000ffff0 limit=0000ffff D/B=0 DPL=0 type=f
+  SEG[2] base=0000000000001160 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=0000000000000700 limit=ffffffff D/B=1 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=278549969976 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=31249 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:04:38 ticks=9127525 second=278
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=267004031476 ns status=40 error=00 features=00 count=01 lba=007edf dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=20751 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=007edf dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+Starting MS-DOS...                                                              
+                                                                                
+                                                                                
+HIMEM is testing extended memory...done.                                        
+                                                                                
+Smartdrv double buffering manager installed.                                    
+                                                                                
+C:\>C:\WINDOWS\SMARTDRV.EXE                                                     
+Microsoft SMARTDrive Disk Cache version 4.0                                     
+Copyright 1991,1992 Microsoft Corp.                                             
+                                                                                
+Cache size: 2,097,152 bytes                                                     
+Cache size while running Windows: 2,097,152 bytes                               
+                                                                                
+            Disk Caching Status                                                 
+drive   read cache   write cache   buffering                                    
+--------------------------------------------                                    
+  A:       yes           no           no                                        
+  B:       yes           no           no                                        
+  C:       yes           yes          -                                         
+                                                                                
+For help, type "Smartdrv /?".                                                   
+                                                                                
+The memory-resident portion of SMARTDrive is loaded.                            
+C:\>                                                                            
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/win31-msdos-setup-07.png
+[131629048] CS:RIP=fdc8:0000a69f mode=R
+  RAX=0000000000000700 RBX=0000000000000001 RCX=00000000000000f9 RDX=000000000000007f
+  RSP=0000000000000a88 RBP=0000000000000000 RSI=000000000000010d RDI=0000000000000018
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=fdc8 DS=0116 ES=04a5 SS=0116 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=0000000000000030 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000000000a5db:0018 IDTR=0000000000000000:03ff LDTR=0000
+  SEG[0] base=0000000000004a50 limit=ffffffff D/B=1 DPL=0 type=3
+  SEG[1] base=00000000000fdc80 limit=0000ffff D/B=0 DPL=0 type=f
+  SEG[2] base=0000000000001160 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[3] base=0000000000001160 limit=ffffffff D/B=1 DPL=0 type=3
+  SEG[4] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  SEG[5] base=0000000000000000 limit=0000ffff D/B=0 DPL=0 type=3
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=295825679976 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=b8 ISR=00  slave IRR=00 IMR=8e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=64821 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=07 A=26 B=02 C=50 D=80 time=12:04:55 ticks=9693615 second=295
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=267004031476 ns status=40 error=00 features=00 count=01 lba=007edf dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=20751 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=007edf dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+Starting MS-DOS...                                                              
+                                                                                
+                                                                                
+HIMEM is testing extended memory...done.                                        
+                                                                                
+Smartdrv double buffering manager installed.                                    
+                                                                                
+C:\>C:\WINDOWS\SMARTDRV.EXE                                                     
+Microsoft SMARTDrive Disk Cache version 4.0                                     
+Copyright 1991,1992 Microsoft Corp.                                             
+                                                                                
+Cache size: 2,097,152 bytes                                                     
+Cache size while running Windows: 2,097,152 bytes                               
+                                                                                
+            Disk Caching Status                                                 
+drive   read cache   write cache   buffering                                    
+--------------------------------------------                                    
+  A:       yes           no           no                                        
+  B:       yes           no           no                                        
+  C:       yes           yes          -                                         
+                                                                                
+For help, type "Smartdrv /?".                                                   
+                                                                                
+The memory-resident portion of SMARTDrive is loaded.                            
+C:\>                                                                            
+sail-x86-system: exited after 133897605 instructions

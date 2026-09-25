@@ -254,6 +254,9 @@ function exec_cmps(os, asz, pfx) = {
 
 enum RepPrefix = { REP_none, REP_rep, REP_repe, REP_repne }
 
+// SDM Vol.2A 2.1.1: F2 and F3 repeat string and I/O instructions.
+// The ZF termination conditions apply only to CMPS/SCAS (Vol.1 7.3.9.2);
+// either prefix uses count-only repetition for MOVS/STOS/LODS/INS/OUTS.
 enum StringOp = { STR_movs, STR_stos, STR_lods, STR_cmps, STR_scas, STR_ins, STR_outs }
 
 val exec_rep : (RepPrefix, StringOp, operand_size, address_size, Prefixes) -> unit
@@ -508,6 +511,28 @@ function is_lockable_1byte(op) = {
     op if 246 <= op & op <= 247 => true,                    // F6-F7: TEST/NOT/NEG/MUL/DIV
     op if 254 <= op & op <= 255 => true,                    // FE-FF: INC/DEC
     _ => false,
+  }
+}
+
+// IRET uses the privilege before the return to decide which flags can
+// change (SDM Vol.2A, RETURN-TO-SAME/OUTER-PRIVILEGE-LEVEL, pp.3-493,
+// 3-495). In particular a ring-3 IRET cannot clear or raise IOPL.
+val restore_iret_flags : ({16, 32, 64}, qword, cpl_t, bool) -> unit
+function restore_iret_flags(os, image, old_cpl, protected_return) = {
+  var flags : qword = image;
+  if protected_return then {
+    if old_cpl > unsigned(IOPL) then flags[9] = IF_flag;
+    if old_cpl != 0 then flags[13..12] = IOPL
+  };
+  if os == 16 then
+    write_rflags((read_rflags() & 0xFFFFFFFFFFFF0000) | zero_extend(flags[15..0]))
+  else {
+    write_rflags(flags);
+    RF = flags[16];
+    if protected_return & old_cpl == 0 then {
+      VIF = flags[19];
+      VIP = flags[20]
+    }
   }
 }
 
@@ -1021,7 +1046,7 @@ function decode_execute() = {
       108 => {
         vmx_exit_if_io(v(RDX), 8, true);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_ins, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_ins, 8, asz, pfx)
         else exec_ins(8, asz)
       },
       // 6D: INSW/INSD — Input word/dword from port DX to ES:[RDI]
@@ -1029,14 +1054,14 @@ function decode_execute() = {
         let os = opsize(pfx);
         vmx_exit_if_io(v(RDX), os, true);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_ins, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_ins, os, asz, pfx)
         else exec_ins(os, asz)
       },
       // 6E: OUTSB — Output byte from DS:[RSI] to port DX
       110 => {
         vmx_exit_if_io(v(RDX), 8, false);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_outs, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_outs, 8, asz, pfx)
         else exec_outs(8, asz, pfx)
       },
       // 6F: OUTSW/OUTSD — Output word/dword from DS:[RSI] to port DX
@@ -1044,7 +1069,7 @@ function decode_execute() = {
         let os = opsize(pfx);
         vmx_exit_if_io(v(RDX), os, false);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_outs, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_outs, os, asz, pfx)
         else exec_outs(os, asz, pfx)
       },
 
@@ -1344,7 +1369,7 @@ function decode_execute() = {
       // A4: MOVSB
       164 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_movs, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_movs, 8, asz, pfx)
         else exec_movs(8, asz, pfx)
       },
 
@@ -1352,7 +1377,7 @@ function decode_execute() = {
       165 => {
         let os = opsize(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_movs, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_movs, os, asz, pfx)
         else exec_movs(os, asz, pfx)
       },
 
@@ -1393,7 +1418,7 @@ function decode_execute() = {
       // AA: STOSB
       170 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_stos, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_stos, 8, asz, pfx)
         else exec_stos(8, asz)
       },
 
@@ -1401,14 +1426,14 @@ function decode_execute() = {
       171 => {
         let os = opsize(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_stos, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_stos, os, asz, pfx)
         else exec_stos(os, asz)
       },
 
       // AC: LODSB
       172 => {
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_lods, 8, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_lods, 8, asz, pfx)
         else exec_lods(8, asz, pfx)
       },
 
@@ -1416,7 +1441,7 @@ function decode_execute() = {
       173 => {
         let os = opsize(pfx);
         let asz = get_address_size(pfx);
-        if pfx.has_rep then exec_rep(REP_rep, STR_lods, os, asz, pfx)
+        if pfx.has_rep | pfx.has_repne then exec_rep(REP_rep, STR_lods, os, asz, pfx)
         else exec_lods(os, asz, pfx)
       },
 
@@ -1652,6 +1677,8 @@ function decode_execute() = {
       // 64-bit mode: always pop RIP, CS, RFLAGS, RSP, SS (SDM Vol.2 IRET).
       207 => {
         let os = opsize(pfx);
+        let iret_cpl = cur_cpl;
+        let protected_return = cur_mode != RealMode;
         if cur_mode == Virtual8086Mode then {
           assert(os == 16 | os == 32);
           iret_in_vm86(os);
@@ -1686,11 +1713,7 @@ function decode_execute() = {
           // 16-bit IRET only modifies lower 16 flags bits; 32-bit replaces all,
           // RF included (SDM IRET: "EFLAGS(RF, AC, ID) := tempEFLAGS"), which
           // is how a debug handler resumes past an instruction breakpoint.
-          let img : qword = zero_extend(new_flags);
-          if os == 16
-            then write_rflags((read_rflags() & 0xFFFFFFFFFFFF0000) | img)
-            else write_rflags(img);
-          RF = img[16]
+          restore_iret_flags(os, zero_extend(new_flags), iret_cpl, protected_return)
         } else {
           let new_rip    = pop(os);
           let new_cs     = pop(os);
@@ -1710,8 +1733,7 @@ function decode_execute() = {
           else cur_mode = CompatibilityMode;
 
           cur_cpl = unsigned(new_cs[1..0]);
-          write_rflags(new_rflags);
-          RF = new_rflags[16];  // IRETQ transfers RF from the image (SDM IRET)
+          restore_iret_flags(os, new_rflags, iret_cpl, protected_return);
           v(RSP) = new_rsp;
           // Load SS selector *and* descriptor cache from the GDT (SDM Vol.2
           // IRET: on return to outer privilege the hidden part of SS —
