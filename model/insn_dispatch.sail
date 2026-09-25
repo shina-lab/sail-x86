@@ -1058,8 +1058,10 @@ function decode_execute() = {
         }
       },
 
-      // 80: Group 1 — ALU r/m8, imm8
-      128 => {
+      // 80/82: Group 1 — ALU r/m8, imm8. SDM Vol.3B 25.15
+      // defines 82h as the 80h alias outside 64-bit mode only.
+      128 | 130 => {
+        if op == 130 & cur_mode == LongMode then raise_UD();
         let (reg_field, dest) = fetch_modrm_raw(pfx);
         let imm : byte = fetch(1);
         let alu_op = group1_op(reg_field);

@@ -2649,6 +2649,65 @@ TEST(xlat_segment_limit_fault) {
   }
 }
 
+TEST(legacy_opcode82_group1) {
+  // SDM rev.090 Vol.3B 25.15: 82h aliases byte Group 1 (80h), except
+  // in 64-bit mode where it raises #UD. Exercise all eight operations,
+  // both operand forms, 66h and LOCK, including compatibility mode.
+  const u8 results[] = {0x00, 0xFF, 0x01, 0x01, 0x01, 0x02, 0xFE, 0x81};
+  const u16 flags[] = {0x055, 0x084, 0x011, 0x810, 0x000, 0x810, 0x080, 0x810};
+  for (unsigned mode = 0; mode < 6; ++mode) {
+    for (unsigned op = 0; op < 8; ++op) {
+      for (bool memory : {false, true}) {
+        for (u8 prefix : {0x00, 0x66, 0xF0}) {
+          x86::Model model;
+          if (mode == 0) init_model_16(model);
+          else if (mode < 3) init_model_32(model);
+          else init_model(model);
+          bool code16 = mode == 0 || mode == 1 || mode == 3;
+          if (mode != 5) {
+            model.zSegCache.data[x86::SEG_CS].zseg_l = 0;
+            model.zSegCache.data[x86::SEG_CS].zseg_db = !code16;
+            if (mode >= 3) {
+              model.zcur_mode = x86::zCompatibilityMode;
+              for (unsigned seg : {x86::SEG_CS, x86::SEG_DS}) {
+                auto &cache = model.zSegCache.data[seg];
+                cache.zseg_base = 0;
+                cache.zseg_limit = 0xFFFFFFFF;
+                cache.zseg_present = cache.zseg_s = 1;
+                cache.zseg_type = seg == x86::SEG_CS ? 0xB : 0x3;
+              }
+            }
+          }
+          model.zGPR.data[0] = 0x1234567887654381UL;
+          model.zGPR.data[3] = model.zGPR.data[7] = 0x6000;
+          model.phys_mem.write32(0x6000, 0xAABBCC81);
+          model.zCF = 1;
+          const u8 code[] = {prefix, 0x82, u8((op << 3) | (memory ? 7 : 0xC0)), 0x7F};
+          bool fault = mode == 5 || (prefix == 0xF0 && (!memory || op == 7));
+          unsigned skip = prefix == 0;
+          ASSERT_EQ(run_code(model, 0x5000, code + skip, sizeof(code) - skip, 1),
+                    fault ? RUN_FAULTED : RUN_OK);
+          if (fault) {
+            ASSERT_EQ(model.zfault_vector, 6u);
+            ASSERT_EQ(model.zRIP, 0x5000UL);
+          } else {
+            // Logical operations leave AF undefined; all other arithmetic
+            // status flags have explicit expected values for 81h op 7Fh.
+            u64 mask = (op == 1 || op == 4 || op == 6) ? 0x8C5 : 0x8D5;
+            ASSERT_EQ(model.zread_rflags(UNIT) & mask, u64(flags[op]));
+            ASSERT_EQ(model.zRIP, 0x5000UL + sizeof(code) - skip);
+          }
+          ASSERT_EQ(model.zGPR.data[0],
+                    0x1234567887654300UL | (fault || memory ? 0x81 : results[op]));
+          ASSERT_EQ(model.phys_mem.read32(0x6000),
+                    0xAABBCC00u | (fault || !memory ? 0x81 : results[op]));
+          model.model_fini();
+        }
+      }
+    }
+  }
+}
+
 int main() {
   printf("System emulator tests:\n");
 
@@ -2703,6 +2762,7 @@ int main() {
 
   printf("\nReal mode tests:\n");
   run_test_real_mode_mov_ax_hlt();
+  run_test_legacy_opcode82_group1();
   run_test_xlat_segmented_table();
   run_test_xlat_address_size_and_segment_limit();
   run_test_real_mode_far_jmp_ea();

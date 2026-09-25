@@ -397,7 +397,8 @@ Reference: [ATA-2 draft §§8.10.21, 8.18, 8.23–8.24, 8.31](https://files.mpol
 All 10 IDE tests pass. The new test fails against the prior header and
 checks enable/disable, invalid counts, IDENTIFY, multi-sector reads/writes,
 256-sector reads, interrupt phases, nIEN, reset/default behavior and ATAPI
-rejection. [Validation](os-boot/os2-test-multiple.txt).
+rejection. [Validation](os-boot/os2-test-multiple.txt). All 15 system suites also pass
+after the ATA change ([full validation](os-boot/os2-tests-multiple-all.txt)).
 
 ### os2-19-multiple
 
@@ -422,7 +423,7 @@ Wall: **276.495 s**. Final boot instruction count: **186,618,299**
 (the emulator resets its counter on guest reboot). Exit `0`.
 Serial: form feeds only.
 
-### os2-20-format-shell (in progress)
+### os2-20-format-shell
 
 Booted the partitioned disk with the original diskettes and used F3 at Welcome
 to open the native [OS/2 command prompt](os-boot/os2-command-prompt.png).
@@ -432,6 +433,21 @@ total and 509236 KiB available.
 [Format complete](os-boot/os2-hpfs-format-complete.png). A snapshot is saved
 as `build/os-boot/os2-hdd-formatted.img`. RAM strings show the failed
 automatic attempt used `C: /FS:FAT`; its FAT-specific failure is diagnosed below. Continuing the installation on HPFS.
+
+After exiting the command prompt, selected Advanced Installation, accepted
+C:, kept the existing format, and selected the default PS/2 pointing device.
+The installer writes its first files, then reports SYS3176 (illegal instruction).
+Its message catalog is unavailable, so the register-report menu also returns
+SYS0318. [Stopped screen](os-boot/os2-installer-3176.png).
+The failed disk is preserved as `build/os-boot/os2-hdd-3176.img`; the next
+attempt starts from the successful HPFS-format snapshot with exception tracing.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 system-emu/run-boot.py --name os2-20-format-shell --timeout 1800 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-resume-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **770.690 s**. Instructions: **597,581,865**. Exit `0`.
+Serial: two form feeds only.
 
 A QEMU TCG control was launched with a separate partitioned-disk copy and
 read-only source media, then stopped during diskette boot once the direct
@@ -456,3 +472,34 @@ SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 system-emu/ru
 Wall: **137.041 s**. Instructions: **176,706,841**.
 Exit `0`. Serial: form feeds only. Diagnostic disk and
 floppy images are separate from the active HPFS installation.
+
+
+### os2-22-illegal
+
+Repeated Advanced Installation from the clean HPFS snapshot with a trace on
+OS/2's #UD handler. The first #UD is at `005b:00010646`, bytes `82 3a 00`
+(`CMP byte [EDX],0`), in the installer's 32-bit runtime. Opcode 82h is absent
+from the decoder. Other instructions in this routine also use 82h.
+[Exception trace](os-boot/os2-opcode82-trace.txt).
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_ADDRESS=0xfff5388c system-emu/run-boot.py --name os2-22-illegal --timeout 1800 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-install-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **260.898 s**. Instructions: **527,640,435**. Exit `0`.
+Serial: two form feeds only.
+
+### Legacy immediate Group 1 alias
+
+Intel SDM rev.090 Vol.3B §25.15 explicitly defines opcode 82h as the
+corresponding byte Group 1 instruction encoded by 80h outside 64-bit mode;
+64-bit mode must raise #UD. Share the existing 80h implementation, retaining
+its LOCK restrictions and rejecting 82h in 64-bit mode before operand fetch.
+
+The new regression checks all eight ALU operations with explicit results
+and defined arithmetic flags, register and memory operands, no prefix/66h/LOCK,
+real mode, 16/32-bit protected and compatibility code, and 64-bit rejection.
+It also checks fault restart, unchanged operands and adjacent bytes. The
+288-case regression fails before the fix.
+All 15 system suites pass after rebuilding (83 basic tests).
+[Validation](os-boot/os2-tests-opcode82.txt).

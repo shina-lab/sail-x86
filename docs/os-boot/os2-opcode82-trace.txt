@@ -1,0 +1,162 @@
+sail-x86-system: trace address 0xfff5388c at instruction 522021458; recent locations:
+  [522021395] 0160:fff70c5c: <paged code; bytes omitted>
+  [522021396] 0160:fff70c5d: <paged code; bytes omitted>
+  [522021397] 0160:fff70c5e: <paged code; bytes omitted>
+  [522021398] 0160:fff70c5f: <paged code; bytes omitted>
+  [522021399] 0160:fff54290: <paged code; bytes omitted>
+  [522021400] 0160:fff54299: <paged code; bytes omitted>
+  [522021401] 0160:fff5429a: <paged code; bytes omitted>
+  [522021402] 0160:fff5429d: <paged code; bytes omitted>
+  [522021403] 0160:fff5429f: <paged code; bytes omitted>
+  [522021404] 0160:fff54306: <paged code; bytes omitted>
+  [522021405] 0160:fff54307: <paged code; bytes omitted>
+  [522021406] 0160:fff53d19: <paged code; bytes omitted>
+  [522021407] 0160:fff53d1a: <paged code; bytes omitted>
+  [522021408] 0160:fff53d1f: <paged code; bytes omitted>
+  [522021409] 0160:fff53d25: <paged code; bytes omitted>
+  [522021410] 0160:fff53d28: <paged code; bytes omitted>
+  [522021411] 0160:fff53d2e: <paged code; bytes omitted>
+  [522021412] 0160:fff53d34: <paged code; bytes omitted>
+  [522021413] 0160:fff53d36: <paged code; bytes omitted>
+  [522021414] 0160:fff53d3d: <paged code; bytes omitted>
+  [522021415] 0160:fff53d3e: <paged code; bytes omitted>
+  [522021416] 0160:fff53d40: <paged code; bytes omitted>
+  [522021417] 0160:fff53d42: <paged code; bytes omitted>
+  [522021418] 0160:fff53d43: <paged code; bytes omitted>
+  [522021419] 0160:fff53d44: <paged code; bytes omitted>
+  [522021420] 0160:fff53d47: <paged code; bytes omitted>
+  [522021421] 005b:00013bf0: <paged code; bytes omitted>
+  [522021422] 005b:00013bf1: <paged code; bytes omitted>
+  [522021423] 005b:00013bf3: <paged code; bytes omitted>
+  [522021424] 005b:00013bf7: <paged code; bytes omitted>
+  [522021425] 005b:00013bfc: <paged code; bytes omitted>
+  [522021426] 005b:00013bff: <paged code; bytes omitted>
+  [522021427] 005b:00013c00: <paged code; bytes omitted>
+  [522021428] 005b:0001016e: <paged code; bytes omitted>
+  [522021429] 005b:00010170: <paged code; bytes omitted>
+  [522021430] 005b:0001017a: <paged code; bytes omitted>
+  [522021431] 005b:0001017f: <paged code; bytes omitted>
+  [522021432] 005b:00010182: <paged code; bytes omitted>
+  [522021433] 005b:00010184: <paged code; bytes omitted>
+  [522021434] 005b:00010185: <paged code; bytes omitted>
+  [522021435] 005b:1bf90000: <paged code; bytes omitted>
+  [522021436] 005b:1bf90005: <paged code; bytes omitted>
+  [522021437] 005b:1bf90007: <paged code; bytes omitted>
+  [522021438] 005b:1bf9000a: <paged code; bytes omitted>
+  [522021439] 005b:1bf9000d: <paged code; bytes omitted>
+  [522021440] 005b:1bf90010: <paged code; bytes omitted>
+  [522021441] 005b:1bf90014: <paged code; bytes omitted>
+  [522021442] 005b:1bf90016: <paged code; bytes omitted>
+  [522021443] 005b:1bf9001a: <paged code; bytes omitted>
+  [522021444] 005b:1bf9001c: <paged code; bytes omitted>
+  [522021445] 005b:1bf9001e: <paged code; bytes omitted>
+  [522021446] 005b:0001018a: <paged code; bytes omitted>
+  [522021447] 005b:0001018f: <paged code; bytes omitted>
+  [522021448] 005b:00010630: <paged code; bytes omitted>
+  [522021449] 005b:00010631: <paged code; bytes omitted>
+  [522021450] 005b:00010633: <paged code; bytes omitted>
+  [522021451] 005b:00010634: <paged code; bytes omitted>
+  [522021452] 005b:00010635: <paged code; bytes omitted>
+  [522021453] 005b:00010636: <paged code; bytes omitted>
+  [522021454] 005b:00010639: <paged code; bytes omitted>
+  [522021455] 005b:0001063c: <paged code; bytes omitted>
+  [522021456] 005b:0001063f: <paged code; bytes omitted>
+  [522021457] 005b:00010646: <paged code; bytes omitted>
+  [522021458] 0160:fff5388c: <paged code; bytes omitted>
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/os2-22-illegal.png
+[522021458] CS:RIP=0160:fff5388c mode=P
+  RAX=0000000000020208 RBX=0000000000000000 RCX=0000000000040000 RDX=0000000000030000
+  RSP=0000000000005550 RBP=0000000000028824 RSI=0000000000000000 RDI=0000000000000000
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0160 DS=0053 ES=0053 SS=0030 FS=150b GS=0000
+  FLAGS CF=0 PF=0 AF=0 ZF=0 SF=0 OF=0 DF=0 IF=1
+  CR0=000000008001003b CR2=0000000000013bf0 CR3=00000000001e1000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000009c7e5000:1fff IDTR=00000000ffe16270:03ff LDTR=0028
+  SEG[0] base=0000000000000000 limit=1fffffff D/B=1 DPL=3 type=2
+  SEG[1] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=a
+  SEG[2] base=00000000ffdd0a3c limit=000045c3 D/B=0 DPL=0 type=6
+  SEG[3] base=0000000000000000 limit=1fffffff D/B=1 DPL=3 type=2
+  SEG[4] base=0000000000040030 limit=00000030 D/B=0 DPL=3 type=2
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=153534840451 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=00 IMR=f8 ISR=00  slave IRR=00 IMR=1e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=64750 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=3 count=163 reload=994 gate=0 output=0
+  RTC index=0c A=2b B=52 C=00 D=80 time=12:02:33 ticks=5031029 second=153
+  FDC DOR=0c MSR=80 rate=0 cylinder=41 change=0 IRQ=0 delay=0 DMA=0 command=0/9 result=0/0
+    FIFO:
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=c5 at=153404712604 ns status=40 error=00 features=ff count=04 lba=01f82b dh=ab nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=2048/2048 block_end=2048 limit=512 write_lba=508771 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=ff count=04 lba=01f82b dh=ab nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a0 at=153450910354 ns status=40 error=00 features=00 count=03 lba=180005 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=14336/14336 block_end=14336 limit=8192 write_lba=0 packet=1 cdb_pos=12 CDB=28 00 00 02 ff 80 00 00 07 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=fe lba=200005 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+                        Installing OS/2 Warp 4                                  
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                      Loading system files. Please wait...                      
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
