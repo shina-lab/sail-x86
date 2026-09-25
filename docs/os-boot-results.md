@@ -2370,3 +2370,41 @@ After rebuilding with sailc `54a10b8`, both regressions pass, as do all
 comes from the extern port-output parameter type, as originally written.
 
 [Validation log](os-boot/reactos-sailc-fixed-validation.txt).
+
+### reactos-sailc-fixed-install-16 — fresh installation checkpoint
+
+Merged main `7dcd47f` in `b36f41c` after committing the OUTS workaround
+removal as `251d2dc`. Rebuilt the merged emulator with sail-llvm `54a10b8`.
+All 14 C++ system/device test executables pass, including **80 basic,
+20 paging, 26 exception, 16 VMX, and 7 IDE cases**. The sail-llvm
+virtual-8086 harness passes **416 model-only cases**; PNG validation also
+passes. [Merged validation log](os-boot/reactos-merged-validation.txt).
+
+SeaBIOS was rebuilt from the existing configuration with the merged
+16-bit I/O BAR sizing patch (`make -j8`); no Sail compiler is involved in
+that firmware build. [Compiler, model, emulator, firmware, and ISO identities](os-boot/reactos-sailc-fixed-install-16.build.json).
+
+Installation starts from a new sparse, zero-filled 1 GiB base image
+`build/os-boot/reactos-blank-20260925.img`, copied to
+`build/os-boot/reactos-sailc-fixed-disk.img`. Earlier installation disks
+are untouched. The ISO and keyboard schedule match install-15.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_EVENT_ADDRESS=0x80403f2e SAIL_X86_TRACE_ADDRESS=0x4024f8 python3 system-emu/run-boot.py --name reactos-sailc-fixed-install-16 --timeout 14400 --send '2:\n' --send '110:\n' --send '120:\n' --send '130:\n' --send '140:\n' --send '150:\n' --send '160:\n' --send '170:\n' --send '190:\n' --send '220:\n' --send '250:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-sailc-fixed-disk.img -cdrom build/os-boot/reactos-debug.iso -boot d
+```
+
+At **1301.74 seconds**, **3,690,858,525 instructions**,
+setup reaches **25%**, copying `timedate.cpl`. This is an active-run
+checkpoint, not completion or a stop. There is no storage-ISR assertion,
+cabinet-error trace, or setup-process termination. The source CD's
+missing `kdvbox.dll` is again skipped (`C0000034`).
+
+Both `ReactOS/explorer.exe` (1,875,968 bytes) and
+`ReactOS/system32/console.dll` (275,968 bytes) match the cabinet source in
+full, including their previously truncated tails. Verification uses a
+separate disk snapshot with partition offset 1,048,576.
+
+[25% PNG](os-boot/reactos-sailc-fixed-install-16-25.png) ·
+[Checkpoint serial log](os-boot/reactos-sailc-fixed-install-16-25.serial) ·
+[Checkpoint state](os-boot/reactos-sailc-fixed-install-16-25.json) ·
+[File hashes](os-boot/reactos-sailc-fixed-copy-25-verification.json).

@@ -1,0 +1,25 @@
+{
+  "disk": "build/os-boot/reactos-sailc-fixed-disk.img",
+  "snapshot": "build/os-boot/reactos-sailc-fixed-copy-25-snapshot.img",
+  "partition_offset": 1048576,
+  "files": [
+    {
+      "file": "ReactOS/explorer.exe",
+      "copy_returncode": 0,
+      "source_size": 1875968,
+      "guest_size": 1875968,
+      "source_sha256": "0d2720fd93a865a7c398a20ca410b3656162a0695ddd586df19142d68b31f74a",
+      "guest_sha256": "0d2720fd93a865a7c398a20ca410b3656162a0695ddd586df19142d68b31f74a",
+      "matches": true
+    },
+    {
+      "file": "ReactOS/system32/console.dll",
+      "copy_returncode": 0,
+      "source_size": 275968,
+      "guest_size": 275968,
+      "source_sha256": "f9b11d94150775f8e212a78d0045ae693e6d0ba05cc45f1493351d43fde40c83",
+      "guest_sha256": "f9b11d94150775f8e212a78d0045ae693e6d0ba05cc45f1493351d43fde40c83",
+      "matches": true
+    }
+  ]
+}
