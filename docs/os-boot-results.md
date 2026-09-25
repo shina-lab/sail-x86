@@ -14,7 +14,7 @@ planar VGA. It has no HPET or additional CPUs.
 | Linux i386 | Serial `sail#` shell | None for the requested boot |
 | Linux amd64 | `sail#` through BIOS/ISO with ACPI and I/O APIC, and by direct bzImage boot | Neither command line needs `noapic nolapic` |
 | Haiku | COM1 output and graphical kernel debugger at 1024x768 | Boot-volume panic: PCI-ATA requires the missing bus-master IDE BAR/registers; no desktop |
-| ReactOS | Fresh text installation completed and rebooted into graphical second-stage setup at 800×600: “Installing devices” | Second stage still active; offline FAT check found a damaged DirectX-file chain and directory metadata issues |
+| ReactOS | Fresh text installation completed and rebooted into graphical second-stage setup at 800×600: “Installing devices” | Second stage active after one hour; offline FAT defects recorded, with the same class of damage reproduced in a timed QEMU control |
 | FreeBSD | CD Loader 1.2 and BTX entry | Fails before loader prompt; virtual-8086 boot path remains unsupported |
 | Windows 3.1 | Express Setup, first-stage copy, protected-mode DOSX startup | LMSW bug fixed; next #GP is an unsupported 16-bit call gate; no graphical screen |
 | Windows 95 | ScanDisk repair UI; `SETUP /IS` copies startup files and enters protected-mode DOSX | R6002 (XLAT) and keyboard bugs fixed; same unsupported 16-bit call gate as Windows 3.1 blocks graphics; subsequent ScanDisk size reports remain unclassified |
@@ -2517,6 +2517,25 @@ checkpoint. The primary boot continues to the setup GUI.
 [Graphical setup PNG](os-boot/reactos-installed-first-boot-17-devices.png) ·
 [Serial checkpoint](os-boot/reactos-installed-first-boot-17-devices.serial) ·
 [CPU/timing checkpoint](os-boot/reactos-installed-first-boot-17-devices.json).
+
+#### One-hour second-stage checkpoint
+
+At **3,663.68 seconds** and **10,654,527,859 instructions**, the original
+Sail first boot remains active in graphical device installation, processing
+`ACPI\PNP0C0F\3`. It has advanced through the processor, keyboard, serial
+port, floppy controller, PCI bus, real-time clock, and earlier ACPI interrupt
+links. Samples in the per-device workers execute SetupAPI INF parsing;
+recent interrupt-link installations take about five minutes each. No
+model assertion or unsupported instruction has stopped this run.
+
+This is a continuing checkpoint, not a desktop or a stop. The serial log
+preserves the processor-install failure, COM1 resource conflict, and missing
+`fdc.sys` warning. No guest files or model semantics are changed to bypass
+them.
+
+[One-hour PNG](os-boot/reactos-installed-first-boot-17-hour.png) ·
+[Serial checkpoint](os-boot/reactos-installed-first-boot-17-hour.serial) ·
+[Timing checkpoint](os-boot/reactos-installed-first-boot-17-hour.json).
 
 #### FAT integrity control runs
 
