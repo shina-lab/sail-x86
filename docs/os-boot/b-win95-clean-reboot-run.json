@@ -1,0 +1,22 @@
+{
+  "command": "build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda /tmp/sail-x86-os2-win95-20260925/win95-desktop-verified.img -boot c",
+  "runner": "system-emu/run-boot.py --name b-win95-desktop-verified --out /tmp/sail-x86-os2-win95-20260925 --timeout 900 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda /tmp/sail-x86-os2-win95-20260925/win95-desktop-verified.img -boot c",
+  "wall_seconds": 161.862,
+  "instructions": 181099687,
+  "reason": "exit",
+  "returncode": 0,
+  "outcome": "Fresh boot reached desktop without input, ScanDisk or mouse notice; then normal Windows shutdown exited the emulator successfully.",
+  "input_history": [
+    {
+      "wall_utc": "2026-09-25 05:55:24 UTC",
+      "input": "\\t\\nu"
+    },
+    {
+      "wall_utc": "2026-09-25 05:56:16 UTC",
+      "input": "\\n"
+    }
+  ],
+  "final_checkpoint": "/tmp/sail-x86-os2-win95-20260925/win95-native-verified.img",
+  "checkpoint_sha256": "b0595e75c1d6e2883ab8f5d75c57b7a54606b420108e73e821ddd56e58b25626",
+  "fat16_clean_marker": "0xffff"
+}
