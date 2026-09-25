@@ -35,6 +35,33 @@ SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
   -hda /tmp/sail-x86-os2-win95-20260925/win95-fixed.img -boot c
 ```
 
+### BIOS reset-vector platform fix
+
+A focused reset probe found that the launcher masks A20 immediately before
+fetching from the BIOS reset vector. The physical address becomes
+`0xffeffff0`, which is unmapped, and the first instruction raises a fault.
+On initial startup, the launcher's synthetic IVT/IRET stub accidentally
+recovers by reloading CS with its ordinary real-mode base. On reboot,
+the previous guest owns that IVT, so the same fault can execute arbitrary
+old handlers. The earlier recovery stop's exact reset trigger remains
+unproven.
+
+Intel SDM rev.090 Vol.3A §12.1.4, p.12-5, specifies the first fetch at
+`0xfffffff0` with CS=`0xf000`, hidden base=`0xffff0000`, EIP=`0xfff0`.
+The emulator's BIOS reset helper now opens A20 before that fetch. This is
+a platform initialization fix; the Sail address-mask semantics are unchanged.
+CPU setup moves unchanged into a shared header so the regression exercises
+the launcher's actual reset helper. Reboot requests also log their source
+CS:IP, instruction count and controller flags.
+
+The regression fails before the fix by entering `1000:0020`, the deliberately
+poisoned old IVT target. With the fix, four consecutive resets (both prior
+A20 states) execute a high-ROM far jump and reach the expected BIOS code;
+subsequent port-92 writes still wrap and unwrap a real-mode memory read.
+The fast emulator was rebuilt with sail-llvm, and all 15 C++ system suites
+pass, including 81 basic cases and the new reset suite.
+[Validation](os-boot/b-win95-reset-validation.txt).
+
 ### Fresh Setup attempt
 
 The next attempt uses `win95-b-final.img` from before file copy, removes

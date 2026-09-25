@@ -131,6 +131,11 @@ target_link_libraries(system_test_a20 PRIVATE x86_system_model)
 add_dependencies(system_test_a20 generated_sail_x86_model)
 add_test(NAME system_a20 COMMAND system_test_a20)
 
+add_executable(system_test_reset tests/test-reset.cpp)
+target_link_libraries(system_test_reset PRIVATE x86_system_model)
+add_dependencies(system_test_reset generated_sail_x86_model)
+add_test(NAME system_reset COMMAND system_test_reset)
+
 add_executable(system_test_vmx tests/test-vmx.cpp)
 target_link_libraries(system_test_vmx PRIVATE x86_system_model)
 add_dependencies(system_test_vmx generated_sail_x86_model)
