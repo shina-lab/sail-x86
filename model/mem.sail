@@ -252,11 +252,19 @@ function selector_error_code(selector) = zero_extend(selector & 0xFFFC)
 // Only checks in non-long mode; 64-bit mode disables limit checking for
 // CS/DS/ES/SS (SDM Vol.3A §6.3.1).
 // For expand-up segments: offset + size - 1 <= effective_limit.
+// For expand-down data segments: limit < offset, and the last byte must
+// not exceed FFFFH (B=0) or FFFFFFFFH (B=1), per SDM Vol.3A section 6.3.
 function check_seg_limit(seg, offset, access_size) = {
   if cur_mode != LongMode then {
-    let limit : dword = SegCache[seg].seg_limit;
-    // Expand-up check: offset + size - 1 must not exceed limit
-    if unsigned(offset) + access_size - 1 > unsigned(limit) then {
+    let desc = SegCache[seg];
+    let limit : dword = desc.seg_limit;
+    let expand_down = desc.seg_s == 0b1 & desc.seg_type[3..2] == 0b01;
+    let last = unsigned(offset) + access_size - 1;
+    let invalid = if expand_down then {
+      let upper = if desc.seg_db == 0b1 then 0xFFFFFFFF else 0xFFFF;
+      unsigned(offset) <= unsigned(limit) | last > upper
+    } else last > unsigned(limit);
+    if invalid then {
       if seg == SS then throw Fault(EXN_SS, 0x00000000)
       else throw Fault(EXN_GP, 0x00000000)
     }

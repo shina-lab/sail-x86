@@ -2010,6 +2010,45 @@ TEST(mov_gs_at_cpl3_uses_implicit_access) {
   model.model_fini();
 }
 
+TEST(expand_down_segment_limits) {
+  // SDM Vol.3A sections 3.4.5 and 6.3: the valid range of a data
+  // expand-down segment is (limit, B ? 0xFFFFFFFF : 0xFFFF].
+  for (bool stack : {false, true}) {
+    for (bool wide : {false, true}) {
+      const u64 upper = wide ? 0xFFFFFFFFULL : 0xFFFFULL;
+      for (u64 offset : {u64(0x3FFF), u64(0x4000), upper - 3, upper, upper + 1}) {
+        x86::Model model;
+        init_model(model);
+        model.zcur_mode = x86::zProtectedMode;
+        model.zCR0 = 0x31;
+        model.zCR4 = model.zEFER = 0;
+        model.zSegCache.data[x86::SEG_CS].zseg_l = 0;
+        model.zSegCache.data[x86::SEG_CS].zseg_db = 1;
+        auto &seg = model.zSegCache.data[stack ? x86::SEG_SS : x86::SEG_DS];
+        seg.zseg_base = 0x10000;
+        seg.zseg_limit = 0x3FFF;
+        seg.zseg_type = 6; // writable expand-down data
+        seg.zseg_s = 1;
+        seg.zseg_db = wide;
+        model.zGPR.data[3] = offset;
+        const u8 code[] = {u8(stack ? 0x36 : 0x3E), 0x8B, 0x03}; // MOV EAX,[EBX]
+        model.phys_mem.write_bytes(0x6000, code, sizeof(code));
+        model.zRIP = 0x6000;
+        model.zstep(UNIT);
+        // Effective addresses are 32 bits; 0x100000000 becomes zero.
+        bool valid = offset > 0x3FFF && offset <= upper - 3;
+        ASSERT_EQ(model.zfault_pending, !valid);
+        if (!valid) {
+          ASSERT_EQ((u64)model.zfault_vector, stack ? 12UL : 13UL);
+          ASSERT_EQ((u64)model.zfault_error_code, 0UL);
+          ASSERT_EQ((u64)model.zRIP, 0x6000UL);
+        }
+        model.model_fini();
+      }
+    }
+  }
+}
+
 TEST(legacy_instruction_fetch_wraps_at_32bit) {
   // SDM Vol.3A sections 3.4 and 5.1.1: legacy and compatibility-mode
   // linear addresses are 32 bits, including CS.base + EIP. OS/2's
@@ -2637,6 +2676,7 @@ int main() {
   run_test_ia32e_iretq_to_compat_loads_ss_descriptor();
   run_test_ia32e_sysenter_switches_to_long_mode();
   run_test_mov_gs_at_cpl3_uses_implicit_access();
+  run_test_expand_down_segment_limits();
   run_test_legacy_instruction_fetch_wraps_at_32bit();
   run_test_compat_seg_linear_wraps_at_32bit();
 
