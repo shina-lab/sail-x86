@@ -543,6 +543,75 @@ TEST(outsb_single) {
   ASSERT_EQ((u64)model.zGPR.data[6], 0x200001UL); // RSI incremented by 1
 }
 
+TEST(outs_reads_only_operand_width) {
+  // SDM Vol.2B OUTS, pp.4-173--4-176: the source is exactly one byte,
+  // word or dword. A valid final element must not read beyond its segment
+  // or into an unmapped page, including with a source segment override.
+  for (unsigned width : {8u, 16u, 32u})
+    for (bool paged : {false, true})
+      for (bool override_seg : {false, true})
+        for (bool backwards : {false, true}) {
+          x86::Model model;
+          init_model(model);
+          unsigned bytes = width / 8;
+          u64 base, offset;
+          if (paged) {
+            // The first 2 MiB are mapped; the following page is absent.
+            model.phys_mem.write64(0x3008, 0);
+            base = override_seg ? 0x10000 : 0;
+            model.zSegCache.data[x86::SEG_FS].zseg_base = base;
+            offset = 0x200000 - base - bytes;
+          } else {
+            model.zcur_mode = x86::zProtectedMode;
+            model.zCR0 = 0x31;
+            model.zCR4 = model.zEFER = 0;
+            model.zSegCache.data[x86::SEG_CS].zseg_l = 0;
+            model.zSegCache.data[x86::SEG_CS].zseg_db = 1;
+            model.zSegCache.data[x86::SEG_CS].zseg_limit = 0x3fffff;
+            unsigned seg = override_seg ? x86::SEG_FS : x86::SEG_DS;
+            auto &cache = model.zSegCache.data[seg];
+            base = override_seg ? 0x30000 : 0x20000;
+            cache.zseg_base = base;
+            cache.zseg_limit = 0xffff;
+            cache.zseg_present = cache.zseg_s = 1;
+            cache.zseg_type = 3;
+            model.zSegReg.data[seg] = 0x10;
+            offset = 0x10000 - bytes;
+          }
+          for (unsigned i = 0; i < bytes; ++i)
+            model.phys_mem.write8(base + offset + i, 0x5a + i * 11);
+          u8 code[3];
+          unsigned len = 0;
+          if (override_seg) code[len++] = 0x64;
+          if (width == 16) code[len++] = 0x66;
+          code[len++] = width == 8 ? 0x6e : 0x6f;
+          model.phys_mem.write_bytes(0x100000, code, len);
+          model.zRIP = 0x100000;
+          model.zGPR.data[2] = 0x3ff; // UART scratch register, no TX output.
+          model.zGPR.data[6] = offset;
+          model.zDF = backwards;
+          model.zCF = model.zOF = 1;
+          u64 flags = model.zread_rflags(UNIT);
+          model.zstep(UNIT);
+          ASSERT_EQ(model.zfault_pending, false);
+          ASSERT_EQ(model.uart.read(0x3ff), 0x5a);
+          ASSERT_EQ((u64)model.zGPR.data[6], backwards ? offset - bytes : offset + bytes);
+          ASSERT_EQ(model.zread_rflags(UNIT), flags);
+
+          // Moving the operand one byte forward must fault before output
+          // or index advancement, with the real failing page in CR2.
+          model.uart.write(0x3ff, 0xa6);
+          model.zRIP = 0x100000;
+          model.zGPR.data[6] = offset + 1;
+          model.zstep(UNIT);
+          ASSERT_EQ(model.zfault_pending, true);
+          ASSERT_EQ((unsigned)model.zfault_vector, paged ? 14u : 13u);
+          ASSERT_EQ(model.uart.read(0x3ff), 0xa6);
+          ASSERT_EQ((u64)model.zGPR.data[6], offset + 1);
+          if (paged) ASSERT_EQ((u64)model.zCR2, 0x200000);
+        }
+}
+
 TEST(rep_insb) {
   // REP INSB: read 4 bytes from port 0x80 to [RDI], decrementing RCX each time
   x86::Model model;
@@ -2611,6 +2680,7 @@ int main() {
   printf("\nString I/O tests:\n");
   run_test_insb_single();
   run_test_outsb_single();
+  run_test_outs_reads_only_operand_width();
   run_test_rep_insb();
   run_test_rep_outsb();
   run_test_rep_insd();

@@ -171,10 +171,12 @@ function exec_outs(os_in, asz, pfx) = {
   };
   let src : MemRef = struct { seg = src_seg, addr = off };
   note_io_access(port, os / 8);
+  // The source access has the I/O operand width, including its segment
+  // and page fault checks (SDM Vol.2B OUTS, pp.4-173--4-176).
   match os {
-    8  => __port_out8(port,  v(src)),
-    16 => __port_out16(port, v(src)),
-    32 => __port_out32(port, v(src)),
+    8  => __port_out8(port,  v(8, src)),
+    16 => __port_out16(port, v(16, src)),
+    32 => __port_out32(port, v(32, src)),
   };
   let step = (1 - 2 * unsigned(DF)) * (os / 8);
   v(RSI) = (off + step)[asz - 1 .. 0]
