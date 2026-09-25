@@ -1,0 +1,153 @@
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/disk/partition.c:216) fixme: DiskGetPartitionEntry() unimplemented for RAW
+(/srv/buildbot/worker_data/Build_GCCLin_x86/build/boot/freeldr/freeldr/arch/i386/hwpci.c:111) err: No valid routing table found!
+(ntoskrnl/kd64/kdinit.c:94) -----------------------------------------------------
+(ntoskrnl/kd64/kdinit.c:95) ReactOS 0.4.17-x86-dev (Build 20260924-0.4.17-dev-915-g3f5fd48) (Commit 3f5fd48b637f96ce589886dc1548b8e9ffb42448)
+(ntoskrnl/kd64/kdinit.c:96) 1 System Processor [128 MB Memory]
+(ntoskrnl/kd64/kdinit.c:100) Command Line: DEBUG DEBUGPORT=COM1 BAUDRATE=115200 NOGUIBOOT
+(ntoskrnl/kd64/kdinit.c:103) ARC Paths: multi(0)disk(0)cdrom(96) \ multi(0)disk(0)cdrom(96) \I386\
+(ntoskrnl/ke/i386/cpu.c:356) Supported CPU features: KF_V86_VIS KF_RDTSC KF_CR4 KF_CMOV KF_GLOBAL_PAGE KF_LARGE_PAGE KF_MTRR KF_CMPXCHG8B KF_MMX KF_WORKING_PTE KF_PAT KF_FXSR KF_FAST_SYSCALL KF_XMMI KF_XMMI64 KF_NX_BIT X86_FEATURE_PAE X86_FEATURE_APIC
+(ntoskrnl/ke/i386/cpu.c:652) Prefetch Cache: 64 bytes	L2 Cache: 0 bytes	L2 Cache Line: 64 bytes	L2 Cache Associativity: 0
+(ntoskrnl/mm/ARM3/mminit.c:1444) HAL I/O Mapping at FFFE0000 is unsafe
+(hal/halx86/generic/x86bios.c:145) *x86BiosMemoryMapping: F000FF53, F000E2C3
+(ntoskrnl/mm/mminit.c:138)           0x80000000 - 0x83800000	Boot Loaded Image
+(ntoskrnl/mm/mminit.c:144)           0x83800000 - 0xB0000000	System PTE Space
+(ntoskrnl/mm/mminit.c:149)           0xB0000000 - 0xB0121000	PFN Database
+(ntoskrnl/mm/mminit.c:153)           0xB0121000 - 0xB0321000	ARM3 Non Paged Pool
+(ntoskrnl/mm/mminit.c:157)           0xB9400000 - 0xBB400000	System View Space
+(ntoskrnl/mm/mminit.c:161)           0xBB400000 - 0xC0000000	Session Space
+(ntoskrnl/mm/mminit.c:164)           0xC0000000 - 0xC03FFFFF	Page Tables
+(ntoskrnl/mm/mminit.c:167)           0xC0300000 - 0xC0300FFF	Page Directories
+(ntoskrnl/mm/mminit.c:170)           0xC0400000 - 0xC07FFFFF	Hyperspace
+(ntoskrnl/mm/mminit.c:173)           0xC1000000 - 0xE0FFFFFF	System Cache
+(ntoskrnl/mm/mminit.c:177)           0xE1000000 - 0xE6800000	ARM3 Paged Pool
+(ntoskrnl/mm/mminit.c:187)           0xFD321000 - 0xFFBE0000	Non Paged Pool Expansion PTE Space
+(ntoskrnl/ex/time.c:55) RtlQueryTimeZoneInformation failed (Status 0xc0000034)
+(ntoskrnl/ex/time.c:331) ExpGetTimeZoneId failed
+(hal/halx86/legacy/bussupp.c:627) Found parent bus (indicating PCI Bridge). PCI devices may fail!
+
+====== PCI BUS HARDWARE DETECTION =======
+
+00:00.0 Host bridge [0600]: Intel Corporation 440FX - 82441FX PMC [Natoma] [8086:1237] (rev 02)
+	Subsystem: Unknown [0000:0000]
+	Flags: bus master, medium devsel, latency 0
+	Device has Extended Address Decoding. It may fail to work on older BIOSes!
+
+00:01.0 ISA bridge [0601]: Intel Corporation 82371SB PIIX3 ISA [Natoma/Triton II] [8086:7000] (rev 00)
+	Subsystem: Unknown [0000:0000]
+	Flags: bus master, fast devsel, latency 0
+
+00:01.1 IDE interface [0101]: Intel Corporation 82371SB PIIX3 IDE [Natoma/Triton II] [8086:7010] (rev 00)
+	Subsystem: Unknown [0000:0000]
+	Flags: fast devsel, latency 0
+	I/O ports at c000 [size=16]
+
+00:01.3 Bridge [0680]: Intel Corporation 82371AB/EB/MB PIIX4 ACPI [8086:7113] (rev 03)
+	Subsystem: Unknown [0000:0000]
+	Flags: fast devsel, latency 0
+
+00:02.0 VGA compatible controller [0300]:  Unknown device [1234:1111] (rev 00)
+	Subsystem: Unknown [0000:0000]
+	Flags: fast devsel, latency 0
+	Memory at fd000000 (32-bit, prefetchable) [size=16M]
+
+====== PCI BUS DETECTION COMPLETE =======
+
+PC Compatible Eisa/Isa HAL detected
+(ntoskrnl/io/iomgr/driver.c:658) '\Driver\sacdrv' initialization failed, status (0xc0000037)
+(ntoskrnl/io/iomgr/driver.c:83) Deleting driver object '\Driver\sacdrv'
+(ntoskrnl/io/iomgr/driver.c:923) Driver 'sacdrv.sys' load failed, status (c0000365)
+(hal/halx86/legacy/bus/bushndlr.c:141) STUB Adjustment(Bus 0:ffffffff.0)
+(ntoskrnl/io/pnpmgr/devaction.c:656) Failed to open class key "{4D36E96A-E325-11CE-BFC1-08002BE10318}" (status c0000034)
+(hal/halx86/legacy/bus/pcibus.c:787) HAL: No PCI Resource Adjustment done! Hardware may malfunction
+(ntoskrnl/io/pnpmgr/devaction.c:656) Failed to open class key "{4D36E96A-E325-11CE-BFC1-08002BE10318}" (status c0000034)
+(ntoskrnl/io/pnpmgr/devaction.c:656) Failed to open class key "{4D36E96A-E325-11CE-BFC1-08002BE10318}" (status c0000034)
+(ntoskrnl/io/iomgr/driver.c:658) '\Driver\BusLogic' initialization failed, status (0xc00000c0)
+(ntoskrnl/io/iomgr/driver.c:83) Deleting driver object '\Driver\BusLogic'
+(ntoskrnl/mm/ARM3/sysldr.c:591) multi(0)disk(0)cdrom(96)\I386\system32\drivers\scsiport.sys <scsiport.sys>
+(ntoskrnl/io/iomgr/driver.c:923) Driver 'buslogic.sys' load failed, status (c0000365)
+(ntoskrnl/io/iomgr/driver.c:658) '\Driver\Floppy' initialization failed, status (0xc000000e)
+(ntoskrnl/io/iomgr/driver.c:83) Deleting driver object '\Driver\Floppy'
+(ntoskrnl/io/iomgr/driver.c:923) Driver 'floppy.sys' load failed, status (c0000365)
+WDFTrace: new WDFKEY object open failed, !STATUS!
+(ntoskrnl/io/pnpmgr/devaction.c:656) Failed to open class key "{4D36E96A-E325-11CE-BFC1-08002BE10318}" (status c0000034)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0xe 0xe vs. 0xe 0xe)
+(hal/halx86/legacy/bus/bushndlr.c:141) STUB Adjustment(Bus 1:ffffffff.0)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0xe 0xe vs. 0xe 0xe)
+WARNING:  PoRegisterDeviceForIdleDetection at ntoskrnl/po/power.c:638 is UNIMPLEMENTED!
+(drivers/storage/ide/atapi/dev_timings.c:67) AtaTimQueryPioModeSupport Device 'Sail-x86 Virtual Disk' returned zero cycle time
+(drivers/storage/ide/atapi/dev_config.c:160) AtaDeviceSetMultipleMode CH 0: Failed to set 1 multiple mode for 'Sail-x86 Virtual Disk'
+(ntoskrnl/fstub/disksup.c:1778) FSTUB: (IoReadPartitionTable) No 0xaa55 found in partition table 0
+(ntoskrnl/io/pnpmgr/devaction.c:656) Failed to open class key "{4D36E96A-E325-11CE-BFC1-08002BE10318}" (status c0000034)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0xf 0xf vs. 0xf 0xf)
+(hal/halx86/legacy/bus/bushndlr.c:141) STUB Adjustment(Bus 1:ffffffff.0)
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0xf 0xf vs. 0xf 0xf)
+WDFTrace: WDFKEY 00B6C9E8, QueryULong, !STATUS!
+WARNING:  PoRegisterDeviceForIdleDetection at ntoskrnl/po/power.c:638 is UNIMPLEMENTED!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: WDFKEY 4FD29BA0, QueryULong, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+(ntoskrnl/po/power.c:1036) PowerInformationLevel 0x42 is UNIMPLEMENTED! Have a nice day.
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: new WDFKEY object open failed, !STATUS!
+WDFTrace: WDFKEY 4FD29BA0, QueryULong, !STATUS!
+WARNING:  NtNotifyChangeMultipleKeys at ntoskrnl/config/ntapi.c:1470 is UNIMPLEMENTED!
+Btrfs ERR : watch_registry : ZwNotifyChangeKey returned c0000002
+(drivers/storage/class/ramdisk/ramdisk.c:2489) FIXME: Installing from RamDisk is UNSUPPORTED!
+BOOT DRIVERS LOADED
+(ntoskrnl/fstub/disksup.c:1778) FSTUB: (IoReadPartitionTable) No 0xaa55 found in partition table 0
+(ntoskrnl/mm/ARM3/sysldr.c:170) Loading: \SystemRoot\system32\drivers\i8042prt.sys at AFFAF000 with 1d pages
+(ntoskrnl/wmi/smbios.c:172) Could not find the SMBIOS entry point
+(ntoskrnl/wmi/smbios.c:233) WmipGetRawSMBiosTableData failed: 0xc0000225
+(drivers/input/i8042prt/hwhacks.c:254) IoWMIOpenBlock failed: 0xc0000225
+(ntoskrnl/io/pnpmgr/pnpres.c:648) Resource conflict: IRQ (0x1 0x1 vs. 0x1 0x1)
+(ntoskrnl/mm/ARM3/sysldr.c:3222) ZwOpenFile failed for '\SystemRoot\system32\drivers\bochsmp.sys' with status 0xc0000034
+(ntoskrnl/io/pnpmgr/devaction.c:514) Failed to load driver "bochsmp" for PCI\VEN_1234&DEV_1111&SUBSYS_00000000&REV_00\2&b3ac4ede&02 (status c0000034)
+(ntoskrnl/io/iomgr/driver.c:83) Deleting driver object '\Driver\KdDriver'
+008c:0090:Failed to create the implicit act ctx. Status: 0xc000003a!!!
+Boot took 47687170413 cycles!
+Interrupts: 3435 System Calls: 10637 Context Switches: 273
+(ntoskrnl/config/cmsysini.c:2242) Failed to create key \REGISTRY\MACHINE\SOFTWARE (Status: c000000d)
+(base/setup/lib/setuplib.c:1067) SourcePath (1): '\Device\CdRom0\I386'
+(base/setup/lib/setuplib.c:1068) SourceRootPath (1): '\Device\CdRom0'
+(base/setup/lib/setuplib.c:1069) SourceRootDir (1): '\I386'
+(base/setup/lib/setuplib.c:1086) SourcePath (2): '\Device\CdRom0\I386'
+(base/setup/lib/setuplib.c:1087) SourceRootPath (2): '\Device\CdRom0'
+(base/setup/lib/setuplib.c:1088) SourceRootDir (2): '\I386'
+(base/setup/lib/utils/partlist.c:1644) Disk 0 of identifier '00000000-00000000-X' is fixed
+(base/setup/lib/utils/partlist.c:134) RtlQueryRegistryValues() failed (Status c0000034)
+(base/setup/lib/utils/partlist.c:1811) Buffer size: 136
+(base/setup/lib/utils/partlist.c:1845) PartitionCount: 0
+(base/setup/lib/utils/partlist.c:1873) No valid partition table found! Use megabyte (2048 Sectors) alignment!
+(base/setup/lib/utils/partlist.c:1166) No primary partition!
+(base/setup/lib/utils/partlist.c:719) First Sector : 2048
+(base/setup/lib/utils/partlist.c:720) Last Sector  : 2096639
+(base/setup/lib/utils/partlist.c:721) Total Sectors: 2094592
+(base/setup/lib/utils/partlist.c:2991) CreatePartition(Primary, 0 bytes)
+(base/setup/lib/utils/partlist.c:781) Current entry sector count: 2094592
+(base/setup/lib/utils/partlist.c:809)     New sector count: 2094592
+(base/setup/lib/utils/partlist.c:893) First Sector : 2048
+(base/setup/lib/utils/partlist.c:894) Last Sector  : 2096639
+(base/setup/lib/utils/partlist.c:895) Total Sectors: 2094592
+(base/setup/lib/utils/partlist.c:2665) UpdateDiskLayout()
+(base/setup/lib/utils/partlist.c:2611) ReAllocateLayoutBuffer()
+(base/setup/lib/utils/partlist.c:2619) CurrentPartitionCount: 4 ; NewPartitionCount: 4
+(base/setup/lib/utils/partlist.c:2703) Updating primary partition entry 0
+(base/setup/lib/utils/partlist.c:2787) Primary partition entry 1
+(base/setup/lib/utils/partlist.c:2787) Primary partition entry 2
+(base/setup/lib/utils/partlist.c:2787) Primary partition entry 3
+(base/setup/lib/utils/partlist.c:3516) Use new first active system partition 0 in disk 0, drive letter C
+(base/setup/lib/utils/partlist.c:965) pOpenDevice() failed, Status 0xc0000034
+(base/setup/lib/fsutil.c:1218) FormatState: Start --> FormatInstallVolume
+(base/setup/lib/fsutil.c:1231) FormatState: FormatInstallVolume --> FormatDone
+(base/setup/lib/fsutil.c:1239) FormatState: FormatDone
+(base/setup/lib/setuplib.c:923) Fixed disk found by BIOS, using MULTI ARC path 'multi(0)disk(0)rdisk(0)partition(1)\'
+(base/setup/lib/utils/filesup.c:257) NtOpenFile failed: c0000034, \Device\CdRom0\i386\system32\kdvbox.dll
+(base/setup/usetup/usetup.c:3229) An error happened while trying to copy file '\Device\Harddisk0\Partition1\ReactOS\system32\kdvbox.dll' (error 0xc0000034), skipping it...
+(base/setup/usetup/usetup.c:3241) CHECKPOINT:HALF_COPIED
+WARNING:  HvHiveWillShrink at sdk/lib/cmlib/hivewrt.c:574 is UNIMPLEMENTED!

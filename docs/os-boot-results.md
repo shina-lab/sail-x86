@@ -14,7 +14,7 @@ planar VGA. It has no HPET or additional CPUs.
 | Linux i386 | Serial `sail#` shell | None for the requested boot |
 | Linux amd64 | `sail#` through BIOS/ISO with ACPI and I/O APIC, and by direct bzImage boot | Neither command line needs `noapic nolapic` |
 | Haiku | COM1 output and graphical kernel debugger at 1024x768 | Boot-volume panic: PCI-ATA requires the missing bus-master IDE BAR/registers; no desktop |
-| ReactOS | STI interrupt-inhibition bug fixed; text setup file copy reached 65% (`wdmaud.drv`), with serial half-copy checkpoint | Active copy stopped at task budget; separate LLVM cross-page fault-propagation bug corrupts cabinet lengths; no first boot |
+| ReactOS | Fresh sail-llvm install completed file copy and is importing the registry; OUTS workaround removed with regressions passing; previously corrupted cabinet files match their sources | Active text setup configuration; completion and installed-disk first boot still pending |
 | FreeBSD | CD Loader 1.2 and BTX entry | Fails before loader prompt; virtual-8086 boot path remains unsupported |
 | Windows 3.1 | Express Setup, first-stage copy, protected-mode DOSX startup | LMSW bug fixed; next #GP is an unsupported 16-bit call gate; no graphical screen |
 | Windows 95 | ScanDisk repair UI; `SETUP /IS` copies startup files and enters protected-mode DOSX | R6002 (XLAT) and keyboard bugs fixed; same unsupported 16-bit call gate as Windows 3.1 blocks graphics; subsequent ScanDisk size reports remain unclassified |
@@ -2420,3 +2420,25 @@ remains the source CD's missing `kdvbox.dll`.
 [50% PNG](os-boot/reactos-sailc-fixed-install-16-50.png) ·
 [Checkpoint serial](os-boot/reactos-sailc-fixed-install-16-50.serial) ·
 [Checkpoint state](os-boot/reactos-sailc-fixed-install-16-50.json).
+
+#### File copy finished; registry import in progress
+
+The display reached **100%** while copying `win32k.sys`, and setup then
+advanced to **updating the system configuration / importing registry.inf**.
+At the saved registry checkpoint it has run **6552.23 seconds**
+and **18,442,426,091 instructions**. This is still an active run.
+Kernel samples show hive allocation, registry lookups, and continued disk
+writes. No assertion, fatal model fault, or additional copy error has
+appeared. `HvHiveWillShrink` emits an unimplemented-function warning.
+
+[100% copy PNG](os-boot/reactos-sailc-fixed-install-16-100.png) ·
+[Registry PNG](os-boot/reactos-sailc-fixed-install-16-registry.png) ·
+[Registry serial log](os-boot/reactos-sailc-fixed-install-16-registry.serial) ·
+[Registry checkpoint state](os-boot/reactos-sailc-fixed-install-16-registry.json).
+
+A broader cabinet check of a live-disk snapshot is **inconclusive**:
+recursive `mcopy` encounters a zero-cluster printer-driver directory, and
+a direct FAT reader encounters an incomplete chain. The live disk has
+not yet received setup's final shutdown flush. Bulk verification is
+deferred to the stopped disk; the earlier two-file byte-for-byte checks
+remain valid. No model change is inferred from this snapshot.
