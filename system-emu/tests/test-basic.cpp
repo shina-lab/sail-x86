@@ -1767,6 +1767,70 @@ TEST(protected_mode_iret_same_privilege) {
   model.model_fini();
 }
 
+TEST(iret_respects_original_privilege_for_flags) {
+  // SDM Vol.2A IRET, RETURN-TO-SAME/OUTER-PRIVILEGE-LEVEL:
+  // IOPL changes only at the original CPL 0; IF changes only at CPL <=
+  // the original IOPL. DOSX uses a ring-3 IRET with IOPL=0 in its frame.
+  for (unsigned width : {16u, 32u, 64u})
+    for (unsigned cpl : {0u, 1u, 3u})
+      for (unsigned iopl : {0u, 1u, 3u})
+        for (unsigned initial_if : {0u, 1u})
+          for (bool outer : {false, true}) {
+    if (outer && cpl == 3) continue;
+    x86::Model m;
+    if (width == 64) {
+      init_model(m);
+      m.phys_mem.write64(0x1000, 0x2007);
+      m.phys_mem.write64(0x2000, 0x3007);
+      m.phys_mem.write64(0x3000, 0x87);
+    } else {
+      init_model_32(m);
+      m.zCR0 &= ~(1UL << 31);
+    }
+    m.zGDTR_base = 0x5000;
+    m.zGDTR_limit = 0x47;
+    for (unsigned level : {0u, 1u, 3u}) {
+      u64 code = (width == 64 ? 0x00AF9B000000FFFFULL :
+                  width == 32 ? 0x00CF9B000000FFFFULL : 0x00009B000000FFFFULL);
+      m.phys_mem.write64(0x5008 + level * 16, code | (u64(level) << 45));
+      m.phys_mem.write64(0x5010 + level * 16, 0x00CF93000000FFFFULL | (u64(level) << 45));
+    }
+    m.zload_segment_register(x86::SEG_CS, 8 + cpl * 16 + cpl);
+    m.zload_segment_register(x86::SEG_SS, 16 + cpl * 16 + cpl);
+    m.zcur_cpl = cpl;
+    m.zwrite_rflags(2 | (iopl << 12) | (initial_if << 9));
+    m.zVIF = m.zVIP = m.zRF = 0;
+    m.zRIP = 0x100;
+    const u8 insn[] = {0x48, 0xCF};
+    m.phys_mem.write_bytes(0x100, insn + (width != 64), width == 64 ? 2 : 1);
+    const unsigned target_cpl = outer ? 3 : cpl;
+    const u64 image = 3 | ((1 - initial_if) << 9) | ((3 - iopl) << 12) |
+                      (1UL << 16) | (1UL << 18) | (1UL << 19) | (1UL << 20) | (1UL << 21);
+    const u64 frame[] = {0x200, 8 + target_cpl * 16 + target_cpl, image,
+                         0x7000, 16 + target_cpl * 16 + target_cpl};
+    const unsigned count = outer || width == 64 ? 5 : 3;
+    m.zGPR.data[4] = 0x8000;
+    for (unsigned i = 0; i < count; ++i) {
+      u64 addr = 0x8000 + i * (width / 8);
+      if (width == 16) m.phys_mem.write16(addr, frame[i]);
+      else if (width == 32) m.phys_mem.write32(addr, frame[i]);
+      else m.phys_mem.write64(addr, frame[i]);
+    }
+    m.zstep(UNIT);
+    ASSERT_EQ(m.zfault_pending, false);
+    ASSERT_EQ((u64)m.zRIP, 0x200UL);
+    ASSERT_EQ((u64)m.zcur_cpl, u64(target_cpl));
+    ASSERT_EQ((u64)m.zIOPL, u64(cpl == 0 ? 3 - iopl : iopl));
+    ASSERT_EQ((u64)m.zIF_flag, u64(cpl <= iopl ? 1 - initial_if : initial_if));
+    ASSERT_EQ((u64)m.zCF, 1UL);
+    ASSERT_EQ((u64)m.zAC_flag, u64(width != 16));
+    ASSERT_EQ((u64)m.zID, u64(width != 16));
+    ASSERT_EQ((u64)m.zVIF, u64(width != 16 && cpl == 0));
+    ASSERT_EQ((u64)m.zVIP, u64(width != 16 && cpl == 0));
+    m.model_fini();
+  }
+}
+
 TEST(ia32e_iretq_to_compat_loads_ss_descriptor) {
   // Regression: IRETQ (64-bit IRET) from a long-mode kernel back to a
   // 32-bit compatibility-mode user process must reload the *hidden*
@@ -2600,6 +2664,7 @@ int main() {
   run_test_real_mode_iret_with_nt();
   run_test_real_mode_int_iret_preserves_regs();
   run_test_protected_mode_iret_same_privilege();
+  run_test_iret_respects_original_privilege_for_flags();
   run_test_ia32e_iretq_to_compat_loads_ss_descriptor();
   run_test_ia32e_sysenter_switches_to_long_mode();
   run_test_mov_gs_at_cpl3_uses_implicit_access();
