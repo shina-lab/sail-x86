@@ -13,6 +13,8 @@ The optional [MS-DOS Prompt window](os-boot/b-win95-msdos-prompt.png) also
 runs successfully: `VER` reports Windows 95 version **4.00.1111**. Guest
 commands write that version and `WIN95_DESKTOP_VM86_OK` to the
 [serial log](os-boot/b-win95-msdos-prompt.serial).
+A subsequent [fresh boot reaches the desktop](os-boot/b-win95-clean-reboot-desktop.png)
+without any keyboard input, ScanDisk or missing-mouse prompt.
 
 The worktree resumes clean at `a9cfc8d`. The fast emulator is rebuilt first
 with `system-emu/build-llvm.sh`, using **sail-llvm `1a102f2` only**. All
@@ -85,6 +87,53 @@ or memory state. At an instruction boundary after `VER > COM1`, it records
 [Mode observation and final screenshot state](os-boot/b-win95-msdos-prompt-state.txt).
 The disk checkpoint with this completed session is
 `/tmp/sail-x86-os2-win95-20260925/win95-native-desktop-dos.img`.
+
+### Normal shutdown and subsequent boot
+
+`exit` closes the DOS window. Tab, Enter, `u`, then Enter selects the
+ordinary Windows Shut Down action. Windows powers off the emulated machine;
+the runner exits successfully after **653.664 seconds / 1,580,943,916
+instructions**, without a timeout or host termination.
+[Run record and keyboard history](os-boot/b-win95-desktop-run.json).
+The FAT16 clean-shutdown marker changes from `7fff` in the original checkpoint
+to `ffff`; this change is made by the guest. The stopped disk is preserved
+as `win95-native-shutdown.img`.
+
+A fresh copy boots as `b-win95-desktop-verified`. It passes directly to
+[pending configuration-file updates](os-boot/b-win95-clean-reboot-updates.png)
+and finishes those updates, without a ScanDisk prompt.
+It then reaches the [desktop](os-boot/b-win95-clean-reboot-desktop.png)
+without further input. The [capture](os-boot/b-win95-clean-reboot-desktop-state.txt)
+records **159,269,072 instructions**; [COM1](os-boot/b-win95-clean-reboot-desktop.serial)
+is empty on this unattended boot.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
+  --name b-win95-desktop-verified \
+  --out /tmp/sail-x86-os2-win95-20260925 --timeout 900 -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-desktop-verified.img -boot c
+```
+
+The initial ScanDisk false-size reports remain an unclassified execution
+discrepancy. They are not fixed by a model change or compiler workaround;
+cancelling that check allowed the native desktop, and the subsequent normal
+shutdown removed the need for another automatic ScanDisk run. Desktop,
+Start menu, DOS-window execution, guest serial output and a fresh desktop
+boot are verified; broader Windows application compatibility is not tested.
+
+The verification boot also shuts down normally, after **161.862 seconds /
+181,099,687 instructions**. [Final run record](os-boot/b-win95-clean-reboot-run.json).
+All session-owned emulator and debugger processes are stopped. The final
+clean disk checkpoint is
+`/tmp/sail-x86-os2-win95-20260925/win95-native-verified.img`; its SHA-256 and
+clean marker are recorded in that run record. Copy this image before a new
+boot. The original `win95-native-configured.img` still has its initial hash.
+
+Final validation remains **15 system suites, 86 basic cases and 416 VM86/KVM
+comparisons passing**, built only with sail-llvm `1a102f2`. All retained
+desktop and DOS-window PNGs validate as 640×480 RGB images. This continuation
+changes documentation and evidence only; no model or platform source is edited.
 
 ## Resumption after 11:58 JST on 2026-09-25
 

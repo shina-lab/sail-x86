@@ -1,0 +1,67 @@
+{
+  "command": "build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda /tmp/sail-x86-os2-win95-20260925/win95-scandisk-diagnostic.img -boot c",
+  "runner": "system-emu/run-boot.py --name b-win95-scandisk-diagnostic --out /tmp/sail-x86-os2-win95-20260925 --timeout 6000 --send '15:\\n' -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -hda /tmp/sail-x86-os2-win95-20260925/win95-scandisk-diagnostic.img -boot c",
+  "wall_seconds": 653.664,
+  "instructions": 1580943916,
+  "reason": "exit",
+  "returncode": 0,
+  "outcome": "Desktop, Start menu and windowed MS-DOS Prompt verified; Windows shut down through its ordinary Shut Down dialog; emulator exited successfully.",
+  "input_history": [
+    {
+      "wall_utc": "2026-09-25 05:43:17 UTC",
+      "input": "\\t\\n"
+    },
+    {
+      "wall_utc": "2026-09-25 05:44:00 UTC",
+      "input": "\\x1b"
+    },
+    {
+      "wall_utc": "2026-09-25 05:44:21 UTC",
+      "input": "\\n"
+    },
+    {
+      "wall_utc": "2026-09-25 05:45:02 UTC",
+      "input": "\\t \\n"
+    },
+    {
+      "wall_utc": "2026-09-25 05:46:51 UTC",
+      "input": "\\t\\n"
+    },
+    {
+      "wall_utc": "2026-09-25 05:47:01 UTC",
+      "input": "r"
+    },
+    {
+      "wall_utc": "2026-09-25 05:47:38 UTC",
+      "input": "command.com\\n"
+    },
+    {
+      "wall_utc": "2026-09-25 05:48:24 UTC",
+      "input": "ver\\n"
+    },
+    {
+      "wall_utc": "2026-09-25 05:48:49 UTC",
+      "input": "ver > com1\\n"
+    },
+    {
+      "wall_utc": "2026-09-25 05:49:16 UTC",
+      "input": "echo WIN95_DESKTOP_VM86_OK > com1\\n"
+    },
+    {
+      "wall_utc": "2026-09-25 05:51:07 UTC",
+      "input": "M86_OK > com1\\n"
+    },
+    {
+      "wall_utc": "2026-09-25 05:51:45 UTC",
+      "input": "exit\\n"
+    },
+    {
+      "wall_utc": "2026-09-25 05:51:56 UTC",
+      "input": "\\t\\nu"
+    },
+    {
+      "wall_utc": "2026-09-25 05:52:24 UTC",
+      "input": "\\n"
+    }
+  ]
+}

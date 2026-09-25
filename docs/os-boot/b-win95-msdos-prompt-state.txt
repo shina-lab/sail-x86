@@ -2,7 +2,11 @@ Windows 95 MS-DOS Prompt window.
 Commands entered through PS/2 keyboard: ver; ver > com1; echo WIN95_DESKTOP_VM86_OK > com1
 The long echo command was completed with slower keyboard input after the guest dropped its suffix.
 
-Hardware mode observer at a completed instruction boundary after VER > COM1:
+Hardware watchpoint caught ProtectedMode -> Virtual8086Mode in iret_to_vm86 during command.com launch; next instruction boundary:
+DOS-window mode observer stopped: mode=2 CPL=3 CS:IP=0ad1:00000000 SS:SP=1000:000003f2 CR0=8000003b CR3=41b000 IF=0 IOPL=3
+0x7ffee3dd4f50:	0x0000	0x0ad1	0x1000	0x0000	0x0000	0x0000
+
+Completed instruction boundary observed after VER > COM1:
 DOS-window mode observer stopped: mode=2 CPL=3 CS:IP=f000:0000d9b8 SS:SP=00c9:00000a46 CR0=80000039 CR3=41b000 IF=0 IOPL=3
 0x7ffee3dd4f50:	0x0040	0xf000	0x00c9	0xe000	0x0000	0x0000
 
