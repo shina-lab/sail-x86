@@ -1,0 +1,30 @@
+Far-pointer load validation, sail-llvm 54a10b8 only.
+
+Before fix: two new regression groups fail:
+16-bit LES BP returns 000013c0 instead of c13c13c0.
+Selector #GP changes EBP to 13c0 instead of preserving c13c7f70.
+
+sailc: compiling model ...
+clang++: linking emulator ...
+built /home/ruiu/sail-x86-os2/build/llvm/sail-x86-system
+
+All system suite exit codes:
+a20 0
+apic 0
+apic_cpu 0
+basic 0
+exceptions 0
+fw_cfg 0
+ide 0
+keyboard 0
+paging 0
+reset 0
+rtc 0
+smm 0
+vbe 0
+vga 0
+vmx 0
+
+Basic: 84 passed, 0 failed.
+Fresh kvm/test-vm86.cpp linked against rebuilt LLVM model:
+vm86: 416 passed, 0 failed (model and KVM compared)

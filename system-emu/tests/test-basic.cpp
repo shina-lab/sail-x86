@@ -994,6 +994,68 @@ TEST(seg_limit_dword_within) {
   model.model_fini();
 }
 
+TEST(expand_down_data_segment_bounds) {
+  // SDM Vol.3A 6.3: offsets must exceed the limit and the entire access
+  // must fit below the upper bound selected by D/B, even for FS or GS.
+  struct Case { bool big; u32 limit, offset; bool fault; };
+  const Case cases[] = {
+    {false, 0xefff, 0xf000, false},
+    {false, 0xefff, 0xfffc, false},
+    {false, 0xefff, 0xefff, true},
+    {false, 0xefff, 0xfffd, true},
+    {false, 0xefff, 0x10000, true},
+    {true, 0xffff, 0x10000, false},
+    {true, 0xffff, 0x20000, false},
+    {true, 0xffff, 0xffff, true},
+    {true, 0xffff, 0, true},
+    {true, 0xffff, 0xfffffffd, true},
+    {true, 0xffffffff, 0xffffffff, true},
+  };
+  for (bool stack : {false, true}) {
+    for (const auto &t : cases) {
+      x86::Model model;
+      init_model_32(model);
+      model.zCR0 &= ~(1ULL << 31); // isolate segment bounds from paging
+      int seg = stack ? x86::SEG_SS : x86::SEG_FS;
+      model.zSegCache.data[seg].zseg_type = 6; // writable expand-down data
+      model.zSegCache.data[seg].zseg_db = t.big;
+      model.zSegCache.data[seg].zseg_limit = t.limit;
+      model.zGPR.data[7] = t.offset;
+      model.zGPR.data[0] = 0xfeedface;
+      if (!t.fault) model.phys_mem.write32(t.offset, 0x12345678);
+      const u8 code[] = {u8(stack ? 0x36 : 0x64), 0x8b, 0x07}; // mov eax,seg:[edi]
+      model.phys_mem.write_bytes(0x100000, code, sizeof(code));
+      model.zRIP = 0x100000;
+      model.zstep(UNIT);
+      ASSERT_EQ(model.zfault_pending, t.fault);
+      if (t.fault) {
+        ASSERT_EQ((u64)model.zfault_vector, stack ? 12UL : 13UL);
+        ASSERT_EQ((u64)model.zfault_error_code, 0UL);
+        ASSERT_EQ((u64)model.zGPR.data[0], 0xfeedfaceUL);
+      } else {
+        ASSERT_EQ((u64)model.zGPR.data[0], 0x12345678UL);
+      }
+      model.model_fini();
+    }
+  }
+}
+
+TEST(conforming_code_segment_keeps_expand_up_bounds) {
+  x86::Model model;
+  init_model_32(model);
+  model.zSegCache.data[x86::SEG_FS].zseg_type = 0xe; // readable conforming code
+  model.zSegCache.data[x86::SEG_FS].zseg_limit = 0xffff;
+  model.zGPR.data[7] = 0x800;
+  model.phys_mem.write32(0x800, 0x12345678);
+  const u8 code[] = {0x64, 0x8b, 0x07};
+  model.phys_mem.write_bytes(0x100000, code, sizeof(code));
+  model.zRIP = 0x100000;
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ((u64)model.zGPR.data[0], 0x12345678UL);
+  model.model_fini();
+}
+
 TEST(seg_limit_ss_fault) {
   // SS limit violation should raise #SS(0), not #GP(0).
   // MOV [EBP+disp], EAX defaults to SS segment. If the offset exceeds
@@ -1788,6 +1850,94 @@ TEST(lldt_descriptor_validation) {
     ASSERT_EQ(model.zfault_pending, true);
     ASSERT_EQ((u64)model.zfault_vector, variant == 2 ? 11UL : variant == 4 ? 6UL : 13UL);
     ASSERT_EQ((u64)model.zLDTR, 0UL);
+    model.model_fini();
+  }
+}
+
+TEST(far_pointer_load_16_preserves_upper_register) {
+  // SDM Vol.2A LDS/LES/LFS/LGS/LSS: m16:16 loads only r16. Windows 95
+  // executes LES BP in VM86 with a live pointer in EBP's upper half.
+  const u8 opcodes[5][2] = {{0xc4, 0}, {0xc5, 0},
+                           {0x0f, 0xb2}, {0x0f, 0xb4}, {0x0f, 0xb5}};
+  const int segments[] = {x86::SEG_ES, x86::SEG_DS, x86::SEG_SS,
+                          x86::SEG_FS, x86::SEG_GS};
+  for (unsigned mode = 0; mode < 3; ++mode) {
+    for (unsigned op = 0; op < 5; ++op) {
+      x86::Model model;
+      init_model_16(model);
+      if (mode != 0) {
+        model.zCR0 |= 1;
+        model.zcur_mode = mode == 1 ? x86::zProtectedMode : x86::zVirtual8086Mode;
+        model.zcur_cpl = mode == 2 ? 3 : 0;
+        model.zGDTR_base = 0x1000;
+        model.zGDTR_limit = 0x17;
+        model.phys_mem.write64(0x1010, 0x000092000000ffffULL);
+        if (mode == 1) model.zSegReg.data[x86::SEG_DS] = 0x10;
+        if (mode == 2)
+          for (int seg = 0; seg < 6; ++seg) model.zSegCache.data[seg].zseg_dpl = 3;
+      }
+      model.zGPR.data[3] = 0x800;
+      model.zGPR.data[5] = 0xc13c0900;
+      model.phys_mem.write16(0x800, 0x13c0);
+      model.phys_mem.write16(0x802, 0x10);
+      u8 code[] = {opcodes[op][0], opcodes[op][1], 0x2f}; // r16=BP, [BX]
+      if (op < 2) { code[1] = 0x2f; }
+      model.phys_mem.write_bytes(0x200, code, op < 2 ? 2 : 3);
+      model.zRIP = 0x200;
+      model.zstep(UNIT);
+      ASSERT_EQ(model.zfault_pending, false);
+      ASSERT_EQ((u64)model.zGPR.data[5], 0xc13c13c0UL);
+      ASSERT_EQ((u64)model.zSegReg.data[segments[op]], 0x10UL);
+      model.model_fini();
+    }
+  }
+}
+
+TEST(far_pointer_load_32_zero_extends_register) {
+  for (u8 opcode : {u8(0xb4), u8(0xb5)}) {
+    x86::Model model;
+    init_model(model);
+    model.zGPR.data[3] = 0x80000;
+    model.zGPR.data[5] = 0xaabbccddc13c0900ULL;
+    model.phys_mem.write32(0x80000, 0x123413c0);
+    model.phys_mem.write16(0x80004, 0); // null FS/GS selector is permitted
+    const u8 code[] = {0x0f, opcode, 0x2b}; // LFS/LGS EBP,[RBX]
+    model.phys_mem.write_bytes(0x100000, code, sizeof(code));
+    model.zRIP = 0x100000;
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ((u64)model.zGPR.data[5], 0x123413c0UL);
+    model.model_fini();
+  }
+}
+
+TEST(far_pointer_load_fault_preserves_destination) {
+  // The SDM performs segment checks before assigning DEST := Offset(SRC).
+  const u8 opcodes[5][2] = {{0xc4, 0}, {0xc5, 0},
+                           {0x0f, 0xb2}, {0x0f, 0xb4}, {0x0f, 0xb5}};
+  for (unsigned op = 0; op < 5; ++op) {
+    x86::Model model;
+    init_model_16(model);
+    model.zCR0 |= 1;
+    model.zcur_mode = x86::zProtectedMode;
+    model.zGDTR_base = 0x1000;
+    model.zGDTR_limit = 0x17;
+    model.zSegReg.data[x86::SEG_DS] = 0x10;
+    model.phys_mem.write64(0x1010, 0x000092000000ffffULL);
+    model.zGPR.data[3] = 0x800;
+    model.zGPR.data[5] = 0xc13c7f70;
+    model.phys_mem.write16(0x800, 0x13c0);
+    model.phys_mem.write16(0x802, 0x18); // beyond the GDT limit
+    u8 code[] = {opcodes[op][0], opcodes[op][1], 0x2f};
+    if (op < 2) { code[1] = 0x2f; }
+    model.phys_mem.write_bytes(0x200, code, op < 2 ? 2 : 3);
+    model.zRIP = 0x200;
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, true);
+    ASSERT_EQ((u64)model.zfault_vector, 13UL);
+    ASSERT_EQ((u64)model.zfault_error_code, 0x18UL);
+    ASSERT_EQ((u64)model.zGPR.data[5], 0xc13c7f70UL);
+    ASSERT_EQ((u64)model.zRIP, 0x200UL);
     model.model_fini();
   }
 }
@@ -3195,6 +3345,8 @@ int main() {
   run_test_seg_limit_dword_crosses();
   run_test_seg_limit_dword_within();
   run_test_seg_limit_ss_fault();
+  run_test_expand_down_data_segment_bounds();
+  run_test_conforming_code_segment_keeps_expand_up_bounds();
 
   printf("\nReal mode tests:\n");
   run_test_f2_string_repetition();
@@ -3210,6 +3362,9 @@ int main() {
   run_test_segment_descriptor_accessed_bits();
   run_test_far_pointer_load_destination_width_and_faults();
   run_test_legacy_jmp_call_gate();
+  run_test_far_pointer_load_16_preserves_upper_register();
+  run_test_far_pointer_load_32_zero_extends_register();
+  run_test_far_pointer_load_fault_preserves_destination();
   run_test_legacy_call_gate_privilege_stacks();
   run_test_legacy_call_gate_same_privilege_and_faults();
   run_test_legacy_privilege_stack_descriptor_faults();

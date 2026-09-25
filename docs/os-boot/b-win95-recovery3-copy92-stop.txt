@@ -1,0 +1,25 @@
+Windows 95 Safe Recovery file-copy stop at 92%.
+Stopped manually after 2548.113 seconds / 10898686769 instructions.
+COM1 has no diagnostic message; GUI remains at Copying files, 92%.
+
+Live debugger instruction trace (no guest-state edits):
+CS:IP=06e0:0000002b SP=4118 fault=0 vec=0 event=0
+CS:IP=f000:0000ff53 SP=4112 fault=0 vec=0 event=1
+CS:IP=06e0:0000002b SP=4118 fault=0 vec=0 event=0
+CS:IP=f000:0000ff53 SP=4112 fault=0 vec=0 event=1
+CS:IP=06e0:0000002b SP=4118 fault=0 vec=0 event=0
+CS:IP=f000:0000ff53 SP=4112 fault=0 vec=0 event=1
+CS:IP=06e0:0000002b SP=4118 fault=0 vec=0 event=0
+CS:IP=f000:0000ff53 SP=4112 fault=0 vec=0 event=1
+CS:IP=06e0:0000002b SP=4118 fault=0 vec=0 event=0
+CS:IP=f000:0000ff53 SP=4112 fault=0 vec=0 event=1
+CS:IP=06e0:0000002b SP=4118 fault=0 vec=0 event=0
+CS:IP=f000:0000ff53 SP=4112 fault=0 vec=0 event=1
+
+At physical 0x6e2b the bytes are FF FF, an invalid group-5 /7 encoding.
+The BIOS IVT vector 6 points to F000:FF53, a single IRET.
+The frame at SS:SP=2DA1:4112 contains IP=002B, CS=06E0, FLAGS=3006.
+Guest physical [0x5000,0x7000) matches MSHTML.DLL [0x42000,0x44000)
+byte for byte, using a host extraction from the original source cabinet set.
+The same content also appears in high RAM; the write origin is unresolved.
+This is not yet classified as a Sail model or sail-llvm defect.

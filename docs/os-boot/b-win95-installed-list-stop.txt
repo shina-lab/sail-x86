@@ -1,0 +1,60 @@
+Installed Windows 95 startup stop after completed file copy
+
+sail-x86-system: reboot after 12622530016 instructions from 2d91:000002d7 (keyboard=0 platform=1)
+sail-x86-system: reboot after 1571 instructions from 0008:000f50c7 (keyboard=0 platform=1)
+
+Manual stop: 3183.650 seconds for this recovery/copy/reboot attempt.
+Final post-reset count: 2,307,887,519 instructions.
+COM1 has no diagnostics. Full RAM and core remain outside the repository.
+
+[2291511271] CS:RIP=0028:c0371e97 mode=P
+  RAX=00000000c13c8000 RBX=000000000011fffc RCX=00000000c03201fa RDX=0000000000000222
+  RSP=00000000c13c7e64 RBP=0000000000007f70 RSI=00000000c1400b65 RDI=000000005c2eff2e
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0028 DS=0030 ES=0030 SS=0030 FS=0030 GS=0030
+  FLAGS CF=1 PF=1 AF=1 ZF=0 SF=1 OF=0 DF=0 IF=1
+  CR0=0000000080000031 CR2=0000000000000000 CR3=00000000004e3000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=00000000c003b258:01f7 IDTR=00000000c000abbc:02ff LDTR=0000
+  SEG[0] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=2
+  SEG[1] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=a
+  SEG[2] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=2
+  SEG[3] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=2
+  SEG[4] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=2
+  SEG[5] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=2
+
+The VMM repeatedly walks a far-pointer list, before an observed VM86 entry.
+CR3=0x4e3000; VM control block=0xc15200e8; VM memory base=0xc1400000.
+Root [0xc0012e80]=0xc13c8000; root+0x4c points to 0xc1421180.
+Entry 0xc1421180 maps to physical 0x528180 and contains two zero dwords.
+Following +4 pointers and adding the VM base yields:
+0xc1421180 -> 0xc1400000 -> 0xc1400b65 -> 0xc146c20e -> 0xc1400000.
+This is a cycle, not evidence of a particular model/compiler defect.
+
+Relevant guest instructions (32-bit protected mode):
+c0370140 mov eax,[0xc0012e80]
+c0370145 mov esi,[eax+0x4c]
+c0370148 or esi,esi
+c037014a jz c03701d0
+c0370150 mov edi,[esi]
+c0370152 call c0371e96
+c0370157 cmp byte [edi],7
+c037015a jz c0370168
+c037015c mov edi,[esi+4]
+c037015f call c0371e96
+c0370164 mov esi,edi
+c0370166 jmp c0370148
+
+c0371e96 push ebx
+c0371e97 movzx ebx,di
+c0371e9a rol edi,16
+c0371e9d movzx edi,di
+c0371ea0 shl edi,4
+c0371ea3 add edi,ebx
+c0371ea5 mov ebx,[0xc001072c]
+c0371eab add edi,[ebx+4]
+c0371eae pop ebx
+c0371eaf ret

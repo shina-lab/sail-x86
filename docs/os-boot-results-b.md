@@ -1,5 +1,404 @@
 # Operating-system boots: worktree B
 
+## Resumption after 11:58 JST on 2026-09-25
+
+**Outcome:** the Sail-installed Windows 95 completes file copy, enters
+VM86 after its first reboot, finishes native graphical Setup, and boots
+again to its graphical missing-mouse dialog. A usable desktop is **not
+yet verified**. Two SDM-backed model fixes have passing regressions;
+the final short boot stops in ScanDisk at a file-size repair prompt.
+The completed-Setup checkpoint and every stopped attempt are preserved.
+
+The worktree starts at `2447ad0`, with no uncommitted source changes.
+The four reset-related files named in the continuation request are already
+part of that commit. Review confirms that its A20 change is in the platform
+reset helper, leaves the Sail model unchanged, and has a regression using
+the same helper. SDM rev.090 Vol.3A §12.1.4, p.12-5, specifies the high-ROM
+first fetch. The regression passes again, including four resets with a
+poisoned old IVT and subsequent firmware A20 control.
+
+The previous emulator process is gone. Its last saved screen shows
+[89% file copy](os-boot/b-win95-clean-copy89.png), with
+[sanitized COM1](os-boot/b-win95-clean-copy89.serial). The previously
+uncommitted [44%](os-boot/b-win95-clean-copy44.png),
+[50%](os-boot/b-win95-clean-copy50.png), and
+[80%](os-boot/b-win95-clean-copy80.png) screens are also retained. The
+disk was last written at 11:58 JST; no completed runner JSON exists for
+that interrupted attempt, so its exact final instruction count is unknown.
+
+`win95-clean2.img` is preserved. A private copy, `win95-recovery3.img`,
+is being used for Setup Safe Recovery. All disk images, RAM dumps,
+and unfiltered diagnostics remain in `/tmp/sail-x86-os2-win95-20260925/`.
+The supplied product number is read only from the external source file
+and is omitted from repository files and input logs.
+
+Only sail-llvm `54a10b8` is used. The emulator was rebuilt with
+`system-emu/build-llvm.sh`; all 15 freshly rebuilt C++ system suites pass,
+including 81 basic cases and the reset suite. The freshly linked vm86
+harness passes all 416 model cases and all 416 KVM comparisons.
+[Validation record](os-boot/b-win95-recovery-validation.txt). No official
+Sail compiler, CMake build, or CTest invocation is used.
+
+### Safe Recovery from the interrupted copy
+
+`b-win95-recovery3` boots the preserved copy, selects
+[Use Safe Recovery](os-boot/b-win95-recovery3-safe-recovery.png), passes
+the installed-components and free-space checks, and accepts the supplied
+number ([next page](os-boot/b-win95-recovery3-key-accepted.png)). It uses
+Compact setup, `Sail Test`, an empty company field, and the default
+components. It passes the earlier User Information stop and reaches
+[Start Copying Files](os-boot/b-win95-recovery3-ready.png).
+[COM1 through this point](os-boot/b-win95-recovery3-ready.serial).
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
+  --name b-win95-recovery3 --out /tmp/sail-x86-os2-win95-20260925 \
+  --timeout 8200 --send '8:\n' --send '40:\n' -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-recovery3.img -boot c
+```
+
+Later wizard input is sent through the private keyboard helper. This run
+uses the tested `2447ad0` LLVM executable, without diagnostic model changes.
+
+The recovery copy passes [50%](os-boot/b-win95-recovery3-copy50.png) and
+the previous endpoint ([91%](os-boot/b-win95-recovery3-copy91.png)), but
+then [stalls at 92%](os-boot/b-win95-recovery3-copy92-stop.png), before
+the first reboot. It is stopped manually after **2548.113 seconds /
+10,898,686,769 instructions**. [COM1](os-boot/b-win95-recovery3-copy92-stop.serial)
+has no diagnostic; the [focused state and trace](os-boot/b-win95-recovery3-copy92-stop.txt)
+show a two-instruction loop from invalid bytes at real-mode `06e0:002b`
+through the BIOS #UD handler, an IRET at `f000:ff53`.
+
+Physical `[0x5000,0x7000)` contains an exact 8 KiB slice of original
+`MSHTML.DLL`, file offsets `[0x42000,0x44000)`. The write origin is not
+yet established; no model or compiler defect is claimed. The stopped
+disk is preserved as `win95-recovery3-copy92.img`, with raw RAM and a
+host debugger core outside the repository. A new private copy,
+`win95-write-trace.img`, starts `b-win95-write-trace` with the same LLVM
+model and a diagnostic-only platform logger for writes covering physical
+`0x6e2b`, including CS:IP, segment bases, string registers and A20 state.
+
+Both follow-up attempts pass their wizards and start file copy:
+[traced recovery](os-boot/b-win95-write-trace-ready.png),
+[fresh installation](os-boot/b-win95-fresh4-ready.png). The fresh run
+uses a private copy of `win95-clean-base.img` and explicitly selects
+**Do not use Safe Recovery**. Both use Compact setup, `Sail Test`, an
+empty company field and default components; the fresh run disables
+optional CD-ROM, network and sound detection.
+
+Host hardware watchpoints record changes to RAM byte `0x6e2b` and save
+the first write's debugger core privately. They do not edit guest state.
+The stopped temporary Setup directory is also compared with host-extracted
+PRECOPY files: 155 files match exactly. Executable/DLL differences are
+limited to the NE expected-version field (header offsets `0x3e–0x3f`);
+four INF files differ. This comparison does not establish the overwrite's
+cause.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_TRACE_PHYS_WRITE=0x6e2b \
+  python3 system-emu/run-boot.py --name b-win95-write-trace \
+  --out /tmp/sail-x86-os2-win95-20260925 --timeout 6100 \
+  --send '8:\n' --send '40:\n' -- \
+  /tmp/sail-x86-os2-win95-20260925/write-trace-sim \
+  -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-write-trace.img -boot c
+
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
+  --name b-win95-fresh4 --out /tmp/sail-x86-os2-win95-20260925 \
+  --timeout 5200 --send '40:\n' -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-fresh4.img -boot c
+```
+
+### File copy completed
+
+The traced Safe Recovery retry passes the previous stop
+([93% screen](os-boot/b-win95-write-trace-copy93.png)) and reaches
+[Finishing Setup](os-boot/b-win95-copy-complete.png), ready to restart
+Windows 95. [COM1](os-boot/b-win95-copy-complete.serial). A state capture
+at this page records **12,062,515,715 instructions**. The watched byte
+never changes during the copy, so this run does not reproduce the prior
+overwrite. No model or compiler change was made to obtain this result.
+
+The emulator is briefly paused to preserve `win95-copy-complete.img`
+outside the repository. Its installed `WINDOWS/SYSTEM/MSHTML.DLL` is
+847,632 bytes and matches the original cabinet extraction byte for byte
+(SHA-256 `186f8acc9e4d31cc2f31809b8a423ed34f51038daed0c0122091e2d1f800f488`).
+The hardware watchpoint is detached before the requested reboot so normal
+firmware RAM initialization is not confused with the earlier overwrite.
+
+### First reboot into the installed system
+
+Finish displays a [remove-floppy prompt](os-boot/b-win95-reboot-floppy-prompt.png),
+which is acknowledged with no floppy attached. The platform handles the
+reboot at **12,622,530,016 instructions**, followed by SeaBIOS's hard-reset
+request 1,571 instructions later. Both reset fetches succeed with the
+reviewed `2447ad0` helper.
+
+The existing bootstrap AUTOEXEC still runs `C:\WIN95\SETUP /IS`, so the
+[Setup welcome page reappears](os-boot/b-win95-first-reboot-setup.png).
+Exiting that rerun allows BootGUI to continue. Setup updates the configuration
+files, and [installed Windows starts loading](os-boot/b-win95-installed-loading.png).
+The installed VMM reaches 32-bit protected mode with paging enabled:
+`CS=0028`, `CR0=80000031`, `CR3=004e3000`, CPL 0, flat 32-bit segments.
+
+Startup then [stalls](os-boot/b-win95-installed-list-stop.png) in a list walk
+at `c0370148–c0370166`, calling the far-pointer conversion at `c0371e96`.
+The first entry is empty, and later entries form a cycle. No transition to
+virtual-8086 mode was observed by the attached mode watchpoint before this
+stop. The cause remains unclassified; no model workaround is applied.
+[Focused state and disassembly](os-boot/b-win95-installed-list-stop.txt),
+[COM1](os-boot/b-win95-installed-list-stop.serial) (no diagnostics).
+The attempt is stopped manually after **3,183.650 seconds**, with
+**2,307,887,519 instructions since the last reset**. RAM and a debugger core
+are retained privately.
+
+A private clone, `win95-installed-cleanboot.img`, removes the old bootstrap
+`SETUP /IS` command from AUTOEXEC.BAT and boots the installed system directly
+using the ordinary rebuilt LLVM emulator. The stopped disk and pre-reboot
+`win95-copy-complete.img` remain unchanged for reproduction.
+
+### Virtual-8086 entry confirmed
+
+The direct installed-system boot (`b-win95-installed-cleanboot`) enters
+virtual-8086 mode through `iret_to_vm86`. A hardware mode watchpoint catches
+the transition; at the next completed instruction boundary it reports
+**VM86, CPL 3, `099d:03f6`, `SS:SP=8e00:0ffa`, `CR0=80000031`,
+`CR3=00285000`, IF=0, IOPL=0**.
+[Debugger evidence](os-boot/b-win95-installed-vm86.txt),
+[startup screen](os-boot/b-win95-installed-vm86.png),
+[COM1](os-boot/b-win95-installed-vm86.serial). This uses the unchanged
+LLVM-built model and ordinary fast emulator.
+
+Later startup returns to protected mode and reaches the same cyclic-list
+operation at its new load address, `c03742b4–c03742d2`. The run is stopped
+after **161.466 seconds / 513,411,586 instructions**.
+[PNG](os-boot/b-win95-cleanboot-list-stop.png),
+[state](os-boot/b-win95-cleanboot-list-stop.txt),
+[COM1](os-boot/b-win95-cleanboot-list-stop.serial). Removing the bootstrap
+Setup rerun alone does not resolve this stop.
+
+The independent fresh installation stops at **71%** after
+**2,887.437 seconds / 13,439,607,675 instructions**. Repeated samples show
+real-mode `0a49:18e3`, IF=0, with invalid instruction bytes at physical
+`0xbd13`. The watched byte at `0x6e2b` never changes in this attempt.
+The differing fault location means that this narrow watchpoint does not
+identify the corruption's origin.
+[PNG](os-boot/b-win95-fresh4-copy71-stop.png),
+[state](os-boot/b-win95-fresh4-copy71-stop.txt),
+[COM1](os-boot/b-win95-fresh4-copy71-stop.serial). Raw RAM and the stopped
+disk/core are preserved privately.
+
+### Controls and narrowing the installed-system stop
+
+Private QEMU TCG clones use the same BIOS/VGA ROMs and matching disk CHS
+(1040/16/63, `bios-chs-trans=none`). The unrestricted-clock control displays
+an [IOS protection error](os-boot/b-win95-qemu-ios-stop.png)
+([registers](os-boot/b-win95-qemu-ios-stop.txt),
+[COM1](os-boot/b-win95-qemu-ios-stop.serial)). With
+`-icount shift=8,align=off,sleep=off`, the automatically selected Safe Mode
+reaches [graphical Setup](os-boot/b-win95-qemu-safe-setup.png), which correctly
+refuses device detection in Safe Mode. An explicitly normal-boot clone
+then [finishes graphical configuration](os-boot/b-win95-qemu-configured.png)
+and requests its final restart. [COM1](os-boot/b-win95-qemu-configured.serial).
+These are QEMU controls, not a Sail desktop result; their disk mutations
+are isolated from the Sail continuation images.
+
+The ordinary LLVM emulator still stalls when normal boot is selected
+explicitly: **134.657 s / 452,529,542 instructions**.
+[PNG](os-boot/b-win95-normal-list-stop.png),
+[state](os-boot/b-win95-normal-list-stop.txt),
+[COM1](os-boot/b-win95-normal-list-stop.serial). Its
+[BOOTLOG](os-boot/b-win95-normal-bootlog.txt) ends at IOS device initialization.
+The diagnostic MSDOS.SYS experiment initially placed options under `[Paths]`
+in error (**146.057 s / 519,886,251 instructions**,
+[PNG](os-boot/b-win95-logged-config-stop.png),
+[state](os-boot/b-win95-logged-config-stop.txt),
+[COM1](os-boot/b-win95-logged-config-stop.serial)). The later file puts
+normal-boot options under `[Options]`; the unsupported `BootLog=1` line
+is subsequently removed after the guest reports it.
+
+A diagnostic-only platform trace observes real-mode `INT 2F, AX=1605`
+returning a non-null startup-information chain (`ES:BX=8820:123f`).
+This probe stops after **97.839 s / 326,937,714 instructions**:
+[PNG](os-boot/b-win95-init-call-stop.png),
+[trace](os-boot/b-win95-init-call-stop.txt),
+[COM1](os-boot/b-win95-init-call-stop.serial).
+
+Watching the VMM list-head field at physical `0xfdf04c` identifies its
+assignment at `c03709c8`: IOS stores `c1400000`, its VM memory base plus a
+null far pointer. This probe stops after **80.432 s / 273,145,019 instructions**:
+[PNG](os-boot/b-win95-list-field-stop.png),
+[trace](os-boot/b-win95-list-field-stop.txt),
+[COM1](os-boot/b-win95-list-field-stop.serial).
+
+The preceding VMM service executes a virtual-8086 `INT 2F` request intended
+to carry `AX=1690`. Its caller's EBP is unexpectedly `00007f70` instead of
+the high kernel client-register pointer. The captured VM86 entry consequently
+has AX=0. A deliberate 3,000-instruction window stops at
+**10.005 s / 38,190,393 instructions**:
+[PNG](os-boot/b-win95-vm86-call-trace-stop.png),
+[focused trace](os-boot/b-win95-vm86-call-trace-stop.txt),
+[COM1](os-boot/b-win95-vm86-call-trace-stop.serial). Investigation is tracing
+that register value backward; no model or compiler fix is inferred yet.
+
+### SDM fix: operand width and fault ordering of far-pointer loads
+
+Backward tracing isolates `LES BP,[ES:DI+45h]` at virtual-8086
+`ff33:cde6`: EBP changes from `c13c0900` to `000013c0`, losing the upper
+half. [Focused evidence](os-boot/b-win95-les-bp-evidence.txt).
+`read_far_pointer` returns a zero-extended qword; all five load-far-pointer
+instructions incorrectly assign that qword directly to the destination GPR.
+This is a model error, not a sail-llvm bug. No compiler workaround is added.
+
+The fix follows SDM rev.090 Vol.2A, LDS/LES/LFS/LGS/LSS, pp.3-540–3-542:
+write the offset using the instruction's operand width, after segment
+validation succeeds. LES/LDS/LSS/LFS/LGS therefore preserve the upper bits
+for a 16-bit destination, retain the 32-bit zero-extension behavior, and
+leave the GPR unchanged when the selector faults. The new regressions
+exercise all five instructions in real, protected and virtual-8086 modes,
+32-bit destinations in long mode, and fault rollback. The width and fault
+regressions both fail against the old LLVM model.
+
+The rebuilt LLVM model passes **84 basic cases, all 15 system suites, and
+416 model/KVM VM86 comparisons**.
+[Validation](os-boot/b-win95-far-load-validation.txt). The ordinary fast
+emulator is rebuilt with `system-emu/build-llvm.sh`; a private clone of
+the Sail-installed disk is booted again as `b-win95-far-load-fixed`.
+
+The additional bounded diagnostic stops are preserved below. They observe
+CPU/memory state only; none edits guest registers, memory or model semantics.
+
+| Attempt | Seconds | Instructions | Artifacts |
+| --- | ---: | ---: | --- |
+| `b-win95-bp-trace` | 10.005 | 38,163,391 | [PNG](os-boot/b-win95-bp-trace-stop.png), [state](os-boot/b-win95-bp-trace-stop.txt), [COM1](os-boot/b-win95-bp-trace-stop.serial) |
+| `b-win95-bp-all-trace` | 11.404 | 38,163,391 | [PNG](os-boot/b-win95-bp-all-trace-stop.png), [state](os-boot/b-win95-bp-all-trace-stop.txt), [COM1](os-boot/b-win95-bp-all-trace-stop.serial) |
+| `b-win95-bp-stack-trace` | 6.803 | 27,880,992 | [PNG](os-boot/b-win95-bp-stack-trace-stop.png), [state](os-boot/b-win95-bp-stack-trace-stop.txt), [COM1](os-boot/b-win95-bp-stack-trace-stop.serial) |
+| `b-win95-nested-trace` | 6.403 | 27,880,992 | [PNG](os-boot/b-win95-nested-trace-stop.png), [state](os-boot/b-win95-nested-trace-stop.txt), [COM1](os-boot/b-win95-nested-trace-stop.serial) |
+| `b-win95-bp-vm-trace` | 6.403 | 27,880,992 | [PNG](os-boot/b-win95-bp-vm-trace-stop.png), [state](os-boot/b-win95-bp-vm-trace-stop.txt), [COM1](os-boot/b-win95-bp-vm-trace-stop.serial) |
+| `b-win95-bp-any-trace` | 6.404 | 27,880,992 | [PNG](os-boot/b-win95-bp-any-trace-stop.png), [state](os-boot/b-win95-bp-any-trace-stop.txt), [COM1](os-boot/b-win95-bp-any-trace-stop.serial) |
+| `b-win95-bp-lost-trace` | 6.203 | 27,880,992 | [PNG](os-boot/b-win95-bp-lost-trace-stop.png), [state](os-boot/b-win95-bp-lost-trace-stop.txt), [COM1](os-boot/b-win95-bp-lost-trace-stop.serial) |
+
+### SDM fix: ordinary accesses through expand-down segments
+
+With the far-pointer fix, the saved Sail installation passes the former
+VMM loop, reaches CPL 3 Windows code, then displays a
+[fatal application 0D exception](os-boot/b-win95-far-load-fixed-gp-stop.png)
+at `0117:7eeb`. This attempt is stopped after **148.662 s /
+473,401,025 instructions**.
+[State](os-boot/b-win95-far-load-fixed-gp-stop.txt),
+[COM1](os-boot/b-win95-far-load-fixed-gp-stop.serial).
+
+A bounded trace stops after **18.806 s / 66,439,756 instructions**:
+[PNG](os-boot/b-win95-expand-down-trace-stop.png),
+[trace](os-boot/b-win95-expand-down-trace-stop.txt),
+[COM1](os-boot/b-win95-expand-down-trace-stop.serial). FS has base 0,
+limit `ffff`, type 6 (writable expand-down), and D/B=1. The ordinary memory
+helper applies expand-up bounds, allowing the preceding invalid access
+at offset 0 to read IVT bytes, then rejecting the later valid offset
+at `INC dword [FS:EAX+28h]`.
+
+SDM rev.090 Vol.3A §6.3, pp.6-4–6-5, and §3.4.5, p.3-10, require
+expand-down data offsets above the effective limit, with the complete
+access below `ffff` or `ffffffff` according to D/B. The shared segment
+limit helper now implements those bounds, retaining #SS for SS and #GP
+for other segments. It distinguishes a data segment's expand-down bit
+from the identically placed conforming bit in code segments.
+
+The new boundary regression fails on the previous LLVM model. It covers
+16- and 32-bit upper bounds, the lower exclusion, crossing the upper
+bound, an empty segment, FS versus SS exception selection, and readable
+conforming code. After another sail-llvm-only rebuild, **all 15 system
+suites, 86 basic cases, and 416 VM86 model/KVM comparisons pass**.
+[Validation](os-boot/b-win95-expand-down-validation.txt).
+The next ordinary-emulator attempt is `b-win95-expand-down-fixed`, again
+using a private clone of the Sail-installed disk.
+
+### Native graphical configuration reached
+
+With both SDM fixes, `b-win95-expand-down-fixed` reaches the installed
+Windows graphical environment and its [missing-mouse notice](os-boot/b-win95-native-graphical-configuration.png)
+at **104,321,311 instructions**. Enter acknowledges it. Setup then proceeds
+to [hardware and Plug and Play configuration](os-boot/b-win95-native-hardware-configuration.png)
+at **189,348,033 instructions**.
+[COM1](os-boot/b-win95-native-hardware-configuration.serial). These captures
+come from the ordinary LLVM fast emulator running the Sail-installed disk;
+no QEMU-created installation state is used in this continuation.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
+  --name b-win95-expand-down-fixed \
+  --out /tmp/sail-x86-os2-win95-20260925 --timeout 760 -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-expand-down-fixed.img -boot c
+```
+
+The source is the stopped `win95-installed-cleanboot.img`. Its private
+clone has explicit normal-boot options under `[Options]` in MSDOS.SYS:
+BootGUI=1, BootMulti=1, Network=0, BootMenu=0, BootMenuDefault=1,
+BootWarn=0, BootDelay=0, Logo=0. AUTOEXEC contains the Windows path and
+`CD \`, without the old installer bootstrap command.
+
+### Native Setup completed and final restart
+
+The same ordinary Sail run finishes hardware detection, creates
+[Start menu shortcuts](os-boot/b-win95-native-shortcuts.png), and configures
+Help. The [Time Zone dialog](os-boot/b-win95-native-time-zone.png) is accepted
+with its default Pacific setting; the [Add Printer wizard](os-boot/b-win95-native-printer.png)
+is cancelled because no printer is attached. Setup then reports that it
+has [finished configuring Windows 95](os-boot/b-win95-native-configured.png),
+at **1,524,152,914 instructions**, and requests its final restart.
+[COM1](os-boot/b-win95-native-configured.serial).
+
+The disk is checkpointed as `win95-native-configured.img` before accepting
+the restart. The platform resets at **1,540,435,088 instructions**, then
+again after SeaBIOS's 1,571-instruction reset sequence. Windows returns
+to the graphical [missing-mouse notice](os-boot/b-win95-final-reboot-mouse.png).
+The runner deadline is extended briefly for this final reboot; it stops
+normally after **838.077 seconds**, with **113,168,849 instructions since
+the last reset**. This is a time-budget stop at a user-input dialog.
+[Focused state](os-boot/b-win95-final-reboot-mouse.txt),
+[COM1](os-boot/b-win95-final-reboot-mouse.serial). COM1 is empty throughout
+these graphical steps; screenshots are the progress evidence.
+
+All continuation disks and checkpoints remain private under
+`/tmp/sail-x86-os2-win95-20260925/`. No QEMU-written disk is used by any
+of these native configuration or final-restart attempts.
+
+A final **95.345-second / 443,865,346-instruction** boot of the same disk
+invokes ScanDisk after the timed shutdown. It reports a
+[size mismatch in `C:\KERNEL.SYS`](os-boot/b-win95-final-scandisk-kernel.png).
+Fix It is accepted. The [missing floppy notice](os-boot/b-win95-final-scandisk-floppy.png)
+is acknowledged, then Skip Undo is chosen because no floppy is attached
+and a separate disk checkpoint already exists. A further
+[`C:\AUTOEXEC.BAT` size mismatch](os-boot/b-win95-final-scandisk-autoexec.png)
+is also accepted for repair. The timeout stops at the next prompt,
+for [`C:\HIMEM.SYS`](os-boot/b-win95-final-scandisk-stop.png).
+[Focused final state](os-boot/b-win95-final-scandisk-stop.txt),
+[COM1](os-boot/b-win95-final-scandisk-stop.serial).
+The origin of these size mismatches is unclassified; no model change is
+made for them. This run does not establish a usable desktop.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
+  --name b-win95-desktop-final \
+  --out /tmp/sail-x86-os2-win95-20260925 --timeout 95 \
+  --send '33:\n' --send '45:\n' -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-expand-down-fixed.img -boot c
+```
+
+For continuation, `win95-native-configured.img` is the immutable checkpoint
+at Setup's final restart prompt; `win95-expand-down-fixed.img` is the
+latest disk, stopped at the ScanDisk prompt after two accepted repairs.
+The earlier `win95-copy-complete.img` and `win95-installed-cleanboot.img`
+remain available. All session-owned emulator/debugger processes are stopped.
+The final code validation remains **15 system suites, 86 basic cases,
+and 416 VM86 model/KVM comparisons passing**, built only with sail-llvm.
+No new sail-llvm bug is identified and no compiler workaround is added
+to the model. The earlier copy-memory overwrites remain unexplained.
+
 ## Resumption after 10:50 JST on 2026-09-25
 
 This run starts from `bd5d0b3` and uses only sail-llvm compiler `54a10b8`.

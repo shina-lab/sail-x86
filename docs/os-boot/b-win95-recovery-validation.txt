@@ -1,0 +1,29 @@
+Resumption validation: sail-llvm 54a10b8 only.
+
+Command: system-emu/build-llvm.sh
+sailc: compiling model ...
+clang++: linking emulator ...
+built /home/ruiu/sail-x86-os2/build/llvm/sail-x86-system
+
+Command: python3 build/os-boot/build-tests.py
+a20 0
+apic 0
+apic_cpu 0
+basic 0
+exceptions 0
+fw_cfg 0
+ide 0
+keyboard 0
+paging 0
+reset 0
+rtc 0
+smm 0
+vbe 0
+vga 0
+vmx 0
+
+Basic cases: 81 passed, 0 failed.
+
+Fresh LLVM vm86 model: vm86: 416 passed, 0 failed
+
+Fresh LLVM vm86 kvm: vm86: 416 passed, 0 failed
