@@ -152,6 +152,37 @@ A private clone, `win95-installed-cleanboot.img`, removes the old bootstrap
 using the ordinary rebuilt LLVM emulator. The stopped disk and pre-reboot
 `win95-copy-complete.img` remain unchanged for reproduction.
 
+### Virtual-8086 entry confirmed
+
+The direct installed-system boot (`b-win95-installed-cleanboot`) enters
+virtual-8086 mode through `iret_to_vm86`. A hardware mode watchpoint catches
+the transition; at the next completed instruction boundary it reports
+**VM86, CPL 3, `099d:03f6`, `SS:SP=8e00:0ffa`, `CR0=80000031`,
+`CR3=00285000`, IF=0, IOPL=0**.
+[Debugger evidence](os-boot/b-win95-installed-vm86.txt),
+[startup screen](os-boot/b-win95-installed-vm86.png),
+[COM1](os-boot/b-win95-installed-vm86.serial). This uses the unchanged
+LLVM-built model and ordinary fast emulator.
+
+Later startup returns to protected mode and reaches the same cyclic-list
+operation at its new load address, `c03742b4–c03742d2`. The run is stopped
+after **161.466 seconds / 513,411,586 instructions**.
+[PNG](os-boot/b-win95-cleanboot-list-stop.png),
+[state](os-boot/b-win95-cleanboot-list-stop.txt),
+[COM1](os-boot/b-win95-cleanboot-list-stop.serial). Removing the bootstrap
+Setup rerun alone does not resolve this stop.
+
+The independent fresh installation stops at **71%** after
+**2,887.437 seconds / 13,439,607,675 instructions**. Repeated samples show
+real-mode `0a49:18e3`, IF=0, with invalid instruction bytes at physical
+`0xbd13`. The watched byte at `0x6e2b` never changes in this attempt.
+The differing fault location means that this narrow watchpoint does not
+identify the corruption's origin.
+[PNG](os-boot/b-win95-fresh4-copy71-stop.png),
+[state](os-boot/b-win95-fresh4-copy71-stop.txt),
+[COM1](os-boot/b-win95-fresh4-copy71-stop.serial). Raw RAM and the stopped
+disk/core are preserved privately.
+
 ## Resumption after 10:50 JST on 2026-09-25
 
 This run starts from `bd5d0b3` and uses only sail-llvm compiler `54a10b8`.

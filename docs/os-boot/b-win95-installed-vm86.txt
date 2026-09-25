@@ -1,0 +1,13 @@
+Hardware watchpoint 2: *(int *)($wm+11056)
+
+Old value = 1
+New value = 2
+ziret_to_vm86z4B64_B16_B64 () at vm86.sail:17
+17	  write_rflags(flags);
+Temporary breakpoint 3 at 0x5ede927ea791: file fetch_execute.sail, line 54.
+
+Temporary breakpoint 3, zstep () at fetch_execute.sail:54
+54	  fault_pending = false;
+Mode observer stopped: mode=2 CPL=3 CS:IP=099d:000003f6 SS:SP=8e00:00000ffa CR0=80000031 CR3=285000 IF=0 IOPL=0
+0x7fff5a909340:	0x0000	0x099d	0x8e00	0x0000	0x0000	0x0000
+[Inferior 1 (process 3543191) detached]
