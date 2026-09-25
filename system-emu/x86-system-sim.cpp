@@ -1077,6 +1077,9 @@ int main(int argc, char *argv[]) {
   u64 trace_address = parse_env_u64("SAIL_X86_TRACE_ADDRESS", 0);
   u64 trace_address_steps = parse_env_u64("SAIL_X86_TRACE_ADDRESS_STEPS", 0);
   bool trace_address_seen = false;
+  const char *event_address_env = getenv("SAIL_X86_TRACE_EVENT_ADDRESS");
+  bool event_address_seen = false;
+  u64 event_address = parse_env_u64("SAIL_X86_TRACE_EVENT_ADDRESS", 0);
   struct TraceLocation { u64 count, ip, address; u16 cs; bool physical; };
   TraceLocation recent[64] = {};
   unsigned recent_count = 0, recent_next = 0;
@@ -1245,7 +1248,7 @@ int main(int argc, char *argv[]) {
     bool was_real = model.zcur_mode == x86::zRealMode;
     u64 previous_ip = model.zRIP;
     u16 previous_cs = model.zSegReg.data[x86::SEG_CS];
-    if (trace_real_ud || trace_address_enabled) {
+    if (trace_real_ud || trace_address_enabled || event_address_env) {
       u64 address = model.zSegCache.data[x86::SEG_CS].zseg_base + previous_ip;
       if (!model.za20_enabled) address &= ~0x100000ULL;
       recent[recent_next] = {insn_count, previous_ip,
@@ -1270,6 +1273,14 @@ int main(int argc, char *argv[]) {
       }
     }
     model.zstep(UNIT);
+    if (event_address_env && !event_address_seen && previous_ip == event_address && model.zevent_delivered) {
+      event_address_seen = true;
+      fprintf(stderr, "sail-x86-system: event at %04x:%08lx before instruction %lu; FS=%04x base=%016lx\n",
+              previous_cs, previous_ip, insn_count, (u16)model.zSegReg.data[x86::SEG_FS],
+              (u64)model.zSegCache.data[x86::SEG_FS].zseg_base);
+      dump_recent();
+      dump_state();
+    }
     if (trace_real_ud && model.zcur_mode == x86::zRealMode &&
         (model.zRIP || model.zSegReg.data[x86::SEG_CS]) &&
         model.zRIP == model.phys_mem.read16(model.zIDTR_base + 6 * 4) &&

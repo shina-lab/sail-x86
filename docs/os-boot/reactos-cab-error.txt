@@ -1,0 +1,201 @@
+Post-STI-fix cabinet error: reactos-cab-return-install-13
+
+Cabinet codec error registers: {'RAX': '0x2', 'RBX': '0x11b674b', 'RCX': '0x52befd5', 'RDX': '0x11b674b', 'RSP': '0x31f3c4', 'RBP': '0x31f8cc', 'RSI': '0x18b02b', 'RDI': '0x4d79e0', 'CR3': '0x2781000'}
+Context 0x4d79e0 codec 0x419000 codec function 0x4010a1
+CurrentDestBuffer 0x52befd5 86765525
+RemainingBlock 0x2c00 11264
+InputLength 0x2748 10056
+OutputLength 0x18b02b 1617963
+input 0x11b674b 00 00 00 00 d3 20 00 80 43 4b ed 7c 0b 78 1b e5 95 e8 af 44 49 14 63 90 db cf b4 0e b8 30 14 b9 38 60 12 bb 9b ed 97 38 84 95 22 c9 b1 53 3b 36 91 9d e4 82 83 23 4b 63 5b 8d 34 a3 9d 87 1f 10
+z_stream 0x419004 4b 67 1b 01 00 2c 00 00 48 27 00 00 d5 ef 2b 05 2b b0 18 00 00 80 00 00 00 00 00 00 00 00 00 00 af 11 40 00 db 11 40 00 00 00 00 00 40 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 4d 10 40 00
+stream next_in 0x11b674b
+stream avail_in 0x2c00
+stream total_in 0x2748
+stream next_out 0x52befd5
+stream avail_out 0x18b02b
+stream total_out 0x8000
+stream msg 0x0
+stream state 0x0
+Input bytes match cabinet positions: ['0x7e674b']
+
+Minimal cross-page MOVZX reproduction:
+cross-page MOVZX: result=1 fault=0 vector=0 CR2=44000 EAX=5348 RIP=100004 have_exception=1
+
+sail-x86-system: trace address 0x4024f8 at instruction 2577684591; recent locations:
+  [2577684528] 001b:004011ab: <paged code; bytes omitted>
+  [2577684529] 001b:00401186: <paged code; bytes omitted>
+  [2577684530] 001b:00401189: <paged code; bytes omitted>
+  [2577684531] 001b:0040118c: <paged code; bytes omitted>
+  [2577684532] 001b:0040118e: <paged code; bytes omitted>
+  [2577684533] 001b:00401191: <paged code; bytes omitted>
+  [2577684534] 001b:00401193: <paged code; bytes omitted>
+  [2577684535] 001b:00401198: <paged code; bytes omitted>
+  [2577684536] 001b:00401179: <paged code; bytes omitted>
+  [2577684537] 001b:0040117c: <paged code; bytes omitted>
+  [2577684538] 001b:0040117d: <paged code; bytes omitted>
+  [2577684539] 001b:0040117e: <paged code; bytes omitted>
+  [2577684540] 001b:0040117f: <paged code; bytes omitted>
+  [2577684541] 001b:00401180: <paged code; bytes omitted>
+  [2577684542] 001b:00402572: <paged code; bytes omitted>
+  [2577684543] 001b:00402574: <paged code; bytes omitted>
+  [2577684544] 001b:00402576: <paged code; bytes omitted>
+  [2577684545] 001b:0040257c: <paged code; bytes omitted>
+  [2577684546] 001b:00402582: <paged code; bytes omitted>
+  [2577684547] 001b:00402588: <paged code; bytes omitted>
+  [2577684548] 001b:0040258a: <paged code; bytes omitted>
+  [2577684549] 001b:00402590: <paged code; bytes omitted>
+  [2577684550] 001b:00402596: <paged code; bytes omitted>
+  [2577684551] 001b:00402598: <paged code; bytes omitted>
+  [2577684552] 001b:0040259a: <paged code; bytes omitted>
+  [2577684553] 001b:0040259c: <paged code; bytes omitted>
+  [2577684554] 001b:0040259e: <paged code; bytes omitted>
+  [2577684555] 001b:004025a0: <paged code; bytes omitted>
+  [2577684556] 001b:0040253f: <paged code; bytes omitted>
+  [2577684557] 001b:00402545: <paged code; bytes omitted>
+  [2577684558] 001b:0040254b: <paged code; bytes omitted>
+  [2577684559] 001b:00402551: <paged code; bytes omitted>
+  [2577684560] 001b:00402555: <paged code; bytes omitted>
+  [2577684561] 001b:0040255b: <paged code; bytes omitted>
+  [2577684562] 001b:0040255f: <paged code; bytes omitted>
+  [2577684563] 001b:00402563: <paged code; bytes omitted>
+  [2577684564] 001b:00402569: <paged code; bytes omitted>
+  [2577684565] 001b:0040256d: <paged code; bytes omitted>
+  [2577684566] 001b:00402570: <paged code; bytes omitted>
+  [2577684567] 001b:004010a1: <paged code; bytes omitted>
+  [2577684568] 001b:004010a2: <paged code; bytes omitted>
+  [2577684569] 001b:004010a4: <paged code; bytes omitted>
+  [2577684570] 001b:004010a5: <paged code; bytes omitted>
+  [2577684571] 001b:004010a6: <paged code; bytes omitted>
+  [2577684572] 001b:004010a7: <paged code; bytes omitted>
+  [2577684573] 001b:004010aa: <paged code; bytes omitted>
+  [2577684574] 001b:004010ad: <paged code; bytes omitted>
+  [2577684575] 001b:004010b0: <paged code; bytes omitted>
+  [2577684576] 001b:004010b3: <paged code; bytes omitted>
+  [2577684577] 001b:004010b6: <paged code; bytes omitted>
+  [2577684578] 001b:004010b8: <paged code; bytes omitted>
+  [2577684579] 001b:004010ba: <paged code; bytes omitted>
+  [2577684580] 001b:004010bc: <paged code; bytes omitted>
+  [2577684581] 001b:004010c1: <paged code; bytes omitted>
+  [2577684582] 001b:004010c6: <paged code; bytes omitted>
+  [2577684583] 001b:00401179: <paged code; bytes omitted>
+  [2577684584] 001b:0040117c: <paged code; bytes omitted>
+  [2577684585] 001b:0040117d: <paged code; bytes omitted>
+  [2577684586] 001b:0040117e: <paged code; bytes omitted>
+  [2577684587] 001b:0040117f: <paged code; bytes omitted>
+  [2577684588] 001b:00401180: <paged code; bytes omitted>
+  [2577684589] 001b:00402572: <paged code; bytes omitted>
+  [2577684590] 001b:00402574: <paged code; bytes omitted>
+  [2577684591] 001b:004024f8: <paged code; bytes omitted>
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/reactos-cab-return-install-13.png
+[2577684591] CS:RIP=001b:004024f8 mode=P
+  RAX=0000000000000002 RBX=00000000011b674b RCX=00000000052befd5 RDX=00000000011b674b
+  RSP=000000000031f3c4 RBP=000000000031f8cc RSI=000000000018b02b RDI=00000000004d79e0
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=001b DS=0023 ES=0023 SS=0023 FS=003b GS=0000
+  FLAGS CF=0 PF=0 AF=0 ZF=0 SF=0 OF=0 DF=0 IF=1
+  CR0=000000008001003b CR2=0000000000553000 CR3=0000000002781000 CR4=0000000000000618 EFER=0000000000000000
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=719671632664 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=10 IMR=f8 ISR=00  slave IRR=00 IMR=3e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=12310 reload=17892 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=09 A=2d B=02 C=50 D=80 time=12:11:59 ticks=23582200 second=719
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=30 at=718495718914 ns status=40 error=00 features=00 count=08 lba=00181c dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=4096/4096 block_end=4096 limit=512 write_lba=6180 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=08 lba=00181c dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a0 at=719417365164 ns status=40 error=00 features=00 count=03 lba=000000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=65536/65536 block_end=65536 limit=65534 write_lba=0 packet=1 cdb_pos=12 CDB=00 00 00 00 00 00 00 00 00 00 00 00
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=00 lba=000000 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00
+  VGA text screen:
+
+
+
+     ReactOS 0.4.17-x86-dev Setup
+
+
+
+
+
+
+
+
+          Please wait while ReactOS Setup copies files to your ReactOS
+                              installation folder.
+                   This may take several minutes to complete.
+
+
+
+
+
+
+
+
+
+          Setup is copying files...
+
+                                       20 %
+
+
+
+
+
+
+
+
+
+
+
+
+
+                 9  %                  40 %                  41 %
+
+
+
+             Kernel Pool           Kernel Cache          Free Memory
+
+
+
+
+   Copying file: explorer.exe
