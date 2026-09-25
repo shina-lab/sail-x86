@@ -122,6 +122,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  -boot <order>   BIOS boot order: a floppy, c hard disk, d CD-ROM\n");
   fprintf(stderr, "                  (default: d when a CD-ROM is attached, else the BIOS order)\n");
   fprintf(stderr, "  -fda <file>     Floppy disk image (drive A:)\n");
+  fprintf(stderr, "  Ctrl-a f        Reload -fda after replacing its image (disk change)\n");
   fprintf(stderr, "  -h              Show this help\n");
   fprintf(stderr, "Env:\n");
   fprintf(stderr, "  SAIL_X86_TRACE_START          Start instruction count for register dumps\n");
@@ -1050,6 +1051,13 @@ int main(int argc, char *argv[]) {
     else model.uart.rx_push(ch);
   };
   auto input_special = [&](int ch) {
+    if (ch == 'f') {
+      if (fda_path && model.floppy.open(fda_path))
+        fprintf(stderr, "sail-x86-system: floppy media reloaded: %s\n", fda_path);
+      else
+        fprintf(stderr, "sail-x86-system: floppy media reload failed\n");
+      return true;
+    }
     int key = 0;
     if (ch >= '1' && ch <= '9') key = KEY_F(ch - '0');
     else if (ch == '0') key = KEY_F(10);

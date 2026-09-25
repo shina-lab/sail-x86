@@ -2214,16 +2214,21 @@ public:
   }
 
   bool open(const char *path) {
-    disk_fd = ::open(path, O_RDWR);
-    if (disk_fd < 0) {
+    int new_fd = ::open(path, O_RDWR);
+    bool new_read_only = false;
+    if (new_fd < 0) {
       // Try read-only
-      disk_fd = ::open(path, O_RDONLY);
-      if (disk_fd < 0) { perror(path); return false; }
-      read_only = true;
+      new_fd = ::open(path, O_RDONLY);
+      if (new_fd < 0) { perror(path); return false; }
+      new_read_only = true;
     }
     struct stat st;
-    if (fstat(disk_fd, &st) < 0) { perror("fstat"); close(disk_fd); disk_fd = -1; return false; }
+    if (fstat(new_fd, &st) < 0) { perror("fstat"); close(new_fd); return false; }
+    if (disk_fd >= 0) close(disk_fd);
+    disk_fd = new_fd;
     disk_size = st.st_size;
+    read_only = new_read_only;
+    disk_changed = true;
     return true;
   }
 
