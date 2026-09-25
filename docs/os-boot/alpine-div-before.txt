@@ -1,0 +1,106 @@
+System emulator tests:
+  phys_mem_read_write                               PASS
+  phys_mem_bulk                                     PASS
+  mov_eax_imm32_hlt                                 PASS
+  mov_rax_imm64_hlt                                 PASS
+  add_rax_rbx_hlt                                   PASS
+  mem_store_load_hlt                                PASS
+  push_pop_hlt                                      PASS
+  jmp_forward_hlt                                   PASS
+  loop_counter_hlt                                  PASS
+  system_regs_initial_values                        PASS
+  div64_unsigned_dividend_and_overflow              FAIL
+    system-emu/tests/test-basic.cpp:139: model.zGPR.data[0] == 0x8be42791d45df611, expected 0xfee51d66fc2d6163
+PASS
+  ide_busmaster_pci_io                              PASS
+  sse_shuffle_rip_relative_immediate                PASS
+
+Privileged instruction tests:
+  mov_cr0_read_write                                PASS
+  mov_cr3_write                                     PASS
+  lgdt_sgdt                                         PASS
+  lidt_sidt                                         PASS
+  wrmsr_rdmsr_star                                  PASS
+  wrmsr_rdmsr_efer                                  PASS
+  swapgs                                            PASS
+  cli_sti                                           PASS
+  wbinvd                                            PASS
+  clts                                              PASS
+
+String I/O tests:
+  insb_single                                       PASS
+  outsb_single                                      PASS
+  rep_insb                                          PASS
+  rep_outsb                                         PASS
+  rep_insd                                          PASS
+  insb_df_backward                                  PASS
+
+Direct store tests:
+  movdiri_32                                        PASS
+  movdiri_64                                        PASS
+  movdir64b                                         PASS
+  movdir64b_unaligned_faults                        PASS
+
+32-bit protected mode tests:
+  lgdt_sgdt_32bit                                   PASS
+  lidt_sidt_32bit                                   PASS
+
+Segment limit checking tests:
+  seg_limit_byte_within                             PASS
+  seg_limit_dword_crosses                           PASS
+  seg_limit_dword_within                            PASS
+  seg_limit_ss_fault                                PASS
+
+Real mode tests:
+  real_mode_mov_ax_hlt                              PASS
+  xlat_segmented_table                              PASS
+  xlat_address_size_and_segment_limit               PASS
+  real_mode_far_jmp_ea                              PASS
+  real_mode_far_call_9a                             PASS
+
+Protected mode far transfer tests:
+  legacy_call_gate_privilege_stacks                 PASS
+  legacy_call_gate_same_privilege_and_faults        PASS
+  legacy_privilege_stack_descriptor_faults          PASS
+  legacy_retf_code_validation                       PASS
+  legacy_retf_outer_parameters_and_faults           PASS
+  ldt_cached_descriptor_lookup                      PASS
+  lldt_descriptor_validation                        PASS
+  protected_mode_far_jmp_ea                         PASS
+  protected_mode_far_jmp_ff5                        PASS
+
+Mode transition tests:
+  real_to_protected_mode_transition                 PASS
+  lmsw_enters_protected_mode                        PASS
+  lmsw_preserves_cr0_and_cached_segments            PASS
+  lmsw_preserves_pe_and_long_mode                   PASS
+  xlat_segmented_table_lookup                       PASS
+  xlat_segment_limit_fault                          PASS
+
+IRET tests:
+  real_mode_iret_no_pop_sp_ss                       PASS
+  x87_save_restore_large_memory_operand             PASS
+  real_mode_iret_with_nt                            PASS
+  real_mode_int_iret_preserves_regs                 PASS
+  protected_mode_iret_same_privilege                PASS
+  ia32e_iretq_to_compat_loads_ss_descriptor         PASS
+  ia32e_sysenter_switches_to_long_mode              PASS
+  mov_gs_at_cpl3_uses_implicit_access               PASS
+  compat_seg_linear_wraps_at_32bit                  PASS
+
+PUSHA/POPA tests:
+  pushad_popad_32bit                                PASS
+  pushad_stack_layout_32bit                         PASS
+  pusha_popa_16bit                                  PASS
+  popad_skips_esp_slot                              PASS
+  pusha_ud_in_64bit                                 PASS
+
+PUSH/POP segment register tests:
+  push_es_16bit                                     PASS
+  push_ds_pop_es_32bit                              PASS
+  push_cs_16bit                                     PASS
+  push_ss_pop_ss_16bit                              PASS
+  pop_ds_real_mode                                  PASS
+  push_seg_ud_in_64bit                              PASS
+
+79 passed, 1 failed

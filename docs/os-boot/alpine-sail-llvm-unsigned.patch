@@ -1,0 +1,168 @@
+From 3d01d86108281842a59e5dbd6f00126615213b53 Mon Sep 17 00:00:00 2001
+From: Rui Ueyama <ruiu@cs.stanford.edu>
+Date: Fri, 25 Sep 2026 11:34:29 +0900
+Subject: [PATCH] Preserve unsigned integer views in division and comparisons
+
+Track proven nonnegative SSA values, including conditional joins, so a full-width unsigned bitvector dividend uses unsigned division and ordering. Keep the fixed i128 representation and signed arithmetic for other values. Cover high-bit dividends, quotient overflow checks, conditional values, and signed controls.
+
+Co-Authored-By: Codex <noreply@openai.com>
+---
+ src/ir/sir_build.cc                 | 55 +++++++++++++++++++++++++++--
+ test/e2e/unsigned_division_128.sail | 37 +++++++++++++++++++
+ 2 files changed, 90 insertions(+), 2 deletions(-)
+ create mode 100644 test/e2e/unsigned_division_128.sail
+
+diff --git a/src/ir/sir_build.cc b/src/ir/sir_build.cc
+index 2e55122..51c90b9 100644
+--- a/src/ir/sir_build.cc
++++ b/src/ir/sir_build.cc
+@@ -515,6 +515,7 @@ private:
+     local_let_rhs_.clear();
+     value_ty_.clear();
+     value_width_.clear();
++    value_nonnegative_.clear();
+   }
+ 
+   const Type *expr_ty(const Expr *e) const {
+@@ -584,6 +585,15 @@ private:
+   // walking `cur_->instrs` from the end every time. Cleared and
+   // re-seeded for each spec by `build_specialization`.
+   std::vector<SType> value_ty_;
++  // Preserve the nonnegative mathematical domain of unsigned bitvector
++  // views. They still use the fixed i128 ABI, but division and ordering
++  // must not reinterpret bit 127 as a sign bit.
++  std::vector<bool> value_nonnegative_;
++
++  bool value_nonnegative(ValueId v) const {
++    return v != kInvalidValue && v < value_nonnegative_.size() &&
++           value_nonnegative_[v];
++  }
+   struct FiniteWidthInfo {
+     Expr *witness_e = nullptr;
+     std::vector<i64> vals;
+@@ -3403,16 +3413,52 @@ private:
+     if (v >= value_ty_.size()) {
+       value_ty_.resize(v + 1);
+       value_width_.resize(v + 1);
++      value_nonnegative_.resize(v + 1);
+     }
+     value_ty_[v] = ty;
+   }
+ 
+   ValueId emit(SInstr instr) {
++    if (instr.args.size() == 2 &&
++        value_ty_for(instr.args[0]).k == SKind::FInt &&
++        value_ty_for(instr.args[1]).k == SKind::FInt &&
++        value_nonnegative(instr.args[0]) &&
++        value_nonnegative(instr.args[1])) {
++      switch (instr.k) {
++      case IKind::SDiv: instr.k = IKind::UDiv; break;
++      case IKind::SRem: instr.k = IKind::URem; break;
++      case IKind::ICmpSLt: instr.k = IKind::ICmpULt; break;
++      case IKind::ICmpSLe: instr.k = IKind::ICmpULe; break;
++      case IKind::ICmpSGt: instr.k = IKind::ICmpUGt; break;
++      case IKind::ICmpSGe: instr.k = IKind::ICmpUGe; break;
++      default: break;
++      }
++    }
+     if (instr.k != IKind::Ret && instr.k != IKind::Store &&
+         instr.k != IKind::Br && instr.k != IKind::CondBr &&
+         instr.k != IKind::Label) {
+       instr.result = cur_->fresh();
+       record_value_ty(instr.result, instr.ty);
++      if (instr.ty.k == SKind::FInt && instr.ty.width == kSailIntWidth) {
++        bool nonnegative =
++            (instr.k == IKind::ConstInt && instr.int_val >= 0) ||
++            instr.k == IKind::UDiv || instr.k == IKind::URem;
++        if (instr.k == IKind::ZExt && instr.args.size() == 1) {
++          SType src = value_ty_for(instr.args[0]);
++          nonnegative = src.width <= kSailIntWidth &&
++                        (src.k == SKind::FBits ||
++                         src.width < kSailIntWidth ||
++                         value_nonnegative(instr.args[0]));
++        }
++        if (instr.k == IKind::Call &&
++            interner_.str(instr.callee) == "pow2" && instr.args.size() == 1) {
++          const SInstr *exponent = defining_instr(instr.args[0]);
++          nonnegative = exponent && exponent->k == IKind::ConstInt &&
++                        exponent->int_val >= 0 &&
++                        exponent->int_val < kSailIntWidth - 1;
++        }
++        value_nonnegative_[instr.result] = nonnegative;
++      }
+     }
+     if (!instr.loc.valid())
+       instr.loc = cur_loc_;
+@@ -8961,10 +9007,12 @@ private:
+       emit_label(bb_else);
+       if (have_refinement)
+         apply_branch_int_refinement(refinement, /*then_branch=*/false);
++      bool result_nonnegative = value_nonnegative(tv);
+       if (e->else_e) {
+         ValueId ev = lower_expr(e->else_e);
+         if (slot != kInvalidValue) {
+           ev = coerce(ev, result_ty);
++          result_nonnegative = result_nonnegative && value_nonnegative(ev);
+           emit_store(slot, ev, result_ty);
+         }
+       } else if (slot != kInvalidValue) {
+@@ -8978,8 +9026,11 @@ private:
+       // outside the if.
+       if_scope.reset();
+       emit_label(bb_join);
+-      if (slot != kInvalidValue)
+-        return emit_load(slot, result_ty);
++      if (slot != kInvalidValue) {
++        ValueId result = emit_load(slot, result_ty);
++        value_nonnegative_[result] = result_nonnegative;
++        return result;
++      }
+       return kInvalidValue;
+     }
+     case ExprKind::Cast: {
+diff --git a/test/e2e/unsigned_division_128.sail b/test/e2e/unsigned_division_128.sail
+new file mode 100644
+index 0000000..e43f750
+--- /dev/null
++++ b/test/e2e/unsigned_division_128.sail
+@@ -0,0 +1,37 @@
++default Order dec
++$include <prelude.sail>
++
++val divide : (bool, bits(128), bits(64)) -> unit
++function divide(use_wide, n, d) = {
++  let dividend = if use_wide then unsigned(n) else unsigned(0x0000000000000008);
++  let divisor = unsigned(d);
++  let quotient = dividend / divisor;
++  let remainder = dividend % divisor;
++  print_bits(to_bits(128, quotient));
++  print_bits(to_bits(64, remainder));
++  print_int(if quotient >= pow2(64) then 1 else 0)
++}
++
++val main : unit -> unit
++function main() = {
++  divide(true, 0xafe1f3ed928c2ab108d23fba8f3254e1, 0xb0a526350a0b27ea);
++  divide(true, 0xffffffffffffffffffffffffffffffff, 0x0000000000000001);
++  divide(false, 0xffffffffffffffffffffffffffffffff, 0x0000000000000003);
++  print_int(if -1 < unsigned(0x0000000000000001) then 1 else 0);
++  print_int(tdiv_int(-7, 3));
++  print_int(tmod_int(-7, 3))
++}
++
++// EXPECT:
++// 0x0000000000000000FEE51D66FC2D6163
++// 0x13FB37ED16A03B63
++// 0
++// 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
++// 0x0000000000000000
++// 1
++// 0x00000000000000000000000000000002
++// 0x0000000000000002
++// 0
++// 1
++// -2
++// -1
+-- 
+2.43.0
+

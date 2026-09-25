@@ -1,0 +1,1 @@
+{"utc": "2026-09-25T02:30:18.819131+00:00", "text": "printf \"\\033[2J\\033[HAlpine initramfs: APK signature verification failed\\n\" > /dev/tty1\n(uname -a; id; mount) | tee -a /dev/tty1\n"}

@@ -1,0 +1,2 @@
+ACPI GPE reset status: 0xffff
+system_test_apic-cpu: system-emu/tests/test-apic-cpu.cpp:20: int main(): Assertion `m.z__port_in8(port) == 0' failed.

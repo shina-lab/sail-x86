@@ -1,0 +1,1 @@
+fw_cfg CPU count, IRQ0 override and VGA directory: PASS

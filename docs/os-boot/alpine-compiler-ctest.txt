@@ -1,0 +1,1006 @@
+Internal ctest changing into directory: /home/ruiu/sail-x86-os4/build/sail-llvm-unsigned/build
+Test project /home/ruiu/sail-x86-os4/build/sail-llvm-unsigned/build
+        Start 388: e2e_unsigned_division_128
+        Start   1: e2e_ackermann
+        Start   2: e2e_adc_flags
+        Start   3: e2e_add_bits_int
+        Start   4: e2e_add_cmp_loop
+        Start   5: e2e_addr_modes
+        Start   6: e2e_alias_in_bitfield_range
+        Start   7: e2e_alias_with_let_rhs
+  1/500 Test #388: e2e_unsigned_division_128 .................................   Passed    0.12 sec
+        Start   8: e2e_alias_with_match_rhs
+  2/500 Test   #1: e2e_ackermann .............................................   Passed    0.14 sec
+        Start   9: e2e_alu_flags
+  3/500 Test   #2: e2e_adc_flags .............................................   Passed    0.14 sec
+        Start  10: e2e_arith
+  4/500 Test   #5: e2e_addr_modes ............................................   Passed    0.13 sec
+        Start  11: e2e_array_ops
+  5/500 Test   #3: e2e_add_bits_int ..........................................   Passed    0.14 sec
+        Start  12: e2e_assert_pass
+  6/500 Test   #4: e2e_add_cmp_loop ..........................................   Passed    0.14 sec
+        Start  13: e2e_attribute_skip
+  7/500 Test   #6: e2e_alias_in_bitfield_range ...............................   Passed    0.14 sec
+        Start  14: e2e_bank
+  8/500 Test   #7: e2e_alias_with_let_rhs ....................................   Passed    0.14 sec
+        Start  15: e2e_bare_nullary_variant
+  9/500 Test   #8: e2e_alias_with_match_rhs ..................................   Passed    0.13 sec
+        Start  16: e2e_base_name_alias_collision
+ 10/500 Test  #11: e2e_array_ops .............................................   Passed    0.13 sec
+        Start  17: e2e_bit_extract
+ 11/500 Test   #9: e2e_alu_flags .............................................   Passed    0.14 sec
+        Start  18: e2e_bit_extract_cr4
+ 12/500 Test  #13: e2e_attribute_skip ........................................   Passed    0.14 sec
+        Start  19: e2e_bit_extract_mem
+ 13/500 Test  #10: e2e_arith .................................................   Passed    0.14 sec
+        Start  20: e2e_bit_match
+ 14/500 Test  #12: e2e_assert_pass ...........................................   Passed    0.14 sec
+        Start  21: e2e_bitfield
+ 15/500 Test  #14: e2e_bank ..................................................   Passed    0.14 sec
+        Start  22: e2e_bitfield_bits_access
+ 16/500 Test  #15: e2e_bare_nullary_variant ..................................   Passed    0.14 sec
+        Start  23: e2e_bitfield_bracket_update
+ 17/500 Test  #17: e2e_bit_extract ...........................................   Passed    0.11 sec
+        Start  24: e2e_bitfield_index_access
+ 18/500 Test  #18: e2e_bit_extract_cr4 .......................................   Passed    0.11 sec
+        Start  25: e2e_bitfield_index_field
+ 19/500 Test  #19: e2e_bit_extract_mem .......................................   Passed    0.12 sec
+        Start  26: e2e_bitfield_update
+ 20/500 Test  #20: e2e_bit_match .............................................   Passed    0.12 sec
+        Start  27: e2e_bitfield_with_alias
+ 21/500 Test  #22: e2e_bitfield_bits_access ..................................   Passed    0.12 sec
+        Start  28: e2e_bits
+ 22/500 Test  #23: e2e_bitfield_bracket_update ...............................   Passed    0.13 sec
+        Start  29: e2e_bits_cmp_order
+ 23/500 Test  #21: e2e_bitfield ..............................................   Passed    0.13 sec
+        Start  30: e2e_bits_div
+ 24/500 Test  #24: e2e_bitfield_index_access .................................   Passed    0.12 sec
+        Start  31: e2e_bits_lit_widen
+ 25/500 Test  #25: e2e_bitfield_index_field ..................................   Passed    0.11 sec
+        Start  32: e2e_bits_named_ops
+ 26/500 Test  #26: e2e_bitfield_update .......................................   Passed    0.11 sec
+        Start  33: e2e_bits_of_int_named
+ 27/500 Test  #27: e2e_bitfield_with_alias ...................................   Passed    0.12 sec
+        Start  34: e2e_bits_shift_named
+ 28/500 Test  #28: e2e_bits ..................................................   Passed    0.12 sec
+        Start  35: e2e_bitvector_concat_named
+ 29/500 Test  #29: e2e_bits_cmp_order ........................................   Passed    0.12 sec
+        Start  36: e2e_block_let_scope
+ 30/500 Test  #30: e2e_bits_div ..............................................   Passed    0.12 sec
+        Start  37: e2e_blsmsk_polywidth
+ 31/500 Test  #16: e2e_base_name_alias_collision .............................   Passed    0.31 sec
+        Start  38: e2e_bool_bit
+ 32/500 Test  #32: e2e_bits_named_ops ........................................   Passed    0.11 sec
+        Start  39: e2e_bool_bits_conv
+ 33/500 Test  #31: e2e_bits_lit_widen ........................................   Passed    0.12 sec
+        Start  40: e2e_bool_named
+ 34/500 Test  #33: e2e_bits_of_int_named .....................................   Passed    0.11 sec
+        Start  41: e2e_bool_side_in_loop
+ 35/500 Test  #34: e2e_bits_shift_named ......................................   Passed    0.12 sec
+        Start  42: e2e_bounded_set_div
+ 36/500 Test  #36: e2e_block_let_scope .......................................   Passed    0.11 sec
+        Start  43: e2e_bounded_set_write_width
+ 37/500 Test  #35: e2e_bitvector_concat_named ................................   Passed    0.12 sec
+        Start  44: e2e_branch_dynamic_slice_poly_zero
+ 38/500 Test  #38: e2e_bool_bit ..............................................   Passed    0.11 sec
+        Start  45: e2e_branch_dynamic_slice_read
+ 39/500 Test  #37: e2e_blsmsk_polywidth ......................................   Passed    0.14 sec
+        Start  46: e2e_branchless_blend_bit_sel
+ 40/500 Test  #39: e2e_bool_bits_conv ........................................   Passed    0.11 sec
+        Start  47: e2e_bv_concat_struct
+ 41/500 Test  #40: e2e_bool_named ............................................   Passed    0.11 sec
+        Start  48: e2e_bv_overflow
+ 42/500 Test  #41: e2e_bool_side_in_loop .....................................   Passed    0.12 sec
+        Start  49: e2e_bzhi_runtime_width_regression
+ 43/500 Test  #44: e2e_branch_dynamic_slice_poly_zero ........................   Passed    0.12 sec
+        Start  50: e2e_calc
+ 44/500 Test  #42: e2e_bounded_set_div .......................................   Passed    0.13 sec
+        Start  51: e2e_call_narrow_bits_param_coerce
+ 45/500 Test  #43: e2e_bounded_set_write_width ...............................   Passed    0.13 sec
+        Start  52: e2e_call_rel16_wrap_realmode
+ 46/500 Test  #45: e2e_branch_dynamic_slice_read .............................   Passed    0.12 sec
+        Start  53: e2e_case_split_tuple_widen
+ 47/500 Test  #46: e2e_branchless_blend_bit_sel ..............................   Passed    0.12 sec
+        Start  54: e2e_case_split_wider_arm
+ 48/500 Test  #47: e2e_bv_concat_struct ......................................   Passed    0.12 sec
+        Start  55: e2e_cast_length
+ 49/500 Test  #48: e2e_bv_overflow ...........................................   Passed    0.12 sec
+        Start  56: e2e_catch_rethrow
+ 50/500 Test  #49: e2e_bzhi_runtime_width_regression .........................   Passed    0.11 sec
+        Start  57: e2e_checksum
+ 51/500 Test  #51: e2e_call_narrow_bits_param_coerce .........................   Passed    0.11 sec
+        Start  58: e2e_clause_block_let_inference
+ 52/500 Test  #50: e2e_calc ..................................................   Passed    0.12 sec
+        Start  59: e2e_clause_cast_body_inference
+ 53/500 Test  #52: e2e_call_rel16_wrap_realmode ..............................   Passed    0.13 sec
+        Start  60: e2e_clause_concat_body_inference
+ 54/500 Test  #53: e2e_case_split_tuple_widen ................................   Passed    0.11 sec
+        Start  61: e2e_clause_ctor_bits_payload_inference
+ 55/500 Test  #54: e2e_case_split_wider_arm ..................................   Passed    0.12 sec
+        Start  62: e2e_clause_ctor_pattern_var_inference
+ 56/500 Test  #55: e2e_cast_length ...........................................   Passed    0.11 sec
+        Start  63: e2e_clause_dyn_bit_slice_inference
+ 57/500 Test  #56: e2e_catch_rethrow .........................................   Passed    0.12 sec
+        Start  64: e2e_clause_extend_body_inference
+ 58/500 Test  #57: e2e_checksum ..............................................   Passed    0.12 sec
+        Start  65: e2e_clause_field_body_inference
+ 59/500 Test  #58: e2e_clause_block_let_inference ............................   Passed    0.11 sec
+        Start  66: e2e_clause_get_slice_int_inference
+ 60/500 Test  #59: e2e_clause_cast_body_inference ............................   Passed    0.11 sec
+        Start  67: e2e_clause_guard
+ 61/500 Test  #61: e2e_clause_ctor_bits_payload_inference ....................   Passed    0.11 sec
+        Start  68: e2e_clause_list_builtin_inference
+ 62/500 Test  #60: e2e_clause_concat_body_inference ..........................   Passed    0.12 sec
+        Start  69: e2e_clause_merge_unknown_return
+ 63/500 Test  #62: e2e_clause_ctor_pattern_var_inference .....................   Passed    0.11 sec
+        Start  70: e2e_clause_multiarg_ctor_inference
+ 64/500 Test  #64: e2e_clause_extend_body_inference ..........................   Passed    0.11 sec
+        Start  71: e2e_clause_string_builtin_inference
+ 65/500 Test  #63: e2e_clause_dyn_bit_slice_inference ........................   Passed    0.12 sec
+        Start  72: e2e_clause_truncate_arg_order
+ 66/500 Test  #65: e2e_clause_field_body_inference ...........................   Passed    0.11 sec
+        Start  73: e2e_clause_try_body_inference
+ 67/500 Test  #66: e2e_clause_get_slice_int_inference ........................   Passed    0.12 sec
+        Start  74: e2e_clause_tuple_bits_ret_inference
+ 68/500 Test  #68: e2e_clause_list_builtin_inference .........................   Passed    0.12 sec
+        Start  75: e2e_clause_unary_op_inference
+ 69/500 Test  #67: e2e_clause_guard ..........................................   Passed    0.13 sec
+        Start  76: e2e_clause_union_pattern
+ 70/500 Test  #69: e2e_clause_merge_unknown_return ...........................   Passed    0.12 sec
+        Start  77: e2e_clause_unsigned_body_inference
+ 71/500 Test  #70: e2e_clause_multiarg_ctor_inference ........................   Passed    0.12 sec
+        Start  78: e2e_clause_var_annot_inference
+ 72/500 Test  #71: e2e_clause_string_builtin_inference .......................   Passed    0.12 sec
+        Start  79: e2e_clause_vector_lit_inference
+ 73/500 Test  #72: e2e_clause_truncate_arg_order .............................   Passed    0.12 sec
+        Start  80: e2e_clz
+ 74/500 Test  #73: e2e_clause_try_body_inference .............................   Passed    0.11 sec
+        Start  81: e2e_cmp_against_call
+ 75/500 Test  #74: e2e_clause_tuple_bits_ret_inference .......................   Passed    0.11 sec
+        Start  82: e2e_cmp_zero_zf_realmode_regression
+ 76/500 Test  #76: e2e_clause_union_pattern ..................................   Passed    0.11 sec
+        Start  83: e2e_comb
+ 77/500 Test  #75: e2e_clause_unary_op_inference .............................   Passed    0.12 sec
+        Start  84: e2e_concat_pat_lit_var
+ 78/500 Test  #77: e2e_clause_unsigned_body_inference ........................   Passed    0.12 sec
+        Start  85: e2e_concat_pattern
+ 79/500 Test  #78: e2e_clause_var_annot_inference ............................   Passed    0.12 sec
+        Start  86: e2e_concat_str
+ 80/500 Test  #79: e2e_clause_vector_lit_inference ...........................   Passed    0.13 sec
+        Start  87: e2e_cond_code
+ 81/500 Test  #81: e2e_cmp_against_call ......................................   Passed    0.12 sec
+        Start  88: e2e_config_in_type
+ 82/500 Test  #80: e2e_clz ...................................................   Passed    0.13 sec
+        Start  89: e2e_const_arg_specialization
+ 83/500 Test  #84: e2e_concat_pat_lit_var ....................................   Passed    0.12 sec
+        Start  90: e2e_constraint_sizeof
+ 84/500 Test  #83: e2e_comb ..................................................   Passed    0.12 sec
+        Start  91: e2e_constructor_catch
+ 85/500 Test  #85: e2e_concat_pattern ........................................   Passed    0.12 sec
+        Start  92: e2e_control
+ 86/500 Test  #82: e2e_cmp_zero_zf_realmode_regression .......................   Passed    0.15 sec
+        Start  93: e2e_crc
+ 87/500 Test  #86: e2e_concat_str ............................................   Passed    0.12 sec
+        Start  94: e2e_decoder_disasm
+ 88/500 Test  #89: e2e_const_arg_specialization ..............................   Passed    0.12 sec
+        Start  95: e2e_deep_lhs
+ 89/500 Test  #87: e2e_cond_code .............................................   Passed    0.13 sec
+        Start  96: e2e_deeply_nested_struct
+ 90/500 Test  #88: e2e_config_in_type ........................................   Passed    0.13 sec
+        Start  97: e2e_disasm
+ 91/500 Test  #90: e2e_constraint_sizeof .....................................   Passed    0.12 sec
+        Start  98: e2e_div_128bit
+ 92/500 Test  #91: e2e_constructor_catch .....................................   Passed    0.12 sec
+        Start  99: e2e_dyn_single_bit_slice
+ 93/500 Test  #92: e2e_control ...............................................   Passed    0.12 sec
+        Start 100: e2e_dyn_slice_const_width
+ 94/500 Test  #93: e2e_crc ...................................................   Passed    0.12 sec
+        Start 101: e2e_dyn_slice_let_chain
+ 95/500 Test  #94: e2e_decoder_disasm ........................................   Passed    0.12 sec
+        Start 102: e2e_early_struct_ret
+ 96/500 Test  #95: e2e_deep_lhs ..............................................   Passed    0.12 sec
+        Start 103: e2e_effect_annotation
+ 97/500 Test  #96: e2e_deeply_nested_struct ..................................   Passed    0.12 sec
+        Start 104: e2e_enum
+ 98/500 Test  #97: e2e_disasm ................................................   Passed    0.12 sec
+        Start 105: e2e_eq_anything_named
+ 99/500 Test  #98: e2e_div_128bit ............................................   Passed    0.11 sec
+        Start 106: e2e_eq_string_named
+100/500 Test  #99: e2e_dyn_single_bit_slice ..................................   Passed    0.12 sec
+        Start 107: e2e_exception
+101/500 Test #100: e2e_dyn_slice_const_width .................................   Passed    0.12 sec
+        Start 108: e2e_exception_helper
+102/500 Test #101: e2e_dyn_slice_let_chain ...................................   Passed    0.12 sec
+        Start 109: e2e_exception_payload_type
+103/500 Test #102: e2e_early_struct_ret ......................................   Passed    0.12 sec
+        Start 110: e2e_exception_propagate
+104/500 Test #104: e2e_enum ..................................................   Passed    0.11 sec
+        Start 111: e2e_exception_return_abi
+105/500 Test #103: e2e_effect_annotation .....................................   Passed    0.12 sec
+        Start 112: e2e_exception_tuple_payload
+106/500 Test #105: e2e_eq_anything_named .....................................   Passed    0.11 sec
+        Start 113: e2e_existential_type_alias
+107/500 Test #106: e2e_eq_string_named .......................................   Passed    0.11 sec
+        Start 114: e2e_exn_many_fields
+108/500 Test #107: e2e_exception .............................................   Passed    0.12 sec
+        Start 115: e2e_exn_struct_payload
+109/500 Test #108: e2e_exception_helper ......................................   Passed    0.12 sec
+        Start 116: e2e_extend_to_bits
+110/500 Test #110: e2e_exception_propagate ...................................   Passed    0.12 sec
+        Start 117: e2e_extern
+111/500 Test #112: e2e_exception_tuple_payload ...............................   Passed    0.12 sec
+        Start 118: e2e_extern_argument_result_width
+112/500 Test #113: e2e_existential_type_alias ................................   Passed    0.12 sec
+        Start 119: e2e_extern_called_from_sail
+113/500 Test #111: e2e_exception_return_abi ..................................   Passed    0.12 sec
+        Start 120: e2e_extern_mixed_types
+114/500 Test #114: e2e_exn_many_fields .......................................   Passed    0.11 sec
+        Start 121: e2e_extern_option_bits64_abi
+115/500 Test #109: e2e_exception_payload_type ................................   Passed    0.21 sec
+        Start 122: e2e_extern_sail_int
+116/500 Test #115: e2e_exn_struct_payload ....................................   Passed    0.11 sec
+        Start 123: e2e_extz_exts_trunc
+117/500 Test #116: e2e_extend_to_bits ........................................   Passed    0.12 sec
+        Start 124: e2e_fetch_chain_width
+118/500 Test #117: e2e_extern ................................................   Passed    0.18 sec
+        Start 125: e2e_fetch_read_mem_linear_write32_zero_extends
+119/500 Test #123: e2e_extz_exts_trunc .......................................   Passed    0.11 sec
+        Start 126: e2e_fib_match
+120/500 Test #120: e2e_extern_mixed_types ....................................   Passed    0.19 sec
+        Start 127: e2e_field_slice_lhs
+121/500 Test #121: e2e_extern_option_bits64_abi ..............................   Passed    0.19 sec
+        Start 128: e2e_find_min
+122/500 Test #119: e2e_extern_called_from_sail ...............................   Passed    0.20 sec
+        Start 129: e2e_fizzbuzz
+123/500 Test #122: e2e_extern_sail_int .......................................   Passed    0.18 sec
+        Start 130: e2e_fn_with_default
+124/500 Test #125: e2e_fetch_read_mem_linear_write32_zero_extends ............   Passed    0.12 sec
+        Start 131: e2e_foreach_shadow
+125/500 Test #118: e2e_extern_argument_result_width ..........................   Passed    0.24 sec
+        Start 132: e2e_foreach_slice_iter
+126/500 Test #124: e2e_fetch_chain_width .....................................   Passed    0.21 sec
+        Start 133: e2e_foreach_struct_init
+127/500 Test #126: e2e_fib_match .............................................   Passed    0.11 sec
+        Start 134: e2e_foreach_typevar
+128/500 Test #127: e2e_field_slice_lhs .......................................   Passed    0.12 sec
+        Start 135: e2e_full_alu
+129/500 Test #129: e2e_fizzbuzz ..............................................   Passed    0.11 sec
+        Start 136: e2e_func_var_same_name
+130/500 Test #128: e2e_find_min ..............................................   Passed    0.12 sec
+        Start 137: e2e_function_and
+131/500 Test #130: e2e_fn_with_default .......................................   Passed    0.12 sec
+        Start 138: e2e_function_clause
+132/500 Test #131: e2e_foreach_shadow ........................................   Passed    0.11 sec
+        Start 139: e2e_function_forall
+133/500 Test #132: e2e_foreach_slice_iter ....................................   Passed    0.11 sec
+        Start 140: e2e_get_slice_int_wide
+134/500 Test #134: e2e_foreach_typevar .......................................   Passed    0.11 sec
+        Start 141: e2e_get_slice_unsigned_256_high_byte_regression
+135/500 Test #133: e2e_foreach_struct_init ...................................   Passed    0.12 sec
+        Start 142: e2e_global_bits
+136/500 Test #135: e2e_full_alu ..............................................   Passed    0.12 sec
+        Start 143: e2e_global_let_bindings
+137/500 Test #136: e2e_func_var_same_name ....................................   Passed    0.12 sec
+        Start 144: e2e_grid_2d
+138/500 Test #138: e2e_function_clause .......................................   Passed    0.12 sec
+        Start 145: e2e_hello
+139/500 Test #137: e2e_function_and ..........................................   Passed    0.13 sec
+        Start 146: e2e_hex_bits_str
+140/500 Test #139: e2e_function_forall .......................................   Passed    0.11 sec
+        Start 147: e2e_hex_str_128bit
+141/500 Test #140: e2e_get_slice_int_wide ....................................   Passed    0.11 sec
+        Start 148: e2e_hex_str_upper
+142/500 Test #141: e2e_get_slice_unsigned_256_high_byte_regression ...........   Passed    0.11 sec
+        Start 149: e2e_if_chain_string
+143/500 Test #142: e2e_global_bits ...........................................   Passed    0.11 sec
+        Start 150: e2e_if_polywidth_arm
+144/500 Test #144: e2e_grid_2d ...............................................   Passed    0.11 sec
+        Start 151: e2e_if_tuple_default_width
+145/500 Test #143: e2e_global_let_bindings ...................................   Passed    0.12 sec
+        Start 152: e2e_if_tuple_union_elem
+146/500 Test #145: e2e_hello .................................................   Passed    0.11 sec
+        Start 153: e2e_ifdef
+147/500 Test #146: e2e_hex_bits_str ..........................................   Passed    0.11 sec
+        Start 154: e2e_ifndef_define
+148/500 Test #148: e2e_hex_str_upper .........................................   Passed    0.11 sec
+        Start 155: e2e_implicit_function_clauses
+149/500 Test #147: e2e_hex_str_128bit ........................................   Passed    0.12 sec
+        Start 156: e2e_implicit_param
+150/500 Test #149: e2e_if_chain_string .......................................   Passed    0.12 sec
+        Start 157: e2e_implicit_param_passthrough
+151/500 Test #150: e2e_if_polywidth_arm ......................................   Passed    0.12 sec
+        Start 158: e2e_implicit_passthrough_overload
+152/500 Test #151: e2e_if_tuple_default_width ................................   Passed    0.12 sec
+        Start 159: e2e_implies_operator
+153/500 Test #152: e2e_if_tuple_union_elem ...................................   Passed    0.12 sec
+        Start 160: e2e_implies_short_circuit
+154/500 Test #154: e2e_ifndef_define .........................................   Passed    0.11 sec
+        Start 161: e2e_imul3_zero_extend
+155/500 Test #153: e2e_ifdef .................................................   Passed    0.12 sec
+        Start 162: e2e_imul_dynamic_width_flags
+156/500 Test #156: e2e_implicit_param ........................................   Passed    0.11 sec
+        Start 163: e2e_imul_get_slice_int_high_half_regression
+157/500 Test #155: e2e_implicit_function_clauses .............................   Passed    0.13 sec
+        Start 164: e2e_imul_local_os_high_half_regression
+158/500 Test #157: e2e_implicit_param_passthrough ............................   Passed    0.12 sec
+        Start 165: e2e_imul_to_bits_truncate_unannotated_let_regression
+159/500 Test #158: e2e_implicit_passthrough_overload .........................   Passed    0.12 sec
+        Start 166: e2e_indent
+160/500 Test #159: e2e_implies_operator ......................................   Passed    0.11 sec
+        Start 167: e2e_insn_disasm
+161/500 Test #160: e2e_implies_short_circuit .................................   Passed    0.12 sec
+        Start 168: e2e_int_app_typevar_specialization
+162/500 Test #161: e2e_imul3_zero_extend .....................................   Passed    0.12 sec
+        Start 169: e2e_int_named_ops
+163/500 Test #162: e2e_imul_dynamic_width_flags ..............................   Passed    0.12 sec
+        Start 170: e2e_int_named_ops2
+164/500 Test #163: e2e_imul_get_slice_int_high_half_regression ...............   Passed    0.11 sec
+        Start 171: e2e_int_slice_expected_bit_index
+165/500 Test #164: e2e_imul_local_os_high_half_regression ....................   Passed    0.12 sec
+        Start 172: e2e_int_widen_cmp
+166/500 Test #165: e2e_imul_to_bits_truncate_unannotated_let_regression ......   Passed    0.11 sec
+        Start 173: e2e_internal_error
+167/500 Test #166: e2e_indent ................................................   Passed    0.12 sec
+        Start 174: e2e_internal_plet
+168/500 Test #167: e2e_insn_disasm ...........................................   Passed    0.12 sec
+        Start 175: e2e_is_prime
+169/500 Test #169: e2e_int_named_ops .........................................   Passed    0.11 sec
+        Start 176: e2e_lbits_extern_multi
+170/500 Test #170: e2e_int_named_ops2 ........................................   Passed    0.12 sec
+        Start 177: e2e_lbits_extern_param
+171/500 Test #171: e2e_int_slice_expected_bit_index ..........................   Passed    0.11 sec
+        Start 178: e2e_lbits_roundtrip
+172/500 Test #168: e2e_int_app_typevar_specialization ........................   Passed    0.13 sec
+        Start 179: e2e_leibniz
+173/500 Test #172: e2e_int_widen_cmp .........................................   Passed    0.11 sec
+        Start 180: e2e_let_bits_width
+174/500 Test #173: e2e_internal_error ........................................   Passed    0.11 sec
+        Start 181: e2e_let_const_arith
+175/500 Test #174: e2e_internal_plet .........................................   Passed    0.12 sec
+        Start 182: e2e_let_constructor_pattern
+176/500 Test #175: e2e_is_prime ..............................................   Passed    0.11 sec
+        Start 183: e2e_let_in_expression
+177/500 Test #179: e2e_leibniz ...............................................   Passed    0.12 sec
+        Start 184: e2e_let_neg_lit
+178/500 Test #180: e2e_let_bits_width ........................................   Passed    0.12 sec
+        Start 185: e2e_let_nested_tuple
+179/500 Test #181: e2e_let_const_arith .......................................   Passed    0.11 sec
+        Start 186: e2e_let_struct_annotation
+180/500 Test #182: e2e_let_constructor_pattern ...............................   Passed    0.11 sec
+        Start 187: e2e_let_typevar_width
+181/500 Test #176: e2e_lbits_extern_multi ....................................   Passed    0.18 sec
+        Start 188: e2e_list
+182/500 Test #177: e2e_lbits_extern_param ....................................   Passed    0.19 sec
+        Start 189: e2e_list_cons_pattern
+183/500 Test #178: e2e_lbits_roundtrip .......................................   Passed    0.19 sec
+        Start 190: e2e_list_equal
+184/500 Test #183: e2e_let_in_expression .....................................   Passed    0.11 sec
+        Start 191: e2e_list_literal
+185/500 Test #184: e2e_let_neg_lit ...........................................   Passed    0.11 sec
+        Start 192: e2e_list_match
+186/500 Test #185: e2e_let_nested_tuple ......................................   Passed    0.12 sec
+        Start 193: e2e_list_of_strings
+187/500 Test #186: e2e_let_struct_annotation .................................   Passed    0.12 sec
+        Start 194: e2e_logic_ops
+188/500 Test #187: e2e_let_typevar_width .....................................   Passed    0.11 sec
+        Start 195: e2e_loops
+189/500 Test #188: e2e_list ..................................................   Passed    0.11 sec
+        Start 196: e2e_many_lbits_calls
+190/500 Test #189: e2e_list_cons_pattern .....................................   Passed    0.11 sec
+        Start 197: e2e_mapping
+191/500 Test #190: e2e_list_equal ............................................   Passed    0.11 sec
+        Start 198: e2e_mapping_backwards
+192/500 Test #191: e2e_list_literal ..........................................   Passed    0.12 sec
+        Start 199: e2e_mapping_backwards_only_arm
+193/500 Test #192: e2e_list_match ............................................   Passed    0.12 sec
+        Start 200: e2e_mapping_call_backwards
+194/500 Test #193: e2e_list_of_strings .......................................   Passed    0.11 sec
+        Start 201: e2e_mapping_call_forward_name_backward_arg
+195/500 Test #194: e2e_logic_ops .............................................   Passed    0.11 sec
+        Start 202: e2e_mapping_complex_lhs_silent
+196/500 Test #195: e2e_loops .................................................   Passed    0.11 sec
+        Start 203: e2e_mapping_pattern
+197/500 Test #198: e2e_mapping_backwards .....................................   Passed    0.12 sec
+        Start 204: e2e_mapping_val
+198/500 Test #197: e2e_mapping ...............................................   Passed    0.12 sec
+        Start 205: e2e_mapping_val_backwards_redirect
+199/500 Test #199: e2e_mapping_backwards_only_arm ............................   Passed    0.11 sec
+        Start 206: e2e_match
+200/500 Test #200: e2e_mapping_call_backwards ................................   Passed    0.12 sec
+        Start 207: e2e_match_guarded_range
+201/500 Test #196: e2e_many_lbits_calls ......................................   Passed    0.19 sec
+        Start 208: e2e_match_guards_mixed
+202/500 Test #201: e2e_mapping_call_forward_name_backward_arg ................   Passed    0.12 sec
+        Start 209: e2e_match_int_param
+203/500 Test #202: e2e_mapping_complex_lhs_silent ............................   Passed    0.12 sec
+        Start 210: e2e_match_pattern_shadow
+204/500 Test #203: e2e_mapping_pattern .......................................   Passed    0.12 sec
+        Start 211: e2e_match_slice_cache
+205/500 Test #204: e2e_mapping_val ...........................................   Passed    0.12 sec
+        Start 212: e2e_match_tuple_bits_gprref
+206/500 Test #205: e2e_mapping_val_backwards_redirect ........................   Passed    0.12 sec
+        Start 213: e2e_match_unannotated_widen
+207/500 Test #206: e2e_match .................................................   Passed    0.12 sec
+        Start 214: e2e_maybe
+208/500 Test #208: e2e_match_guards_mixed ....................................   Passed    0.12 sec
+        Start 215: e2e_mem_copy_preserve
+209/500 Test #207: e2e_match_guarded_range ...................................   Passed    0.13 sec
+        Start 216: e2e_min_max_abs
+210/500 Test #209: e2e_match_int_param .......................................   Passed    0.12 sec
+        Start 217: e2e_min_max_int
+211/500 Test #210: e2e_match_pattern_shadow ..................................   Passed    0.11 sec
+        Start 218: e2e_mini_cpu
+212/500 Test #211: e2e_match_slice_cache .....................................   Passed    0.11 sec
+        Start 219: e2e_mini_isa
+213/500 Test #213: e2e_match_unannotated_widen ...............................   Passed    0.11 sec
+        Start 220: e2e_mini_x86
+214/500 Test #212: e2e_match_tuple_bits_gprref ...............................   Passed    0.12 sec
+        Start 221: e2e_modrm
+215/500 Test #214: e2e_maybe .................................................   Passed    0.11 sec
+        Start 222: e2e_modrm_decode
+216/500 Test #216: e2e_min_max_abs ...........................................   Passed    0.11 sec
+        Start 223: e2e_mov_imm32_opsize_realmode
+217/500 Test #217: e2e_min_max_int ...........................................   Passed    0.11 sec
+        Start 224: e2e_movs_df_address16_sign_extend
+218/500 Test #219: e2e_mini_isa ..............................................   Passed    0.12 sec
+        Start 225: e2e_mul_high_bits
+219/500 Test #218: e2e_mini_cpu ..............................................   Passed    0.12 sec
+        Start 226: e2e_multi_arity_union
+220/500 Test #220: e2e_mini_x86 ..............................................   Passed    0.12 sec
+        Start 227: e2e_multi_arm_catch
+221/500 Test #221: e2e_modrm .................................................   Passed    0.12 sec
+        Start 228: e2e_neg_bits
+222/500 Test #222: e2e_modrm_decode ..........................................   Passed    0.11 sec
+        Start 229: e2e_neg_flags_mixed_poly_args
+223/500 Test #215: e2e_mem_copy_preserve .....................................   Passed    0.19 sec
+        Start 230: e2e_neg_int_min
+224/500 Test #224: e2e_movs_df_address16_sign_extend .........................   Passed    0.12 sec
+        Start 231: e2e_neg_mod
+225/500 Test #225: e2e_mul_high_bits .........................................   Passed    0.11 sec
+        Start 232: e2e_neg_pattern
+226/500 Test #226: e2e_multi_arity_union .....................................   Passed    0.11 sec
+        Start 233: e2e_nested_alias_chain
+227/500 Test #223: e2e_mov_imm32_opsize_realmode .............................   Passed    0.14 sec
+        Start 234: e2e_nested_field_lhs
+228/500 Test #228: e2e_neg_bits ..............................................   Passed    0.12 sec
+        Start 235: e2e_nested_loops
+229/500 Test #227: e2e_multi_arm_catch .......................................   Passed    0.13 sec
+        Start 236: e2e_nested_struct
+230/500 Test #230: e2e_neg_int_min ...........................................   Passed    0.12 sec
+        Start 237: e2e_nested_struct_equal
+231/500 Test #229: e2e_neg_flags_mixed_poly_args .............................   Passed    0.13 sec
+        Start 238: e2e_nested_struct_init
+232/500 Test #231: e2e_neg_mod ...............................................   Passed    0.12 sec
+        Start 239: e2e_nested_union_types
+233/500 Test #232: e2e_neg_pattern ...........................................   Passed    0.12 sec
+        Start 240: e2e_newtype
+234/500 Test #233: e2e_nested_alias_chain ....................................   Passed    0.12 sec
+        Start 241: e2e_num_of_bool
+235/500 Test #234: e2e_nested_field_lhs ......................................   Passed    0.12 sec
+        Start 242: e2e_op_overload
+236/500 Test #235: e2e_nested_loops ..........................................   Passed    0.12 sec
+        Start 243: e2e_option_equal
+237/500 Test #237: e2e_nested_struct_equal ...................................   Passed    0.12 sec
+        Start 244: e2e_option_match
+238/500 Test #238: e2e_nested_struct_init ....................................   Passed    0.12 sec
+        Start 245: e2e_or_pattern
+239/500 Test #236: e2e_nested_struct .........................................   Passed    0.13 sec
+        Start 246: e2e_overload
+240/500 Test #239: e2e_nested_union_types ....................................   Passed    0.11 sec
+        Start 247: e2e_overload_big
+241/500 Test #240: e2e_newtype ...............................................   Passed    0.12 sec
+        Start 248: e2e_overload_explicit_implicit_width
+242/500 Test #241: e2e_num_of_bool ...........................................   Passed    0.12 sec
+        Start 249: e2e_overload_may_throw
+243/500 Test #242: e2e_op_overload ...........................................   Passed    0.12 sec
+        Start 250: e2e_overload_op_first_alt_bits
+244/500 Test #243: e2e_option_equal ..........................................   Passed    0.12 sec
+        Start 251: e2e_overload_setter_int_width
+245/500 Test #244: e2e_option_match ..........................................   Passed    0.12 sec
+        Start 252: e2e_overload_struct_param
+246/500 Test #245: e2e_or_pattern ............................................   Passed    0.12 sec
+        Start 253: e2e_particle_sim
+247/500 Test #246: e2e_overload ..............................................   Passed    0.12 sec
+        Start 254: e2e_pcmpistri_branchy_equal_any
+248/500 Test #247: e2e_overload_big ..........................................   Passed    0.12 sec
+        Start 255: e2e_poly
+249/500 Test #249: e2e_overload_may_throw ....................................   Passed    0.12 sec
+        Start 256: e2e_poly_alu
+250/500 Test #248: e2e_overload_explicit_implicit_width ......................   Passed    0.12 sec
+        Start 257: e2e_poly_tuple_ret
+251/500 Test #250: e2e_overload_op_first_alt_bits ............................   Passed    0.12 sec
+        Start 258: e2e_poly_union_int_payload
+252/500 Test #251: e2e_overload_setter_int_width .............................   Passed    0.12 sec
+        Start 259: e2e_polymorphic_alias_intlit_arg
+253/500 Test #252: e2e_overload_struct_param .................................   Passed    0.12 sec
+        Start 260: e2e_polymorphic_shadowed_sub_width_recursion_regression
+254/500 Test #253: e2e_particle_sim ..........................................   Passed    0.12 sec
+        Start 261: e2e_polymorphic_slice_assign_expected_width
+255/500 Test #254: e2e_pcmpistri_branchy_equal_any ...........................   Passed    0.12 sec
+        Start 262: e2e_polymorphic_slice_write_gpr_low8
+256/500 Test #255: e2e_poly ..................................................   Passed    0.11 sec
+        Start 263: e2e_polymorphic_type_alias
+257/500 Test #256: e2e_poly_alu ..............................................   Passed    0.12 sec
+        Start 264: e2e_pop_far_ptr
+258/500 Test #257: e2e_poly_tuple_ret ........................................   Passed    0.12 sec
+        Start 265: e2e_pop_setter_width_regression
+259/500 Test #258: e2e_poly_union_int_payload ................................   Passed    0.11 sec
+        Start 266: e2e_popcount
+260/500 Test #259: e2e_polymorphic_alias_intlit_arg ..........................   Passed    0.12 sec
+        Start 267: e2e_popcount_clz_ctz
+261/500 Test #260: e2e_polymorphic_shadowed_sub_width_recursion_regression ...   Passed    0.12 sec
+        Start 268: e2e_print_bits_128
+262/500 Test #262: e2e_polymorphic_slice_write_gpr_low8 ......................   Passed    0.12 sec
+        Start 269: e2e_print_bits_binary
+263/500 Test #261: e2e_polymorphic_slice_assign_expected_width ...............   Passed    0.12 sec
+        Start 270: e2e_print_int_big
+264/500 Test #263: e2e_polymorphic_type_alias ................................   Passed    0.11 sec
+        Start 271: e2e_print_no_newline
+265/500 Test #264: e2e_pop_far_ptr ...........................................   Passed    0.11 sec
+        Start 272: e2e_pure_block
+266/500 Test #266: e2e_popcount ..............................................   Passed    0.12 sec
+        Start 273: e2e_push_rsp_polymorphic_write_regression
+267/500 Test #265: e2e_pop_setter_width_regression ...........................   Passed    0.13 sec
+        Start 274: e2e_push_setter_width_regression
+268/500 Test #268: e2e_print_bits_128 ........................................   Passed    0.12 sec
+        Start 275: e2e_quadrant
+269/500 Test #267: e2e_popcount_clz_ctz ......................................   Passed    0.12 sec
+        Start 276: e2e_recursion
+270/500 Test #269: e2e_print_bits_binary .....................................   Passed    0.12 sec
+        Start 277: e2e_recursive_struct
+271/500 Test #270: e2e_print_int_big .........................................   Passed    0.12 sec
+        Start 278: e2e_reg_field_update
+272/500 Test #271: e2e_print_no_newline ......................................   Passed    0.11 sec
+        Start 279: e2e_reg_init_from_fn
+273/500 Test #272: e2e_pure_block ............................................   Passed    0.12 sec
+        Start 280: e2e_reg_init_via_overload
+274/500 Test #274: e2e_push_setter_width_regression ..........................   Passed    0.13 sec
+        Start 281: e2e_register
+275/500 Test #273: e2e_push_rsp_polymorphic_write_regression .................   Passed    0.15 sec
+        Start 282: e2e_register_array_init
+276/500 Test #275: e2e_quadrant ..............................................   Passed    0.12 sec
+        Start 283: e2e_register_init
+277/500 Test #276: e2e_recursion .............................................   Passed    0.12 sec
+        Start 284: e2e_register_init_chain
+278/500 Test #277: e2e_recursive_struct ......................................   Passed    0.12 sec
+        Start 285: e2e_register_init_vec_bits64_repro
+279/500 Test #278: e2e_reg_field_update ......................................   Passed    0.12 sec
+        Start 286: e2e_register_option
+280/500 Test #279: e2e_reg_init_from_fn ......................................   Passed    0.12 sec
+        Start 287: e2e_register_option_bits64
+281/500 Test #280: e2e_reg_init_via_overload .................................   Passed    0.11 sec
+        Start 288: e2e_register_read_modify_write
+282/500 Test #281: e2e_register ..............................................   Passed    0.12 sec
+        Start 289: e2e_register_struct_init
+283/500 Test #282: e2e_register_array_init ...................................   Passed    0.12 sec
+        Start 290: e2e_replicate_bits
+284/500 Test #283: e2e_register_init .........................................   Passed    0.12 sec
+        Start 291: e2e_result_union
+285/500 Test #286: e2e_register_option .......................................   Passed    0.12 sec
+        Start 292: e2e_risc
+286/500 Test #284: e2e_register_init_chain ...................................   Passed    0.13 sec
+        Start 293: e2e_riscv_decode
+287/500 Test #287: e2e_register_option_bits64 ................................   Passed    0.11 sec
+        Start 294: e2e_rotate
+288/500 Test #285: e2e_register_init_vec_bits64_repro ........................   Passed    0.13 sec
+        Start 295: e2e_runtime_bit_set
+289/500 Test #288: e2e_register_read_modify_write ............................   Passed    0.11 sec
+        Start 296: e2e_runtime_slice_assign
+290/500 Test #290: e2e_replicate_bits ........................................   Passed    0.11 sec
+        Start 297: e2e_sail_mask
+291/500 Test #289: e2e_register_struct_init ..................................   Passed    0.12 sec
+        Start 298: e2e_sail_zero_extend_rm_jump_target
+292/500 Test #291: e2e_result_union ..........................................   Passed    0.12 sec
+        Start 299: e2e_scan_prefixes_opsize
+293/500 Test #293: e2e_riscv_decode ..........................................   Passed    0.11 sec
+        Start 300: e2e_scattered_enum
+294/500 Test #294: e2e_rotate ................................................   Passed    0.12 sec
+        Start 301: e2e_scattered_fn_preserve_valspec
+295/500 Test #292: e2e_risc ..................................................   Passed    0.13 sec
+        Start 302: e2e_scattered_mapping
+296/500 Test #295: e2e_runtime_bit_set .......................................   Passed    0.12 sec
+        Start 303: e2e_scattered_union
+297/500 Test #296: e2e_runtime_slice_assign ..................................   Passed    0.11 sec
+        Start 304: e2e_set_slice_bits
+298/500 Test #297: e2e_sail_mask .............................................   Passed    0.12 sec
+        Start 305: e2e_set_slice_int
+299/500 Test #298: e2e_sail_zero_extend_rm_jump_target .......................   Passed    0.13 sec
+        Start 306: e2e_setter_call
+300/500 Test #300: e2e_scattered_enum ........................................   Passed    0.11 sec
+        Start 307: e2e_setter_through_let
+301/500 Test #302: e2e_scattered_mapping .....................................   Passed    0.12 sec
+        Start 308: e2e_shadow_register
+302/500 Test #301: e2e_scattered_fn_preserve_valspec .........................   Passed    0.12 sec
+        Start 309: e2e_shadowed_const_slice_bound
+303/500 Test #299: e2e_scan_prefixes_opsize ..................................   Passed    0.14 sec
+        Start 310: e2e_shift_full_width
+304/500 Test #303: e2e_scattered_union .......................................   Passed    0.12 sec
+        Start 311: e2e_short_circuit_eval
+305/500 Test #304: e2e_set_slice_bits ........................................   Passed    0.11 sec
+        Start 312: e2e_sieve
+306/500 Test #305: e2e_set_slice_int .........................................   Passed    0.11 sec
+        Start 313: e2e_sign_extend_bit
+307/500 Test #306: e2e_setter_call ...........................................   Passed    0.12 sec
+        Start 314: e2e_sign_extend_bit_slice
+308/500 Test #307: e2e_setter_through_let ....................................   Passed    0.12 sec
+        Start 315: e2e_sign_extend_bit_type
+309/500 Test #309: e2e_shadowed_const_slice_bound ............................   Passed    0.12 sec
+        Start 316: e2e_sign_extend_const_width
+310/500 Test #308: e2e_shadow_register .......................................   Passed    0.12 sec
+        Start 317: e2e_sign_extend_contextual_or
+311/500 Test #310: e2e_shift_full_width ......................................   Passed    0.12 sec
+        Start 318: e2e_sign_extend_fetch
+312/500 Test #311: e2e_short_circuit_eval ....................................   Passed    0.13 sec
+        Start 319: e2e_sign_extend_fetch_imm8
+313/500 Test #312: e2e_sieve .................................................   Passed    0.13 sec
+        Start 320: e2e_sign_extend_poly_bit_slice
+314/500 Test #313: e2e_sign_extend_bit .......................................   Passed    0.11 sec
+        Start 321: e2e_signed_concat_128
+315/500 Test #314: e2e_sign_extend_bit_slice .................................   Passed    0.12 sec
+        Start 322: e2e_single_field_struct_param
+316/500 Test #315: e2e_sign_extend_bit_type ..................................   Passed    0.11 sec
+        Start 323: e2e_slice_assign
+317/500 Test #316: e2e_sign_extend_const_width ...............................   Passed    0.12 sec
+        Start 324: e2e_slice_builtin
+318/500 Test #319: e2e_sign_extend_fetch_imm8 ................................   Passed    0.11 sec
+        Start 325: e2e_slice_concat_offset
+319/500 Test #320: e2e_sign_extend_poly_bit_slice ............................   Passed    0.11 sec
+        Start 326: e2e_slice_expr_in_scope
+320/500 Test #317: e2e_sign_extend_contextual_or .............................   Passed    0.13 sec
+        Start 327: e2e_sret_tuple_return
+321/500 Test #318: e2e_sign_extend_fetch .....................................   Passed    0.13 sec
+        Start 328: e2e_stack_machine
+322/500 Test #321: e2e_signed_concat_128 .....................................   Passed    0.11 sec
+        Start 329: e2e_stack_struct
+323/500 Test #322: e2e_single_field_struct_param .............................   Passed    0.11 sec
+        Start 330: e2e_string_builtins
+324/500 Test #323: e2e_slice_assign ..........................................   Passed    0.11 sec
+        Start 331: e2e_string_concat
+325/500 Test #324: e2e_slice_builtin .........................................   Passed    0.11 sec
+        Start 332: e2e_string_eq
+326/500 Test #325: e2e_slice_concat_offset ...................................   Passed    0.12 sec
+        Start 333: e2e_string_int
+327/500 Test #326: e2e_slice_expr_in_scope ...................................   Passed    0.11 sec
+        Start 334: e2e_string_length
+328/500 Test #327: e2e_sret_tuple_return .....................................   Passed    0.12 sec
+        Start 335: e2e_string_match
+329/500 Test #328: e2e_stack_machine .........................................   Passed    0.13 sec
+        Start 336: e2e_string_of_bits
+330/500 Test #329: e2e_stack_struct ..........................................   Passed    0.12 sec
+        Start 337: e2e_struct
+331/500 Test #330: e2e_string_builtins .......................................   Passed    0.11 sec
+        Start 338: e2e_struct_app_param_not_const_specialized
+332/500 Test #331: e2e_string_concat .........................................   Passed    0.12 sec
+        Start 339: e2e_struct_chain
+333/500 Test #332: e2e_string_eq .............................................   Passed    0.11 sec
+        Start 340: e2e_struct_equal
+334/500 Test #333: e2e_string_int ............................................   Passed    0.11 sec
+        Start 341: e2e_struct_forward_ref
+335/500 Test #334: e2e_string_length .........................................   Passed    0.12 sec
+        Start 342: e2e_struct_lit_return_inference
+336/500 Test #335: e2e_string_match ..........................................   Passed    0.12 sec
+        Start 343: e2e_struct_of_vec
+337/500 Test #336: e2e_string_of_bits ........................................   Passed    0.11 sec
+        Start 344: e2e_struct_pat_var
+338/500 Test #337: e2e_struct ................................................   Passed    0.12 sec
+        Start 345: e2e_struct_pattern
+339/500 Test #338: e2e_struct_app_param_not_const_specialized ................   Passed    0.11 sec
+        Start 346: e2e_struct_str_payload
+340/500 Test #339: e2e_struct_chain ..........................................   Passed    0.11 sec
+        Start 347: e2e_struct_string
+341/500 Test #340: e2e_struct_equal ..........................................   Passed    0.11 sec
+        Start 348: e2e_struct_table
+342/500 Test #341: e2e_struct_forward_ref ....................................   Passed    0.11 sec
+        Start 349: e2e_struct_typevar_foreach
+343/500 Test #343: e2e_struct_of_vec .........................................   Passed    0.11 sec
+        Start 350: e2e_struct_union_eq
+344/500 Test #342: e2e_struct_lit_return_inference ...........................   Passed    0.11 sec
+        Start 351: e2e_struct_value_sem
+345/500 Test #344: e2e_struct_pat_var ........................................   Passed    0.11 sec
+        Start 352: e2e_struct_vec_equal
+346/500 Test #345: e2e_struct_pattern ........................................   Passed    0.11 sec
+        Start 353: e2e_subrange_named
+347/500 Test #346: e2e_struct_str_payload ....................................   Passed    0.11 sec
+        Start 354: e2e_subrange_plain
+348/500 Test #347: e2e_struct_string .........................................   Passed    0.12 sec
+        Start 355: e2e_throw_if_branch
+349/500 Test #348: e2e_struct_table ..........................................   Passed    0.11 sec
+        Start 356: e2e_throw_if_then_call
+350/500 Test #349: e2e_struct_typevar_foreach ................................   Passed    0.11 sec
+        Start 357: e2e_tiny_isa
+351/500 Test #351: e2e_struct_value_sem ......................................   Passed    0.11 sec
+        Start 358: e2e_to_bits_const_let_width
+352/500 Test #350: e2e_struct_union_eq .......................................   Passed    0.12 sec
+        Start 359: e2e_to_bits_local_let_width
+353/500 Test #353: e2e_subrange_named ........................................   Passed    0.11 sec
+        Start 360: e2e_trailing_comma
+354/500 Test #352: e2e_struct_vec_equal ......................................   Passed    0.11 sec
+        Start 361: e2e_transpose
+355/500 Test #354: e2e_subrange_plain ........................................   Passed    0.11 sec
+        Start 362: e2e_triple_nested_match
+356/500 Test #355: e2e_throw_if_branch .......................................   Passed    0.13 sec
+        Start 363: e2e_truncate_named
+357/500 Test #356: e2e_throw_if_then_call ....................................   Passed    0.12 sec
+        Start 364: e2e_try_catch_unit_return
+358/500 Test #358: e2e_to_bits_const_let_width ...............................   Passed    0.12 sec
+        Start 365: e2e_try_tuple_default_width
+359/500 Test #357: e2e_tiny_isa ..............................................   Passed    0.13 sec
+        Start 366: e2e_try_unannotated_inference
+360/500 Test #359: e2e_to_bits_local_let_width ...............................   Passed    0.12 sec
+        Start 367: e2e_try_value
+361/500 Test #360: e2e_trailing_comma ........................................   Passed    0.12 sec
+        Start 368: e2e_tuple
+362/500 Test #361: e2e_transpose .............................................   Passed    0.12 sec
+        Start 369: e2e_tuple_arg_deconstr
+363/500 Test #362: e2e_triple_nested_match ...................................   Passed    0.12 sec
+        Start 370: e2e_tuple_param_expected_type
+364/500 Test #363: e2e_truncate_named ........................................   Passed    0.12 sec
+        Start 371: e2e_tuple_return_width_mismatch
+365/500 Test #364: e2e_try_catch_unit_return .................................   Passed    0.12 sec
+        Start 372: e2e_type_alias_in_expr
+366/500 Test #366: e2e_try_unannotated_inference .............................   Passed    0.12 sec
+        Start 373: e2e_type_alias_width
+367/500 Test #365: e2e_try_tuple_default_width ...............................   Passed    0.13 sec
+        Start 374: e2e_typed_tuple_let_binding
+368/500 Test #367: e2e_try_value .............................................   Passed    0.12 sec
+        Start 375: e2e_typevar
+369/500 Test #368: e2e_tuple .................................................   Passed    0.12 sec
+        Start 376: e2e_typevar_leak_dec_rm8
+370/500 Test #369: e2e_tuple_arg_deconstr ....................................   Passed    0.12 sec
+        Start 377: e2e_typevar_slice_in_let
+371/500 Test #370: e2e_tuple_param_expected_type .............................   Passed    0.12 sec
+        Start 378: e2e_union
+372/500 Test #372: e2e_type_alias_in_expr ....................................   Passed    0.12 sec
+        Start 379: e2e_union_bool_payload
+373/500 Test #371: e2e_tuple_return_width_mismatch ...........................   Passed    0.12 sec
+        Start 380: e2e_union_explicit_tuple_payload
+374/500 Test #373: e2e_type_alias_width ......................................   Passed    0.12 sec
+        Start 381: e2e_union_forward_ref
+375/500 Test #374: e2e_typed_tuple_let_binding ...............................   Passed    0.12 sec
+        Start 382: e2e_union_literal_payload_match
+376/500 Test #375: e2e_typevar ...............................................   Passed    0.13 sec
+        Start 383: e2e_union_nullary_eq
+377/500 Test #377: e2e_typevar_slice_in_let ..................................   Passed    0.12 sec
+        Start 384: e2e_union_payload_pat
+378/500 Test #378: e2e_union .................................................   Passed    0.11 sec
+        Start 385: e2e_union_struct_payload
+379/500 Test #380: e2e_union_explicit_tuple_payload ..........................   Passed    0.12 sec
+        Start 386: e2e_unreachable_named
+380/500 Test #379: e2e_union_bool_payload ....................................   Passed    0.12 sec
+        Start 387: e2e_unsigned_cmp
+381/500 Test #376: e2e_typevar_leak_dec_rm8 ..................................   Passed    0.21 sec
+        Start 389: e2e_unsigned_large_div
+382/500 Test #381: e2e_union_forward_ref .....................................   Passed    0.12 sec
+        Start 390: e2e_unsigned_returns_int
+383/500 Test #383: e2e_union_nullary_eq ......................................   Passed    0.11 sec
+        Start 391: e2e_update_subrange_named
+384/500 Test #382: e2e_union_literal_payload_match ...........................   Passed    0.12 sec
+        Start 392: e2e_user_neg_shadows_builtin
+385/500 Test #384: e2e_union_payload_pat .....................................   Passed    0.12 sec
+        Start 393: e2e_val_multiarg_wildcard_body
+386/500 Test #385: e2e_union_struct_payload ..................................   Passed    0.11 sec
+        Start 394: e2e_val_type_override
+387/500 Test #386: e2e_unreachable_named .....................................   Passed    0.12 sec
+        Start 395: e2e_var_shadows_let_fold
+388/500 Test #387: e2e_unsigned_cmp ..........................................   Passed    0.12 sec
+        Start 396: e2e_vec_assign
+389/500 Test #389: e2e_unsigned_large_div ....................................   Passed    0.11 sec
+        Start 397: e2e_vec_field_lhs
+390/500 Test #390: e2e_unsigned_returns_int ..................................   Passed    0.12 sec
+        Start 398: e2e_vec_foreach_build
+391/500 Test #392: e2e_user_neg_shadows_builtin ..............................   Passed    0.12 sec
+        Start 399: e2e_vec_lit
+392/500 Test #393: e2e_val_multiarg_wildcard_body ............................   Passed    0.12 sec
+        Start 400: e2e_vec_of_vec_equal
+393/500 Test #391: e2e_update_subrange_named .................................   Passed    0.13 sec
+        Start 401: e2e_vector
+394/500 Test #395: e2e_var_shadows_let_fold ..................................   Passed    0.11 sec
+        Start 402: e2e_vector_access_named
+395/500 Test #396: e2e_vec_assign ............................................   Passed    0.12 sec
+        Start 403: e2e_vector_alias_length
+396/500 Test #394: e2e_val_type_override .....................................   Passed    0.18 sec
+        Start 404: e2e_vector_elem_slice_assign
+397/500 Test #397: e2e_vec_field_lhs .........................................   Passed    0.12 sec
+        Start 405: e2e_vector_equal
+398/500 Test #398: e2e_vec_foreach_build .....................................   Passed    0.12 sec
+        Start 406: e2e_vector_read_modify_write
+399/500 Test #399: e2e_vec_lit ...............................................   Passed    0.12 sec
+        Start 407: e2e_vector_update_syntax
+400/500 Test #400: e2e_vec_of_vec_equal ......................................   Passed    0.12 sec
+        Start 408: e2e_velem_nat_256_high_lane_regression
+401/500 Test #402: e2e_vector_access_named ...................................   Passed    0.11 sec
+        Start 409: e2e_vl_match_overload_narrowing_regression
+402/500 Test #401: e2e_vector ................................................   Passed    0.18 sec
+        Start 410: e2e_vptestnmb_runtime_vl_src_width_regression
+403/500 Test #403: e2e_vector_alias_length ...................................   Passed    0.11 sec
+        Start 411: e2e_wide_bits_register
+404/500 Test #404: e2e_vector_elem_slice_assign ..............................   Passed    0.11 sec
+        Start 412: e2e_wide_bitvector_ops
+405/500 Test #405: e2e_vector_equal ..........................................   Passed    0.11 sec
+        Start 413: e2e_wide_concat_slice
+406/500 Test #406: e2e_vector_read_modify_write ..............................   Passed    0.12 sec
+        Start 414: e2e_wide_extern_return
+407/500 Test #407: e2e_vector_update_syntax ..................................   Passed    0.12 sec
+        Start 415: e2e_wide_lbits_slice
+408/500 Test #408: e2e_velem_nat_256_high_lane_regression ....................   Passed    0.12 sec
+        Start 416: e2e_wide_mem_80bit
+409/500 Test #411: e2e_wide_bits_register ....................................   Passed    0.12 sec
+        Start 417: e2e_wide_mem_write
+410/500 Test #410: e2e_vptestnmb_runtime_vl_src_width_regression .............   Passed    0.13 sec
+        Start 418: e2e_wide_multiply
+411/500 Test #409: e2e_vl_match_overload_narrowing_regression ................   Passed    0.14 sec
+        Start 419: e2e_wide_return_from_if
+412/500 Test #412: e2e_wide_bitvector_ops ....................................   Passed    0.13 sec
+        Start 420: e2e_wide_return_from_try
+413/500 Test #413: e2e_wide_concat_slice .....................................   Passed    0.13 sec
+        Start 421: e2e_wide_return_function
+414/500 Test #414: e2e_wide_extern_return ....................................   Passed    0.18 sec
+        Start 422: e2e_wide_slice_assign
+415/500 Test #415: e2e_wide_lbits_slice ......................................   Passed    0.19 sec
+        Start 423: e2e_x86_decoder
+416/500 Test #416: e2e_wide_mem_80bit ........................................   Passed    0.18 sec
+        Start 424: e2e_x86_pte
+417/500 Test #418: e2e_wide_multiply .........................................   Passed    0.11 sec
+        Start 425: e2e_xadd_rm_mem_writeback_regression
+418/500 Test #421: e2e_wide_return_function ..................................   Passed    0.11 sec
+        Start 426: e2e_zero_extend_expected_width
+419/500 Test #417: e2e_wide_mem_write ........................................   Passed    0.19 sec
+        Start 427: e2e_zero_extend_explicit_width
+420/500 Test #420: e2e_wide_return_from_try ..................................   Passed    0.18 sec
+        Start 428: e2e_zero_extend_polymorphic_masked_result
+421/500 Test #419: e2e_wide_return_from_if ...................................   Passed    0.19 sec
+        Start 429: error_lexer_unexpected_character
+422/500 Test #422: e2e_wide_slice_assign .....................................   Passed    0.11 sec
+        Start 430: error_lexer_unterminated_block_comment
+423/500 Test #429: error_lexer_unexpected_character ..........................   Passed    0.02 sec
+        Start 431: error_lexer_unterminated_string
+424/500 Test #424: e2e_x86_pte ...............................................   Passed    0.11 sec
+        Start 432: error_parser_block_recovery
+425/500 Test #423: e2e_x86_decoder ...........................................   Passed    0.12 sec
+        Start 433: error_parser_expected_expression
+426/500 Test #430: error_lexer_unterminated_block_comment ....................   Passed    0.02 sec
+        Start 434: error_parser_keyword_typo
+427/500 Test #431: error_lexer_unterminated_string ...........................   Passed    0.02 sec
+        Start 435: error_parser_missing_function_name
+428/500 Test #432: error_parser_block_recovery ...............................   Passed    0.02 sec
+        Start 436: error_sema_ambiguous_struct_literal
+429/500 Test #433: error_parser_expected_expression ..........................   Passed    0.02 sec
+        Start 437: error_sema_bitfield_field_oob
+430/500 Test #434: error_parser_keyword_typo .................................   Passed    0.02 sec
+        Start 438: error_sema_call_arity
+431/500 Test #426: e2e_zero_extend_expected_width ............................   Passed    0.12 sec
+        Start 439: error_sema_call_non_function
+432/500 Test #435: error_parser_missing_function_name ........................   Passed    0.02 sec
+        Start 440: error_sema_constructor_arity
+433/500 Test #436: error_sema_ambiguous_struct_literal .......................   Passed    0.02 sec
+        Start 441: error_sema_constructor_wrong_union
+434/500 Test #437: error_sema_bitfield_field_oob .............................   Passed    0.02 sec
+        Start 442: error_sema_duplicate_bitfield
+435/500 Test #425: e2e_xadd_rm_mem_writeback_regression ......................   Passed    0.14 sec
+        Start 443: error_sema_duplicate_enum_variant
+436/500 Test #438: error_sema_call_arity .....................................   Passed    0.02 sec
+        Start 444: error_sema_duplicate_function
+437/500 Test #439: error_sema_call_non_function ..............................   Passed    0.02 sec
+        Start 445: error_sema_duplicate_let
+438/500 Test #440: error_sema_constructor_arity ..............................   Passed    0.02 sec
+        Start 446: error_sema_duplicate_parameter
+439/500 Test #441: error_sema_constructor_wrong_union ........................   Passed    0.02 sec
+        Start 447: error_sema_duplicate_register
+440/500 Test #442: error_sema_duplicate_bitfield .............................   Passed    0.02 sec
+        Start 448: error_sema_duplicate_struct
+441/500 Test #443: error_sema_duplicate_enum_variant .........................   Passed    0.02 sec
+        Start 449: error_sema_duplicate_struct_field
+442/500 Test #444: error_sema_duplicate_function .............................   Passed    0.02 sec
+        Start 450: error_sema_duplicate_type_alias
+443/500 Test #445: error_sema_duplicate_let ..................................   Passed    0.02 sec
+        Start 451: error_sema_duplicate_union_variant
+444/500 Test #446: error_sema_duplicate_parameter ............................   Passed    0.02 sec
+        Start 452: error_sema_empty_match
+445/500 Test #447: error_sema_duplicate_register .............................   Passed    0.02 sec
+        Start 453: error_sema_enum_variant_with_args
+446/500 Test #448: error_sema_duplicate_struct ...............................   Passed    0.02 sec
+        Start 454: error_sema_field_did_you_mean
+447/500 Test #449: error_sema_duplicate_struct_field .........................   Passed    0.02 sec
+        Start 455: error_sema_if_cond_non_bool
+448/500 Test #450: error_sema_duplicate_type_alias ...........................   Passed    0.02 sec
+        Start 456: error_sema_if_without_else
+449/500 Test #451: error_sema_duplicate_union_variant ........................   Passed    0.02 sec
+        Start 457: error_sema_int_to_bits_call
+450/500 Test #427: e2e_zero_extend_explicit_width ............................   Passed    0.11 sec
+        Start 458: error_sema_let_literal_pattern
+451/500 Test #452: error_sema_empty_match ....................................   Passed    0.02 sec
+        Start 459: error_sema_literal_pattern_kind_mismatch
+452/500 Test #453: error_sema_enum_variant_with_args .........................   Passed    0.02 sec
+        Start 460: error_sema_match_exhaustiveness_bool
+453/500 Test #454: error_sema_field_did_you_mean .............................   Passed    0.02 sec
+        Start 461: error_sema_match_exhaustiveness_enum
+454/500 Test #455: error_sema_if_cond_non_bool ...............................   Passed    0.02 sec
+        Start 462: error_sema_match_exhaustiveness_union
+455/500 Test #456: error_sema_if_without_else ................................   Passed    0.02 sec
+        Start 463: error_sema_match_guard_non_bool
+456/500 Test #457: error_sema_int_to_bits_call ...............................   Passed    0.02 sec
+        Start 464: error_sema_return_type_mismatch
+457/500 Test #458: error_sema_let_literal_pattern ............................   Passed    0.02 sec
+        Start 465: error_sema_struct_pattern_on_non_struct
+458/500 Test #459: error_sema_literal_pattern_kind_mismatch ..................   Passed    0.02 sec
+        Start 466: error_sema_struct_update_field_type
+459/500 Test #460: error_sema_match_exhaustiveness_bool ......................   Passed    0.02 sec
+        Start 467: error_sema_struct_update_non_struct
+460/500 Test #428: e2e_zero_extend_polymorphic_masked_result .................   Passed    0.13 sec
+        Start 468: error_sema_tuple_pattern_on_non_tuple
+461/500 Test #461: error_sema_match_exhaustiveness_enum ......................   Passed    0.02 sec
+        Start 469: error_sema_typed_pattern_mismatch
+462/500 Test #462: error_sema_match_exhaustiveness_union .....................   Passed    0.02 sec
+        Start 470: error_sema_unknown_struct_field
+463/500 Test #463: error_sema_match_guard_non_bool ...........................   Passed    0.02 sec
+        Start 471: error_sema_unknown_struct_pattern_field
+464/500 Test #464: error_sema_return_type_mismatch ...........................   Passed    0.02 sec
+        Start 472: error_sema_unknown_struct_update_field
+465/500 Test #465: error_sema_struct_pattern_on_non_struct ...................   Passed    0.02 sec
+        Start 473: error_sema_unknown_type
+466/500 Test #466: error_sema_struct_update_field_type .......................   Passed    0.02 sec
+        Start 474: error_sema_vector_element_mismatch
+467/500 Test #467: error_sema_struct_update_non_struct .......................   Passed    0.02 sec
+        Start 475: error_sema_while_cond_non_bool
+468/500 Test #468: error_sema_tuple_pattern_on_non_tuple .....................   Passed    0.02 sec
+        Start 476: e2e_struct_call
+469/500 Test #469: error_sema_typed_pattern_mismatch .........................   Passed    0.02 sec
+        Start 477: e2e_may_throw_alias
+470/500 Test #470: error_sema_unknown_struct_field ...........................   Passed    0.02 sec
+        Start 478: e2e_lbits_byval_callsite_o2
+471/500 Test #471: error_sema_unknown_struct_pattern_field ...................   Passed    0.02 sec
+        Start 479: sir_dump_locs
+472/500 Test #472: error_sema_unknown_struct_update_field ....................   Passed    0.02 sec
+        Start 480: dump_ast
+473/500 Test #473: error_sema_unknown_type ...................................   Passed    0.02 sec
+        Start 481: dump_sema
+474/500 Test #474: error_sema_vector_element_mismatch ........................   Passed    0.02 sec
+        Start 482: di_scaffold
+475/500 Test #475: error_sema_while_cond_non_bool ............................   Passed    0.02 sec
+        Start 483: no_dup_specs
+476/500 Test #479: sir_dump_locs .............................................   Passed    0.02 sec
+        Start 484: di_emit_obj
+477/500 Test #480: dump_ast ..................................................   Passed    0.02 sec
+        Start 485: sail_h_compile
+478/500 Test #481: dump_sema .................................................   Passed    0.02 sec
+        Start 486: emit_cpp_wrapper_smoke
+479/500 Test #482: di_scaffold ...............................................   Passed    0.02 sec
+        Start 487: emit_cpp_wrapper_smoke_mcpu_native
+480/500 Test #483: no_dup_specs ..............................................   Passed    0.02 sec
+        Start 488: class_api_hello
+481/500 Test #484: di_emit_obj ...............................................   Passed    0.12 sec
+        Start 489: class_api_arith
+482/500 Test #485: sail_h_compile ............................................   Passed    0.12 sec
+        Start 490: class_api_bits
+483/500 Test #478: e2e_lbits_byval_callsite_o2 ...............................   Passed    0.19 sec
+        Start 491: class_api_string_concat
+484/500 Test #476: e2e_struct_call ...........................................   Passed    0.22 sec
+        Start 492: class_api_ackermann
+485/500 Test #488: class_api_hello ...........................................   Passed    0.19 sec
+        Start 493: class_api_checksum
+486/500 Test #487: emit_cpp_wrapper_smoke_mcpu_native ........................   Passed    0.21 sec
+        Start 494: class_api_register_array_init
+487/500 Test #486: emit_cpp_wrapper_smoke ....................................   Passed    0.21 sec
+        Start 495: class_api_wide_bits_register
+488/500 Test #477: e2e_may_throw_alias .......................................   Passed    0.28 sec
+        Start 496: class_api_bank
+489/500 Test #489: class_api_arith ...........................................   Passed    0.19 sec
+        Start 497: class_api_register_option
+490/500 Test #490: class_api_bits ............................................   Passed    0.19 sec
+        Start 498: class_api_multi_arity_union
+491/500 Test #491: class_api_string_concat ...................................   Passed    0.20 sec
+        Start 499: class_api_nested_union_types
+492/500 Test #492: class_api_ackermann .......................................   Passed    0.20 sec
+        Start 500: class_api_extern_option_bits64
+493/500 Test #493: class_api_checksum ........................................   Passed    0.20 sec
+494/500 Test #495: class_api_wide_bits_register ..............................   Passed    0.20 sec
+495/500 Test #494: class_api_register_array_init .............................   Passed    0.21 sec
+496/500 Test #496: class_api_bank ............................................   Passed    0.19 sec
+497/500 Test #497: class_api_register_option .................................   Passed    0.20 sec
+498/500 Test #498: class_api_multi_arity_union ...............................   Passed    0.20 sec
+499/500 Test #499: class_api_nested_union_types ..............................   Passed    0.19 sec
+500/500 Test #500: class_api_extern_option_bits64 ............................   Passed    0.19 sec
+
+100% tests passed, 0 tests failed out of 500
+
+Total Test time (real) =   7.32 sec

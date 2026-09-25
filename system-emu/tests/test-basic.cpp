@@ -98,6 +98,52 @@ static int tests_failed = 0;
 // Tests
 // =========================================================================
 
+TEST(div64_unsigned_dividend_and_overflow) {
+  // SDM Vol.2A, DIV: divide the unsigned RDX:RAX by r/m64, and
+  // raise #DE without committing registers when the quotient won't fit.
+  // The first case exposed signed-i128 division in sail-llvm while
+  // Alpine/OpenSSL was verifying the live CD's APK index signature.
+  struct Case { u64 high, low, divisor; };
+  const Case cases[] = {
+    {0xafe1f3ed928c2ab1ULL, 0x08d23fba8f3254e1ULL, 0xb0a526350a0b27eaULL},
+    {0xfffffffffffffffeULL, 0xffffffffffffffffULL, 0xffffffffffffffffULL},
+    {0x8000000000000000ULL, 0, 0xffffffffffffffffULL},
+    {0, 0xffffffffffffffffULL, 1},
+    {1, 0, 3},
+    {0xffffffffffffffffULL, 0xffffffffffffffffULL, 1},
+    {0xffffffffffffffffULL, 0xffffffffffffffffULL, 0xffffffffffffffffULL},
+    {0x7fffffffffffffffULL, 0, 1},
+    {1, 0, 0},
+  };
+  for (const auto &c : cases) {
+    x86::Model model;
+    init_model(model);
+    const u8 code[] = {0x48, 0xf7, 0xf1}; // div rcx
+    model.phys_mem.write_bytes(0x10000, code, sizeof(code));
+    model.zRIP = 0x10000;
+    model.zGPR.data[0] = c.low;
+    model.zGPR.data[1] = c.divisor;
+    model.zGPR.data[2] = c.high;
+    model.zstep(UNIT);
+    if (c.divisor == 0 || c.high >= c.divisor) {
+      ASSERT_EQ(model.zfault_pending, true);
+      ASSERT_EQ(model.zfault_vector, 0);
+      ASSERT_EQ(model.zRIP, 0x10000);
+      ASSERT_EQ(model.zGPR.data[0], c.low);
+      ASSERT_EQ(model.zGPR.data[2], c.high);
+    } else {
+      const unsigned __int128 dividend =
+          (static_cast<unsigned __int128>(c.high) << 64) | c.low;
+      ASSERT_EQ(model.zfault_pending, false);
+      ASSERT_EQ(model.zRIP, 0x10003);
+      ASSERT_EQ(model.zGPR.data[0], u64(dividend / c.divisor));
+      ASSERT_EQ(model.zGPR.data[2], u64(dividend % c.divisor));
+    }
+    ASSERT_EQ(model.zGPR.data[1], c.divisor);
+    model.model_fini();
+  }
+}
+
 TEST(phys_mem_read_write) {
   PhysicalMemory mem;
   assert(mem.init(4096));
@@ -2529,6 +2575,7 @@ int main() {
   run_test_jmp_forward_hlt();
   run_test_loop_counter_hlt();
   run_test_system_regs_initial_values();
+  run_test_div64_unsigned_dividend_and_overflow();
   run_test_ide_busmaster_pci_io();
   run_test_sse_shuffle_rip_relative_immediate();
 
