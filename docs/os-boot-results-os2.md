@@ -644,11 +644,26 @@ The CS filter is verified by attempt 29: 8032 register snapshots inside the
 500000-step window all have CS=005b; the final unfiltered state dump occurs
 at the requested stop count.
 
-### os2-30-double-shift-install (in progress)
+### os2-30-double-shift-install
 
 Restarted the full installation from `os2-hdd-formatted.img` with both F2 and
 double-shift fixes. The private disk is `os2-fixed-install-hdd.img` and the
 private floppy is `os2-f2-floppy.img`. Original media remain read-only.
+
+**First stage completed at 03:42 UTC.** The guest copied data sets 3–11 and
+the three boot diskettes, installed the installation program, checked the
+workstation configuration, and requested a restart with the diskette removed.
+The previous `SYS3175` failure and its `1bf91209` event did not recur.
+[Restart prompt](os-boot/os2-first-stage-complete.png),
+[state log](os-boot/os2-first-stage-complete.txt),
+[configuration detection](os-boot/os2-config-check.png).
+
+The emulator was stopped at that prompt and flushed the writable disk.
+`build/os-boot/os2-hdd-first-stage.img` preserves the completed first stage.
+A separate copy, `os2-phase2-hdd.img`, is used for the IDE boot in attempt 35.
+This is first-stage completion, not yet a completed OS installation.
+
+Attempt 30: **1332.723 s**, **3,149,375,326** instructions, exit `0`.
 
 ### os2-31-fixed-ide
 
@@ -668,7 +683,59 @@ installation retry continues.
 Attempt 31: **284.458 s**, **1,119,324,120** instructions, exit `0`.
 
 
-### os2-32-singleq (in progress)
+### os2-32-singleq
 
 Fresh clone of the partial disk, traced at driver entry `fe1008f9` for
 3000 instructions to locate where the ES input pointer becomes null.
+
+The [entry trace](os-boot/os2-singleq-trace.txt) shows that the IOCTL request
+already contains `0003:0000` for both parameter and data pointers. The driver
+normalizes these null selectors to zero, then `LES SI,[BP+8]` loads ES=0.
+The later read at `03f8:0971` correctly faults. No new architectural violation
+has been isolated from this trace; this disk was copied by an earlier model
+and its installation never completed.
+
+Attempt 32: **166.277 s**, **417,749,161** instructions, exit `0`.
+
+### os2-33-singleq-caller
+
+Another clone of the partial disk, `os2-singleq-caller-hdd.img`, traced from
+instruction 417500000 to 417750000 with `SAIL_X86_TRACE_CS=0x5b` to examine
+the user-mode caller that constructs this request. The clean installation
+in attempt 30 continues independently.
+
+This window contained no CS=005b instructions: execution was already in
+other segments. It therefore did not expose the caller and did not justify
+a change. Stopped after **166.891 s**, **417,750,000** instructions, exit `0`.
+
+### os2-34-singleq-kernel
+
+A fresh clone, `os2-singleq-kernel-hdd.img`, traces all code segments between
+instructions 417700000 and 417746161 to inspect the request construction.
+
+All 46162 snapshots landed in the post-trap `1000:3b86/3b87` loop. Instruction
+counts from the earlier run did not align with this run, so this trace adds
+no evidence about request construction. Use an address trigger or a physical
+write trace for a further diagnostic, rather than reusing these counts.
+
+Attempt 34: **166.082 s**, **417,746,161** instructions, exit `0`.
+
+At 03:40 UTC, attempt 30 passed the previous SYS3175 stopping point and
+reached [Installing the OS/2 Warp Installation program](os-boot/os2-install-program.png)
+after copying data sets 3–11 and the three boot diskettes. The event trace
+at `1bf91209` has not fired in this clean run. First-stage completion is
+still being checked.
+
+### os2-35-phase2 (in progress)
+
+Boot the completed first-stage disk copy with no floppy attached. The CD
+remains read-only. Keyboard input will continue the installer.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 \
+SAIL_X86_TRACE_EVENT_ADDRESS=0x971 \
+python3 system-emu/run-boot.py --name os2-35-phase2 --timeout 1800 -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda build/os-boot/os2-phase2-hdd.img \
+  -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot c
+```
