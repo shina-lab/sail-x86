@@ -124,6 +124,11 @@ struct Result {
 static u32 monitor_stack_addr(const Test &t, const Result &r) {
   u32 sp = (t.kernel_stack_flags & 4) ? r.gpr[4] : r.gpr[4] & 0xffff;
   u32 addr = t.kernel_stack_base + sp;
+  // Interrupt entry replaces ESP/SP with the TSS monitor stack. Diagnose
+  // an incorrect width in generated models before indexing the saved frame.
+  if (addr + 40 > MEM_SIZE)
+    fprintf(stderr, "%s: monitor stack outside RAM: ESP=%08x base=%08x\n",
+            t.name.c_str(), r.gpr[4], t.kernel_stack_base);
   assert(addr + 40 <= MEM_SIZE);
   return addr;
 }

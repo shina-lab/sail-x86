@@ -25,14 +25,19 @@ mkdir -p "$WORK"
 
 SEABIOS_SRC="$WORK/seabios-${SEABIOS_VER}"
 BIOS_BIN="$BUILD_DIR/bios.bin"
+IO_BAR_PATCH="$(dirname "$0")/patch-seabios-io-bar.patch"
 
-if [ ! -f "$BIOS_BIN" ] || [ ! -f "$BUILD_DIR/vgabios.bin" ] || [ ! -d "$SEABIOS_SRC" ] || [ "$0" -nt "$BIOS_BIN" ]; then
+if [ ! -f "$BIOS_BIN" ] || [ ! -f "$BUILD_DIR/vgabios.bin" ] || [ ! -d "$SEABIOS_SRC" ] || [ "$0" -nt "$BIOS_BIN" ] || [ "$IO_BAR_PATCH" -nt "$BIOS_BIN" ]; then
   echo "=== Building SeaBIOS ${SEABIOS_VER} ==="
 
   if [ ! -d "$SEABIOS_SRC" ]; then
     echo "Downloading SeaBIOS..."
     curl -L -o "$WORK/seabios.tar.gz" "$SEABIOS_URL"
     tar -xzf "$WORK/seabios.tar.gz" -C "$WORK"
+  fi
+
+  if ! patch -d "$SEABIOS_SRC" -p1 --dry-run --reverse --silent < "$IO_BAR_PATCH"; then
+    patch -d "$SEABIOS_SRC" -p1 < "$IO_BAR_PATCH"
   fi
 
   # Create minimal config.
@@ -101,7 +106,7 @@ CONFIG_VGA_PCI=y
 EOF
 
   make -C "$SEABIOS_SRC" olddefconfig PYTHON=python3
-  make -C "$SEABIOS_SRC" -j128 PYTHON=python3
+  make -C "$SEABIOS_SRC" -j64 PYTHON=python3
   cp "$SEABIOS_SRC/out/bios.bin" "$BIOS_BIN"
   cp "$SEABIOS_SRC/out/vgabios.bin" "$BUILD_DIR/vgabios.bin"
   echo "SeaBIOS built: $BIOS_BIN ($(stat -c%s "$BIOS_BIN") bytes)"

@@ -210,7 +210,7 @@ function deliver_exception_vm86(vec, err_code, kind) = {
   let with_error = kind == EV_Exception & has_error_code(vec);
   let frame_bytes = (if is_32bit then 4 else 2) * (if with_error then 10 else 9);
   let sp : dword = if stack_desc.seg_db == bitone then esp0 else zero_extend(esp0[15..0]);
-  let bottom = sp - frame_bytes;
+  let bottom : dword = sp - frame_bytes;
   // An empty stack may use SP=0 to denote the top of its address range.
   // Expand-down segments accept offsets above, rather than below, limit.
   let top : int = if sp == zeros() then
@@ -259,7 +259,7 @@ function deliver_exception_vm86(vec, err_code, kind) = {
   write_segreg(SS, ss0);
   // A 16-bit monitor stack replaces SP only, preserving the interrupted
   // ESP's high half (confirmed on AMD and Intel).
-  v(RSP) = if stack_desc.seg_db == bitone then bottom else old_sp[31..16] @ bottom[15..0];
+  v(32, RSP) = if stack_desc.seg_db == bitone then bottom else old_sp[31..16] @ bottom[15..0];
   foreach (j from 0 to 3) {
     let i : segreg_idx = match j { 0 => ES, 1 => DS, 2 => FS, _ => GS };
     write_segreg(i, 0x0000);
@@ -272,6 +272,9 @@ function deliver_exception_vm86(vec, err_code, kind) = {
   RF = bitzero
 }
 
+// Legacy protected-mode interrupt/trap gates. SDM Vol.3A section 7.12.1
+// and Vol.2A INT, INTER/INTRA-PRIVILEGE-LEVEL-INTERRUPT: the target code
+// descriptor chooses CPL, and every frame is relative to the selected SS.
 val deliver_exception_inner_32 : (exception_vector, dword, EventKind) -> unit
 function deliver_exception_inner_32(vec, err_code, kind) = {
   let old_eip : dword = match sw_return_rip {
@@ -279,80 +282,70 @@ function deliver_exception_inner_32(vec, err_code, kind) = {
     None() => RIP[31..0],
   };
   sw_return_rip = None();
-  let old_cs     : word  = read_segreg(CS);
-  let old_eflags : dword = read_rflags()[31..0];
-  let old_esp    : dword = v(RSP);
-  let old_ss     : word  = read_segreg(SS);
-  let old_cpl    : cpl_t = cur_cpl;
-
-  cur_cpl = 0;
-
+  let old_cs = read_segreg(CS);
+  let old_eflags = read_rflags()[31..0];
+  let old_esp : dword = v(RSP);
+  let old_ss = read_segreg(SS);
+  let old_cpl = cur_cpl;
+  let idt_err : dword = to_bits(32, vec * 8 + 2);
+  if vec * 8 + 7 > unsigned(IDTR_limit) then throw Fault(EXN_GP, idt_err);
   let gate = read_idt_gate_32(vec);
-
-  if ~(gate.gate_present) then {
-    throw Fault(EXN_GP, to_bits(32, vec * 8 + 2))
+  if gate.gate_type != 0x6 & gate.gate_type != 0x7 &
+     gate.gate_type != 0xE & gate.gate_type != 0xF then throw Fault(EXN_GP, idt_err);
+  if kind == EV_SoftwareInt & gate.gate_dpl < old_cpl then throw Fault(EXN_GP, idt_err);
+  if ~(gate.gate_present) then throw Fault(EXN_NP, idt_err);
+  if gate.gate_sel[15..2] == zeros() then raise_GP0();
+  let target = read_descriptor(gate.gate_sel);
+  if target.seg_s == 0b0 | target.seg_type[3] == 0b0 | target.seg_dpl > old_cpl then
+    raise_GP(selector_error_code(gate.gate_sel));
+  if target.seg_present == 0b0 then throw Fault(EXN_NP, selector_error_code(gate.gate_sel));
+  let width : {16, 32} = if gate.gate_type[3] == 0b1 then 32 else 16;
+  let offset : qword = zero_extend(gate.gate_offset[width - 1 .. 0]);
+  if unsigned(offset) > unsigned(target.seg_limit) then raise_GP0();
+  let inward : bool = target.seg_type[2] == 0b0 & target.seg_dpl < old_cpl;
+  let level : cpl_t = if inward then target.seg_dpl else old_cpl;
+  var stack_desc = SegCache[SS];
+  var stack_sel = old_ss;
+  var stack_sp : qword = zero_extend(old_esp);
+  if inward then {
+    let (new_sp, new_ss) = read_privilege_stack(level);
+    stack_desc = validate_privilege_stack(new_ss, level);
+    stack_sel = new_ss;
+    stack_sp = new_sp
   };
-
-  if kind == EV_SoftwareInt & gate.gate_dpl < old_cpl then {
-    throw Fault(EXN_GP, to_bits(32, vec * 8 + 2))
+  var frame : vector(35, dword) = [
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+    0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000
+  ];
+  let first : {0, 1} = if kind == EV_Exception & has_error_code(vec) then 1 else 0;
+  frame[0] = err_code;
+  frame[first] = old_eip;
+  frame[first + 1] = zero_extend(old_cs);
+  frame[first + 2] = old_eflags;
+  if inward then {
+    frame[first + 3] = old_esp;
+    frame[first + 4] = zero_extend(old_ss)
   };
-
-  // Determine gate size: D bit (bit 3 of type field encodes 32 vs 16)
-  // 0x0E/0x0F = 32-bit, 0x06/0x07 = 16-bit
-  let is_32bit : bool = gate.gate_type[3] == 0b1;
-
-  // Determine new stack
-  let privilege_change : bool = old_cpl != 0;
-  var new_esp : qword = zero_extend(old_esp);
-  var new_ss : word = old_ss;
-  if privilege_change then {
-    let (esp0, ss0) = read_tss_esp0_32();
-    new_esp = zero_extend(esp0);
-    new_ss = ss0
-  };
-
-  if is_32bit then {
-    // 32-bit gate: push 32-bit values
-    if privilege_change then {
-      new_esp = push_to_stack(new_esp, zero_extend(32, old_ss));
-      new_esp = push_to_stack(new_esp, old_esp)
-    };
-    new_esp = push_to_stack(new_esp, old_eflags);
-    new_esp = push_to_stack(new_esp, zero_extend(32, old_cs));
-    new_esp = push_to_stack(new_esp, old_eip);
-    if kind == EV_Exception & has_error_code(vec) then {
-      new_esp = push_to_stack(new_esp, err_code)
-    }
+  let count : range(1, 35) = first + (if inward then 5 else 3);
+  let new_sp = write_legacy_frame(stack_desc, stack_sp, frame, count, width, level,
+                                  if inward then selector_error_code(stack_sel) else 0x00000000);
+  if inward then {
+    write_segreg(SS, stack_sel);
+    // SDM Vol.3A 3.4.3/7.12.1: implicit SS loads replace its hidden cache.
+    SegCache[SS] = stack_desc;
+    v(32, RSP) = new_sp[31..0]
   } else {
-    // 16-bit gate: push 16-bit values
-    if privilege_change then {
-      new_esp = push_to_stack(new_esp, old_ss);
-      new_esp = push_to_stack(new_esp, old_esp[15..0])
-    };
-    new_esp = push_to_stack(new_esp, old_eflags[15..0]);
-    new_esp = push_to_stack(new_esp, old_cs);
-    new_esp = push_to_stack(new_esp, old_eip[15..0]);
-    if kind == EV_Exception & has_error_code(vec) then {
-      new_esp = push_to_stack(new_esp, err_code[15..0])
-    }
+    let sas = stack_addr_size();
+    v(RSP) = new_sp[sas - 1 .. 0]
   };
-
-  // Update stack pointer and SS
-  v(RSP) = new_esp[31..0];
-  // SDM Vol.3A §§3.4.3, 7.12.1: a stack switch loads the hidden
-  // descriptor state as well as the selector. Retaining the old base
-  // makes the handler read its frame through the interrupted stack.
-  if privilege_change then load_segment_register(SS, new_ss);
-
-  // Load CS with full descriptor cache update (sets CS.D/CS.L for handler)
-  load_segment_register(CS, gate.gate_sel);
-  RIP = gate.gate_offset;
-
-  // If interrupt gate, clear IF
-  if gate.gate_type == 0xE | gate.gate_type == 0x6 then {
-    IF_flag = 0b0
-  };
-
+  cur_cpl = level;
+  write_segreg(CS, (gate.gate_sel & 0xFFFC) | zero_extend(to_bits(2, level)));
+  SegCache[CS] = target;
+  RIP = offset;
+  if gate.gate_type == 0xE | gate.gate_type == 0x6 then IF_flag = 0b0;
   TF = 0b0;
   NT = 0b0;
   RF = 0b0;

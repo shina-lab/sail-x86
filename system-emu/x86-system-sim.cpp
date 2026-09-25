@@ -1153,6 +1153,16 @@ int main(int argc, char *argv[]) {
     dump_requested = false;
     dump_framebuffer();
     dump_registers(stderr, insn_count, model);
+    fprintf(stderr, "  CPL=%u GDTR=%016lx:%04x IDTR=%016lx:%04x LDTR=%04x\n",
+            (unsigned)model.zcur_cpl, (u64)model.zGDTR_base, (u16)model.zGDTR_limit,
+            (u64)model.zIDTR_base, (u16)model.zIDTR_limit, (u16)model.zLDTR);
+    for (unsigned s = 0; s < 6; ++s) {
+      const auto &cache = model.zSegCache.data[s];
+      fprintf(stderr, "  SEG[%u] base=%016lx limit=%08x D/B=%u DPL=%u type=%x\n",
+              s, (u64)cache.zseg_base, (u32)cache.zseg_limit,
+              (unsigned)cache.zseg_db, (unsigned)cache.zseg_dpl,
+              (unsigned)cache.zseg_type);
+    }
     fprintf(stderr, "  APIC SVR=%08x TPR=%02x PPR=%02x TIMER=%08x COUNT=%u pending=%d\n",
             model.lapic.read(0xF0), model.lapic.read(0x80), model.lapic.read(0xA0),
             model.lapic.read(0x320), model.lapic.read(0x390), model.lapic.pending());

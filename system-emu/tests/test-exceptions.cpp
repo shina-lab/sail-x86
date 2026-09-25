@@ -575,12 +575,83 @@ static void init_model_32(x86::Model &model, u64 ram_size = 4 * 1024 * 1024) {
   model.phys_mem.write32(TSS32_BASE + 4, STACK_ADDR);  // ESP0
   model.phys_mem.write16(TSS32_BASE + 8, 0x10);        // SS0
 
-  model.zGDTR_base = 0;
-  model.zGDTR_limit = 0;
+  model.zGDTR_base = 0x6000;
+  model.zGDTR_limit = 0x17;
+  model.phys_mem.write64(0x6008, 0x00cf9b000000ffffULL);
+  model.phys_mem.write64(0x6010, 0x00cf93000000ffffULL);
   model.zKERNEL_GS_BASE = 0;
 
   model.zNT = 0;
   model.zRF = 0;
+}
+
+static u64 legacy_desc(u32 base, u16 limit, u8 access) {
+  return limit | ((u64)(base & 0xffff) << 16)
+      | ((u64)((base >> 16) & 0xff) << 32) | ((u64)access << 40)
+      | ((u64)(base >> 24) << 56);
+}
+
+TEST(legacy_interrupt_segmented_stacks) {
+  for (bool gate32 : {false, true}) for (bool inward : {false, true}) {
+    x86::Model model;
+    init_model_32(model);
+    model.zCR0 = 1; // Segmentation without paging for this fixture.
+    model.zCR4 = 0;
+    model.zGDTR_limit = 0x27;
+    const unsigned level = inward ? 1 : 3;
+    model.phys_mem.write64(0x6008, legacy_desc(0x10000, 0xffff, 0xfb));
+    model.phys_mem.write64(0x6010, legacy_desc(0x20000, 0xffff, 0x9b | (level << 5)));
+    model.phys_mem.write64(0x6018, legacy_desc(0x30000, 0xffff, 0xf3));
+    model.phys_mem.write64(0x6020, legacy_desc(0x40000, 0xffff, 0x93 | (level << 5)));
+    model.zload_segment_register(x86::SEG_CS, 0xb);
+    model.zload_segment_register(x86::SEG_SS, 0x1b);
+    model.zcur_cpl = 3;
+    model.zGPR.data[4] = 0x11220800;
+    model.zIF_flag = 1;
+    // Exercise a 16-bit TSS with a 32-bit gate and vice versa.
+    model.zTR = 0x28;
+    model.zTR_type = gate32 ? 3 : 0xb;
+    const unsigned off = gate32 ? level * 4 + 2 : level * 8 + 4;
+    if (gate32) model.phys_mem.write16(TSS32_BASE + off, 0x900);
+    else model.phys_mem.write32(TSS32_BASE + off, 0x900);
+    model.phys_mem.write16(TSS32_BASE + off + (gate32 ? 2 : 4), 0x20 | level);
+    // INT 13 uses an exception vector but must not push an error code.
+    write_idt_gate_32(model.phys_mem, IDT32_BASE, 13, 0x300, 0x10,
+                      gate32 ? 0xf : 6, 3, true);
+    const u8 code[] = {0xcd, 13};
+    model.phys_mem.write_bytes(0x10100, code, sizeof(code));
+    model.zRIP = 0x100;
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ((u64)model.zRIP, 0x300UL);
+    ASSERT_EQ((u64)model.zcur_cpl, level);
+    ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_CS], 0x10UL | level);
+    ASSERT_EQ((u64)model.zIF_flag, gate32 ? 1UL : 0UL);
+    const unsigned slot = gate32 ? 4 : 2;
+    const unsigned count = inward ? 5 : 3;
+    const u64 sp = (inward ? 0x900 : 0x800) - count * slot;
+    const u64 base = inward ? 0x40000 : 0x30000;
+    ASSERT_EQ((u64)model.zGPR.data[4], inward ? sp : 0x11220000 | sp);
+    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_base, base);
+    ASSERT_EQ(model.phys_mem.read16(base + sp), 0x102);
+    ASSERT_EQ(model.phys_mem.read16(base + sp + slot), 0xb);
+    ASSERT_EQ(model.phys_mem.read16(base + sp + slot * 2) & 0x202, 0x202);
+    if (inward) {
+      ASSERT_EQ(model.phys_mem.read16(base + sp + slot * 3), 0x800);
+      ASSERT_EQ(model.phys_mem.read16(base + sp + slot * 4), 0x1b);
+      if (gate32) ASSERT_EQ(model.phys_mem.read32(base + sp + slot * 3), 0x11220800U);
+    }
+    ASSERT_EQ(model.phys_mem.read16(sp), 0); // No erroneous flat stack write.
+    const u8 iret[] = {0x66, 0xcf};
+    model.phys_mem.write_bytes(0x20300, gate32 ? iret : iret + 1, gate32 ? 2 : 1);
+    model.zstep(UNIT);
+    ASSERT_EQ(model.zfault_pending, false);
+    ASSERT_EQ((u64)model.zRIP, 0x102UL);
+    ASSERT_EQ((u64)model.zcur_cpl, 3UL);
+    ASSERT_EQ((u64)model.zSegReg.data[x86::SEG_SS], 0x1bUL);
+    ASSERT_EQ((u64)model.zSegCache.data[x86::SEG_SS].zseg_base, 0x30000UL);
+    model.model_fini();
+  }
 }
 
 TEST(pm32_divide_error_delivery) {
@@ -1086,6 +1157,7 @@ TEST(sti_sysexit_delivers_irq_in_user_context) {
 // =========================================================================
 
 int main() {
+  run_test_legacy_interrupt_segmented_stacks();
   printf("Exception delivery tests:\n");
 
   run_test_divide_error_delivery();

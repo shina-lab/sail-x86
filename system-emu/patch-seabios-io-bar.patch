@@ -1,0 +1,14 @@
+--- a/src/fw/pciinit.c
++++ b/src/fw/pciinit.c
+@@ -709,6 +709,11 @@
+         *psize = (~(val & mask)) + 1;
+     } else {
+         *psize = ((~(val & mask)) + 1) & 0xffffffff;
++        // Some I/O BARs, including PIIX BMIBA, hardwire bits 31:16
++        // to zero. Size them within the 16-bit I/O port address space,
++        // otherwise a 16-byte BAR appears to require 0xffff0010 bytes.
++        if (type == PCI_REGION_TYPE_IO)
++            *psize &= 0xffff;
+     }
+     *ptype = type;
+     *pis64 = is64;

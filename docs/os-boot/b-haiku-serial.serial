@@ -1,0 +1,172 @@
+PANIC: did not find any boot partitions! 
+Welcome to Kernel Debugging Land...
+Thread 14 "main2" running on CPU 0
+stack trace for thread 14 "main2"
+    kernel stack: 0xffffffff81ab0000 to 0xffffffff81ab5000
+frame                       caller             <image>:function + offset
+ 0 ffffffff81ab4950 (+  32) ffffffff80140b80   <kernel_x86_64> arch_debug_call_with_fault_handler() + 0x1a
+ 1 ffffffff81ab49a0 (+  80) ffffffff800b04e8   <kernel_x86_64> debug_call_with_fault_handler() + 0x78
+ 2 ffffffff81ab4a00 (+  96) ffffffff800b1b94   <kernel_x86_64> _ZL20kernel_debugger_loopPKcS0_P13__va_list_tagi() + 0xf4
+ 3 ffffffff81ab4a50 (+  80) ffffffff800b1f2e   <kernel_x86_64> _ZL24kernel_debugger_internalPKcS0_P13__va_list_tagi() + 0x6e
+ 4 ffffffff81ab4b40 (+ 240) ffffffff800b22c7   <kernel_x86_64> panic() + 0xb7
+ 5 ffffffff81ab4f60 (+1056) ffffffff801093b7   <kernel_x86_64> vfs_mount_boot_file_system() + 0x167
+ 6 ffffffff81ab4fb0 (+  80) ffffffff80065aa9   <kernel_x86_64> _ZL5main2Pv() + 0x99
+ 7 ffffffff81ab4fd0 (+  32) ffffffff8008d0a6   <kernel_x86_64> _ZL19common_thread_entryPv() + 0x36
+ 8 0000000000000000 (+   0) ffffffff81ab4fe0   97:main2_14_kstack@0xffffffff81ab0000 + 0x4fe0
+initial commands:  syslog | tail 15
+PCI:   Capabilities: (not supported)
+get_boot_partitions(): boot volume message:
+KMessage: buffer: 0xffffffff821c18f8 (size/capacity: 315/315), flags: 0xa
+  field: "booted from image" (BOOL): true
+  field: "partition offset"  (LLNG): 0 (0x0)
+  field: "boot method"       (LONG): 1 (0x1)
+  field: "boot drive number" (LLNG): 0 (0x0)
+  field: "disk identifier"   (RAWT): data at 0xffffffff821c19e4, 79 bytes
+get_boot_partitions(): boot method type: 1
+intel: ep_std_ops(0x1)
+intel: ep_std_ops(0x2)
+intel: pm_std_ops(0x1)
+intel: pm_std_ops(0x2)
+PCI-ATA: Controller detection failed! bus master base not configured
+KDiskDeviceManager::InitialDeviceScan() returned error: No such file or directory
+kdebug> syslog
+needed 2 quick samples for TSC calibration
+options = 0
+APM version 0.0 available, flags 0.
+smp: using ACPI to detect MP configuration
+smp: local apic address is 0xfee00000
+smp: found local APIC with id 0
+smp: found io APIC with id 0 and address 0xfec00000
+VESA version = 3.0, capabilities 1
+OEM string: SeaBIOS VBE(C) 2011
+ 0x100: 640 x 400 x 8 (a = 187, mem = 4, phy = fd000000, p = 1, b = 1)
+	mask: r: 0 0 g: 0 0 b: 0 0 dcmi: 0
+ 0x101: 640 x 480 x 8 (a = 187, mem = 4, phy = fd000000, p = 1, b = 1)
+	mask: r: 0 0 g: 0 0 b: 0 0 dcmi: 0
+ 0x102: 800 x 600 x 4 (a = 59, mem = 3, phy = 0, p = 4, b = 1)
+	mask: r: 0 0 g: 0 0 b: 0 0 dcmi: 0
+ 0x103: 800 x 600 x 8 (a = 187, mem = 4, phy = fd000000, p = 1, b = 1)
+	mask: r: 0 0 g: 0 0 b: 0 0 dcmi: 0
+ 0x104: 1024 x 768 x 4 (a = 59, mem = 3, phy = 0, p = 4, b = 1)
+	mask: r: 0 0 g: 0 0 b: 0 0 dcmi: 0
+ 0x105: 1024 x 768 x 8 (a = 187, mem = 4, phy = fd000000, p = 1, b = 1)
+	mask: r: 0 0 g: 0 0 b: 0 0 dcmi: 0
+ 0x106: 1280 x 1024 x 4 (a = 59, mem = 3, phy = 0, p = 4, b = 1)
+	mask: r: 0 0 g: 0 0 b: 0 0 dcmi: 0
+ 0x107: 1280 x 1024 x 8 (a = 187, mem = 4, phy = fd000000, p = 1, b = 1)
+	mask: r: 0 0 g: 0 0 b: 0 0 dcmi: 0
+ 0x10d: 320 x 200 x 15 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 5 10 g: 5 5 b: 5 0 dcmi: 0
+ 0x10e: 320 x 200 x 16 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 5 11 g: 6 5 b: 5 0 dcmi: 0
+ 0x10f: 320 x 200 x 24 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 8 16 g: 8 8 b: 8 0 dcmi: 0
+ 0x110: 640 x 480 x 15 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 5 10 g: 5 5 b: 5 0 dcmi: 0
+ 0x111: 640 x 480 x 16 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 5 11 g: 6 5 b: 5 0 dcmi: 0
+ 0x112: 640 x 480 x 24 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 8 16 g: 8 8 b: 8 0 dcmi: 0
+ 0x113: 800 x 600 x 15 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 5 10 g: 5 5 b: 5 0 dcmi: 0
+ 0x114: 800 x 600 x 16 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 5 11 g: 6 5 b: 5 0 dcmi: 0
+ 0x115: 800 x 600 x 24 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 8 16 g: 8 8 b: 8 0 dcmi: 0
+ 0x116: 1024 x 768 x 15 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 5 10 g: 5 5 b: 5 0 dcmi: 0
+ 0x117: 1024 x 768 x 16 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 5 11 g: 6 5 b: 5 0 dcmi: 0
+ 0x118: 1024 x 768 x 24 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 8 16 g: 8 8 b: 8 0 dcmi: 0
+ 0x119: 1280 x 1024 x 15 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 5 10 g: 5 5 b: 5 0 dcmi: 0
+ 0x11a: 1280 x 1024 x 16 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 5 11 g: 6 5 b: 5 0 dcmi: 0
+ 0x11b: 1280 x 1024 x 24 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 8 16 g: 8 8 b: 8 0 dcmi: 0
+ 0x11c: 1600 x 1200 x 8 (a = 187, mem = 4, phy = fd000000, p = 1, b = 1)
+	mask: r: 0 0 g: 0 0 b: 0 0 dcmi: 0
+ 0x11d: 1600 x 1200 x 15 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 5 10 g: 5 5 b: 5 0 dcmi: 0
+ 0x11e: 1600 x 1200 x 16 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 5 11 g: 6 5 b: 5 0 dcmi: 0
+ 0x11f: 1600 x 1200 x 24 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 8 16 g: 8 8 b: 8 0 dcmi: 0
+ 0x140: 320 x 200 x 32 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 8 16 g: 8 8 b: 8 0 dcmi: 2
+ 0x141: 640 x 400 x 32 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 8 16 g: 8 8 b: 8 0 dcmi: 2
+ 0x142: 640 x 480 x 32 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 8 16 g: 8 8 b: 8 0 dcmi: 2
+ 0x143: 800 x 600 x 32 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 8 16 g: 8 8 b: 8 0 dcmi: 2
+ 0x144: 1024 x 768 x 32 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 8 16 g: 8 8 b: 8 0 dcmi: 2
+ 0x145: 1280 x 1024 x 32 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: r: 8 16 g: 8 8 b: 8 0 dcmi: 2
+ 0x146: 320 x 200 x 8 (a = 187, mem = 4, phy = fd000000, p = 1, b = 1)
+	mask: r: 0 0 g: 0 0 b: 0 0 dcmi: 0
+ 0x147: 1600 x 1200 x 32 (a = 187, mem = 6, phy = fd000000, p = 1, b = 1)
+	mask: kdebug> syslog | tail 120
+scheduler: switching to low latency mode
+msi support enabled
+slab memory manager: created area 0xffffffff80801000 (98)
+allocate_commpage_entry(3, 69) -> 0x0000000000000210
+PCI: pci_module_init
+ACPI: RSDP 0x00000000000F2AF0 000014 (v00 BOCHS )
+ACPI: RSDT 0x000000003FFFE4C0 000030 (v01 BOCHS  BXPCRSDT 00000001 BXPC 00000001)
+ACPI: FACP 0x000000003FFFFF80 000074 (v01 BOCHS  BXPCFACP 00000001 BXPC 00000001)
+ACPI: DSDT 0x000000003FFFE4F0 001135 (v01 BOCHS  BXPCDSDT 00000001 BXPC 00000001)
+ACPI: FACS 0x000000003FFFFF40 000040
+ACPI: SSDT 0x000000003FFFF720 000819 (v01 BOCHS  BXPCSSDT 00000001 BXPC 00000001)
+ACPI: APIC 0x000000003FFFF630 000078 (v01 BOCHS  BXPCAPIC 00000001 BXPC 00000001)
+ACPI: Forced DSDT copy: length 0x01135 copied locally, original unmapped
+ACPI: 2 ACPI AML tables successfully acquired and loaded
+ACPI: Enabled 16 GPEs in block 00 to 0F
+publish device: node 0xffffffff82b60be0, path acpi/namespace, module bus_managers/acpi/namespace/device_v1
+publish device: node 0xffffffff82b60be0, path acpi/call, module bus_managers/acpi/call/device_v1
+registering power button
+PCI: mechanism 1 controller found
+found io-apic with address 0xfec00000, global interrupt base 0, apic-id 0
+mapping io-apic 0 at physical address 0xfec00000
+io-apic 0 has range 0-23, 24 entries, version 0x00170011, apic-id 0
+setting ACPI interrupt model to APIC
+failed to put ACPI into APIC interrupt model, ignoring
+IRQ routing preparation failed, not configuring io-apics
+setting ACPI interrupt model to PIC
+PCI: [dom 0, bus  0] bus   0, device  0, function  0: vendor 8086, device 1237, revision 02
+PCI:   class_base 06, class_function 00, class_api 00
+PCI:   vendor 8086: Intel Corporation
+PCI:   device 1237: 440FX - 82441FX PMC [Natoma]
+PCI:   info: Bridge (Host bridge)
+PCI:   line_size 00, latency 00, header_type 00, BIST 00
+PCI:   ROM base host 00000000, pci 00000000, size 00000000
+PCI:   cardbus_CIS 00000000, subsystem_id 0000, subsystem_vendor_id 0000
+PCI:   interrupt_line 00, interrupt_pin 00, min_grant 00, max_latency 00
+PCI:   base reg 0: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 1: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 2: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 3: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 4: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 5: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   Capabilities: (not supported)
+PCI: [dom 0, bus  0] bus   0, device  1, function  0: vendor 8086, device 7000, revision 00
+PCI:   class_base 06, class_function 01, class_api 00
+PCI:   vendor 8086: Intel Corporation
+PCI:   device 7000: 82371SB PIIX3 ISA [Natoma/Triton II]
+PCI:   info: Bridge (ISA bridge)
+PCI:   line_size 00, latency 00, header_type 80, BIST 00
+PCI:   ROM base host 00000000, pci 00000000, size 00000000
+PCI:   cardbus_CIS 00000000, subsystem_id 0000, subsystem_vendor_id 0000
+PCI:   interrupt_line 00, interrupt_pin 00, min_grant 00, max_latency 00
+PCI:   base reg 0: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 1: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 2: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 3: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 4: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   base reg 5: host 00000000, pci 00000000, size 00000000, flags 00
+PCI:   Capabilities: (not supported)
+PCI: [dom 0, bus  0] bus   0, device  1, function  1: vendor 8086, device 7010, revision 00
+PCI:   class_base 01, class_function 01, class_api 80
+PCI:   vendor 8086: Intel Corporation
