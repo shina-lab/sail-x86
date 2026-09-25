@@ -1,0 +1,14 @@
+a20 0
+apic 0
+apic_cpu 0
+basic 0
+exceptions 0
+fw_cfg 0
+ide 0
+keyboard 0
+paging 0
+rtc 0
+smm 0
+vbe 0
+vga 0
+vmx 0
