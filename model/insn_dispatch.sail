@@ -1089,7 +1089,9 @@ function decode_execute() = {
 
       // 80/82: Group 1 — ALU r/m8, imm8. SDM Vol.3B 25.15
       // defines 82h as the 80h alias outside 64-bit mode only.
-      128 | 130 => {
+      // (A guard rather than an or-pattern: the official Sail parser
+      // does not accept `128 | 130 =>`.)
+      op if op == 128 | op == 130 => {
         if op == 130 & cur_mode == LongMode then raise_UD();
         let (reg_field, dest) = fetch_modrm_raw(pfx);
         let imm : byte = fetch(1);

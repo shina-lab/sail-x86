@@ -275,10 +275,16 @@ function check_seg_limit(seg, offset, access_size) = {
     let limit : dword = desc.seg_limit;
     let expand_down = desc.seg_s == 0b1 & desc.seg_type[3..2] == 0b01;
     let last = unsigned(offset) + access_size - 1;
-    let invalid = if expand_down then {
-      let upper = if desc.seg_db == 0b1 then 0xFFFFFFFF else 0xFFFF;
-      unsigned(offset) <= unsigned(limit) | last > upper
-    } else last > unsigned(limit);
+    // Written with a plain boolean variable and an integer bound: the
+    // official type checker cannot unify the refinement types of the
+    // two branches otherwise, and 0xFFFFFFFF/0xFFFF differ in width.
+    var invalid : bool = false;
+    if expand_down then {
+      let upper : int = if desc.seg_db == 0b1 then 4294967295 else 65535;
+      invalid = unsigned(offset) <= unsigned(limit) | last > upper
+    } else {
+      invalid = last > unsigned(limit)
+    };
     if invalid then {
       if seg == SS then throw Fault(EXN_SS, 0x00000000)
       else throw Fault(EXN_GP, 0x00000000)
