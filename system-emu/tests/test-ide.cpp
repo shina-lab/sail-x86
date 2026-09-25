@@ -349,6 +349,35 @@ TEST(ata_disk_read_write) {
   ASSERT_EQ(st() & 0x01, 0x01);
 }
 
+TEST(ata_recalibrate) {
+  Image disk(512 * 64), iso(2048 * 4);
+  IDEChannel c(0x1F0, 0x3F6), cd(BASE, CTRL);
+  assert(c.open_disk(disk.path.c_str()));
+  assert(cd.open_cdrom(iso.path.c_str()));
+  c.write(0x1F6, 0xA0);
+  cd.write(BASE + 6, 0xA0);
+  for (unsigned cmd = 0x10; cmd <= 0x1F; ++cmd) {
+    c.write(0x1F4, 0x34);
+    c.write(0x1F5, 0x12);
+    c.write(0x1F7, cmd);
+    ASSERT_EQ(c.read(0x3F6), 0x50); // DRDY | DSC, no ERR/DRQ/BSY
+    ASSERT_EQ(c.irq_asserted, true);
+    ASSERT_EQ(c.read(0x1F7), 0x50);
+    ASSERT_EQ(c.irq_asserted, false);
+    ASSERT_EQ(c.read(0x1F1), 0);
+    ASSERT_EQ(c.read(0x1F4), 0);
+    ASSERT_EQ(c.read(0x1F5), 0);
+    cd.write(BASE + 7, cmd);
+    ASSERT_EQ(cd.read(CTRL) & 1, 1);
+    ASSERT_EQ(cd.read(BASE + 1) & 4, 4); // ATAPI rejects disk commands
+    cd.read(BASE + 7);
+  }
+  c.write(0x3F6, 2); // nIEN suppresses completion interrupt
+  c.write(0x1F7, 0x10);
+  ASSERT_EQ(c.read(0x3F6), 0x50);
+  ASSERT_EQ(c.irq_asserted, false);
+}
+
 TEST(master_slave_independent_transfers) {
   Image master(512 * 64), slave(512 * 128);
   IDEChannel c(0x1F0, 0x3F6);
@@ -436,6 +465,7 @@ int main() {
   run_test_atapi_inquiry_capacity_and_read();
   run_test_atapi_inter_block_busy_and_interrupt();
   run_test_ata_disk_read_write();
+  run_test_ata_recalibrate();
   run_test_master_slave_independent_transfers();
   run_test_busmaster_pio_interrupt_status();
   printf("\n  %d passed, %d failed\n", tests_passed, tests_failed);

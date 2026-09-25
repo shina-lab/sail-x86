@@ -1688,6 +1688,16 @@ private:
               drive_head, nien, now());
     error = 0;
     packet = false;
+    // ATA RECALIBRATE (10h-1Fh): seek cylinder zero, then complete with
+    // DRDY and DSC. OS/2's IBM1S506 driver still uses this legacy command.
+    if ((cmd & 0xF0) == 0x10) {
+      if (dev != DISK) { abort_command(); return; }
+      lba_mid = lba_high = 0;
+      xfer = XFER_NONE;
+      status = 0x50;
+      raise_irq();
+      return;
+    }
     switch (cmd) {
     case 0x08:  // DEVICE RESET (ATAPI)
       if (dev != CDROM) { abort_command(); break; }
@@ -2299,6 +2309,11 @@ public:
     u32 addr = dma.get_addr(2);
     u16 count = dma.get_count(2) + 1;  // DMA count is N-1
 
+    if (getenv("SAIL_X86_FLOPPY_TRACE"))
+      fprintf(stderr, "FDC DMA %s offset=%lu address=%x count=%u mode=%02x mask=%u\n",
+              dma_is_write ? "write" : "read", dma_disk_offset, addr,
+              count, dc.mode, dc.masked);
+
     if (dma_is_write) {
       // Write: guest memory → disk
       for (u16 i = 0; i < count && i < (u16)sizeof(dma_buf); i++)
@@ -2444,6 +2459,13 @@ private:
 
   void execute_command() {
     u8 cmd = cmd_buf[0] & 0x1F;  // Mask MT, MFM, SK bits
+
+    if (getenv("SAIL_X86_FLOPPY_TRACE")) {
+      fprintf(stderr, "FDC command:");
+      for (int i = 0; i < cmd_pos; ++i) fprintf(stderr, " %02x", cmd_buf[i]);
+      fprintf(stderr, " DOR=%02x rate=%u cyl=%u change=%u\n",
+              dor, data_rate, current_cylinder, disk_changed);
+    }
 
     switch (cmd) {
     case 0x03:  // SPECIFY
