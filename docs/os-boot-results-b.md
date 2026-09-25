@@ -9,6 +9,10 @@ the [Start menu](os-boot/b-win95-desktop-start-menu.png), verifying keyboard
 interaction with the shell. [COM1](os-boot/b-win95-desktop.serial) is empty;
 the [CPU capture](os-boot/b-win95-desktop-state.txt) records **1,032,798,579
 instructions**. No model changes are needed to reach this desktop.
+The optional [MS-DOS Prompt window](os-boot/b-win95-msdos-prompt.png) also
+runs successfully: `VER` reports Windows 95 version **4.00.1111**. Guest
+commands write that version and `WIN95_DESKTOP_VM86_OK` to the
+[serial log](os-boot/b-win95-msdos-prompt.serial).
 
 The worktree resumes clean at `a9cfc8d`. The fast emulator is rebuilt first
 with `system-emu/build-llvm.sh`, using **sail-llvm `1a102f2` only**. All
@@ -64,6 +68,23 @@ Later keys use the private input helper, writing bytes to the emulator's
 stdin with `-kbd`: Tab, Enter for Don't Fix It; Esc to cancel ScanDisk;
 Enter to continue startup; Tab, Space, Enter at the mouse notice; and
 Tab, Enter to open Start after the desktop appears.
+
+### MS-DOS Prompt in virtual-8086 mode
+
+From Start, `r` opens Run; `command.com` launches the windowed MS-DOS
+Prompt. `ver` prints the version in the window, and `ver > com1` sends
+it through the emulated serial port. The subsequent echo marker is also
+received on COM1. The long command needs slower typing after the guest
+drops its suffix during startup; the completed command and returned prompt
+are visible in the retained PNG.
+
+A host hardware watchpoint observes VM86 entry without changing guest CPU
+or memory state. At an instruction boundary after `VER > COM1`, it records
+**VM86, CPL 3, `f000:d9b8`, `SS:SP=00c9:0a46`, `CR0=80000039`,
+`CR3=0041b000`, IOPL=3**.
+[Mode observation and final screenshot state](os-boot/b-win95-msdos-prompt-state.txt).
+The disk checkpoint with this completed session is
+`/tmp/sail-x86-os2-win95-20260925/win95-native-desktop-dos.img`.
 
 ## Resumption after 11:58 JST on 2026-09-25
 
