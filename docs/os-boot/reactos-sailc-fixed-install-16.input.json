@@ -1,0 +1,8 @@
+[
+  {
+    "at_seconds": 6731.05,
+    "text": "\u0001x",
+    "reason": "Setup has flushed the disk and rebooted; stop for a separate installed-disk boot",
+    "command": "python3 build/os-boot/send-input.py reactos-sailc-fixed-install-16 '\\x01x' 'Setup has flushed the disk and rebooted; stop for a separate installed-disk boot'"
+  }
+]

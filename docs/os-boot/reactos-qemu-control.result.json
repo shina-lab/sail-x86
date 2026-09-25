@@ -1,0 +1,10 @@
+{
+  "wall_seconds": 78.399,
+  "success_screen": true,
+  "screens": [
+    "copying",
+    "success"
+  ],
+  "last_screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n          The system is now making sure all data is stored on your disk.\n\n          This may take a minute.\n          When finished, your computer will reboot automatically.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   Flushing cache",
+  "actions": 6
+}

@@ -1,0 +1,11 @@
+{
+  "commit": "b36f41c232d8a27401438a013df306de379ac59b",
+  "compiler_commit": "54a10b88c85548d94abb46799a85813a83dc343d",
+  "artifacts": {
+    "build/llvm/sail-x86-system": "fe86279d87abcc7017e642630104c82d690ebd06b090a51af05da2276bf9caa9",
+    "build/bios.bin": "0da4ef893303fdcabb754bd1eaf43a80a7c2131e1668fca7f9cb7bf47b3f7d12",
+    "build/vgabios.bin": "62c8300e0fa564fd26b596fa4327b081fc159e828a0330ec45b61cd428919d55",
+    "build/os-boot/reactos-debug.iso": "124746ad15076e74e5ec95bdb9d7a35ad8a85cb585ecb303be799b8b578c4e12"
+  },
+  "runner_pid": "3161372"
+}

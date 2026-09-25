@@ -1,0 +1,10 @@
+{
+  "wall_seconds": 88.977,
+  "success_screen": true,
+  "screens": [
+    "copying",
+    "success"
+  ],
+  "last_screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n          The basic components of ReactOS have been installed successfully.\n\n          Remove floppy disk from Drive A: and\n          all CD-ROMs from CD-Drive.\n\n          Press ENTER to reboot your computer.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n                   Your computer will reboot in 11 second(s)...\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Reboot computer",
+  "actions": 9
+}

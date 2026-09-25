@@ -1,0 +1,25 @@
+{
+  "time": 1790304508.875412,
+  "elapsed": 3101.84,
+  "instructions": 8780232171,
+  "percent": 50,
+  "screen": [
+    "     ReactOS 0.4.17-x86-dev Setup",
+    "          Please wait while ReactOS Setup copies files to your ReactOS",
+    "                              installation folder.",
+    "                   This may take several minutes to complete.",
+    "          Setup is copying files...",
+    "                                       50 %",
+    "                 9  %                  40 %                  41 %",
+    "             Kernel Pool           Kernel Cache          Free Memory",
+    "   Copying file: kernel32.dll"
+  ],
+  "errors": [
+    "(base/setup/usetup/usetup.c:3229) An error happened while trying to copy file '\\Device\\Harddisk0\\Partition1\\ReactOS\\system32\\kdvbox.dll' (error 0xc0000034), skipping it..."
+  ],
+  "serial_tail": [
+    "(base/setup/lib/setuplib.c:923) Fixed disk found by BIOS, using MULTI ARC path 'multi(0)disk(0)rdisk(0)partition(1)\\'",
+    "(base/setup/lib/utils/filesup.c:257) NtOpenFile failed: c0000034, \\Device\\CdRom0\\i386\\system32\\kdvbox.dll",
+    "(base/setup/usetup/usetup.c:3229) An error happened while trying to copy file '\\Device\\Harddisk0\\Partition1\\ReactOS\\system32\\kdvbox.dll' (error 0xc0000034), skipping it..."
+  ]
+}

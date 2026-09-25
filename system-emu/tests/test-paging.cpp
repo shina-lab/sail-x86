@@ -627,6 +627,63 @@ TEST(paging_32bit_fault_not_present) {
   model.model_fini();
 }
 
+TEST(outs_page_boundary_width) {
+  // SDM Vol.2B OUTS: each iteration reads only the transferred width.
+  // ReactOS writes 512-byte blocks ending exactly at a page boundary.
+  for (unsigned width : {1u, 2u, 4u}) {
+    for (unsigned count : {1u, 128u}) {
+      x86::Model model;
+      init_model_32(model);
+      model.zCR3 = 0x10000;
+      model.phys_mem.write32(0x10000, 0x11003);
+      for (unsigned i = 0; i < 1024; ++i)
+        model.phys_mem.write32(0x11000 + i * 4, (i << 12) | 3);
+      model.phys_mem.write32(0x11000 + 0x44 * 4, 0);
+      model.zGPR.data[6] = 0x44000 - width * count;
+      model.zGPR.data[1] = count;
+      model.zGPR.data[2] = 0x80; // POST port, no device side effects
+      u8 code[] = {0xF3, 0x66, u8(width == 1 ? 0x6E : 0x6F), 0xF4};
+      if (width == 4) code[1] = 0x3E; // DS override instead of operand-size override
+      int kind = run_code(model, 0x100000, code, sizeof(code));
+      ASSERT_EQ(kind, RUN_HALTED);
+      ASSERT_EQ(model.zfault_pending, false);
+      ASSERT_EQ(model.zGPR.data[6], 0x44000UL);
+      ASSERT_EQ(model.zGPR.data[1], 0UL);
+      model.model_fini();
+    }
+  }
+}
+
+TEST(rep_outs_page_fault_restart) {
+  x86::Model model;
+  init_model_32(model);
+  model.zCR3 = 0x10000;
+  model.phys_mem.write32(0x10000, 0x11003);
+  for (unsigned i = 0; i < 1024; ++i)
+    model.phys_mem.write32(0x11000 + i * 4, (i << 12) | 3);
+  model.phys_mem.write32(0x11000 + 0x44 * 4, 0);
+  model.zGPR.data[6] = 0x43FF8;
+  model.zGPR.data[1] = 3;
+  model.zGPR.data[2] = 0x80;
+  u8 code[] = {0xF3, 0x6F, 0xF4};
+  int kind = run_code(model, 0x100000, code, sizeof(code));
+  ASSERT_EQ(kind, RUN_FAULTED);
+  ASSERT_EQ(model.zfault_vector, 14);
+  ASSERT_EQ(model.zCR2, 0x44000UL);
+  ASSERT_EQ(model.zRIP, 0x100000UL);
+  ASSERT_EQ(model.zGPR.data[6], 0x44000UL);
+  ASSERT_EQ(model.zGPR.data[1], 1UL);
+  // Map the missing page and retry the remaining iteration.
+  model.phys_mem.write32(0x11000 + 0x44 * 4, 0x50003);
+  model.z__tlb_flush(UNIT);
+  model.zstep(UNIT);
+  ASSERT_EQ(model.zfault_pending, false);
+  ASSERT_EQ(model.zRIP, 0x100002UL);
+  ASSERT_EQ(model.zGPR.data[6], 0x44004UL);
+  ASSERT_EQ(model.zGPR.data[1], 0UL);
+  model.model_fini();
+}
+
 TEST(paging_pae_identity_2mb) {
   // PAE paging with 2MB pages
   x86::Model model;
@@ -834,6 +891,8 @@ int main() {
   run_test_paging_32bit_identity_4kb();
   run_test_paging_32bit_4mb_page();
   run_test_paging_32bit_fault_not_present();
+  run_test_outs_page_boundary_width();
+  run_test_rep_outs_page_fault_restart();
 
   // PAE paging tests
   run_test_paging_pae_identity_2mb();

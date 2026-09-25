@@ -14,7 +14,7 @@ planar VGA. It has no HPET or additional CPUs.
 | Linux i386 | Serial `sail#` shell | None for the requested boot |
 | Linux amd64 | `sail#` through BIOS/ISO with ACPI and I/O APIC, and by direct bzImage boot | Neither command line needs `noapic nolapic` |
 | Haiku | COM1 output and graphical kernel debugger at 1024x768 | Boot-volume panic: PCI-ATA requires the missing bus-master IDE BAR/registers; no desktop |
-| ReactOS | STI interrupt-inhibition bug fixed; text setup file copy reached 65% (`wdmaud.drv`), with serial half-copy checkpoint | Active copy stopped at task budget; separate LLVM cross-page fault-propagation bug corrupts cabinet lengths; no first boot |
+| ReactOS | Fresh text installation completed and rebooted into graphical second-stage setup at 800×600: “Installing devices” | Second stage active after one hour; offline FAT defects recorded, with the same class of damage reproduced in a timed QEMU control |
 | FreeBSD | CD Loader 1.2 and BTX entry | Fails before loader prompt; virtual-8086 boot path remains unsupported |
 | Windows 3.1 | Express Setup, first-stage copy, protected-mode DOSX startup | LMSW bug fixed; next #GP is an unsupported 16-bit call gate; no graphical screen |
 | Windows 95 | ScanDisk repair UI; `SETUP /IS` copies startup files and enters protected-mode DOSX | R6002 (XLAT) and keyboard bugs fixed; same unsupported 16-bit call gate as Windows 3.1 blocks graphics; subsequent ScanDisk size reports remain unclassified |
@@ -2267,3 +2267,355 @@ clang++ -std=c++20 -O2 -march=native \
   -o build/os-boot/check-reactos-crossing
 build/os-boot/check-reactos-crossing
 ```
+
+
+## ReactOS installation with the merged page-fault fixes (2026-09-25)
+
+This continuation starts at `3f0d9ba` and uses **only sail-llvm** for
+builds and tests. Its wall budget is 00:04:10–04:34:10 UTC. Every new
+installation attempt uses a fresh sparse 1 GiB disk under `build/os-boot`,
+the existing debug setup ISO, and the keyboard schedule from install-10.
+The runner timeout is 14,400 seconds.
+
+The old cabinet-length diagnostic now correctly reports `#PF(14)`,
+`CR2=44000`, unchanged `EAX=12345678`, and `have_exception=0`.
+All 18 original paging tests pass with the rebuilt merged model.
+End-to-end cabinet verification is recorded with the subsequent attempt.
+
+### reactos-pagefixed-install-14
+
+Stopped at **Building the file copy list**, before extraction. The newly
+propagated page fault reveals a separate over-read in `OUTS`: the generated
+LLVM model reads eight source bytes for each byte/word/dword output.
+ReactOS's `WRITE_PORT_BUFFER_ULONG` executes `REP OUTSD` at `809416E9`
+with `ESI=AFFAAFFC`, `ECX=1`, and `DX=1F0`. Four valid bytes remain, but
+the eight-byte read faults at `AFFAB000` in the storage ISR, at IRQL 13.
+`MmAccessFault` asserts `KeGetCurrentIrql() <= APC_LEVEL`. The IDE device
+has received 4,092 of 4,096 bytes. The assertion was not ignored.
+
+[Stop PNG](os-boot/reactos-pagefixed-install-14-irql.png) ·
+[Full serial log](os-boot/reactos-pagefixed-install-14.serial.txt) ·
+[Diagnosis and failing regressions](os-boot/reactos-outs-diagnosis.txt).
+
+The fix gives each OUTS memory read an explicit 8/16/32-bit width, as
+specified by Intel SDM revision 090, Vol.2B **OUTS/OUTSB/OUTSW/OUTSD**,
+pp.4-173–4-176. Regressions cover byte/word/dword transfers ending at an
+unmapped page and the remaining count/source pointer on a genuine REP
+OUTSD page fault and restart. Both tests fail on the old LLVM object.
+After the fix, all 20 paging, 67 basic, and 25 exception tests pass with
+sail-llvm, and the fast emulator is rebuilt.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_EVENT_ADDRESS=0x80403f2e SAIL_X86_TRACE_ADDRESS=0x4024f8 python3 system-emu/run-boot.py --name reactos-pagefixed-install-14 --timeout 14400 --send '2:\n' --send '110:\n' --send '120:\n' --send '130:\n' --send '140:\n' --send '150:\n' --send '160:\n' --send '170:\n' --send '190:\n' --send '220:\n' --send '250:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-pagefixed-disk.img -cdrom build/os-boot/reactos-debug.iso -boot d
+```
+
+Wall time: **578.988 s**. Instructions: **1,804,902,400**.
+Stopped with Ctrl-a x after diagnosis; exit status `0`.
+Disk: `build/os-boot/reactos-pagefixed-disk.img`.
+RAM at the original assertion: `build/os-boot/reactos-pagefixed-install-14-irql.ram`.
+Additional keyboard/debugger inputs are retained in
+`build/os-boot/reactos-pagefixed-install-14.input.json`.
+
+Last serial output:
+
+```text
+kdb:> .cxr AFCCDAC4
+Command '.cxr AFCCDAC4' is unknown.
+kdb:>
+```
+
+
+### reactos-outs-fixed-install-15 — cabinet verification checkpoint
+
+Fresh disk: `build/os-boot/reactos-outs-fixed-disk.img`. With the explicit
+OUTS widths, setup passes the storage-ISR assertion and reaches **25%**
+(`d3d9.dll`) at 1,301.91 seconds and 3,737,043,404 instructions, then
+continues copying. This is an active-run checkpoint, not a completed
+installation or a stop.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_EVENT_ADDRESS=0x80403f2e SAIL_X86_TRACE_ADDRESS=0x4024f8 python3 system-emu/run-boot.py --name reactos-outs-fixed-install-15 --timeout 14400 --send '2:\n' --send '110:\n' --send '120:\n' --send '130:\n' --send '140:\n' --send '150:\n' --send '160:\n' --send '170:\n' --send '190:\n' --send '220:\n' --send '250:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-outs-fixed-disk.img -cdrom build/os-boot/reactos-debug.iso -boot d
+```
+
+Both files corrupted in the earlier session now match the source cabinet
+**in full**, including the bytes beyond the old truncation boundaries:
+
+| File | Bytes | SHA-256 of both source and installed file |
+|---|---:|---|
+| `ReactOS/explorer.exe` | 1,875,968 | `0d2720fd93a865a7c398a20ca410b3656162a0695ddd586df19142d68b31f74a` |
+| `ReactOS/system32/console.dll` | 275,968 | `f9b11d94150775f8e212a78d0045ae693e6d0ba05cc45f1493351d43fde40c83` |
+
+The comparison reads a separate disk snapshot using `mcopy` at partition
+offset 1,048,576; no host tool changes the running guest disk. The source
+files are extracted from the original `reactos.cab`. There is no cabinet
+codec-error trace hit, `C0000001` copy failure, assertion, or setup-process
+termination. The CD still lacks `i386/system32/kdvbox.dll` (`C0000034`),
+which setup skips; this is distinct from the fixed cabinet-length corruption.
+
+[20% PNG](os-boot/reactos-outs-fixed-copy-20.png) ·
+[25% PNG](os-boot/reactos-outs-fixed-copy-25.png) ·
+[Checkpoint serial log](os-boot/reactos-outs-fixed-copy-25.serial.txt) ·
+[File verification details](os-boot/reactos-cabinet-fixed-verification.json).
+
+
+## ReactOS with the corrected sail-llvm compiler (2026-09-25)
+
+This continuation starts at `6a4d949`, with a wall budget of
+**01:52:24–06:22:24 UTC**. Only sail-llvm builds and binaries are used.
+The explicit-width OUTS change in `944695c` was a workaround for
+**sail-llvm type inference**, not an x86 architectural correction. Its
+model hunk is removed, while both page-boundary regression tests remain.
+After rebuilding with sailc `54a10b8`, both regressions pass, as do all
+**20 paging, 67 basic, and 25 exception tests**. The source width now
+comes from the extern port-output parameter type, as originally written.
+
+[Validation log](os-boot/reactos-sailc-fixed-validation.txt).
+
+### reactos-sailc-fixed-install-16 — fresh installation checkpoint
+
+Merged main `7dcd47f` in `b36f41c` after committing the OUTS workaround
+removal as `251d2dc`. Rebuilt the merged emulator with sail-llvm `54a10b8`.
+All 14 C++ system/device test executables pass, including **80 basic,
+20 paging, 26 exception, 16 VMX, and 7 IDE cases**. The sail-llvm
+virtual-8086 harness passes **416 model-only cases**; PNG validation also
+passes. [Merged validation log](os-boot/reactos-merged-validation.txt).
+
+SeaBIOS was rebuilt from the existing configuration with the merged
+16-bit I/O BAR sizing patch (`make -j8`); no Sail compiler is involved in
+that firmware build. [Compiler, model, emulator, firmware, and ISO identities](os-boot/reactos-sailc-fixed-install-16.build.json).
+
+Installation starts from a new sparse, zero-filled 1 GiB base image
+`build/os-boot/reactos-blank-20260925.img`, copied to
+`build/os-boot/reactos-sailc-fixed-disk.img`. Earlier installation disks
+are untouched. The ISO and keyboard schedule match install-15.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_EVENT_ADDRESS=0x80403f2e SAIL_X86_TRACE_ADDRESS=0x4024f8 python3 system-emu/run-boot.py --name reactos-sailc-fixed-install-16 --timeout 14400 --send '2:\n' --send '110:\n' --send '120:\n' --send '130:\n' --send '140:\n' --send '150:\n' --send '160:\n' --send '170:\n' --send '190:\n' --send '220:\n' --send '250:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-sailc-fixed-disk.img -cdrom build/os-boot/reactos-debug.iso -boot d
+```
+
+At **1301.74 seconds**, **3,690,858,525 instructions**,
+setup reaches **25%**, copying `timedate.cpl`. This is an active-run
+checkpoint, not completion or a stop. There is no storage-ISR assertion,
+cabinet-error trace, or setup-process termination. The source CD's
+missing `kdvbox.dll` is again skipped (`C0000034`).
+
+Both `ReactOS/explorer.exe` (1,875,968 bytes) and
+`ReactOS/system32/console.dll` (275,968 bytes) match the cabinet source in
+full, including their previously truncated tails. Verification uses a
+separate disk snapshot with partition offset 1,048,576.
+
+[25% PNG](os-boot/reactos-sailc-fixed-install-16-25.png) ·
+[Checkpoint serial log](os-boot/reactos-sailc-fixed-install-16-25.serial) ·
+[Checkpoint state](os-boot/reactos-sailc-fixed-install-16-25.json) ·
+[File hashes](os-boot/reactos-sailc-fixed-copy-25-verification.json).
+
+#### Half-copy checkpoint
+
+The same fresh attempt reaches **50%**, copying `kernel32.dll`, at
+**3101.84 seconds** and **8,780,232,171 instructions**.
+It is still running. There are no new copy errors, cabinet-error trace
+hits, assertions, or setup-process terminations. The only skipped file
+remains the source CD's missing `kdvbox.dll`.
+
+[50% PNG](os-boot/reactos-sailc-fixed-install-16-50.png) ·
+[Checkpoint serial](os-boot/reactos-sailc-fixed-install-16-50.serial) ·
+[Checkpoint state](os-boot/reactos-sailc-fixed-install-16-50.json).
+
+#### File copy finished; registry import in progress
+
+The display reached **100%** while copying `win32k.sys`, and setup then
+advanced to **updating the system configuration / importing registry.inf**.
+At the saved registry checkpoint it has run **6552.23 seconds**
+and **18,442,426,091 instructions**. This is still an active run.
+Kernel samples show hive allocation, registry lookups, and continued disk
+writes. No assertion, fatal model fault, or additional copy error has
+appeared. `HvHiveWillShrink` emits an unimplemented-function warning.
+
+[100% copy PNG](os-boot/reactos-sailc-fixed-install-16-100.png) ·
+[Registry PNG](os-boot/reactos-sailc-fixed-install-16-registry.png) ·
+[Registry serial log](os-boot/reactos-sailc-fixed-install-16-registry.serial) ·
+[Registry checkpoint state](os-boot/reactos-sailc-fixed-install-16-registry.json).
+
+A broader cabinet check of a live-disk snapshot is **inconclusive**:
+recursive `mcopy` encounters a zero-cluster printer-driver directory, and
+a direct FAT reader encounters an incomplete chain. The live disk has
+not yet received setup's final shutdown flush. Bulk verification is
+deferred to the stopped disk; the earlier two-file byte-for-byte checks
+remain valid. No model change is inferred from this snapshot.
+
+#### Text-mode installation completed; first disk boot started
+
+Setup displayed **“The basic components of ReactOS have been installed
+successfully”**, installed FAT32 VBR and MBR boot code, flushed the cache,
+and rebooted. The observer stopped the emulator after SeaBIOS restarted,
+using Ctrl-a x. **Wall time: 6731.085 seconds**
+(112.18 minutes); exit status **0**. The last pre-reset sampled instruction
+count is **18,933,388,052**. The runner's final **3,960,832** count
+is for the new BIOS boot, because the emulator resets its counter on reset;
+it is not the complete installation instruction count.
+
+[Success PNG](os-boot/reactos-sailc-fixed-install-16-success.png) ·
+[Reboot-stop PNG](os-boot/reactos-sailc-fixed-install-16-reboot.png) ·
+[Complete serial log](os-boot/reactos-sailc-fixed-install-16.serial) ·
+[Runner result](os-boot/reactos-sailc-fixed-install-16.json) ·
+[Final control input](os-boot/reactos-sailc-fixed-install-16.input.json).
+
+The completed text-install disk is retained unchanged at
+`build/os-boot/reactos-sailc-fixed-disk.img`. Its copy,
+`build/os-boot/reactos-sailc-fixed-installed.img`, is used for the installed
+system's first boot. `freeldr.ini` defaults to `ReactOS_Debug`, with COM1
+at 115200 baud.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 python3 system-emu/run-boot.py --name reactos-installed-first-boot-17 --timeout 14400 --send '2:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-sailc-fixed-installed.img -cdrom build/os-boot/reactos-debug.iso -boot c
+```
+
+Setup also logged hive-shrink, work-queue, volume-lock, and shutdown
+warnings. Boot-code installation returned `STATUS_SUCCESS`, and setup
+reached its success screen and reboot. The full serial log preserves the
+warnings; no assertion was ignored.
+
+#### Offline installation integrity
+
+The stopped, flushed disk still has filesystem defects; the live-snapshot
+anomalies were not all transient. Both FAT copies agree.
+**989 readable cabinet-file instances match their expected sources**.
+The source cabinet contains four entries named `fusion.dll` for different
+.NET versions; the two initial apparent mismatches match their corresponding
+ISO paths exactly (`9b0201aa6bd64d2255712602c6aa3aa56d5121f21a10aeff01880dbcb1d89247`).
+They are not corruption.
+
+`ReactOS/system32/d3dx9_40.dll` declares 1,126,912 bytes but its FAT chain
+reaches a free entry at cluster 22529 after 131,072 allocated bytes.
+The empty `spool/drivers/w32x86/3` directory has start cluster zero, and
+`Microsoft.NET/Framework/v2.0.50727` has missing dot entries. Read-only
+`fsck.fat -n -v` also reports 119 orphan clusters and an incorrect free
+cluster summary. It **leaves the filesystem unchanged**. No cause has
+yet been established, so no speculative model or guest-disk repair is
+applied. The installed system is booted from the exact completed disk copy.
+
+[Cabinet comparison](os-boot/reactos-sailc-fixed-offline-cabinet-verification.json) ·
+[Read-only fsck log](os-boot/reactos-sailc-fixed-offline-fsck.log) ·
+[Installed boot configuration](os-boot/reactos-sailc-fixed-offline-freeldr.ini).
+
+### reactos-installed-first-boot-17 — graphical second stage
+
+The unmodified installed-disk copy boots the kernel, loads `win32k.sys`,
+starts `winlogon.exe` and `setup.exe`, and displays the **graphical
+second-stage setup at 800×600, 32 bpp**, with **“Please wait… Installing
+devices”**. The saved state is at **721.78 seconds** and
+**2,100,174,486 instructions**. This is an active checkpoint,
+not the desktop or a stop.
+
+The video-port serial log reports fallback to V86 mode after its internal
+x86 emulator could not initialize; the Bochs driver detects DISPI version
+`0xb0c5`. The model's merged virtual-8086 tests passed earlier.
+Startup also logs an invalid alternate registry hive, service/profile
+warnings, and work-queue recovery; these remain in the complete serial
+checkpoint. The primary boot continues to the setup GUI.
+
+[Graphical setup PNG](os-boot/reactos-installed-first-boot-17-devices.png) ·
+[Serial checkpoint](os-boot/reactos-installed-first-boot-17-devices.serial) ·
+[CPU/timing checkpoint](os-boot/reactos-installed-first-boot-17-devices.json).
+
+#### One-hour second-stage checkpoint
+
+At **3,663.68 seconds** and **10,654,527,859 instructions**, the original
+Sail first boot remains active in graphical device installation, processing
+`ACPI\PNP0C0F\3`. It has advanced through the processor, keyboard, serial
+port, floppy controller, PCI bus, real-time clock, and earlier ACPI interrupt
+links. Samples in the per-device workers execute SetupAPI INF parsing;
+recent interrupt-link installations take about five minutes each. No
+model assertion or unsupported instruction has stopped this run.
+
+This is a continuing checkpoint, not a desktop or a stop. The serial log
+preserves the processor-install failure, COM1 resource conflict, and missing
+`fdc.sys` warning. No guest files or model semantics are changed to bypass
+them.
+
+[One-hour PNG](os-boot/reactos-installed-first-boot-17-hour.png) ·
+[Serial checkpoint](os-boot/reactos-installed-first-boot-17-hour.serial) ·
+[Timing checkpoint](os-boot/reactos-installed-first-boot-17-hour.json).
+
+#### FAT integrity control runs
+
+Two independent QEMU TCG installations use fresh 1 GiB disk copies, the
+same debug ISO, and the same rebuilt SeaBIOS/SeaVGABIOS images. Both
+reach the text-setup success screen and exit on the subsequent guest
+reboot (`-no-reboot`). The controls are diagnostic runs, not Sail results.
+
+| Control | Result after guest shutdown flush |
+|---|---|
+| Ordinary QEMU virtual time | All **990** cabinet-file instances match; read-only fsck reports no filesystem defects |
+| QEMU `-icount shift=8,align=off,sleep=off` (256 ns/instruction, approximately 3.91 MIPS) | **984** readable instances match; `msctfime.ime` and `SourceSansPro-Regular.ttf` have incomplete FAT chains; three directories have zero start clusters; four theme copies fail with `C0000001` |
+
+This reproduces the **same class** of filesystem damage without executing
+the Sail model and makes the result dependent on virtual timing. It
+supports a timing-sensitive ReactOS filesystem/cache problem; it does
+not establish an SDM violation in the model or prove that every Sail
+filesystem defect has the same cause. The guest disks are left unchanged
+by the checks.
+
+The QMP driving portions last **78.399 s** and **88.977 s**, respectively;
+the ordinary run also spent time at setup menus before the final driving
+script started. QEMU instruction counts are not collected.
+
+```sh
+cp --reflink=auto --sparse=always build/os-boot/reactos-blank-20260925.img build/os-boot/reactos-qemu-control-disk.img
+/usr/bin/qemu-system-i386 -machine pc,accel=tcg -m 128 -smp 1 -bios build/bios.bin -display none -vga none -device VGA,romfile=/home/ruiu/sail-x86-os/build/vgabios.bin -nic none -no-hpet -drive file=build/os-boot/reactos-qemu-control-disk.img,format=raw,if=ide,index=0 -cdrom build/os-boot/reactos-debug.iso -boot d -serial file:build/os-boot/reactos-qemu-control.serial -qmp unix:build/os-boot/reactos-qemu-control.qmp,server=on,wait=off -no-reboot -rtc base=2024-01-01T12:00:00
+python3 docs/os-boot/reactos-qemu-control.py reactos-qemu-control
+
+cp --reflink=auto --sparse=always build/os-boot/reactos-blank-20260925.img build/os-boot/reactos-qemu-icount-disk.img
+/usr/bin/qemu-system-i386 -machine pc,accel=tcg,hpet=off -icount shift=8,align=off,sleep=off -m 128 -smp 1 -bios build/bios.bin -display none -vga none -device VGA,romfile=/home/ruiu/sail-x86-os/build/vgabios.bin -nic none -drive file=build/os-boot/reactos-qemu-icount-disk.img,format=raw,if=ide,index=0 -cdrom build/os-boot/reactos-debug.iso -boot d -serial file:build/os-boot/reactos-qemu-icount.serial -qmp unix:build/os-boot/reactos-qemu-icount.qmp,server=on,wait=off -no-reboot -rtc base=2024-01-01T12:00:00
+python3 docs/os-boot/reactos-qemu-control.py reactos-qemu-icount
+```
+
+Run each QMP helper in a separate terminal while its VM is running.
+[QMP helper](os-boot/reactos-qemu-control.py) and
+[read-only cabinet comparison helper](os-boot/reactos-verify-fat-cabinet.py).
+The comparison uses the existing extracted source cabinet directory; it
+handles the distinct `fusion.dll` source variants by their installation paths.
+
+Ordinary control: [success PNG](os-boot/reactos-qemu-control-success.png),
+[serial](os-boot/reactos-qemu-control.serial),
+[driver result](os-boot/reactos-qemu-control.result.json),
+[fsck](os-boot/reactos-qemu-control-fsck.log),
+[file comparison](os-boot/reactos-qemu-control-cabinet-verification.json).
+Timed control: [success PNG](os-boot/reactos-qemu-icount-success.png),
+[serial](os-boot/reactos-qemu-icount.serial),
+[driver result](os-boot/reactos-qemu-icount.result.json),
+[fsck](os-boot/reactos-qemu-icount-fsck.log),
+[file comparison](os-boot/reactos-qemu-icount-cabinet-verification.json).
+
+#### Installed-disk QEMU control
+
+A separate clone of the completed **Sail text-install disk**, including
+its recorded FAT defects, completes graphical second-stage setup under
+ordinary QEMU TCG and reaches the desktop on its next boot. This is a
+control result, **not a Sail desktop result**. It establishes that the
+recorded disk defects do not by themselves prevent the tested setup and
+boot sequence. Device-install failures also occur in this control.
+
+The control accepts the setup defaults, retains the default owner and
+computer name, uses a blank administrator password, keeps the Classic
+theme, and declines optional downloads. It has no network device. The
+first VM exits on the setup reboot; the second is stopped with QMP
+`quit` after saving its desktop PNG. Wall time and instruction counts
+were not measured for these two control boots. The primary Sail run
+continues independently from its own copy of the completed text install.
+
+```sh
+cp --reflink=auto --sparse=always build/os-boot/reactos-sailc-fixed-disk.img build/os-boot/reactos-qemu-sail-installed.img
+/usr/bin/qemu-system-i386 -machine pc,accel=tcg,hpet=off -m 128 -smp 1 -bios build/bios.bin -display none -vga none -device VGA,romfile=/home/ruiu/sail-x86-os/build/vgabios.bin -nic none -drive file=build/os-boot/reactos-qemu-sail-installed.img,format=raw,if=ide,index=0 -cdrom build/os-boot/reactos-debug.iso -boot c -serial file:build/os-boot/reactos-qemu-sail-first-boot.serial -qmp unix:build/os-boot/reactos-qemu-sail-first-boot.qmp,server=on,wait=off -no-reboot -rtc base=2024-01-01T12:00:00
+/usr/bin/qemu-system-i386 -machine pc,accel=tcg,hpet=off -m 128 -smp 1 -bios build/bios.bin -display none -vga none -device VGA,romfile=/home/ruiu/sail-x86-os/build/vgabios.bin -nic none -drive file=build/os-boot/reactos-qemu-sail-installed.img,format=raw,if=ide,index=0 -boot c -serial file:build/os-boot/reactos-qemu-sail-desktop.serial -qmp unix:build/os-boot/reactos-qemu-sail-desktop.qmp,server=on,wait=off -no-reboot -rtc base=2024-01-01T12:00:00
+```
+
+Run the second command after the first VM exits.
+[Setup-complete PNG](os-boot/reactos-qemu-sail-first-boot-complete.png) ·
+[Setup serial](os-boot/reactos-qemu-sail-first-boot.serial) ·
+[Setup inputs](os-boot/reactos-qemu-sail-first-boot.input.json) ·
+[Setup result](os-boot/reactos-qemu-sail-first-boot.result.json) ·
+[Desktop PNG](os-boot/reactos-qemu-sail-desktop-desktop.png) ·
+[Desktop serial](os-boot/reactos-qemu-sail-desktop.serial) ·
+[Desktop inputs](os-boot/reactos-qemu-sail-desktop.input.json) ·
+[Desktop result](os-boot/reactos-qemu-sail-desktop.result.json).

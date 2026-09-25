@@ -1,0 +1,16 @@
+{
+  "time": 1790308915.5999491,
+  "elapsed": 721.78,
+  "instructions": 2100174486,
+  "percent": null,
+  "screen": [
+    "You need to connect a debugger on port COM1",
+    "For more information, visit https://reactos.org/wiki/Debugging."
+  ],
+  "errors": [],
+  "serial_tail": [
+    "err:(dll/win32/combase/combase.c:1874) no class object {56fdf344-fd6d-11d0-958a-006097c9a090} could be created for context 0x1",
+    "(base/services/umpnpmgr/install.c:118) Installing: ACPI\\FixedButton\\2&ccb86d17&0",
+    "(base/services/umpnpmgr/event.c:103) Removal pending: ACPI\\PNP0F13\\2&ccb86d17&0"
+  ]
+}

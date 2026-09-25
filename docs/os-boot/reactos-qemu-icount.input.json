@@ -1,0 +1,47 @@
+[
+  {
+    "elapsed": 4.02,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      Language Selection\n\n           Please choose the language used for the installation process.\n           Then press ENTER.\n\n           This Language will be the default language for the final system.\n\n\n\n\n\n    Albanian\n    Arabic (Saudi Arabia)\n    Armenian\n    Azeri (Cyrillic)\n    Azeri (Latin)\n    Basque\n    Belarusian\n    Bengali (Bangladesh)\n    Bengali (India)\n    Bulgarian\n    Catalan\n    Chinese (Taiwan)\n    Chinese (PRC)\n    Chinese (Hong Kong S.A.R.)\n    Chinese (Singapore)\n    Chinese (Macau S.A.R.)\n    Croatian\n    Czech\n    Danish\n    Dutch (Netherlands)\n    Dutch (Belgium)\n    English (United States)\n    English (United Kingdom)\n    English (Australia)\n    English (Canada)\n    English (New Zealand)\n    English (Ireland)\n    English (South Africa)\n\n\n   ENTER = Continue  F3 = Quit"
+  },
+  {
+    "elapsed": 8.04,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      Welcome to ReactOS Setup\n\n\n      This part of the setup copies the ReactOS Operating System to your\n      computer and prepares the second part of the setup.\n\n\n           Press ENTER to install or upgrade ReactOS.\n\n           Press R to repair a ReactOS installation.\n\n           Press L to view the ReactOS Licensing Terms and Conditions.\n\n           Press F3 to quit without installing ReactOS.\n\n      For more information on ReactOS, please visit:\n      https://reactos.org/\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Continue  R = Repair  L = License  F3 = Quit"
+  },
+  {
+    "elapsed": 12.07,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      ReactOS Version Status\n\n\n      ReactOS is in Alpha stage, meaning it is not feature-complete\n      and is under heavy development. It is recommended to use it only for\n      evaluation and testing purposes and not as your daily-usage OS.\n\n      Backup your data or test on a secondary computer if you attempt\n      to run ReactOS on real hardware.\n\n\n           Press ENTER to continue ReactOS Setup.\n\n           Press F3 to quit without installing ReactOS.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Continue   F3 = Quit"
+  },
+  {
+    "elapsed": 16.1,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      The list below shows the current device settings.\n\n\n               Computer: ACPI PC Uniprocessor\n                Display: VESA Display (800x600x32)\n               Keyboard: XT-, AT- or extended keyboard (83-105 keys)\n        Keyboard layout: English (USA)\n\n                 Accept: Accept these device settings\n\n\n      You can change the hardware settings by pressing the UP or DOWN keys\n      to select an entry. Then press the ENTER key to select alternative\n      settings.\n\n      When all settings are correct, select \"Accept these device settings\"\n      and press ENTER.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Continue   F3 = Quit"
+  },
+  {
+    "elapsed": 20.13,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      The list below shows existing partitions and unused disk\n      space for new partitions.\n\n           Press UP or DOWN to select a list entry.\n\n           Press ENTER to install ReactOS onto the selected partition.\n\n           Press C to create a primary/logical partition.\n\n           Press E to create an extended partition.\n\n           Press D to delete an existing partition.\n\n\n    1024 MB Harddisk 0 (Port=0, Bus=0, Id=0) [RAW]\n\n             Unpartitioned space                1023 MB\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Install   C = Create Primary   E = Create Extended   F3 = Quit"
+  },
+  {
+    "elapsed": 24.16,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      Setup created a new partition on\n\n      C: * (1) [FAT32]                        1023 MB\n\n      on 1024 MB Harddisk 0 (Port=0, Bus=0, Id=0) [MBR].\n\n      This Partition will be formatted next.\n\n\n      Select a file system from the list below.\n\n           Press UP or DOWN to select a file system.\n\n           Press ENTER to format the partition.\n\n           Press ESC to select another partition.\n\n\n       Format partition as FAT file system (quick format)\n       Format partition as FAT file system\n       Format partition as BTRFS file system (quick format)\n       Format partition as BTRFS file system\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Continue   ESC = Cancel   F3 = Quit"
+  },
+  {
+    "elapsed": 28.19,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      Format partition\n\n      C: * (1) [FAT32]                        1023 MB\n\n      on 1024 MB Harddisk 0 (Port=0, Bus=0, Id=0) [MBR].\n\n\n\n      Setup will now format the partition. Press ENTER to continue.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Continue   ESC=Cancel   F3 = Quit"
+  },
+  {
+    "elapsed": 32.21,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      Please select where Setup should install the bootloader:\n\n\n\n        Install bootloader on the harddisk (MBR and VBR).\n        Install bootloader on the harddisk (VBR only).\n        Install bootloader on a floppy disk.\n        Skip bootloader installation.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Continue   F3 = Quit"
+  },
+  {
+    "elapsed": 36.24,
+    "key": "ret",
+    "screen": "\n\n\n     ReactOS 0.4.17-x86-dev Setup\n\n\n\n\n      Setup installs ReactOS files onto the selected partition. Choose a\n      directory where you want ReactOS to be installed:\n\n        \\ReactOS\n\n\n      To change the suggested directory, press BACKSPACE to delete\n      characters and then type the directory where you want ReactOS to\n      be installed.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n   ENTER = Continue   F3 = Quit"
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "time": 1790307959.2619808,
+  "elapsed": 6552.23,
+  "instructions": 18442426091,
+  "percent": null,
+  "screen": [
+    "     ReactOS 0.4.17-x86-dev Setup",
+    "      Setup is updating the system configuration.",
+    "   Importing registry.inf..."
+  ],
+  "errors": [
+    "(base/setup/usetup/usetup.c:3229) An error happened while trying to copy file '\\Device\\Harddisk0\\Partition1\\ReactOS\\system32\\kdvbox.dll' (error 0xc0000034), skipping it..."
+  ],
+  "serial_tail": [
+    "(base/setup/usetup/usetup.c:3229) An error happened while trying to copy file '\\Device\\Harddisk0\\Partition1\\ReactOS\\system32\\kdvbox.dll' (error 0xc0000034), skipping it...",
+    "(base/setup/usetup/usetup.c:3241) CHECKPOINT:HALF_COPIED",
+    "WARNING:  HvHiveWillShrink at sdk/lib/cmlib/hivewrt.c:574 is UNIMPLEMENTED!"
+  ]
+}
