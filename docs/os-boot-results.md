@@ -2356,3 +2356,17 @@ which setup skips; this is distinct from the fixed cabinet-length corruption.
 [25% PNG](os-boot/reactos-outs-fixed-copy-25.png) ·
 [Checkpoint serial log](os-boot/reactos-outs-fixed-copy-25.serial.txt) ·
 [File verification details](os-boot/reactos-cabinet-fixed-verification.json).
+
+
+## ReactOS with the corrected sail-llvm compiler (2026-09-25)
+
+This continuation starts at `6a4d949`, with a wall budget of
+**01:52:24–06:22:24 UTC**. Only sail-llvm builds and binaries are used.
+The explicit-width OUTS change in `944695c` was a workaround for
+**sail-llvm type inference**, not an x86 architectural correction. Its
+model hunk is removed, while both page-boundary regression tests remain.
+After rebuilding with sailc `54a10b8`, both regressions pass, as do all
+**20 paging, 67 basic, and 25 exception tests**. The source width now
+comes from the extern port-output parameter type, as originally written.
+
+[Validation log](os-boot/reactos-sailc-fixed-validation.txt).

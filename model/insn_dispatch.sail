@@ -171,13 +171,10 @@ function exec_outs(os_in, asz, pfx) = {
   };
   let src : MemRef = struct { seg = src_seg, addr = off };
   note_io_access(port, os / 8);
-  // SDM Vol.2B OUTS: read exactly the byte/word/dword sent to the port.
-  // Spell out the memory width: inferring v(src) through the external
-  // call can select a 64-bit read before truncating the port value.
   match os {
-    8  => __port_out8(port,  v(8, src)),
-    16 => __port_out16(port, v(16, src)),
-    32 => __port_out32(port, v(32, src)),
+    8  => __port_out8(port,  v(src)),
+    16 => __port_out16(port, v(src)),
+    32 => __port_out32(port, v(src)),
   };
   let step = (1 - 2 * unsigned(DF)) * (os / 8);
   v(RSI) = (off + step)[asz - 1 .. 0]

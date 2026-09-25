@@ -1,0 +1,150 @@
+OUTS workaround removal validation
+Compiler: sail-llvm 54a10b8
+Model: explicit OUTS width workaround from 944695c removed; regressions retained.
+Emulator rebuilt with system-emu/build-llvm.sh. All test binaries link build/llvm/sail_x86_model.o and libsail_llvm_rt.a.
+
+Paging tests:
+  identity_map_2mb                                  PASS
+  non_identity_4kb_mapping                          PASS
+  page_fault_not_present                            PASS
+  accessed_dirty_bits                               PASS
+  write_protect                                     PASS
+  huge_page_1gb                                     PASS
+  store_through_paging                              PASS
+  cross_page_instruction_fetch_fault                PASS
+  cross_page_data_faults                            PASS
+  la57_identity_map_4kb                             PASS
+  la57_non_identity_4kb                             PASS
+  la57_1gb_huge_page                                PASS
+  la57_accessed_dirty                               PASS
+  paging_32bit_identity_4kb                         PASS
+  paging_32bit_4mb_page                             PASS
+  paging_32bit_fault_not_present                    PASS
+  outs_page_boundary_width                          PASS
+  rep_outs_page_fault_restart                       PASS
+  paging_pae_identity_2mb                           PASS
+  paging_pae_4kb                                    PASS
+
+20 passed, 0 failed
+
+System emulator tests:
+  phys_mem_read_write                               PASS
+  phys_mem_bulk                                     PASS
+  mov_eax_imm32_hlt                                 PASS
+  mov_rax_imm64_hlt                                 PASS
+  add_rax_rbx_hlt                                   PASS
+  mem_store_load_hlt                                PASS
+  push_pop_hlt                                      PASS
+  jmp_forward_hlt                                   PASS
+  loop_counter_hlt                                  PASS
+  system_regs_initial_values                        PASS
+  ide_busmaster_pci_io                              PASS
+  sse_shuffle_rip_relative_immediate                PASS
+
+Privileged instruction tests:
+  mov_cr0_read_write                                PASS
+  mov_cr3_write                                     PASS
+  lgdt_sgdt                                         PASS
+  lidt_sidt                                         PASS
+  wrmsr_rdmsr_star                                  PASS
+  wrmsr_rdmsr_efer                                  PASS
+  swapgs                                            PASS
+  cli_sti                                           PASS
+  wbinvd                                            PASS
+  clts                                              PASS
+
+String I/O tests:
+  insb_single                                       PASS
+  outsb_single                                      PASS
+  rep_insb                                          PASS
+  rep_outsb                                         PASS
+  rep_insd                                          PASS
+  insb_df_backward                                  PASS
+
+Direct store tests:
+  movdiri_32                                        PASS
+  movdiri_64                                        PASS
+  movdir64b                                         PASS
+  movdir64b_unaligned_faults                        PASS
+
+32-bit protected mode tests:
+  lgdt_sgdt_32bit                                   PASS
+  lidt_sidt_32bit                                   PASS
+
+Segment limit checking tests:
+  seg_limit_byte_within                             PASS
+  seg_limit_dword_crosses                           PASS
+  seg_limit_dword_within                            PASS
+  seg_limit_ss_fault                                PASS
+
+Real mode tests:
+  real_mode_mov_ax_hlt                              PASS
+  real_mode_far_jmp_ea                              PASS
+  real_mode_far_call_9a                             PASS
+
+Protected mode far transfer tests:
+  protected_mode_far_jmp_ea                         PASS
+  protected_mode_far_jmp_ff5                        PASS
+
+Mode transition tests:
+  real_to_protected_mode_transition                 PASS
+  lmsw_enters_protected_mode                        PASS
+  xlat_segmented_table_lookup                       PASS
+  xlat_segment_limit_fault                          PASS
+
+IRET tests:
+  real_mode_iret_no_pop_sp_ss                       PASS
+  x87_save_restore_large_memory_operand             PASS
+  real_mode_iret_with_nt                            PASS
+  real_mode_int_iret_preserves_regs                 PASS
+  protected_mode_iret_same_privilege                PASS
+  ia32e_iretq_to_compat_loads_ss_descriptor         PASS
+  ia32e_sysenter_switches_to_long_mode              PASS
+  mov_gs_at_cpl3_uses_implicit_access               PASS
+  compat_seg_linear_wraps_at_32bit                  PASS
+
+PUSHA/POPA tests:
+  pushad_popad_32bit                                PASS
+  pushad_stack_layout_32bit                         PASS
+  pusha_popa_16bit                                  PASS
+  popad_skips_esp_slot                              PASS
+  pusha_ud_in_64bit                                 PASS
+
+PUSH/POP segment register tests:
+  push_es_16bit                                     PASS
+  push_ds_pop_es_32bit                              PASS
+  push_cs_16bit                                     PASS
+  push_ss_pop_ss_16bit                              PASS
+  pop_ds_real_mode                                  PASS
+  push_seg_ud_in_64bit                              PASS
+
+67 passed, 0 failed
+
+Exception delivery tests:
+  divide_error_delivery                             PASS
+  gp_fault_delivery_with_error_code                 PASS
+  interrupt_gate_clears_if                          PASS
+  trap_gate_preserves_if                            PASS
+  tf_nt_rf_cleared_on_delivery                      PASS
+  stack_alignment_16byte                            PASS
+  int3_software_interrupt                           PASS
+  int_n_no_error_code_for_gp_vector                 PASS
+  int_n_saved_rip                                   PASS
+  triple_fault                                      PASS
+  pm32_divide_error_delivery                        PASS
+  pm32_interrupt_gate_clears_if                     PASS
+  pm32_trap_gate_preserves_if                       PASS
+  pm32_interrupt_reloads_ss_cache                   PASS
+  real_mode_ivt_delivery                            PASS
+  pm32_external_interrupt_vector8_no_error_code     PASS
+  sti_delays_pending_interrupt_one_instruction      PASS
+  external_interrupt_vector8_no_error_code          PASS
+  sti_defers_pending_irq_one_instruction            PASS
+  sti_with_if_set_does_not_inhibit_irq              PASS
+  repeated_sti_does_not_extend_inhibition           PASS
+  sti_cli_keeps_irq_pending                         PASS
+  sti_does_not_block_fault_and_event_ends_inhibitionPASS
+  sti_does_not_suppress_single_step                 PASS
+  sti_sysexit_delivers_irq_in_user_context          PASS
+
+  25 passed, 0 failed
