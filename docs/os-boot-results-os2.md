@@ -398,3 +398,61 @@ All 10 IDE tests pass. The new test fails against the prior header and
 checks enable/disable, invalid counts, IDENTIFY, multi-sector reads/writes,
 256-sector reads, interrupt phases, nIEN, reset/default behavior and ATAPI
 rejection. [Validation](os-boot/os2-test-multiple.txt).
+
+### os2-19-multiple
+
+With ATA MULTIPLE implemented, Easy Installation automatically partitions
+the fresh IDE disk. The active type-07 partition spans sectors 63–1033199
+(504.5 MiB). [Partition complete](os-boot/os2-partition-complete.png).
+A sparse snapshot is retained at `build/os-boot/os2-hdd-partitioned.img`.
+Reinserted DISK0 and pressed Enter for the requested restart; the emulator
+handles the guest reset and boots the same three installation diskettes.
+
+After the restart, the installer recognizes the primary partition, but automatic
+formatting reports a generic Format Error. [Error](os-boot/os2-format-error.png),
+[INSTALL.LOG viewer](os-boot/os2-format-install-log.png). The IDE trace no longer
+contains rejected MULTIPLE commands. A command-prompt attempt follows to
+obtain FORMAT's own diagnostic.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 system-emu/run-boot.py --name os2-19-multiple --timeout 2400 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-resume-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **276.495 s**. Final boot instruction count: **186,618,299**
+(the emulator resets its counter on guest reboot). Exit `0`.
+Serial: form feeds only.
+
+### os2-20-format-shell (in progress)
+
+Booted the partitioned disk with the original diskettes and used F3 at Welcome
+to open the native [OS/2 command prompt](os-boot/os2-command-prompt.png).
+The formatter is on the CD under `D:\OS2IMAGE\DISK_3`, not on Diskette 2.
+`FORMAT C: /FS:HPFS` completes successfully; label `WARP4`, 516568 KiB
+total and 509236 KiB available.
+[Format complete](os-boot/os2-hpfs-format-complete.png). A snapshot is saved
+as `build/os-boot/os2-hdd-formatted.img`. RAM strings show the failed
+automatic attempt used `C: /FS:FAT`; its FAT-specific failure is diagnosed below. Continuing the installation on HPFS.
+
+A QEMU TCG control was launched with a separate partitioned-disk copy and
+read-only source media, then stopped during diskette boot once the direct
+HPFS format succeeded in Sail. It did not format or install the guest disk
+and is not evidence for completion.
+
+### os2-21-fat-diagnostic
+
+An independent copy of the original partitioned disk reproduces the automatic
+formatter's error from the command prompt with
+`D:\OS2IMAGE\DISK_3\FORMAT C: /FS:FAT`. The exact diagnostic is SYS1274:
+the partition exceeds 2048 MB **or extends beyond cylinder 1023**. This
+504.5 MiB partition ends at sector 1033199; with 16 heads and 63 sectors
+per track its last cylinder is 1024. This is a guest FAT formatting
+restriction, not a CPU/device error. HPFS successfully formats that same
+partition. [Diagnostic PNG](os-boot/os2-fat-cylinder-limit.png).
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 system-emu/run-boot.py --name os2-21-fat-diagnostic --timeout 1200 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-fat-floppy.img -hda build/os-boot/os2-fat-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **137.041 s**. Instructions: **176,706,841**.
+Exit `0`. Serial: form feeds only. Diagnostic disk and
+floppy images are separate from the active HPFS installation.
