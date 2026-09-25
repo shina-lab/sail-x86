@@ -1,0 +1,31 @@
+Before fix:
+IDE channel tests:
+  atapi_signature_and_identify                      PASS
+  pci_bus_master_pio_interrupt_latch                PASS
+  atapi_inquiry_capacity_and_read                   PASS
+  atapi_inter_block_busy_and_interrupt              PASS
+  ata_disk_read_write                               PASS
+  ata_multiple_mode                                 FAIL
+    system-emu/tests/test-ide.cpp:381: status(c) & 0x89 == 0x1, expected 0x0
+PASS
+  ata_recalibrate                                   PASS
+  ata_read_verify                                   PASS
+  master_slave_independent_transfers                PASS
+  busmaster_pio_interrupt_status                    PASS
+
+  10 passed, 1 failed
+
+After fix:
+IDE channel tests:
+  atapi_signature_and_identify                      PASS
+  pci_bus_master_pio_interrupt_latch                PASS
+  atapi_inquiry_capacity_and_read                   PASS
+  atapi_inter_block_busy_and_interrupt              PASS
+  ata_disk_read_write                               PASS
+  ata_multiple_mode                                 PASS
+  ata_recalibrate                                   PASS
+  ata_read_verify                                   PASS
+  master_slave_independent_transfers                PASS
+  busmaster_pio_interrupt_status                    PASS
+
+  10 passed, 0 failed

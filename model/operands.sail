@@ -141,7 +141,11 @@ function fetch(n) = {
     throw(Fault(EXN_GP, 0x00000000))
   };
   if cur_mode == Virtual8086Mode then check_seg_limit(CS, decode_pos, n);
-  let addr = decode_pos + get_seg_base(CS);
+  let linear : qword = decode_pos + get_seg_base(CS);
+  // SDM Vol.3A sections 3.4 and 5.1.1: outside 64-bit mode the
+  // segment-base addition produces a 32-bit linear address. Instruction
+  // fetch needs the same truncation as segmented data accesses.
+  let addr = if cur_mode == LongMode then linear else zero_extend(linear[31..0]);
   let result : bits(8 * 'n) = read_mem_linear(addr, PT_Execute);
   decode_pos = decode_pos + n;
   result

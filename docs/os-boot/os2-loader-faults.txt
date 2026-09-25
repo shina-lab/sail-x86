@@ -1,0 +1,209 @@
+os2-01
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/os2-01.png
+[11240659] CS:RIP=0160:fff5388c mode=P
+  RAX=0000000001100158 RBX=0000000000010800 RCX=0000000076d83223 RDX=00000000068606e3
+  RSP=0000000000000008 RBP=0000000000000439 RSI=0000000000000001 RDI=0000000000009fe9
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0160 DS=0158 ES=0158 SS=1e98 FS=0000 GS=0000
+  FLAGS CF=0 PF=0 AF=0 ZF=0 SF=0 OF=0 DF=0 IF=0
+  CR0=0000000000000031 CR2=0000000000000000 CR3=0000000000000000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000000002d000:1fff IDTR=0000000000005270:03ff LDTR=0028
+  SEG[0] base=00000000001ef000 limit=ffffffff D/B=1 DPL=3 type=2
+  SEG[1] base=00000000001ef000 limit=ffffffff D/B=1 DPL=0 type=a
+  SEG[2] base=0000000000094000 limit=0000affb D/B=0 DPL=0 type=2
+  SEG[3] base=00000000001ef000 limit=ffffffff D/B=1 DPL=3 type=2
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=2810165000 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=11 IMR=ff ISR=00  slave IRR=00 IMR=ff ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=45903 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=0d A=2b B=52 C=00 D=80 time=12:00:02 ticks=92053 second=2
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=1448366750 ns status=40 error=00 features=00 count=01 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a1 at=444995500 ns status=40 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+     OS/2   sion 1.16.3-20260925_004624-odyssey)                                
+Booting from Floppy...                                                          
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: FATAL fault #18 (err=0x0) at RIP=0xfff5388c after 11240659 insns
+  RAX=0x1100158 RBX=0x10800 RCX=0x76d83223 RDX=0x68606e3
+  RSP=0x8 RBP=0x439 RSI=0x1 RDI=0x9fe9
+  R8=0x0 R9=0x0 R10=0x0 R11=0x0
+  R12=0x0 R13=0x0 R14=0x0 R15=0x0
+  CR0=0x31 CR2=0x0 CR3=0x0 CR4=0x0 EFER=0x0
+  IDTR: base=0x5270 limit=0x3ff
+  bytes at RIP:
+
+os2-04-fetch
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/os2-04-fetch.png
+[12141618] CS:RIP=0160:fff53c67 mode=P
+  RAX=0000000000009b3b RBX=00000000ffe3cf54 RCX=0000000000000028 RDX=00000000ffe15727
+  RSP=000000000000400e RBP=0000000000004f3e RSI=00000000ffe3d780 RDI=00000000ff3ce784
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0160 DS=0158 ES=0158 SS=0030 FS=0130 GS=0000
+  FLAGS CF=1 PF=1 AF=1 ZF=0 SF=1 OF=0 DF=0 IF=0
+  CR0=0000000080010031 CR2=0000000000000000 CR3=00000000001e1000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=00000000ffe3e000:1fff IDTR=00000000ffe16270:03ff LDTR=0028
+  SEG[0] base=0000000000000000 limit=ffffffff D/B=1 DPL=3 type=2
+  SEG[1] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=a
+  SEG[2] base=00000000ffdd1000 limit=00003fff D/B=0 DPL=0 type=6
+  SEG[3] base=0000000000000000 limit=ffffffff D/B=1 DPL=3 type=2
+  SEG[4] base=00000000ffe40000 limit=00005141 D/B=0 DPL=3 type=2
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=3035404750 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=11 IMR=ff ISR=00  slave IRR=00 IMR=ff ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=39622 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=0 reload=0 gate=0 output=0
+  RTC index=0d A=2b B=52 C=d0 D=80 time=12:00:03 ticks=99450 second=3
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=20 at=1448366750 ns status=40 error=00 features=00 count=01 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=01 lba=000000 dh=e0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=1 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a1 at=444995500 ns status=40 error=00 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=55 lba=0000aa dh=b0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+     OS/2   sion 1.16.3-20260925_004624-odyssey)                                
+Booting from Floppy...                                                          
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: FATAL fault #18 (err=0x0) at RIP=0xfff53c67 after 12141618 insns
+  RAX=0x9b3b RBX=0xffe3cf54 RCX=0x28 RDX=0xffe15727
+  RSP=0x400e RBP=0x4f3e RSI=0xffe3d780 RDI=0xff3ce784
+  R8=0x0 R9=0x0 R10=0x0 R11=0x0
+  R12=0x0 R13=0x0 R14=0x0 R15=0x0
+  CR0=0x80010031 CR2=0x0 CR3=0x1e1000 CR4=0x0 EFER=0x0
+  IDTR: base=0xffe16270 limit=0x3ff
+  bytes at RIP:

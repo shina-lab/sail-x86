@@ -556,6 +556,7 @@ function exec_legacy_retf(os, maybe_imm) = {
      (code.seg_type[2] == 0b0 & code.seg_dpl != rpl) then
     throw Fault(EXN_GP, err);
   if code.seg_present == 0b0 then throw Fault(EXN_NP, err);
+  var accessed_code = code;
 
   if rpl > cur_cpl then {
     check_seg_limit(SS, old_sp, 4 * (os / 8) + unsigned(adjustment));
@@ -570,8 +571,10 @@ function exec_legacy_retf(os, maybe_imm) = {
     if stack.seg_present == 0b0 then throw Fault(EXN_SS, ss_err);
     if unsigned(ip) > unsigned(code.seg_limit) then raise_GP0();
     // All faulting checks precede architectural segment/CPL changes.
+    accessed_code = access_segment_descriptor(cs, code);
+    let accessed_stack = access_segment_descriptor(ss, stack);
     write_segreg(SS, ss);
-    SegCache[SS] = stack;
+    SegCache[SS] = accessed_stack;
     v(RSP) = sp;
     cur_cpl = rpl;
     foreach (seg from 0 to 5) {
@@ -587,10 +590,11 @@ function exec_legacy_retf(os, maybe_imm) = {
     v(new_sas, RSP) = v(new_sas, RSP) + zero_extend(adjustment)
   } else {
     if unsigned(ip) > unsigned(code.seg_limit) then raise_GP0();
+    accessed_code = access_segment_descriptor(cs, code);
     v(sas, RSP) = v(sas, RSP) + zero_extend(adjustment)
   };
   write_segreg(CS, cs);
-  SegCache[CS] = code;
+  SegCache[CS] = accessed_code;
   next_rip = Some(ip)
 }
 
@@ -1083,8 +1087,10 @@ function decode_execute() = {
         }
       },
 
-      // 80: Group 1 — ALU r/m8, imm8
-      128 => {
+      // 80/82: Group 1 — ALU r/m8, imm8. SDM Vol.3B 25.15
+      // defines 82h as the 80h alias outside 64-bit mode only.
+      128 | 130 => {
+        if op == 130 & cur_mode == LongMode then raise_UD();
         let (reg_field, dest) = fetch_modrm_raw(pfx);
         let imm : byte = fetch(1);
         let alu_op = group1_op(reg_field);
@@ -1531,8 +1537,10 @@ function decode_execute() = {
             match src {
               RM_mem(m) => {
                 let (far_offset, selector) = read_far_pointer(os, m);
-                v(reg) = far_offset;
-                load_data_segment_register(ES, selector)
+                load_data_segment_register(ES, selector);
+                // SDM LDS/LES/LFS/LGS/LSS: commit only the operand-sized
+                // offset after validating the selector (r16 preserves high bits).
+                v(reg) = far_offset[os - 1 .. 0]
               },
               RM_reg(_) => raise_UD(),  // unreachable: mod=11 handled above
             }
@@ -1556,8 +1564,8 @@ function decode_execute() = {
             match src {
               RM_mem(m) => {
                 let (far_offset, selector) = read_far_pointer(os, m);
-                v(reg) = far_offset;
-                load_data_segment_register(DS, selector)
+                load_data_segment_register(DS, selector);
+                v(reg) = far_offset[os - 1 .. 0]
               },
               RM_reg(_) => raise_UD(),
             }
@@ -1696,15 +1704,22 @@ function decode_execute() = {
           };
           let return_rpl : cpl_t = unsigned(new_cs[1..0]);
 
+          // Prepare an outer stack descriptor before changing CS: its
+          // accessed-bit write may #PF and must leave the old segments intact.
+          let outer_return = cur_mode != RealMode & return_rpl > cur_cpl;
+          var outer_sp : qword = 0x0000000000000000;
+          var outer_ss : word = 0x0000;
+          if outer_return then {
+            outer_sp = zero_extend(pop(os));
+            let ss_image = pop(os);
+            outer_ss = ss_image[15..0];
+            let _ = access_segment_descriptor(outer_ss, read_descriptor(outer_ss))
+          };
           next_rip = Some(zero_extend(new_ip));
           load_segment_register(CS, new_cs[15..0]);
-
-          // Only pop SP/SS on outer-privilege return (not in real mode)
-          if cur_mode != RealMode & return_rpl > cur_cpl then {
-            let new_sp = pop(os);
-            let new_ss = pop(os);
-            v(RSP) = zero_extend(64, new_sp);
-            load_segment_register(SS, new_ss[15..0])
+          if outer_return then {
+            v(RSP) = outer_sp;
+            load_segment_register(SS, outer_ss)
           };
 
           // In real mode, CPL is always 0 (no privilege levels).
@@ -1727,8 +1742,13 @@ function decode_execute() = {
           let sel_offset : qword = zero_extend(new_cs[15..3] @ 0b000);
           let desc_lo : dword = read_mem_implicit(GDTR_base + sel_offset);
           let desc_hi : dword = read_mem_implicit(GDTR_base + sel_offset + 4);
+          let code_desc = access_segment_descriptor(new_cs[15..0], parse_seg_descriptor(desc_lo, desc_hi));
+          let ss_sel_offset : qword = zero_extend(new_ss[15..3] @ 0b000);
+          let ss_desc_lo : dword = read_mem_implicit(GDTR_base + ss_sel_offset);
+          let ss_desc_hi : dword = read_mem_implicit(GDTR_base + ss_sel_offset + 4);
+          let stack_desc = access_segment_descriptor(new_ss[15..0], parse_seg_descriptor(ss_desc_lo, ss_desc_hi));
           write_segreg(CS, new_cs[15..0]);
-          SegCache[CS] = parse_seg_descriptor(desc_lo, desc_hi);
+          SegCache[CS] = code_desc;
           if SegCache[CS].seg_l == 0b1 then cur_mode = LongMode
           else cur_mode = CompatibilityMode;
 
@@ -1742,11 +1762,8 @@ function decode_execute() = {
           // kernel to a 32-bit compat-mode process leaves SegCache[SS].seg_db
           // at whatever stale value it held, so user-mode POP/PUSH read from
           // (ESP & 0xFFFF) instead of ESP.
-          let ss_sel_offset : qword = zero_extend(new_ss[15..3] @ 0b000);
-          let ss_desc_lo : dword = read_mem_implicit(GDTR_base + ss_sel_offset);
-          let ss_desc_hi : dword = read_mem_implicit(GDTR_base + ss_sel_offset + 4);
           write_segreg(SS, new_ss[15..0]);
-          SegCache[SS] = parse_seg_descriptor(ss_desc_lo, ss_desc_hi);
+          SegCache[SS] = stack_desc;
         }
       },
 

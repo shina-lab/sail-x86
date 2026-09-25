@@ -227,8 +227,12 @@ function deliver_exception_vm86(vec, err_code, kind) = {
 
   // The new stack is an implicit supervisor access, even though the
   // interrupted virtual-8086 program was running at CPL 3.
+  var accessed_code = code_desc;
+  var accessed_stack = stack_desc;
   cur_cpl = 0;
   try {
+    accessed_code = access_segment_descriptor(gate.gate_sel, code_desc);
+    accessed_stack = access_segment_descriptor(ss0, stack_desc);
     foreach (j from 0 to 4) {
       let i : segreg_idx = match j { 0 => GS, 1 => FS, 2 => DS, 3 => ES, _ => SS };
       if is_32bit then addr = push_to_stack(addr, zero_extend(32, read_segreg(i)))
@@ -253,8 +257,8 @@ function deliver_exception_vm86(vec, err_code, kind) = {
 
   sw_return_rip = None();
   cur_mode = ProtectedMode;
-  SegCache[CS] = code_desc;
-  SegCache[SS] = stack_desc;
+  SegCache[CS] = accessed_code;
+  SegCache[SS] = accessed_stack;
   write_segreg(CS, gate.gate_sel & 0xFFFC);
   write_segreg(SS, ss0);
   // A 16-bit monitor stack replaces SP only, preserving the interrupted
@@ -332,10 +336,12 @@ function deliver_exception_inner_32(vec, err_code, kind) = {
   let count : range(1, 35) = first + (if inward then 5 else 3);
   let new_sp = write_legacy_frame(stack_desc, stack_sp, frame, count, width, level,
                                   if inward then selector_error_code(stack_sel) else 0x00000000);
+  let accessed_target = access_segment_descriptor(gate.gate_sel, target);
   if inward then {
+    let accessed_stack = access_segment_descriptor(stack_sel, stack_desc);
     write_segreg(SS, stack_sel);
     // SDM Vol.3A 3.4.3/7.12.1: implicit SS loads replace its hidden cache.
-    SegCache[SS] = stack_desc;
+    SegCache[SS] = accessed_stack;
     v(32, RSP) = new_sp[31..0]
   } else {
     let sas = stack_addr_size();
@@ -343,7 +349,7 @@ function deliver_exception_inner_32(vec, err_code, kind) = {
   };
   cur_cpl = level;
   write_segreg(CS, (gate.gate_sel & 0xFFFC) | zero_extend(to_bits(2, level)));
-  SegCache[CS] = target;
+  SegCache[CS] = accessed_target;
   RIP = offset;
   if gate.gate_type == 0xE | gate.gate_type == 0x6 then IF_flag = 0b0;
   TF = 0b0;

@@ -1,0 +1,98 @@
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/os2-30-double-shift-install.png
+[3148415121] CS:RIP=0160:fff50fe1 mode=P
+  RAX=0000000000000000 RBX=00000000fff7658b RCX=000000008001003b RDX=00000000fdd6b564
+  RSP=0000000000005cf0 RBP=0000000000005cf0 RSI=00000000fdd6b564 RDI=0000000000000000
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0160 DS=0158 ES=0158 SS=0030 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=000000008001003b CR2=00000000000df000 CR3=00000000001e1000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000009c7e5000:1fff IDTR=00000000ffe16270:03ff LDTR=0028
+  SEG[0] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=2
+  SEG[1] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=a
+  SEG[2] base=00000000ffdd022c limit=00004dd3 D/B=0 DPL=0 type=6
+  SEG[3] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=2
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=858205900211 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=00 IMR=f8 ISR=00  slave IRR=00 IMR=1e ISR=00  halted
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=6615 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=3 count=758 reload=994 gate=0 output=0
+  RTC index=0c A=2b B=52 C=00 D=80 time=12:14:18 ticks=28121690 second=858
+  FDC DOR=0c MSR=80 rate=0 cylinder=0 change=0 IRQ=0 delay=0 DMA=0 command=0/9 result=0/0
+    FIFO:
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=c4 at=830605195073 ns status=40 error=00 features=ff count=04 lba=00441b dh=a3 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=2048/2048 block_end=2048 limit=512 write_lba=508065 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=ff count=04 lba=00441b dh=a3 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a0 at=778131850678 ns status=40 error=00 features=00 count=03 lba=100005 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=4096/4096 block_end=4096 limit=4096 write_lba=0 packet=1 cdb_pos=12 CDB=28 00 00 00 7b 26 00 00 02 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=fe lba=100005 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                           Remove the diskette and                              
+                           press Enter to restart the                           
+                           workstation and continue                             
+                           the installation.                                    
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+    Enter   F3=Command Prompt                                                   
+

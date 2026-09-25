@@ -1,0 +1,267 @@
+sail-x86-system: event at 0160:fff53343 before instruction 158787150; FS=0000 base=0000000000000000
+  [158787087] 0140:00000665: <paged code; bytes omitted>
+  [158787088] 0140:00000669: <paged code; bytes omitted>
+  [158787089] 0140:0000066d: <paged code; bytes omitted>
+  [158787090] 0140:0000066f: <paged code; bytes omitted>
+  [158787091] 0140:00000672: <paged code; bytes omitted>
+  [158787092] 0140:00000675: <paged code; bytes omitted>
+  [158787093] 0140:00000677: <paged code; bytes omitted>
+  [158787094] 0140:000007bc: <paged code; bytes omitted>
+  [158787095] 0140:000007c0: <paged code; bytes omitted>
+  [158787096] 0140:000007de: <paged code; bytes omitted>
+  [158787097] 0140:000007e2: <paged code; bytes omitted>
+  [158787098] 0140:000007ef: <paged code; bytes omitted>
+  [158787099] 0140:000007f3: <paged code; bytes omitted>
+  [158787100] 0140:000007f8: <paged code; bytes omitted>
+  [158787101] 0140:0000067a: <paged code; bytes omitted>
+  [158787102] 0140:00000680: <paged code; bytes omitted>
+  [158787103] 0140:00000684: <paged code; bytes omitted>
+  [158787104] 0140:00000685: <paged code; bytes omitted>
+  [158787105] 0140:00000686: <paged code; bytes omitted>
+  [158787106] 0140:00000687: <paged code; bytes omitted>
+  [158787107] 0140:00000688: <paged code; bytes omitted>
+  [158787108] 0140:00000653: <paged code; bytes omitted>
+  [158787109] 0150:00002194: <paged code; bytes omitted>
+  [158787110] 0150:00002196: <paged code; bytes omitted>
+  [158787111] 0150:00002197: <paged code; bytes omitted>
+  [158787112] 0150:00002198: <paged code; bytes omitted>
+  [158787113] 0150:00002199: <paged code; bytes omitted>
+  [158787114] 0150:0000219a: <paged code; bytes omitted>
+  [158787115] 0150:00002155: <paged code; bytes omitted>
+  [158787116] 0140:0000aa70: <paged code; bytes omitted>
+  [158787117] 0140:0000aa72: <paged code; bytes omitted>
+  [158787118] 0140:0000aa76: <paged code; bytes omitted>
+  [158787119] 0140:0000aa78: <paged code; bytes omitted>
+  [158787120] 0140:0000aa7a: <paged code; bytes omitted>
+  [158787121] 0140:0000aa7b: <paged code; bytes omitted>
+  [158787122] 0140:0000aa7d: <paged code; bytes omitted>
+  [158787123] 0140:0000aa7e: <paged code; bytes omitted>
+  [158787124] 0140:0000aa7f: <paged code; bytes omitted>
+  [158787125] 0140:0000aa80: <paged code; bytes omitted>
+  [158787126] 0140:0000a9c4: <paged code; bytes omitted>
+  [158787127] 0140:0000a9c5: <paged code; bytes omitted>
+  [158787128] 0140:0000a9c6: <paged code; bytes omitted>
+  [158787129] 0140:0000a9c7: <paged code; bytes omitted>
+  [158787130] 0140:0000a9c8: <paged code; bytes omitted>
+  [158787131] 0140:0000a9d7: <paged code; bytes omitted>
+  [158787132] 0140:0000a9d8: <paged code; bytes omitted>
+  [158787133] 0140:0000a9da: <paged code; bytes omitted>
+  [158787134] 0140:0000a9db: <paged code; bytes omitted>
+  [158787135] 0140:0000a9de: <paged code; bytes omitted>
+  [158787136] 0140:0000a9e0: <paged code; bytes omitted>
+  [158787137] 0140:0000a9e4: <paged code; bytes omitted>
+  [158787138] 0140:0000acd1: <paged code; bytes omitted>
+  [158787139] 0140:0000acd3: <paged code; bytes omitted>
+  [158787140] 0140:0000acd5: <paged code; bytes omitted>
+  [158787141] 0140:0000acd7: <paged code; bytes omitted>
+  [158787142] 0140:0000acdc: <paged code; bytes omitted>
+  [158787143] 0160:fff4a4c7: <paged code; bytes omitted>
+  [158787144] 0160:fff4a4c8: <paged code; bytes omitted>
+  [158787145] 0160:fff5333b: <paged code; bytes omitted>
+  [158787146] 0160:fff5333c: <paged code; bytes omitted>
+  [158787147] 0160:fff5333e: <paged code; bytes omitted>
+  [158787148] 0160:fff5333f: <paged code; bytes omitted>
+  [158787149] 0160:fff53340: <paged code; bytes omitted>
+  [158787150] 0160:fff53343: <paged code; bytes omitted>
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/os2-17-trap-entry.png
+[158787150] CS:RIP=0160:fff53c34 mode=P
+  RAX=0000000000000012 RBX=0000000000005e56 RCX=0000000000000000 RDX=0000000000005e56
+  RSP=0000000000004bd6 RBP=0000000000004bee RSI=0000000000000001 RDI=0000000000005e40
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=0160 DS=0158 ES=0158 SS=0030 FS=0000 GS=0000
+  FLAGS CF=0 PF=0 AF=0 ZF=0 SF=0 OF=0 DF=0 IF=1
+  CR0=000000008001003b CR2=0000000000005e58 CR3=00000000001e1000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000009c7e5000:1fff IDTR=00000000ffe16270:03ff LDTR=0028
+  SEG[0] base=0000000000000000 limit=ffffffff D/B=1 DPL=3 type=2
+  SEG[1] base=0000000000000000 limit=ffffffff D/B=1 DPL=0 type=a
+  SEG[2] base=00000000ffdd1000 limit=00003fff D/B=0 DPL=0 type=6
+  SEG[3] base=0000000000000000 limit=ffffffff D/B=1 DPL=3 type=2
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=54887462971 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=01 IMR=b9 ISR=00  slave IRR=00 IMR=1e ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=43784 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=51220 reload=0 gate=0 output=0
+  RTC index=0c A=2b B=52 C=00 D=80 time=12:00:54 ticks=1798552 second=54
+  FDC DOR=1c MSR=80 rate=0 cylinder=17 change=0 IRQ=0 delay=0 DMA=0 command=0/9 result=0/0
+    FIFO:
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=91 at=48512685751 ns status=40 error=00 features=ff count=3f lba=000001 dh=af nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=ff count=3f lba=000001 dh=af nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a1 at=48474603251 ns status=40 error=00 features=00 count=fe lba=0f0005 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=fe lba=0f0005 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+                                                                                
+                                                                                
+                                                                                
+                             Loading, please wait...                            
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+set VGA mode 12
+set VGA mode 3
+stub handle_1012XX:956:
+   a=00001202  b=9be5001e  c=00000154  d=ffe14b62 ds=0400 es=b800 ss=ef58
+  si=ffe1bb39 di=ffe16b2e bp=00004bee sp=000001f6 cs=0100 ip=0662  f=3016
+set VGA mode 3
+FDC out 3f2=0c MSR=80 command=0/9
+sail-x86-system: framebuffer 720x400x4 saved to build/os-boot/os2-17-trap-entry.png
+[418827937] CS:RIP=1000:00003b86 mode=P
+  RAX=000000000000010a RBX=000000009be55ba2 RCX=0000000000000002 RDX=00000000ffe1bb6e
+  RSP=0000000000004b7c RBP=0000000000004bee RSI=00000000ffe1bb70 RDI=00000000ffe16b2e
+  R8 =0000000000000000 R9 =0000000000000000 R10=0000000000000000 R11=0000000000000000
+  R12=0000000000000000 R13=0000000000000000 R14=0000000000000000 R15=0000000000000000
+  K0 =0000000000000000 K1 =0000000000000000 K2 =0000000000000000 K3 =0000000000000000
+  K4 =0000000000000000 K5 =0000000000000000 K6 =0000000000000000 K7 =0000000000000000
+  YMM16=0000000000000000000000000000000000000000000000000000000000000000
+  CS=1000 DS=0158 ES=0158 SS=0030 FS=0000 GS=0000
+  FLAGS CF=0 PF=1 AF=0 ZF=1 SF=0 OF=0 DF=0 IF=1
+  CR0=000000008001003b CR2=0000000000005e58 CR3=00000000001e1000 CR4=0000000000000000 EFER=0000000000000000
+  CPL=0 GDTR=000000009c7e5000:1fff IDTR=00000000ffe16270:03ff LDTR=0028
+  SEG[0] base=0000000000000000 limit=ffffffff D/B=1 DPL=3 type=2
+  SEG[1] base=00000000ffe21000 limit=0000cf0f D/B=0 DPL=0 type=a
+  SEG[2] base=00000000ffdd1000 limit=00003fff D/B=0 DPL=0 type=6
+  SEG[3] base=0000000000000000 limit=ffffffff D/B=1 DPL=3 type=2
+  SEG[4] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  SEG[5] base=0000000000000000 limit=00000000 D/B=0 DPL=0 type=0
+  APIC SVR=000001ff TPR=00 PPR=00 TIMER=00010000 COUNT=0 pending=-1
+    initial=0 divide=0 LINT0=00008700 LINT1=00008400 clock=119897659721 ns
+    vectors   0- 31 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  32- 63 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  64- 95 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors  96-127 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 128-159 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 160-191 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 192-223 IRR=00000000 ISR=00000000 TMR=00000000
+    vectors 224-255 IRR=00000000 ISR=00000000 TMR=00000000
+  PIC master IRR=00 IMR=f8 ISR=00  slave IRR=00 IMR=fe ISR=00  running
+  IOAPIC id=0 select=00
+    pin=0 redir=0000000000010000 asserted=0
+    pin=1 redir=0000000000010000 asserted=0
+    pin=2 redir=0000000000010000 asserted=0
+    pin=3 redir=0000000000010000 asserted=0
+    pin=4 redir=0000000000010000 asserted=0
+    pin=5 redir=0000000000010000 asserted=0
+    pin=6 redir=0000000000010000 asserted=0
+    pin=7 redir=0000000000010000 asserted=0
+    pin=8 redir=0000000000010000 asserted=0
+    pin=9 redir=0000000000010000 asserted=0
+    pin=10 redir=0000000000010000 asserted=0
+    pin=11 redir=0000000000010000 asserted=0
+    pin=12 redir=0000000000010000 asserted=0
+    pin=13 redir=0000000000010000 asserted=0
+    pin=14 redir=0000000000010000 asserted=0
+    pin=15 redir=0000000000010000 asserted=0
+    pin=16 redir=0000000000010000 asserted=0
+    pin=17 redir=0000000000010000 asserted=0
+    pin=18 redir=0000000000010000 asserted=0
+    pin=19 redir=0000000000010000 asserted=0
+    pin=20 redir=0000000000010000 asserted=0
+    pin=21 redir=0000000000010000 asserted=0
+    pin=22 redir=0000000000010000 asserted=0
+    pin=23 redir=0000000000010000 asserted=0
+  PIT0 mode=2 count=15942 reload=0 gate=1 output=0
+  PIT1 mode=0 count=0 reload=0 gate=1 output=0
+  PIT2 mode=0 count=51220 reload=0 gate=0 output=0
+  RTC index=0c A=2b B=52 C=00 D=80 time=12:01:59 ticks=3928806 second=119
+  FDC DOR=0c MSR=80 rate=0 cylinder=17 change=0 IRQ=0 delay=0 DMA=0 command=0/9 result=0/0
+    FIFO:
+  IDE channel 1f0 selected=0 IRQ=0 pending=0
+  IDE 1f0.0 kind=1 cmd=91 at=48512685751 ns status=40 error=00 features=ff count=3f lba=000001 dh=af nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 1f0.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=ff count=3f lba=000001 dh=af nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE channel 170 selected=0 IRQ=0 pending=0
+  IDE 170.0 kind=2 cmd=a1 at=48474603251 ns status=40 error=00 features=00 count=fe lba=0f0005 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=512/512 block_end=512 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  IDE 170.1 kind=0 cmd=00 at=0 ns status=00 error=01 features=00 count=fe lba=0f0005 dh=a0 nIEN=0 IRQ=0 pending=0
+    phase=idle buffer=0/0 block_end=0 limit=512 write_lba=0 packet=0 cdb_pos=0 CDB=00 00 00 00 00 00 00 00 00 00 00 00 
+  VGA text screen:
+TRAP 000e       ERRCD=0000  ERACC=****  ERLIM=********                          
+EAX=00000012  EBX=00005e56  ECX=00000000  EDX=00005e56                          
+ESI=00000001  EDI=00005e40  EBP=00004bee  FLG=00213202                          
+CS:EIP=0160:fff53343  CSACC=c09a  CSLIM=ffffffff                                
+SS:ESP=0030:00004be6  SSACC=1096  SSLIM=00003fff                                
+DS=0158  DSACC=c0f2  DSLIM=ffffffff  CR0=8001003b                               
+ES=0158  ESACC=c0f2  ESLIM=ffffffff  CR2=00005e58                               
+FS=0000  FSACC=****  FSLIM=********                                             
+GS=0000  GSACC=****  GSLIM=********                                             
+                                                                                
+The system detected an internal processing error at                             
+location ##0160:fff54c70 - 000d:ac70.                                           
+60000, 9084                                                                     
+                                                                                
+068606e3                                                                        
+Internal revision 9.023, 95/11/07                                               
+                                                                                
+The system is stopped.  Record all of the above information and                 
+contact your service representative.                                            
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+sail-x86-system: exited after 419926205 instructions

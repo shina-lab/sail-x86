@@ -1296,6 +1296,144 @@ static void write_gdt_data_desc(x86::Model &model, u64 gdt_base, int index,
   model.phys_mem.write32(offset + 4, hi);
 }
 
+TEST(segment_descriptor_accessed_bits) {
+  // SDM Vol.3A 3.4.5.1: loading a code/data selector sets A in the
+  // descriptor and cache. A=1 avoids another descriptor write.
+  for (bool ldt : {false, true}) for (unsigned seg : {0U, 2U, 3U, 4U, 5U}) {
+    x86::Model m; init_model_32(m);
+    constexpr u64 table = 0x9000;
+    write_gdt_data_desc(m, table, 1, 0, 0xfffff, 0, true, true);
+    m.phys_mem.write8(table + 13, 0x92);
+    m.zGDTR_base = table; m.zGDTR_limit = 15;
+    m.zLDTR_base = table; m.zLDTR_limit = 15; m.zLDTR_valid = true;
+    m.zGPR.data[0] = ldt ? 12 : 8;
+    const u8 code[] = {0x8e, static_cast<u8>(0xc0 | (seg << 3)), 0xf4};
+    ASSERT_EQ(run_code(m, 0x5000, code, sizeof(code)), RUN_HALTED);
+    ASSERT_EQ(m.phys_mem.read8(table + 13), 0x93);
+    ASSERT_EQ(m.zSegCache.data[seg].zseg_type, 3U);
+    m.model_fini();
+  }
+  for (bool accessed : {false, true}) for (bool wp : {false, true}) {
+    x86::Model m; init_model(m);
+    constexpr u64 table = 0x200000;
+    write_gdt_data_desc(m, table, 1, 0, 0xfffff, 3, true, true);
+    m.phys_mem.write8(table + 13, accessed ? 0xf3 : 0xf2);
+    m.phys_mem.write64(0x3000, 0x87); // user code
+    m.phys_mem.write64(0x3008, 0x200081); // supervisor, read-only GDT
+    m.zGDTR_base = table; m.zGDTR_limit = 15; m.zcur_cpl = 3;
+    if (!wp) m.zCR0 &= ~(1ULL << 16);
+    m.zGPR.data[0] = 11;
+    const u8 code[] = {0x8e, 0xe8}; // MOV GS, AX
+    const int result = run_code(m, 0x5000, code, sizeof(code), 1);
+    if (!accessed && wp) {
+      ASSERT_EQ(result, RUN_FAULTED);
+      ASSERT_EQ(m.zfault_vector, 14U);
+      ASSERT_EQ(m.zfault_error_code, 3U); // supervisor write, present
+      ASSERT_EQ(m.zCR2 >> 12, table >> 12);
+      ASSERT_EQ(m.zSegReg.data[x86::SEG_GS], 0U);
+    } else {
+      ASSERT_EQ(result, RUN_OK);
+      ASSERT_EQ(m.phys_mem.read8(table + 13), 0xf3);
+      ASSERT_EQ(m.zSegCache.data[x86::SEG_GS].zseg_type, 3U);
+    }
+    m.model_fini();
+  }
+  // An outer IRETD must not commit CS before a fault setting SS.A.
+  {
+    x86::Model m; init_model(m);
+    m.zcur_mode = x86::zCompatibilityMode;
+    m.zSegCache.data[x86::SEG_CS].zseg_l = 0;
+    m.zSegCache.data[x86::SEG_CS].zseg_db = 1;
+    m.zSegCache.data[x86::SEG_SS].zseg_db = 1;
+    write_gdt_code_desc(m, 0x200000, 1, 0, 0xfffff, 3, true, true);
+    write_gdt_data_desc(m, 0x200000, 2, 0, 0xfffff, 3, true, true);
+    m.phys_mem.write8(0x200015, 0xf2);
+    m.phys_mem.write64(0x3008, 0x200081);
+    m.zGDTR_base = 0x200000; m.zGDTR_limit = 23;
+    const u32 frame[] = {0x6000, 11, 2, 0x8000, 19};
+    m.phys_mem.write_bytes(0x80000, frame, sizeof(frame));
+    const u8 code[] = {0xcf};
+    ASSERT_EQ(run_code(m, 0x5000, code, sizeof(code)), RUN_FAULTED);
+    ASSERT_EQ(m.zfault_vector, 14U);
+    ASSERT_EQ(m.zSegReg.data[x86::SEG_CS], 0U);
+    ASSERT_EQ(m.zSegCache.data[x86::SEG_CS].zseg_dpl, 0U);
+    ASSERT_EQ(m.zGPR.data[4], 0x80000U);
+    ASSERT_EQ(m.zcur_cpl, 0U);
+    m.model_fini();
+  }
+  // A successful far JMP sets A on the destination code descriptor.
+  x86::Model m; init_model_32(m);
+  write_gdt_code_desc(m, 0x9000, 1, 0, 0xfffff, 0, true, true);
+  m.phys_mem.write8(0x900d, 0x9a);
+  m.zGDTR_base = 0x9000; m.zGDTR_limit = 15;
+  const u8 jmp[] = {0xea, 0x00, 0x60, 0, 0, 8, 0};
+  m.phys_mem.write8(0x6000, 0xf4);
+  ASSERT_EQ(run_code(m, 0x5000, jmp, sizeof(jmp)), RUN_HALTED);
+  ASSERT_EQ(m.phys_mem.read8(0x900d), 0x9b);
+  ASSERT_EQ(m.zSegCache.data[x86::SEG_CS].zseg_type, 11U);
+  m.model_fini();
+}
+
+TEST(far_pointer_load_destination_width_and_faults) {
+  // SDM Vol.2A LDS/LES/LFS/LGS/LSS and Vol.1 3.4.1.1: the offset
+  // updates the operand-sized destination. In particular, r16 preserves
+  // the high bits that OS/2 keeps live across 16-bit LDS/LES calls.
+  struct Op { u8 opcode; unsigned segment; bool escaped; };
+  const Op ops[] = {{0xc4, x86::SEG_ES, false}, {0xc5, x86::SEG_DS, false},
+      {0xb2, x86::SEG_SS, true}, {0xb4, x86::SEG_FS, true},
+      {0xb5, x86::SEG_GS, true}};
+  for (const auto &op : ops) for (unsigned mode : {16, 32, 64}) {
+    if (mode == 64 && !op.escaped) continue;
+    for (unsigned width : {16, 32, 64}) {
+      if (width == 64 && mode != 64) continue;
+      for (bool bad_selector : {false, true}) {
+        x86::Model model;
+        if (mode == 64) init_model(model);
+        else {
+          init_model_16(model);
+          model.zcur_mode = x86::zProtectedMode;
+          model.zCR0 |= 1;
+          model.zSegCache.data[x86::SEG_CS].zseg_db = mode == 32;
+        }
+        model.zGDTR_base = 0x4000;
+        model.zGDTR_limit = 0x0f;
+        write_gdt_data_desc(model, 0x4000, 1, 0x9000, 0xffff, 0, true, false);
+        const u64 initial = 0x12345678abcd5e40ULL;
+        const u64 offset = 0x987654329abc3456ULL;
+        model.zGPR.data[7] = initial;
+        model.zGPR.data[3] = 0x6000;
+        model.phys_mem.write64(0x6000, offset);
+        model.phys_mem.write16(0x6000 + width / 8, bad_selector ? 0x18 : 8);
+        std::vector<u8> code;
+        if ((width == 16) != (mode == 16)) code.push_back(0x66);
+        if (mode == 16) code.push_back(0x67); // [EBX], independent of operand size
+        if (width == 64) code.push_back(0x48);
+        if (op.escaped) code.push_back(0x0f);
+        code.push_back(op.opcode);
+        code.push_back(0x3b); // destination DI/EDI/RDI, memory source [BX/EBX/RBX]
+        const auto old_segment = model.zSegReg.data[op.segment];
+        const auto old_base = model.zSegCache.data[op.segment].zseg_base;
+        const int result = run_code(model, 0x8000, code.data(), code.size(), 1);
+        if (bad_selector) {
+          ASSERT_EQ(result, RUN_FAULTED);
+          ASSERT_EQ((u64)model.zGPR.data[7], initial);
+          ASSERT_EQ(model.zSegReg.data[op.segment], old_segment);
+          ASSERT_EQ(model.zSegCache.data[op.segment].zseg_base, old_base);
+          ASSERT_EQ((u64)model.zRIP, 0x8000UL);
+        } else {
+          ASSERT_EQ(result, RUN_OK);
+          const u64 expected = width == 16 ? (initial & ~0xffffULL) | (offset & 0xffff)
+              : width == 32 ? u32(offset) : offset;
+          ASSERT_EQ((u64)model.zGPR.data[7], expected);
+          ASSERT_EQ((u64)model.zSegReg.data[op.segment], 8UL);
+          ASSERT_EQ((u64)model.zSegCache.data[op.segment].zseg_base, 0x9000UL);
+        }
+        model.model_fini();
+      }
+    }
+  }
+}
+
 static void init_call_gate(x86::Model &model, bool tss32, bool gate32,
                           unsigned params, unsigned target_dpl = 0) {
   init_model_16(model);
@@ -1331,6 +1469,73 @@ static void init_call_gate(x86::Model &model, bool tss32, bool gate32,
   model.zRIP = 0x100;
   const u8 call[] = {0x9a, 0xad, 0xde, 0x33, 0};
   model.phys_mem.write_bytes(0x10100, call, sizeof(call));
+}
+
+TEST(legacy_jmp_call_gate) {
+  // SDM Vol.2A JMP, CALL-GATE: gate width selects the offset; JMP
+  // ignores parameter count and never switches stacks or privilege.
+  for (bool gate32 : {false, true}) for (bool operand32 : {false, true})
+      for (bool indirect : {false, true}) {
+    x86::Model m; init_call_gate(m, true, gate32, 31, 3);
+    write_gdt_code_desc(m, 0x1000, 2, 0x20000, 0x1ffff, 3, false, true);
+    m.phys_mem.write8(0x1015, 0xfa); // code A=0
+    if (gate32) m.phys_mem.write16(0x1036, 1); // offset 10300h
+    m.zTR_limit = 0; // JMP must not read a privilege stack.
+    m.phys_mem.write32(0x307fc, 0x12345678);
+    std::vector<u8> code;
+    if (operand32) code.push_back(0x66);
+    if (indirect) {
+      m.zGPR.data[3] = 0x700;
+      m.phys_mem.write32(0x700, 0xdeadbeef);
+      m.phys_mem.write16(0x700 + (operand32 ? 4 : 2), 0x33);
+      code.insert(code.end(), {0xff, 0x2f}); // JMP FAR [BX]
+    } else {
+      code.insert(code.end(), {0xea, 0xef, 0xbe});
+      if (operand32) code.insert(code.end(), {0xad, 0xde});
+      code.insert(code.end(), {0x33, 0});
+    }
+    m.phys_mem.write_bytes(0x10100, code.data(), code.size());
+    m.zstep(UNIT);
+    ASSERT_EQ(m.zfault_pending, false);
+    ASSERT_EQ(m.zRIP, gate32 ? 0x10300U : 0x300U);
+    ASSERT_EQ(m.zSegReg.data[x86::SEG_CS], 0x13U);
+    ASSERT_EQ(m.zcur_cpl, 3U);
+    ASSERT_EQ(m.zGPR.data[4], 0x800U);
+    ASSERT_EQ(m.zSegReg.data[x86::SEG_SS], 0x1bU);
+    ASSERT_EQ(m.phys_mem.read32(0x307fc), 0x12345678U);
+    ASSERT_EQ(m.phys_mem.read8(0x1015), 0xfbU);
+    m.model_fini();
+  }
+  for (unsigned variant = 0; variant < 8; ++variant) {
+    x86::Model m; init_call_gate(m, true, false, 0, 3);
+    const u8 jmp[] = {0xea, 0, 0, 0x33, 0};
+    m.phys_mem.write_bytes(0x10100, jmp, sizeof(jmp));
+    if (variant == 0) m.phys_mem.write8(0x1035, 0xc4); // gate DPL2
+    if (variant == 1) m.phys_mem.write8(0x1035, 0x64); // gate absent
+    if (variant == 2) m.phys_mem.write16(0x1032, 0); // null target
+    if (variant == 3) m.phys_mem.write8(0x1015, 0xda); // inward nonconforming
+    if (variant == 4) m.phys_mem.write8(0x1015, 0x7a); // absent target
+    if (variant == 5) m.phys_mem.write16(0x1010, 0x2ff); // offset > limit
+    if (variant == 6) m.phys_mem.write8(0x1015, 0xf2); // data target
+    if (variant == 7) m.phys_mem.write8(0x1015, 0xde); // conforming DPL2: valid
+    m.zstep(UNIT);
+    if (variant == 7) {
+      ASSERT_EQ(m.zfault_pending, false);
+      ASSERT_EQ(m.zRIP, 0x300U);
+      ASSERT_EQ(m.zcur_cpl, 3U);
+      ASSERT_EQ(m.zSegReg.data[x86::SEG_CS], 0x13U);
+    } else {
+      ASSERT_EQ(m.zfault_pending, true);
+      ASSERT_EQ(m.zfault_vector, variant == 1 || variant == 4 ? 11U : 13U);
+      ASSERT_EQ(m.zfault_error_code, variant < 2 ? 0x30U :
+          variant == 2 || variant == 5 ? 0U : 0x10U);
+      ASSERT_EQ(m.zRIP, 0x100U);
+      ASSERT_EQ(m.zSegReg.data[x86::SEG_CS], 0xbU);
+      ASSERT_EQ(m.zcur_cpl, 3U);
+    }
+    ASSERT_EQ(m.zGPR.data[4], 0x800U);
+    m.model_fini();
+  }
 }
 
 TEST(legacy_call_gate_privilege_stacks) {
@@ -2244,6 +2449,79 @@ TEST(mov_gs_at_cpl3_uses_implicit_access) {
   model.model_fini();
 }
 
+TEST(expand_down_segment_limits) {
+  // SDM Vol.3A sections 3.4.5 and 6.3: the valid range of a data
+  // expand-down segment is (limit, B ? 0xFFFFFFFF : 0xFFFF].
+  for (bool stack : {false, true}) {
+    for (bool wide : {false, true}) {
+      const u64 upper = wide ? 0xFFFFFFFFULL : 0xFFFFULL;
+      for (u64 offset : {u64(0x3FFF), u64(0x4000), upper - 3, upper, upper + 1}) {
+        x86::Model model;
+        init_model(model);
+        model.zcur_mode = x86::zProtectedMode;
+        model.zCR0 = 0x31;
+        model.zCR4 = model.zEFER = 0;
+        model.zSegCache.data[x86::SEG_CS].zseg_l = 0;
+        model.zSegCache.data[x86::SEG_CS].zseg_db = 1;
+        auto &seg = model.zSegCache.data[stack ? x86::SEG_SS : x86::SEG_DS];
+        seg.zseg_base = 0x10000;
+        seg.zseg_limit = 0x3FFF;
+        seg.zseg_type = 6; // writable expand-down data
+        seg.zseg_s = 1;
+        seg.zseg_db = wide;
+        model.zGPR.data[3] = offset;
+        const u8 code[] = {u8(stack ? 0x36 : 0x3E), 0x8B, 0x03}; // MOV EAX,[EBX]
+        model.phys_mem.write_bytes(0x6000, code, sizeof(code));
+        model.zRIP = 0x6000;
+        model.zstep(UNIT);
+        // Effective addresses are 32 bits; 0x100000000 becomes zero.
+        bool valid = offset > 0x3FFF && offset <= upper - 3;
+        ASSERT_EQ(model.zfault_pending, !valid);
+        if (!valid) {
+          ASSERT_EQ((u64)model.zfault_vector, stack ? 12UL : 13UL);
+          ASSERT_EQ((u64)model.zfault_error_code, 0UL);
+          ASSERT_EQ((u64)model.zRIP, 0x6000UL);
+        }
+        model.model_fini();
+      }
+    }
+  }
+}
+
+TEST(legacy_instruction_fetch_wraps_at_32bit) {
+  // SDM Vol.3A sections 3.4 and 5.1.1: legacy and compatibility-mode
+  // linear addresses are 32 bits, including CS.base + EIP. OS/2's
+  // loader uses a nonzero CS base with a negative 32-bit code offset.
+  for (bool compat : {false, true}) {
+    for (bool wide : {false, true}) {
+      x86::Model model;
+      init_model(model);
+      if (!compat) {
+        model.zCR0 = 0x31;
+        model.zCR4 = 0;
+        model.zEFER = 0;
+      }
+      model.zcur_mode = compat ? x86::zCompatibilityMode : x86::zProtectedMode;
+      auto &cs = model.zSegCache.data[x86::SEG_CS];
+      cs.zseg_l = 0;
+      cs.zseg_db = wide;
+      cs.zseg_base = wide ? 0x200000 : 0xFFFFC000;
+      cs.zseg_limit = wide ? 0xFFFFFFFF : 0xFFFF;
+      const u64 offset = wide ? 0xFFE06000 : 0xA000;
+      const u8 code32[] = {0xB8, 0x78, 0x56, 0x34, 0x12}; // MOV EAX, imm32
+      const u8 code16[] = {0xB8, 0x78, 0x56}; // MOV AX, imm16
+      model.phys_mem.write_bytes(0x6000, wide ? code32 : code16,
+                                 wide ? sizeof(code32) : sizeof(code16));
+      model.zRIP = offset;
+      model.zstep(UNIT);
+      ASSERT_EQ(model.zfault_pending, false);
+      ASSERT_EQ((u64)model.zGPR.data[0], wide ? 0x12345678 : 0x5678);
+      ASSERT_EQ((u64)model.zRIP, offset + (wide ? 5 : 3));
+      model.model_fini();
+    }
+  }
+}
+
 TEST(compat_seg_linear_wraps_at_32bit) {
   // Regression: in compatibility mode the linear address space is 32 bits
   // (SDM Vol.1 §3.3.3), so segment_base + effective_address must be
@@ -2750,6 +3028,120 @@ TEST(xlat_segment_limit_fault) {
   }
 }
 
+TEST(double_shift_operand_width) {
+  // SDM Vol.2B SHLD/SHRD: read and write only the operand-sized
+  // destination. OS/2 places a handler-registration flag just after it.
+  for (unsigned width : {16u, 32u, 64u}) {
+    for (bool right : {false, true}) {
+      for (bool cl_count : {false, true}) {
+        for (unsigned count : {0u, 5u}) {
+          for (unsigned operand = 0; operand < 3; ++operand) {
+            if (width == 64 && operand == 2) continue;
+            x86::Model model;
+            if (width == 64) init_model(model);
+            else init_model_32(model);
+            const u64 original = 0x8877665512348001UL;
+            const u64 source = 0xFEDCBA9876543210UL;
+            const u64 mask = width == 64 ? ~0UL : (1UL << width) - 1;
+            u64 expected = original & mask;
+            if (count) expected = right
+                ? ((expected >> count) | ((source & mask) << (width - count))) & mask
+                : ((expected << count) | ((source & mask) >> (width - count))) & mask;
+            model.zGPR.data[0] = original;
+            model.zGPR.data[1] = count;
+            model.zGPR.data[2] = source;
+            model.zGPR.data[7] = 0x9000;
+            model.phys_mem.write64(0x8FF8, 0x1122334455667788UL);
+            model.phys_mem.write64(0x9000, original);
+            model.phys_mem.write64(0x9008, 0x99AABBCCDDEEFF00UL);
+            if (operand == 2)
+              model.zSegCache.data[x86::SEG_DS].zseg_limit = 0x9000 + width / 8 - 1;
+            model.zCF = 1; model.zZF = 1; model.zSF = 1;
+            model.zOF = 1; model.zAF = 1; model.zPF = 0;
+            u64 old_flags = model.zread_rflags(UNIT);
+            u8 code[6]; unsigned n = 0;
+            if (width == 16) code[n++] = 0x66;
+            if (width == 64) code[n++] = 0x48;
+            code[n++] = 0x0F;
+            code[n++] = (right ? 0xAC : 0xA4) + cl_count;
+            code[n++] = operand ? 0x17 : 0xD0; // [EDI]/RAX, source RDX
+            if (!cl_count) code[n++] = count;
+            ASSERT_EQ(run_code(model, 0x5000, code, n, 1), RUN_OK);
+            u64 reg_expected = width == 16 ? (original & ~mask) | expected : expected;
+            ASSERT_EQ(model.zGPR.data[0], operand ? original : reg_expected);
+            ASSERT_EQ(model.phys_mem.read64(0x9000),
+                      operand ? (original & ~mask) | expected : original);
+            ASSERT_EQ(model.phys_mem.read64(0x8FF8), 0x1122334455667788UL);
+            ASSERT_EQ(model.phys_mem.read64(0x9008), 0x99AABBCCDDEEFF00UL);
+            ASSERT_EQ(model.zGPR.data[2], source);
+            if (!count) ASSERT_EQ(model.zread_rflags(UNIT), old_flags);
+            model.model_fini();
+          }
+        }
+      }
+    }
+  }
+}
+
+TEST(legacy_opcode82_group1) {
+  // SDM rev.090 Vol.3B 25.15: 82h aliases byte Group 1 (80h), except
+  // in 64-bit mode where it raises #UD. Exercise all eight operations,
+  // both operand forms, 66h and LOCK, including compatibility mode.
+  const u8 results[] = {0x00, 0xFF, 0x01, 0x01, 0x01, 0x02, 0xFE, 0x81};
+  const u16 flags[] = {0x055, 0x084, 0x011, 0x810, 0x000, 0x810, 0x080, 0x810};
+  for (unsigned mode = 0; mode < 6; ++mode) {
+    for (unsigned op = 0; op < 8; ++op) {
+      for (bool memory : {false, true}) {
+        for (u8 prefix : {0x00, 0x66, 0xF0}) {
+          x86::Model model;
+          if (mode == 0) init_model_16(model);
+          else if (mode < 3) init_model_32(model);
+          else init_model(model);
+          bool code16 = mode == 0 || mode == 1 || mode == 3;
+          if (mode != 5) {
+            model.zSegCache.data[x86::SEG_CS].zseg_l = 0;
+            model.zSegCache.data[x86::SEG_CS].zseg_db = !code16;
+            if (mode >= 3) {
+              model.zcur_mode = x86::zCompatibilityMode;
+              for (unsigned seg : {x86::SEG_CS, x86::SEG_DS}) {
+                auto &cache = model.zSegCache.data[seg];
+                cache.zseg_base = 0;
+                cache.zseg_limit = 0xFFFFFFFF;
+                cache.zseg_present = cache.zseg_s = 1;
+                cache.zseg_type = seg == x86::SEG_CS ? 0xB : 0x3;
+              }
+            }
+          }
+          model.zGPR.data[0] = 0x1234567887654381UL;
+          model.zGPR.data[3] = model.zGPR.data[7] = 0x6000;
+          model.phys_mem.write32(0x6000, 0xAABBCC81);
+          model.zCF = 1;
+          const u8 code[] = {prefix, 0x82, u8((op << 3) | (memory ? 7 : 0xC0)), 0x7F};
+          bool fault = mode == 5 || (prefix == 0xF0 && (!memory || op == 7));
+          unsigned skip = prefix == 0;
+          ASSERT_EQ(run_code(model, 0x5000, code + skip, sizeof(code) - skip, 1),
+                    fault ? RUN_FAULTED : RUN_OK);
+          if (fault) {
+            ASSERT_EQ(model.zfault_vector, 6u);
+            ASSERT_EQ(model.zRIP, 0x5000UL);
+          } else {
+            // Logical operations leave AF undefined; all other arithmetic
+            // status flags have explicit expected values for 81h op 7Fh.
+            u64 mask = (op == 1 || op == 4 || op == 6) ? 0x8C5 : 0x8D5;
+            ASSERT_EQ(model.zread_rflags(UNIT) & mask, u64(flags[op]));
+            ASSERT_EQ(model.zRIP, 0x5000UL + sizeof(code) - skip);
+          }
+          ASSERT_EQ(model.zGPR.data[0],
+                    0x1234567887654300UL | (fault || memory ? 0x81 : results[op]));
+          ASSERT_EQ(model.phys_mem.read32(0x6000),
+                    0xAABBCC00u | (fault || !memory ? 0x81 : results[op]));
+          model.model_fini();
+        }
+      }
+    }
+  }
+}
+
 int main() {
   printf("System emulator tests:\n");
 
@@ -2807,12 +3199,17 @@ int main() {
   printf("\nReal mode tests:\n");
   run_test_f2_string_repetition();
   run_test_real_mode_mov_ax_hlt();
+  run_test_legacy_opcode82_group1();
+  run_test_double_shift_operand_width();
   run_test_xlat_segmented_table();
   run_test_xlat_address_size_and_segment_limit();
   run_test_real_mode_far_jmp_ea();
   run_test_real_mode_far_call_9a();
 
   printf("\nProtected mode far transfer tests:\n");
+  run_test_segment_descriptor_accessed_bits();
+  run_test_far_pointer_load_destination_width_and_faults();
+  run_test_legacy_jmp_call_gate();
   run_test_legacy_call_gate_privilege_stacks();
   run_test_legacy_call_gate_same_privilege_and_faults();
   run_test_legacy_privilege_stack_descriptor_faults();
@@ -2841,6 +3238,8 @@ int main() {
   run_test_ia32e_iretq_to_compat_loads_ss_descriptor();
   run_test_ia32e_sysenter_switches_to_long_mode();
   run_test_mov_gs_at_cpl3_uses_implicit_access();
+  run_test_expand_down_segment_limits();
+  run_test_legacy_instruction_fetch_wraps_at_32bit();
   run_test_compat_seg_linear_wraps_at_32bit();
 
   printf("\nPUSHA/POPA tests:\n");

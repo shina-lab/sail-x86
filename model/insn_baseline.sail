@@ -1694,7 +1694,9 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
       let count = fetch(1);
-      v(dest) = exec_shld(os, v(dest), v(reg), count)
+      // SDM SHLD/SHRD: every operand access uses the decoded width.
+      // An inferred qword write would overwrite adjacent memory on r/m16/32.
+      v(os, dest) = exec_shld(os, v(os, dest), v(os, reg), count)
     },
 
     // 0F A5: SHLD r/m, r, CL
@@ -1702,7 +1704,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
       let count : byte = v(RCX);
-      v(dest) = exec_shld(os, v(dest), v(reg), count)
+      v(os, dest) = exec_shld(os, v(os, dest), v(os, reg), count)
     },
 
     // 0F A8: PUSH GS (d64)
@@ -1752,7 +1754,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
       let count = fetch(1);
-      v(dest) = exec_shrd(os, v(dest), v(reg), count)
+      v(os, dest) = exec_shrd(os, v(os, dest), v(os, reg), count)
     },
 
     // 0F AD: SHRD r/m, r, CL
@@ -1760,7 +1762,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
       let count : byte = v(RCX);
-      v(dest) = exec_shrd(os, v(dest), v(reg), count)
+      v(os, dest) = exec_shrd(os, v(os, dest), v(os, reg), count)
     },
 
     // 0F AF: IMUL r, r/m (2-operand)
@@ -1810,13 +1812,15 @@ function dispatch_2byte_gpr(op, pfx) = {
       match src {
         RM_mem(m) => {
           let (far_offset, selector) = read_far_pointer(os, m);
-          v(reg) = far_offset;
           let seg : segreg_idx = match op {
             178 => SS,
             180 => FS,
             181 => GS,
           };
-          load_data_segment_register(seg, selector)
+          load_data_segment_register(seg, selector);
+          // The destination width follows the operand size, not the qword
+          // used by read_far_pointer to represent the offset.
+          v(reg) = far_offset[os - 1 .. 0]
         },
         RM_reg(_) => raise_UD(),
       }

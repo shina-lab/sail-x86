@@ -349,6 +349,210 @@ TEST(ata_disk_read_write) {
   ASSERT_EQ(st() & 0x01, 0x01);
 }
 
+TEST(ata_multiple_mode) {
+  Image disk(512 * 512), iso(2048 * 4);
+  IDEChannel c(BASE, CTRL), cd(0x1F0, 0x3F6);
+  assert(c.open_disk(disk.path.c_str()));
+  assert(cd.open_cdrom(iso.path.c_str()));
+  auto setup = [&](u8 count, u8 lba) {
+    c.write(BASE + 6, 0xE0);
+    c.write(BASE + 2, count);
+    c.write(BASE + 3, lba);
+    c.write(BASE + 4, 0);
+    c.write(BASE + 5, 0);
+  };
+  auto identify_mode = [&]() {
+    c.write(BASE + 7, 0xEC);
+    c.read(BASE + 7);
+    auto id = read_block(c, 256);
+    assert((id[94] | (id[95] << 8)) == 0x8001); // maximum block size: 1 sector
+    return id[118] | (id[119] << 8);
+  };
+  ASSERT_EQ(identify_mode() & 0xff, 0); // disabled after reset
+  for (u8 cmd : {0xc4, 0xc5}) {
+    setup(1, 3);
+    c.write(BASE + 7, cmd);
+    ASSERT_EQ(status(c) & 9, 1); // disabled MULTIPLE commands abort
+    ASSERT_EQ(c.read(BASE + 1), 4);
+    c.read(BASE + 7);
+  }
+  c.write(BASE + 2, 1);
+  c.write(BASE + 7, 0xc6);
+  ASSERT_EQ(status(c) & 0x89, 0);
+  ASSERT_EQ(c.irq_asserted, true);
+  c.read(BASE + 7);
+  ASSERT_EQ(c.irq_asserted, false);
+  ASSERT_EQ(identify_mode(), 0x101);
+
+  setup(2, 3);
+  c.write(BASE + 7, 0xc4);
+  for (unsigned block = 0; block < 2; ++block) {
+    ASSERT_EQ(status(c) & 0x89, 8);
+    ASSERT_EQ(c.irq_asserted, true);
+    c.read(BASE + 7);
+    auto data = read_block(c, 256);
+    for (unsigned i = 0; i < data.size(); ++i)
+      ASSERT_EQ(data[i], Image::pattern((3 + block) * 512 + i));
+  }
+  ASSERT_EQ(status(c) & 0x89, 0);
+  ASSERT_EQ(c.irq_asserted, false); // no final data-in interrupt
+
+  setup(2, 10);
+  c.write(BASE + 7, 0xc5);
+  ASSERT_EQ(c.irq_asserted, false); // first write block is polled
+  for (unsigned block = 0; block < 2; ++block) {
+    ASSERT_EQ(status(c) & 0x89, 8);
+    for (unsigned i = 0; i < 256; ++i) c.write16(0xA000 | (block << 8) | i);
+    ASSERT_EQ(c.irq_asserted, true);
+    c.read(BASE + 7);
+  }
+  ASSERT_EQ(status(c) & 0x89, 0);
+  setup(2, 10);
+  c.write(BASE + 7, 0x20); // ordinary READ verifies the written media
+  for (unsigned block = 0; block < 2; ++block) {
+    c.read(BASE + 7);
+    auto data = read_block(c, 256);
+    for (unsigned i = 0; i < 256; ++i)
+      ASSERT_EQ(data[2*i] | (data[2*i+1] << 8), 0xA000 | (block << 8) | i);
+  }
+  // Sector count 0 still means 256 sectors for READ MULTIPLE.
+  setup(0, 32);
+  c.write(BASE + 7, 0xc4);
+  for (unsigned block = 0; block < 256; ++block) {
+    ASSERT_EQ(c.irq_asserted, true);
+    c.read(BASE + 7);
+    auto data = read_block(c, 256);
+    ASSERT_EQ(data[511], Image::pattern((32 + block) * 512 + 511));
+  }
+  ASSERT_EQ(status(c) & 0x89, 0);
+
+  // A zero setting disables transfers. An unsupported setting also
+  // disables them and aborts, as specified by ATA-2 section 8.24.
+  for (u8 setting : {0, 2, 3, 255}) {
+    c.write(BASE + 2, 1);
+    c.write(BASE + 7, 0xc6);
+    c.read(BASE + 7);
+    c.write(BASE + 2, setting);
+    c.write(BASE + 7, 0xc6);
+    ASSERT_EQ(status(c) & 1, setting ? 1 : 0);
+    c.read(BASE + 7);
+    ASSERT_EQ(identify_mode(), 0x100);
+    setup(1, 3);
+    c.write(BASE + 7, 0xc4);
+    ASSERT_EQ(status(c) & 1, 1);
+    c.read(BASE + 7);
+  }
+  c.write(BASE + 2, 1);
+  c.write(BASE + 7, 0xc6);
+  c.write(CTRL, 4);
+  c.write(CTRL, 0);
+  c.write(BASE + 6, 0xE0);
+  ASSERT_EQ(identify_mode(), 0x100);
+  c.write(CTRL, 2); // nIEN masks the SET MULTIPLE completion interrupt
+  c.write(BASE + 2, 1);
+  c.write(BASE + 7, 0xc6);
+  ASSERT_EQ(status(c) & 1, 0);
+  ASSERT_EQ(c.irq_asserted, false);
+  c.write(BASE + 1, 0x66); // Disable reverting to defaults on software reset
+  c.write(BASE + 7, 0xef);
+  c.write(CTRL, 4);
+  c.write(CTRL, 0);
+  c.write(BASE + 6, 0xE0);
+  ASSERT_EQ(identify_mode(), 0x101);
+  c.write(BASE + 1, 0xcc); // Re-enable reverting to defaults
+  c.write(BASE + 7, 0xef);
+  c.write(CTRL, 4);
+  c.write(CTRL, 0);
+  c.write(BASE + 6, 0xE0);
+  ASSERT_EQ(identify_mode(), 0x100);
+  for (u8 cmd : {0xc4, 0xc5, 0xc6}) {
+    cd.write(0x1F6, 0xA0);
+    cd.write(0x1F2, 1);
+    cd.write(0x1F7, cmd);
+    ASSERT_EQ(cd.read(0x3F6) & 1, 1);
+    ASSERT_EQ(cd.read(0x1F1), 4);
+    cd.read(0x1F7);
+  }
+}
+
+TEST(ata_recalibrate) {
+  Image disk(512 * 64), iso(2048 * 4);
+  IDEChannel c(0x1F0, 0x3F6), cd(BASE, CTRL);
+  assert(c.open_disk(disk.path.c_str()));
+  assert(cd.open_cdrom(iso.path.c_str()));
+  c.write(0x1F6, 0xA0);
+  cd.write(BASE + 6, 0xA0);
+  for (unsigned cmd = 0x10; cmd <= 0x1F; ++cmd) {
+    c.write(0x1F4, 0x34);
+    c.write(0x1F5, 0x12);
+    c.write(0x1F7, cmd);
+    ASSERT_EQ(c.read(0x3F6), 0x50); // DRDY | DSC, no ERR/DRQ/BSY
+    ASSERT_EQ(c.irq_asserted, true);
+    ASSERT_EQ(c.read(0x1F7), 0x50);
+    ASSERT_EQ(c.irq_asserted, false);
+    ASSERT_EQ(c.read(0x1F1), 0);
+    ASSERT_EQ(c.read(0x1F4), 0);
+    ASSERT_EQ(c.read(0x1F5), 0);
+    cd.write(BASE + 7, cmd);
+    ASSERT_EQ(cd.read(CTRL) & 1, 1);
+    ASSERT_EQ(cd.read(BASE + 1) & 4, 4); // ATAPI rejects disk commands
+    cd.read(BASE + 7);
+  }
+  c.write(0x3F6, 2); // nIEN suppresses completion interrupt
+  c.write(0x1F7, 0x10);
+  ASSERT_EQ(c.read(0x3F6), 0x50);
+  ASSERT_EQ(c.irq_asserted, false);
+}
+
+TEST(ata_read_verify) {
+  Image disk(512 * 1008), iso(2048 * 4);
+  IDEChannel c(0x1F0, 0x3F6), cd(BASE, CTRL);
+  assert(c.open_disk(disk.path.c_str()));
+  assert(cd.open_cdrom(iso.path.c_str()));
+  for (u8 command : {0x40, 0x41}) {
+    c.write(0x1F6, 0xE0);
+    c.write(0x1F3, 32);
+    c.write(0x1F4, 0);
+    c.write(0x1F5, 0);
+    c.write(0x1F2, 4);
+    c.write(0x1F7, command);
+    ASSERT_EQ(c.read(0x3F6), 0x50);
+    ASSERT_EQ(c.irq_asserted, true);
+    c.read(0x1F7);
+    ASSERT_EQ(c.read(0x1F2), 0);
+    ASSERT_EQ(c.read(0x1F3), 35); // last verified sector
+
+    // CHS verify across a head boundary; count zero means 256 sectors.
+    c.write(0x1F6, 0xA0);
+    c.write(0x1F3, 62);
+    c.write(0x1F2, 0);
+    c.write(0x1F7, command);
+    ASSERT_EQ(c.read(0x3F6), 0x50);
+    c.read(0x1F7);
+    ASSERT_EQ(c.read(0x1F6) & 15, 5);
+    ASSERT_EQ(c.read(0x1F3), 2);
+
+    // The final two requested sectors lie beyond the image. Report IDNF
+    // at the first failing address, with the remaining sector count.
+    c.write(0x1F6, 0xE0);
+    c.write(0x1F3, 1006 & 255);
+    c.write(0x1F4, 1006 >> 8);
+    c.write(0x1F2, 4);
+    c.write(0x1F7, command);
+    ASSERT_EQ(c.read(0x3F6), 0x51);
+    ASSERT_EQ(c.read(0x1F1), 0x10);
+    ASSERT_EQ(c.read(0x1F2), 2);
+    ASSERT_EQ(c.read(0x1F3) | (c.read(0x1F4) << 8), 1008);
+    c.read(0x1F7);
+
+    cd.write(BASE + 6, 0xA0);
+    cd.write(BASE + 7, command);
+    ASSERT_EQ(cd.read(CTRL) & 1, 1);
+    ASSERT_EQ(cd.read(BASE + 1) & 4, 4);
+    cd.read(BASE + 7);
+  }
+}
+
 TEST(master_slave_independent_transfers) {
   Image master(512 * 64), slave(512 * 128);
   IDEChannel c(0x1F0, 0x3F6);
@@ -436,6 +640,9 @@ int main() {
   run_test_atapi_inquiry_capacity_and_read();
   run_test_atapi_inter_block_busy_and_interrupt();
   run_test_ata_disk_read_write();
+  run_test_ata_multiple_mode();
+  run_test_ata_recalibrate();
+  run_test_ata_read_verify();
   run_test_master_slave_independent_transfers();
   run_test_busmaster_pio_interrupt_status();
   printf("\n  %d passed, %d failed\n", tests_passed, tests_failed);

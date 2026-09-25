@@ -37,9 +37,9 @@ function ept_enabled() = ept_active
 val ept_violation_qual : (PTAccess, bool) -> qword
 function ept_violation_qual(access, present) = {
   var qual : qword = zeros();
-  // Implicit accesses surface as reads at the EPT level.
+  // Descriptor reads and writes retain their access direction at EPT.
   if access == PT_Read | access == PT_Implicit then qual[0] = 0b1;
-  if access == PT_Write then qual[1] = 0b1;
+  if (access == PT_Write | access == PT_ImplicitWrite) then qual[1] = 0b1;
   if access == PT_Execute then qual[2] = 0b1;
   if present then {
     qual[3] = 0b1;
@@ -88,6 +88,7 @@ function ept_walk(gpa, access, table_base, level) = {
       PT_Write    => w == 0b0,
       PT_Execute  => x == 0b0,
       PT_Implicit => r == 0b0,
+      PT_ImplicitWrite => w == 0b0,
     };
     if denied then {
       let qual : qword = ept_violation_qual(access, true);
@@ -151,10 +152,10 @@ function mk_pf_error(access, present, reserved) = {
   // Bit 0: P — page was present (permission violation vs not-present)
   if present then ec[0] = 0b1;
   // Bit 1: W/R — write access caused the fault
-  if access == PT_Write then ec[1] = 0b1;
+  if (access == PT_Write | access == PT_ImplicitWrite) then ec[1] = 0b1;
   // Bit 2: U/S — user-mode access caused the fault.
   // Implicit (descriptor-table) accesses are supervisor regardless of CPL.
-  if cur_cpl == 3 & access != PT_Implicit then ec[2] = 0b1;
+  if cur_cpl == 3 & (access != PT_Implicit & access != PT_ImplicitWrite) then ec[2] = 0b1;
   // Bit 3: RSVD — reserved bit set in PTE
   if reserved then ec[3] = 0b1;
   // Bit 4: I/D — instruction fetch caused the fault.  Hardware sets it
@@ -179,12 +180,13 @@ function check_pte_permissions(pte, access) = {
   // an NX fault (they're not instruction fetches).  Writes of this class
   // (e.g. A/D-bit updates, TSS busy-bit set) still respect WP.
   if access == PT_Implicit then true
+  else if access == PT_ImplicitWrite then rw == 0b1 | CR0[16] == 0b0
   // User-mode access to supervisor page: always denied
   else if cur_cpl == 3 & us == 0b0 then false
   // Write to read-only page:
   // - In user mode: always denied
   // - In kernel mode: denied if CR0.WP=1, allowed if WP=0
-  else if access == PT_Write & rw == 0b0 then {
+  else if (access == PT_Write | access == PT_ImplicitWrite) & rw == 0b0 then {
     if cur_cpl == 3 then false
     else CR0[16] == 0b0  // WP=0 → allowed, WP=1 → denied
   }
@@ -206,7 +208,7 @@ function update_accessed_dirty(pte_addr, pte, access) = {
     changed = true
   };
   // Set Dirty bit for writes if not already set
-  if access == PT_Write & pte[6] == 0b0 then {
+  if (access == PT_Write | access == PT_ImplicitWrite) & pte[6] == 0b0 then {
     new_pte[6] = 0b1;
     changed = true
   };
@@ -315,13 +317,13 @@ function pt_walk_32(linear, access) = {
 
   // Check permissions (R/W, U/S).  Implicit (descriptor-table) accesses
   // run at supervisor and bypass the U/S check regardless of CPL.
-  if access == PT_Write & pde[1] == 0b0 then {
-    if (cur_cpl == 3 & access != PT_Implicit) | CR0[16] == 0b1 then {
+  if (access == PT_Write | access == PT_ImplicitWrite) & pde[1] == 0b0 then {
+    if (cur_cpl == 3 & (access != PT_Implicit & access != PT_ImplicitWrite)) | CR0[16] == 0b1 then {
       CR2 = linear;
       throw Fault(EXN_PF, mk_pf_error(access, true, false))
     }
   };
-  if cur_cpl == 3 & access != PT_Implicit & pde[2] == 0b0 then {
+  if cur_cpl == 3 & (access != PT_Implicit & access != PT_ImplicitWrite) & pde[2] == 0b0 then {
     CR2 = linear;
     throw Fault(EXN_PF, mk_pf_error(access, true, false))
   };
@@ -332,7 +334,7 @@ function pt_walk_32(linear, access) = {
     var new_pde = pde;
     var changed : bool = false;
     if pde[5] == 0b0 then { new_pde[5] = 0b1; changed = true };
-    if access == PT_Write & pde[6] == 0b0 then {
+    if (access == PT_Write | access == PT_ImplicitWrite) & pde[6] == 0b0 then {
       new_pde[6] = 0b1; changed = true
     };
     if changed then phys_write(pde_addr, new_pde);
@@ -353,13 +355,13 @@ function pt_walk_32(linear, access) = {
     };
 
     // Check permissions.  Implicit (descriptor-table) accesses bypass U/S.
-    if access == PT_Write & pte[1] == 0b0 then {
-      if (cur_cpl == 3 & access != PT_Implicit) | CR0[16] == 0b1 then {
+    if (access == PT_Write | access == PT_ImplicitWrite) & pte[1] == 0b0 then {
+      if (cur_cpl == 3 & (access != PT_Implicit & access != PT_ImplicitWrite)) | CR0[16] == 0b1 then {
         CR2 = linear;
         throw Fault(EXN_PF, mk_pf_error(access, true, false))
       }
     };
-    if cur_cpl == 3 & access != PT_Implicit & pte[2] == 0b0 then {
+    if cur_cpl == 3 & (access != PT_Implicit & access != PT_ImplicitWrite) & pte[2] == 0b0 then {
       CR2 = linear;
       throw Fault(EXN_PF, mk_pf_error(access, true, false))
     };
@@ -369,7 +371,7 @@ function pt_walk_32(linear, access) = {
     var new_pte = pte;
     var pte_changed : bool = false;
     if pte[5] == 0b0 then { new_pte[5] = 0b1; pte_changed = true };
-    if access == PT_Write & pte[6] == 0b0 then {
+    if (access == PT_Write | access == PT_ImplicitWrite) & pte[6] == 0b0 then {
       new_pte[6] = 0b1; pte_changed = true
     };
     if pte_changed then phys_write(pte_addr, new_pte);
@@ -457,15 +459,15 @@ function translate_addr(linear, access) = {
     linear  // Paging disabled: linear = physical
   } else if EFER[10] == 0b1 then {
     // IA-32e mode (long mode): 4-level or 5-level paging
-    let is_write = access == PT_Write;
-    match __tlb_lookup(linear, is_write) {
+    let is_write = (access == PT_Write | access == PT_ImplicitWrite);
+    match (if access == PT_ImplicitWrite then None() else __tlb_lookup(linear, is_write)) {
       Some(paddr) => paddr,
       None() => {
         let table_base : qword = CR3 & 0x000FFFFFFFFFF000;
         let start_level : range(0, 4) =
           if CR4[12] == 0b1 then 4 else 3;
         let paddr = pt_walk(linear, access, table_base, start_level);
-        __tlb_insert(linear, paddr, is_write);
+        if access != PT_ImplicitWrite then __tlb_insert(linear, paddr, is_write);
         paddr
       },
     }

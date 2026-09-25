@@ -1366,7 +1366,8 @@ private:
 // 0x170-0x177/0x376 (IRQ 15). Each channel can have a master and a slave.
 // An absent device reads as zero so drive probes skip it.
 //
-// Hard disk: READ/WRITE SECTORS, IDENTIFY DEVICE, INITIALIZE DEVICE
+// Hard disk: READ/WRITE SECTORS and MULTIPLE, SET MULTIPLE MODE,
+// IDENTIFY DEVICE, INITIALIZE DEVICE
 // PARAMETERS, SET FEATURES, FLUSH CACHE.  CD-ROM: IDENTIFY PACKET DEVICE,
 // DEVICE RESET and PACKET with the SCSI/MMC commands a BIOS or an OS needs
 // to boot from and mount a disc: TEST UNIT READY, REQUEST SENSE, INQUIRY,
@@ -1565,6 +1566,9 @@ private:
   u8 last_command = 0;
   u64 command_time = 0;
   bool nien = false;
+  // IDENTIFY word 47 advertises a maximum MULTIPLE block of one sector.
+  u8 multiple_count = 0;
+  bool keep_settings_on_reset = false;
 
   // Transfer state
   Xfer xfer = XFER_NONE;
@@ -1598,7 +1602,7 @@ private:
     image_size = st.st_size;
     sector_size = ssize;
     dev = k;
-    reset_device();
+    reset_device(true);
     return true;
   }
 
@@ -1621,7 +1625,9 @@ private:
     drive_head = 0x00;
   }
 
-  void reset_device() {
+  void reset_device(bool power_on = false) {
+    if (power_on) keep_settings_on_reset = false;
+    if (!keep_settings_on_reset) multiple_count = 0;
     xfer = XFER_NONE;
     buf.clear();
     buf_pos = block_end = 0;
@@ -1688,6 +1694,16 @@ private:
               drive_head, nien, now());
     error = 0;
     packet = false;
+    // ATA RECALIBRATE (10h-1Fh): seek cylinder zero, then complete with
+    // DRDY and DSC. OS/2's IBM1S506 driver still uses this legacy command.
+    if ((cmd & 0xF0) == 0x10) {
+      if (dev != DISK) { abort_command(); return; }
+      lba_mid = lba_high = 0;
+      xfer = XFER_NONE;
+      status = 0x50;
+      raise_irq();
+      return;
+    }
     switch (cmd) {
     case 0x08:  // DEVICE RESET (ATAPI)
       if (dev != CDROM) { abort_command(); break; }
@@ -1700,6 +1716,9 @@ private:
       status = 0x40;
       raise_irq();
       break;
+    case 0xC4:              // READ MULTIPLE (one sector per DRQ block)
+      if (!multiple_count) { abort_command(); break; }
+      [[fallthrough]];
     case 0x20: case 0x21: {  // READ SECTORS
       if (dev != DISK) { abort_command(); break; }
       u32 lba = get_lba();
@@ -1711,6 +1730,9 @@ private:
       begin_data_in(512);
       break;
     }
+    case 0xC5:              // WRITE MULTIPLE (one sector per DRQ block)
+      if (!multiple_count) { abort_command(); break; }
+      [[fallthrough]];
     case 0x30: case 0x31: {  // WRITE SECTORS
       if (dev != DISK) { abort_command(); break; }
       current_lba = get_lba();
@@ -1722,10 +1744,54 @@ private:
       status = 0x48;  // DRDY | DRQ, no interrupt for the first block
       break;
     }
+    case 0x40: case 0x41: {  // READ VERIFY SECTORS, with/without retries
+      if (dev != DISK) { abort_command(); break; }
+      u32 first = get_lba();
+      unsigned count = sector_count ? sector_count : 256;
+      bool valid_chs = (drive_head & 0x40) || (lba_low >= 1 && lba_low <= 63);
+      unsigned done = valid_chs && first < total_sectors()
+                    ? std::min<u64>(count, total_sectors() - first) : 0;
+      // On success report the last verified sector, on failure the first
+      // unverified one (ATA non-data command protocol, READ VERIFY).
+      u32 last = done == count ? first + count - 1 : first + done;
+      if (valid_chs) {
+        if (drive_head & 0x40) {
+          lba_low = last;
+          lba_mid = last >> 8;
+          lba_high = last >> 16;
+          drive_head = (drive_head & 0xF0) | ((last >> 24) & 15);
+        } else {
+          lba_low = last % 63 + 1;
+          drive_head = (drive_head & 0xF0) | ((last / 63) % 16);
+          u32 cylinder = last / (16 * 63);
+          lba_mid = cylinder;
+          lba_high = cylinder >> 8;
+        }
+      }
+      sector_count = count - done;
+      xfer = XFER_NONE;
+      error = done == count ? 0 : 0x10; // IDNF
+      status = done == count ? 0x50 : 0x51; // DRDY | DSC [| ERR]
+      raise_irq();
+      break;
+    }
     case 0x91:  // INITIALIZE DEVICE PARAMETERS
     case 0xE7:  // FLUSH CACHE
     case 0xEA:  // FLUSH CACHE EXT
+      complete_ok();
+      break;
+    case 0xC6:  // SET MULTIPLE MODE (ATA-2 section 8.24)
+      if (dev != DISK) { abort_command(); break; }
+      multiple_count = 0; // unsupported counts disable MULTIPLE too
+      if (sector_count > 1) { abort_command(); break; }
+      multiple_count = sector_count;
+      complete_ok();
+      break;
     case 0xEF:  // SET FEATURES
+      if (dev == DISK) {
+        if (features == 0x66) keep_settings_on_reset = true;
+        if (features == 0xCC) keep_settings_on_reset = false;
+      }
       complete_ok();
       break;
     case 0xE5:  // CHECK POWER MODE
@@ -1791,6 +1857,7 @@ private:
     u32 cur = (u32)id[54] * 16 * 63;
     id[57] = cur & 0xFFFF;
     id[58] = cur >> 16;
+    id[59] = 0x0100 | multiple_count; // valid current MULTIPLE setting
     id[60] = sectors & 0xFFFF;
     id[61] = sectors >> 16;
     id[64] = 0x0003;  // PIO modes 3 and 4
@@ -2214,20 +2281,34 @@ public:
   }
 
   bool open(const char *path) {
-    disk_fd = ::open(path, O_RDWR);
-    if (disk_fd < 0) {
+    int new_fd = ::open(path, O_RDWR);
+    bool new_read_only = false;
+    if (new_fd < 0) {
       // Try read-only
-      disk_fd = ::open(path, O_RDONLY);
-      if (disk_fd < 0) { perror(path); return false; }
-      read_only = true;
+      new_fd = ::open(path, O_RDONLY);
+      if (new_fd < 0) { perror(path); return false; }
+      new_read_only = true;
     }
     struct stat st;
-    if (fstat(disk_fd, &st) < 0) { perror("fstat"); close(disk_fd); disk_fd = -1; return false; }
+    if (fstat(new_fd, &st) < 0) { perror("fstat"); close(new_fd); return false; }
+    if (disk_fd >= 0) close(disk_fd);
+    disk_fd = new_fd;
     disk_size = st.st_size;
+    read_only = new_read_only;
+    disk_changed = true;
     return true;
   }
 
   bool is_open() const { return disk_fd >= 0; }
+
+  void dump(FILE *out) const {
+    fprintf(out, "  FDC DOR=%02x MSR=%02x rate=%u cylinder=%u change=%u IRQ=%u delay=%d DMA=%u command=%d/%d result=%d/%d\n",
+            dor, msr, data_rate, current_cylinder, disk_changed, irq_pending,
+            irq_delay, dma_pending, cmd_pos, cmd_expected, result_pos, result_len);
+    fprintf(out, "    FIFO:");
+    for (int i = 0; i < cmd_pos; ++i) fprintf(out, " %02x", cmd_buf[i]);
+    fputc('\n', out);
+  }
 
   u8 read(u16 port) {
     switch (port) {
@@ -2246,6 +2327,9 @@ public:
   }
 
   void write(u16 port, u8 val) {
+    if (getenv("SAIL_X86_FLOPPY_TRACE"))
+      fprintf(stderr, "FDC out %03x=%02x MSR=%02x command=%d/%d\n",
+              port, val, msr, cmd_pos, cmd_expected);
     switch (port) {
     case 0x3F2:  // Digital Output Register
     {
@@ -2293,6 +2377,11 @@ public:
     DMAController::Channel &dc = dma.ch[2];
     u32 addr = dma.get_addr(2);
     u16 count = dma.get_count(2) + 1;  // DMA count is N-1
+
+    if (getenv("SAIL_X86_FLOPPY_TRACE"))
+      fprintf(stderr, "FDC DMA %s offset=%lu address=%x count=%u mode=%02x mask=%u\n",
+              dma_is_write ? "write" : "read", dma_disk_offset, addr,
+              count, dc.mode, dc.masked);
 
     if (dma_is_write) {
       // Write: guest memory → disk
@@ -2416,10 +2505,11 @@ private:
     case 0x0A: return 2;  // READ ID
     case 0x0D: return 6;  // FORMAT TRACK
     case 0x0F: return 3;  // SEEK
+    case 0x10: return 1;  // VERSION
     case 0x12: return 1;  // PERPENDICULAR MODE
     case 0x13: return 4;  // CONFIGURE
     case 0x14: return 1;  // LOCK
-    default:   return 9;  // Unknown — assume max length
+    default:   return 1;  // Invalid opcode enters result phase immediately
     }
   }
 
@@ -2439,6 +2529,13 @@ private:
 
   void execute_command() {
     u8 cmd = cmd_buf[0] & 0x1F;  // Mask MT, MFM, SK bits
+
+    if (getenv("SAIL_X86_FLOPPY_TRACE")) {
+      fprintf(stderr, "FDC command:");
+      for (int i = 0; i < cmd_pos; ++i) fprintf(stderr, " %02x", cmd_buf[i]);
+      fprintf(stderr, " DOR=%02x rate=%u cyl=%u change=%u\n",
+              dor, data_rate, current_cylinder, disk_changed);
+    }
 
     switch (cmd) {
     case 0x03:  // SPECIFY
@@ -2525,6 +2622,14 @@ private:
       irq_pending = true;
       break;
     }
+
+    case 0x10:  // VERSION (82077AA section 5.2.8), no interrupt
+      result_buf[0] = 0x90;
+      result_len = 1;
+      result_pos = 0;
+      cmd_pos = 0;
+      msr = 0xD0;
+      break;
 
     case 0x12:  // PERPENDICULAR MODE
     case 0x13:  // CONFIGURE

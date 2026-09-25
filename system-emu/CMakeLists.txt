@@ -148,6 +148,11 @@ target_include_directories(system_test_ide PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")
 add_test(NAME system_ide COMMAND system_test_ide)
 
+add_executable(system_test_floppy tests/test-floppy.cpp)
+target_include_directories(system_test_floppy PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared)
+add_test(NAME system_floppy COMMAND system_test_floppy)
+
 add_executable(system_test_apic tests/test-apic.cpp x86-phys-mem.cpp)
 target_include_directories(system_test_apic PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../emu-shared")

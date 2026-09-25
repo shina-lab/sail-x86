@@ -123,6 +123,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  -boot <order>   BIOS boot order: a floppy, c hard disk, d CD-ROM\n");
   fprintf(stderr, "                  (default: d when a CD-ROM is attached, else the BIOS order)\n");
   fprintf(stderr, "  -fda <file>     Floppy disk image (drive A:)\n");
+  fprintf(stderr, "  Ctrl-a f        Reload -fda after replacing its image (disk change)\n");
   fprintf(stderr, "  -h              Show this help\n");
   fprintf(stderr, "Env:\n");
   fprintf(stderr, "  SAIL_X86_TRACE_START          Start instruction count for register dumps\n");
@@ -138,6 +139,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  SAIL_X86_TRACE_REAL_UD=1       Dump recent execution on real-mode vector-6 handler entry\n");
   fprintf(stderr, "  SAIL_X86_TRACE_ADDRESS        Dump recent execution once at this linear code address\n");
   fprintf(stderr, "  SAIL_X86_TRACE_ADDRESS_STEPS  Trace this many steps after that address, then stop\n");
+  fprintf(stderr, "  SAIL_X86_TRACE_CS            Restrict instruction-window register dumps to this CS\n");
 }
 
 // Read a file into a malloc'd buffer. Returns size, or 0 on error.
@@ -979,6 +981,13 @@ int main(int argc, char *argv[]) {
     else model.uart.rx_push(ch);
   };
   auto input_special = [&](int ch) {
+    if (ch == 'f') {
+      if (fda_path && model.floppy.open(fda_path))
+        fprintf(stderr, "sail-x86-system: floppy media reloaded: %s\n", fda_path);
+      else
+        fprintf(stderr, "sail-x86-system: floppy media reload failed\n");
+      return true;
+    }
     int key = 0;
     if (ch >= '1' && ch <= '9') key = KEY_F(ch - '0');
     else if (ch == '0') key = KEY_F(10);
@@ -1001,6 +1010,8 @@ int main(int argc, char *argv[]) {
   u64 trace_end = parse_env_u64("SAIL_X86_TRACE_END", 0);
   u64 trace_step = parse_env_u64("SAIL_X86_TRACE_STEP", 1);
   bool trace_window_enabled = has_trace_start || has_trace_end || has_trace_step;
+  bool trace_cs_enabled = getenv("SAIL_X86_TRACE_CS") != nullptr;
+  u64 trace_cs = parse_env_u64("SAIL_X86_TRACE_CS", 0);
   bool trace_real_ud = getenv("SAIL_X86_TRACE_REAL_UD") != nullptr;
   bool trace_address_enabled = getenv("SAIL_X86_TRACE_ADDRESS") != nullptr;
   u64 trace_address = parse_env_u64("SAIL_X86_TRACE_ADDRESS", 0);
@@ -1107,6 +1118,7 @@ int main(int argc, char *argv[]) {
     model.ioapic.dump(stderr);
     model.pit.dump(stderr);
     model.cmos.dump(stderr);
+    model.floppy.dump(stderr);
     model.ide0.dump(stderr);
     model.ide1.dump(stderr);
     fprintf(stderr, "  VGA text screen:\n");
@@ -1162,7 +1174,8 @@ int main(int argc, char *argv[]) {
                            insn_count >= trace_start &&
                            (!has_trace_end || insn_count <= trace_end);
     bool trace_sample = in_trace_window && ((insn_count - trace_start) % trace_step == 0);
-    if (debug || trace_sample)
+    if (debug || (trace_sample &&
+                  (!trace_cs_enabled || (u16)model.zSegReg.data[x86::SEG_CS] == trace_cs)))
       dump_registers(stderr, insn_count, model);
 
     if (has_probe_insn && insn_count == probe_insn) {
