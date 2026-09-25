@@ -2323,3 +2323,36 @@ kdb:> .cxr AFCCDAC4
 Command '.cxr AFCCDAC4' is unknown.
 kdb:>
 ```
+
+
+### reactos-outs-fixed-install-15 — cabinet verification checkpoint
+
+Fresh disk: `build/os-boot/reactos-outs-fixed-disk.img`. With the explicit
+OUTS widths, setup passes the storage-ISR assertion and reaches **25%**
+(`d3d9.dll`) at 1,301.91 seconds and 3,737,043,404 instructions, then
+continues copying. This is an active-run checkpoint, not a completed
+installation or a stop.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_EVENT_ADDRESS=0x80403f2e SAIL_X86_TRACE_ADDRESS=0x4024f8 python3 system-emu/run-boot.py --name reactos-outs-fixed-install-15 --timeout 14400 --send '2:\n' --send '110:\n' --send '120:\n' --send '130:\n' --send '140:\n' --send '150:\n' --send '160:\n' --send '170:\n' --send '190:\n' --send '220:\n' --send '250:\n' -- build/llvm/sail-x86-system -ips 4 -m 128 -kbd -b build/bios.bin -hda build/os-boot/reactos-outs-fixed-disk.img -cdrom build/os-boot/reactos-debug.iso -boot d
+```
+
+Both files corrupted in the earlier session now match the source cabinet
+**in full**, including the bytes beyond the old truncation boundaries:
+
+| File | Bytes | SHA-256 of both source and installed file |
+|---|---:|---|
+| `ReactOS/explorer.exe` | 1,875,968 | `0d2720fd93a865a7c398a20ca410b3656162a0695ddd586df19142d68b31f74a` |
+| `ReactOS/system32/console.dll` | 275,968 | `f9b11d94150775f8e212a78d0045ae693e6d0ba05cc45f1493351d43fde40c83` |
+
+The comparison reads a separate disk snapshot using `mcopy` at partition
+offset 1,048,576; no host tool changes the running guest disk. The source
+files are extracted from the original `reactos.cab`. There is no cabinet
+codec-error trace hit, `C0000001` copy failure, assertion, or setup-process
+termination. The CD still lacks `i386/system32/kdvbox.dll` (`C0000034`),
+which setup skips; this is distinct from the fixed cabinet-length corruption.
+
+[20% PNG](os-boot/reactos-outs-fixed-copy-20.png) ·
+[25% PNG](os-boot/reactos-outs-fixed-copy-25.png) ·
+[Checkpoint serial log](os-boot/reactos-outs-fixed-copy-25.serial.txt) ·
+[File verification details](os-boot/reactos-cabinet-fixed-verification.json).
