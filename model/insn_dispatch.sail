@@ -514,6 +514,28 @@ function is_lockable_1byte(op) = {
   }
 }
 
+// IRET uses the privilege before the return to decide which flags can
+// change (SDM Vol.2A, RETURN-TO-SAME/OUTER-PRIVILEGE-LEVEL, pp.3-493,
+// 3-495). In particular a ring-3 IRET cannot clear or raise IOPL.
+val restore_iret_flags : ({16, 32, 64}, qword, cpl_t, bool) -> unit
+function restore_iret_flags(os, image, old_cpl, protected_return) = {
+  var flags : qword = image;
+  if protected_return then {
+    if old_cpl > unsigned(IOPL) then flags[9] = IF_flag;
+    if old_cpl != 0 then flags[13..12] = IOPL
+  };
+  if os == 16 then
+    write_rflags((read_rflags() & 0xFFFFFFFFFFFF0000) | zero_extend(flags[15..0]))
+  else {
+    write_rflags(flags);
+    RF = flags[16];
+    if protected_return & old_cpl == 0 then {
+      VIF = flags[19];
+      VIP = flags[20]
+    }
+  }
+}
+
 // Legacy protected-mode RETF. SDM Vol.2B RET, Protected Mode and
 // RETURN-TO-SAME/OUTER-PRIVILEGE-LEVEL, pp.4-571--4-575. In particular,
 // a not-present return CS must fault before its descriptor is installed.
@@ -1655,6 +1677,8 @@ function decode_execute() = {
       // 64-bit mode: always pop RIP, CS, RFLAGS, RSP, SS (SDM Vol.2 IRET).
       207 => {
         let os = opsize(pfx);
+        let iret_cpl = cur_cpl;
+        let protected_return = cur_mode != RealMode;
         if cur_mode == Virtual8086Mode then {
           assert(os == 16 | os == 32);
           iret_in_vm86(os);
@@ -1689,11 +1713,7 @@ function decode_execute() = {
           // 16-bit IRET only modifies lower 16 flags bits; 32-bit replaces all,
           // RF included (SDM IRET: "EFLAGS(RF, AC, ID) := tempEFLAGS"), which
           // is how a debug handler resumes past an instruction breakpoint.
-          let img : qword = zero_extend(new_flags);
-          if os == 16
-            then write_rflags((read_rflags() & 0xFFFFFFFFFFFF0000) | img)
-            else write_rflags(img);
-          RF = img[16]
+          restore_iret_flags(os, zero_extend(new_flags), iret_cpl, protected_return)
         } else {
           let new_rip    = pop(os);
           let new_cs     = pop(os);
@@ -1713,8 +1733,7 @@ function decode_execute() = {
           else cur_mode = CompatibilityMode;
 
           cur_cpl = unsigned(new_cs[1..0]);
-          write_rflags(new_rflags);
-          RF = new_rflags[16];  // IRETQ transfers RF from the image (SDM IRET)
+          restore_iret_flags(os, new_rflags, iret_cpl, protected_return);
           v(RSP) = new_rsp;
           // Load SS selector *and* descriptor cache from the GDT (SDM Vol.2
           // IRET: on return to outer privilege the hidden part of SS —
