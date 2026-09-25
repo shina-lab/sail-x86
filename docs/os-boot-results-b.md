@@ -183,6 +183,59 @@ identify the corruption's origin.
 [COM1](os-boot/b-win95-fresh4-copy71-stop.serial). Raw RAM and the stopped
 disk/core are preserved privately.
 
+### Controls and narrowing the installed-system stop
+
+Private QEMU TCG clones use the same BIOS/VGA ROMs and matching disk CHS
+(1040/16/63, `bios-chs-trans=none`). The unrestricted-clock control displays
+an [IOS protection error](os-boot/b-win95-qemu-ios-stop.png)
+([registers](os-boot/b-win95-qemu-ios-stop.txt),
+[COM1](os-boot/b-win95-qemu-ios-stop.serial)). With
+`-icount shift=8,align=off,sleep=off`, the automatically selected Safe Mode
+reaches [graphical Setup](os-boot/b-win95-qemu-safe-setup.png), which correctly
+refuses device detection in Safe Mode. An explicitly normal-boot clone
+then [finishes graphical configuration](os-boot/b-win95-qemu-configured.png)
+and requests its final restart. [COM1](os-boot/b-win95-qemu-configured.serial).
+These are QEMU controls, not a Sail desktop result; their disk mutations
+are isolated from the Sail continuation images.
+
+The ordinary LLVM emulator still stalls when normal boot is selected
+explicitly: **134.657 s / 452,529,542 instructions**.
+[PNG](os-boot/b-win95-normal-list-stop.png),
+[state](os-boot/b-win95-normal-list-stop.txt),
+[COM1](os-boot/b-win95-normal-list-stop.serial). Its
+[BOOTLOG](os-boot/b-win95-normal-bootlog.txt) ends at IOS device initialization.
+The diagnostic MSDOS.SYS experiment initially placed options under `[Paths]`
+in error (**146.057 s / 519,886,251 instructions**,
+[PNG](os-boot/b-win95-logged-config-stop.png),
+[state](os-boot/b-win95-logged-config-stop.txt),
+[COM1](os-boot/b-win95-logged-config-stop.serial)). The later file puts
+normal-boot options under `[Options]`; the unsupported `BootLog=1` line
+is subsequently removed after the guest reports it.
+
+A diagnostic-only platform trace observes real-mode `INT 2F, AX=1605`
+returning a non-null startup-information chain (`ES:BX=8820:123f`).
+This probe stops after **97.839 s / 326,937,714 instructions**:
+[PNG](os-boot/b-win95-init-call-stop.png),
+[trace](os-boot/b-win95-init-call-stop.txt),
+[COM1](os-boot/b-win95-init-call-stop.serial).
+
+Watching the VMM list-head field at physical `0xfdf04c` identifies its
+assignment at `c03709c8`: IOS stores `c1400000`, its VM memory base plus a
+null far pointer. This probe stops after **80.432 s / 273,145,019 instructions**:
+[PNG](os-boot/b-win95-list-field-stop.png),
+[trace](os-boot/b-win95-list-field-stop.txt),
+[COM1](os-boot/b-win95-list-field-stop.serial).
+
+The preceding VMM service executes a virtual-8086 `INT 2F` request intended
+to carry `AX=1690`. Its caller's EBP is unexpectedly `00007f70` instead of
+the high kernel client-register pointer. The captured VM86 entry consequently
+has AX=0. A deliberate 3,000-instruction window stops at
+**10.005 s / 38,190,393 instructions**:
+[PNG](os-boot/b-win95-vm86-call-trace-stop.png),
+[focused trace](os-boot/b-win95-vm86-call-trace-stop.txt),
+[COM1](os-boot/b-win95-vm86-call-trace-stop.serial). Investigation is tracing
+that register value backward; no model or compiler fix is inferred yet.
+
 ## Resumption after 10:50 JST on 2026-09-25
 
 This run starts from `bd5d0b3` and uses only sail-llvm compiler `54a10b8`.
