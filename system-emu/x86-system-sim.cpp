@@ -138,6 +138,7 @@ static void usage(const char *prog) {
   fprintf(stderr, "  SAIL_X86_TRACE_REAL_UD=1       Dump recent execution on real-mode vector-6 handler entry\n");
   fprintf(stderr, "  SAIL_X86_TRACE_ADDRESS        Dump recent execution once at this linear code address\n");
   fprintf(stderr, "  SAIL_X86_TRACE_ADDRESS_STEPS  Trace this many steps after that address, then stop\n");
+  fprintf(stderr, "  SAIL_X86_TRACE_CS            Restrict instruction-window register dumps to this CS\n");
 }
 
 // Read a file into a malloc'd buffer. Returns size, or 0 on error.
@@ -1080,6 +1081,8 @@ int main(int argc, char *argv[]) {
   u64 trace_end = parse_env_u64("SAIL_X86_TRACE_END", 0);
   u64 trace_step = parse_env_u64("SAIL_X86_TRACE_STEP", 1);
   bool trace_window_enabled = has_trace_start || has_trace_end || has_trace_step;
+  bool trace_cs_enabled = getenv("SAIL_X86_TRACE_CS") != nullptr;
+  u64 trace_cs = parse_env_u64("SAIL_X86_TRACE_CS", 0);
   bool trace_real_ud = getenv("SAIL_X86_TRACE_REAL_UD") != nullptr;
   bool trace_address_enabled = getenv("SAIL_X86_TRACE_ADDRESS") != nullptr;
   u64 trace_address = parse_env_u64("SAIL_X86_TRACE_ADDRESS", 0);
@@ -1242,7 +1245,8 @@ int main(int argc, char *argv[]) {
                            insn_count >= trace_start &&
                            (!has_trace_end || insn_count <= trace_end);
     bool trace_sample = in_trace_window && ((insn_count - trace_start) % trace_step == 0);
-    if (debug || trace_sample)
+    if (debug || (trace_sample &&
+                  (!trace_cs_enabled || (u16)model.zSegReg.data[x86::SEG_CS] == trace_cs)))
       dump_registers(stderr, insn_count, model);
 
     if (has_probe_insn && insn_count == probe_insn) {

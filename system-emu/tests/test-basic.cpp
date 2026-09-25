@@ -2704,6 +2704,61 @@ TEST(xlat_segment_limit_fault) {
   }
 }
 
+TEST(double_shift_operand_width) {
+  // SDM Vol.2B SHLD/SHRD: read and write only the operand-sized
+  // destination. OS/2 places a handler-registration flag just after it.
+  for (unsigned width : {16u, 32u, 64u}) {
+    for (bool right : {false, true}) {
+      for (bool cl_count : {false, true}) {
+        for (unsigned count : {0u, 5u}) {
+          for (unsigned operand = 0; operand < 3; ++operand) {
+            if (width == 64 && operand == 2) continue;
+            x86::Model model;
+            if (width == 64) init_model(model);
+            else init_model_32(model);
+            const u64 original = 0x8877665512348001UL;
+            const u64 source = 0xFEDCBA9876543210UL;
+            const u64 mask = width == 64 ? ~0UL : (1UL << width) - 1;
+            u64 expected = original & mask;
+            if (count) expected = right
+                ? ((expected >> count) | ((source & mask) << (width - count))) & mask
+                : ((expected << count) | ((source & mask) >> (width - count))) & mask;
+            model.zGPR.data[0] = original;
+            model.zGPR.data[1] = count;
+            model.zGPR.data[2] = source;
+            model.zGPR.data[7] = 0x9000;
+            model.phys_mem.write64(0x8FF8, 0x1122334455667788UL);
+            model.phys_mem.write64(0x9000, original);
+            model.phys_mem.write64(0x9008, 0x99AABBCCDDEEFF00UL);
+            if (operand == 2)
+              model.zSegCache.data[x86::SEG_DS].zseg_limit = 0x9000 + width / 8 - 1;
+            model.zCF = 1; model.zZF = 1; model.zSF = 1;
+            model.zOF = 1; model.zAF = 1; model.zPF = 0;
+            u64 old_flags = model.zread_rflags(UNIT);
+            u8 code[6]; unsigned n = 0;
+            if (width == 16) code[n++] = 0x66;
+            if (width == 64) code[n++] = 0x48;
+            code[n++] = 0x0F;
+            code[n++] = (right ? 0xAC : 0xA4) + cl_count;
+            code[n++] = operand ? 0x17 : 0xD0; // [EDI]/RAX, source RDX
+            if (!cl_count) code[n++] = count;
+            ASSERT_EQ(run_code(model, 0x5000, code, n, 1), RUN_OK);
+            u64 reg_expected = width == 16 ? (original & ~mask) | expected : expected;
+            ASSERT_EQ(model.zGPR.data[0], operand ? original : reg_expected);
+            ASSERT_EQ(model.phys_mem.read64(0x9000),
+                      operand ? (original & ~mask) | expected : original);
+            ASSERT_EQ(model.phys_mem.read64(0x8FF8), 0x1122334455667788UL);
+            ASSERT_EQ(model.phys_mem.read64(0x9008), 0x99AABBCCDDEEFF00UL);
+            ASSERT_EQ(model.zGPR.data[2], source);
+            if (!count) ASSERT_EQ(model.zread_rflags(UNIT), old_flags);
+            model.model_fini();
+          }
+        }
+      }
+    }
+  }
+}
+
 TEST(legacy_opcode82_group1) {
   // SDM rev.090 Vol.3B 25.15: 82h aliases byte Group 1 (80h), except
   // in 64-bit mode where it raises #UD. Exercise all eight operations,
@@ -2819,6 +2874,7 @@ int main() {
   run_test_f2_string_repetition();
   run_test_real_mode_mov_ax_hlt();
   run_test_legacy_opcode82_group1();
+  run_test_double_shift_operand_width();
   run_test_xlat_segmented_table();
   run_test_xlat_address_size_and_segment_limit();
   run_test_real_mode_far_jmp_ea();

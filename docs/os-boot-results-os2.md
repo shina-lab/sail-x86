@@ -542,7 +542,7 @@ The connection to SYS3175 remains a hypothesis until a fixed-model retry.
 All 15 system suites pass after rebuilding (84 basic tests); all 416 VM86
 comparisons against KVM pass. [Validation](os-boot/os2-tests-f2.txt).
 
-### os2-24-access (in progress)
+### os2-24-access
 
 A diagnostic repeat on the partially populated disk uses
 `SAIL_X86_TRACE_EVENT_ADDRESS=0x1bf91209` to capture the invalid chain's
@@ -563,13 +563,23 @@ SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRAC
 Wall: **156.218 s**. Instructions: **368,027,496**. Exit `0`.
 
 
-### os2-26-f2-ide (in progress)
+### os2-26-f2-ide
 
 Booting an independent copy of the SYS3175 disk with the F2-corrected model,
 from IDE, with the CD attached read-only. This is a recovery/diagnostic path;
 installation did not finish in the earlier attempt.
 
-### os2-27-f2-install (in progress)
+CHKDSK completes, but a later exception-chain walk reads `4f5c3a43`
+(the bytes `C:\O`) as a pointer at `1bf91209`. Thus F2 repetition alone does
+not explain this recovery-path corruption. Error handling then reaches
+[SINGLEQ$ TRAP 000d](os-boot/os2-singleq-trap000d.png), at
+`03f8:0971` / linear `fe100971`: `MOV EBX,ES:[SI]`, with null ES.
+The clean installation retry remains necessary to distinguish CPU errors
+from the incomplete disk's state.
+
+Wall: **407.271 s**. Instructions: **1,743,915,600**. Exit `0`.
+
+### os2-27-f2-install
 
 Repeating the complete installation from the clean HPFS snapshot using the
 F2-corrected model, a separate private floppy image and IDE disk. The original
@@ -579,3 +589,86 @@ accept C:, retain HPFS and select the default PS/2 pointing device.
 ```sh
 SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 SAIL_X86_TRACE_EVENT_ADDRESS=0x1bf91209 system-emu/run-boot.py --name os2-27-f2-install --timeout 4500 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-f2-floppy.img -hda build/os-boot/os2-f2-install-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
 ```
+
+
+### os2-28-chain
+
+An independent partial-disk clone is booted with an instruction trace beginning
+at `005b:1fe2fa64` and ending 15000 steps later. It captures exception-handler
+registration, but kernel work consumes the window before the later fault.
+Raw trace, RAM and PNG are `build/os-boot/os2-28-chain.*`.
+
+### os2-29-chain-full
+
+Repeat the same deterministic IDE boot with a 500000-step window from
+`1fe2fa64`, filtered by `SAIL_X86_TRACE_CS=0x5b`. This opt-in host diagnostic
+restricts register output to the requested selector without changing execution
+or the trace stop count, so the user-runtime path can span intervening kernel
+calls without an enormous register log.
+
+
+The copy-only diagnostic attempts 24 and 27 were stopped after the
+operand-width defect below was reproduced. Their writable images and raw
+logs are preserved; neither is a completed installation.
+[Attempt 24 screen](os-boot/os2-24-copy-diagnostic.png),
+[attempt 27 screen](os-boot/os2-27-before-double-shift.png).
+
+`os2-24-access`: **1253.151 s**, **2,992,363,565** instructions, exit `0`.
+
+`os2-27-f2-install`: **977.242 s**, **2,400,445,708** instructions, exit `0`.
+
+`os2-28-chain`: **172.264 s**, **417,862,997** instructions, exit `0`.
+
+`os2-29-chain-full`: **165.661 s**, **418,347,997** instructions, exit `0`.
+
+
+### Double-shift operand widths
+
+A reduced `SHRD dword [EBP-0Ch],ECX,5` probe changes eight bytes rather than
+four: `04bbbbccaaa5a0ff` becomes `00000000d5552d07`. The neighboring dword
+must remain `04bbbbcc`. A 16-bit register destination also loses its upper
+bits. Make both operand reads and the write explicitly use `os` for all
+four SHLD/SHRD encodings, as specified by Intel SDM rev.090 Vol.2B
+pp.4-639–4-644 (and Vol.1 §3.4.1.1 for partial GPR writes).
+
+OS/2's API thunk uses these instructions beside stack-resident bookkeeping
+for exception-handler registration. The longer trace shows valid registration
+followed by invalid links; [selected trace](os-boot/os2-double-shift-trace.txt).
+The new regression checks 64 cases across 16/32/64-bit operands, immediate
+and CL counts, left/right shifts, zero counts, GPR preservation, adjacent
+memory and narrow destinations ending exactly at a segment limit. It fails
+before the fix. All 15 sail-llvm system suites pass afterward (85 basic tests).
+A repeat of the reduced probe now retains `04bbbbcc`.
+
+The CS filter is verified by attempt 29: 8032 register snapshots inside the
+500000-step window all have CS=005b; the final unfiltered state dump occurs
+at the requested stop count.
+
+### os2-30-double-shift-install (in progress)
+
+Restarted the full installation from `os2-hdd-formatted.img` with both F2 and
+double-shift fixes. The private disk is `os2-fixed-install-hdd.img` and the
+private floppy is `os2-f2-floppy.img`. Original media remain read-only.
+
+### os2-31-fixed-ide
+
+Independently booting a new copy of `os2-hdd-3175.img` as
+`os2-fixed-ide-hdd.img` with both fixes to check the earlier runtime failure.
+
+
+All **480 VM86/KVM comparisons** pass, including 64 added SHLD/SHRD
+comparisons of registers and memory with immediate/CL and zero/nonzero counts.
+[Validation](os-boot/os2-tests-double-shift.txt).
+
+The corrected partial-disk boot no longer triggers the event trace at
+`1bf91209`, but it still reaches [SINGLEQ$ TRAP 000d](os-boot/os2-singleq-after-double-shift.png)
+at `03f8:0971` with ES=0. This is being diagnosed separately; the clean
+installation retry continues.
+
+Attempt 31: **284.458 s**, **1,119,324,120** instructions, exit `0`.
+
+
+### os2-32-singleq (in progress)
+
+Fresh clone of the partial disk, traced at driver entry `fe1008f9` for
+3000 instructions to locate where the ES input pointer becomes null.

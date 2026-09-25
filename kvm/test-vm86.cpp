@@ -302,6 +302,22 @@ static std::vector<Test> tests() {
   ts.back().sp = 0xabcd0000;
   ts.push_back({"MOVS", {0xbe,0,1, 0xbf,0,2, 0xfc, 0xa5}});
   ts.push_back({"REP MOVS", {0xbe,0,1, 0xbf,0,2, 0xb9,2,0, 0xfc, 0xf3,0xa5}});
+  for (u8 op : {0xa4, 0xa5, 0xac, 0xad})
+  for (bool wide : {false, true}) for (bool memory : {false, true})
+  for (u8 count : {0, 5}) {
+    Test t{"double shift opcode=" + std::to_string(op) +
+           " wide=" + std::to_string(wide) + " memory=" + std::to_string(memory) +
+           " count=" + std::to_string(count),
+           {0x66,0xb8,1,0x80,0x34,0x12, 0xba,0xef,0xcd,
+            0xb9,count,0, 0xbf,0,2}};
+    if (wide) t.code.push_back(0x66);
+    t.code.insert(t.code.end(), {0x0f, op, u8(memory ? 0x15 : 0xd0)});
+    if (!(op & 1)) t.code.push_back(count);
+    // Normalize undefined shift flags; compare GPRs and every memory byte.
+    t.code.insert(t.code.end(), {0x39,0xdb}); // CMP BX,BX
+    t.patches.push_back({0x50200, {1,0x80,0x34,0x12,0x55,0x66,0x77,0x88}});
+    ts.push_back(t);
+  }
   for (u8 op : {0xa4, 0xa5, 0xaa, 0xab, 0xac, 0xad})
   for (bool wide : {false, true}) for (bool backward : {false, true}) {
     Test t{"F2 string opcode=" + std::to_string(op) +
