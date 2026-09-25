@@ -14,10 +14,34 @@ Post-merge validation passes: **81 basic cases, all 14 system suites,
 [Validation record](os-boot/b-win95-resume-validation.txt).
 No compiler workaround or expected failure remains for OUTS.
 
-Windows 95 Setup is being retried from a private copy of the historical
-44% disk, `/tmp/sail-x86-os2-win95-20260925/win95-fixed.img`.
-The supplied number is read from its original external file; registration
-pages, disk images and raw RAM remain outside the repository.
+### Recovery attempt with the rebuilt, merged emulator
+
+`b-win95-fixed` starts from a private copy of the historical 44% disk.
+It passes the hard-disk check and accepts the supplied OEM number, but
+stops after User Information, before hardware detection or file copy.
+The screen palette changes and execution loops at real-mode `0001:ffe8`,
+with IF=0, GDTR=0 and unexpected register/segment values. This is not yet
+classified as a model defect. The run is manually stopped after
+619.799 seconds and 1,065,584,243 instructions.
+[PNG](os-boot/b-win95-fixed-userinfo-stop.png),
+[CPU state](os-boot/b-win95-fixed-userinfo-stop.txt),
+[COM1](os-boot/b-win95-fixed-userinfo-stop.serial) (empty).
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
+  --name b-win95-fixed --out /tmp/sail-x86-os2-win95-20260925 \
+  --timeout 7000 --send '8:\n' --send '55:\n' -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-fixed.img -boot c
+```
+
+The next attempt uses `win95-b-final.img` from before file copy, removes
+its temporary `WININST0.400` directory on the private copy, and restores
+AUTOEXEC.BAT to start `C:\WIN95\SETUP /IS` without recovery. The diagnostic
+emulator links the freshly rebuilt LLVM model and stops on an unexpected
+real-mode CS below 0x40 after 100 million instructions, retaining the last
+64 instruction locations. This changes only diagnostics, not model semantics.
+All writable images and raw RAM are under `/tmp/sail-x86-os2-win95-20260925/`.
 
 ## Prior continuation through 10:50 JST on 2026-09-25
 
