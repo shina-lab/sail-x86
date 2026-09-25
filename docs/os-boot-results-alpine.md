@@ -55,5 +55,78 @@ output line so that command echo cannot terminate the run prematurely.
 SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 python3 docs/os-boot/alpine-console.py --name alpine-02 --bootline '/boot/vmlinuz-virt initrd=/boot/initramfs-virt console=ttyS0,115200 modules=loop,squashfs,sd-mod,usb-storage noapic nolapic tsc=reliable nokaslr debug_init' -- build/llvm/sail-x86-system -m 512 -ips 20 -b build/bios.bin -cdrom /home/ruiu/os-images/alpine-virt-3.24.2-x86_64.iso -boot d
 ```
 
-In progress. ISOLINUX accepted the command at 3.704 s and is loading the
-unmodified kernel and initramfs from the original read-only ISO.
+ISOLINUX accepted the command at 3.704 s. Linux reached `/init` at guest
+58.003 s (about eight minutes wall time), then `Mounting boot media` at
+guest 64.320 s. It completed 31 `mdev` children and stopped before the
+32nd spawn. The last completed child was PID 702, event SEQNUM 692,
+`ttyS2`. Stopped for the diagnosed model fix after **969.770 s /
+2,490,233,931 instructions**, exit 0. No login or shell was reached.
+
+[Serial](os-boot/alpine-02.serial), [VGA PNG](os-boot/alpine-02.png),
+[runner record](os-boot/alpine-02.json), [inputs](os-boot/alpine-02.inputs.json),
+[CPU/device state](os-boot/alpine-02-state.txt),
+[task inspection](os-boot/alpine-02-tasks.txt).
+
+### Diagnosed XADD restart defect — `23c4e2f`
+
+The final snapshots show the CPU idling with interrupts enabled and the
+PIT advancing. No IDE command is pending. PID 1 is waiting for its child;
+`nlplug-findfs`'s main thread (446) is blocked in `fork()` on musl's random
+lock, whose value is `0xffffffff`. Its remaining worker (447) is waiting
+on the trigger condition variable. There is no live `mdev` child.
+
+The snapshot uses the ISO's own System.map and BTF, inspected by
+[inspect-alpine.py](os-boot/inspect-alpine.py). The stack listings are
+candidate text addresses, not an ORC unwind; saved syscall frames identify
+both futex waits. The main thread's libc base is `0x7fd70c685000`, its
+saved userspace RIP is `base+0x66613` (the lock's futex syscall), and its
+caller is `base+0x2fdba` (`fork`'s atfork-lock loop). Its loop index and
+the pointer table identify `__random_lockptr` at `base+0xa7004`.
+
+[musl's fork source](https://git.musl-libc.org/cgit/musl/tree/src/process/fork.c)
+and the ISO's libc disassembly explain the failure: fork makes the lock
+page copy-on-write; unlocking performs `LOCK XADD [lock], EAX` with
+`EAX=0x7fffffff`. The model exchanged EAX with memory *before* attempting
+the store. A write-protection page fault therefore left EAX changed.
+The restarted instruction added the wrong value, corrupting the lock.
+With lock value `0x80000001`, the faulty retry produces `2` instead of
+`0`; repetition yields `2, 6, 14, ...`, explaining the 31 completed
+children and the subsequent permanent lock wait. This is independent of
+the CD-ROM implementation.
+
+Intel SDM revision 090, **Vol.3A §7.5, Exception Classifications**, requires
+faults to restore the state preceding the faulting instruction. **Vol.2D,
+XADD, pp.6-26–6-27** specifies its result and page-fault exception.
+The fix commits the memory store before the source register and flags.
+It applies to byte, word, dword and qword memory operands.
+
+The regression protects the destination page, checks unchanged source,
+memory, RIP and arithmetic flags on `#PF`, repairs the PTE, then checks
+the restarted result. Before the fix, the dword case changes RAX from
+`0x123456787fffffff` to `0x80000001` on the fault.
+[Failing result](os-boot/alpine-xadd-before.txt).
+
+Validation uses only sail-llvm and clang++:
+
+```sh
+system-emu/build-llvm.sh
+python3 docs/os-boot/build-alpine-tests.py
+```
+
+[Build](os-boot/alpine-xadd-build.txt); all **19 paging** cases
+([log](os-boot/alpine-xadd-paging.txt)), **78 basic** cases
+([log](os-boot/alpine-xadd-basic.txt)), and **26 exception** cases
+([log](os-boot/alpine-xadd-exceptions.txt)) pass.
+The new regression covers all four XADD widths.
+
+Rebuilt emulator SHA-256:
+`378aa1e2dd5e45e8dea3e1312c5dee2f5377be0b7b78994b61586b67e75c86d9`.
+
+### alpine-03-xadd: retry with corrected XADD restart
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_IDE_TRACE=1 python3 docs/os-boot/alpine-console.py --name alpine-03-xadd --bootline '/boot/vmlinuz-virt initrd=/boot/initramfs-virt console=ttyS0,115200 modules=loop,squashfs,sd-mod,usb-storage noapic nolapic tsc=reliable nokaslr debug_init' -- build/llvm/sail-x86-system -m 512 -ips 20 -b build/bios.bin -cdrom /home/ruiu/os-images/alpine-virt-3.24.2-x86_64.iso -boot d
+```
+
+In progress with a fresh 2,400-second limit. The guest ISO, firmware,
+kernel command line, RAM size and virtual CPU speed are unchanged.

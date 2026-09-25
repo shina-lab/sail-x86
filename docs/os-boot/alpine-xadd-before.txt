@@ -1,0 +1,24 @@
+Paging tests:
+  identity_map_2mb                                  PASS
+  non_identity_4kb_mapping                          PASS
+  page_fault_not_present                            PASS
+  accessed_dirty_bits                               PASS
+  write_protect                                     PASS
+  huge_page_1gb                                     PASS
+  store_through_paging                              PASS
+  cross_page_instruction_fetch_fault                PASS
+  cross_page_data_faults                            PASS
+  xadd_write_fault_restart                          FAIL
+    system-emu/tests/test-paging.cpp:794: model.zGPR.data[0] == 0x80000001, expected 0x123456787fffffff
+PASS
+  la57_identity_map_4kb                             PASS
+  la57_non_identity_4kb                             PASS
+  la57_1gb_huge_page                                PASS
+  la57_accessed_dirty                               PASS
+  paging_32bit_identity_4kb                         PASS
+  paging_32bit_4mb_page                             PASS
+  paging_32bit_fault_not_present                    PASS
+  paging_pae_identity_2mb                           PASS
+  paging_pae_4kb                                    PASS
+
+19 passed, 1 failed
