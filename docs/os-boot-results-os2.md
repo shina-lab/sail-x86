@@ -62,6 +62,20 @@ build/llvm/system_test_floppy
 Source CD SHA-256:
 `a91d2c9ea556e7708d21771a20afcdb0b6134f6857131b9ab6adc2559e564555`.
 
+`4ed9280` implements ATA RECALIBRATE, which IBM1S506 uses before
+probing disk geometry. The pre-fix trace returned ABRT repeatedly.
+The device test covers all 16 aliases, IRQ acknowledgement/masking, and
+ATAPI rejection. All eight IDE tests pass. Reference:
+[ATA draft, §8.21](https://files.mpoli.fi/unpacked/hardware/hdd/other/ata-2.zip/ata-2.txt).
+
+The [control helper](os-boot/os2-control.py) records live keyboard input,
+media swaps, and signal captures in each attempt's `.inputs` file. For example:
+
+```sh
+python3 docs/os-boot/os2-control.py os2-install swap build/os-boot/os2-diskettes/DISK1_CD.DSK
+python3 docs/os-boot/os2-control.py os2-install dump
+```
+
 ## Model fixes
 
 * `773fd08`: instruction fetch now truncates CS.base + EIP to 32 bits
@@ -87,6 +101,9 @@ Source CD SHA-256:
 
 All serial consoles in the initial loader attempts were silent.
 Instruction counts include interrupt entries, as measured by the runner.
+
+
+
 
 <!-- Generated attempts -->
 
@@ -166,3 +183,123 @@ SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py --name os2-07-expand --time
 
 Wall: **31.010 s**. Instructions: **13,259,930**.
 Result: `exit`, exit `0`. Serial: silent.
+
+
+Manual inputs:
+
+
+
+### os2-08-disks
+
+Loads Diskette 1, shows Warp splash, accepts Diskette 2, then reports that OS/2 cannot operate the hard disk or diskette drive. Manual swaps are recorded below.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py --name os2-08-disks --timeout 1800 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **157.863 s**. Instructions: **382,713,929**.
+Result: `exit`, exit `0`. Serial: silent.
+
+
+Manual inputs:
+
+* 2026-09-25T01:29:34.740804+00:00: swap ['build/os-boot/os2-diskettes/DISK1_CD.DSK']
+* 2026-09-25T01:31:14.264547+00:00: swap ['build/os-boot/os2-diskettes/DISK2.DSK']
+
+### os2-09-device-trace
+
+Stopped at Diskette 1: this process launched the previous emulator while the diagnostic build was finishing, so no FDC trace was available.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 python3 system-emu/run-boot.py --name os2-09-device-trace --timeout 1800 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **25.212 s**. Instructions: **13,214,130**.
+Result: `exit`, exit `0`. Serial: silent.
+
+
+Manual inputs:
+
+
+
+### os2-10-device-trace
+
+Reproduces drive failure after Diskette 2. IDE trace shows repeated RECALIBRATE 10h returning status 41h (DRDY|ERR) and ABRT. Diskette DMA transfers through the loader complete.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 python3 system-emu/run-boot.py --name os2-10-device-trace --timeout 1800 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **165.863 s**. Instructions: **351,691,043**.
+Result: `exit`, exit `0`. Serial: silent.
+
+
+Manual inputs:
+
+* 2026-09-25T01:33:06.001226+00:00: swap ['build/os-boot/os2-diskettes/DISK1_CD.DSK']
+* 2026-09-25T01:34:57.846209+00:00: swap ['build/os-boot/os2-diskettes/DISK2.DSK']
+
+### os2-11-recal
+
+ATA recalibration succeeds and sector zero is read; READ VERIFY 40h is still rejected during the last-cylinder probe. Diskette 2 again ends at the drive error.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 python3 system-emu/run-boot.py --name os2-11-recal --timeout 1800 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **221.503 s**. Instructions: **412,397,390**.
+Result: `exit`, exit `0`. Serial: silent.
+
+
+Manual inputs:
+
+* 2026-09-25T01:36:41.894853+00:00: swap ['build/os-boot/os2-diskettes/DISK1_CD.DSK']
+* 2026-09-25T01:39:09.377333+00:00: swap ['build/os-boot/os2-diskettes/DISK2.DSK']
+
+### os2-12-verify
+
+RECALIBRATE and READ VERIFY now complete. The IDE disk is probed successfully, but the same boot-drive error remains after Diskette 2. Further FDC port tracing follows.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 SAIL_X86_FLOPPY_TRACE=1 SAIL_X86_IDE_TRACE=1 python3 system-emu/run-boot.py --name os2-12-verify --timeout 1800 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **151.657 s**. Instructions: **446,285,663**.
+Result: `exit`, exit `0`. Serial: silent.
+
+
+Manual inputs:
+
+* 2026-09-25T01:40:18.676125+00:00: swap ['build/os-boot/os2-diskettes/DISK1_CD.DSK']
+* 2026-09-25T01:41:31.842964+00:00: swap ['build/os-boot/os2-diskettes/DISK2.DSK']
+
+### os2-13-fdc-io
+
+Port tracing shows the native floppy driver sends VERSION (10h), but the controller wrongly waits for eight parameter bytes, consuming later SPECIFY and RECALIBRATE commands. BIOS diskette reads continue; native drive initialization fails.
+
+```sh
+system-emu/run-boot.py --name os2-13-fdc-io --timeout 1800 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **187.08 s**. Instructions: **544,113,227**.
+Result: `exit`, exit `0`. Serial: two form feeds only.
+
+### os2-14-error-entry
+
+An address-triggered trace captures entry to the kernel drive-error path at linear ffe28555h after Diskette 2. The native FDC VERSION probe is still malformed.
+
+```sh
+system-emu/run-boot.py --name os2-14-error-entry --timeout 1800 -- build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin -fda build/os-boot/os2-floppy.img -hda build/os-boot/os2-hdd.img -cdrom /home/ruiu/os-images/ibm-os2-warp-version-4.iso -boot a
+```
+
+Wall: **77.03 s**. Instructions: **166,313,751**.
+Result: `exit`, exit `0`. Serial: two form feeds only.
+
+## Resumed session (2026-09-25 01:52 UTC)
+
+Reviewed and retained the pending FDC port-write trace and controller-state
+dump; neither changes device behavior. Retained the input-control helper,
+Diskette 2/drive-error screenshots, ATA regression logs and attempts 8–14.
+The emulator was rebuilt first using `bash system-emu/build-llvm.sh` with
+sail-llvm commit `54a10b8`; no official Sail compiler was used. A new sparse
+512 MiB disk, `build/os-boot/os2-resume-hdd.img`, starts this session's install.

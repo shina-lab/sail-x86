@@ -2275,6 +2275,15 @@ public:
 
   bool is_open() const { return disk_fd >= 0; }
 
+  void dump(FILE *out) const {
+    fprintf(out, "  FDC DOR=%02x MSR=%02x rate=%u cylinder=%u change=%u IRQ=%u delay=%d DMA=%u command=%d/%d result=%d/%d\n",
+            dor, msr, data_rate, current_cylinder, disk_changed, irq_pending,
+            irq_delay, dma_pending, cmd_pos, cmd_expected, result_pos, result_len);
+    fprintf(out, "    FIFO:");
+    for (int i = 0; i < cmd_pos; ++i) fprintf(out, " %02x", cmd_buf[i]);
+    fputc('\n', out);
+  }
+
   u8 read(u16 port) {
     switch (port) {
     case 0x3F0: return 0x80;  // SRA — drive 0 selected
@@ -2292,6 +2301,9 @@ public:
   }
 
   void write(u16 port, u8 val) {
+    if (getenv("SAIL_X86_FLOPPY_TRACE"))
+      fprintf(stderr, "FDC out %03x=%02x MSR=%02x command=%d/%d\n",
+              port, val, msr, cmd_pos, cmd_expected);
     switch (port) {
     case 0x3F2:  // Digital Output Register
     {

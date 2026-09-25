@@ -1,0 +1,12 @@
+IDE channel tests:
+  atapi_signature_and_identify                      PASS
+  pci_bus_master_pio_interrupt_latch                PASS
+  atapi_inquiry_capacity_and_read                   PASS
+  atapi_inter_block_busy_and_interrupt              PASS
+  ata_disk_read_write                               PASS
+  ata_recalibrate                                   PASS
+  ata_read_verify                                   PASS
+  master_slave_independent_transfers                PASS
+  busmaster_pio_interrupt_status                    PASS
+
+  9 passed, 0 failed

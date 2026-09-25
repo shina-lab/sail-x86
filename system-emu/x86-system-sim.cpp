@@ -1186,6 +1186,7 @@ int main(int argc, char *argv[]) {
     model.ioapic.dump(stderr);
     model.pit.dump(stderr);
     model.cmos.dump(stderr);
+    model.floppy.dump(stderr);
     model.ide0.dump(stderr);
     model.ide1.dump(stderr);
     fprintf(stderr, "  VGA text screen:\n");
