@@ -2,6 +2,14 @@
 
 ## Resumption after 14:34 JST on 2026-09-25
 
+**Outcome:** the Sail-installed Windows 95 reaches its desktop under the
+ordinary LLVM fast emulator. The [desktop PNG](os-boot/b-win95-desktop.png)
+shows the taskbar, Start button, clock and desktop icons. Tab, Enter opens
+the [Start menu](os-boot/b-win95-desktop-start-menu.png), verifying keyboard
+interaction with the shell. [COM1](os-boot/b-win95-desktop.serial) is empty;
+the [CPU capture](os-boot/b-win95-desktop-state.txt) records **1,032,798,579
+instructions**. No model changes are needed to reach this desktop.
+
 The worktree resumes clean at `a9cfc8d`. The fast emulator is rebuilt first
 with `system-emu/build-llvm.sh`, using **sail-llvm `1a102f2` only**. All
 15 freshly rebuilt C++ system suites pass, including 86 basic cases;
@@ -40,6 +48,22 @@ on the host to bypass this prompt. No model change is made at this point.
 Windows then reaches the [missing-mouse dialog](os-boot/b-win95-resumed-mouse.png).
 Tab, Space, Enter selects Do not show this message in the future and accepts
 the notice, using only the emulator's PS/2 keyboard input.
+Startup continues through the teal background and hourglass to the desktop.
+The running disk is checkpointed as `win95-native-desktop.img`; it has no
+QEMU-written state. The original configured checkpoint remains unchanged.
+
+```sh
+SAIL_X86_BIOS_DEBUG=1 python3 system-emu/run-boot.py \
+  --name b-win95-scandisk-diagnostic \
+  --out /tmp/sail-x86-os2-win95-20260925 --timeout 6000 --send '15:\n' -- \
+  build/llvm/sail-x86-system -ips 4 -m 64 -kbd -b build/bios.bin \
+  -hda /tmp/sail-x86-os2-win95-20260925/win95-scandisk-diagnostic.img -boot c
+```
+
+Later keys use the private input helper, writing bytes to the emulator's
+stdin with `-kbd`: Tab, Enter for Don't Fix It; Esc to cancel ScanDisk;
+Enter to continue startup; Tab, Space, Enter at the mouse notice; and
+Tab, Enter to open Start after the desktop appears.
 
 ## Resumption after 11:58 JST on 2026-09-25
 
