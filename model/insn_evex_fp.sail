@@ -1289,7 +1289,7 @@ function dispatch_evex_fp(op, pfx) = {
       },
       // VCMPSS → k (scalar, bit 0 only)
       MP_F3 => {
-        let rm2 = modrm_xrm_evex(modrm, pfx, 4);
+        let rm2 = src;
         let imm = fetch(1);
         let pred : range(0, 31) = unsigned(imm[4..0]);
         let src1_f32 = read_simd(128, src1_idx)[31..0];
@@ -1298,7 +1298,7 @@ function dispatch_evex_fp(op, pfx) = {
       },
       // VCMPSD → k (scalar, bit 0 only)
       MP_F2 => {
-        let rm2 = modrm_xrm_evex(modrm, pfx, 8);
+        let rm2 = src;
         let imm = fetch(1);
         let pred : range(0, 31) = unsigned(imm[4..0]);
         let src1_f64 = read_simd(128, src1_idx)[63..0];
