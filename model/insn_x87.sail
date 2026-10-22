@@ -17,15 +17,15 @@ val x87_undefine_cc : word -> unit
 function x87_undefine_cc(mask) =
   x87_sw = (x87_sw & ~(mask)) | ((undefined : word) & mask)
 
-// SDM Vol.1 Table 8-1 and the individual Vol.2 instruction entries.
-// Apply after successful execution: stores must save the incoming condition
-// codes, and a fault must not change them. FCOMI/FUCOMI preserve C0/C2/C3
+// The condition codes an instruction leaves undefined (SDM Vol.1 Table 8-1
+// and the individual Vol.2 instruction entries, "FPU Flags Affected"; APM
+// Vol.5, "x87 Condition Code", U).  FCOMI/FUCOMI preserve C0/C2/C3
 // according to their instruction entries, despite the older Vol.1 table.
-val x87_finish_cc : (byte, byte) -> unit
-function x87_finish_cc(opcode, modrm) = {
+val x87_undefined_cc : (byte, byte) -> word
+function x87_undefined_cc(opcode, modrm) = {
   let reg = unsigned(modrm[5..3]);
   let mem = modrm[7..6] != 0b11;
-  let mask : word = match unsigned(opcode) {
+  match unsigned(opcode) {
     // Arithmetic has undefined C0/C2/C3; comparisons define them.
     op if op == 216 | op == 220 | op == 222 =>
       if reg == 2 | reg == 3 then 0x0000 else 0x4500,
@@ -61,15 +61,24 @@ function x87_finish_cc(opcode, modrm) = {
            else if reg == 0 | modrm == 0xE0 then 0x4700 // FFREEP, FNSTSW AX
            else 0x0000,                    // FCOMIP, FUCOMIP
     _ => 0x0000,
-  };
-  x87_undefine_cc(mask);
+  }
+}
+
+// Apply after the instruction completes: stores must save the incoming
+// condition codes, and a fault (#GP, #PF, ...) must not change them.  After
+// an unmasked stack fault, dispatch_x87 applies only x87_undefined_cc.
+val x87_finish_cc : (byte, byte) -> unit
+function x87_finish_cc(opcode, modrm) = {
+  let reg = unsigned(modrm[5..3]);
+  let mem = modrm[7..6] != 0b11;
+  x87_undefine_cc(x87_undefined_cc(opcode, modrm));
   // C1 reports a stack fault, as x87_stack_fault set it.  Otherwise it is
   // 0 after the loads, the stores, the arithmetic and the comparisons, FXCH,
   // FCHS, FABS, FINCSTP and FDECSTP, which clear it or set it only for a
   // result the externs rounded up, which they do not report (SDM Vol.2A,
   // each "FPU Flags Affected").  The control instructions, FCMOVcc and FNOP
   // leave it, FXAM and FPREM/FPREM1 set it to a sign or quotient bit, and
-  // FFREE and FFREEP make it undefined (the mask above).  Compatibility
+  // FFREE and FFREEP make it undefined (x87_undefined_cc).  Compatibility
   // encodings are normalized before reaching this code.
   let keeps_c1 : bool = match unsigned(opcode) {
     217 => if mem then reg >= 4
@@ -119,9 +128,13 @@ function x87_set_sw_cc(cmp) = {
 // or BCD indefinite to its destination, or reports unordered.  If it is
 // unmasked, the instruction changes no register, TOP or memory: it sets
 // FSW.ES and B, which the next waiting x87 instruction reports as #MF,
-// and stops there.  Both vendors behave so (checked on a Zen 4 and an
-// Emerald Rapids for loads, stores, arithmetic, comparisons, FCMOVcc,
-// FXCH, FPTAN, FSINCOS and FXTRACT, masked and unmasked).
+// and stops there.  Masked, "the x87 FPU returns the floating-point,
+// integer, or packed decimal integer indefinite value to the destination
+// operand"; unmasked, "the top-of-stack pointer (TOP) and source operands
+// remain unchanged" (SDM Vol.1 §8.5.1.1, p.8-27), and the destination
+// "appears as if the offending instruction has not been executed"
+// (§4.9.2, p.4-25); "The destination and the TOP are not changed." (APM
+// Vol.1 Table 6-22, p.337).
 
 val x87_stack_fault : bit -> unit
 function x87_stack_fault(c1) = {
@@ -152,19 +165,27 @@ function x87_load(v) =
   } else x87_push(v)
 
 // FPTAN, FSINCOS and FXTRACT replace ST(0) and push a second result, for
-// which ST(7) must be empty.  After a masked stack fault, on either side,
-// both results are the indefinite.
+// which ST(7) must be empty.  After a masked stack fault, of either kind,
+// both results are the indefinite.  The manuals give the masked response
+// as the indefinite returned "to the destination operand" (SDM Vol.1
+// §8.5.1.1) or as one value (APM Vol.1 Table 6-21) and do not say which
+// of two results gets it; writing both is the model's choice.
 val x87_check_second_result : unit -> unit
 function x87_check_second_result() =
   if ~(x87_is_empty(7)) then x87_stack_fault(0b1)
 
 // FCOMI, FUCOMI, FCOMIP and FUCOMIP: compare ST(0) with ST(i) into ZF,
-// PF and CF.  An empty register sets them to unordered even when the
-// underflow is unmasked and the instruction stops (and does not pop).
+// PF and CF, and "set the OF, SF, and AF flags to zero ... (regardless of
+// whether an invalid-operation exception is detected)" (SDM Vol.2A FCOMI,
+// p.3-327).  A stack underflow is an invalid-operation exception detected
+// before the operation (Vol.1 §4.9.2), so masked it compares the
+// indefinite (unordered), and unmasked it stops the instruction before
+// the destination, ZF, PF and CF, is written: it "appears as if the
+// offending instruction has not been executed" (§4.9.2, p.4-25); "The
+// destination and the TOP are not changed." (APM Vol.1 Table 6-22).
 val x87_compare_eflags : int -> unit
 function x87_compare_eflags(sti) = {
-  if x87_is_empty(0) | x87_is_empty(sti) then
-    set_eflags_fp_compare(x87_indefinite, x87_indefinite);
+  OF = 0b0; SF = 0b0; AF = 0b0;
   set_eflags_fp_compare(x87_operand(0), x87_operand(sti))
 }
 
@@ -173,6 +194,26 @@ function x87_compare_eflags(sti) = {
 val x87_write_result : (int, fp80) -> unit
 function x87_write_result(i, r) =
   x87_write_st(i, if x87_stack_faulted then x87_indefinite else r)
+
+// FCMOVcc: "IF condition TRUE THEN ST(0) := ST(i); FI;" (SDM Vol.2A
+// FCMOVcc, Operation, p.3-322).  "The source operand is always in the
+// ST(i) register and the destination operand is always ST(0)" (ibid.),
+// and a stack underflow is a reference to "an empty x87 FPU register as a
+// source operand" (Vol.1 §8.5.1.1, p.8-26), so an empty ST(0) is written
+// like any other destination.  The APM's "referencing an empty stack
+// register" (Vol.1 §6.2.2.7, p.291) does not say whether a destination
+// counts; the model reads it as the SDM does, on both vendors.  Neither
+// manual says whether an empty ST(i) is an underflow when the condition
+// is false: the Operation reads ST(i) only when it is true, but the
+// underflow is defined on the source operand, which the instruction names
+// either way.  The model checks ST(i) either way, and a masked underflow
+// returns the indefinite "to the destination operand" (§8.5.1.1, p.8-27),
+// ST(0).
+val x87_fcmov : (int, bit) -> unit
+function x87_fcmov(sti, cond) = {
+  let v = x87_operand(sti);
+  if cond == bitone | x87_stack_faulted then x87_write_result(0, v)
+}
 
 // =========================================================================
 // C2: trigonometric source out of range, partial remainder
@@ -315,8 +356,10 @@ function dispatch_x87_d9(modrm, operand, pfx) = {
       let modrm_val : range(0, 255) = unsigned(modrm);
       match reg {
         0 => x87_load(x87_operand(sti)),
-        // FXCH ST(i).  An empty register reads as the indefinite, so that
-        // a masked underflow leaves it in the register that was not empty.
+        // FXCH ST(i).  An empty register reads as the indefinite: the
+        // masked response is to "Load empty registers with the QNaN
+        // floating-point indefinite value, then perform the exchange"
+        // (SDM Vol.1 Table 8-10, p.8-27; APM Vol.1 Table 6-21, p.335).
         1 => {
           let v0 : fp80 = x87_operand(0);
           let vi : fp80 = x87_operand(sti);
@@ -480,10 +523,10 @@ function dispatch_x87_da(modrm, src, _) = {
     },
     RM_reg(_) => {
       match reg {
-        0 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), CF)),
-        1 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), ZF)),
-        2 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), CF | ZF)),
-        3 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), PF)),
+        0 => x87_fcmov(sti, CF),        // FCMOVB
+        1 => x87_fcmov(sti, ZF),        // FCMOVE
+        2 => x87_fcmov(sti, CF | ZF),   // FCMOVBE
+        3 => x87_fcmov(sti, PF),        // FCMOVU
         // FUCOMPP
         5 => {
           if sti == 1 then {
@@ -524,10 +567,10 @@ function dispatch_x87_db(modrm, operand, _) = {
     RM_reg(_) => {
       let modrm_val : range(0, 255) = unsigned(modrm);
       match reg {
-        0 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), ~(CF))),
-        1 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), ~(ZF))),
-        2 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), ~(CF) & ~(ZF))),
-        3 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), ~(PF))),
+        0 => x87_fcmov(sti, ~(CF)),           // FCMOVNB
+        1 => x87_fcmov(sti, ~(ZF)),           // FCMOVNE
+        2 => x87_fcmov(sti, ~(CF) & ~(ZF)),   // FCMOVNBE
+        3 => x87_fcmov(sti, ~(PF)),           // FCMOVNU
         // Obsolete controls, FNCLEX and FNINIT
         4 => {
           // SDM Vol.3B, "Obsolete Instructions and Undefined Opcodes":
@@ -897,7 +940,8 @@ function dispatch_x87(encoded_opcode, pfx) = {
   check_cr0_x87();
   // A fault leaves the status word as it was: the stack-fault flags an
   // operand read may have set before a store faults are undone.  An
-  // unmasked stack fault ends the instruction with only its flags set.
+  // unmasked stack fault ends the instruction with its flags set and no
+  // register changed.
   let saved_sw = x87_sw;
   x87_stack_faulted = false;
   let completed : bool = try {
@@ -917,7 +961,12 @@ function dispatch_x87(encoded_opcode, pfx) = {
     X87Unmasked() => false,
     e => { x87_sw = saved_sw; throw e },
   };
-  if completed then x87_finish_cc(opcode, modrm);
+  // After an unmasked stack fault the condition codes that the entry calls
+  // undefined are undefined as well: "C0, C2, C3 Undefined." (SDM Vol.2A
+  // FLD, p.3-352, and the other entries) and "C0 U" (APM Vol.5) do not
+  // depend on the exception.  C1 is the fault's (Vol.1 §8.5.1.1).
+  if completed then x87_finish_cc(opcode, modrm)
+  else x87_undefine_cc(x87_undefined_cc(opcode, modrm));
   if ~(x87_control(encoded_opcode, encoded_modrm)) then
     x87_record_last(encoded_opcode, encoded_modrm, operand, ~(completed))
 }

@@ -65,6 +65,42 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "ES.  The APM: \"If the source value lies outside the specified range, the instruction "
      "sets the C2 bit of the x87 status word to 1 and does not change the value in ST(0)\" "
      "(Vol.5 FPTAN, p.286), so it loads no register and cannot overflow the stack."},
+    {false, "fcomi st(0),st(1) (unmasked underflow, flags clear)*",
+     "An Emerald Rapids sets ZF, PF and CF to unordered (111) on an unmasked stack underflow.  "
+     "The SDM: an unmasked invalid-operation exception is detected before the operation, and "
+     "\"the destination operand has not yet been updated, and appears as if the offending "
+     "instruction has not been executed\" (Vol.1 §4.9.2, p.4-25); FCOMI's destination is ZF, "
+     "PF and CF (Vol.2A FCOMI, p.3-327)."},
+    {false, "fcomip st(0),st(1) (unmasked underflow, flags clear)*",
+     "An Emerald Rapids sets ZF, PF and CF to unordered (111) on an unmasked stack underflow; "
+     "the SDM leaves the destination unchanged (Vol.1 §4.9.2, p.4-25), as for FCOMI."},
+    {false, "fucomi st(0),st(1) (unmasked underflow, flags clear)*",
+     "An Emerald Rapids sets ZF, PF and CF to unordered (111) on an unmasked stack underflow; "
+     "the SDM leaves the destination unchanged (Vol.1 §4.9.2, p.4-25), as for FCOMI."},
+    {false, "fucomip st(0),st(1) (unmasked underflow, flags clear)*",
+     "An Emerald Rapids sets ZF, PF and CF to unordered (111) on an unmasked stack underflow; "
+     "the SDM leaves the destination unchanged (Vol.1 §4.9.2, p.4-25), as for FCOMI."},
+    {true, "fcomi st(0),st(1) (unmasked underflow, flags clear)*",
+     "A Zen 4 sets ZF, PF and CF to unordered (111) on an unmasked stack underflow.  The APM: "
+     "\"Set IE and ES flags, and call the #MF service routine. The destination and the TOP are "
+     "not changed.\" (Vol.1 Table 6-22, p.337); FCOMI's destination is ZF, PF and CF (Vol.5 "
+     "FCOMI, p.237)."},
+    {true, "fcomip st(0),st(1) (unmasked underflow, flags clear)*",
+     "A Zen 4 sets ZF, PF and CF to unordered (111) on an unmasked stack underflow; the APM "
+     "leaves the destination unchanged (Vol.1 Table 6-22, p.337), as for FCOMI."},
+    {true, "fucomi st(0),st(1) (unmasked underflow, flags clear)*",
+     "A Zen 4 sets ZF, PF and CF to unordered (111) on an unmasked stack underflow; the APM "
+     "leaves the destination unchanged (Vol.1 Table 6-22, p.337), as for FCOMI."},
+    {true, "fucomip st(0),st(1) (unmasked underflow, flags clear)*",
+     "A Zen 4 sets ZF, PF and CF to unordered (111) on an unmasked stack underflow; the APM "
+     "leaves the destination unchanged (Vol.1 Table 6-22, p.337), as for FCOMI."},
+    {false, "fcmovb st(0),st(1), ST(0) empty*",
+     "An Emerald Rapids raises a stack underflow for FCMOVcc with ST(0), its destination, empty, "
+     "whether or not the condition holds: masked it writes the indefinite to ST(0), unmasked it "
+     "sets IE, SF and ES.  The SDM: \"The source operand is always in the ST(i) register and the "
+     "destination operand is always ST(0)\" (Vol.2A FCMOVcc, p.3-322), and a stack underflow is "
+     "when \"An instruction references an empty x87 FPU register as a source operand\" (Vol.1 "
+     "§8.5.1.1, p.8-26)."},
 };
 
 bool host_is_amd() {

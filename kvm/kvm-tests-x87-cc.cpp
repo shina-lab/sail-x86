@@ -1,6 +1,7 @@
 // x87 condition codes that report on the operation rather than compare:
 // C2 of FSIN, FCOS, FSINCOS and FPTAN for a source out of range, and the
-// quotient bits and C2 (partial remainder) of FPREM and FPREM1.
+// quotient bits and C2 (partial remainder) of FPREM and FPREM1; and the
+// stack faults of these and of FCOMI and FCMOVcc.
 //
 // Each case loads an explicit x87 state with FRSTOR (TOP = 3, the
 // condition codes all clear or C3, C2, C1 and C0 all set, so that a code
@@ -323,6 +324,112 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
         if (!amd_host) tc.undefined.gpr[1] = ~0ull;  // RCX
         tests.push_back(std::move(tc));
       }
+    }
+  }
+
+  // The stack faults of FCOMI, FCMOVcc, FXCH and FXTRACT.  A stack fault
+  // is an invalid-operation exception detected before the operation;
+  // unmasked, the destination "appears as if the offending instruction has
+  // not been executed" (SDM Vol.1 §4.9.2, p.4-25), "The destination and
+  // the TOP are not changed." (APM Vol.1 Table 6-22, p.337).
+  {
+    const std::string cat = "x87 stack fault";
+    constexpr u16 IE = 0x0001, SF = 0x0040, ES = 0x0080, B = 0x8000;
+    const std::vector<u8> FNCLEX = {0xDB, 0xE2};
+
+    // FCOMI, FCOMIP, FUCOMI and FUCOMIP write ZF, PF and CF, and "set the
+    // OF, SF, and AF flags to zero ... (regardless of whether an
+    // invalid-operation exception is detected)" (SDM Vol.2A FCOMI,
+    // p.3-327).  Masked, an empty register compares unordered (111);
+    // unmasked, ZF, PF and CF keep their values, from all arithmetic flags
+    // clear or all set.  C1 is 0, C0, C2 and C3 are not affected, and
+    // FCOMIP and FUCOMIP pop only when masked.  lahf; mov bl, ah; seto bh
+    // copy the flags to BX ahead of the AND that masks AX.
+    struct Cmp { const char *name; u8 op, modrm; };
+    const Cmp cmps[] = {{"fcomi", 0xDB, 0xF1}, {"fcomip", 0xDF, 0xF1},
+                        {"fucomi", 0xDB, 0xE9}, {"fucomip", 0xDF, 0xE9}};
+    for (const Cmp &c : cmps) {
+      for (u16 cw : {0x037F, 0x037E}) {
+        for (bool flags_set : {false, true}) {
+          for (int empty : {0, 1}) {
+            std::vector<std::optional<F80>> st = {five, seven};
+            st[empty] = std::nullopt;
+            TestCase tc = x87_case(
+                cat,
+                std::format("{} st(0),st(1) ({} underflow, flags {}), ST({}) empty", c.name,
+                            cw == 0x037F ? "masked" : "unmasked", flags_set ? "set" : "clear",
+                            empty),
+                x87_image(cw, 0x4700, st), {c.op, c.modrm, 0x9F, 0x88, 0xE3, 0x0F, 0x90, 0xC7},
+                0, {});
+            tc.initial.rflags = initial_flags(FL_ARITH, flags_set ? FL_ARITH : 0);
+            tests.push_back(std::move(tc));
+          }
+        }
+      }
+    }
+
+    // FCMOVcc: "IF condition TRUE THEN ST(0) := ST(i); FI;"; "The source
+    // operand is always in the ST(i) register and the destination operand
+    // is always ST(0)" (SDM Vol.2A FCMOVcc, p.3-322), and a stack
+    // underflow references "an empty x87 FPU register as a source operand"
+    // (Vol.1 §8.5.1.1).  So an empty ST(0) is no underflow: taken, it gets
+    // ST(i); not taken, it stays empty.  The APM's underflow, "referencing
+    // an empty stack register" (Vol.1 §6.2.2.7, p.291), may or may not
+    // include the destination, so on an AMD host the outcome is open, and
+    // the exception flags, C1 and ST(0) are not compared there.  An empty
+    // ST(i) is an underflow when the move is taken: the indefinite
+    // (masked) or nothing (unmasked).  Not taken, the Operation does not
+    // reference ST(i), and neither manual says whether its tag is checked:
+    // open on every host.  C0, C2 and C3 are undefined; C1 is "Set to 0 if
+    // stack underflow occurred" and otherwise left.  fcmovb st(0),st(1),
+    // taken with CF = 1.
+    const u16 open_fault = IE | SF | ES | B | C1;
+    std::vector<u8> drop_st0 = FNCLEX;
+    drop_st0.insert(drop_st0.end(), FFREE_ST0.begin(), FFREE_ST0.end());
+    for (u16 cw : {0x037F, 0x037E}) {
+      const char *how = cw == 0x037F ? "masked" : "unmasked";
+      for (bool taken : {false, true}) {
+        for (int empty : {0, 1}) {
+          std::vector<std::optional<F80>> st = {seven, five};
+          st[empty] = std::nullopt;
+          bool open = empty == 0 ? amd_host : !taken;
+          TestCase tc = x87_case(
+              cat,
+              std::format("fcmovb st(0),st(1), ST({}) empty, CF = {} ({})", empty, int(taken), how),
+              x87_image(cw, 0x4700, st), {0xDA, 0xC1}, C0 | C2 | C3 | (open ? open_fault : 0),
+              open ? drop_st0 : std::vector<u8>{});
+          tc.initial.rflags = initial_flags(FL_CF, taken ? FL_CF : 0);
+          tests.push_back(std::move(tc));
+        }
+      }
+    }
+
+    // FXCH: "Load empty registers with the QNaN floating-point indefinite
+    // value, then perform the exchange" (SDM Vol.1 Table 8-10, p.8-27;
+    // APM Vol.1 Table 6-21, p.335) when masked.  FXTRACT, like FSINCOS and
+    // FPTAN above, has two results, which a masked stack fault leaves to
+    // the model's choice: both are freed after FNSTSW.  Unmasked, neither
+    // changes a register or TOP.  C0, C2 and C3 are undefined.
+    for (u16 cw : {0x037F, 0x037E}) {
+      bool masked = cw == 0x037F;
+      const char *how = masked ? "masked" : "unmasked";
+      for (int empty : {0, 1}) {
+        std::vector<std::optional<F80>> st = {five, seven};
+        st[empty] = std::nullopt;
+        tests.push_back(x87_case(cat, std::format("fxch st(1), ST({}) empty ({} underflow)", empty, how),
+                                 x87_image(cw, 0x4700, st), {0xD9, 0xC9}, C0 | C2 | C3, {}));
+      }
+      std::vector<u8> after;
+      if (masked) {
+        after = FFREE_ST0;
+        after.insert(after.end(), FFREE_ST1.begin(), FFREE_ST1.end());
+      }
+      tests.push_back(x87_case(cat, std::format("fxtract ST(0) empty ({} underflow)", how),
+                               x87_image(cw, 0x4700, {std::nullopt, five}), {0xD9, 0xF4},
+                               C0 | C2 | C3, after));
+      tests.push_back(x87_case(cat, std::format("fxtract 5, ST(7) full ({} overflow)", how),
+                               x87_image(cw, 0x4700, {five, seven, {}, {}, {}, {}, {}, seven}),
+                               {0xD9, 0xF4}, C0 | C2 | C3, after));
     }
   }
 }
