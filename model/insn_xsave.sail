@@ -110,17 +110,22 @@ function ftw_abridged_to_full(ab) = {
 
 // The x87 component: FCW, FSW, the abridged FTW, FOP, FIP and FDP, and
 // ST(0)-ST(7) in stack order, each in 16 bytes whose last 6 are reserved
-// and written as zeros.  AMD saves FOP, FIP and FDP only while an x87
-// exception is pending (FSW.ES = 1) and zeros otherwise (AMD APM Vol.4
-// FXSAVE); Intel saves them always.
+// and written as zeros.  Intel saves FOP, FIP and FDP always (SDM Vol.1
+// §8.1.8).  AMD saves them only while an x87 exception is pending (FSW.ES
+// = 1).  Otherwise, with RstrFpErrPtrs (the AMD profile), XSAVE writes
+// zeros: "the error pointer fields in the save area are zeroed if there
+// is no pending #MF" (APM Vol.2 §11.5.10 p.361, Vol.4 XSAVE p.1774).
+// FXSAVE "does not save the x87 pointer registers" then (Vol.5 FXSAVE
+// p.26), without saying what the fields hold; the model writes the same
+// zeros.
 val xsave_x87 : (qword, bool) -> unit
 function xsave_x87(base, w) = {
   let pointers : bool = vendor == Vendor_Intel | x87_sw[7] == bitone;
   let fop : word = if pointers then zero_extend(x87_fop) else zeros();
   let fip : qword = if pointers then x87_fip else zeros();
   let fdp : qword = if pointers then x87_fdp else zeros();
-  let fcs : word = if pointers then x87_selector(x87_fcs) else zeros();
-  let fds : word = if pointers then x87_selector(x87_fds) else zeros();
+  let fcs : word = if pointers then x87_saved_selector(x87_fcs) else zeros();
+  let fds : word = if pointers then x87_saved_selector(x87_fds) else zeros();
   write_mem(base, x87_cw);
   write_mem(base + 2, x87_sw);
   write_mem(base + 4, ftw_full_to_abridged(x87_tw));
@@ -141,25 +146,34 @@ function xsave_x87(base, w) = {
   }
 }
 
-// The x87 component back from an image.  Both vendors load FOP, FIP and
-// FDP whatever FSW.ES is.  The 64-bit format has no selectors.
-val xrstor_x87 : (qword, bool) -> unit
-function xrstor_x87(base, w) = {
+// The x87 component back from an image, for FXRSTOR (fx) or XRSTOR.
+// Intel loads FOP, FIP and FDP always, and FCS and FDS from the 32-bit
+// format; the 64-bit format (REX.W) "clears FCS and FDS" (SDM Vol.1
+// §8.1.8).  AMD's FXRSTOR loads the pointers "when FXRSTOR sets FSW.ES=1
+// after recomputing it" and otherwise leaves them (APM Vol.5 FXRSTOR
+// p.24).  Its XRSTOR, with RstrFpErrPtrs (the AMD profile), loads them
+// always, "and if in 64-bit mode the CS and DS portions of the error
+// pointer registers are zeroed" (Vol.2 §11.5.10 p.361).
+val xrstor_x87 : (qword, bool, bool) -> unit
+function xrstor_x87(base, w, fx) = {
   x87_set_cw(read_mem(base));
   x87_set_sw(read_mem(base + 2));
   x87_tw = ftw_abridged_to_full(read_mem(base + 4));
-  let fop : word = read_mem(base + 6);
-  x87_fop = fop[10..0];
-  if w then {
-    x87_fip = read_mem(base + 8);
-    x87_fdp = read_mem(base + 16);
-    x87_fcs = zeros();
-    x87_fds = zeros()
-  } else {
-    x87_fip = zero_extend(read_mem(base + 8) : dword);
-    x87_fcs = x87_selector(read_mem(base + 12));
-    x87_fdp = zero_extend(read_mem(base + 16) : dword);
-    x87_fds = x87_selector(read_mem(base + 20))
+  let pointers : bool = vendor == Vendor_Intel | x87_sw[7] == bitone
+    | ~(fx) & rstr_fp_err_ptrs();
+  let no_selectors : bool = w | ~(fx) & rstr_fp_err_ptrs() & cur_mode == LongMode;
+  if pointers then {
+    let fop : word = read_mem(base + 6);
+    x87_fop = fop[10..0];
+    if w then {
+      x87_fip = read_mem(base + 8);
+      x87_fdp = read_mem(base + 16)
+    } else {
+      x87_fip = zero_extend(read_mem(base + 8) : dword);
+      x87_fdp = zero_extend(read_mem(base + 16) : dword)
+    };
+    x87_fcs = if no_selectors then zeros() else read_mem(base + 12);
+    x87_fds = if no_selectors then zeros() else read_mem(base + 20)
   };
   // ST(i) relative to the TOP just loaded.
   foreach (i from 0 to 7) {
@@ -249,7 +263,7 @@ function exec_fxsave(base, w) = {
 val exec_fxrstor : (qword, bool) -> unit
 function exec_fxrstor(base, w) = {
   check_image_mxcsr(base);
-  xrstor_x87(base, w);
+  xrstor_x87(base, w, true);
   xrstor_sse(base)
 }
 
@@ -619,7 +633,7 @@ function xrstor_standard(base, rfbm, xstate_bv, w) = {
   let to_restore : qword = rfbm & xstate_bv;
   let to_init : qword = rfbm & ~(xstate_bv);
 
-  if to_restore[0] == bitone then xrstor_x87(base, w);
+  if to_restore[0] == bitone then xrstor_x87(base, w, false);
   if to_init[0] == bitone then xinit_x87();
 
   // The standard form loads MXCSR from the image for RFBM[1] or RFBM[2],
@@ -652,7 +666,7 @@ function xrstor_standard(base, rfbm, xstate_bv, w) = {
 val xrstor_compacted : (qword, qword, qword, qword, bool) -> unit
 function xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv, w) = {
   if rfbm[0] == bitone then {
-    if xstate_bv[0] == bitone then xrstor_x87(base, w)
+    if xstate_bv[0] == bitone then xrstor_x87(base, w, false)
     else xinit_x87()
   };
 

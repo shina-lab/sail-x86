@@ -275,6 +275,23 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "(p.2-44), \"K-regs are instruction operands not mask control. | If vvvv = 0xxxb\".  (The "
      "variant sets bit 3 of the opmask fields of every instruction of its case, also of the VEX "
      "KMOV that sets up a mask.)", -1},
+
+    // x87 state: instruction and data pointers, state images
+    {false, "x87 pointers after f*",
+     "Emerald Rapids stores the address of FFREE, FINCSTP, FDECSTP or FNOP as the last "
+     "instruction pointer (FIP); the SDM lists the four with the x87 FPU control "
+     "instructions (Vol.1 §8.3.11 p.8-23), and the pointers are those of the last "
+     "non-control instruction (§8.1.8 p.8-9)"},
+    {false, "ffreep st(1) (last-instruction pointers)*",
+     "Emerald Rapids stores the address of FFREEP (DF C0+i) as FIP; DF C0+i \"behaves "
+     "the same as FFREE ... with the addition of an x87 stack POP\" (SDM Vol.3B §25.18.9 "
+     "p.25-15), a control instruction (Vol.1 §8.3.11 p.8-23) that leaves the pointers "
+     "alone (§8.1.8)"},
+    {true, "fxrstor [rdi] (FSW.ES = 0); fnstenv: the x87 pointers*",
+     "Zen 4 loads FOP, FIP, FDP and the selectors from an FXRSTOR image with FSW.ES = 0 "
+     "(the model's earlier AMD rule, from commit adb9d3c's checks on a Zen 4); \"FXRSTOR "
+     "does not restore the x87 error pointers ... except when FXRSTOR sets FSW.ES=1 after "
+     "recomputing it\" (APM Vol.5 FXRSTOR p.24)"},
 };
 
 bool host_is_amd() {

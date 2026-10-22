@@ -571,6 +571,36 @@ struct TestCase {
   UndefinedState undefined;
 };
 
+// What ran before a case saves an x87 state image, for the fields of the
+// image that the manuals then leave open (x87_env_undefined and
+// fxsave_x87_undefined, below).
+enum X87ImageOpen : unsigned {
+  // The last non-control x87 instruction had no memory operand: "the
+  // value in the data pointer is undefined (reserved)" (SDM Vol.1
+  // §8.1.8), "implementation dependent" (APM Vol.2 §11.4.3).  FDP and FDS.
+  X87_NO_DATA = 1u << 0,
+  // A non-control x87 instruction ran in 64-bit mode.  The APM keeps no
+  // selectors there (Vol.1 §6.2.5.1, §6.2.5.3) but saves "sel:offset32"
+  // in the 32-bit format (Vol.5 FXSAVE); the model's reading (0) is not
+  // compared.  FCS and FDS.
+  X87_LONG_MODE = 1u << 1,
+  // An FXSAVE with FSW.ES = 0: AMD "does not save the x87 pointer
+  // registers" (APM Vol.5 FXSAVE p.26) and does not say what the fields
+  // hold; Intel saves them (SDM Vol.1 §8.1.8).  FOP, FIP, FCS, FDP and
+  // FDS, on AMD hosts.
+  X87_FXSAVE_NO_ES = 1u << 2,
+};
+
+// Marks data_undefined the open fields, per `open`, of an FNSTENV/FNSAVE
+// image in the 32-bit protected-mode format at data-page offset `off`
+// (SDM Vol.1 Figure 8-9; APM Vol.2 Figure 11-4).
+void x87_env_undefined(TestCase &tc, u16 off, unsigned open);
+
+// The same for the x87 part of an FXSAVE or XSAVE legacy region at `off`,
+// in the 64-bit format of REX.W (`w`) or the 32-bit one (SDM Vol.2A
+// FXSAVE, Field Definitions; APM Vol.2 Figures 11-9 and 11-10).
+void fxsave_x87_undefined(TestCase &tc, u16 off, unsigned open, bool w = false);
+
 // A known difference between a test host and the manuals.  A case's
 // expected outcome is the one the SDM (or, where the two manuals define
 // different behaviour, the APM for AMD) gives, the same on every host; a

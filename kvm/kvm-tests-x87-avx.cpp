@@ -2145,40 +2145,63 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
                 join({FLD_A, {0xDD, 0x4F, 0x08}}), s, FL_ALL, f64b(v), 16);
       }
 
-      // D9 /6 FNSTENV, 32-bit protected-mode layout at [rdi+8].  The control,
-      // status, and tag words are read through GPRs: the pointer fields are
-      // not modeled, and the upper halves of the first three doublewords are
-      // reserved in the SDM's Figure 8-9.
+      // D9 /6 FNSTENV, 32-bit protected-mode layout at [rdi+8], compared
+      // but for the fields the manuals leave open (x87_env_undefined); the
+      // control, status, and tag words are also read through GPRs.  The
+      // last non-control instruction runs in 64-bit mode (X87_LONG_MODE).
       const std::vector<u8> ENV_WORDS = {
         0x0F, 0xB7, 0x47, 0x08,  // movzx eax, word [rdi+8]   (FCW)
         0x0F, 0xB7, 0x5F, 0x0C,  // movzx ebx, word [rdi+12]  (FSW)
         0x0F, 0xB7, 0x4F, 0x10,  // movzx ecx, word [rdi+16]  (FTW)
       };
+      auto env_open = [&](u16 off, unsigned open) { x87_env_undefined(tests.back(), off, open); };
       add_mem("fld a; fld b; fnstenv [rdi+8]; read FCW/FSW/FTW",
               join({FLD_A, FLD_B, {0xD9, 0x77, 0x08}, ENV_WORDS}), s, FL_ALL, ab(3.0, 1.5), 0);
+      env_open(8, X87_LONG_MODE);
       add_mem("fld a; fld b; fstp st(1); fnstenv [rdi+8]; read FCW/FSW/FTW",
               join({FLD_A, FLD_B, {0xDD, 0xD9, 0xD9, 0x77, 0x08}, ENV_WORDS}),
               s, FL_ALL, ab(3.0, 1.5), 0);
+      env_open(8, X87_LONG_MODE | X87_NO_DATA);
       // The tag word classifies each non-empty register (SDM Vol.1 §8.1.7,
       // Figure 8-7): valid, zero, special (infinity, NaN, denormal), empty.
       // FST ST(i) into an empty register makes it non-empty.
       add_mem("fldz; fnstenv [rdi+8]; read FTW (zero tag)",
               join({{0xD9, 0xEE}, {0xD9, 0x77, 0x08}, ENV_WORDS}), s, FL_ALL, ab(3.0, 1.5), 0);
+      env_open(8, X87_LONG_MODE | X87_NO_DATA);
       add_mem("fld inf; fld nan; fldz; fld a; fnstenv [rdi+8]; read FTW (special tags)",
               join({FLD_B, {0xDD, 0x47, 0x10}, {0xD9, 0xEE}, FLD_A, {0xD9, 0x77, 0x08}, ENV_WORDS}),
               s, FL_ALL, join({f64b(3.0), f64b(__builtin_inf()), f64b(qnan)}), 0);
+      env_open(8, X87_LONG_MODE);
       add_mem("fld a; fld b; fst st(3); fnstenv [rdi+8]; read FTW (FST marks non-empty)",
               join({FLD_A, FLD_B, {0xDD, 0xD3}, {0xD9, 0x77, 0x08}, ENV_WORDS}), s, FL_ALL, ab(3.0, 1.5), 0);
-      add_mem("fld a; fld b; ffree st(1); fnstenv [rdi+8]; read FTW",
-              join({FLD_A, FLD_B, {0xDD, 0xC1}, {0xD9, 0x77, 0x08}, ENV_WORDS}), s, FL_ALL, ab(3.0, 1.5), 0);
+      env_open(8, X87_LONG_MODE | X87_NO_DATA);
+      // FXAM after FFREE makes FXAM the last non-control instruction on
+      // either vendor: FFREE, FINCSTP, FDECSTP and FNOP are control
+      // instructions in the SDM (Vol.1 §8.3.11) and not in the APM (Vol.1
+      // §6.4.7-6.4.9).  Their own effect on the pointers is the next four,
+      // whose condition codes are undefined but for the C1 that FINCSTP
+      // and FDECSTP clear (SDM FFREE, FINCSTP, FDECSTP, FNOP).
+      add_mem("fld a; fld b; ffree st(1); fxam; fnstenv [rdi+8]; read FTW",
+              join({FLD_A, FLD_B, {0xDD, 0xC1}, {0xD9, 0xE5}, {0xD9, 0x77, 0x08}, ENV_WORDS}),
+              s, FL_ALL, ab(3.0, 1.5), 0);
+      env_open(8, X87_LONG_MODE | X87_NO_DATA);
+      struct { const char *name; std::vector<u8> code; u8 undefined_cc; } controls[] = {
+        {"ffree st(1)", {0xDD, 0xC1}, 0x47}, {"fincstp", {0xD9, 0xF7}, 0x45},
+        {"fdecstp", {0xD9, 0xF6}, 0x45}, {"fnop", {0xD9, 0xD0}, 0x47},
+      };
+      for (auto &c : controls) {
+        add_mem(std::format("x87 pointers after {}: fld a; fld b; {}; fnstenv [rdi+8]", c.name, c.name),
+                join({FLD_A, FLD_B, c.code, {0xD9, 0x77, 0x08}}), s, FL_ALL, ab(3.0, 1.5), 0);
+        env_open(8, X87_LONG_MODE | X87_NO_DATA);
+        tests.back().data_undefined.push_back({8 + 5, c.undefined_cc});  // FSW C3, C2, C1, C0
+      }
 
       // DD /6 FNSAVE writes the 108-byte state image and reinitializes the
       // FPU; DD /4 FRSTOR loads one.  The registers follow the 28-byte
       // environment in stack order, ST(0) first (SDM FSAVE/FNSAVE and
-      // FRSTOR, Operation).  The image goes to [rdi+0x100]; its control,
-      // status and tag words are read into GPRs and its 80 register bytes
-      // are copied to [rdi] for comparison, since the pointer fields are not
-      // modeled.
+      // FRSTOR, Operation).  The image goes to [rdi+0x100] and is compared
+      // as above; its control, status and tag words are also read into
+      // GPRs and its 80 register bytes copied to [rdi].
       {
         const std::vector<u8> SAVE_AND_COPY = {
           0xDD, 0xB7, 0x00, 0x01, 0x00, 0x00,        // fnsave [rdi+0x100]
@@ -2191,10 +2214,13 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
         };
         add_mem("fld a; fld b; fnsave [rdi+0x100]; read FCW/FSW/FTW and the registers",
                 join({FLD_A, FLD_B, SAVE_AND_COPY}), s, FL_ALL, ab(3.0, 1.5), 80);
+        env_open(0x100, X87_LONG_MODE);
         add_mem("fld a; fld b; fld1; fst st(4); fnsave [rdi+0x100]; read the image",
                 join({FLD_A, FLD_B, FLD1, {0xDD, 0xD4}, SAVE_AND_COPY}), s, FL_ALL, ab(3.0, 1.5), 80);
+        env_open(0x100, X87_LONG_MODE | X87_NO_DATA);
         add_mem("fldz; fnsave [rdi+0x100]; fnstsw ax after (reinitialized); read the image",
                 join({{0xD9, 0xEE}, SAVE_AND_COPY}), s, FL_ALL, {}, 80);
+        env_open(0x100, X87_LONG_MODE | X87_NO_DATA);
         // FRSTOR of a built image: TOP = 6, ST(0) = 1.5, ST(1) = -3.75, the
         // rest empty; observed through FNSTSW and two pops
         std::vector<u8> image(108, 0);
@@ -2212,6 +2238,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
         add_mem("fld a; fld b; fnsave; frstor; fnstsw ax; fstp [rdi+16]; fstp [rdi+24]",
                 join({FLD_A, FLD_B, {0xDD, 0xB7, 0x00, 0x01, 0x00, 0x00}, {0xDD, 0xA7, 0x00, 0x01, 0x00, 0x00},
                       FNSTSW_AX, FSTP_16, FSTP_24}), s, FL_ALL, ab(3.0, 1.5), 32);
+        env_open(0x100, X87_LONG_MODE);
       }
       // FNSTENV then masks all exceptions in the control word
       add_mem("fldcw 0x0340; fnstenv [rdi+16]; fnstcw [rdi+48]; read both control words",

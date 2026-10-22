@@ -42,6 +42,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                        0x0F, 0xAE, 0x2F},             // XRSTOR [RDI]
                       s, FL_ALL, 0x5, false,          // compare XMM0, XMM2
                       init, 0});
+    fxsave_x87_undefined(tests.back(), 0, X87_NO_DATA | X87_LONG_MODE);  // FLD1
   }
 
   // XSAVEC with full components, round-trip
@@ -73,6 +74,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                       init, 0,
                       false, -1,
                       (1u << 0) | (1u << 7)});  // compare k0, k7
+    fxsave_x87_undefined(tests.back(), 0, X87_NO_DATA | X87_LONG_MODE);  // FLD1
   }
 
   // =====================================================================
@@ -372,6 +374,39 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
       u32 mxcsr = 0x1F80;
       memcpy(pat.data() + 0x18, &mxcsr, 4);
       fx("fxrstor [rdi] (arbitrary image bytes, valid MXCSR)", fxrstor, s, pat);
+    }
+
+    // The x87 pointers an image carries, read back with FNSTENV: Intel's
+    // FXRSTOR and XRSTOR load FOP, FIP and FDP, and FCS and FDS from the
+    // 32-bit format (SDM Vol.1 §8.1.8), which FNSTENV then saves as 0000H
+    // (CPUID.(7,0):EBX[13]).  AMD's FXRSTOR loads them only "when FXRSTOR
+    // sets FSW.ES=1 after recomputing it" (APM Vol.5 FXRSTOR p.24); its
+    // XRSTOR, with RstrFpErrPtrs, always, zeroing "the CS and DS portions"
+    // in 64-bit mode (Vol.2 §11.5.10 p.361).
+    for (bool es : {false, true}) {
+      std::vector<u8> img = image(0x1F80);
+      u16 cw = es ? 0x037E : 0x037F, sw = es ? 0x0001 : 0x0000;  // IE, unmasked or not
+      u16 fop = 0x01D9, fcs = 0x0023, fds = 0x002B;
+      u32 fip = 0x12345678, fdp = 0x9ABCDEF0;
+      memcpy(&img[0], &cw, 2);
+      memcpy(&img[2], &sw, 2);
+      memcpy(&img[6], &fop, 2);
+      memcpy(&img[8], &fip, 4);
+      memcpy(&img[12], &fcs, 2);
+      memcpy(&img[16], &fdp, 4);
+      memcpy(&img[20], &fds, 2);
+      std::string what = es ? "FSW.ES = 1" : "FSW.ES = 0";
+      std::vector<u8> code = fxrstor;
+      code.insert(code.end(), {0xD9, 0xB7, 0x00, 0x02, 0x00, 0x00});  // fnstenv [rdi+0x200]
+      fx("fxrstor [rdi] (" + what + "); fnstenv: the x87 pointers", code, s, img);
+      img.resize(576, 0);
+      img[512] = 1;  // XSTATE_BV: x87
+      code = {0x0F, 0xAE, 0x2F,                       // xrstor [rdi]
+              0xD9, 0xB7, 0x40, 0x02, 0x00, 0x00};    // fnstenv [rdi+0x240]
+      ArchState x = s;
+      x.rax = 1;
+      x.rdx = 0;
+      fx("xrstor [rdi] (" + what + "); fnstenv: the x87 pointers", code, x, img);
     }
   }
 }

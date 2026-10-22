@@ -104,6 +104,27 @@ static x86::zVendor host_vendor() {
   return b == 0x68747541 ? x86::zVendor_AMD : x86::zVendor_Intel;  // "Auth"
 }
 
+// The model's vendor profiles report the CPUID bits that select the x87
+// pointer rules (fdp_excptn_only, fcs_fds_deprecated and rstr_fp_err_ptrs
+// in model/regs.sail): FDP_EXCPTN_ONLY and FCS_FDS_DEPRECATION,
+// CPUID.(7,0):EBX[6] and EBX[13], on Intel, and RstrFpErrPtrs,
+// Fn8000_0008_EBX[2], on AMD.  A host without them follows the manuals'
+// other rules, which the x87 cases do not expect.
+static void check_host_x87_pointer_bits() {
+  u32 a, b, c, d;
+  bool ok;
+  if (host_vendor() == x86::zVendor_AMD) {
+    ok = __get_cpuid(0x80000008, &a, &b, &c, &d) && (b & (1u << 2));
+  } else {
+    __cpuid_count(7, 0, a, b, c, d);
+    ok = (b & (1u << 6)) && (b & (1u << 13));
+  }
+  if (!ok)
+    fprintf(stderr, "warning: the host does not report the x87 pointer CPUID bits "
+            "of the model's %s profile; x87 image cases will differ\n",
+            host_vendor() == x86::zVendor_AMD ? "AMD" : "Intel");
+}
+
 // Exception handlers for vectors 0-31 at handler_addr (16-byte stubs, then a
 // common handler 32 * 16 bytes in), and a 64-bit IDT of interrupt gates to
 // them at idt_addr.  The gates select IST1, the handlers' own stack, so
@@ -1562,6 +1583,33 @@ void clear_undefined(ArchState &s, const UndefinedState &u, bool compat_mode) {
   s.fcw &= ~u.fcw;
 }
 
+static void undefined_bytes(TestCase &tc, unsigned off, unsigned len, u8 bits = 0xFF) {
+  for (unsigned i = 0; i < len; i++)
+    tc.data_undefined.push_back({u16(off + i), bits});
+}
+
+void x87_env_undefined(TestCase &tc, u16 off, unsigned open) {
+  if (open & X87_LONG_MODE) {
+    undefined_bytes(tc, off + 0x10, 2);  // FCS
+    undefined_bytes(tc, off + 0x18, 2);  // FDS
+  }
+  if (open & X87_NO_DATA) {
+    undefined_bytes(tc, off + 0x14, 4);  // FDP
+    undefined_bytes(tc, off + 0x18, 2);  // FDS
+  }
+}
+
+void fxsave_x87_undefined(TestCase &tc, u16 off, unsigned open, bool w) {
+  if ((open & X87_LONG_MODE) && !w) {
+    undefined_bytes(tc, off + 0x0C, 2);  // FCS
+    undefined_bytes(tc, off + 0x14, 2);  // FDS
+  }
+  if (open & X87_NO_DATA)
+    undefined_bytes(tc, off + 0x10, w ? 8 : 6);  // FDP, and FDS
+  if ((open & X87_FXSAVE_NO_ES) && host_vendor() == x86::zVendor_AMD)
+    undefined_bytes(tc, off + 0x06, 18);  // FOP, FIP, FCS, FDP, FDS
+}
+
 enum class CaseResult { Pass, Deviation, Fail };
 
 // Runs one case on both sides and compares the outcome: the exception for
@@ -1715,6 +1763,7 @@ int main(int argc, char **argv) {
     return write_ctest_file(path);
 
   print_host_identity();
+  check_host_x87_pointer_bits();
 
   if (const char *path = getenv("KVM_LIST"))
     return list_tests(path);

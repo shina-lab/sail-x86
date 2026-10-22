@@ -120,9 +120,9 @@ let R15 : gpr_idx = 15
 
 // Vendor profile for the values the SDM leaves to the implementation and
 // on which the two vendors differ: the standard-format XSAVE offsets of
-// the AVX-512 components (CPUID.0DH.n:EBX), MXCSR_MASK, and which x87
-// instruction and data pointers are kept and saved.  See xsave_std_offset
-// and mxcsr_mask in insn_xsave.sail and x87_record_last in insn_x87.sail.
+// the AVX-512 components (CPUID.0DH.n:EBX), MXCSR_MASK, and the CPUID bits
+// that govern the x87 pointers.  See xsave_std_offset and mxcsr_mask in
+// insn_xsave.sail and fdp_excptn_only below.
 // The CPUID vendor string stays "GenuineIntel" either way.  The KVM
 // differential harness selects the host's vendor so that both profiles are
 // checked against silicon; the emulators keep the Intel default.
@@ -297,14 +297,28 @@ function x87_set_sw(sw) = {
   x87_update_es()
 }
 
-// The FCS and FDS saved in or loaded from an image.  Intel processors that
-// enumerate CPUID.(EAX=07H,ECX=0):EBX[13] deprecate both and save them as
-// 0000H (SDM Vol.1 §8.1.8); the Intel profile is such a processor.
-val x87_selector : word -> word
-function x87_selector(sel) = match vendor {
-  Vendor_Intel => 0x0000,
-  Vendor_AMD   => sel
-}
+// The CPUID bits that select how the x87 pointers are kept and saved.  The
+// Intel profile reports CPUID.(EAX=07H,ECX=0):EBX[6] FDP_EXCPTN_ONLY ("the
+// x87 FPU Data Pointer is updated only on x87 exceptions") and EBX[13]
+// FCS_FDS_DEPRECATION (SDM Vol.1 Table 21-19 p.21-27, §8.1.8), which the
+// APM reserves; the AMD profile reports CPUID Fn8000_0008_EBX[2]
+// RstrFpErrPtrs, "FP Error Pointers Restored by XRSTOR" (APM Vol.3
+// Appendix E p.659, Vol.2 §11.5.10), which the SDM reserves.
+val fdp_excptn_only : unit -> bool
+function fdp_excptn_only() = vendor == Vendor_Intel
+
+val fcs_fds_deprecated : unit -> bool
+function fcs_fds_deprecated() = vendor == Vendor_Intel
+
+val rstr_fp_err_ptrs : unit -> bool
+function rstr_fp_err_ptrs() = vendor == Vendor_AMD
+
+// The FCS or FDS that FNSTENV, FNSAVE, FXSAVE and XSAVE write: "If
+// CPUID.07H.00H:EBX[13] = 1, the processor deprecates FCS and FDS; it
+// saves each as 0000H" (SDM Vol.1 §8.1.8).  The loads take both from the
+// image on either vendor.
+val x87_saved_selector : word -> word
+function x87_saved_selector(sel) = if fcs_fds_deprecated() then 0x0000 else sel
 
 // =========================================================================
 // MMX register access
@@ -338,10 +352,10 @@ function x87_save_env() = {
   buf[79..64] = x87_tag_word();
   buf[95..80] = 0xFFFF;
   buf[127..96] = x87_fip[31..0];
-  buf[143..128] = x87_selector(x87_fcs);
+  buf[143..128] = x87_saved_selector(x87_fcs);
   buf[154..144] = x87_fop;
   buf[191..160] = x87_fdp[31..0];
-  buf[207..192] = x87_selector(x87_fds);
+  buf[207..192] = x87_saved_selector(x87_fds);
   buf[223..208] = 0xFFFF;
   buf
 }
@@ -354,19 +368,22 @@ function x87_load_env(buf) = {
   x87_set_sw(buf[47..32]);
   x87_tw = buf[79..64];
   x87_fip = zero_extend(buf[127..96]);
-  x87_fcs = x87_selector(buf[143..128]);
+  x87_fcs = buf[143..128];
   x87_fop = buf[154..144];
   x87_fdp = zero_extend(buf[191..160]);
-  x87_fds = x87_selector(buf[207..192])
+  x87_fds = buf[207..192]
 }
 
 // The 14-byte environment of a 16-bit operand size in protected mode
-// (SDM Vol.1 §8.1.10, Figure 8-10): FCW, FSW, FTW, FIP[15:0], FCS,
-// FDP[15:0] and FDS, without FOP.  Loading it zero-extends the two
-// offsets and clears FOP (checked on a Zen 4 and an Emerald Rapids).
+// (SDM Vol.1 §8.1.10, Figure 8-11 p.8-12; APM Vol.2 Figure 11-6 p.354):
+// FCW, FSW, FTW, FIP[15:0], FCS, FDP[15:0] and FDS, without FOP.  Loading
+// it zero-extends the two offsets ("loads the lower 32 bits from memory
+// and clears the upper 32 bits", §8.1.8, of which the image holds 16).
+// Neither manual says what FOP becomes, since the image has none; the
+// model clears it.
 val x87_save_env16 : unit -> bits(112)
 function x87_save_env16() =
-  x87_selector(x87_fds) @ x87_fdp[15..0] @ x87_selector(x87_fcs) @ x87_fip[15..0]
+  x87_saved_selector(x87_fds) @ x87_fdp[15..0] @ x87_saved_selector(x87_fcs) @ x87_fip[15..0]
   @ x87_tag_word() @ x87_sw @ x87_cw
 
 val x87_load_env16 : bits(112) -> unit
@@ -375,10 +392,10 @@ function x87_load_env16(buf) = {
   x87_set_sw(buf[31..16]);
   x87_tw = buf[47..32];
   x87_fip = zero_extend(buf[63..48]);
-  x87_fcs = x87_selector(buf[79..64]);
+  x87_fcs = buf[79..64];
   x87_fop = zeros();
   x87_fdp = zero_extend(buf[95..80]);
-  x87_fds = x87_selector(buf[111..96])
+  x87_fds = buf[111..96]
 }
 
 // The eight registers that follow the environment in an FSAVE image, in

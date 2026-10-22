@@ -6,9 +6,13 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
   std::string category = "x87 obsolete";
   // Load an explicit x87 state, execute the instruction, and save its
   // result. Compare all eight 80-bit registers, CW, SW and the full tag
-  // word, and the whole FSAVE image but for the undefined condition codes.
+  // word, and the whole FSAVE image but for the undefined condition codes
+  // and the fields the manuals leave open.  Every instruction here but
+  // the obsolete NOPs is recorded as the last non-control instruction on
+  // at least one vendor and has no memory operand (x87_env_undefined).
   auto add_state = [&](const std::string &name, std::vector<u8> insn,
-                       u16 cw, u16 sw, u16 tw, u16 undefined_cc, bool compat32) {
+                       u16 cw, u16 sw, u16 tw, u16 undefined_cc, bool compat32,
+                       bool recorded = true) {
     std::vector<u8> data(0x100 + 108, 0);
     memcpy(&data[0x100], &cw, 2);
     memcpy(&data[0x104], &sw, 2);
@@ -45,6 +49,8 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
     tc.initial.rdi = DATA_ADDR;
     tc.flags_mask = undefined_cc ? FL_NO_AF : FL_ALL;
     tc.data_undefined = {{0x104, u8(undefined_cc)}, {0x105, u8(undefined_cc >> 8)}};
+    if (recorded)
+      x87_env_undefined(tc, 0x100, X87_NO_DATA | (compat32 ? 0 : X87_LONG_MODE));
     tc.init_data = std::move(data);
     tc.compare_data_len = 80;
     tc.compat_mode = compat32;
@@ -58,10 +64,10 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
     for (u16 sw : {0x0000, 0x7F05}) {
       for (u8 modrm : {0xE0, 0xE1, 0xE4}) {
         add_state(std::format("obsolete NOP DB {:02x}", modrm), {0xDB, modrm},
-                  0x0B7F, sw, 0x3300, 0, compat32);
+                  0x0B7F, sw, 0x3300, 0, compat32, false);
         // FWAIT is a separate instruction with undefined C0/C1/C2/C3.
         add_state(std::format("fwait; obsolete NOP DB {:02x}", modrm),
-                  {0x9B, 0xDB, modrm}, 0x0B7F, sw, 0x3300, 0x4700, compat32);
+                  {0x9B, 0xDB, modrm}, 0x0B7F, sw, 0x3300, 0x4700, compat32, false);
       }
     }
   }
@@ -102,6 +108,11 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
   // underflow, and DF C0+i (FFREEP) frees ST(i) before popping ST(0).
   // Check a full stack, an empty source, an empty destination and an
   // entirely empty stack, including with invalid-operation unmasked.
+  // FFREEP is a control instruction on Intel only (it "behaves the same as
+  // FFREE", SDM Vol.3B §25.18.9, Vol.1 §8.3.11; APM Vol.1 §6.4.7), so an
+  // FXAM, which raises no exception and changes no register or tag, gives
+  // the image the same last-instruction pointer on either vendor; FFREEP's
+  // own effect on the pointers is the case after the loop.
   category = "x87 compatibility stack";
   for (bool compat32 : {false, true}) {
     for (unsigned top : {0, 3, 7}) {
@@ -113,12 +124,14 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
             add_state(std::format("fstp without stack underflow st({})", i),
                       {0xD9, u8(0xD8 + i)}, cw, (top << 11) | 0x4700,
                       tw, 0x4500, compat32);
-            add_state(std::format("ffreep st({})", i), {0xDF, u8(0xC0 + i)},
+            add_state(std::format("ffreep st({}); fxam", i), {0xDF, u8(0xC0 + i), 0xD9, 0xE5},
                       cw, (top << 11) | 0x4700, tw, 0x4700, compat32);
           }
         }
       }
     }
+    add_state("ffreep st(1) (last-instruction pointers)", {0xDF, 0xC1},
+              0x037F, 0x4700, 0, 0x4700, compat32);
   }
 
   // Adjacent reserved cells are still invalid. In particular, DE D0+i is

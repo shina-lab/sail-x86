@@ -828,53 +828,69 @@ function dispatch_x87_df(modrm, operand, _) = {
 }
 
 // The x87 control instructions, which leave the last-instruction pointers
-// and opcode alone (SDM Vol.1 §8.1.8): FLDENV, FLDCW, FNSTENV, FNSTCW,
-// FRSTOR, FNSAVE, FNSTSW, FNCLEX and FNINIT, and the obsolete FENI, FDISI
-// and FSETPM.  Every other x87 instruction is recorded, FFREE, FINCSTP,
-// FDECSTP and FNOP included.
+// and opcode alone: FLDENV, FLDCW, FNSTENV, FNSTCW, FRSTOR, FNSAVE,
+// FNSTSW, FNCLEX and FNINIT (SDM Vol.1 §8.1.8, §8.3.11; APM Vol.1 §6.2.5,
+// §6.4.9), and the obsolete FENI, FDISI and FSETPM, for which "no
+// internal states are affected" (SDM Vol.3B §25.18.9 p.25-14).  The SDM's
+// list also has FINCSTP, FDECSTP, FFREE and FNOP (Vol.1 §8.3.11 p.8-23),
+// and DF C0+i "behaves the same as FFREE ... with the addition of an x87
+// stack POP" (Vol.3B p.25-15), so on Intel those are control instructions
+// as well.  The APM puts them under "Stack Management" and "No Operation"
+// instead (Vol.1 §6.4.7-6.4.8 p.322-323), outside the "Control"
+// instructions that §6.2.5 exempts, so AMD records them.
 val x87_control : (byte, byte) -> bool
 function x87_control(opcode, modrm) = {
   let mem = modrm[7..6] != 0b11;
   let reg : range(0, 7) = unsigned(modrm[5..3]);
+  let intel = vendor == Vendor_Intel;
   match unsigned(opcode) {
-    217 => mem & reg >= 4,                       // D9 /4-/7
-    221 => mem & (reg == 4 | reg >= 6),          // DD /4, /6, /7
+    // D9 /4-/7; FNOP, FDECSTP and FINCSTP
+    217 => mem & reg >= 4 | intel & (modrm == 0xD0 | modrm == 0xF6 | modrm == 0xF7),
+    // DD /4, /6, /7; FFREE
+    221 => mem & (reg == 4 | reg >= 6) | intel & ~(mem) & reg == 0,
     219 => modrm >=_u 0xE0 & modrm <=_u 0xE4,   // DB E0-E4
-    223 => modrm == 0xE0,                        // FNSTSW AX
+    // FNSTSW AX; FFREEP
+    223 => modrm == 0xE0 | intel & ~(mem) & reg == 0,
     _ => false,
   }
 }
 
-// Record the last non-control x87 instruction.  Both vendors keep its
-// address (where its first prefix is).  AMD also keeps the CS selector,
-// the opcode (the low three bits of the first opcode byte, then the ModR/M
-// byte, as encoded), and for a memory operand its offset and segment
-// selector.  Intel processors that enumerate CPUID.(EAX=07H,ECX=0):EBX[6]
-// and EBX[13], as the Intel profile does, update FDP, and by default FOP,
-// only for an instruction that raises an unmasked x87 exception (of those
-// the model raises only the stack faults), and keep no selectors (SDM
-// Vol.1 §8.1.8-8.1.9).  Both behaviours were checked on a Zen 4 and an
-// Emerald Rapids.
+// Record the last non-control x87 instruction (SDM Vol.1 §8.1.8-8.1.9,
+// APM Vol.1 §6.2.5).  FIP is its offset, where its first prefix is.  FCS
+// and FDS are the code segment's and the memory operand's selectors
+// outside 64-bit mode.  In 64-bit mode the APM keeps only the 64-bit
+// offsets ("The 16-bit code-segment (CS) selector is not saved", §6.2.5.1,
+// and §6.2.5.3), and its XRSTOR zeroes "the CS and DS portions" there
+// (Vol.2 §11.5.10); the model reads that as both selectors being 0 in
+// 64-bit mode.  (With FCS_FDS_DEPRECATION the Intel profile never stores
+// either.)
+//
+// FOP takes the low three bits of the first opcode byte, then the ModR/M
+// byte, as encoded.  AMD records it for every non-control instruction
+// (§6.2.5.2); the SDM records "the opcode of the last x87 non-control
+// instruction executed that incurred an unmasked x87 exception" (§8.1.9).
+// FDP and FDS hold the memory operand's offset and selector; with
+// FDP_EXCPTN_ONLY (the Intel profile) "the data pointer is updated only
+// for x87 non-control instructions that incur unmasked x87 exceptions"
+// (§8.1.8).  Of the unmasked exceptions the model raises only the stack
+// faults.  For an instruction without a memory operand "the value in the
+// data pointer is undefined (reserved)" (SDM §8.1.8), "implementation
+// dependent" (APM Vol.2 §11.4.3 p.349).
 val x87_record_last : (byte, byte, RM, bool) -> unit
 function x87_record_last(opcode, modrm, operand, unmasked) = {
+  let in64 = cur_mode == LongMode;
   x87_fip = insn_start;
-  if vendor == Vendor_Intel & unmasked then {
-    x87_fop = opcode[2..0] @ modrm;
-    match operand {
-      RM_mem(m) => x87_fdp = fixup_addr(m.addr),
-      RM_reg(_) => (),
-    }
-  };
-  if vendor == Vendor_AMD then {
-    x87_fcs = SegReg[CS];
-    x87_fop = opcode[2..0] @ modrm;
-    match operand {
-      RM_mem(m) => {
-        x87_fdp = fixup_addr(m.addr);
-        x87_fds = SegReg[m.seg]
-      },
-      RM_reg(_) => (),
-    }
+  x87_fcs = if in64 then 0x0000 else SegReg[CS];
+  if vendor == Vendor_AMD | unmasked then x87_fop = opcode[2..0] @ modrm;
+  match operand {
+    RM_mem(m) => if ~(fdp_excptn_only()) | unmasked then {
+      x87_fdp = fixup_addr(m.addr);
+      x87_fds = if in64 then 0x0000 else SegReg[m.seg]
+    },
+    RM_reg(_) => {
+      x87_fdp = undefined;
+      x87_fds = undefined
+    },
   }
 }
 
