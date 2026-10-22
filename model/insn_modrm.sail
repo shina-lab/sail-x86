@@ -82,6 +82,16 @@ function evex_full_disp_n(pfx) =
     3 => raise_UD(),
   }
 
+// The same for opcodes whose F3/F2 forms are scalar (SS/SD: Tuple1 Scalar,
+// N = element size) and whose NP/66 forms are Full (PS/PD): 0F 10/11/51/
+// 58-5F/C2.
+val evex_fp_disp_n : (MandatoryPrefix, Prefixes) -> range(4, 64)
+function evex_fp_disp_n(mp, pfx) = match mp {
+  MP_F3 => 4,
+  MP_F2 => 8,
+  _ => evex_full_disp_n(pfx),
+}
+
 // Decode SIB with EVEX compressed disp8.
 val decode_sib_evex : (byte, range(0, 2), Prefixes, range(1, 64)) -> qword
 function decode_sib_evex(sib, modbits, pfx, disp_n) = {
