@@ -133,19 +133,13 @@ function vex_exec_binop(op, eb, pfx) = {
   write_simd(vl, dst, packed_binop(op, eb, read_simd(vl, pfx.vex_vvvv), decode_vex_src(src)))
 }
 
-// VEX opmask instructions.  VEX.L selects the form, L1 for the
-// three-operand ones and L0 for the others, and a form without a VEX.vvvv
-// operand needs vvvv = 1111b; anything else is #UD (SDM Vol.2, the K*
-// pages).  Opmask registers have three-bit numbers: an opmask in
-// ModR/M.reg with VEX.R set, or in VEX.vvvv with its bit 3 set, is #UD on
-// Intel and ignored on AMD, and VEX.B for an opmask in ModR/M.r/m is
-// ignored on both (checked on an Emerald Rapids and a Zen 4).
-val vex_k_form : (Prefixes, bool) -> unit
-function vex_k_form(pfx, three_operand) = {
-  if pfx.vex_l != three_operand then raise_UD();
-  if ~(three_operand) & pfx.vex_vvvv != 0 then raise_UD()
-}
-
+// Opmask register operands of the VEX opmask instructions, whose forms
+// (VEX.L1 for the three-operand ones, L0 for the others; register r/m
+// except for KMOV) are in vex_forms_0f and vex_forms_0f3a.  Opmask
+// registers have three-bit numbers: an opmask in ModR/M.reg with VEX.R
+// set, or in VEX.vvvv with its bit 3 set, is #UD on Intel and ignored on
+// AMD, and VEX.B for an opmask in ModR/M.r/m is ignored on both (checked
+// on an Emerald Rapids and a Zen 4).
 val vex_kreg_reg : (byte, Prefixes) -> kreg_idx
 function vex_kreg_reg(modrm, pfx) = {
   if vendor == Vendor_Intel & pfx.rex_r == 0b1 then raise_UD();

@@ -176,9 +176,9 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   if op != 240 & mp != MP_66 then raise_UD();
 
   match op {
-  // 0F3A 00/01: VPERMQ / VPERMPD — ymm, ymm/m256, imm8 (W1, VEX.256, vvvv=1111b)
+  // 0F3A 00/01: VPERMQ / VPERMPD — ymm, ymm/m256, imm8 (VEX.256, W1 on
+  // Intel; see vex_forms_0f3a)
   op if op == 0 | op == 1 => {
-    if ~(pfx.vex_l) | ~(pfx.vex_w) | pfx.vex_vvvv != 0 then raise_UD();
     let (dst, src, imm) = vex_fetch_xrm_imm(pfx);
     write_simd(256, dst, avx_vpermq(decode_vex_src(256, src), imm))
   },
@@ -228,9 +228,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     write_simd(vl, dst, avx_round_packed(if op == 8 then 32 else 64, decode_vex_src(vl, src2), imm))
   },
 
-  // 0F3A 0A/0B: VROUNDSS/SD — VEX.128
+  // 0F3A 0A/0B: VROUNDSS/SD — VEX.LIG
   op if op == 10 | op == 11 => {
-    if pfx.vex_l then raise_UD();
     let (dst, src, imm) = vex_fetch_xrm_imm(pfx);
     let base : xmmword = read_simd(128, pfx.vex_vvvv);
     if op == 10
@@ -335,7 +334,6 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   // 0F3A 30-33: KSHIFTR/L {B,W,D,Q}
   op if 48 <= op & op <= 51 => {
     let modrm = fetch(1);
-    vex_k_form(pfx, false);
     let k1 = vex_kreg_reg(modrm, pfx);
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
     let shift : range(0, 255) = unsigned(fetch(1));

@@ -153,11 +153,14 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   }
 
   // VLDMXCSR/VSTMXCSR are VEX.LZ with vvvv reserved: VEX.L = 1 and
-  // vvvv != 1111b are #UD (SDM LDMXCSR/STMXCSR pages).
+  // vvvv != 1111b are #UD (SDM LDMXCSR/STMXCSR pages).  The #UD comes
+  // before the memory operand is read, but RDI still points at the data
+  // page: the field variants make these encodings valid, and an RDI of 0
+  // would reach the guest's PML4, which the model does not back.
   add_fault("vldmxcsr [rdi] with VEX.L=1 (#UD)", {0xC5, 0xFC, 0xAE, 0x17},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
   add_fault("vstmxcsr [rdi] with vvvv=1110b (#UD)", {0xC5, 0xF0, 0xAE, 0x1F},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VBROADCASTF32X2 has only 256- and 512-bit forms: EVEX.128 (L'L=00) is #UD.
   add_fault("vbroadcastf32x2 xmm (no 128-bit form → #UD)",
@@ -566,26 +569,27 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     pop_seg("push 0x40; pop gs (execute-only) → #GP", 0xA9, 0x0040, 0xE8, true);
   }
 
-  // VEX VMOVSS/VMOVSD memory forms: vvvv must be 1111b, else #UD
+  // VEX VMOVSS/VMOVSD memory forms: vvvv must be 1111b, else #UD.  RDI
+  // points at the data page for the variants, as for VLDMXCSR above.
   cat = "Exception #UD";
 
   // VMOVSS XMM0, [RDI] with vvvv=1110 (should be 1111): C5 F2 10 07
   // Normal: C5 FA 10 07 (vvvv=1111). F2 = R=1,vvvv=1110,L=0,pp=10.
   add_fault("vmovss xmm,m32 vvvv!=1111 → #UD", {0xC5, 0xF2, 0x10, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VMOVSD XMM0, [RDI] with vvvv=1110: C5 F3 10 07
   // Normal: C5 FB 10 07 (vvvv=1111, pp=11=F2). F3 = R=1,vvvv=1110,L=0,pp=11.
   add_fault("vmovsd xmm,m64 vvvv!=1111 → #UD", {0xC5, 0xF3, 0x10, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VMOVSS [RDI], XMM0 with vvvv=1110: C5 F2 11 07
   add_fault("vmovss m32,xmm vvvv!=1111 → #UD", {0xC5, 0xF2, 0x11, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VMOVSD [RDI], XMM0 with vvvv=1110: C5 F3 11 07
   add_fault("vmovsd m64,xmm vvvv!=1111 → #UD", {0xC5, 0xF3, 0x11, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // ---- More #UD tests: LOCK on 2-byte opcodes ----
   cat = "Exception #UD";
@@ -673,35 +677,37 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // C5 F8 = R̃=1 vvvv=1111 L=0 pp=00(NP)  → valid
   // C5 F0 = R̃=1 vvvv=1110 L=0 pp=00(NP)  → vvvv not reserved
   // C5 F1 = R̃=1 vvvv=1110 L=0 pp=01(66)  → vvvv not reserved
+  // The memory forms point RDI at the data page for the variants, as for
+  // VLDMXCSR above.
 
   // VMOVAPS xmm0,[mem] with vvvv!=1111: C5 F0 28 07 (via [rdi])
   add_fault("vmovaps load vvvv!=0 → #UD", {0xC5, 0xF0, 0x28, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VMOVAPD xmm0,[mem] with vvvv!=1111: C5 F1 28 07
   add_fault("vmovapd load vvvv!=0 → #UD", {0xC5, 0xF1, 0x28, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VMOVAPS [mem],xmm0 with vvvv!=1111: C5 F0 29 07
   add_fault("vmovaps store vvvv!=0 → #UD", {0xC5, 0xF0, 0x29, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VMOVDQA xmm0,[mem] with vvvv!=1111: C5 F1 6F 07
   add_fault("vmovdqa load vvvv!=0 → #UD", {0xC5, 0xF1, 0x6F, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VMOVDQU xmm0,[mem] with vvvv!=1111: C5 F2 6F 07 (pp=F3)
   // C5 FA = R̃=1 vvvv=1111 L=0 pp=10(F3); C5 F2 = vvvv=1110
   add_fault("vmovdqu load vvvv!=0 → #UD", {0xC5, 0xF2, 0x6F, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VMOVDQA [mem],xmm0 with vvvv!=1111: C5 F1 7F 07
   add_fault("vmovdqa store vvvv!=0 → #UD", {0xC5, 0xF1, 0x7F, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VMOVDQU [mem],xmm0 with vvvv!=1111: C5 F2 7F 07
   add_fault("vmovdqu store vvvv!=0 → #UD", {0xC5, 0xF2, 0x7F, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VUCOMISS xmm0,xmm1 with vvvv!=1111: C5 F0 2E C1
   add_fault("vucomiss vvvv!=0 → #UD", {0xC5, 0xF0, 0x2E, 0xC1},
@@ -737,16 +743,16 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // Normal: C4 E2 79 18 07 (W=0 vvvv=1111 L=0 pp=01)
   // Bad:    C4 E2 71 18 07 (W=0 vvvv=1110 L=0 pp=01)
   add_fault("vbroadcastss vvvv!=0 → #UD", {0xC4, 0xE2, 0x71, 0x18, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VMOVUPS xmm0,[mem] with vvvv!=1111: C5 F0 10 07
   // Normal: C5 F8 10 07
   add_fault("vmovups load vvvv!=0 → #UD", {0xC5, 0xF0, 0x10, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VMOVUPS [mem],xmm0 with vvvv!=1111: C5 F0 11 07
   add_fault("vmovups store vvvv!=0 → #UD", {0xC5, 0xF0, 0x11, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VCVTDQ2PS xmm0,xmm1 with vvvv!=1111: C5 F0 5B C1
   // Normal: C5 F8 5B C1 (NP = VCVTDQ2PS)
@@ -762,7 +768,7 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // Normal: C4 E2 7D 19 07 (W=0 vvvv=1111 L=1 pp=01)
   // Bad:    C4 E2 75 19 07 (W=0 vvvv=1110 L=1 pp=01)
   add_fault("vbroadcastsd vvvv!=0 → #UD", {0xC4, 0xE2, 0x75, 0x19, 0x07},
-            {}, 6);
+            {.rdi = DATA_ADDR}, 6);
 
   // VPBROADCASTD xmm0,xmm1 with vvvv!=1111: C4 E2 71 58 C1
   // Normal: C4 E2 79 58 C1 (W=0 vvvv=1111 L=0 pp=01)
