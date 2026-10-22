@@ -503,6 +503,24 @@ static constexpr u64 DR6_CMP_MASK = 0xE00F;
 // whose value in the image encodes the fault/trap distinction.
 static constexpr u64 RFLAGS_IMAGE_MASK = 0x10FD5;
 
+// Bits of the final register state that the manuals leave undefined for a
+// case: the register counterpart of TestCase::data_undefined.  They are
+// cleared on both sides before the comparison.
+struct UndefinedState {
+  std::array<u64, 16> gpr = {};                 // in encoding order: RAX, RCX, RDX, RBX,
+                                                // RSP, RBP, RSI, RDI, R8-R15
+  std::array<std::array<u64, 8>, 32> zmm = {};  // ZMM0-ZMM31, by quadword
+  std::array<u64, 8> kregs = {};
+  u16 fcw = 0;
+};
+
+// Clears the bits `u` marks undefined in `s`.  In compatibility mode the
+// upper halves of RAX-RDI are undefined as well: "the upper 32 bits of
+// 64-bit general-purpose registers are undefined in 32-bit modes" (SDM
+// Vol.1 §3.4.1.1), "undefined and not accessible to software" (APM Vol.1
+// §3.4.5).  R8-R15 are preserved across the mode switch.
+void clear_undefined(ArchState &s, const UndefinedState &u, bool compat_mode);
+
 struct TestCase {
   std::string name;
   std::string category;
@@ -534,12 +552,29 @@ struct TestCase {
   bool system_mode = false;      // the model delivers exceptions through a mirror of the
                                  // guest's IDT; SYSCALL/SYSRET/SYSENTER/SYSEXIT need the
                                  // model's system-mode paths
-  bool may_fault = false;        // the run may fault or complete; the model must do
-                                 // whichever the hardware does (variants, below)
+  bool may_fault = false;        // the case does not state whether the run faults: the
+                                 // model's outcome, from the manuals, is the expected
+                                 // one, and the host must agree (variants, below)
   // Bits of the data page that the instruction sequence leaves undefined,
   // as (offset, bits of that byte): the memory counterpart of flags_mask.
   std::vector<std::pair<u16, u8>> data_undefined;
+  UndefinedState undefined;
 };
+
+// A known difference between a test host and the manuals.  A case's
+// expected outcome is the one the SDM (or, where the two manuals define
+// different behaviour, the APM for AMD) gives, the same on every host; a
+// host whose hardware does something else is listed here, with the reason,
+// instead of changing the expectation.  See kvm-deviations.cpp.
+struct KnownDeviation {
+  bool amd;            // the host vendor it applies to: AMD (true) or Intel
+  const char *name;    // the case name; a trailing '*' matches any suffix, so
+                       // that a base case's entry covers its variants
+  const char *reason;  // what the hardware does and what the manuals say
+};
+
+// The entry for `case_name` on this host, or nullptr.
+const KnownDeviation *known_deviation(const std::string &case_name);
 
 // The data page's initial contents for a test: init_data, then zeros.
 void fill_data_page(const TestCase &tc, u8 *page);

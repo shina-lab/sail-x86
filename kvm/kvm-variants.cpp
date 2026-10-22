@@ -12,8 +12,10 @@
 //
 // The code is decoded into instructions, changed, and encoded again; a
 // case whose code does not decode, or does not encode back to the same
-// bytes, has no variants.  Each variant runs with may_fault: whether it
-// faults is the hardware's decision, and the model must agree either way.
+// bytes, has no variants.  Each variant runs with may_fault: a changed
+// encoding may fault where the case did not, so the model's outcome, which
+// follows the manuals, is the expected one, and a host that differs is a
+// failure or a known deviation (kvm-deviations.cpp).
 // A variant that moves an operand to an address the case did not use
 // keeps it inside the data page, the memory the harness compares (and
 // where a store cannot overwrite the code).

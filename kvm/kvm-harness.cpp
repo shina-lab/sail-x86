@@ -1505,10 +1505,25 @@ static bool compare_faults(const TestCase &tc, KvmVm &vm, const FaultInfo &kvm_f
   return ok;
 }
 
+void clear_undefined(ArchState &s, const UndefinedState &u, bool compat_mode) {
+  u64 *gprs[16] = {&s.rax, &s.rcx, &s.rdx, &s.rbx, &s.rsp, &s.rbp, &s.rsi, &s.rdi,
+                   &s.r8,  &s.r9,  &s.r10, &s.r11, &s.r12, &s.r13, &s.r14, &s.r15};
+  for (int i = 0; i < 16; i++)
+    *gprs[i] &= ~(u.gpr[i] | (compat_mode && i < 8 ? 0xFFFFFFFF00000000ULL : 0));
+  for (int i = 0; i < 32; i++)
+    for (int q = 0; q < 8; q++) s.xmm[i].q[q] &= ~u.zmm[i][q];
+  for (int i = 0; i < 8; i++) s.kregs[i] &= ~u.kregs[i];
+  s.fcw &= ~u.fcw;
+}
+
+enum class CaseResult { Pass, Mismatch, Error };
+
 // Runs one case on both sides and compares the outcome: the exception for
 // a run that faults, the architectural state for one that completes, and
-// in either case the memory the run may have written.
-static bool run_case(KvmVm &vm, const TestCase &tc) {
+// in either case the memory the run may have written.  A mismatch is
+// reported under `verdict` (a failure, or a known deviation of the host);
+// a harness or model error is always a failure.
+static CaseResult run_case(KvmVm &vm, const TestCase &tc, const char *verdict) {
   vm.load_test(tc);
 
   std::string err;
@@ -1521,7 +1536,7 @@ static bool run_case(KvmVm &vm, const TestCase &tc) {
 
   if (!vm.run_test_any(&kvm_state, &kvm_fault, &err)) {
     fprintf(stderr, "%sFAIL: %s\n", err.c_str(), tc.name.c_str());
-    return false;
+    return CaseResult::Error;
   }
   vm.read_pages(&kvm_mem);
   sail_state = run_sail(tc, &sail_mem, fault_allowed ? &sail_fault : nullptr, &err,
@@ -1563,14 +1578,16 @@ static bool run_case(KvmVm &vm, const TestCase &tc) {
     if (!compare_page("data", kvm_mem.data, sail_mem.data)) ok = false;
     if (!compare_page("stack", kvm_mem.stack, sail_mem.stack)) ok = false;
     if (!ok)
-      fprintf(stderr, "FAIL: %s (kvm: #%d err=0x%lx rip=0x%lx, sail: #%d err=0x%lx rip=0x%lx)\n",
-              tc.name.c_str(),
+      fprintf(stderr, "%s: %s (kvm: #%d err=0x%lx rip=0x%lx, sail: #%d err=0x%lx rip=0x%lx)\n",
+              verdict, tc.name.c_str(),
               kvm_fault.vector, kvm_fault.error_code, kvm_fault.faulting_rip,
               sail_fault.vector, sail_fault.error_code, sail_fault.faulting_rip);
-    return ok;
+    return ok ? CaseResult::Pass : CaseResult::Mismatch;
   }
 
   if (ok) {
+    clear_undefined(kvm_state, tc.undefined, tc.compat_mode);
+    clear_undefined(sail_state, tc.undefined, tc.compat_mode);
     ok = kvm_state.compare(sail_state, tc.flags_mask, tc.approx_rel_tol,
                            tc.approx_elem_bits, tc.approx_result_bits, tc.approx_reg);
     if (amx && !vm.read_amx().compare(sail_amx)) ok = false;
@@ -1580,7 +1597,7 @@ static bool run_case(KvmVm &vm, const TestCase &tc) {
   const std::vector<u64> &sail_io = x86::x86_externals_port_io();
   bool io_ok = vm.io_log == sail_io;
   if (!ok || !io_ok) {
-    fprintf(stderr, "FAIL: %s\n", tc.name.c_str());
+    fprintf(stderr, "%s: %s\n", err.empty() ? verdict : "FAIL", tc.name.c_str());
     kvm_state.print("KVM");
     sail_state.print("Sail");
     if (!io_ok) {
@@ -1588,9 +1605,9 @@ static bool run_case(KvmVm &vm, const TestCase &tc) {
       print_port_io("KVM ", vm.io_log);
       print_port_io("Sail", sail_io);
     }
-    return false;
+    return err.empty() ? CaseResult::Mismatch : CaseResult::Error;
   }
-  return true;
+  return CaseResult::Pass;
 }
 
 int main(int argc, char **argv) {
@@ -1636,6 +1653,7 @@ int main(int argc, char **argv) {
 
   Suite suite = build_suite();
   int passed = 0;
+  int deviations = 0;
   int failed = 0;
   std::string last_cat;
   bool vm_lost = false;
@@ -1653,10 +1671,16 @@ int main(int argc, char **argv) {
     // address space).
     if (getenv("KVM_VERBOSE"))
       fprintf(stderr, "  case: %s\n", tc.name.c_str());
-    if (run_case(*vm, tc))
+    const KnownDeviation *dev = known_deviation(tc.name);
+    CaseResult result = run_case(*vm, tc, dev ? "KNOWN DEVIATION" : "FAIL");
+    if (result == CaseResult::Pass) {
       passed++;
-    else
+    } else if (result == CaseResult::Mismatch && dev) {
+      fprintf(stderr, "  (%s)\n", dev->reason);
+      deviations++;
+    } else {
       failed++;
+    }
 
     // A triple fault or odd exit can leave the VCPU in a state KVM cannot
     // continue from; rebuild the VM so later tests start clean.
@@ -1674,7 +1698,7 @@ int main(int argc, char **argv) {
   if (vm_lost)
     return 1;
 
-  fprintf(stderr, "%d passed, %d failed out of %d tests\n",
-          passed, failed, passed + failed);
+  fprintf(stderr, "%d passed, %d known deviations, %d failed out of %d tests\n",
+          passed, deviations, failed, passed + deviations + failed);
   return failed > 0 ? 1 : 0;
 }

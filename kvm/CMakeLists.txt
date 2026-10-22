@@ -35,6 +35,7 @@ add_executable(kvm_harness
   kvm-tests-cr0.cpp
   kvm-tests-amx.cpp
   kvm-variants.cpp
+  kvm-deviations.cpp
 )
 target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)
