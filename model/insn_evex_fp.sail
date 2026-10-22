@@ -1245,7 +1245,7 @@ function dispatch_evex_fp(op, pfx) = {
   // k1{k2}: a result bit whose k2 bit is clear is zero (SDM CMPPS, CMPSS).
   194 => {
     let modrm = fetch(1);
-    let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
+    let dst_k : range(0, 7) = evex_kreg_dest(modrm);
     let src = modrm_xrm_evex(modrm, pfx, evex_fp_disp_n(mp, pfx));
     let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
     let src1_idx = pfx.evex_vvvvv;

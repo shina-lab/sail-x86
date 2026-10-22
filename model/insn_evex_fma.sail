@@ -145,9 +145,6 @@ function dispatch_evex_fma(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let vl = evex_vl(pfx);
     let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    // SDM (VPGATHERDD et al.): "#UD fault if the destination vector zmm1
-    // is the same as index vector VINDEX".
-    if dst == vsib.vsib_vidx then raise_UD();
     let idx_eb : {32, 64} = if op == 144 | op == 146 then 32 else 64;
     let eb = evex_elem(pfx);
     exec_gather(vl, idx_eb, eb, dst, vsib, pfx.evex_aaa)
@@ -464,7 +461,7 @@ function dispatch_evex_fma(op, pfx) = {
 
   // 0F38 CF: VGF2P8MULB (66,W0) [GFNI]
   207 => {
-    if mp != MP_66 | pfx.rex_w | ~(has_gfni) then raise_UD();
+    if mp != MP_66 | pfx.rex_w then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
@@ -483,7 +480,7 @@ function dispatch_evex_fma(op, pfx) = {
   // (62 F2 6D C8 DC CB), a Zen 4 ignores the bit and executes it, in
   // register and memory forms.  Both raise #UD for aaa != 000b.
   op if 220 <= op & op <= 223 => {
-    if mp != MP_66 | ~(has_vaes) then raise_UD();
+    if mp != MP_66 then raise_UD();
     if pfx.evex_aaa != 0 | (pfx.evex_z == bitone & vendor == Vendor_Intel) then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);

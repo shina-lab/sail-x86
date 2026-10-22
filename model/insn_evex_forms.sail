@@ -25,16 +25,14 @@
 // Rows with W0 and W1 that agree on all of these share an arm with W
 // ignored.  The table was generated from the SDM reference pages of the
 // February 2026 revision (one page per mnemonic, as in ~/sdm); it includes
-// forms this model does not implement (AVX512ER/PF/4FMAPS/4VNNIW,
-// VP2INTERSECT), which their handlers reject.
+// the forms of AVX512_4FMAPS and AVX512_4VNNIW, which the model does not
+// implement (evex_feature_present).
 //
 // The table and checks were compared with an Intel Emerald Rapids and an
 // AMD Zen 4 executing every map, opcode, pp, W, ModRM.reg, register and
 // memory r/m and vector length, each with EVEX.b, z, aaa, vvvv, V' and
 // L'L = 11b varied one at a time.  The hardware agrees with them, except
-// for instruction-specific #UD conditions left to the handlers (gathers
-// whose destination is the index, complex FP16 multiplies whose
-// destination is a source), and for:
+// for:
 //   - VCVTSI2SD, VCVTUSI2SD, VCVTDQ2PD and VCVTUDQ2PD (W0): their rows
 //     have no {er}, but both vendors take EVEX.b in the register form as
 //     for the {er} W1 forms of the same opcodes, including the 512-bit
@@ -745,6 +743,58 @@ function evex_form_map6(op, pp, w, digit, is_reg) = match (op, pp, w, digit, is_
   _ => None()
 }
 
+// Whether the processor has the extension of an EVEX form beyond those
+// has_avx512 stands for (CPUID leaf 7 in insn_baseline.sail): AVX512-FP16
+// (CPUID.(EAX=07H,ECX=0):EDX[23]) for maps 5 and 6 and the 0F3A forms
+// with no prefix or F3 (VRNDSCALEPH ... VCMPSH), GFNI, VAES and
+// VPCLMULQDQ.  The model implements neither AVX512_4FMAPS nor
+// AVX512_4VNNIW (F2 0F38 52, 53, 9A, 9B, AA, AB; Xeon Phi only).
+val evex_feature_present : (range(0, 7), byte, bits(2)) -> bool
+function evex_feature_present(mmm, opcode, pp) = {
+  let op : range(0, 255) = unsigned(opcode);
+  match mmm {
+    2 => match op {
+      // VP4DPWSSD, VP4DPWSSDS, V4FMADDPS, V4FMADDSS, V4FNMADDPS, V4FNMADDSS
+      op if op == 82 | op == 83 | op == 154 | op == 155 | op == 170 | op == 171 =>
+        pp != 0b11,
+      // VGF2P8MULB
+      207 => has_gfni,
+      // VAESENC, VAESENCLAST, VAESDEC, VAESDECLAST
+      op if 220 <= op & op <= 223 => has_vaes,
+      _ => true,
+    },
+    3 => match op {
+      // VPCLMULQDQ
+      68 => has_vpclmulqdq,
+      // VGF2P8AFFINEQB, VGF2P8AFFINEINVQB
+      op if op == 206 | op == 207 => has_gfni,
+      _ => has_avx512_fp16 | pp == 0b01 | pp == 0b11,
+    },
+    5 => has_avx512_fp16,
+    6 => has_avx512_fp16,
+    _ => true,
+  }
+}
+
+// Whether an EVEX form has an opmask destination in ModR/M.reg (the
+// handlers read it with evex_kreg_dest): VPCMPGTB/W/D, VPCMPEQB/W/D and
+// VCMPPS/PD/SS/SD (0F 64-66, 74-76, C2); VPTESTM, VPTESTNM, VPCMPEQQ,
+// VPMOVB2M/W2M, VPCMPGTQ, VPMOVD2M/Q2M, VP2INTERSECT and VPSHUFBITQMB
+// (0F38 26, 27, 29, 37, F3 39, 68, 8F); VPCMP[U]B/W/D/Q, VFPCLASS and
+// VCMPPH/SH (0F3A 1E, 1F, 3E, 3F, 66, 67, C2).  The forms table has the
+// prefixes of these opcodes.
+val evex_kreg_destination : (range(0, 7), byte, bits(2)) -> bool
+function evex_kreg_destination(mmm, opcode, pp) = {
+  let op : range(0, 255) = unsigned(opcode);
+  match mmm {
+    1 => (100 <= op & op <= 102) | (116 <= op & op <= 118) | op == 194,
+    2 => op == 38 | op == 39 | op == 41 | op == 55 | (op == 57 & pp == 0b10) | op == 104
+         | op == 143,
+    3 => op == 30 | op == 31 | op == 62 | op == 63 | op == 102 | op == 103 | op == 194,
+    _ => false,
+  }
+}
+
 // Check an EVEX instruction against the form of its map (mmm), opcode, pp,
 // W, ModRM.reg and ModRM.mod, and raise #UD for an encoding the form does
 // not allow.  Returns the prefixes with the fields AMD ignores cleared, and
@@ -775,10 +825,7 @@ function evex_check_form(mmm, opcode, pfx) = {
     Some(f) => f,
     None() => raise_UD(),
   };
-  // AVX512-FP16 (CPUID.(EAX=07H,ECX=0):EDX[23]): maps 5 and 6, and the
-  // 0F3A forms with no prefix or F3 (VRNDSCALEPH ... VCMPSH).
-  let fp16 : bool = mmm == 5 | mmm == 6 | (mmm == 3 & (pp == 0b00 | pp == 0b10));
-  if fp16 & ~(has_avx512_fp16) then raise_UD();
+  if ~(evex_feature_present(mmm, opcode, pp)) then raise_UD();
 
   // EVEX.b (Table 2-43): in a register form, static rounding ({er}) or SAE
   // ({sae}); in a memory form, embedded broadcast (§2.7.7); #UD otherwise.
@@ -835,6 +882,31 @@ function evex_check_form(mmm, opcode, pfx) = {
   let z_ignored : bool =
     vendor == Vendor_AMD & (f.masking == K_NONE | f.masking == K_NONE_RM & is_reg);
   if pfx.evex_z == bitone & ~(zeroing_ok) & ~(z_ignored) then raise_UD();
+
+  // The conditions of single instructions: a VSIB operand needs a SIB byte,
+  // and a gather's destination must not be its index register (SDM
+  // VPGATHERDD etc.: "#UD fault if ModRM.rm is different than 100b", "if
+  // the destination vector zmm1 is the same as index vector VINDEX"); an
+  // opmask destination is k0-k7, so EVEX.R and EVEX.R' must be 0 (a Zen 4
+  // raises #UD for every opmask-destination form tried: VCMPPS, VPCMPD,
+  // VPCMPEQD, VPTESTMD, VFPCLASSPS, VPMOVD2M, VPSHUFBITQMB); and a complex
+  // FP16 multiply's destination must be neither source (SDM VFCMADDCPH
+  // etc.: "#UD If (dest_reg == src1_reg) or (dest_reg == src2_reg)").  An
+  // Emerald Rapids raises these, too, ahead of the #NM of CR0.TS.
+  let op : range(0, 255) = unsigned(opcode);
+  let dst = evex_reg_idx(modrm, pfx);
+  if f.vvvv == V_VSIB then {
+    if modrm[2..0] != 0b100 then raise_UD();
+    let sib = peek_sib();
+    let index : simd_idx =
+      (if pfx.evex_vvvvv >= 16 then 16 else 0) + unsigned(pfx.rex_x @ sib[5..3]);
+    if mmm == 2 & 144 <= op & op <= 147 & dst == index then raise_UD()
+  };
+  if evex_kreg_destination(mmm, opcode, pp) & (pfx.rex_r == 0b1 | pfx.evex_rr == 0b1)
+  then raise_UD();
+  let complex_fp16 : bool = mmm == 6 & (op == 86 | op == 87 | op == 214 | op == 215);
+  if complex_fp16 & (dst == vvvvv | is_reg & dst == evex_rm_reg_idx(modrm, pfx))
+  then raise_UD();
 
   { pfx with evex_b = pfx.evex_b & ~(b_ignored),
              evex_z = if z_ignored then bitzero else pfx.evex_z,

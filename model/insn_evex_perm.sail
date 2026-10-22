@@ -345,7 +345,7 @@ function dispatch_evex_perm(op, pfx) = {
   143 => {
     if mp != MP_66 | pfx.rex_w then raise_UD();
     let modrm = fetch(1);
-    let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
+    let dst_k : range(0, 7) = evex_kreg_dest(modrm);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
     write_kreg(dst_k, avx_vpshufbitqmb(evex_src(vl, src), read_simd(vl, pfx.evex_vvvvv)) & evex_kmask64(pfx))

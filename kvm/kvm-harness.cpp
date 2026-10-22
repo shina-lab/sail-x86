@@ -1256,6 +1256,7 @@ static const Template TEMPLATES[] = {
   {"kvm-tests-system.cpp", add_system_tests},
   {"kvm-tests-hints.cpp", add_hint_tests},
   {"kvm-tests-waitpkg.cpp", add_waitpkg_tests},
+  {"kvm-tests-cr0.cpp", add_cr0_tests},
   // AVX-512 FP16 needs the extension on the host (CPUID.(7,0):EDX[23]);
   // without it every case would report #UD from KVM.  Kept last so the
   // suite order is the same on hosts with and without it.

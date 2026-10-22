@@ -27,23 +27,18 @@ function gather_addr(vsib, idx) = {
 // VEX VSIB decoder: decode SIB for VEX gather instructions.
 // Returns the base address, vector index register, scale, segment and
 // address size.  Unlike EVEX, index register is only 4-bit (REX.X extends it).
-// A gather "will cause a #UD if the memory operand is encoded without the
-// SIB byte", and "if any pair of the index, mask [VEX.vvvv], or
-// destination [ModRM.reg] registers are the same" (SDM VPGATHERDD etc.;
-// both on a Zen 4 and an Emerald Rapids).  dispatch_vex_with_byte2 has
-// ruled out a register r/m (vex_forms_0f38).
+// vex_check_form has raised the #UD of a register r/m, of a memory operand
+// without a SIB byte, and of destination, index and mask registers that
+// are not all distinct.
 val decode_vsib_vex : (byte, Prefixes) -> VSIB
 function decode_vsib_vex(modrm, pfx) = {
   let modbits : range(0, 3) = unsigned(modrm[7..6]);
-  if modrm[2..0] != 0b100 then raise_UD();
   let sib = fetch(1);
   let scale : range(0, 3) = unsigned(sib[7..6]);
   let (seg, addr64) = vsib_seg_asize(sib, modbits, pfx);
 
   let base_idx : gpr_idx = unsigned(pfx.rex_b @ sib[2..0]);
   let vidx : simd_idx = unsigned(pfx.rex_x @ sib[5..3]);
-  let dst : simd_idx = modrm_xreg(modrm, pfx);
-  if vidx == dst | vidx == pfx.vex_vvvv | dst == pfx.vex_vvvv then raise_UD();
 
   let base_val : qword =
     if sib[2..0] == 0b101 & modbits == 0 then {

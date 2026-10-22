@@ -32,6 +32,7 @@ add_executable(kvm_harness
   kvm-tests-system.cpp
   kvm-tests-hints.cpp
   kvm-tests-waitpkg.cpp
+  kvm-tests-cr0.cpp
   kvm-tests-amx.cpp
   kvm-variants.cpp
 )

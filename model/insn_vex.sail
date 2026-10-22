@@ -152,17 +152,11 @@ function vex_exec_binop(op, eb, pfx) = {
 // (VEX.L1 for the three-operand ones, L0 for the others; register r/m
 // except for KMOV) are in vex_forms_0f and vex_forms_0f3a.  Opmask
 // registers have three-bit numbers: an opmask in ModR/M.reg with VEX.R
-// set, or in VEX.vvvv with its bit 3 set, is #UD on Intel and ignored on
-// AMD, and VEX.B for an opmask in ModR/M.r/m is ignored on both (checked
-// on an Emerald Rapids and a Zen 4).
-val vex_kreg_reg : (byte, Prefixes) -> kreg_idx
-function vex_kreg_reg(modrm, pfx) = {
-  if vendor == Vendor_Intel & pfx.rex_r == 0b1 then raise_UD();
-  unsigned(modrm[5..3])
-}
+// set, or in VEX.vvvv with its bit 3 set, is #UD on Intel, which
+// vex_check_form raises, and ignored on AMD, and VEX.B for an opmask in
+// ModR/M.r/m is ignored on both (checked on an Emerald Rapids and a Zen 4).
+val vex_kreg_reg : byte -> kreg_idx
+function vex_kreg_reg(modrm) = unsigned(modrm[5..3])
 
 val vex_kreg_vvvv : Prefixes -> kreg_idx
-function vex_kreg_vvvv(pfx) = {
-  if vendor == Vendor_Intel & pfx.vex_vvvv >= 8 then raise_UD();
-  pfx.vex_vvvv % 8
-}
+function vex_kreg_vvvv(pfx) = pfx.vex_vvvv % 8

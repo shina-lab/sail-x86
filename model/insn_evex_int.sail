@@ -42,7 +42,7 @@ enum CmpOp = { CMP_EQ, CMP_GT }
 val evex_exec_cmp_mask : (CmpOp, {8, 16}, Prefixes) -> unit
 function evex_exec_cmp_mask(cmp, eb, pfx) = {
   let modrm = fetch(1);
-  let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
+  let dst_k : range(0, 7) = evex_kreg_dest(modrm);
   let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
   let vl = evex_vl(pfx);
   let a = read_simd(vl, pfx.evex_vvvvv);
@@ -54,7 +54,7 @@ function evex_exec_cmp_mask(cmp, eb, pfx) = {
 val evex_exec_cmp_mask_bcast : (CmpOp, {32, 64}, Prefixes) -> unit
 function evex_exec_cmp_mask_bcast(cmp, eb, pfx) = {
   let modrm = fetch(1);
-  let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
+  let dst_k : range(0, 7) = evex_kreg_dest(modrm);
   let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
   let vl = evex_vl(pfx);
   let a = read_simd(vl, pfx.evex_vvvvv);

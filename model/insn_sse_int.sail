@@ -758,7 +758,6 @@ function dispatch_2byte_sse_int(op, pfx) = {
 
     // 0F F0: LDDQU xmm, m128 (F2 prefix, SSE3)
     240 => {
-      if ~(has_sse3) then raise_UD();
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
@@ -819,6 +818,7 @@ function exec_sse4a(op, pfx) = {
   let is_insertq : bool = get_mandatory_prefix(pfx) == MP_F2;
   let modrm = fetch(1);
   if modrm[7..6] != 0b11 | (op == 120 & ~(is_insertq) & modrm[5..3] != 0b000) then raise_UD();
+  check_cr0_sse();
   let xreg = modrm_xreg(modrm, pfx);
   let xrm : simd_idx = unsigned(pfx.rex_b @ modrm[2..0]);
   let (len, idx) : (bits(6), bits(6)) =
@@ -864,13 +864,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     dispatch_mmx_38(op, pfx);
     return ()
   };
-  // The opcodes the match below implements.  Another one is undefined,
-  // and its #UD, a decoding fault, comes ahead of the source read (SDM
-  // Vol.3A §7.9).
-  let defined : bool = op <= 11 | op == 16 | op == 23 | (28 <= op & op <= 30)
-    | (32 <= op & op <= 37) | (40 <= op & op <= 43) | (48 <= op & op <= 53)
-    | (55 <= op & op <= 65) | op == 207 | (219 <= op & op <= 223);
-  if mp != MP_66 | ~(defined) then raise_UD();
+  // check_legacy_simd has raised the #UD of the other opcodes and
+  // prefixes, a decoding fault that comes ahead of the source read.
   let modrm = fetch(1);
   let xreg = modrm_xreg(modrm, pfx);
   let src = modrm_xrm(modrm, pfx);
@@ -987,24 +982,18 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     65 => ZMM[xreg][127..0] = avx_phminposuw_128(src_xmm),
 
     // AES-NI — AESIMC
-    219 => { if ~(has_aesni) then raise_UD();
-             ZMM[xreg][127..0] = aesimc(src_xmm) },
+    219 => ZMM[xreg][127..0] = aesimc(src_xmm),
     // AES-NI — AESENC
-    220 => { if ~(has_aesni) then raise_UD();
-             ZMM[xreg][127..0] = aesenc(read_simd(xreg), src_xmm) },
+    220 => ZMM[xreg][127..0] = aesenc(read_simd(xreg), src_xmm),
     // AES-NI — AESENCLAST
-    221 => { if ~(has_aesni) then raise_UD();
-             ZMM[xreg][127..0] = aesenclast(read_simd(xreg), src_xmm) },
+    221 => ZMM[xreg][127..0] = aesenclast(read_simd(xreg), src_xmm),
     // AES-NI — AESDEC
-    222 => { if ~(has_aesni) then raise_UD();
-             ZMM[xreg][127..0] = aesdec(read_simd(xreg), src_xmm) },
+    222 => ZMM[xreg][127..0] = aesdec(read_simd(xreg), src_xmm),
     // AES-NI — AESDECLAST
-    223 => { if ~(has_aesni) then raise_UD();
-             ZMM[xreg][127..0] = aesdeclast(read_simd(xreg), src_xmm) },
+    223 => ZMM[xreg][127..0] = aesdeclast(read_simd(xreg), src_xmm),
 
     // GFNI — GF2P8MULB (66 0F 38 CF)
     207 => {
-      if ~(has_gfni) then raise_UD();
       ZMM[xreg][127..0] = avx_gf2p8mulb(read_simd(xreg), src_xmm)
     },
 
@@ -1117,7 +1106,6 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
 
     // PCLMULQDQ xmm1, xmm2/m128, imm8
     68 => {
-      if ~(has_pclmulqdq) then raise_UD();
       let src_xmm = decode_xmm_src(xsrc);
       ZMM[xreg][127..0] = pclmulqdq_lane(read_simd(xreg), src_xmm, imm)
     },
@@ -1177,20 +1165,17 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
 
     // AES-NI — AESKEYGENASSIST
     223 => {
-      if ~(has_aesni) then raise_UD();
       ZMM[xreg][127..0] = aeskeygenassist(decode_xmm_src(xsrc), imm)
     },
 
     // GFNI — GF2P8AFFINEQB (66 0F 3A CE)
     206 => {
-      if ~(has_gfni) then raise_UD();
       let src_xmm = decode_xmm_src(xsrc);
       ZMM[xreg][127..0] = avx_gf2p8affineqb(read_simd(xreg), src_xmm, imm)
     },
 
     // GFNI — GF2P8AFFINEINVQB (66 0F 3A CF)
     207 => {
-      if ~(has_gfni) then raise_UD();
       let src_xmm = decode_xmm_src(xsrc);
       ZMM[xreg][127..0] = avx_gf2p8affineinvqb(read_simd(xreg), src_xmm, imm)
     },

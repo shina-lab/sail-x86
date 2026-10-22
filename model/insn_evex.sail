@@ -14,16 +14,11 @@ function evex_reg_idx(modrm, pfx) = {
 }
 
 // The opmask register ModR/M.reg names as a destination.  EVEX.R and EVEX.R'
-// would extend it past k7, and the encoding is #UD, as on hardware (a Zen 4
-// raises #UD for every opmask-destination form tried: VCMPPS, VPCMPD,
-// VPCMPEQD, VPTESTMD, VFPCLASSPS, VPMOVD2M, VPSHUFBITQMB).  An opmask in
-// ModR/M.r/m ignores EVEX.B and EVEX.X, and so do the VEX K instructions
-// their extension bits.
-val evex_kreg_dest : (byte, Prefixes) -> kreg_idx
-function evex_kreg_dest(modrm, pfx) = {
-  if pfx.rex_r == 0b1 | pfx.evex_rr == 0b1 then raise_UD();
-  unsigned(modrm[5..3])
-}
+// would extend it past k7, and the encoding is #UD (evex_check_form).  An
+// opmask in ModR/M.r/m ignores EVEX.B and EVEX.X, and so do the VEX K
+// instructions their extension bits.
+val evex_kreg_dest : byte -> kreg_idx
+function evex_kreg_dest(modrm) = unsigned(modrm[5..3])
 
 // Compute 5-bit r/m register index (for register operands only).
 // For memory operands, B extends the base register (4 bits, not 5).

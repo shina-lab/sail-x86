@@ -153,12 +153,23 @@ function fetch(n) = {
 
 // The next instruction byte, left in the stream: the ModR/M byte of an
 // opcode whose validity depends on it, checked before the instruction
-// decodes its operands (check_simd_0f_encoding).
+// decodes its operands (check_legacy_simd).
 val peek_modrm : unit -> byte
 function peek_modrm() = {
   let modrm : byte = fetch(1);
   decode_pos = decode_pos - 1;
   modrm
+}
+
+// The byte after the ModR/M byte, left in the stream like it: the SIB byte
+// of a VSIB operand, whose registers decide whether a gather is valid
+// (vex_check_form, evex_check_form).
+val peek_sib : unit -> byte
+function peek_sib() = {
+  let _ : byte = fetch(1);
+  let sib : byte = fetch(1);
+  decode_pos = decode_pos - 2;
+  sib
 }
 
 // =========================================================================

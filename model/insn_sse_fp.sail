@@ -175,13 +175,11 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         MP_F3 => {
           // MOVSLDUP xmm1, xmm2/m128 (SSE3)
-          if ~(has_sse3) then raise_UD();
           let d : xmmword = decode_xmm_src(src);
           ZMM[xreg][127..0] = d[95..64] @ d[95..64] @ d[31..0] @ d[31..0]
         },
         MP_F2 => {
           // MOVDDUP xmm1, xmm2/m64 (SSE3)
-          if ~(has_sse3) then raise_UD();
           let lo : qword = decode_scalar_src(src);
           ZMM[xreg][127..0] = lo @ lo
         },
@@ -244,7 +242,6 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         },
         MP_F3 => {
           // MOVSHDUP xmm1, xmm2/m128 (SSE3)
-          if ~(has_sse3) then raise_UD();
           let d : xmmword = decode_xmm_src(src);
           ZMM[xreg][127..0] = d[127..96] @ d[127..96] @ d[63..32] @ d[63..32];
         },
@@ -628,7 +625,6 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     },
     // 0F 7C: HADDPS/HADDPD (SSE3)
     124 => {
-      if ~(has_sse3) then raise_UD();
       let mp = get_mandatory_prefix(pfx);
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
@@ -642,7 +638,6 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     },
     // 0F 7D: HSUBPS/HSUBPD (SSE3)
     125 => {
-      if ~(has_sse3) then raise_UD();
       let mp = get_mandatory_prefix(pfx);
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
@@ -673,7 +668,6 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     },
     // 0F D0: ADDSUBPS/ADDSUBPD (SSE3)
     208 => {
-      if ~(has_sse3) then raise_UD();
       let mp = get_mandatory_prefix(pfx);
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);

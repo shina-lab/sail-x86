@@ -60,7 +60,6 @@ function vex_exec_fma_scalar(op, order, pfx) = {
 
 val dispatch_vex_0f38_fma : (range(0, 255), Prefixes) -> unit
 function dispatch_vex_0f38_fma(op, pfx) = {
-  if ~(has_fma) then raise_UD();
   let mp = get_mandatory_prefix(pfx);
 
   match op {

@@ -252,14 +252,6 @@ function packed_fpclass(eb, src, imm) = {
 // Complex FP16 multiply/accumulate helpers
 // =========================================================================
 
-// VF[C]MADDC[P/S]H and VF[C]MULC[P/S]H: #UD "If (dest_reg == src1_reg) or
-// (dest_reg == src2_reg)" (SDM Vol.2C, the instructions' exceptions).
-val complex_fp16_dest_check : (simd_idx, XRM, Prefixes) -> unit
-function complex_fp16_dest_check(dst, src2, pfx) = {
-  let same_src2 : bool = match src2 { XRM_reg(xi) => xi == dst, XRM_mem(_) => false };
-  if dst == pfx.evex_vvvvv | same_src2 then raise_UD()
-}
-
 // Complex multiply-accumulate one pair: dest += src1 * src2 (or conjugate of src2)
 // conj=true: conjugate (VFCMADDCPH), conj=false: normal (VFMADDCPH)
 val cfmaddcph_pair : (word, word, word, word, word, word, bool) -> (word, word)
@@ -1215,7 +1207,6 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-      complex_fp16_dest_check(dst, src, pfx);
       let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
       let conj : bool = (mp == MP_F2);
       if mp != MP_F2 & mp != MP_F3 then raise_UD();
@@ -1250,7 +1241,6 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 4);
-      complex_fp16_dest_check(dst, src, pfx);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let src2 : dword = decode_scalar_src(32, src);
       let acc : xmmword = read_simd(dst);
@@ -1277,7 +1267,6 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
-      complex_fp16_dest_check(dst, src, pfx);
       let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
       let conj : bool = (mp == MP_F2);
       if mp != MP_F2 & mp != MP_F3 then raise_UD();
@@ -1309,7 +1298,6 @@ function dispatch_evex_map6(opcode, pfx) = {
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 4);
-      complex_fp16_dest_check(dst, src, pfx);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       let src2 : dword = decode_scalar_src(32, src);
       let s1_re : word = src1[15..0];

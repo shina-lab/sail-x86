@@ -167,7 +167,6 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // 0F38 13: VCVTPH2PS xmm/ymm, xmm/m64/m128 (66 prefix)
   // SDM: VEX.vvvv must be 1111b
   19 => {
-    if ~(has_f16c) then raise_UD();
     if mp != MP_66 | pfx.vex_vvvv != 0 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xreg(modrm, pfx);
@@ -236,7 +235,6 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 DB: VAESIMC — VEX.128.66.0F38.WIG DB
   219 => {
-    if ~(has_aesni) then raise_UD();
     if mp != MP_66 then raise_UD();
     if pfx.vex_l then raise_UD();
     if pfx.vex_vvvv != 0 then raise_UD();
@@ -253,7 +251,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // signed words (52/53) of vvvv with the signed bytes/words of r/m; the
   // odd opcodes saturate.  Same element operation as the EVEX forms.
   op if 80 <= op & op <= 83 => {
-    if ~(has_avx_vnni) | mp != MP_66 | pfx.vex_w then raise_UD();
+    if mp != MP_66 | pfx.vex_w then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
@@ -266,11 +264,10 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 DC-DF: VAESENC/VAESENCLAST/VAESDEC/VAESDECLAST — VEX.66.0F38.WIG.
   // The VEX.128 form comes with AES + AVX, the VEX.256 form with the VAES
-  // extension (CPUID.07H:ECX[9]); each 128-bit lane is one round on its
+  // extension (vex_feature_present); each 128-bit lane is one round on its
   // own state and round key.
   op if 220 <= op & op <= 223 => {
-    let supported = if pfx.vex_l then has_vaes else has_aesni;
-    if ~(supported) | mp != MP_66 then raise_UD();
+    if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
@@ -1032,7 +1029,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // VGF2P8MULB: VEX.128/256.66.0F38.W0 CF /r — GFNI + AVX
   207 => {
     let mp = get_mandatory_prefix(pfx);
-    if mp != MP_66 | ~(has_gfni) then raise_UD();
+    if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);

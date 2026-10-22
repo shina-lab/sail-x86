@@ -780,10 +780,6 @@ function avx512_enabled() =
   avx_enabled() & has_avx512 &
   XCR0[5] == 0b1 & XCR0[6] == 0b1 & XCR0[7] == 0b1
 
-// Legacy SSE blocked by CR0.EM(bit 2)=1
-val sse_em_blocked : unit -> bool
-function sse_em_blocked() = CR0[2] == 0b1
-
 // =========================================================================
 // Convenience functions: configure features by processor level
 // =========================================================================

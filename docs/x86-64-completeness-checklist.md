@@ -944,7 +944,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] #OF (4) — overflow (INTO) — verified: INTO raises #UD in 64-bit mode (correct)
 - [x] #BR (5) — bound range exceeded (BOUND) — verified: BOUND raises #UD in 64-bit mode (correct)
 - [x] #UD (6) — invalid opcode — verified: raised throughout for invalid encodings
-- [N/A] #NM (7) — device not available; CR0.EM/TS lazy FPU switching not modeled (FPU always available)
+- [x] #NM (7) — device not available: CR0.EM/TS/MP for x87, MMX, SSE, AVX, AVX-512, the XSAVE family, FXSAVE/FXRSTOR, LDMXCSR/STMXCSR, EMMS and WAIT (exceptions.sail check_cr0_*); KVM template kvm-tests-cr0.cpp
 - [x] #DF (8) — double fault — verified: escalation logic in deliver_exception(), tested
 - [N/A] #TS (10) — invalid TSS; TSS validation not fully modeled
 - [x] #NP (11) — segment not present — verified: raised in deliver_exception_inner for not-present gate
@@ -971,12 +971,12 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] Same-privilege interrupt: no stack switch — verified: uses current RSP when old_cpl==0 and IST==0
 
 ### 5.3 Exception Conditions Per Instruction
-- [x] Each instruction must raise exactly the exceptions listed in SDM — verified for #UD, #GP, #PF, #DE; #NM/#XM/#AC/#SS not modeled (see above)
+- [x] Each instruction must raise exactly the exceptions listed in SDM — verified for #UD, #GP, #PF, #DE, #NM; #XM/#AC/#SS not modeled (see above)
 - [x] #UD for invalid opcode in current mode (e.g., ARPL in 64-bit) — verified: ARPL, INTO, BOUND, PUSHA/POPA all #UD
 - [x] #GP for privilege violations — verified: LGDT/LIDT/LMSW/INVLPG/RDMSR/WRMSR check CPL=0
 - [N/A] #SS for stack-segment violations — stack segment limits not enforced in 64-bit mode
 - [x] #PF for page faults with correct error code — verified: P, W/R, U/S, RSVD, I/D bits in error code
-- [N/A] #NM when CR0.EM=1 or CR0.TS=1 for x87/SSE/AVX — lazy FPU switching not modeled
+- [x] #NM when CR0.EM=1 or CR0.TS=1 for x87/SSE/AVX — after every #UD the encoding decides (but for x87 and the FXSAVE/FXRSTOR opcode), before memory faults; EM=1 is #UD for MMX/legacy SSE
 - [N/A] #XM or #UD based on CR4.OSXMMEXCPT for SSE exceptions — SSE exceptions always masked
 
 ---

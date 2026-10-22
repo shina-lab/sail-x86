@@ -849,6 +849,9 @@ function dispatch_x87(encoded_opcode, pfx) = {
   };
   let operand = modrm_rm(modrm, pfx);
   let op : range(0, 255) = unsigned(opcode);
+  // #NM if CR0.EM or CR0.TS is set, for every x87 instruction, the control
+  // instructions (FNINIT, FNSTSW, ...) included (SDM Vol.3A Table 2-2).
+  check_cr0_x87();
   // A fault leaves the status word as it was: the stack-fault flags an
   // operand read may have set before a store faults are undone.  An
   // unmasked stack fault ends the instruction with only its flags set.

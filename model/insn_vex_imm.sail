@@ -169,9 +169,6 @@ val dispatch_vex_0f3a : (byte, Prefixes) -> unit
 function dispatch_vex_0f3a(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
   let mp = get_mandatory_prefix(pfx);
-  // RORX (F0h/240) is BMI2 GPR-only: no AVX requirement.
-  // All other opcodes are SIMD and require AVX.
-  if op != 240 & ~(avx_enabled()) then raise_UD();
   // All opcodes in this map require 66h mandatory prefix except RORX (F0h/240)
   if op != 240 & mp != MP_66 then raise_UD();
 
@@ -290,7 +287,6 @@ function dispatch_vex_0f3a(opcode, pfx) = {
 
   // 0F3A 1D: VCVTPS2PH
   29 => {
-    if ~(has_f16c) then raise_UD();
     let (src, dest, imm) = vex_fetch_xrm_imm(pfx);
     let rc : bits(2) = if imm[2] == 0b0 then imm[1..0] else __stmxcsr()[14..13];
     let vl = vex_vl(pfx);
@@ -337,7 +333,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   // 0F3A 30-33: KSHIFTR/L {B,W,D,Q}
   op if 48 <= op & op <= 51 => {
     let modrm = fetch(1);
-    let k1 = vex_kreg_reg(modrm, pfx);
+    let k1 = vex_kreg_reg(modrm);
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
     let shift : range(0, 255) = unsigned(fetch(1));
     let w_mask : qword = sign_extend(bool_to_bit(pfx.vex_w));
@@ -370,12 +366,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   },
 
   // 0F3A 44: VPCLMULQDQ — the VEX.128 form comes with PCLMULQDQ + AVX,
-  // the VEX.256 form with the VPCLMULQDQ extension (CPUID.07H:ECX[10])
-  68 => {
-    let supported = if pfx.vex_l then has_vpclmulqdq else has_pclmulqdq;
-    if ~(supported) then raise_UD();
-    vex_exec_lane_bin_imm(VLBI_Pclmulqdq, pfx)
-  },
+  // the VEX.256 form with the VPCLMULQDQ extension (vex_feature_present)
+  68 => vex_exec_lane_bin_imm(VLBI_Pclmulqdq, pfx),
 
   // 0F3A 4A/4B/4C: VBLENDVPS/VPD/VB — variable blend, is4 (mask in imm8[7:4])
   op if 74 <= op & op <= 76 => {
@@ -411,7 +403,6 @@ function dispatch_vex_0f3a(opcode, pfx) = {
 
   // 0F3A CE/CF: VGF2P8AFFINEQB / VGF2P8AFFINEINVQB — VEX.128/256 with GFNI + AVX
   op if op == 206 | op == 207 => {
-    if ~(has_gfni) then raise_UD();
     let (dst, src, imm) = vex_fetch_xrm_imm(pfx);
     let vl = vex_vl(pfx);
     let a = read_simd(vl, pfx.vex_vvvv);
@@ -423,7 +414,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
 
   // 0F3A DF: VAESKEYGENASSIST — VEX.128, vvvv=1111b
   223 => {
-    if ~(has_aesni) | pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
+    if pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
     let (dst, src, imm) = vex_fetch_xrm_imm(pfx);
     write_simd(128, dst, aeskeygenassist(decode_vex_src(128, src), imm))
   },

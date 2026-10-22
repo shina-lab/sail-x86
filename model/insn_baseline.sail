@@ -1635,9 +1635,11 @@ function dispatch_2byte_gpr(op, pfx) = {
     },
 
     // 0F 77: EMMS — set x87 tag word to all empty.  NP 0F 77 (SDM Vol.2A
-    // EMMS): 66, F2 or F3 leaves it undefined; #UD also when CR0.EM = 1.
+    // EMMS): 66, F2 or F3 leaves it undefined; then #UD if CR0.EM = 1 and
+    // #NM if CR0.TS = 1, as for MMX.
     119 => {
-      if get_mandatory_prefix(pfx) != MP_NONE | sse_em_blocked() then raise_UD();
+      if get_mandatory_prefix(pfx) != MP_NONE then raise_UD();
+      check_cr0_sse();
       x87_tw = 0xFFFF
     },
 
@@ -1663,6 +1665,10 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F AE: Group 15 — FXSAVE/FXRSTOR/LDMXCSR/STMXCSR/XSAVE/XRSTOR/
     //                    LFENCE/MFENCE/SFENCE/RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE
     174 => {
+      // FXSAVE and FXRSTOR (/0 and /1, memory): #NM if CR0.EM or CR0.TS is
+      // set, as for x87 instructions (SDM Vol.2A FXSAVE), even with a
+      // prefix that leaves the opcode undefined (check_cr0_fxsave_opcode).
+      check_cr0_fxsave_opcode(peek_modrm());
       let (reg_field, dest) = fetch_modrm_raw(pfx);
       // The forms the SDM Vol.2 opcode tables define, by mandatory prefix
       // (FXSAVE, FXRSTOR, LDMXCSR, STMXCSR, XSAVE, XRSTOR, XSAVEOPT and
@@ -1741,15 +1747,16 @@ function dispatch_2byte_gpr(op, pfx) = {
           _ => raise_UD(),
         },
 
-        // LDMXCSR m32
-        2 => load_mxcsr(rm_mem(dest)),
+        // LDMXCSR m32 and STMXCSR m32 (SDM Vol.2A LDMXCSR and Vol.2B
+        // STMXCSR: exception class 5)
+        2 => { check_cr0_sse(); load_mxcsr(rm_mem(dest)) },
+        3 => { check_cr0_sse(); rm_mem(dest) = __stmxcsr() },
 
-        // STMXCSR m32
-        3 => rm_mem(dest) = __stmxcsr(),
-
-        // XSAVE m
+        // XSAVE m (#NM if CR0.TS = 1, whatever CR0.EM, as for the whole
+        // XSAVE family: SDM Vol.2D XSAVE)
         4 => match dest {
           RM_mem(m) => {
+            check_cr0_ts();
             let mask : qword = v(32, RDX) @ v(32, RAX);
             exec_xsave(seg_linear(m, 576), mask, pfx.rex_w)
           },
@@ -1759,6 +1766,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         5 => match dest {
           RM_mem(m) => {
             // /5 mem: XRSTOR m
+            check_cr0_ts();
             let mask : qword = v(32, RDX) @ v(32, RAX);
             exec_xrstor(seg_linear(m, 576), mask, pfx.rex_w)
           },
@@ -1777,6 +1785,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               cache_line_access(m)  // CLWB
             } else {
               // XSAVEOPT: architecturally equivalent to XSAVE
+              check_cr0_ts();
               let mask : qword = v(32, RDX) @ v(32, RAX);
               exec_xsaveopt(seg_linear(m, 576), mask, pfx.rex_w)
             }
@@ -2321,9 +2330,13 @@ function dispatch_2byte_gpr(op, pfx) = {
           },
           RM_reg(_) => raise_UD(),
         },
-        // /3 mem: XRSTORS — restore extended state (supervisor, requires CPL=0)
+        // /3 mem: XRSTORS — restore extended state (supervisor, requires
+        // CPL=0).  The #NM of CR0.TS, a fault from decoding the instruction,
+        // comes ahead of the #GP of CPL (SDM Vol.3A §7.9), here and in
+        // XSAVES.
         3 => match dest {
           RM_mem(m) => {
+            check_cr0_ts();
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = v(32, RDX) @ v(32, RAX);
             exec_xrstors(seg_linear(m, 576), mask, pfx.rex_w)
@@ -2333,6 +2346,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // /4 mem: XSAVEC — save extended state with compaction
         4 => match dest {
           RM_mem(m) => {
+            check_cr0_ts();
             let mask : qword = v(32, RDX) @ v(32, RAX);
             exec_xsavec(seg_linear(m, 576), mask, pfx.rex_w)
           },
@@ -2341,6 +2355,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // /5 mem: XSAVES — save extended state (supervisor, requires CPL=0)
         5 => match dest {
           RM_mem(m) => {
+            check_cr0_ts();
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = v(32, RDX) @ v(32, RAX);
             exec_xsaves(seg_linear(m, 576), mask, pfx.rex_w)
@@ -2432,10 +2447,8 @@ function dispatch_2byte_gpr(op, pfx) = {
 
     // 66/F2 0F 78 and 0F 79 on AMD: SSE4A EXTRQ and INSERTQ (exec_sse4a)
     op if (op == 120 | op == 121) & vendor == Vendor_AMD
-          & (get_mandatory_prefix(pfx) == MP_66 | get_mandatory_prefix(pfx) == MP_F2) => {
-      if sse_em_blocked() then raise_UD();
-      exec_sse4a(op, pfx)
-    },
+          & (get_mandatory_prefix(pfx) == MP_66 | get_mandatory_prefix(pfx) == MP_F2) =>
+      exec_sse4a(op, pfx),
 
     // 0F 78: VMREAD r/m64, r64 (SDM Vol.3C §31.2.4)
     // In 64-bit mode, operand size is always 64 bits.

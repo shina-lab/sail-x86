@@ -321,6 +321,11 @@ function rm_forms(mp, np, p66, f3, f2) = match mp {
   MP_F2   => f2,
 }
 
+// The forms of an instruction of a CPUID feature: none on a processor
+// without the feature, whose encodings are undefined there.
+val with_feature : (bool, RMForms) -> RMForms
+function with_feature(present, forms) = if present then forms else RMF_None
+
 // The SIMD opcodes of the 0F map (those dispatch_2byte_sse_fp,
 // dispatch_2byte_sse_int and dispatch_mmx implement) by mandatory prefix,
 // F2/F3 taking precedence over 66 (get_mandatory_prefix), as the opcode
@@ -329,19 +334,21 @@ function rm_forms(mp, np, p66, f3, f2) = match mp {
 // are "NP", which allows no 66, F2 or F3 (SDM Vol.2 §3.1.1.1).  An r/m
 // operand the table writes m64, m128 or mem is memory only, and one it
 // writes mm, xmm or reg alone a register only.  reg is ModR/M.reg, the
-// opcode extension of the 0F 71-73 groups.
+// opcode extension of the 0F 71-73 groups.  Every form is SSE, SSE2 or
+// MMX, which an x86-64 processor has, but for the SSE3 ones.
 val simd_0f_forms : (range(0, 255), MandatoryPrefix, range(0, 7)) -> RMForms
 function simd_0f_forms(op, mp, reg) = match op {
   // MOVUPS, MOVUPD, MOVSS, MOVSD (load and store)
   op if op == 16 | op == 17 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_Any),
   // MOVLPS xmm, m64 or MOVHLPS xmm, xmm; MOVLPD xmm, m64; MOVSLDUP; MOVDDUP
-  18 => rm_forms(mp, RMF_Any,  RMF_Mem,  RMF_Any,  RMF_Any),
+  18 => rm_forms(mp, RMF_Any,  RMF_Mem,  with_feature(has_sse3, RMF_Any),
+                 with_feature(has_sse3, RMF_Any)),
   // MOVLPS m64, xmm; MOVLPD m64, xmm
   19 => rm_forms(mp, RMF_Mem,  RMF_Mem,  RMF_None, RMF_None),
   // UNPCKLPS, UNPCKLPD; UNPCKHPS, UNPCKHPD
   op if op == 20 | op == 21 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
   // MOVHPS xmm, m64 or MOVLHPS xmm, xmm; MOVHPD xmm, m64; MOVSHDUP
-  22 => rm_forms(mp, RMF_Any,  RMF_Mem,  RMF_Any,  RMF_None),
+  22 => rm_forms(mp, RMF_Any,  RMF_Mem,  with_feature(has_sse3, RMF_Any), RMF_None),
   // MOVHPS m64, xmm; MOVHPD m64, xmm
   23 => rm_forms(mp, RMF_Mem,  RMF_Mem,  RMF_None, RMF_None),
   // MOVAPS, MOVAPD (load and store)
@@ -397,7 +404,8 @@ function simd_0f_forms(op, mp, reg) = match op {
   // PCMPEQB, PCMPEQW, PCMPEQD (mm, xmm)
   op if 116 <= op & op <= 118 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
   // HADDPD, HADDPS; HSUBPD, HSUBPS
-  op if op == 124 | op == 125 => rm_forms(mp, RMF_None, RMF_Any,  RMF_None, RMF_Any),
+  op if op == 124 | op == 125 =>
+    with_feature(has_sse3, rm_forms(mp, RMF_None, RMF_Any,  RMF_None, RMF_Any)),
   // MOVD/MOVQ r/m, mm; MOVD/MOVQ r/m, xmm; MOVQ xmm, xmm/m64
   126 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_None),
   // MOVQ mm/m64, mm; MOVDQA; MOVDQU (store)
@@ -411,7 +419,7 @@ function simd_0f_forms(op, mp, reg) = match op {
   // SHUFPS, SHUFPD
   198 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
   // ADDSUBPD, ADDSUBPS
-  208 => rm_forms(mp, RMF_None, RMF_Any,  RMF_None, RMF_Any),
+  208 => with_feature(has_sse3, rm_forms(mp, RMF_None, RMF_Any,  RMF_None, RMF_Any)),
   // PSRLW, PSRLD, PSRLQ, PADDQ, PMULLW (mm, xmm)
   op if 209 <= op & op <= 213 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
   // MOVQ xmm/m64, xmm; MOVQ2DQ xmm, mm; MOVDQ2Q mm, xmm
@@ -428,7 +436,7 @@ function simd_0f_forms(op, mp, reg) = match op {
   // PSUBS*, PMINSW, POR, PADDS*, PMAXSW, PXOR (mm, xmm)
   op if 232 <= op & op <= 239 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
   // LDDQU xmm, mem
-  240 => rm_forms(mp, RMF_None, RMF_None, RMF_None, RMF_Mem),
+  240 => with_feature(has_sse3, rm_forms(mp, RMF_None, RMF_None, RMF_None, RMF_Mem)),
   // PSLLW, PSLLD, PSLLQ, PMULUDQ, PMADDWD, PSADBW (mm, xmm)
   op if 241 <= op & op <= 246 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
   // MASKMOVQ mm, mm; MASKMOVDQU xmm, xmm
@@ -438,22 +446,97 @@ function simd_0f_forms(op, mp, reg) = match op {
   _ => RMF_None,
 }
 
-// #UD for a 0F-map SIMD opcode under a mandatory prefix that leaves it
-// undefined, or with an r/m form it does not take.  Either is a fault from
-// decoding the instruction (SDM Vol.3A §7.9, Table 7-2), so it comes ahead
-// of the #GP, #PF or #AC of an operand access, which arise only as the
-// instruction executes: it is checked on the ModR/M byte, before the
-// instruction's handler decodes and reads its operands.
-val check_simd_0f_encoding : (range(0, 255), Prefixes) -> unit
-function check_simd_0f_encoding(op, pfx) = {
+// The SIMD opcodes of the 0F 38 map, as simd_0f_forms gives those of the
+// 0F map: the SSSE3 forms with no prefix (MMX registers) or 66 (XMM
+// registers), the 66 forms of SSE4.1, SSE4.2, GFNI and AES-NI, and the NP
+// forms of SHA.  The general-purpose instructions of the map (MOVBE,
+// CRC32, ADCX, ADOX, INVEPT, INVPCID, MOVDIRI, MOVDIR64B, ENQCMD and
+// ENQCMDS) are decoded ahead of these.
+val simd_0f38_forms : (range(0, 255), MandatoryPrefix) -> RMForms
+function simd_0f38_forms(op, mp) = {
+  let p66 : RMForms = rm_forms(mp, RMF_None, RMF_Any, RMF_None, RMF_None);
+  match op {
+    // PSHUFB, PHADDW/D, PHADDSW, PMADDUBSW, PHSUBW/D, PHSUBSW, PSIGNB/W/D,
+    // PMULHRSW; PABSB/W/D (mm, xmm)
+    op if op <= 11 | (28 <= op & op <= 30) =>
+      with_feature(has_ssse3, rm_forms(mp, RMF_Any, RMF_Any, RMF_None, RMF_None)),
+    // PBLENDVB, BLENDVPS, BLENDVPD, PTEST; PMOVSX*; PMULDQ, PCMPEQQ,
+    // PACKUSDW; PMOVZX*; PMINSB ... PMULLD, PHMINPOSUW
+    op if op == 16 | op == 20 | op == 21 | op == 23 | (32 <= op & op <= 37)
+         | op == 40 | op == 41 | op == 43 | (48 <= op & op <= 53)
+         | (56 <= op & op <= 65) => with_feature(has_sse4_1, p66),
+    // MOVNTDQA xmm, m128
+    42 => with_feature(has_sse4_1, rm_forms(mp, RMF_None, RMF_Mem, RMF_None, RMF_None)),
+    // PCMPGTQ
+    55 => with_feature(has_sse4_2, p66),
+    // SHA1NEXTE, SHA1MSG1, SHA1MSG2, SHA256RNDS2, SHA256MSG1, SHA256MSG2
+    op if 200 <= op & op <= 205 =>
+      with_feature(has_sha, rm_forms(mp, RMF_Any, RMF_None, RMF_None, RMF_None)),
+    // GF2P8MULB
+    207 => with_feature(has_gfni, p66),
+    // AESIMC, AESENC, AESENCLAST, AESDEC, AESDECLAST
+    op if 219 <= op & op <= 223 => with_feature(has_aesni, p66),
+    _ => RMF_None,
+  }
+}
+
+// The opcodes of the 0F 3A map, all SIMD: the 66 forms of SSE4.1, SSE4.2,
+// PCLMULQDQ, GFNI and AES-NI, PALIGNR (SSSE3) with no prefix or 66, and
+// the NP SHA1RNDS4.
+val simd_0f3a_forms : (range(0, 255), MandatoryPrefix) -> RMForms
+function simd_0f3a_forms(op, mp) = {
+  let p66 : RMForms = rm_forms(mp, RMF_None, RMF_Any, RMF_None, RMF_None);
+  match op {
+    // ROUNDPS/PD/SS/SD, BLENDPS/PD, PBLENDW
+    op if 8 <= op & op <= 14 => with_feature(has_sse4_1, p66),
+    // PALIGNR (mm, xmm)
+    15 => with_feature(has_ssse3, rm_forms(mp, RMF_Any, RMF_Any, RMF_None, RMF_None)),
+    // PEXTRB, PEXTRW, PEXTRD/Q, EXTRACTPS; PINSRB, INSERTPS, PINSRD/Q;
+    // DPPS, DPPD, MPSADBW
+    op if (20 <= op & op <= 23) | (32 <= op & op <= 34) | (64 <= op & op <= 66) =>
+      with_feature(has_sse4_1, p66),
+    // PCLMULQDQ
+    68 => with_feature(has_pclmulqdq, p66),
+    // PCMPESTRM, PCMPESTRI, PCMPISTRM, PCMPISTRI
+    op if 96 <= op & op <= 99 => with_feature(has_sse4_2, p66),
+    // SHA1RNDS4
+    204 => with_feature(has_sha, rm_forms(mp, RMF_Any, RMF_None, RMF_None, RMF_None)),
+    // GF2P8AFFINEQB, GF2P8AFFINEINVQB
+    op if op == 206 | op == 207 => with_feature(has_gfni, p66),
+    // AESKEYGENASSIST
+    223 => with_feature(has_aesni, p66),
+    _ => RMF_None,
+  }
+}
+
+// The checks of a legacy-encoded SIMD instruction (MMX or SSE) of opcode
+// op in map 1 (0F), 2 (0F 38) or 3 (0F 3A), made once its opcode is
+// fetched and before its handler fetches and reads its operands: #UD for a
+// mandatory prefix that leaves the opcode undefined, an r/m form it does
+// not take, or a CPUID feature the processor lacks, all of which are
+// decided on the opcode and the ModR/M byte; then the #UD of CR0.EM and
+// the #NM of CR0.TS (check_cr0_sse).  These are faults from decoding the
+// instruction (SDM Vol.3A §7.9, Table 7-2), so they come ahead of the #GP,
+// #PF or #AC of an operand access, which arise only as the instruction
+// executes.  Of the #UD and #NM, the SDM gives no order; the hardware
+// raises the #UD of an undefined encoding.
+val check_legacy_simd : (range(1, 3), range(0, 255), Prefixes) -> unit
+function check_legacy_simd(map, op, pfx) = {
   let modrm = peek_modrm();
   let is_reg : bool = modrm[7..6] == 0b11;
-  match simd_0f_forms(op, get_mandatory_prefix(pfx), unsigned(modrm[5..3])) {
+  let mp = get_mandatory_prefix(pfx);
+  let forms : RMForms = match map {
+    1 => simd_0f_forms(op, mp, unsigned(modrm[5..3])),
+    2 => simd_0f38_forms(op, mp),
+    3 => simd_0f3a_forms(op, mp),
+  };
+  match forms {
     RMF_None => raise_UD(),
     RMF_Reg  => if ~(is_reg) then raise_UD(),
     RMF_Mem  => if is_reg then raise_UD(),
     RMF_Any  => (),
-  }
+  };
+  check_cr0_sse()
 }
 
 val dispatch_opcode_2byte : (byte, Prefixes) -> unit
@@ -490,11 +573,6 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         } else {
           raise_UD()
         }
-      } else if op3 == 20 | op3 == 21 then {
-        // BLENDVPS or BLENDVPD (SSE4.1)
-        if sse_em_blocked() then raise_UD();
-        if ~(has_sse4_1) then raise_UD();
-        dispatch_3byte_38_sse_fp(opcode3, pfx)
       } else if op3 == 128 & get_mandatory_prefix(pfx) == MP_66 then {
         // 66 0F 38 80: INVEPT r64, m128 — Invalidate EPT TLB
         if cur_cpl != 0 then raise_GP0();
@@ -577,48 +655,49 @@ function dispatch_opcode_2byte(opcode, pfx) = {
                               | get_mandatory_prefix(pfx) == MP_F3) then {
         // ENQCMD r, m512 (F2 0F 38 F8) and ENQCMDS r, m512 (F3 0F 38 F8)
         exec_enqcmd(pfx, get_mandatory_prefix(pfx) == MP_F3)
-      } else if 200 <= op3 & op3 <= 205 & get_mandatory_prefix(pfx) == MP_NONE then {
-        // SHA extensions (NP 0F 38 C8-CD)
-        if ~(has_sha) then raise_UD();
-        let modrm = fetch(1);
-        let xreg = modrm_xreg(modrm, pfx);
-        let src = modrm_xrm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(src);
-        match op3 {
-          // SHA1NEXTE xmm1, xmm2/m128
-          200 => ZMM[xreg][127..0] = sha1nexte(read_simd(xreg), src_xmm),
-          // SHA1MSG1 xmm1, xmm2/m128
-          201 => ZMM[xreg][127..0] = sha1msg1(read_simd(xreg), src_xmm),
-          // SHA1MSG2 xmm1, xmm2/m128
-          202 => ZMM[xreg][127..0] = sha1msg2(read_simd(xreg), src_xmm),
-          // SHA256RNDS2 xmm1, xmm2/m128, <XMM0>
-          203 => ZMM[xreg][127..0] = sha256rnds2(read_simd(xreg), src_xmm, read_simd(0)),
-          // SHA256MSG1 xmm1, xmm2/m128
-          204 => ZMM[xreg][127..0] = sha256msg1(read_simd(xreg), src_xmm),
-          // SHA256MSG2 xmm1, xmm2/m128
-          205 => ZMM[xreg][127..0] = sha256msg2(read_simd(xreg), src_xmm),
-          _ => raise_UD(),
-        }
       } else {
-        if sse_em_blocked() then raise_UD();
-        if ~(has_ssse3) then raise_UD();
-        dispatch_3byte_38_sse_int(opcode3, pfx)
+        // The SIMD opcodes (simd_0f38_forms)
+        check_legacy_simd(2, op3, pfx);
+        match op3 {
+          // BLENDVPS or BLENDVPD
+          op3 if op3 == 20 | op3 == 21 => dispatch_3byte_38_sse_fp(opcode3, pfx),
+          // SHA extensions (NP 0F 38 C8-CD)
+          op3 if 200 <= op3 & op3 <= 205 => {
+            let modrm = fetch(1);
+            let xreg = modrm_xreg(modrm, pfx);
+            let src = modrm_xrm(modrm, pfx);
+            let src_xmm : xmmword = decode_xmm_src(src);
+            match op3 {
+              // SHA1NEXTE xmm1, xmm2/m128
+              200 => ZMM[xreg][127..0] = sha1nexte(read_simd(xreg), src_xmm),
+              // SHA1MSG1 xmm1, xmm2/m128
+              201 => ZMM[xreg][127..0] = sha1msg1(read_simd(xreg), src_xmm),
+              // SHA1MSG2 xmm1, xmm2/m128
+              202 => ZMM[xreg][127..0] = sha1msg2(read_simd(xreg), src_xmm),
+              // SHA256RNDS2 xmm1, xmm2/m128, <XMM0>
+              203 => ZMM[xreg][127..0] = sha256rnds2(read_simd(xreg), src_xmm, read_simd(0)),
+              // SHA256MSG1 xmm1, xmm2/m128
+              204 => ZMM[xreg][127..0] = sha256msg1(read_simd(xreg), src_xmm),
+              // SHA256MSG2 xmm1, xmm2/m128
+              205 => ZMM[xreg][127..0] = sha256msg2(read_simd(xreg), src_xmm),
+              _ => raise_UD(),
+            }
+          },
+          _ => dispatch_3byte_38_sse_int(opcode3, pfx),
+        }
       }
     },
-    // 0F 3A: 3-byte escape (SSE4/AES-NI with imm8)
+    // 0F 3A: 3-byte escape (SSE4/AES-NI with imm8), all SIMD (simd_0f3a_forms)
     58 => {
-      if sse_em_blocked() then raise_UD();
       let opcode3 = fetch(1);
       let op3 : range(0, 255) = unsigned(opcode3);
+      check_legacy_simd(3, op3, pfx);
       match op3 {
         // SSE4.1 FP: ROUNDPS/PD/SS/SD, BLENDPS/PD, PEXTRW, EXTRACTPS, INSERTPS, DPPS, DPPD
-        op3 if (8 <= op3 & op3 <= 13) | op3 == 21 | op3 == 23 | op3 == 33 | op3 == 64 | op3 == 65 => {
-          if ~(has_sse4_1) then raise_UD();
-          dispatch_3byte_3a_sse_fp(opcode3, pfx)
-        },
-        204 if get_mandatory_prefix(pfx) == MP_NONE => {
+        op3 if (8 <= op3 & op3 <= 13) | op3 == 21 | op3 == 23 | op3 == 33 | op3 == 64 | op3 == 65 =>
+          dispatch_3byte_3a_sse_fp(opcode3, pfx),
+        204 => {
           // SHA1RNDS4 xmm1, xmm2/m128, imm8 (NP 0F 3A CC /r ib)
-          if ~(has_sha) then raise_UD();
           let modrm = fetch(1);
           let xreg = modrm_xreg(modrm, pfx);
           let src = modrm_xrm(modrm, pfx);
@@ -626,20 +705,15 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let src_xmm : xmmword = decode_xmm_src(src);
           ZMM[xreg][127..0] = sha1rnds4(read_simd(xreg), src_xmm, imm)
         },
-        _  => {
-          if ~(has_ssse3) then raise_UD();
-          dispatch_3byte_3a_sse_int(opcode3, pfx)
-        },
+        _  => dispatch_3byte_3a_sse_int(opcode3, pfx),
       }
     },
 
     // SSE floating-point (data movement, arithmetic, conversion, comparison)
-    // CR0.EM=1 blocks all legacy SSE instructions with #UD
     op if (16 <= op & op <= 23) | (40 <= op & op <= 47) | (80 <= op & op <= 95)
         | op == 124 | op == 125 | op == 194 | op == 198
         | op == 208 | op == 214 | op == 230 => {
-      if sse_em_blocked() then raise_UD();
-      check_simd_0f_encoding(op, pfx);
+      check_legacy_simd(1, op, pfx);
       dispatch_2byte_sse_fp(op, pfx)
     },
 
@@ -648,8 +722,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
     op if (96 <= op & op <= 118) | op == 126 | op == 127 | op == 196 | op == 197
         | (209 <= op & op <= 213) | (215 <= op & op <= 229)
         | (231 <= op & op <= 255) => {
-      if sse_em_blocked() then raise_UD();
-      check_simd_0f_encoding(op, pfx);
+      check_legacy_simd(1, op, pfx);
       dispatch_2byte_sse_int(op, pfx)
     },
 
@@ -1460,8 +1533,13 @@ function decode_execute() = {
         }
       },
 
-      // 9B: FWAIT/WAIT
-      155 => { __wait(); x87_undefine_cc(0x4700) },
+      // 9B: FWAIT/WAIT: #NM if CR0.MP and CR0.TS are both set, whatever
+      // CR0.EM (SDM Vol.3A §2.5, Table 2-2)
+      155 => {
+        if CR0[1] == 0b1 & CR0[3] == 0b1 then raise_NM();
+        __wait();
+        x87_undefine_cc(0x4700)
+      },
 
       // 9C: PUSHF (default64)
       // SDM: push(RFLAGS AND 00FCFFFFH) — RF (bit 16) and VM (bit 17) cleared.

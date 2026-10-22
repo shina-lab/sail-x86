@@ -24,7 +24,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   op if (65 <= op & op <= 66) | (68 <= op & op <= 71) | op == 74 => {
     let modrm = fetch(1);
     let unary : bool = op == 68;
-    let k1 = vex_kreg_reg(modrm, pfx);
+    let k1 = vex_kreg_reg(modrm);
     let k2 : qword = if unary then zeros() else read_kreg(vex_kreg_vvvv(pfx));
     let k3 : qword = read_kreg(unsigned(modrm[2..0]));
     let mask : qword = kreg_width_mask(mp, pfx.vex_w);
@@ -43,7 +43,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   // 0F 4B: KUNPCKBW (66,W0) / KUNPCKWD (NP,W0) / KUNPCKDQ (NP,W1)
   75 => {
     let modrm = fetch(1);
-    let k1 = vex_kreg_reg(modrm, pfx);
+    let k1 = vex_kreg_reg(modrm);
     let k2 = vex_kreg_vvvv(pfx);
     let k3 : range(0, 7) = unsigned(modrm[2..0]);
     if mp == MP_66 & ~(pfx.vex_w) then {
@@ -278,7 +278,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     // 0F 90: KMOV{W,B,D,Q} k1, k/m — load k-register
     // NP+W0=W(16), 66+W0=B(8), NP+W1=Q(64), 66+W1=D(32)
     let modrm = fetch(1);
-    let k1 = vex_kreg_reg(modrm, pfx);
+    let k1 = vex_kreg_reg(modrm);
     let src = modrm_rm(modrm, pfx);
     let mask : qword = kreg_width_mask(mp, pfx.vex_w);
     match src {
@@ -300,7 +300,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   // 0F 91: KMOV{W,B,D,Q} k/m, k1 — store k-register to memory
   145 => {
     let modrm = fetch(1);
-    let k1 = vex_kreg_reg(modrm, pfx);
+    let k1 = vex_kreg_reg(modrm);
     let src = modrm_rm(modrm, pfx);
     match src {
       RM_mem(m) => {
@@ -318,7 +318,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   // 0F 92: KMOV{W,B} r32→k (NP/66,W0) / KMOV{D,Q} r32/r64→k (F2,W0/W1)
   146 => {
     let modrm = fetch(1);
-    let k1 = vex_kreg_reg(modrm, pfx);
+    let k1 = vex_kreg_reg(modrm);
     let src = modrm_rm(modrm, pfx);
     match src {
       RM_reg(r) => {
@@ -356,7 +356,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   // 0F 98: KORTEST{W,B,D,Q} k1, k2 — ZF if k1|k2==0, CF if k1|k2==all-ones
   152 => {
     let modrm = fetch(1);
-    let k1 = vex_kreg_reg(modrm, pfx);
+    let k1 = vex_kreg_reg(modrm);
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
     let mask : qword = kreg_width_mask(mp, pfx.vex_w);
     let v1 : qword = read_kreg(k1) & mask;
@@ -373,7 +373,7 @@ function dispatch_vex_0f_int(op, pfx) = {
   // 0F 99: KTEST{W,B,D,Q} k1, k2 — ZF if k1&k2==0, CF if (~k1)&k2==0
   153 => {
     let modrm = fetch(1);
-    let k1 = vex_kreg_reg(modrm, pfx);
+    let k1 = vex_kreg_reg(modrm);
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
     let mask : qword = kreg_width_mask(mp, pfx.vex_w);
     let v1 : qword = read_kreg(k1) & mask;

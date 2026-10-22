@@ -62,3 +62,58 @@ function raise_BR() = {
   throw Fault(EXN_BR, 0x00000000);
   exit()  // never reached; satisfies type checker
 }
+
+// Raise #NM — device not available.
+val raise_NM : forall ('a : Type). unit -> 'a
+function raise_NM() = {
+  throw Fault(EXN_NM, 0x00000000);
+  exit()  // never reached; satisfies type checker
+}
+
+// CR0.EM and CR0.TS (SDM Vol.3A §2.5).  An OS sets TS on a task switch
+// and saves the x87, MMX and SIMD state of the old task only when the new
+// one first uses it, on the #NM; EM says there is no x87 FPU.  #UD and
+// #NM are both faults from decoding the instruction (Vol.3A §7.9, Table
+// 7-2), whose order the SDM leaves open, and come ahead of the #GP, #SS,
+// #PF and #AC of a memory operand (the exception classes of Vol.2A §2.5,
+// §2.8 and §2.9 list them in that order).  An Emerald Rapids raises every
+// #UD the encoding decides first: an undefined opcode, prefix, ModR/M.reg
+// extension or r/m form, a VSIB operand without a SIB byte, register
+// operands an instruction forbids, AVX or AVX-512 state disabled in XCR0.
+// The exceptions are the x87 instructions, whose undefined encodings (D9
+// D1, ...) raise the #NM as well, and the opcode of FXSAVE and FXRSTOR
+// (check_cr0_fxsave_opcode).  So the checks come after the decoder's (the
+// tables of insn_dispatch.sail, vex_check_form, evex_check_form) and
+// before the instruction touches its operands.  PAUSE, PREFETCHh, SFENCE,
+// LFENCE, MFENCE, MOVNTI, CLFLUSH, CRC32, POPCNT and the VEX-encoded
+// general-purpose instructions (BMI1, BMI2) are not affected.
+
+// MMX and legacy-encoded SSE instructions, LDMXCSR, STMXCSR and EMMS
+// (the exception classes of Vol.2A §2.5, Vol.3B §23.25.3 for MMX and the
+// EMMS page): #UD if EM = 1, whatever TS; else #NM if TS = 1.
+val check_cr0_sse : unit -> unit
+function check_cr0_sse() = {
+  if CR0[2] == 0b1 then raise_UD();   // EM
+  if CR0[3] == 0b1 then raise_NM()    // TS
+}
+
+// VEX- and EVEX-encoded SIMD instructions (Vol.2A §2.5 Types 1-12, §2.8
+// Types E1-E12, §2.9 Types K20 and K21) and XSAVE, XRSTOR, XSAVEOPT,
+// XSAVEC, XSAVES and XRSTORS: #NM if TS = 1.  EM does not affect them.
+val check_cr0_ts : unit -> unit
+function check_cr0_ts() = if CR0[3] == 0b1 then raise_NM()
+
+// x87 instructions (Vol.3A Table 2-2), FXSAVE and FXRSTOR (Vol.2A): #NM
+// if EM = 1 or TS = 1.  WAIT/FWAIT has a rule of its own (opcode 9B).
+val check_cr0_x87 : unit -> unit
+function check_cr0_x87() = if CR0[2] == 0b1 | CR0[3] == 0b1 then raise_NM()
+
+// 0F AE /0 and /1 with a memory operand, the opcode of FXSAVE and FXRSTOR,
+// is #UD with a 66, F2 or F3 prefix and VEX- or EVEX-encoded, but an
+// Emerald Rapids raises the #NM of FXSAVE (check_cr0_x87) first, whatever
+// the VEX or EVEX fields and with AVX or AVX-512 state disabled in XCR0.
+// The #UD of a LOCK prefix, of a prefix ahead of VEX and of a reserved
+// EVEX bit still comes first.  modrm is the ModR/M byte after the opcode.
+val check_cr0_fxsave_opcode : byte -> unit
+function check_cr0_fxsave_opcode(modrm) =
+  if modrm[7..6] != 0b11 & modrm[5..4] == 0b00 then check_cr0_x87()

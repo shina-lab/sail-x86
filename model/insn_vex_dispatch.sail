@@ -43,20 +43,11 @@ val dispatch_vex_0f38 : (byte, Prefixes) -> unit
 function dispatch_vex_0f38(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
 
-  // BMI1/BMI2 GPR instructions (opcodes F2-F7) do not require AVX, and
-  // the Intel AMX instructions (49, 4B, 5C, 5E) need CR4.OSXSAVE and
-  // XCR0[18:17] rather than XCR0.AVX (SDM Vol.2 Table 1-67; checked in
-  // dispatch_amx).  All other VEX 0F38 instructions use SIMD and require
-  // avx_enabled().
-  let is_bmi = (242 <= op & op <= 247);
-  let is_amx = op == 73 | op == 75 | op == 92 | op == 94;
-  if ~(is_bmi) & ~(is_amx) & ~(avx_enabled()) then raise_UD();
-
   match op {
     // Intel AMX: LDTILECFG/STTILECFG/TILERELEASE/TILEZERO (49),
     // TILELOADD/TILELOADDT1/TILESTORED (4B), TDPBF16PS (5C),
     // TDPBSSD/TDPBSUD/TDPBUSD/TDPBUUD (5E)
-    op if is_amx => dispatch_amx(op, pfx),
+    op if op == 73 | op == 75 | op == 92 | op == 94 => dispatch_amx(op, pfx),
 
     // SSSE3, SSE4, broadcast, BMI, variable shifts, gather, test, maskmov,
     // permute, AVX-VNNI, VGF2P8MULB, AES
@@ -93,9 +84,9 @@ function dispatch_vex_0f38(opcode, pfx) = {
 // define, is #UD, which dispatch_vex_with_byte2 raises before a handler
 // runs.  Run over every map, opcode, pp, L, W, vvvv = 1111b or not, and
 // register or memory r/m, a Zen 4 and an Emerald Rapids agree with these
-// tables wherever the handlers' own checks (ModRM.reg, VSIB, CPUID
-// features) do not decide, except where an entry says otherwise; the AMX
-// opcodes were not probed.
+// tables wherever the other checks of vex_check_form (ModRM.reg, VSIB,
+// opmask registers, CPUID features) do not decide, except where an entry
+// says otherwise; the AMX opcodes were not probed.
 //
 // A set of forms is a mask over the 16 combinations of VEX.L, VEX.W,
 // V (VEX.vvvv != 1111b) and M (a memory r/m): bit 8 L + 4 W + 2 V + M.
@@ -255,7 +246,7 @@ function vex_forms_0f(op, mp) = match (op, mp) {
   (0x70, MP_66)    => vex_form(VEX_L0 | VEX_L1, VEX_WIG, VEX_V1111, VEX_RM), // VPSHUFD
   (0x70, MP_F3)    => vex_form(VEX_L0 | VEX_L1, VEX_WIG, VEX_V1111, VEX_RM), // VPSHUFHW
   (0x70, MP_F2)    => vex_form(VEX_L0 | VEX_L1, VEX_WIG, VEX_V1111, VEX_RM), // VPSHUFLW
-  // Groups 12-14; the handler checks ModRM.reg (/digit).
+  // Groups 12-14; vex_digit_valid checks ModRM.reg (/digit).
   (0x71, MP_66)    => vex_form(VEX_L0 | VEX_L1, VEX_WIG, VEX_VVVV, VEX_REG), // VPSRLW /2, VPSRAW /4, VPSLLW /6
   (0x72, MP_66)    => vex_form(VEX_L0 | VEX_L1, VEX_WIG, VEX_VVVV, VEX_REG), // VPSRLD /2, VPSRAD /4, VPSLLD /6
   (0x73, MP_66)    => vex_form(VEX_L0 | VEX_L1, VEX_WIG, VEX_VVVV, VEX_REG), // VPSRLQ /2, VPSRLDQ /3, VPSLLQ /6, VPSLLDQ /7
@@ -432,7 +423,7 @@ function vex_forms_0f38(op, mp) = match (op, mp) {
   (0x79, MP_66)    => vex_form(VEX_L0 | VEX_L1, VEX_W0, VEX_V1111, VEX_RM), // VPBROADCASTW
   (0x8C, MP_66)    => vex_form(VEX_L0 | VEX_L1, VEX_W0 | VEX_W1, VEX_VVVV, VEX_MEM), // VPMASKMOVD, VPMASKMOVQ
   (0x8E, MP_66)    => vex_form(VEX_L0 | VEX_L1, VEX_W0 | VEX_W1, VEX_VVVV, VEX_MEM), // VPMASKMOVD, VPMASKMOVQ
-  // Gathers: VSIB memory operands (decode_vsib_vex).
+  // Gathers: VSIB memory operands (vex_check_form).
   (0x90, MP_66)    => vex_form(VEX_L0 | VEX_L1, VEX_W0 | VEX_W1, VEX_VVVV, VEX_MEM), // VPGATHERDD, VPGATHERDQ
   (0x91, MP_66)    => vex_form(VEX_L0 | VEX_L1, VEX_W0 | VEX_W1, VEX_VVVV, VEX_MEM), // VPGATHERQD, VPGATHERQQ
   (0x92, MP_66)    => vex_form(VEX_L0 | VEX_L1, VEX_W0 | VEX_W1, VEX_VVVV, VEX_MEM), // VGATHERDPS, VGATHERDPD
@@ -572,6 +563,112 @@ function vex_form_valid(map, opcode, pfx) = {
   }
 }
 
+// The ModR/M.reg extensions (/digit) of the VEX opcode groups: 0F 71 and
+// 0F 72 (groups 12 and 13: /2, /4, /6), 0F 73 (group 14: /2, /3, /6, /7)
+// and 0F AE (group 15: /2 VLDMXCSR, /3 VSTMXCSR).
+val vex_digit_valid : (range(0, 31), byte, range(0, 7)) -> bool
+function vex_digit_valid(map, opcode, digit) = match (map, opcode) {
+  (1, 0x71) => digit == 2 | digit == 4 | digit == 6,
+  (1, 0x72) => digit == 2 | digit == 4 | digit == 6,
+  (1, 0x73) => digit == 2 | digit == 3 | digit == 6 | digit == 7,
+  (1, 0xAE) => digit == 2 | digit == 3,
+  _ => true,
+}
+
+// Whether the processor has the CPUID feature a VEX-encoded SIMD
+// instruction needs beyond AVX and AVX2.  The general-purpose instructions
+// (BMI1, BMI2) and AMX check theirs in their handlers.
+val vex_feature_present : (range(0, 31), byte, Prefixes) -> bool
+function vex_feature_present(map, opcode, pfx) = {
+  let op : range(0, 255) = unsigned(opcode);
+  match map {
+    2 => match op {
+      // VCVTPH2PS
+      19 => has_f16c,
+      // VPDPBUSD, VPDPBUSDS, VPDPWSSD, VPDPWSSDS
+      op if 80 <= op & op <= 83 => has_avx_vnni,
+      // FMA3
+      op if (150 <= op & op <= 159) | (166 <= op & op <= 175) | (182 <= op & op <= 191) =>
+        has_fma,
+      // VGF2P8MULB
+      207 => has_gfni,
+      // VAESIMC
+      219 => has_aesni,
+      // VAESENC, VAESENCLAST, VAESDEC, VAESDECLAST: VEX.128 with AES-NI,
+      // VEX.256 with VAES (CPUID.07H:ECX[9])
+      op if 220 <= op & op <= 223 => if pfx.vex_l then has_vaes else has_aesni,
+      _ => true,
+    },
+    3 => match op {
+      // VCVTPS2PH
+      29 => has_f16c,
+      // VPCLMULQDQ: VEX.128 with PCLMULQDQ, VEX.256 with VPCLMULQDQ
+      // (CPUID.07H:ECX[10])
+      68 => if pfx.vex_l then has_vpclmulqdq else has_pclmulqdq,
+      // VGF2P8AFFINEQB, VGF2P8AFFINEINVQB
+      op if op == 206 | op == 207 => has_gfni,
+      // VAESKEYGENASSIST
+      223 => has_aesni,
+      _ => true,
+    },
+    _ => true,
+  }
+}
+
+// #UD for a VEX encoding that is no instruction: not one of its opcode's
+// forms (vex_form_valid); a ModR/M.reg extension its group does not
+// define; a gather (0F38 90-93) whose memory operand has no SIB byte or
+// whose destination, index and mask registers are not all distinct (SDM
+// VPGATHERDD etc.: "#UD if the memory operand is encoded without the SIB
+// byte", "if any pair of the index, mask, or destination registers are
+// the same"; both on a Zen 4 and an Emerald Rapids); an opmask
+// instruction's opmask in ModR/M.reg with VEX.R set or in VEX.vvvv with
+// its bit 3 set, which is #UD on Intel and ignored on AMD (checked on an
+// Emerald Rapids and a Zen 4; vex_kreg_reg); or a SIMD instruction of a
+// CPUID feature the processor lacks.  An Emerald Rapids raises all of
+// these ahead of the #NM of CR0.TS (check_cr0_ts).  Returns the prefixes
+// with vvvv as the instruction reads it.
+val vex_check_form : (range(0, 31), byte, Prefixes) -> Prefixes
+function vex_check_form(map, opcode, pfx) = {
+  if ~(vex_form_valid(map, opcode, pfx)) then raise_UD();
+  // Outside 64-bit mode, "the 3-byte VEX version will ignore" the top bit
+  // of vvvv (SDM Vol.2A §2.3.5.6; in the 2-byte VEX it is 1, or the
+  // instruction is LDS).  An Emerald Rapids ignores it where vvvv names a
+  // register, a vector, a GPR, a gather's mask or an opmask, but raises
+  // #UD for 0111b where vvvv is reserved, as in 64-bit mode: the forms
+  // above have checked the whole field.
+  let pfx = if cur_mode != LongMode then { pfx with vex_vvvv = pfx.vex_vvvv % 8 } else pfx;
+  let op : range(0, 255) = unsigned(opcode);
+  // VZEROUPPER and VZEROALL have no ModR/M byte.
+  if map != 1 | op != 119 then {
+    let modrm = vex_peek_modrm();
+    if ~(vex_digit_valid(map, opcode, unsigned(modrm[5..3]))) then raise_UD();
+    if map == 2 & 144 <= op & op <= 147 then {
+      if modrm[2..0] != 0b100 then raise_UD();
+      let sib = peek_sib();
+      let dst : simd_idx = unsigned(pfx.rex_r @ modrm[5..3]);
+      let index : simd_idx = unsigned(pfx.rex_x @ sib[5..3]);
+      let mask : simd_idx = pfx.vex_vvvv;
+      if dst == index | dst == mask | index == mask then raise_UD()
+    };
+    // The opmask in ModR/M.reg of KAND, KANDN, KNOT, KOR, KXNOR, KXOR,
+    // KADD, KUNPCK, KMOV (but the move to a general-purpose register, 0F
+    // 93), KORTEST, KTEST (0F 41-4B, 90-92, 98, 99) and KSHIFTR/KSHIFTL
+    // (0F3A 30-33), and the one in vvvv of the two-source ones.
+    let k_reg : bool = match map {
+      1 => (65 <= op & op <= 71 & op != 67) | op == 74 | op == 75 | (144 <= op & op <= 146)
+           | op == 152 | op == 153,
+      3 => 48 <= op & op <= 51,
+      _ => false,
+    };
+    let k_vvvv : bool = k_reg & map == 1 & op != 68 & op < 144;
+    if vendor == Vendor_Intel & (k_reg & pfx.rex_r == 0b1 | k_vvvv & pfx.vex_vvvv >= 8)
+    then raise_UD()
+  };
+  if ~(vex_feature_present(map, opcode, pfx)) then raise_UD();
+  pfx
+}
+
 // =========================================================================
 // Top-level VEX dispatch — called from 1-byte opcode map for C4/C5.
 // Must come after dispatch_vex_0f/0f38/0f3a definitions.
@@ -586,9 +683,6 @@ function vex_form_valid(map, opcode, pfx) = {
 val dispatch_vex_with_byte2 : (byte, byte, Prefixes) -> unit
 function dispatch_vex_with_byte2(first_byte, b1, lpfx) = {
   if cur_mode == Virtual8086Mode then raise_UD();
-  // NOTE: avx_enabled() is NOT checked here.  VEX-encoded GPR-only
-  // instructions (BMI1/BMI2) do not require CR4.OSXSAVE or XCR0[AVX].
-  // The check is deferred to sub-dispatchers that handle SIMD instructions.
   let (pfx, map) : (Prefixes, range(0, 31)) =
     if first_byte == 0xC5 then {
       decode_vex2(b1)
@@ -600,17 +694,28 @@ function dispatch_vex_with_byte2(first_byte, b1, lpfx) = {
   let pfx = { pfx with seg_override = lpfx.seg_override, has_adsize = lpfx.has_adsize };
 
   let opcode = fetch(1);
-  if ~(vex_form_valid(map, opcode, pfx)) then raise_UD();
-  // Outside 64-bit mode, "the 3-byte VEX version will ignore" the top bit
-  // of vvvv (SDM Vol.2A §2.3.5.6; in the 2-byte VEX it is 1, or the
-  // instruction is LDS).  An Emerald Rapids ignores it where vvvv names a
-  // register, a vector or a GPR, but raises #UD for 0111b where vvvv is
-  // reserved, as in 64-bit mode: the forms above have checked the whole
-  // field.
-  let pfx = if cur_mode != LongMode then { pfx with vex_vvvv = pfx.vex_vvvv % 8 } else pfx;
+  if map == 1 & opcode == 0xAE then check_cr0_fxsave_opcode(vex_peek_modrm());
+  let pfx = vex_check_form(map, opcode, pfx);
+  // The VEX-encoded general-purpose instructions, BMI1 and BMI2 (0F38
+  // F2-F3, F5-F7; 0F3A F0: exception class 13, SDM Vol.2A Table 2-29),
+  // need neither CR4.OSXSAVE and XCR0[2:1] = 11b nor CR0.TS = 0, and Intel
+  // AMX (0F38 49, 4B, 5C, 5E) has its own state requirement (dispatch_amx)
+  // and no #NM of CR0.TS (the AMX exception classes, Vol.2A §2.10; its #NM
+  // is that of XFD).  Every other VEX instruction is SIMD: #UD unless AVX
+  // is enabled, then #NM if CR0.TS = 1 (check_cr0_ts).
+  let op : range(0, 255) = unsigned(opcode);
+  let gpr_or_amx : bool = match map {
+    2 => (242 <= op & op <= 247) | op == 73 | op == 75 | op == 92 | op == 94,
+    3 => op == 240,
+    _ => false,
+  };
+  if ~(gpr_or_amx) then {
+    if ~(avx_enabled()) then raise_UD();
+    check_cr0_ts()
+  };
 
   match map {
-    1 => { if ~(avx_enabled()) then raise_UD(); dispatch_vex_0f(opcode, pfx) },
+    1 => dispatch_vex_0f(opcode, pfx),
     2 => dispatch_vex_0f38(opcode, pfx),
     3 => dispatch_vex_0f3a(opcode, pfx),
     _ => raise_UD(),
