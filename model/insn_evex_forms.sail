@@ -28,20 +28,21 @@
 // the forms of AVX512_4FMAPS and AVX512_4VNNIW, which the model does not
 // implement (evex_feature_present).
 //
-// The table and checks were compared with an Intel Emerald Rapids and an
-// AMD Zen 4 executing every map, opcode, pp, W, ModRM.reg, register and
-// memory r/m and vector length, each with EVEX.b, z, aaa, vvvv, V' and
-// L'L = 11b varied one at a time.  The hardware agrees with them, except
-// for:
-//   - VCVTSI2SD, VCVTUSI2SD, VCVTDQ2PD and VCVTUDQ2PD (W0): their rows
-//     have no {er}, but both vendors take EVEX.b in the register form as
-//     for the {er} W1 forms of the same opcodes, including the 512-bit
-//     vector length.  Their arms say RC_ER, marked "EVEX.b as W1".
-//   - AMD, which ignores EVEX.b in the register form of a form with a
-//     broadcast but no {er}/{sae} (the vector length stays EVEX.L'L), and
-//     EVEX.z in a form without masking unless the zeroing would apply to
-//     an opmask or memory operand.  Intel raises #UD for both, as the SDM
-//     says.
+// The SDM rows of VCVTSI2SD and VCVTUSI2SD (W0), VCVTDQ2PD and VCVTUDQ2PD
+// have no {er}, but their pages accept EVEX.b in the register form:
+// "EVEX.W0 version: attempt to encode this instruction with EVEX embedded
+// rounding is ignored" (CVTSI2SD, VCVTUSI2SD), "Attempt to encode this
+// instruction with EVEX embedded rounding is ignored" (CVTDQ2PD,
+// VCVTUDQ2PD).  The APM lists these encodings as {er} forms, e.g.
+// "VCVTDQ2PD zmm1 {k}{z}, ymm2 {er} 62 RXBR'.1 0.1111.10 z.rc.1.1.aaa E6
+// /r" (Vol.4 VCVTDQ2PD, VCVTUDQ2PD, VCVTSI2SD, VCVTUSI2SD), with the
+// 512-bit vector length of an {er} form (Table 2-38).  Their arms say
+// RC_ER, marked "EVEX.b as W1"; the conversions are exact, so the
+// rounding mode has no effect.
+//
+// The APM gives the same #UD conditions for AMD processors (Vol.4 §3.2.4,
+// "Exceptions Caused by Illegal EVEX encodings"), and the checks apply to
+// both vendors.
 
 // What EVEX.V':vvvv encodes (SDM Vol.2A Tables 2-33 and 2-41).
 enum EvexVvvv = {
@@ -813,8 +814,8 @@ function evex_gpr_destination(mmm, opcode, pp) = {
 
 // Check an EVEX instruction against the form of its map (mmm), opcode, pp,
 // W, ModRM.reg and ModRM.mod, and raise #UD for an encoding the form does
-// not allow.  Returns the prefixes with the fields AMD ignores cleared, and
-// with the register number in EVEX.vvvv as the mode makes it.
+// not allow.  Returns the prefixes with the register number in EVEX.vvvv
+// as the mode makes it.
 // What a valid EVEX.b means in a register form, static rounding or SAE
 // with the 512-bit vector length, is up to the handlers (evex_begin_rc,
 // evex_sae_ll in insn_evex.sail).
@@ -844,12 +845,11 @@ function evex_check_form(mmm, opcode, pfx) = {
   if ~(evex_feature_present(mmm, opcode, pp)) then raise_UD();
 
   // EVEX.b (Table 2-43): in a register form, static rounding ({er}) or SAE
-  // ({sae}); in a memory form, embedded broadcast (§2.7.7); #UD otherwise.
-  // AMD ignores it in the register form of a form with a broadcast.
-  let b_ignored : bool =
-    pfx.evex_b & is_reg & f.rounding == RC_NONE & f.bcst != 0 & vendor == Vendor_AMD;
-  if pfx.evex_b & ~(b_ignored) & (if is_reg then f.rounding == RC_NONE else f.bcst == 0)
-  then raise_UD();
+  // ({sae}); in a memory form, embedded broadcast (§2.7.7); #UD otherwise,
+  // also in the register form of a form with a broadcast ("EVEX.b == 1 |
+  // Non-Memory instructions that specify neither {er} nor {sae} | #UD |
+  // #UD", APM Vol.4 §3.2.4).
+  if pfx.evex_b & (if is_reg then f.rounding == RC_NONE else f.bcst == 0) then raise_UD();
   let rc_form : bool = pfx.evex_b & is_reg & f.rounding != RC_NONE;
 
   // EVEX.L'L (Table 2-38): one of the vector lengths of the form's rows.
@@ -887,9 +887,10 @@ function evex_check_form(mmm, opcode, pfx) = {
   // EVEX.aaa and EVEX.z (Table 2-42): an instruction without an opmask
   // needs aaa = 000b, and a gather or scatter, which updates its mask,
   // aaa != 000b.  Zeroing-masking needs a mask (aaa != 000b) and is #UD
-  // for opmask operands, stores, gathers and scatters.  AMD ignores
-  // EVEX.z in a form without masking unless the zeroing would apply to an
-  // opmask or memory operand.
+  // for opmask operands, stores, gathers and scatters, and in a form
+  // without masking ("EVEX.z == 1 && EVEX.aaa == 000b | All instructions |
+  // #UD | #UD", "EVEX.z == 1 | Instructions that do not specify {z} | #UD
+  // | #UD", APM Vol.4 §3.2.4).
   let masked = pfx.evex_aaa != 0;
   let unmasked_form : bool = match f.masking {
     K_NONE    => true,
@@ -900,9 +901,7 @@ function evex_check_form(mmm, opcode, pfx) = {
   if unmasked_form & masked then raise_UD();
   if f.vvvv == V_VSIB & ~(masked) then raise_UD();
   let zeroing_ok : bool = masked & (f.masking == K_ZERO | f.masking == K_ZERO_RM & is_reg);
-  let z_ignored : bool =
-    vendor == Vendor_AMD & (f.masking == K_NONE | f.masking == K_NONE_RM & is_reg);
-  if pfx.evex_z == bitone & ~(zeroing_ok) & ~(z_ignored) then raise_UD();
+  if pfx.evex_z == bitone & ~(zeroing_ok) then raise_UD();
 
   // The conditions of single instructions: a VSIB operand needs a SIB byte,
   // and a gather's destination must not be its index register (SDM
@@ -936,7 +935,5 @@ function evex_check_form(mmm, opcode, pfx) = {
   if complex_fp16 & (dst == vvvvv | is_reg & dst == evex_rm_reg_idx(modrm, pfx))
   then raise_UD();
 
-  { pfx with evex_b = pfx.evex_b & ~(b_ignored),
-             evex_z = if z_ignored then bitzero else pfx.evex_z,
-             evex_vvvvv = vvvvv }
+  { pfx with evex_vvvvv = vvvvv }
 }

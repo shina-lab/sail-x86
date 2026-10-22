@@ -102,10 +102,12 @@ function evex_vl(pfx) = ll_to_vl(pfx.evex_ll)
 
 // The length field of an instruction with {sae}: with a register r/m
 // operand, EVEX.b selects suppress-all-exceptions, L'L is ignored, and
-// the vector length is implied, 512 bits for a packed instruction (SDM
-// Vol.2 §2.7.6, Table 2-36, register-register forms with EVEX.b set).  A
-// Zen 4 and an Emerald Rapids both write all 512 bits of VGETMANTPS ymm
-// with EVEX.b, for example.  evex_begin_rc does the same for {er}.
+// the vector length is implied, 512 bits for a packed instruction ("Reg-
+// reg, FP Instructions w/ rounding semantic or SAE | ... | Vector length
+// Implied (512 bit or scalar)", SDM Vol.2A §2.7.10, Table 2-38; "Size of
+// operation is set to 512 (vector instruction) or 128 (scalar
+// instructions)", APM Vol.3 Table 1-28).  evex_begin_rc does the same for
+// {er}.
 val evex_sae_ll : (Prefixes, XRM) -> range(0, 3)
 function evex_sae_ll(pfx, xm) = match xm {
   XRM_reg(_) => if pfx.evex_b then 2 else pfx.evex_ll,

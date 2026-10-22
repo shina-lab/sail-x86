@@ -232,6 +232,26 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "operand in 64b mode\"; APM Vol.4 KMOVQ (p.211), \"These encodings are only available in "
      "64-bit mode\", and §3.2.5 (p.1881), \"Undefined cases of a value of VEX.W\" \"may cause a "
      "#UD\""},
+    {true, "*[EVEX.b]*",
+     "Zen 4 ignores EVEX.b in the register form of an instruction with neither {er} nor {sae}; "
+     "#UD in both manuals: APM Vol.4 §3.2.4 (p.1880), \"EVEX.b == 1 | Non-Memory instructions "
+     "that specify neither {er} nor {sae} | #UD | #UD\"; SDM Vol.2A Table 2-43 (p.2-45), valid "
+     "only for \"Reg-reg, FP instructions with rounding semantic\", \"Other reg-reg, FP "
+     "instructions that can cause #XM\" and reg-mem broadcasts, \"If EVEX.b = 1\" otherwise.  "
+     "(The variant sets EVEX.b in every form, also where it is valid.)"},
+    {true, "*{1toN}* [memory r/m as register]*",
+     "Zen 4 ignores EVEX.b in the register form of an instruction with neither {er} nor {sae} "
+     "(the variant keeps the broadcast's EVEX.b); #UD in both manuals: APM Vol.4 §3.2.4 "
+     "(p.1880), \"EVEX.b == 1 | Non-Memory instructions that specify neither {er} nor {sae} | "
+     "#UD | #UD\"; SDM Vol.2A Table 2-43 (p.2-45), valid only for \"Reg-reg, FP instructions "
+     "with rounding semantic\", \"Other reg-reg, FP instructions that can cause #XM\" and "
+     "reg-mem broadcasts, \"If EVEX.b = 1\" otherwise"},
+    {true, "*[EVEX.z]*",
+     "Zen 4 ignores EVEX.z in a form without masking (VAESENC and VPCLMULQDQ among them) unless "
+     "the zeroing would apply to an opmask or memory operand; #UD in both manuals: APM Vol.4 "
+     "§3.2.4 (p.1879), \"EVEX.z == 1 && EVEX.aaa == 000b | All instructions | #UD | #UD\"; SDM "
+     "Vol.2A Table 2-42 (p.2-44), \"EVEX.z | Instructions with EVEX.aaa = 000b. | If EVEX.z != "
+     "0\".  (The variant sets EVEX.z in every form, also where it is valid.)"},
 };
 
 bool host_is_amd() {

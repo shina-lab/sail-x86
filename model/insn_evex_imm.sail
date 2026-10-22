@@ -1238,13 +1238,12 @@ function dispatch_evex_imm(op, pfx) = {
 
   // 0F3A 44: VPCLMULQDQ (66) — carry-less multiply per 128-bit lane [VPCLMULQDQ]
   // The instruction has no opmask operand, so EVEX.aaa must be 000b and
-  // hence EVEX.z must be 0 (SDM Vol.2A Table 2-42); the result is written
-  // unmasked with the upper bits of the register zeroed.  As for VAESENC
-  // (insn_evex_fma.sail), an Emerald Rapids raises #UD for z=1
-  // (62 F3 6D C8 44 CB 00) and a Zen 4 ignores the bit.
+  // hence EVEX.z must be 0 (SDM Vol.2A Table 2-42; APM Vol.4 §3.2.4 and
+  // the VPCLMULQDQ row "62 RXBR'.3 x.vvvv.01 0.00.0.V'.000 44 /r ib"),
+  // which evex_check_form raises (K_NONE forms); the result is written
+  // unmasked with the upper bits of the register zeroed.
   68 => {
     if mp != MP_66 then raise_UD();
-    if pfx.evex_aaa != 0 | (pfx.evex_z == bitone & vendor == Vendor_Intel) then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));

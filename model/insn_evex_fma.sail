@@ -515,13 +515,11 @@ function dispatch_evex_fma(op, pfx) = {
   // 0F38 DC-DF: VAESENC/VAESENCLAST/VAESDEC/VAESDECLAST (66) [VAES]
   // One AES round per 128-bit lane.  The instructions have no opmask
   // operand, so EVEX.aaa must be 000b and hence EVEX.z must be 0 (SDM
-  // Vol.2A Table 2-42); the result is written unmasked.  The vendors
-  // differ on EVEX.z: an Emerald Rapids raises #UD for VAESENC with z=1
-  // (62 F2 6D C8 DC CB), a Zen 4 ignores the bit and executes it, in
-  // register and memory forms.  Both raise #UD for aaa != 000b.
+  // Vol.2A Table 2-42; APM Vol.4 §3.2.4 and the VAESENC row "62 RXBR'.2
+  // x.vvvv.01 0.00.0.V'.000 DC /r"), which evex_check_form raises (K_NONE
+  // forms); the result is written unmasked.
   op if 220 <= op & op <= 223 => {
     if mp != MP_66 then raise_UD();
-    if pfx.evex_aaa != 0 | (pfx.evex_z == bitone & vendor == Vendor_Intel) then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));

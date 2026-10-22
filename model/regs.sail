@@ -120,12 +120,9 @@ let R15 : gpr_idx = 15
 
 // Vendor profile for the values the SDM leaves to the implementation and
 // on which the two vendors differ: the standard-format XSAVE offsets of
-// the AVX-512 components (CPUID.0DH.n:EBX), MXCSR_MASK, which x87
-// instruction and data pointers are kept and saved, and the EVEX.b and
-// EVEX.z encodings outside the SDM's forms that AMD ignores instead of
-// raising #UD.  See xsave_std_offset and mxcsr_mask in insn_xsave.sail,
-// x87_record_last in insn_x87.sail and evex_check_form in
-// insn_evex_forms.sail.
+// the AVX-512 components (CPUID.0DH.n:EBX), MXCSR_MASK, and which x87
+// instruction and data pointers are kept and saved.  See xsave_std_offset
+// and mxcsr_mask in insn_xsave.sail and x87_record_last in insn_x87.sail.
 // The CPUID vendor string stays "GenuineIntel" either way.  The KVM
 // differential harness selects the host's vendor so that both profiles are
 // checked against silicon; the emulators keep the Intel default.
