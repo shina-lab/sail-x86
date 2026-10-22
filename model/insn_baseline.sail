@@ -589,6 +589,17 @@ function exec_enqcmd(pfx, supervisor) = {
   OF = 0b0
 }
 
+// CLFLUSH, CLFLUSHOPT and CLWB m8 change no architectural state, but each
+// "is subject to all permission checking and faults associated with a byte
+// load" and "like a load, ... sets the A bit but not the D bit" (SDM
+// Vol.2A CLFLUSH, CLFLUSHOPT, CLWB): the segment and canonical checks of a
+// byte at m, and the translation of a read.
+val cache_line_access : MemRef -> unit
+function cache_line_access(m) = {
+  let _ = translate_addr(seg_linear(m, 1), PT_Read);
+  ()
+}
+
 val dispatch_2byte_gpr : (range(0, 255), Prefixes) -> unit
 function dispatch_2byte_gpr(op, pfx) = {
   // Descriptor-query/task-register instructions are not recognized in
@@ -1763,7 +1774,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         6 => match dest {
           RM_mem(m) => {
             if pfx.has_opsize then {
-              ()  // CLWB: NOP (cache write-back, no architectural effect)
+              cache_line_access(m)  // CLWB
             } else {
               // XSAVEOPT: architecturally equivalent to XSAVE
               let mask : qword = v(32, RDX) @ v(32, RAX);
@@ -1783,7 +1794,10 @@ function dispatch_2byte_gpr(op, pfx) = {
         },
 
         // /7: CLFLUSH (NP, mem) / CLFLUSHOPT (66, mem) / SFENCE (reg)
-        7 => (),
+        7 => match dest {
+          RM_mem(m) => cache_line_access(m),
+          RM_reg(_) => (),
+        },
       }
     },
 

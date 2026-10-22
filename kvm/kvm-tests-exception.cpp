@@ -864,6 +864,13 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     tc.enable_paging = true;
     tests.push_back(std::move(tc));
   }
+  // CLFLUSH, CLFLUSHOPT and CLWB, which fault like a byte load (SDM Vol.2A)
+  add_fault("clflush [rdi] non-canonical → #GP(0)", {0x0F, 0xAE, 0x3F},
+            {.rdi = 0x0000800000000000ULL}, 13);
+  add_fault("clflushopt [rbp] non-canonical (SS default) → #SS(0)",
+            {0x66, 0x0F, 0xAE, 0x7D, 0x00}, {.rbp = 0x0000800000000000ULL}, 12);
+  add_fault("clwb [rdi] non-canonical → #GP(0)", {0x66, 0x0F, 0xAE, 0x37},
+            {.rdi = 0x0000800000000000ULL}, 13);
   // The last canonical address of the low half is reachable (a #PF from
   // the unmapped page, not #GP).
   {
@@ -943,5 +950,12 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     // Instruction fetch from an unmapped page
     pf.rbx = 0x400000;
     add_pf("pf ifetch jmp 0x400000", {0xFF, 0xE3}, pf);     // jmp rbx
+
+    // CLFLUSH, CLFLUSHOPT and CLWB fault like a byte load (SDM Vol.2A):
+    // a read #PF, though they change no data
+    pf.rbx = 0x300000;
+    add_pf("pf clflush [0x300000]", {0x0F, 0xAE, 0x3B}, pf);
+    add_pf("pf clflushopt [0x300000]", {0x66, 0x0F, 0xAE, 0x3B}, pf);
+    add_pf("pf clwb [0x300000]", {0x66, 0x0F, 0xAE, 0x33}, pf);
   }
 }
