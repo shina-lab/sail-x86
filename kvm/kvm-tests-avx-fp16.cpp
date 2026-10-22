@@ -726,6 +726,12 @@ void add_avx_fp16_tests(std::vector<TestCase> &tests) {
       TestCase tc = {std::string(o.name) + " ebx, [m16]=2.75", cat, e.encode_rm_mem(), m, FL_ALL, 0, false};
       tc.init_data = half_bytes(2.75f);
       tests.push_back(std::move(tc));
+      // EVEX.R'̄ = 0, which would name a GPR above R15: #UD in 64-bit mode
+      // (SDM Vol.2A Table 2-41, "ModRM.reg encodes k-reg or GPR | If 0").
+      e.reg = 16 | 3; e.rm = 1;
+      TestCase ud = {std::string(o.name) + " ebx, xmm1 EVEX.R'̄=0 #UD", cat, e.encode_rr(), m, FL_ALL, 0, false};
+      ud.expect_fault = true; ud.expected_vector = 6;
+      tests.push_back(std::move(ud));
     }
     struct Rc { const char *name; int ll; } rcs[] = {
       {"{rn-sae}", 0}, {"{rd-sae}", 1}, {"{ru-sae}", 2}, {"{rz-sae}", 3},

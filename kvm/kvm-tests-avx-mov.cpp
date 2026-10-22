@@ -492,6 +492,15 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
                            cat, e.encode_rr_imm(imm), reg_only, FL_ALL, 0, false});
         }
       }
+      // EVEX.R'̄ = 0 would name a GPR above R15: #UD in 64-bit mode (SDM
+      // Vol.2A Table 2-41, "EVEX.R' | ModRM.reg encodes k-reg or GPR | If
+      // 0"; APM Vol.4 §3.2.4, "EVEX.R' == 0 | When ModR/M.reg specifies a K
+      // register or a General Purpose Register | #UD").
+      e.reg = 16;
+      TestCase tc; tc.name = "VPEXTRW eax,xmm1,3 (C5) EVEX.R'̄=0 #UD"; tc.category = cat;
+      tc.code = e.encode_rr_imm(3); tc.initial = reg_only;
+      tc.expect_fault = true; tc.expected_vector = 6;
+      tests.push_back(std::move(tc));
     }
 
     // VPEXTRW r32/m16, xmm1, imm8 (0F3A 15) and VEXTRACTPS r32/m32, xmm1, imm8.

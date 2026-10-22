@@ -795,6 +795,22 @@ function evex_kreg_destination(mmm, opcode, pp) = {
   }
 }
 
+// Whether an EVEX form has a general-purpose register destination in
+// ModR/M.reg: VCVT[T]SS2SI, VCVT[T]SD2SI, VCVT[T]SS2USI and VCVT[T]SD2USI
+// (0F 2C, 2D, 78, 79 with F3 or F2), VPEXTRW r32, xmm (0F C5, whose
+// memory form is no form) and VCVT[T]SH2SI and VCVT[T]SH2USI (map 5 2C,
+// 2D, 78, 79 with F3).
+val evex_gpr_destination : (range(0, 7), byte, bits(2)) -> bool
+function evex_gpr_destination(mmm, opcode, pp) = {
+  let op : range(0, 255) = unsigned(opcode);
+  let to_gpr : bool = op == 44 | op == 45 | op == 120 | op == 121;
+  match mmm {
+    1 => (to_gpr & (pp == 0b10 | pp == 0b11)) | (op == 197 & pp == 0b01),
+    5 => to_gpr & pp == 0b10,
+    _ => false,
+  }
+}
+
 // Check an EVEX instruction against the form of its map (mmm), opcode, pp,
 // W, ModRM.reg and ModRM.mod, and raise #UD for an encoding the form does
 // not allow.  Returns the prefixes with the fields AMD ignores cleared, and
@@ -887,14 +903,17 @@ function evex_check_form(mmm, opcode, pfx) = {
   // and a gather's destination must not be its index register (SDM
   // VPGATHERDD etc.: "#UD fault if ModRM.rm is different than 100b", "if
   // the destination vector zmm1 is the same as index vector VINDEX"); an
-  // opmask destination is k0-k7, so R and R' must be 0 (SDM Vol.2A Table
-  // 2-41, of the encoded, inverted bits: "ModRM.reg encodes k-reg If
-  // EVEX.R = 0", "ModRM.reg encodes k-reg or GPR If 0"; APM Vol.4 §3.2.4:
-  // "When ModR/M.reg specifies a K register #UD ... Cannot specify a K
-  // register above k7"); and a complex FP16 multiply's destination must be
-  // neither source (SDM VFCMADDCPH etc.: "#UD If (dest_reg == src1_reg) or
-  // (dest_reg == src2_reg)").  Like every #UD of the encoding, these come
-  // ahead of the #NM of CR0.TS (exceptions.sail).
+  // opmask destination is k0-k7, so R and R' must be 0, and a
+  // general-purpose register in ModR/M.reg is one of 16, so R' must be 0
+  // in 64-bit mode (SDM Vol.2A Table 2-41, of the encoded, inverted bits:
+  // "ModRM.reg encodes k-reg If EVEX.R = 0", "ModRM.reg encodes k-reg or
+  // GPR If 0", non-64-bit "None (ignored)"; APM Vol.4 §3.2.4: "When
+  // ModR/M.reg specifies a K register #UD ... Cannot specify a K register
+  // above k7", "EVEX.R' == 0 | When ModR/M.reg specifies a K register or a
+  // General Purpose Register | #UD | Ign"); and a complex FP16 multiply's
+  // destination must be neither source (SDM VFCMADDCPH etc.: "#UD If
+  // (dest_reg == src1_reg) or (dest_reg == src2_reg)").  Like every #UD of
+  // the encoding, these come ahead of the #NM of CR0.TS (exceptions.sail).
   let op : range(0, 255) = unsigned(opcode);
   let dst = evex_reg_idx(modrm, pfx);
   if f.vvvv == V_VSIB then {
@@ -906,6 +925,8 @@ function evex_check_form(mmm, opcode, pfx) = {
   };
   if evex_kreg_destination(mmm, opcode, pp) & (pfx.rex_r == 0b1 | pfx.evex_rr == 0b1)
   then raise_UD();
+  // (Outside 64-bit mode decode_evex_with_p0 has cleared EVEX.R'.)
+  if evex_gpr_destination(mmm, opcode, pp) & pfx.evex_rr == 0b1 then raise_UD();
   let complex_fp16 : bool = mmm == 6 & (op == 86 | op == 87 | op == 214 | op == 215);
   if complex_fp16 & (dst == vvvvv | is_reg & dst == evex_rm_reg_idx(modrm, pfx))
   then raise_UD();

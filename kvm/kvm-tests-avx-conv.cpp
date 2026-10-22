@@ -312,6 +312,26 @@ void add_avx_conv_tests(std::vector<TestCase> &tests) {
     e.opcode = 0x78;
     tests.push_back({"VCVTTSD2USI eax,xmm1", cat, e.encode_rr(), s, FL_ALL, 0, false});
   }
+  // The same with EVEX.R'̄ = 0, which would name a GPR above R15: #UD in
+  // 64-bit mode (SDM Vol.2A Table 2-41, "EVEX.R' | ModRM.reg encodes k-reg
+  // or GPR | If 0"; APM Vol.4 §3.2.4, "EVEX.R' == 0 | When ModR/M.reg
+  // specifies a K register or a General Purpose Register | #UD").
+  {
+    ArchState s = {};
+    double d = 42.7; memcpy(&s.xmm[1].q[0], &d, 8);
+    struct { const char *name; int pp; u8 op; } cvts[] = {
+      {"VCVTSS2SI", 2, 0x2D}, {"VCVTTSS2SI", 2, 0x2C}, {"VCVTSS2USI", 2, 0x79},
+      {"VCVTTSS2USI", 2, 0x78}, {"VCVTSD2SI", 3, 0x2D}, {"VCVTTSD2SI", 3, 0x2C},
+      {"VCVTSD2USI", 3, 0x79}, {"VCVTTSD2USI", 3, 0x78},
+    };
+    for (auto &c : cvts) {
+      Evex e; e.mm = 1; e.pp = c.pp; e.opcode = c.op; e.reg = 16; e.rm = 1;
+      TestCase tc; tc.name = std::format("{} eax,xmm1 EVEX.R'̄=0 #UD", c.name); tc.category = cat;
+      tc.code = e.encode_rr(); tc.initial = s;
+      tc.expect_fault = true; tc.expected_vector = 6;
+      tests.push_back(std::move(tc));
+    }
+  }
 
   // =====================================================================
   // VCVTDQ2PD: EVEX.F3.0F.W0 E6 /r (i32→f64, widening)
