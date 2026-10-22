@@ -83,7 +83,8 @@ function x87_finish_cc(opcode, modrm) = {
   if ~(x87_stack_faulted | keeps_c1) then x87_sw[9] = 0b0;
   if opcode == 0xD9 & ~(mem) then {
     match unsigned(modrm) {
-      // Outside the trigonometric input range, C1 is undefined as well.
+      // C1 is undefined as well when C2 reports a trigonometric source out
+      // of range (Vol.1 Table 8-1, "Undefined if C2 = 1").
       n if n == 242 | n == 251 | n == 254 | n == 255 =>
         x87_undefine_cc(0x0200 & sign_extend(16, x87_sw[10])),
       _ => (),
@@ -172,6 +173,36 @@ function x87_compare_eflags(sti) = {
 val x87_write_result : (int, fp80) -> unit
 function x87_write_result(i, r) =
   x87_write_st(i, if x87_stack_faulted then x87_indefinite else r)
+
+// =========================================================================
+// C2: trigonometric source out of range
+// =========================================================================
+
+// The source of FSIN, FCOS, FSINCOS and FPTAN (pushes: the last two, which
+// check ST(7) for their second result), or None if it is out of range:
+// "If the source operand is outside the acceptable range [-2^63 to
+// +2^63], the C2 flag in the FPU status word is set, and the value in
+// register ST(0) remains unchanged.  The instruction does not raise an
+// exception"; otherwise C2 := 0 (SDM Vol.2A FSIN, FCOS, FSINCOS and FPTAN,
+// Description and Operation).  Out of range is a finite |x| >= 2^63: an
+// exponent of 403EH or more with the integer bit set.  Infinities and
+// unsupported formats, whatever their exponent, are invalid operands
+// instead ("Floating-Point Exceptions": #IA).  A stack fault comes first,
+// and its indefinite results are written even for an out-of-range source;
+// C2 is cleared even when an unmasked stack fault ends the instruction.
+// Both vendors behave so (checked natively on a Zen 4 and an Emerald
+// Rapids).
+val x87_trig_source : bool -> option(fp80)
+function x87_trig_source(pushes) = {
+  x87_sw[10] = 0b0;
+  let x = x87_operand(0);
+  if pushes then x87_check_second_result();
+  let exp = unsigned(x[78..64]);
+  if ~(x87_stack_faulted) & exp >= 16446 & exp < 32767 & x[63] == bitone then {  // 403EH, 7FFFH
+    x87_sw[10] = 0b1;
+    None()
+  } else Some(x)
+}
 
 // =========================================================================
 // D8: FADD/FMUL/FCOM/FCOMP/FSUB/FSUBR/FDIV/FDIVR (f32 mem or ST(i))
@@ -321,11 +352,12 @@ function dispatch_x87_d9(modrm, operand, pfx) = {
               x87_write_result(0, result)
             },
             // FPTAN — tan(ST(0)), push 1.0
-            242 => {
-              let x = x87_operand(0);
-              x87_check_second_result();
-              x87_write_result(0, __f80_tan(x));
-              x87_push(if x87_stack_faulted then x87_indefinite else __f80_one())
+            242 => match x87_trig_source(true) {
+              Some(x) => {
+                x87_write_result(0, __f80_tan(x));
+                x87_push(if x87_stack_faulted then x87_indefinite else __f80_one())
+              },
+              None() => (),
             },
             // FPATAN — atan2(ST(1), ST(0)), pop
             243 => {
@@ -358,20 +390,27 @@ function dispatch_x87_d9(modrm, operand, pfx) = {
             // FSQRT
             250 => x87_write_result(0, fp_sqrt(x87_operand(0))),
             // FSINCOS — sin in ST(0), push cos
-            251 => {
-              let src = x87_operand(0);
-              x87_check_second_result();
-              x87_write_result(0, __f80_sin(src));
-              x87_push(if x87_stack_faulted then x87_indefinite else __f80_cos(src))
+            251 => match x87_trig_source(true) {
+              Some(src) => {
+                x87_write_result(0, __f80_sin(src));
+                x87_push(if x87_stack_faulted then x87_indefinite else __f80_cos(src))
+              },
+              None() => (),
             },
             // FRNDINT
             252 => x87_write_result(0, __f80_round(x87_operand(0))),
             // FSCALE
             253 => x87_write_result(0, __f80_scale(x87_operand(0), x87_operand(1))),
             // FSIN
-            254 => x87_write_result(0, __f80_sin(x87_operand(0))),
+            254 => match x87_trig_source(false) {
+              Some(x) => x87_write_result(0, __f80_sin(x)),
+              None() => (),
+            },
             // FCOS
-            255 => x87_write_result(0, __f80_cos(x87_operand(0))),
+            255 => match x87_trig_source(false) {
+              Some(x) => x87_write_result(0, __f80_cos(x)),
+              None() => (),
+            },
             _   => raise_UD(),
           }
         },
