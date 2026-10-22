@@ -425,9 +425,10 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     write_simd(128, dst, aeskeygenassist(decode_vex_src(128, src), imm))
   },
 
-  // 0F3A F0: RORX — VEX.LZ.F2.0F3A
+  // 0F3A F0: RORX — VEX.LZ.F2.0F3A; #UD if VEX.L = 1 or VEX.vvvv !=
+  // 1111b (SDM Vol.2B RORX)
   240 => {
-    if mp != MP_F2 | pfx.vex_vvvv != 0 then raise_UD();
+    if ~(has_bmi2) | mp != MP_F2 | pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
     let (dst, src2) = fetch_modrm(pfx);
     let os : {32, 64} = if pfx.vex_w then 64 else 32;
     let imm = fetch(1);

@@ -1300,7 +1300,7 @@ function decode_execute() = {
       134 => {
         let (reg, dest) = fetch_modrm(pfx);
         check_lock_rm(pfx, dest, false);
-        let tmp : byte = v(dest);
+        let tmp : byte = read_rmw(dest);
         v(dest) = v(8, reg);
         v(reg) = tmp
       },
@@ -1310,7 +1310,7 @@ function decode_execute() = {
         let os = opsize(pfx);
         let (reg, dest) = fetch_modrm(pfx);
         check_lock_rm(pfx, dest, false);
-        let tmp = v(os, dest);
+        let tmp = read_rmw(os, dest);
         v(dest) = v(os, reg);
         v(reg) = tmp
       },
@@ -1761,26 +1761,39 @@ function decode_execute() = {
         v(dest) = sign_extend(os, fetch(if os == 16 then 2 else 4))
       },
 
-      // C8: ENTER imm16, imm8
+      // C8: ENTER imm16, imm8 (SDM Vol.2A ENTER, Operation).  The frame
+      // pointers of the outer levels are read through SS at rBP minus
+      // multiples of the operand size, rBP being as wide as the stack
+      // address size ("RBP := RBP - 2; Push([RBP])" for a 16-bit operand
+      // in 64-bit mode).  RBP itself is written once, at the end, so that
+      // a fault leaves it unchanged (step() restores RSP).
       200 => {
         let size = fetch(2);
         let level = fetch(1);
         let os = opsize_default64(pfx);
+        let 'sas = stack_addr_size();
         let nesting : range(0, 31) = unsigned(level) % 32;
-        let bp = v(os, RBP);
-        push(bp);
+        push(v(os, RBP));
         let frame_temp = v(os, RSP);
         if nesting > 1 then {
+          var fp : bits('sas) = v(sas, RBP);
           foreach (i from 1 to (nesting - 1)) {
-            let new_bp = v(os, RBP) - os / 8;
-            v(RBP) = new_bp;
-            push(read_mem(os, zero_extend(new_bp)))
+            fp = fp - os / 8;
+            let m : MemRef = struct { seg = SS, addr = zero_extend(fp) };
+            push(read_mem(os, m))
           }
         };
         if nesting >= 1 then push(frame_temp);
+        // "The ENTER instruction causes a page fault whenever a write
+        // using the final value of the stack pointer (within the current
+        // stack segment) would do so": an operand-size write at the final
+        // RSP is checked after the pushes, which stay in memory when it
+        // faults (checked on a Zen 4 and an Emerald Rapids).
+        let final_sp : bits('sas) = v(sas, RSP) - zero_extend(size);
+        let m : MemRef = struct { seg = SS, addr = zero_extend(final_sp) };
+        check_crossing_pages(seg_linear(m, os / 8), os / 8, PT_Write);
         v(RBP) = frame_temp;
-        let sas = stack_addr_size();
-        v(RSP) = v(sas, RSP) - zero_extend(size);
+        v(RSP) = final_sp
       },
 
       // C9: LEAVE — RSP := RBP, then POP RBP
@@ -2246,8 +2259,8 @@ function decode_execute() = {
         if pfx.has_lock & reg_field >= 2 then raise_UD();
         check_lock_rm(pfx, dest, false);
         match reg_field {
-          0 => v(dest) = exec_inc(v(8, dest)),
-          1 => v(dest) = exec_dec(v(8, dest)),
+          0 => v(dest) = exec_inc(read_rmw(8, dest)),
+          1 => v(dest) = exec_dec(read_rmw(8, dest)),
           _ => raise_UD(),
         }
       },

@@ -5,6 +5,10 @@
 union exception = {
   Fault  : (exception_vector, dword),
   VMExit : (dword, qword),  // (exit_reason, exit_qualification)
+  // An x87 stack fault with the invalid-operation exception unmasked.  It
+  // ends the x87 instruction without delivering an exception; the #MF
+  // waits for the next waiting x87 instruction (dispatch_x87).
+  X87Unmasked : unit,
 }
 
 // System state — tracks whether the CPU is running, halted, or handling a syscall.

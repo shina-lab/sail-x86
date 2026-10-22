@@ -4,6 +4,9 @@
 // the reg field selects the operation. When mod == 11 (register),
 // the full ModR/M byte selects from a large table.
 
+// Whether the current instruction has had a stack fault (x87_stack_fault).
+register x87_stack_faulted : bool
+
 // =========================================================================
 // Status word condition code helpers
 // =========================================================================
@@ -60,12 +63,24 @@ function x87_finish_cc(opcode, modrm) = {
     _ => 0x0000,
   };
   x87_undefine_cc(mask);
-  // Register exchanges and stores do not round; their defined C1 is zero.
-  // The compatibility encodings are normalized before reaching this code.
-  if ~(mem) & ((opcode == 0xD9 & (reg == 1 | reg == 3)) |
-               (opcode == 0xDD & (reg == 2 | reg == 3))) then {
-    x87_sw[9] = 0b0
+  // C1 reports a stack fault, as x87_stack_fault set it.  Otherwise it is
+  // 0 after the loads, the stores, the arithmetic and the comparisons, FXCH,
+  // FCHS, FABS, FINCSTP and FDECSTP, which clear it or set it only for a
+  // result the externs rounded up, which they do not report (SDM Vol.2A,
+  // each "FPU Flags Affected").  The control instructions, FCMOVcc and FNOP
+  // leave it, FXAM and FPREM/FPREM1 set it to a sign or quotient bit, and
+  // FFREE and FFREEP make it undefined (the mask above).  Compatibility
+  // encodings are normalized before reaching this code.
+  let keeps_c1 : bool = match unsigned(opcode) {
+    217 => if mem then reg >= 4
+           else reg == 2 | modrm == 0xE5 | modrm == 0xF5 | modrm == 0xF8,
+    218 => ~(mem) & reg <= 3,
+    219 => ~(mem) & reg <= 4,
+    221 => if mem then reg >= 4 else reg == 0,
+    223 => ~(mem) & reg <= 4,
+    _ => false,
   };
+  if ~(x87_stack_faulted | keeps_c1) then x87_sw[9] = 0b0;
   if opcode == 0xD9 & ~(mem) then {
     match unsigned(modrm) {
       // Outside the trigonometric input range, C1 is undefined as well.
@@ -91,6 +106,74 @@ function x87_set_sw_cc(cmp) = {
 }
 
 // =========================================================================
+// Stack faults (SDM Vol.1 §8.5.1.1, "Stack Overflow or Underflow Exception
+// (#IS)")
+// =========================================================================
+
+// An instruction that reads an empty register (stack underflow) or loads
+// into a full one (stack overflow) raises the invalid-operation exception
+// with SF set and C1 telling overflow (1) from underflow (0).  If the
+// exception is masked, the instruction completes with the indefinite in
+// place of the missing operand, and so writes the floating-point, integer
+// or BCD indefinite to its destination, or reports unordered.  If it is
+// unmasked, the instruction changes no register, TOP or memory: it sets
+// FSW.ES and B, which the next waiting x87 instruction reports as #MF,
+// and stops there.  Both vendors behave so (checked on a Zen 4 and an
+// Emerald Rapids for loads, stores, arithmetic, comparisons, FCMOVcc,
+// FXCH, FPTAN, FSINCOS and FXTRACT, masked and unmasked).
+
+val x87_stack_fault : bit -> unit
+function x87_stack_fault(c1) = {
+  x87_sw[0] = 0b1;  // IE
+  x87_sw[6] = 0b1;  // SF
+  x87_sw[9] = c1;
+  x87_stack_faulted = true;
+  if x87_cw[0] == 0b0 then {
+    x87_update_es();
+    throw X87Unmasked()
+  }
+}
+
+// ST(i) as a source operand.
+val x87_operand : int -> fp80
+function x87_operand(i) =
+  if x87_is_empty(i) then {
+    x87_stack_fault(0b0);
+    x87_indefinite
+  } else x87_read_st(i)
+
+// Push a loaded value onto the stack, whose ST(7) must be empty.
+val x87_load : fp80 -> unit
+function x87_load(v) =
+  if ~(x87_is_empty(7)) then {
+    x87_stack_fault(0b1);
+    x87_push(x87_indefinite)
+  } else x87_push(v)
+
+// FPTAN, FSINCOS and FXTRACT replace ST(0) and push a second result, for
+// which ST(7) must be empty.  After a masked stack fault, on either side,
+// both results are the indefinite.
+val x87_check_second_result : unit -> unit
+function x87_check_second_result() =
+  if ~(x87_is_empty(7)) then x87_stack_fault(0b1)
+
+// FCOMI, FUCOMI, FCOMIP and FUCOMIP: compare ST(0) with ST(i) into ZF,
+// PF and CF.  An empty register sets them to unordered even when the
+// underflow is unmasked and the instruction stops (and does not pop).
+val x87_compare_eflags : int -> unit
+function x87_compare_eflags(sti) = {
+  if x87_is_empty(0) | x87_is_empty(sti) then
+    set_eflags_fp_compare(x87_indefinite, x87_indefinite);
+  set_eflags_fp_compare(x87_operand(0), x87_operand(sti))
+}
+
+// Write a computed result to ST(i): the indefinite after a masked stack
+// fault, whatever NaN the operation made of the operands.
+val x87_write_result : (int, fp80) -> unit
+function x87_write_result(i, r) =
+  x87_write_st(i, if x87_stack_faulted then x87_indefinite else r)
+
+// =========================================================================
 // D8: FADD/FMUL/FCOM/FCOMP/FSUB/FSUBR/FDIV/FDIVR (f32 mem or ST(i))
 // =========================================================================
 
@@ -101,31 +184,31 @@ function dispatch_x87_d8(modrm, src, _) = {
   match src {
     RM_mem(m) => {
       let src : fp80 = __f80_from_f32(v(m));
-      let st0 : fp80 = x87_read_st(0);
+      let st0 : fp80 = x87_operand(0);
       match reg {
-        0 => x87_write_st(0, fp_add(st0, src)),
-        1 => x87_write_st(0, fp_mul(st0, src)),
+        0 => x87_write_result(0, fp_add(st0, src)),
+        1 => x87_write_result(0, fp_mul(st0, src)),
         2 => x87_set_sw_cc(fp_compare(st0, src)),
         3 => { x87_set_sw_cc(fp_compare(st0, src)); let _ = x87_pop() },
-        4 => x87_write_st(0, fp_sub(st0, src)),
-        5 => x87_write_st(0, fp_sub(src, st0)),
-        6 => x87_write_st(0, fp_div(st0, src)),
-        7 => x87_write_st(0, fp_div(src, st0)),
+        4 => x87_write_result(0, fp_sub(st0, src)),
+        5 => x87_write_result(0, fp_sub(src, st0)),
+        6 => x87_write_result(0, fp_div(st0, src)),
+        7 => x87_write_result(0, fp_div(src, st0)),
       }
     },
     RM_reg(_) => {
       match reg {
-        0 => x87_write_st(0, fp_add(x87_read_st(0), x87_read_st(sti))),
-        1 => x87_write_st(0, fp_mul(x87_read_st(0), x87_read_st(sti))),
-        2 => x87_set_sw_cc(fp_compare(x87_read_st(0), x87_read_st(sti))),
+        0 => x87_write_result(0, fp_add(x87_operand(0), x87_operand(sti))),
+        1 => x87_write_result(0, fp_mul(x87_operand(0), x87_operand(sti))),
+        2 => x87_set_sw_cc(fp_compare(x87_operand(0), x87_operand(sti))),
         3 => {
-          x87_set_sw_cc(fp_compare(x87_read_st(0), x87_read_st(sti)));
+          x87_set_sw_cc(fp_compare(x87_operand(0), x87_operand(sti)));
           let _ = x87_pop()
         },
-        4 => x87_write_st(0, fp_sub(x87_read_st(0), x87_read_st(sti))),
-        5 => x87_write_st(0, fp_sub(x87_read_st(sti), x87_read_st(0))),
-        6 => x87_write_st(0, fp_div(x87_read_st(0), x87_read_st(sti))),
-        7 => x87_write_st(0, fp_div(x87_read_st(sti), x87_read_st(0))),
+        4 => x87_write_result(0, fp_sub(x87_operand(0), x87_operand(sti))),
+        5 => x87_write_result(0, fp_sub(x87_operand(sti), x87_operand(0))),
+        6 => x87_write_result(0, fp_div(x87_operand(0), x87_operand(sti))),
+        7 => x87_write_result(0, fp_div(x87_operand(sti), x87_operand(0))),
       }
     },
   }
@@ -136,21 +219,26 @@ function dispatch_x87_d8(modrm, src, _) = {
 // =========================================================================
 
 val dispatch_x87_d9 : (byte, RM, Prefixes) -> unit
-function dispatch_x87_d9(modrm, operand, _) = {
+function dispatch_x87_d9(modrm, operand, pfx) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match operand {
     RM_mem(m) => {
       match reg {
-        0 => x87_push(__f80_from_f32(v(m))),
+        0 => x87_load(__f80_from_f32(v(m))),
         1 => raise_UD(),
-        2 => v(m) = __f80_to_f32(x87_read_st(0)),
-        3 => { v(m) = __f80_to_f32(x87_read_st(0)); let _ = x87_pop() },
-        4 => x87_load_env(read_mem(m)),
+        2 => v(m) = __f80_to_f32(x87_operand(0)),
+        3 => { v(m) = __f80_to_f32(x87_operand(0)); let _ = x87_pop() },
+        // FLDENV and FNSTENV use the 14-byte environment for a 16-bit
+        // operand size, the 28-byte one otherwise (SDM Vol.1 §8.1.10;
+        // in 64-bit mode REX.W selects the latter over 66h).
+        4 => if opsize(pfx) == 16 then x87_load_env16(read_mem(m))
+             else x87_load_env(read_mem(m)),
         5 => x87_set_cw(v(m)),
         // FNSTENV stores the environment, then masks all exceptions
         6 => {
-          write_mem(m, x87_save_env());
+          if opsize(pfx) == 16 then write_mem(m, x87_save_env16())
+          else write_mem(m, x87_save_env());
           x87_set_cw(x87_cw | 0x003F)
         },
         7 => v(m) = x87_cw,
@@ -159,11 +247,12 @@ function dispatch_x87_d9(modrm, operand, _) = {
     RM_reg(_) => {
       let modrm_val : range(0, 255) = unsigned(modrm);
       match reg {
-        0 => x87_push(x87_read_st(sti)),
-        // FXCH ST(i)
+        0 => x87_load(x87_operand(sti)),
+        // FXCH ST(i).  An empty register reads as the indefinite, so that
+        // a masked underflow leaves it in the register that was not empty.
         1 => {
-          let v0 : fp80 = x87_read_st(0);
-          let vi : fp80 = x87_read_st(sti);
+          let v0 : fp80 = x87_operand(0);
+          let vi : fp80 = x87_operand(sti);
           x87_write_st(0, vi);
           x87_write_st(sti, v0)
         },
@@ -181,11 +270,11 @@ function dispatch_x87_d9(modrm, operand, _) = {
           // D9 E0-FF: misc operations encoded by full ModR/M
           match modrm_val {
             // FCHS
-            224 => x87_write_st(0, __f80_chs(x87_read_st(0))),
+            224 => x87_write_result(0, __f80_chs(x87_operand(0))),
             // FABS
-            225 => x87_write_st(0, __f80_abs(x87_read_st(0))),
+            225 => x87_write_result(0, __f80_abs(x87_operand(0))),
             // FTST
-            228 => x87_set_sw_cc(fp_compare(x87_read_st(0), __f80_zero())),
+            228 => x87_set_sw_cc(fp_compare(x87_operand(0), __f80_zero())),
             // FXAM — examine ST(0), set C3/C2/C0 for class, C1 for sign.
             // Empty is the register's tag, not a property of its contents;
             // C1 is the sign bit whether the register is empty or full.
@@ -210,74 +299,79 @@ function dispatch_x87_d9(modrm, operand, _) = {
               x87_sw = sw
             },
             // FLD1
-            232 => x87_push(__f80_one()),
+            232 => x87_load(__f80_one()),
             // FLDL2T
-            233 => x87_push(__f80_log2_10()),
+            233 => x87_load(__f80_log2_10()),
             // FLDL2E
-            234 => x87_push(__f80_log2_e()),
+            234 => x87_load(__f80_log2_e()),
             // FLDPI
-            235 => x87_push(__f80_pi()),
+            235 => x87_load(__f80_pi()),
             // FLDLG2
-            236 => x87_push(__f80_log10_2()),
+            236 => x87_load(__f80_log10_2()),
             // FLDLN2
-            237 => x87_push(__f80_ln_2()),
+            237 => x87_load(__f80_ln_2()),
             // FLDZ
-            238 => x87_push(__f80_zero()),
+            238 => x87_load(__f80_zero()),
             // F2XM1
-            240 => x87_write_st(0, __f80_2xm1(x87_read_st(0))),
+            240 => x87_write_result(0, __f80_2xm1(x87_operand(0))),
             // FYL2X — ST(1) * log2(ST(0)), pop
             241 => {
-              let result = __f80_yl2x(x87_read_st(1), x87_read_st(0));
+              let result = __f80_yl2x(x87_operand(1), x87_operand(0));
               let _ = x87_pop();
-              x87_write_st(0, result)
+              x87_write_result(0, result)
             },
             // FPTAN — tan(ST(0)), push 1.0
             242 => {
-              x87_write_st(0, __f80_tan(x87_read_st(0)));
-              x87_push(__f80_one())
+              let x = x87_operand(0);
+              x87_check_second_result();
+              x87_write_result(0, __f80_tan(x));
+              x87_push(if x87_stack_faulted then x87_indefinite else __f80_one())
             },
             // FPATAN — atan2(ST(1), ST(0)), pop
             243 => {
-              let result = __f80_atan2(x87_read_st(1), x87_read_st(0));
+              let result = __f80_atan2(x87_operand(1), x87_operand(0));
               let _ = x87_pop();
-              x87_write_st(0, result)
+              x87_write_result(0, result)
             },
             // FXTRACT — split into exponent + significand
             244 => {
-              let val80 = x87_read_st(0);
-              x87_write_st(0, __f80_extract_exponent(val80));
-              x87_push(__f80_extract_significand(val80))
+              let val80 = x87_operand(0);
+              x87_check_second_result();
+              x87_write_result(0, __f80_extract_exponent(val80));
+              x87_push(if x87_stack_faulted then x87_indefinite
+                       else __f80_extract_significand(val80))
             },
             // FPREM1
-            245 => x87_write_st(0, __f80_prem1(x87_read_st(0), x87_read_st(1))),
+            245 => x87_write_result(0, __f80_prem1(x87_operand(0), x87_operand(1))),
             // FDECSTP
             246 => x87_dec_top(),
             // FINCSTP
             247 => x87_inc_top(),
             // FPREM
-            248 => x87_write_st(0, __f80_prem(x87_read_st(0), x87_read_st(1))),
+            248 => x87_write_result(0, __f80_prem(x87_operand(0), x87_operand(1))),
             // FYL2XP1 — ST(1) * log2(ST(0) + 1), pop
             249 => {
-              let result = __f80_yl2xp1(x87_read_st(1), x87_read_st(0));
+              let result = __f80_yl2xp1(x87_operand(1), x87_operand(0));
               let _ = x87_pop();
-              x87_write_st(0, result)
+              x87_write_result(0, result)
             },
             // FSQRT
-            250 => x87_write_st(0, fp_sqrt(x87_read_st(0))),
+            250 => x87_write_result(0, fp_sqrt(x87_operand(0))),
             // FSINCOS — sin in ST(0), push cos
             251 => {
-              let src = x87_read_st(0);
-              x87_write_st(0, __f80_sin(src));
-              x87_push(__f80_cos(src))
+              let src = x87_operand(0);
+              x87_check_second_result();
+              x87_write_result(0, __f80_sin(src));
+              x87_push(if x87_stack_faulted then x87_indefinite else __f80_cos(src))
             },
             // FRNDINT
-            252 => x87_write_st(0, __f80_round(x87_read_st(0))),
+            252 => x87_write_result(0, __f80_round(x87_operand(0))),
             // FSCALE
-            253 => x87_write_st(0, __f80_scale(x87_read_st(0), x87_read_st(1))),
+            253 => x87_write_result(0, __f80_scale(x87_operand(0), x87_operand(1))),
             // FSIN
-            254 => x87_write_st(0, __f80_sin(x87_read_st(0))),
+            254 => x87_write_result(0, __f80_sin(x87_operand(0))),
             // FCOS
-            255 => x87_write_st(0, __f80_cos(x87_read_st(0))),
+            255 => x87_write_result(0, __f80_cos(x87_operand(0))),
             _   => raise_UD(),
           }
         },
@@ -297,28 +391,28 @@ function dispatch_x87_da(modrm, src, _) = {
   match src {
     RM_mem(m) => {
       let src : fp80 = __f80_from_int32(v(m));
-      let st0 : fp80 = x87_read_st(0);
+      let st0 : fp80 = x87_operand(0);
       match reg {
-        0 => x87_write_st(0, fp_add(st0, src)),
-        1 => x87_write_st(0, fp_mul(st0, src)),
+        0 => x87_write_result(0, fp_add(st0, src)),
+        1 => x87_write_result(0, fp_mul(st0, src)),
         2 => x87_set_sw_cc(fp_compare(st0, src)),
         3 => { x87_set_sw_cc(fp_compare(st0, src)); let _ = x87_pop() },
-        4 => x87_write_st(0, fp_sub(st0, src)),
-        5 => x87_write_st(0, fp_sub(src, st0)),
-        6 => x87_write_st(0, fp_div(st0, src)),
-        7 => x87_write_st(0, fp_div(src, st0)),
+        4 => x87_write_result(0, fp_sub(st0, src)),
+        5 => x87_write_result(0, fp_sub(src, st0)),
+        6 => x87_write_result(0, fp_div(st0, src)),
+        7 => x87_write_result(0, fp_div(src, st0)),
       }
     },
     RM_reg(_) => {
       match reg {
-        0 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), CF)),
-        1 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), ZF)),
-        2 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), CF | ZF)),
-        3 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), PF)),
+        0 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), CF)),
+        1 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), ZF)),
+        2 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), CF | ZF)),
+        3 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), PF)),
         // FUCOMPP
         5 => {
           if sti == 1 then {
-            x87_set_sw_cc(fp_compare(x87_read_st(0), x87_read_st(1)));
+            x87_set_sw_cc(fp_compare(x87_operand(0), x87_operand(1)));
             let _ = x87_pop();
             let _ = x87_pop()
           } else {
@@ -342,23 +436,23 @@ function dispatch_x87_db(modrm, operand, _) = {
   match operand {
     RM_mem(m) => {
       match reg {
-        0 => x87_push(__f80_from_int32(v(m))),
-        1 => { v(m) = __f80_to_int32_trunc(x87_read_st(0)); let _ = x87_pop() },
-        2 => v(m) = __f80_to_int32(x87_read_st(0)),
-        3 => { v(m) = __f80_to_int32(x87_read_st(0)); let _ = x87_pop() },
+        0 => x87_load(__f80_from_int32(v(m))),
+        1 => { v(m) = __f80_to_int32_trunc(x87_operand(0)); let _ = x87_pop() },
+        2 => v(m) = __f80_to_int32(x87_operand(0)),
+        3 => { v(m) = __f80_to_int32(x87_operand(0)); let _ = x87_pop() },
         4 => raise_UD(),
-        5 => x87_push(read_mem(m)),
+        5 => x87_load(read_mem(m)),
         6 => raise_UD(),
-        7 => { let x = x87_read_st(0); write_mem(m, x); let _ = x87_pop() },
+        7 => { let x = x87_operand(0); write_mem(m, x); let _ = x87_pop() },
       }
     },
     RM_reg(_) => {
       let modrm_val : range(0, 255) = unsigned(modrm);
       match reg {
-        0 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), ~(CF))),
-        1 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), ~(ZF))),
-        2 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), ~(CF) & ~(ZF))),
-        3 => x87_write_st(0, blend(x87_read_st(0), x87_read_st(sti), ~(PF))),
+        0 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), ~(CF))),
+        1 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), ~(ZF))),
+        2 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), ~(CF) & ~(ZF))),
+        3 => x87_write_result(0, blend(x87_operand(0), x87_operand(sti), ~(PF))),
         // Obsolete controls, FNCLEX and FNINIT
         4 => {
           // SDM Vol.3B, "Obsolete Instructions and Undefined Opcodes":
@@ -378,8 +472,8 @@ function dispatch_x87_db(modrm, operand, _) = {
             raise_UD()
           }
         },
-        5 => set_eflags_fp_compare(x87_read_st(0), x87_read_st(sti)),
-        6 => set_eflags_fp_compare(x87_read_st(0), x87_read_st(sti)),
+        5 => x87_compare_eflags(sti),
+        6 => x87_compare_eflags(sti),
         7 => raise_UD(),
       }
     },
@@ -397,29 +491,29 @@ function dispatch_x87_dc(modrm, src, _) = {
   match src {
     RM_mem(m) => {
       let src : fp80 = __f80_from_f64(v(m));
-      let st0 : fp80 = x87_read_st(0);
+      let st0 : fp80 = x87_operand(0);
       match reg {
-        0 => x87_write_st(0, fp_add(st0, src)),
-        1 => x87_write_st(0, fp_mul(st0, src)),
+        0 => x87_write_result(0, fp_add(st0, src)),
+        1 => x87_write_result(0, fp_mul(st0, src)),
         2 => x87_set_sw_cc(fp_compare(st0, src)),
         3 => { x87_set_sw_cc(fp_compare(st0, src)); let _ = x87_pop() },
-        4 => x87_write_st(0, fp_sub(st0, src)),
-        5 => x87_write_st(0, fp_sub(src, st0)),
-        6 => x87_write_st(0, fp_div(st0, src)),
-        7 => x87_write_st(0, fp_div(src, st0)),
+        4 => x87_write_result(0, fp_sub(st0, src)),
+        5 => x87_write_result(0, fp_sub(src, st0)),
+        6 => x87_write_result(0, fp_div(st0, src)),
+        7 => x87_write_result(0, fp_div(src, st0)),
       }
     },
     RM_reg(_) => {
       // Note: SUB/SUBR and DIV/DIVR are swapped vs D8
       match reg {
-        0 => x87_write_st(sti, fp_add(x87_read_st(sti), x87_read_st(0))),
-        1 => x87_write_st(sti, fp_mul(x87_read_st(sti), x87_read_st(0))),
+        0 => x87_write_result(sti, fp_add(x87_operand(sti), x87_operand(0))),
+        1 => x87_write_result(sti, fp_mul(x87_operand(sti), x87_operand(0))),
         2 => raise_UD(),
         3 => raise_UD(),
-        4 => x87_write_st(sti, fp_sub(x87_read_st(0), x87_read_st(sti))),
-        5 => x87_write_st(sti, fp_sub(x87_read_st(sti), x87_read_st(0))),
-        6 => x87_write_st(sti, fp_div(x87_read_st(0), x87_read_st(sti))),
-        7 => x87_write_st(sti, fp_div(x87_read_st(sti), x87_read_st(0))),
+        4 => x87_write_result(sti, fp_sub(x87_operand(0), x87_operand(sti))),
+        5 => x87_write_result(sti, fp_sub(x87_operand(sti), x87_operand(0))),
+        6 => x87_write_result(sti, fp_div(x87_operand(0), x87_operand(sti))),
+        7 => x87_write_result(sti, fp_div(x87_operand(sti), x87_operand(0))),
       }
     },
   }
@@ -430,23 +524,33 @@ function dispatch_x87_dc(modrm, src, _) = {
 // =========================================================================
 
 val dispatch_x87_dd : (byte, RM, Prefixes) -> unit
-function dispatch_x87_dd(modrm, operand, _) = {
+function dispatch_x87_dd(modrm, operand, pfx) = {
   let reg : range(0, 7) = unsigned(modrm[5..3]);
   let sti : int = unsigned(modrm[2..0]);
   match operand {
     RM_mem(m) => {
       match reg {
-        0 => x87_push(__f80_from_f64(v(m))),
-        1 => { v(m) = __f80_to_int64_trunc(x87_read_st(0)); let _ = x87_pop() },
-        2 => v(m) = __f80_to_f64(x87_read_st(0)),
-        3 => { v(m) = __f80_to_f64(x87_read_st(0)); let _ = x87_pop() },
-        4 => x87_load_state(read_mem(m)),
+        0 => x87_load(__f80_from_f64(v(m))),
+        1 => { v(m) = __f80_to_int64_trunc(x87_operand(0)); let _ = x87_pop() },
+        2 => v(m) = __f80_to_f64(x87_operand(0)),
+        3 => { v(m) = __f80_to_f64(x87_operand(0)); let _ = x87_pop() },
+        // FRSTOR and FNSAVE: the environment (14 bytes for a 16-bit
+        // operand size, 28 otherwise), then the registers.
+        4 => if opsize(pfx) == 16 then {
+          let image : bits(752) = read_mem(m);
+          x87_load_env16(image[111..0]);
+          x87_load_regs(image[751..112])
+        } else {
+          let image : bits(864) = read_mem(m);
+          x87_load_env(image[223..0]);
+          x87_load_regs(image[863..224])
+        },
         5 => raise_UD(),
         // FNSAVE — save state, then reinitialize.
         // write_mem before x87_init so that x87 state is unchanged on fault.
         6 => {
-          let state = x87_save_state();
-          write_mem(m, state);
+          if opsize(pfx) == 16 then write_mem(m, x87_save_regs() @ x87_save_env16())
+          else write_mem(m, x87_save_regs() @ x87_save_env());
           x87_init()
         },
         7 => v(m) = x87_sw,
@@ -456,11 +560,11 @@ function dispatch_x87_dd(modrm, operand, _) = {
       match reg {
         0 => x87_free(sti),
         1 => raise_UD(),
-        2 => x87_write_st(sti, x87_read_st(0)),
-        3 => { x87_write_st(sti, x87_read_st(0)); let _ = x87_pop() },
-        4 => x87_set_sw_cc(fp_compare(x87_read_st(0), x87_read_st(sti))),
+        2 => x87_write_st(sti, x87_operand(0)),
+        3 => { x87_write_st(sti, x87_operand(0)); let _ = x87_pop() },
+        4 => x87_set_sw_cc(fp_compare(x87_operand(0), x87_operand(sti))),
         5 => {
-          x87_set_sw_cc(fp_compare(x87_read_st(0), x87_read_st(sti)));
+          x87_set_sw_cc(fp_compare(x87_operand(0), x87_operand(sti)));
           let _ = x87_pop()
         },
         6 => raise_UD(),
@@ -481,16 +585,16 @@ function dispatch_x87_de(modrm, src, _) = {
   match src {
     RM_mem(m) => {
       let src : fp80 = __f80_from_int16(v(m));
-      let st0 : fp80 = x87_read_st(0);
+      let st0 : fp80 = x87_operand(0);
       match reg {
-        0 => x87_write_st(0, fp_add(st0, src)),
-        1 => x87_write_st(0, fp_mul(st0, src)),
+        0 => x87_write_result(0, fp_add(st0, src)),
+        1 => x87_write_result(0, fp_mul(st0, src)),
         2 => x87_set_sw_cc(fp_compare(st0, src)),
         3 => { x87_set_sw_cc(fp_compare(st0, src)); let _ = x87_pop() },
-        4 => x87_write_st(0, fp_sub(st0, src)),
-        5 => x87_write_st(0, fp_sub(src, st0)),
-        6 => x87_write_st(0, fp_div(st0, src)),
-        7 => x87_write_st(0, fp_div(src, st0)),
+        4 => x87_write_result(0, fp_sub(st0, src)),
+        5 => x87_write_result(0, fp_sub(src, st0)),
+        6 => x87_write_result(0, fp_div(st0, src)),
+        7 => x87_write_result(0, fp_div(src, st0)),
       }
     },
     RM_reg(_) => {
@@ -498,21 +602,21 @@ function dispatch_x87_de(modrm, src, _) = {
       // Note: SUB/SUBR and DIV/DIVR swapped vs DA
       match reg {
         0 => {
-          let result = fp_add(x87_read_st(sti), x87_read_st(0));
+          let result = fp_add(x87_operand(sti), x87_operand(0));
           let _ = x87_pop();
-          x87_write_st(sti - 1, result)
+          x87_write_result(sti - 1, result)
         },
         1 => {
-          let result = fp_mul(x87_read_st(sti), x87_read_st(0));
+          let result = fp_mul(x87_operand(sti), x87_operand(0));
           let _ = x87_pop();
-          x87_write_st(sti - 1, result)
+          x87_write_result(sti - 1, result)
         },
         2 => raise_UD(),
         // DE D9: FCOMPP — compare ST(0) with ST(1), pop twice; the other
         // DE D8+i encodings are reserved
         3 => {
           if modrm_val == 217 then {
-            x87_set_sw_cc(fp_compare(x87_read_st(0), x87_read_st(1)));
+            x87_set_sw_cc(fp_compare(x87_operand(0), x87_operand(1)));
             let _ = x87_pop();
             let _ = x87_pop()
           } else {
@@ -521,27 +625,27 @@ function dispatch_x87_de(modrm, src, _) = {
         },
         // FSUBRP — ST(i) = ST(0) - ST(i), pop
         4 => {
-          let result = fp_sub(x87_read_st(0), x87_read_st(sti));
+          let result = fp_sub(x87_operand(0), x87_operand(sti));
           let _ = x87_pop();
-          x87_write_st(sti - 1, result)
+          x87_write_result(sti - 1, result)
         },
         // FSUBP — ST(i) = ST(i) - ST(0), pop
         5 => {
-          let result = fp_sub(x87_read_st(sti), x87_read_st(0));
+          let result = fp_sub(x87_operand(sti), x87_operand(0));
           let _ = x87_pop();
-          x87_write_st(sti - 1, result)
+          x87_write_result(sti - 1, result)
         },
         // FDIVRP — ST(i) = ST(0) / ST(i), pop
         6 => {
-          let result = fp_div(x87_read_st(0), x87_read_st(sti));
+          let result = fp_div(x87_operand(0), x87_operand(sti));
           let _ = x87_pop();
-          x87_write_st(sti - 1, result)
+          x87_write_result(sti - 1, result)
         },
         // FDIVP — ST(i) = ST(i) / ST(0), pop
         7 => {
-          let result = fp_div(x87_read_st(sti), x87_read_st(0));
+          let result = fp_div(x87_operand(sti), x87_operand(0));
           let _ = x87_pop();
-          x87_write_st(sti - 1, result)
+          x87_write_result(sti - 1, result)
         },
       }
     },
@@ -559,14 +663,20 @@ function dispatch_x87_df(modrm, operand, _) = {
   match operand {
     RM_mem(m) => {
       match reg {
-        0 => x87_push(__f80_from_int16(v(m))),
-        1 => { v(m) = __f80_to_int16_trunc(x87_read_st(0)); let _ = x87_pop() },
-        2 => v(m) = __f80_to_int16(x87_read_st(0)),
-        3 => { v(m) = __f80_to_int16(x87_read_st(0)); let _ = x87_pop() },
-        4 => x87_push(__f80_from_bcd(read_mem(m))),
-        5 => x87_push(__f80_from_int64(v(m))),
-        6 => { let x = __f80_to_bcd(x87_read_st(0)); write_mem(m, x); let _ = x87_pop() },
-        7 => { v(m) = __f80_to_int64(x87_read_st(0)); let _ = x87_pop() },
+        0 => x87_load(__f80_from_int16(v(m))),
+        1 => { v(m) = __f80_to_int16_trunc(x87_operand(0)); let _ = x87_pop() },
+        2 => v(m) = __f80_to_int16(x87_operand(0)),
+        3 => { v(m) = __f80_to_int16(x87_operand(0)); let _ = x87_pop() },
+        4 => x87_load(__f80_from_bcd(read_mem(m))),
+        5 => x87_load(__f80_from_int64(v(m))),
+        // FBSTP: a masked underflow stores the BCD indefinite.
+        6 => {
+          let src = x87_operand(0);
+          let x = if x87_stack_faulted then x87_indefinite else __f80_to_bcd(src);
+          write_mem(m, x);
+          let _ = x87_pop()
+        },
+        7 => { v(m) = __f80_to_int64(x87_operand(0)); let _ = x87_pop() },
       }
     },
     RM_reg(_) => {
@@ -585,12 +695,12 @@ function dispatch_x87_df(modrm, operand, _) = {
         },
         // FUCOMIP — unordered compare, set RFLAGS, pop
         5 => {
-          set_eflags_fp_compare(x87_read_st(0), x87_read_st(sti));
+          x87_compare_eflags(sti);
           let _ = x87_pop()
         },
         // FCOMIP — compare, set RFLAGS, pop
         6 => {
-          set_eflags_fp_compare(x87_read_st(0), x87_read_st(sti));
+          x87_compare_eflags(sti);
           let _ = x87_pop()
         },
         _ => raise_UD(),
@@ -623,12 +733,20 @@ function x87_control(opcode, modrm) = {
 // byte, as encoded), and for a memory operand its offset and segment
 // selector.  Intel processors that enumerate CPUID.(EAX=07H,ECX=0):EBX[6]
 // and EBX[13], as the Intel profile does, update FDP, and by default FOP,
-// only for an instruction that raises an unmasked x87 exception, which the
-// model does not raise, and keep no selectors (SDM Vol.1 §8.1.8-8.1.9).
-// Both behaviours were checked on a Zen 4 and an Emerald Rapids.
-val x87_record_last : (byte, byte, RM) -> unit
-function x87_record_last(opcode, modrm, operand) = {
+// only for an instruction that raises an unmasked x87 exception (of those
+// the model raises only the stack faults), and keep no selectors (SDM
+// Vol.1 §8.1.8-8.1.9).  Both behaviours were checked on a Zen 4 and an
+// Emerald Rapids.
+val x87_record_last : (byte, byte, RM, bool) -> unit
+function x87_record_last(opcode, modrm, operand, unmasked) = {
   x87_fip = insn_start;
+  if vendor == Vendor_Intel & unmasked then {
+    x87_fop = opcode[2..0] @ modrm;
+    match operand {
+      RM_mem(m) => x87_fdp = fixup_addr(m.addr),
+      RM_reg(_) => (),
+    }
+  };
   if vendor == Vendor_AMD then {
     x87_fcs = SegReg[CS];
     x87_fop = opcode[2..0] @ modrm;
@@ -667,18 +785,29 @@ function dispatch_x87(encoded_opcode, pfx) = {
   };
   let operand = modrm_rm(modrm, pfx);
   let op : range(0, 255) = unsigned(opcode);
-  match op {
-    216 => dispatch_x87_d8(modrm, operand, pfx),
-    217 => dispatch_x87_d9(modrm, operand, pfx),
-    218 => dispatch_x87_da(modrm, operand, pfx),
-    219 => dispatch_x87_db(modrm, operand, pfx),
-    220 => dispatch_x87_dc(modrm, operand, pfx),
-    221 => dispatch_x87_dd(modrm, operand, pfx),
-    222 => dispatch_x87_de(modrm, operand, pfx),
-    223 => dispatch_x87_df(modrm, operand, pfx),
-    _   => raise_UD(),
+  // A fault leaves the status word as it was: the stack-fault flags an
+  // operand read may have set before a store faults are undone.  An
+  // unmasked stack fault ends the instruction with only its flags set.
+  let saved_sw = x87_sw;
+  x87_stack_faulted = false;
+  let completed : bool = try {
+    match op {
+      216 => dispatch_x87_d8(modrm, operand, pfx),
+      217 => dispatch_x87_d9(modrm, operand, pfx),
+      218 => dispatch_x87_da(modrm, operand, pfx),
+      219 => dispatch_x87_db(modrm, operand, pfx),
+      220 => dispatch_x87_dc(modrm, operand, pfx),
+      221 => dispatch_x87_dd(modrm, operand, pfx),
+      222 => dispatch_x87_de(modrm, operand, pfx),
+      223 => dispatch_x87_df(modrm, operand, pfx),
+      _   => raise_UD(),
+    };
+    true
+  } catch {
+    X87Unmasked() => false,
+    e => { x87_sw = saved_sw; throw e },
   };
-  x87_finish_cc(opcode, modrm);
+  if completed then x87_finish_cc(opcode, modrm);
   if ~(x87_control(encoded_opcode, encoded_modrm)) then
-    x87_record_last(encoded_opcode, encoded_modrm, operand)
+    x87_record_last(encoded_opcode, encoded_modrm, operand, ~(completed))
 }

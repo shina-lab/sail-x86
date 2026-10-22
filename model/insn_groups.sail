@@ -137,7 +137,8 @@ function dispatch_group3_byte(reg_field, dest) = {
     let imm : byte = fetch(1);
     update_flags_logic(v(8, dest) & imm)
   } else {
-    let x = v(8, dest);
+    // NOT and NEG write their operand back; MUL and DIV only read it.
+    let x = if reg_field <= 3 then read_rmw(8, dest) else v(8, dest);
     match reg_field {
       // NOT r/m8
       2 => v(dest) = x ^ 0xFF,
@@ -166,7 +167,8 @@ function dispatch_group3(reg_field, dest, os) = {
     let imm : qword = sign_extend(fetch(if os == 16 then 2 else 4));
     update_flags_logic(v(os, dest) & imm[(os - 1) .. 0])
   } else {
-    let x = v(os, dest);
+    // NOT and NEG write their operand back; MUL and DIV only read it.
+    let x = if reg_field <= 3 then read_rmw(os, dest) else v(os, dest);
     match reg_field {
       // NOT r/m
       2 => v(dest) = ~(x),
@@ -193,13 +195,13 @@ function dispatch_group5(reg_field, dest, pfx) = {
     // INC r/m
     0 => {
       let os = opsize(pfx);
-      v(dest) = exec_inc(v(os, dest))
+      v(dest) = exec_inc(read_rmw(os, dest))
     },
 
     // DEC r/m
     1 => {
       let os = opsize(pfx);
-      v(dest) = exec_dec(v(os, dest))
+      v(dest) = exec_dec(read_rmw(os, dest))
     },
 
     // CALL near indirect
@@ -473,7 +475,7 @@ function exec_rcr(a, count_raw) = {
 val exec_shift_rm : forall 'os, 'os in {8, 16, 32, 64}. (range(0, 7), RM, byte, int('os)) -> unit
 function exec_shift_rm(shift_op, dest, count_raw, os) = {
   // exec_* functions handle count==0 via blend (return original, flags preserved).
-  let src_val = v(os, dest);
+  let src_val = read_rmw(os, dest);
   let new_val : bits('os) = match shift_op {
     0 => exec_rol(src_val, count_raw),
     1 => exec_ror(src_val, count_raw),

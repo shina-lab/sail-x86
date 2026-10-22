@@ -1729,7 +1729,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let count = fetch(1);
       // SDM SHLD/SHRD: every operand access uses the decoded width.
       // An inferred qword write would overwrite adjacent memory on r/m16/32.
-      v(os, dest) = exec_shld(os, v(os, dest), v(os, reg), count)
+      v(os, dest) = exec_shld(os, read_rmw(os, dest), v(os, reg), count)
     },
 
     // 0F A5: SHLD r/m, r, CL
@@ -1737,7 +1737,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
       let count : byte = v(RCX);
-      v(os, dest) = exec_shld(os, v(os, dest), v(os, reg), count)
+      v(os, dest) = exec_shld(os, read_rmw(os, dest), v(os, reg), count)
     },
 
     // 0F A8: PUSH GS (d64)
@@ -1772,7 +1772,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, dest, false);
       let bit_idx = v(os, reg);
       let (adj_rm, bit_num) = bt_adjust(dest, bit_idx);
-      var x = v(os, adj_rm);
+      var x = read_rmw(os, adj_rm);
       CF = x[bit_num];
       x[bit_num] = 0b1;
       v(adj_rm) = x;
@@ -1787,7 +1787,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
       let count = fetch(1);
-      v(os, dest) = exec_shrd(os, v(os, dest), v(os, reg), count)
+      v(os, dest) = exec_shrd(os, read_rmw(os, dest), v(os, reg), count)
     },
 
     // 0F AD: SHRD r/m, r, CL
@@ -1795,7 +1795,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
       let count : byte = v(RCX);
-      v(os, dest) = exec_shrd(os, v(os, dest), v(os, reg), count)
+      v(os, dest) = exec_shrd(os, read_rmw(os, dest), v(os, reg), count)
     },
 
     // 0F AF: IMUL r, r/m (2-operand)
@@ -1824,7 +1824,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, dest, false);
       let bit_idx = v(os, reg);
       let (adj_rm, bit_num) = bt_adjust(dest, bit_idx);
-      var x = v(os, adj_rm);
+      var x = read_rmw(os, adj_rm);
       CF = x[bit_num];
       x[bit_num] = 0b0;
       v(os, adj_rm) = x;
@@ -1839,8 +1839,12 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F B5: LGS r, m16:16/32/64 — Load far pointer into GS
     // Memory format: [offset (16/32/64-bit)][selector (16-bit)]
     // Register operand only (memory source); #UD for register source.
+    // REX.W selects m16:64 on Intel processors (SDM Vol.2A LDS/LES/LFS/
+    // LGS/LSS); AMD processors have no m16:64 form and load an m16:32
+    // pointer, its offset zero-extended, with or without 66h (AMD APM
+    // Vol.3 LSS; checked on a Zen 4 and an Emerald Rapids).
     op if op == 178 | op == 180 | op == 181 => {
-      let os = opsize(pfx);
+      let os : {16, 32, 64} = if pfx.rex_w & vendor == Vendor_AMD then 32 else opsize(pfx);
       let (reg, src) = fetch_modrm(pfx);
       match src {
         RM_mem(m) => {
@@ -1863,7 +1867,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     176 => {
       let (reg, dest) = fetch_modrm(pfx);
       check_lock_rm(pfx, dest, false);
-      let dest_val = v(8, dest);
+      let dest_val = read_rmw(8, dest);
       let acc : byte = v(RAX);
       let src : byte = v(reg);
       let cmp_result = acc - dest_val;
@@ -1879,7 +1883,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
       check_lock_rm(pfx, dest, false);
-      let dest_val = v(os, dest);
+      let dest_val = read_rmw(os, dest);
       let acc = v(os, RAX);
       let src = v(os, reg);
       let cmp_result = acc - dest_val;
@@ -1910,8 +1914,10 @@ function dispatch_2byte_gpr(op, pfx) = {
       // LOCK valid only for BTS (/5), BTR (/6), BTC (/7) with memory
       if pfx.has_lock & reg_field == 4 then raise_UD();
       check_lock_rm(pfx, dest, false);
+      // /0-/3 are reserved: #UD before the operand is accessed.
+      if reg_field < 4 then raise_UD();
       let imm = fetch(1);
-      var x = v(os, dest);
+      var x = if reg_field == 4 then v(os, dest) else read_rmw(os, dest);
       let bit_num : range(0, 63) = unsigned(imm) % os;
       assert(bit_num < os);
       CF = x[bit_num];
@@ -1948,7 +1954,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       check_lock_rm(pfx, dest, false);
       let bit_idx = v(os, reg);
       let (adj_rm, bit_num) = bt_adjust(dest, bit_idx);
-      var x = v(os, adj_rm);
+      var x = read_rmw(os, adj_rm);
       CF = x[bit_num];
       x[bit_num] = ~(x[bit_num]);
       v(os, adj_rm) = x;
@@ -2075,7 +2081,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         RM_reg(dst) => exec_xadd(dst, reg, 8),
         RM_mem(m) => {
           // Memory operand: read, exchange, add, write back
-          let mem_val : byte = v(m);
+          let mem_val : byte = read_rmw_mem(m);
           let reg_val : byte = v(reg);
           let sum : byte = mem_val + reg_val;
           // A write fault must leave SRC unchanged for restart (SDM
@@ -2095,7 +2101,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       match dest {
         RM_reg(dst) => exec_xadd(dst, reg, os),
         RM_mem(_) => {
-          let mem_val = v(os, dest);
+          let mem_val = read_rmw(os, dest);
           let reg_val = v(os, reg);
           let sum = mem_val + reg_val;
           v(os, dest) = sum;
@@ -2159,29 +2165,30 @@ function dispatch_2byte_gpr(op, pfx) = {
       };
       if ~(defined) | (pfx.has_lock & reg_field != 1) then raise_UD();
       match reg_field {
-        // CMPXCHG8B/CMPXCHG16B m64/m128
+        // CMPXCHG8B/CMPXCHG16B m64/m128.  SDM Vol.2A CMPXCHG8B/CMPXCHG16B,
+        // Operation: the destination is written either way, with
+        // RCX:RBX when equal and with its own value when not; #GP(0) if
+        // the CMPXCHG16B operand is not aligned on a 16-byte boundary.
         1 => match dest {
           RM_mem(m) => {
             if pfx.rex_w then {
               if ~(has_cx16) then raise_UD();
-              // SDM Vol.2A CMPXCHG8B/CMPXCHG16B: #GP(0) if the memory
-              // operand of CMPXCHG16B is not aligned on a 16-byte boundary.
               check_alignment(m, 16);
-              let mem_val : bits(128) = read_mem(m);
+              let mem_val : bits(128) = read_rmw_mem(m);
               let mem_lo : qword = mem_val[63..0];
               let mem_hi : qword = mem_val[127..64];
               let eq : bit = is_eq(v(64, RAX), mem_lo) & is_eq(v(64, RDX), mem_hi);
+              write_mem(128, m, blend(mem_val, v(64, RCX) @ v(64, RBX), eq));
               ZF = eq;
-              if eq == 0b1 then write_mem(128, m, v(64, RCX) @ v(64, RBX));
               v(RAX) = blend(mem_lo, v(64, RAX), eq);
               v(RDX) = blend(mem_hi, v(64, RDX), eq)
             } else {
-              let mem_val : qword = v(m);
+              let mem_val : qword = read_rmw_mem(m);
               let mem_lo : dword = mem_val[31..0];
               let mem_hi : dword = mem_val[63..32];
               let eq : bit = is_eq(v(32, RAX), mem_lo) & is_eq(v(32, RDX), mem_hi);
+              v(m) = blend(mem_val, v(32, RCX) @ v(32, RBX), eq);
               ZF = eq;
-              if eq == 0b1 then v(m) = v(32, RCX) @ v(32, RBX);
               v(RAX) = blend(mem_lo, v(32, RAX), eq);
               v(RDX) = blend(mem_hi, v(32, RDX), eq)
             }

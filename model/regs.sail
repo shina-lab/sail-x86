@@ -210,6 +210,15 @@ function x87_pop() = {
 val x87_free : int -> unit
 function x87_free(i) = x87_mark_empty(x87_physical(i))
 
+// Whether ST(i) is tagged empty.
+val x87_is_empty : int -> bool
+function x87_is_empty(i) = (x87_tw >> (2 * x87_physical(i)))[1..0] == 0b11
+
+// The real indefinite, a QNaN with the sign set and the significand
+// 1100...0 (SDM Vol.1 §4.8.3.7, Table 4-3): the masked response of an
+// x87 invalid operation.  The packed BCD indefinite has the same bits.
+let x87_indefinite : fp80 = 0xFFFFC000000000000000
+
 // Decrement TOP (used by FDECSTP).
 val x87_dec_top : unit -> unit
 function x87_dec_top() = x87_set_top(x87_physical(-1))
@@ -320,28 +329,44 @@ function x87_load_env(buf) = {
   x87_fds = x87_selector(buf[207..192])
 }
 
-// Save full x87 state (28 bytes env + 8 x 10 bytes regs) as bits(864).
-// The registers follow the environment in stack order: DEST[ST(i)] :=
-// ST(i) (SDM Vol.2A FSAVE/FNSAVE, Operation).
-val x87_save_state : unit -> bits(864)
-function x87_save_state() = {
-  var buf : bits(864) = zeros();
-  buf[223..0] = x87_save_env();
+// The 14-byte environment of a 16-bit operand size in protected mode
+// (SDM Vol.1 §8.1.10, Figure 8-10): FCW, FSW, FTW, FIP[15:0], FCS,
+// FDP[15:0] and FDS, without FOP.  Loading it zero-extends the two
+// offsets and clears FOP (checked on a Zen 4 and an Emerald Rapids).
+val x87_save_env16 : unit -> bits(112)
+function x87_save_env16() =
+  x87_selector(x87_fds) @ x87_fdp[15..0] @ x87_selector(x87_fcs) @ x87_fip[15..0]
+  @ x87_tag_word() @ x87_sw @ x87_cw
+
+val x87_load_env16 : bits(112) -> unit
+function x87_load_env16(buf) = {
+  x87_set_cw(buf[15..0]);
+  x87_set_sw(buf[31..16]);
+  x87_tw = buf[47..32];
+  x87_fip = zero_extend(buf[63..48]);
+  x87_fcs = x87_selector(buf[79..64]);
+  x87_fop = zeros();
+  x87_fdp = zero_extend(buf[95..80]);
+  x87_fds = x87_selector(buf[111..96])
+}
+
+// The eight registers that follow the environment in an FSAVE image, in
+// stack order: DEST[ST(i)] := ST(i) (SDM Vol.2A FSAVE/FNSAVE, Operation).
+val x87_save_regs : unit -> bits(640)
+function x87_save_regs() = {
+  var buf : bits(640) = zeros();
   foreach (i from 0 to 7) {
-    let lo = 224 + i * 80;
-    buf[(lo + 79) .. lo] = x87_read_st(i)
+    buf[(i * 80 + 79) .. (i * 80)] = x87_read_st(i)
   };
   buf
 }
 
-// Load full x87 state from bits(864): ST(i) := SRC[ST(i)] (SDM Vol.2A
-// FRSTOR, Operation), relative to the TOP in the loaded status word.
-val x87_load_state : bits(864) -> unit
-function x87_load_state(buf) = {
-  x87_load_env(buf[223..0]);
+// ST(i) := SRC[ST(i)] (SDM Vol.2A FRSTOR, Operation), relative to the TOP
+// of the environment loaded first.
+val x87_load_regs : bits(640) -> unit
+function x87_load_regs(buf) = {
   foreach (i from 0 to 7) {
-    let lo = 224 + i * 80;
-    x87_ST[x87_physical(i)] = buf[(lo + 79) .. lo]
+    x87_ST[x87_physical(i)] = buf[(i * 80 + 79) .. (i * 80)]
   }
 }
 

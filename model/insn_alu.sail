@@ -55,7 +55,7 @@ function alu_compute(op, a, b, os) = {
 // Execute ALU: dst_rm OP= src_reg
 val exec_alu_rm_reg : (ALUOp, RM, GPRRef, {8, 16, 32, 64}) -> unit
 function exec_alu_rm_reg(op, dest, reg, os) = {
-  let a = v(os, dest);
+  let a = if op == ALU_CMP then v(os, dest) else read_rmw(os, dest);
   let b = v(os, reg);
   let (result, wb) = alu_compute(op, a, b, os);
   if wb then v(os, dest) = result
@@ -81,7 +81,7 @@ function exec_alu_acc_imm(op, imm, os, _) = {
 // Execute ALU: dest OP= imm (Group 1: opcodes 80, 81, 83)
 val exec_alu_rm_imm : forall 'os, 'os in {8, 16, 32, 64}. (ALUOp, RM, bits('os), int('os)) -> unit
 function exec_alu_rm_imm(op, dest, imm, os) = {
-  let a = v(os, dest);
+  let a = if op == ALU_CMP then v(os, dest) else read_rmw(os, dest);
   let (result, wb) = alu_compute(op, a, imm, os);
   if wb then v(os, dest) = result
 }

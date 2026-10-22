@@ -190,10 +190,11 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   // 0F38 1E: VPABSD xmm/ymm, xmm/ymm/m (66 prefix)
   30 => { if mp != MP_66 then raise_UD(); vex_exec_unop(PU_Abs, 32, pfx) },
 
-  // 0F38 F2: ANDN (NP, VEX.NDS.LZ) — dest = ~vvvv & src
+  // 0F38 F2: ANDN (NP, VEX.NDS.LZ) — dest = ~vvvv & src.  The BMI1 and
+  // BMI2 instructions are VEX.LZ: #UD if VEX.L = 1 (SDM Vol.2A Table
+  // 2-29, Type 13 exception conditions).
   242 => {
-    if ~(has_bmi1) then raise_UD();
-    if mp != MP_NONE then raise_UD();
+    if ~(has_bmi1) | mp != MP_NONE | pfx.vex_l then raise_UD();
     let (dst, src2) = fetch_modrm(pfx);
     let os : {32, 64} = if pfx.vex_w then 64 else 32;
     let src = v(os, src2);
@@ -209,19 +210,19 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     PF = undefined
   },
 
-  // 0F38 F3: BLSI/BLSMSK/BLSR (NP, VEX.NDD.LZ) — selected by modrm /reg
+  // 0F38 F3: BLSI/BLSMSK/BLSR (NP, VEX.NDD.LZ) — selected by modrm /reg;
+  // /0 and /4-/7 are #UD before the source is read.
   243 => {
-    if ~(has_bmi1) then raise_UD();
-    if mp != MP_NONE then raise_UD();
+    if ~(has_bmi1) | mp != MP_NONE | pfx.vex_l then raise_UD();
     let (reg_field, src2) = fetch_modrm_raw(pfx);
+    if reg_field == 0 | reg_field > 3 then raise_UD();
     let 'os : {32, 64} = if pfx.vex_w then 64 else 32;
     let src = v(os, src2);
     let dst : gpr_idx = pfx.vex_vvvv % 16;
     let (result, cf) : (bits('os), bit) = match reg_field {
       1 => ((src - 1) & src,    is_zero(src)),    // BLSR
       2 => ((src - 1) ^ src,    is_zero(src)),    // BLSMSK
-      3 => ((~(src) + 1) & src, is_nonzero(src)), // BLSI
-      _ => raise_UD(),
+      _ => ((~(src) + 1) & src, is_nonzero(src)), // BLSI
     };
     v(dst) = result;
     SF = result[os - 1];
@@ -278,7 +279,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 F5: BZHI (NP) / PDEP (F2) / PEXT (F3) — multiplexed by mandatory prefix
   245 => {
-    if ~(has_bmi2) then raise_UD();
+    if ~(has_bmi2) | pfx.vex_l then raise_UD();
     let (dst, src2) = fetch_modrm(pfx);
     let os : {32, 64} = if pfx.vex_w then 64 else 32;
     match mp {
@@ -333,7 +334,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 F6: MULX (F2, VEX.NDD.LZ) — unsigned multiply without affecting flags
   246 => {
-    if ~(has_bmi2) then raise_UD();
+    if ~(has_bmi2) | pfx.vex_l then raise_UD();
     if mp != MP_F2 then raise_UD();
     let (dst_hi, src) = fetch_modrm(pfx);
     let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
@@ -350,6 +351,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   247 => {
     if mp == MP_NONE then { if ~(has_bmi1) then raise_UD() }
     else { if ~(has_bmi2) then raise_UD() };
+    if pfx.vex_l then raise_UD();
     let (dst, src2) = fetch_modrm(pfx);
     let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
     match mp {

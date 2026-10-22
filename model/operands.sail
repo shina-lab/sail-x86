@@ -182,12 +182,16 @@ function opsize(pfx) =
   }
 
 // Operand size for instructions that default to 64-bit (PUSH, POP, CALL, RET).
-// LongMode: default OS64, 66h → OS16 (OS32 not encodable).
+// LongMode: default OS64, 66h → OS16 (OS32 not encodable), REX.W → OS64
+// with or without 66h ("REX.W takes precedence over the operand-size
+// prefix", SDM Vol.2A §2.2.1.2; checked on a Zen 4 and an Emerald Rapids).
 // Non-LongMode, CS.D=1: default OS32, 66h → OS16.
 // Non-LongMode, CS.D=0: default OS16, 66h → OS32.
 val opsize_default64 : Prefixes -> {16, 32, 64}
 function opsize_default64(pfx) =
-  if cur_mode == LongMode then {
+  if pfx.rex_w then {
+    64
+  } else if cur_mode == LongMode then {
     if pfx.has_opsize then 16 else 64
   } else if get_cs_db() == 0b1 then {
     if pfx.has_opsize then 16 else 32
@@ -262,6 +266,24 @@ function write_rm_val(os, rm, v) =
   match rm {
     RM_reg(r) => write_gpr_ref(r) = v,
     RM_mem(m) => write_mem(m,v),
+  }
+
+// The memory destination of a read-modify-write instruction (ADD, ADC,
+// SUB, SBB, AND, OR, XOR, INC, DEC, NOT, NEG, the shifts and rotates,
+// SHLD/SHRD, BTS/BTR/BTC, XCHG, XADD, CMPXCHG, CMPXCHG8B/16B) is read with
+// write intent: the read already needs write access to every page of the
+// operand.  A page fault on it is reported as a write access (error code
+// W/R = 1, SDM Vol.3A §4.7), and a read-only page faults even where the
+// instruction then stores the value unchanged (a shift by 0, a CMPXCHG
+// whose comparison fails).  Checked on a Zen 4 and an Emerald Rapids.
+val read_rmw_mem : forall 'n, 'n > 0. (implicit('n), MemRef) -> bits('n)
+function read_rmw_mem(n, m) = read_mem_linear(seg_linear(m, n / 8), PT_Write)
+
+val read_rmw : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), RM) -> bits('os)
+function read_rmw(os, rm) =
+  match rm {
+    RM_reg(r) => read_gpr_ref(r),
+    RM_mem(m) => read_rmw_mem(m),
   }
 
 // Memory-only RM read/write: raise #UD if register operand.
