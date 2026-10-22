@@ -1560,21 +1560,27 @@ static CaseResult run_case(KvmVm &vm, const TestCase &tc, const char *verdict) {
     fprintf(stderr, "  Sail: expected fault but none occurred\n");
     ok = false;
   }
-  if (tc.may_fault && kvm_fault.faulted != sail_fault.faulted && err.empty()) {
+  // A variant (may_fault) inherits its case's allowed outcomes, but its
+  // encoding is another one, which may take an outcome outside them (an
+  // undefined opcode under a prefix may be a defined instruction): there
+  // the model's outcome is the expected one as for any variant, and the
+  // allowed outcomes only let the two sides differ within them.
+  auto outcome = [](const FaultInfo &f) { return f.faulted ? f.vector : -1; };
+  auto allowed = [&](int o) { return std::ranges::count(tc.allowed_outcomes, o) > 0; };
+  int kvm_out = outcome(kvm_fault), sail_out = outcome(sail_fault);
+  bool open = !tc.allowed_outcomes.empty() && allowed(kvm_out) && allowed(sail_out);
+  if (tc.may_fault && kvm_fault.faulted != sail_fault.faulted && !open && err.empty()) {
     fprintf(stderr, "  MISMATCH outcome: kvm %s, sail %s\n",
             kvm_fault.faulted ? "faulted" : "completed",
             sail_fault.faulted ? "faulted" : "completed");
     ok = false;
   }
   if (!tc.allowed_outcomes.empty() && err.empty()) {
-    auto outcome = [](const FaultInfo &f) { return f.faulted ? f.vector : -1; };
-    auto allowed = [&](int o) { return std::ranges::count(tc.allowed_outcomes, o) > 0; };
-    int kvm_out = outcome(kvm_fault), sail_out = outcome(sail_fault);
-    if (!allowed(kvm_out) || !allowed(sail_out)) {
+    if (!open && !tc.may_fault) {
       fprintf(stderr, "  OUTCOME not allowed: kvm %d, sail %d (-1: completed)\n",
               kvm_out, sail_out);
       ok = false;
-    } else if (kvm_out != sail_out) {
+    } else if (open && kvm_out != sail_out) {
       return CaseResult::Pass;
     }
   }

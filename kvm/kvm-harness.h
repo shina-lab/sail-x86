@@ -559,7 +559,9 @@ struct TestCase {
   // raised first, or whether an encoding faults at all), the outcomes they
   // allow: exception vectors, and -1 for completing.  Each side must take
   // one of them; when the two take different ones, nothing more is
-  // compared.
+  // compared.  A variant, whose encoding is another, may take any outcome,
+  // the model's being the expected one; its two sides may differ only
+  // within these.
   std::vector<int> allowed_outcomes;
   // Bits of the data page that the instruction sequence leaves undefined,
   // as (offset, bits of that byte): the memory counterpart of flags_mask.
