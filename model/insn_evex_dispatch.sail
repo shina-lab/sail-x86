@@ -27,11 +27,11 @@ function decode_evex_with_p0(p0) = {
   if p0[3] == 0b1 | p1[2] == 0b0 then raise_UD();
 
   // Non-64-bit modes cannot address registers 8-31 (SDM Vol.2 §2.7.11,
-  // Tables 2-40/2-41): EVEX.R̄/X̄ are 11b by the BOUND disambiguation,
-  // EVEX.B̄ and EVEX.R'̄ are ignored, the top bit of EVEX.v̄v̄v̄v̄ (P[14])
-  // is ignored, and EVEX.V'̄ = 0 is #UD.
+  // Tables 2-40/2-41): EVEX.R̄/X̄ are 11b by the BOUND disambiguation, and
+  // EVEX.B̄ and EVEX.R'̄ are ignored.  What the top bit of EVEX.v̄v̄v̄v̄
+  // (P[14]) and EVEX.V'̄ mean there depends on whether vvvv names a
+  // register, which evex_check_form decides.
   let legacy : bool = cur_mode != LongMode;
-  if legacy & p2[3] == 0b0 then raise_UD();
 
   let mmm : range(0, 7) = unsigned(p0[2..0]);
   let pfx = {default_prefixes() with
@@ -45,12 +45,7 @@ function decode_evex_with_p0(p0) = {
     // P1: W, vvvv (inverted), pp
     rex_w  = p1[7] == 0b1,
     vex_w  = p1[7] == 0b1,
-    evex_vvvvv = {
-      let vprime : range(0, 1) = unsigned(zero_extend(~(p2[3])) : bits(1));
-      let vvvv : range(0, 15) =
-        if legacy then unsigned(~(p1[5..3])) else unsigned(~(p1[6..3]));
-      vprime * 16 + vvvv
-    },
+    evex_vvvvv = unsigned(~(p2[3] @ p1[6..3])),
     // pp → mandatory prefix flags
     has_opsize = p1[1..0] == 0b01,
     has_rep    = p1[1..0] == 0b10,

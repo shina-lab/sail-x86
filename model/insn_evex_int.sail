@@ -218,13 +218,15 @@ function dispatch_evex_int(op, pfx) = {
   // 0F FB: VPSUBQ (EVEX, 66 prefix, W1)
   251 => { if mp != MP_66 then raise_UD(); evex_exec_binop_bcast(PB_Sub, 64, pfx) },
 
-  // 0F 6E: VMOVD (66, W=0) / VMOVQ (66, W=1) — load from GPR/mem to XMM
+  // 0F 6E: VMOVD (66, W=0) / VMOVQ (66, W=1) — load from GPR/mem to XMM.
+  // VMOVQ is VMOVD outside 64-bit mode, disp8*N included (vex_gpr_size).
   110 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
-    match (src, pfx.rex_w) {
+    let q = vex_gpr_size(pfx) == 64;
+    let src = modrm_rm_evex(modrm, pfx, if q then 8 else 4);
+    match (src, q) {
       (RM_reg(r), true)   => evex_write(dst, evex_wmask(pfx, 8), zero_extend(v(64, r)) : zmmword),
       (RM_mem(m), true)   => evex_write(dst, evex_wmask(pfx, 8), zero_extend(v(64, m)) : zmmword),
       (RM_reg(r), false)  => evex_write(dst, evex_wmask(pfx, 16), zero_extend(v(32, r)) : zmmword),
@@ -256,9 +258,10 @@ function dispatch_evex_int(op, pfx) = {
       if mp != MP_66 then raise_UD();
       let modrm = fetch(1);
       let src = evex_reg_idx(modrm, pfx);
-      let dest = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+      let q = vex_gpr_size(pfx) == 64;
+      let dest = modrm_rm_evex(modrm, pfx, if q then 8 else 4);
       let src_xmm : xmmword = read_simd(src);
-      match (dest, pfx.rex_w) {
+      match (dest, q) {
         (RM_reg(r), true) => v(r) = src_xmm[63..0],
         (RM_mem(m), true)   => v(m) = src_xmm[63..0],
         (RM_reg(r), false) => v(r) = src_xmm[31..0],

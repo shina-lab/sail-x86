@@ -747,7 +747,8 @@ function evex_form_map6(op, pp, w, digit, is_reg) = match (op, pp, w, digit, is_
 
 // Check an EVEX instruction against the form of its map (mmm), opcode, pp,
 // W, ModRM.reg and ModRM.mod, and raise #UD for an encoding the form does
-// not allow.  Returns the prefixes with the fields AMD ignores cleared.
+// not allow.  Returns the prefixes with the fields AMD ignores cleared, and
+// with the register number in EVEX.vvvv as the mode makes it.
 // What a valid EVEX.b means in a register form, static rounding or SAE
 // with the 512-bit vector length, is up to the handlers (evex_begin_rc,
 // evex_sae_ll in insn_evex.sail).
@@ -801,12 +802,19 @@ function evex_check_form(mmm, opcode, pfx) = {
   if ~(rc_form) & ~(len_ok) then raise_UD();
 
   // EVEX.vvvv and EVEX.V' (Table 2-41) are 1111b and 1 where they encode
-  // no register (pfx.evex_vvvvv holds them inverted).
+  // no register (pfx.evex_vvvvv holds them inverted).  Outside 64-bit mode
+  // the top bit of a vvvv that names a register is ignored ("P[14]
+  // ignored"), and V' = 1 is #UD where it would extend a register number,
+  // the vvvv operand or the VSIB index; where vvvv names nothing, the whole
+  // field must still be 1111b.  An Emerald Rapids follows these rules; a
+  // Zen 4 ignores V' as well where vvvv names a register.
+  let legacy : bool = cur_mode != LongMode;
   match f.vvvv {
-    V_REG  => (),
+    V_REG  => if legacy & pfx.evex_vvvvv >= 16 & vendor == Vendor_Intel then raise_UD(),
     V_NONE => if pfx.evex_vvvvv != 0 then raise_UD(),
-    V_VSIB => if pfx.evex_vvvvv % 16 != 0 then raise_UD(),
+    V_VSIB => if pfx.evex_vvvvv % 16 != 0 | legacy & pfx.evex_vvvvv >= 16 then raise_UD(),
   };
+  let vvvvv : simd_idx = if legacy & f.vvvv == V_REG then pfx.evex_vvvvv % 8 else pfx.evex_vvvvv;
 
   // EVEX.aaa and EVEX.z (Table 2-42): an instruction without an opmask
   // needs aaa = 000b, and a gather or scatter, which updates its mask,
@@ -829,5 +837,6 @@ function evex_check_form(mmm, opcode, pfx) = {
   if pfx.evex_z == bitone & ~(zeroing_ok) & ~(z_ignored) then raise_UD();
 
   { pfx with evex_b = pfx.evex_b & ~(b_ignored),
-             evex_z = if z_ignored then bitzero else pfx.evex_z }
+             evex_z = if z_ignored then bitzero else pfx.evex_z,
+             evex_vvvvv = vvvvv }
 }

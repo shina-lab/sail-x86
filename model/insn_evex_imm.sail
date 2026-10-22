@@ -519,13 +519,15 @@ function dispatch_evex_imm(op, pfx) = {
     }
   },
 
-  // 0F3A 16: VPEXTRD (66, W=0) / VPEXTRQ (66, W=1) — extract dword/qword from XMM
+  // 0F3A 16: VPEXTRD (66, W=0) / VPEXTRQ (66, W=1) — extract dword/qword
+  // from XMM.  VPEXTRQ is VPEXTRD outside 64-bit mode (vex_gpr_size), as
+  // is VPINSRQ (0F3A 22) VPINSRD.
   22 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let src = evex_reg_idx(modrm, pfx);
     let src_xmm : xmmword = read_simd(src);
-    if pfx.vex_w then {
+    if vex_gpr_size(pfx) == 64 then {
       // VPEXTRQ: imm8[0] selects qword
       let dest = modrm_rm_evex(modrm, pfx, 8);
       let imm = fetch(1);
@@ -863,7 +865,7 @@ function dispatch_evex_imm(op, pfx) = {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
-    if pfx.vex_w then {
+    if vex_gpr_size(pfx) == 64 then {
       // VPINSRQ: imm8[0] selects qword position
       let src = modrm_rm_evex(modrm, pfx, 8);
       let imm = fetch(1);

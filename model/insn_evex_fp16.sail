@@ -566,17 +566,20 @@ function dispatch_evex_map5(opcode, pfx) = {
       }
     },
 
-    // MAP5 0x2A: VCVTSI2SH (F3) — int to scalar FP16
+    // MAP5 0x2A: VCVTSI2SH (F3) — int to scalar FP16.  Here and in the
+    // other FP16 conversions to and from a GPR, "Outside of 64b mode, the
+    // EVEX.W field is ignored. The instruction behaves as if W=0 was used"
+    // (vex_gpr_size).
     42 => {
       if mp != MP_F3 then raise_UD();
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
-      let src = modrm_rm_evex(modrm, pfx, if pfx.vex_w then 8 else 4);
+      let src = modrm_rm_evex(modrm, pfx, if vex_gpr_size(pfx) == 64 then 8 else 4);
       let src1 : xmmword = read_simd(pfx.evex_vvvvv);
       // SDM: IF *SRC2 is a register* and (EVEX.b = 1): SET_RM(EVEX.RC)
       let is_reg : bool = match src { RM_reg(_) => true, RM_mem(_) => false };
       let (_, saved) = evex_begin_rc(pfx, is_reg);
-      if pfx.vex_w then {
+      if vex_gpr_size(pfx) == 64 then {
         // VCVTSI2SH r64 → FP16
         let x : qword = v(src);
         let r : word = __int64_to_f16(x);
@@ -597,7 +600,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       let dst_gpr = modrm_reg(modrm, pfx);
       let src = modrm_xrm_evex(modrm, pfx, 2);
       let src : word = decode_scalar_src(16, src);
-      if pfx.vex_w then
+      if vex_gpr_size(pfx) == 64 then
         v(dst_gpr) = __f16_to_int64_trunc(src)
       else
         v(dst_gpr) = __f16_to_int32_trunc(src)
@@ -612,7 +615,7 @@ function dispatch_evex_map5(opcode, pfx) = {
       // SDM: IF *SRC is a register* and (EVEX.b = 1): SET_RM(EVEX.RC)
       let (_, saved) = evex_begin_rc_xrm(pfx, src);
       let src : word = decode_scalar_src(16, src);
-      if pfx.vex_w then
+      if vex_gpr_size(pfx) == 64 then
         v(dst_gpr) = __f16_to_int64(src)
       else
         v(dst_gpr) = __f16_to_int32(src);
@@ -686,7 +689,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           let src = modrm_xrm_evex(modrm, pfx, 2);
           let dst_gpr = modrm_reg(modrm, pfx);
           let src : word = decode_scalar_src(src);
-          if pfx.vex_w then
+          if vex_gpr_size(pfx) == 64 then
             v(dst_gpr) = __f16_to_uint64_trunc(src)
           else
             v(dst_gpr) = __f16_to_uint32_trunc(src)
@@ -737,7 +740,7 @@ function dispatch_evex_map5(opcode, pfx) = {
           // SDM: IF *SRC is a register* and (EVEX.b = 1): SET_RM(EVEX.RC)
           let (_, saved) = evex_begin_rc_xrm(pfx, src);
           let src : word = decode_scalar_src(src);
-          if pfx.vex_w then
+          if vex_gpr_size(pfx) == 64 then
             v(dst_gpr) = __f16_to_uint64(src)
           else
             v(dst_gpr) = __f16_to_uint32(src);
@@ -813,12 +816,12 @@ function dispatch_evex_map5(opcode, pfx) = {
         },
         MP_F3 => {
           // VCVTUSI2SH: unsigned int to scalar FP16
-          let src = modrm_rm_evex(modrm, pfx, if pfx.vex_w then 8 else 4);
+          let src = modrm_rm_evex(modrm, pfx, if vex_gpr_size(pfx) == 64 then 8 else 4);
           let src1 : xmmword = read_simd(pfx.evex_vvvvv);
           // SDM: IF *SRC2 is a register* and (EVEX.b = 1): SET_RM(EVEX.RC)
           let is_reg : bool = match src { RM_reg(_) => true, RM_mem(_) => false };
           let (_, saved) = evex_begin_rc(pfx, is_reg);
-          if pfx.vex_w then {
+          if vex_gpr_size(pfx) == 64 then {
             // VCVTUSI2SH r64 → FP16
             let x : qword = v(src);
             let r : word = __uint64_to_f16(x);

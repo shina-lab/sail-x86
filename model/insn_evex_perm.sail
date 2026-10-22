@@ -100,12 +100,14 @@ function dispatch_evex_perm(op, pfx) = {
   // 0F38 7C: VPBROADCASTD (66,W0) r32 / VPBROADCASTQ (66,W1) r64 — from GPR
   // SDM VPBROADCASTB/W/D/Q: EVEX.W1 7C broadcasts a 64-bit value from a
   // GPR to all quadwords of the destination, subject to the writemask.
+  // Outside 64-bit mode "EVEX.W is ignored; the instruction behaves as if
+  // the W0 version is used" (vex_gpr_size).
   124 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let vl = evex_vl(pfx);
-    if pfx.rex_w then {
+    if vex_gpr_size(pfx) == 64 then {
       let src = modrm_rm_evex(modrm, pfx, 8);
       let elem : qword = v(src);
       evex_write(dst, evex_wmask(pfx, vl / 64), broadcast(vl, elem))

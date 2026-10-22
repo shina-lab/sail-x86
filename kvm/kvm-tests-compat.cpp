@@ -1647,12 +1647,10 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     add_xmm("compat evex vpxord (vvvv bit3 ignored)",
             {0x62, 0xF1, 0x35, 0x08, 0xEF, 0xC2}, s, 0x7);
 
-    // EVEX.V'̄=0 outside 64-bit mode: SDM Vol.2 Table 2-41 says #UD, and
-    // the model follows the SDM.  The AMD Zen 4 development host was
-    // observed to IGNORE V'̄ here instead (encoding 62 F1 75 00 EF C2
-    // executed as VPXORD, no fault) — a vendor divergence on the SDM's
-    // side of the model, so it cannot be asserted differentially on
-    // this host.  Recorded for re-adjudication on Intel silicon.
+    // EVEX.V'̄=0 outside 64-bit mode (62 F1 75 00 EF C2): SDM Vol.2 Table
+    // 2-41 says #UD, which an Emerald Rapids raises, while a Zen 4 ignores
+    // V'̄ and executes VPXORD.  "Compat EVEX" in kvm-tests-compat-avx.cpp
+    // compares this and the other legacy-mode EVEX rules on both vendors.
 
     // BOUND (mod≠11): in-bounds executes with no architectural effect
     {

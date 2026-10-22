@@ -617,14 +617,18 @@ function dispatch_evex_fp(op, pfx) = {
   },
 
   // 0F 2A: VCVTSI2SS (F3) / VCVTSI2SD (F2) — scalar, GPR/mem to XMM
-  // F3: {er}, F2/W1: {er}
+  // F3: {er}, F2/W1: {er}.  Outside 64-bit mode EVEX.W1 here and in the
+  // other conversions to and from a GPR "is ignored; the instructions
+  // behaves as if the W0 version is used" (vex_gpr_size): an Emerald
+  // Rapids converts a 32-bit source, and scales a disp8 by 4, the Tuple1
+  // Scalar N of the W0 form.
   42 => {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+    let src = modrm_rm_evex(modrm, pfx, if vex_gpr_size(pfx) == 64 then 8 else 4);
     let is_mem : bool = match src { RM_mem(_) => true, _ => false };
     let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
-    let os : {16, 32, 64} = if pfx.rex_w then 64 else 32;
+    let os : {16, 32, 64} = vex_gpr_size(pfx);
     let src_val : qword = zero_extend(v(os, src));
     let src1 : xmmword = read_simd(pfx.evex_vvvvv);
     match mp {
@@ -663,7 +667,7 @@ function dispatch_evex_fp(op, pfx) = {
   44 => {
     let modrm = fetch(1);
     let dst_gpr = modrm_reg(modrm, pfx);
-    let os : {16, 32, 64} = if pfx.rex_w then 64 else 32;
+    let os : {16, 32, 64} = vex_gpr_size(pfx);
     match mp {
       // VCVTTSS2SI — supports {sae}
       MP_F3 => {
@@ -696,7 +700,7 @@ function dispatch_evex_fp(op, pfx) = {
   45 => {
     let modrm = fetch(1);
     let dst_gpr = modrm_reg(modrm, pfx);
-    let os : {16, 32, 64} = if pfx.rex_w then 64 else 32;
+    let os : {16, 32, 64} = vex_gpr_size(pfx);
     match mp {
       // VCVTSS2SI — supports {er}
       MP_F3 => {
@@ -946,7 +950,7 @@ function dispatch_evex_fp(op, pfx) = {
         let (_, saved_mxcsr) = evex_begin_rc_xrm(pfx, rm2);
         let dst_gpr = modrm_reg(modrm, pfx);
         let src_f32 : dword = decode_scalar_src(rm2);
-        if pfx.rex_w then v(dst_gpr) = __f32_to_uint64_trunc(src_f32)
+        if vex_gpr_size(pfx) == 64 then v(dst_gpr) = __f32_to_uint64_trunc(src_f32)
         else v(dst_gpr) = zero_extend(32, __f32_to_uint32_trunc(src_f32));
         evex_end_rc(saved_mxcsr)
       },
@@ -956,7 +960,7 @@ function dispatch_evex_fp(op, pfx) = {
         let (_, saved_mxcsr) = evex_begin_rc_xrm(pfx, rm2);
         let dst_gpr = modrm_reg(modrm, pfx);
         let src_f64 : qword = decode_scalar_src(rm2);
-        if pfx.rex_w then v(dst_gpr) = __f64_to_uint64_trunc(src_f64)
+        if vex_gpr_size(pfx) == 64 then v(dst_gpr) = __f64_to_uint64_trunc(src_f64)
         else v(dst_gpr) = zero_extend(32, __f64_to_uint32_trunc(src_f64));
         evex_end_rc(saved_mxcsr)
       },
@@ -1015,7 +1019,7 @@ function dispatch_evex_fp(op, pfx) = {
         let (_, saved_mxcsr) = evex_begin_rc_xrm(pfx, rm2);
         let dst_gpr = modrm_reg(modrm, pfx);
         let src_f32 : dword = decode_scalar_src(rm2);
-        if pfx.rex_w then v(dst_gpr) = __f32_to_uint64(src_f32)
+        if vex_gpr_size(pfx) == 64 then v(dst_gpr) = __f32_to_uint64(src_f32)
         else v(dst_gpr) = zero_extend(32, __f32_to_uint32(src_f32));
         evex_end_rc(saved_mxcsr)
       },
@@ -1025,7 +1029,7 @@ function dispatch_evex_fp(op, pfx) = {
         let (_, saved_mxcsr) = evex_begin_rc_xrm(pfx, rm2);
         let dst_gpr = modrm_reg(modrm, pfx);
         let src_f64 : qword = decode_scalar_src(rm2);
-        if pfx.rex_w then v(dst_gpr) = __f64_to_uint64(src_f64)
+        if vex_gpr_size(pfx) == 64 then v(dst_gpr) = __f64_to_uint64(src_f64)
         else v(dst_gpr) = zero_extend(32, __f64_to_uint32(src_f64));
         evex_end_rc(saved_mxcsr)
       },
@@ -1145,12 +1149,12 @@ function dispatch_evex_fp(op, pfx) = {
       // VCVTUSI2SS: scalar u32/u64→f32 — supports {er}
       MP_F3 => {
         let dst_xmm = evex_reg_idx(modrm, pfx);
-        let rm2 = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+        let rm2 = modrm_rm_evex(modrm, pfx, if vex_gpr_size(pfx) == 64 then 8 else 4);
         let is_mem : bool = match rm2 { RM_mem(_) => true, _ => false };
         let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src1 : xmmword = read_simd(pfx.evex_vvvvv);
         let result_f32 : dword =
-          if pfx.rex_w then __uint64_to_f32(v(rm2)) else __uint32_to_f32(v(rm2));
+          if vex_gpr_size(pfx) == 64 then __uint64_to_f32(v(rm2)) else __uint32_to_f32(v(rm2));
         var dst_val = src1;
         dst_val[31..0] = result_f32;
         write_simd(128, dst_xmm, dst_val);
@@ -1159,12 +1163,12 @@ function dispatch_evex_fp(op, pfx) = {
       // VCVTUSI2SD: scalar u32/u64→f64 — W1 supports {er}
       MP_F2 => {
         let dst_xmm = evex_reg_idx(modrm, pfx);
-        let rm2 = modrm_rm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+        let rm2 = modrm_rm_evex(modrm, pfx, if vex_gpr_size(pfx) == 64 then 8 else 4);
         let is_mem : bool = match rm2 { RM_mem(_) => true, _ => false };
         let (_, saved_mxcsr) = evex_begin_rc(pfx, ~(is_mem));
         let src1 : xmmword = read_simd(pfx.evex_vvvvv);
         let result_f64 : qword =
-          if pfx.rex_w then __uint64_to_f64(v(rm2)) else __uint32_to_f64(v(rm2));
+          if vex_gpr_size(pfx) == 64 then __uint64_to_f64(v(rm2)) else __uint32_to_f64(v(rm2));
         var dst_val = src1;
         dst_val[63..0] = result_f64;
         write_simd(128, dst_xmm, dst_val);

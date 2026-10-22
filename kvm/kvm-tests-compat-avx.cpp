@@ -1,15 +1,20 @@
 #include "kvm-avx-encoder.h"
+#include <cpuid.h>
 
-// VEX outside 64-bit mode, in compatibility mode (CS.L = 0, CS.D = 1).  Only
-// eight registers of each kind exist there, and the prefix's extension bits
-// and W are reinterpreted (SDM Vol.2A §2.3.5):
-//   - C4h/C5h are VEX only if the next byte's bits 7:6 are 11b, otherwise
-//     LES/LDS: VEX.R̄X̄ are always 1.
-//   - VEX.B̄ and the top bit of a VEX.vvvv that names a register are
-//     ignored.
-//   - VEX.W1 of the instructions where W is REX.W for a general-purpose
-//     operand is ignored: BMI1/BMI2, VMOVQ, VPEXTRQ, VPINSRQ, VCVTSI2SS/SD
-//     and the other conversions to and from a GPR.
+// VEX and EVEX outside 64-bit mode, in compatibility mode (CS.L = 0, CS.D =
+// 1).  Only eight registers of each kind exist there, and the prefixes'
+// extension bits and W are reinterpreted (SDM Vol.2A §2.3.5 for VEX, §2.7.11
+// Tables 2-40 to 2-42 for EVEX):
+//   - C4h/C5h are VEX only if the next byte's bits 7:6 are 11b, and 62h EVEX
+//     only if they are 11b, otherwise LES/LDS/BOUND: VEX.R̄X̄ and EVEX.R̄X̄
+//     are always 1.
+//   - VEX.B̄, EVEX.B̄ and EVEX.R'̄, and the top bit of a VEX.vvvv or an
+//     EVEX.vvvv that names a register, are ignored.  EVEX.V'̄ must be 1
+//     (#UD on an Emerald Rapids; a Zen 4 ignores it where vvvv names a
+//     register), and an EVEX.vvvv that names nothing 1111b.
+//   - VEX.W1 and EVEX.W1 of the instructions where W is REX.W for a
+//     general-purpose operand are ignored: BMI1/BMI2, VMOVQ, VPEXTRQ,
+//     VPINSRQ, VCVTSI2SS/SD and the other conversions to and from a GPR.
 // The registers and memory hold distinct values in their upper halves and
 // at the register numbers 8 above the encoded ones, so that reading either
 // shows.  The SDM's statements disagree in places (VPINSRQ is "#UD in
@@ -215,6 +220,128 @@ void add_compat_avx_tests(std::vector<TestCase> &tests) {
       add("les eax,[edi+disp32] (C4h, VEX.X̄=0)", {0xC4, 0x87, 0, 0, 0, 0}, s, FL_ALL, fp);
       add("lds eax,[edi] (C5h, VEX.R̄=0)", {0xC5, 0x07}, s, FL_ALL, fp);
       add("lds eax,[edi+disp32] (C5h, vvvv bit 3)", {0xC5, 0x87, 0, 0, 0, 0}, s, FL_ALL, fp);
+    }
+  }
+
+  // =====================================================================
+  // EVEX
+  // =====================================================================
+  cat = "Compat EVEX";
+  {
+    ArchState s = g;
+    s.kregs[1] = 0xFFFFFFFFFFFFFFF5ULL;
+    // VPXORD xmm0, xmm1, xmm2 (62 F1 75 08 EF C2) with EVEX.V'̄ = 0, which
+    // Table 2-41 makes #UD outside 64-bit mode (an Emerald Rapids raises it,
+    // a Zen 4 ignores V'̄), with the top bit of vvvv clear too, and EVEX.R'̄
+    // = 0 (ignored).
+    add("vpxord xmm0,xmm1,xmm2 EVEX.V'̄=0", {0x62, 0xF1, 0x75, 0x00, 0xEF, 0xC2}, s);
+    add("vpxord zmm0,zmm1,zmm2 EVEX.V'̄=0", {0x62, 0xF1, 0x75, 0x40, 0xEF, 0xC2}, s);
+    add("vpxord xmm0,xmm1,xmm2 EVEX.V'̄=0 vvvv bit 3", {0x62, 0xF1, 0x35, 0x00, 0xEF, 0xC2}, s);
+    add("vpxord xmm0,xmm1,xmm2 EVEX.R'̄=0", {0x62, 0xE1, 0x75, 0x08, 0xEF, 0xC2}, s);
+    add("vpxord xmm0,xmm1,[edi] EVEX.B̄=0", {0x62, 0xD1, 0x75, 0x08, 0xEF, 0x07}, s, FL_ALL, data);
+    // An unused EVEX.vvvv (VMOVDQA32 xmm0, xmm1: 62 F1 7D 08 6F C1) must be
+    // 1111b with V'̄ = 1 in either mode; its top bit is not exempt.
+    add("vmovdqa32 xmm0,xmm1", {0x62, 0xF1, 0x7D, 0x08, 0x6F, 0xC1}, s);
+    add("vmovdqa32 xmm0,xmm1 EVEX.V'̄=0", {0x62, 0xF1, 0x7D, 0x00, 0x6F, 0xC1}, s);
+    add("vmovdqa32 xmm0,xmm1 vvvv=0111b", {0x62, 0xF1, 0x3D, 0x08, 0x6F, 0xC1}, s);
+    // EVEX.R'̄ = 0 for an opmask destination (VPCMPEQD k1, xmm1, xmm2) and a
+    // GPR destination (VCVTSS2SI eax, xmm1): #UD in 64-bit mode, ignored
+    // outside it (Table 2-41).  EVEX.B̄ = 0 for a GPR source (VMOVD xmm0,
+    // eax) and an opmask source (VPMOVM2D xmm0, k1): ignored.
+    add("vpcmpeqd k1,xmm1,xmm2 EVEX.R'̄=0", {0x62, 0xE1, 0x75, 0x08, 0x76, 0xCA}, s);
+    add("vcvtss2si eax,xmm1 EVEX.R'̄=0", {0x62, 0xE1, 0x7E, 0x08, 0x2D, 0xC1}, s);
+    add("vmovd xmm0,eax EVEX.B̄=0", {0x62, 0xD1, 0x7D, 0x08, 0x6E, 0xC0}, s);
+    add("vpmovm2d xmm0,k1 EVEX.B̄=0", {0x62, 0xD2, 0x7E, 0x08, 0x38, 0xC1}, s);
+
+    // EVEX.W1 forms with a GPR operand, "EVEX.W1 in non-64 bit is ignored;
+    // the instructions behaves as if the W0 version is used" (VMOVQ,
+    // VPEXTRQ, VPINSRQ, VCVTSI2SD/SS, VCVTUSI2SD/SS, VCVT[T]SD2[U]SI,
+    // VCVT[T]SS2[U]SI, VPBROADCASTQ from a GPR).  The memory forms use
+    // disp8 = 1, which the Tuple1 Scalar N of the operand size scales.
+    ArchState c = s;
+    c.rax = 0x0000000180000000;
+    c.xmm[1].set<double>(0, 3e9);
+    c.xmm[3].set<float>(0, 3e9f);
+    struct Gpr { const char *name; int mm, pp; u8 op; int reg, vvvv, rm, imm; };
+    static const Gpr gprs[] = {
+      {"vmovq xmm0,eax", 1, 1, 0x6E, 0, 0, 0, -1},
+      {"vmovq eax,xmm1", 1, 1, 0x7E, 1, 0, 0, -1},
+      {"vpextrq eax,xmm1,1", 3, 1, 0x16, 1, 0, 0, 1},
+      {"vpextrq eax,xmm1,3", 3, 1, 0x16, 1, 0, 0, 3},
+      {"vpinsrq xmm0,xmm1,eax,1", 3, 1, 0x22, 0, 1, 0, 1},
+      {"vpinsrq xmm0,xmm1,eax,3", 3, 1, 0x22, 0, 1, 0, 3},
+      {"vcvtsi2sd xmm0,xmm1,eax", 1, 3, 0x2A, 0, 1, 0, -1},
+      {"vcvtsi2ss xmm0,xmm1,eax", 1, 2, 0x2A, 0, 1, 0, -1},
+      {"vcvtusi2sd xmm0,xmm1,eax", 1, 3, 0x7B, 0, 1, 0, -1},
+      {"vcvtusi2ss xmm0,xmm1,eax", 1, 2, 0x7B, 0, 1, 0, -1},
+      {"vcvtsd2si eax,xmm1", 1, 3, 0x2D, 0, 0, 1, -1},
+      {"vcvttsd2si eax,xmm1", 1, 3, 0x2C, 0, 0, 1, -1},
+      {"vcvtsd2usi eax,xmm1", 1, 3, 0x79, 0, 0, 1, -1},
+      {"vcvttsd2usi eax,xmm1", 1, 3, 0x78, 0, 0, 1, -1},
+      {"vcvtss2si eax,xmm3", 1, 2, 0x2D, 0, 0, 3, -1},
+      {"vcvttss2si eax,xmm3", 1, 2, 0x2C, 0, 0, 3, -1},
+      {"vcvtss2usi eax,xmm3", 1, 2, 0x79, 0, 0, 3, -1},
+      {"vcvttss2usi eax,xmm3", 1, 2, 0x78, 0, 0, 3, -1},
+      {"vpbroadcastq xmm0,eax", 2, 1, 0x7C, 0, 0, 0, -1},
+    };
+    for (const Gpr &g1 : gprs) {
+      Evex e; e.mm = g1.mm; e.pp = g1.pp; e.opcode = g1.op; e.reg = g1.reg; e.vvvv = g1.vvvv;
+      e.rm = g1.rm; e.W = true;
+      std::vector<u8> code = g1.imm >= 0 ? e.encode_rr_imm(g1.imm) : e.encode_rr();
+      add(std::format("{} W1", g1.name), code, c);
+      // [edi+1*N]: mod = 01, disp8 = 1, before any imm8.
+      std::vector<u8> mem = e.encode_rm_mem();
+      mem[5] |= 0x40;
+      mem.push_back(1);
+      if (g1.imm >= 0) mem.push_back(g1.imm);
+      bool from_fp = g1.mm == 1 && (g1.op == 0x2C || g1.op == 0x2D || g1.op == 0x78 || g1.op == 0x79);
+      add(std::format("{} W1 [edi+1*N]", g1.name), mem, c, FL_ALL,
+          from_fp ? (g1.pp == 3 ? fpd : fps) : data);
+    }
+    // VCVTSI2SD W1 with {rn-sae} in the register form.
+    add("vcvtsi2sd xmm0,xmm1,eax,{rn-sae} W1", {0x62, 0xF1, 0xF7, 0x18, 0x2A, 0xC0}, c);
+
+    // The AVX512-FP16 conversions to and from a GPR (map 5), where the host
+    // has them (CPUID.(7,0):EDX[23]).  An FP16 -2.0 converts to a signed
+    // 32-bit value whose zero extension differs from the 64-bit one (an
+    // unsigned conversion gets +2.0, as a negative one would be invalid),
+    // and an EAX or a dword in memory of 2 or 3 converts to FP16 exactly,
+    // whereas RAX or the qword would overflow FP16.
+    u32 a, b, cx, d;
+    __cpuid_count(7, 0, a, b, cx, d);
+    if (d & (1u << 23)) {
+      ArchState h = c;
+      h.rax = 0x0000000100000002;
+      std::vector<u8> ints(64), neg(64), pos(64);
+      for (int i = 0; i < 16; i++) {
+        u32 x = i + 2;
+        memcpy(&ints[i * 4], &x, 4);
+      }
+      for (int i = 0; i < 32; i++) {
+        neg[i * 2 + 1] = 0xC0;  // -2.0
+        pos[i * 2 + 1] = 0x40;  // +2.0
+      }
+      static const Gpr fp16[] = {
+        {"vcvtsi2sh xmm0,xmm1,eax", 5, 2, 0x2A, 0, 1, 0, -1},
+        {"vcvtusi2sh xmm0,xmm1,eax", 5, 2, 0x7B, 0, 1, 0, -1},
+        {"vcvtsh2si eax,xmm3", 5, 2, 0x2D, 0, 0, 3, -1},
+        {"vcvttsh2si eax,xmm3", 5, 2, 0x2C, 0, 0, 3, -1},
+        {"vcvtsh2usi eax,xmm3", 5, 2, 0x79, 0, 0, 3, -1},
+        {"vcvttsh2usi eax,xmm3", 5, 2, 0x78, 0, 0, 3, -1},
+      };
+      for (const Gpr &g1 : fp16) {
+        Evex e; e.mm = g1.mm; e.pp = g1.pp; e.opcode = g1.op; e.reg = g1.reg; e.vvvv = g1.vvvv;
+        e.rm = g1.rm; e.W = true;
+        bool to_int = g1.op != 0x2A && g1.op != 0x7B, is_unsigned = g1.op >= 0x78;
+        ArchState hs = h;
+        hs.xmm[3].set<u16>(0, is_unsigned ? 0x4000 : 0xC000);
+        add(std::format("{} W1", g1.name), e.encode_rr(), hs);
+        std::vector<u8> mem = e.encode_rm_mem();
+        mem[5] |= 0x40;
+        mem.push_back(1);
+        add(std::format("{} W1 [edi+1*N]", g1.name), mem, hs, FL_ALL,
+            !to_int ? ints : is_unsigned ? pos : neg);
+      }
     }
   }
 }
