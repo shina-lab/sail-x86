@@ -36,10 +36,6 @@ val __read_cr8 : unit -> bits(4)
 val __write_cr8 : bits(4) -> unit
 
 val __syscall : (qword, qword) -> unit
-val __fxsave : qword -> unit
-val __fxsave64 : qword -> unit
-val __fxrstor : qword -> unit
-val __fxrstor64 : qword -> unit
 
 val __software_interrupt : byte -> unit
 

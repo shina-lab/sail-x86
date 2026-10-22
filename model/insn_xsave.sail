@@ -84,9 +84,7 @@ val ftw_full_to_abridged : word -> byte
 function ftw_full_to_abridged(tw) = {
   var result : byte = 0x00;
   foreach (i from 0 to 7) {
-    let tag : bits(2) = tw[2 * i + 1 .. 2 * i];
-    if tag != 0b11 then
-      result = result | zero_extend(0b1 << i)
+    if tw[2 * i + 1 .. 2 * i] != 0b11 then result[i] = bitone
   };
   result
 }
@@ -95,53 +93,98 @@ val ftw_abridged_to_full : byte -> word
 function ftw_abridged_to_full(ab) = {
   var tw : word = 0x0000;
   foreach (i from 0 to 7) {
-    if ab[i] == 0b0 then
-      tw = tw | zero_extend(0b11 << (2 * i))
-    // else: tag = 00 (valid) — FXRSTOR/XRSTOR semantics
+    // A nonempty register is tagged valid (00); FNSTENV and FNSAVE
+    // classify its contents (x87_tag_word).
+    if ab[i] == bitzero then tw[2 * i + 1 .. 2 * i] = 0b11
   };
   tw
 }
 
 // -------------------------------------------------------------------------
-// Save x87 state to legacy region (component 0)
-// SDM: bytes 0-23 (FCW, FSW, FTW, FOP, FIP, FDP) and bytes 32-159 (ST0-ST7)
+// The legacy region, shared by FXSAVE/FXRSTOR and the x87 and SSE
+// components of XSAVE/XRSTOR (SDM Vol.1 §10.5.1, Tables 10-2 and 10-3).
+// With REX.W (FXSAVE64, XSAVE64, ...) the x87 instruction and data
+// pointers are 64-bit offsets; otherwise each is a 32-bit offset and a
+// selector.  Bytes 416-511 are neither written nor read.
 // -------------------------------------------------------------------------
 
-val xsave_x87 : qword -> unit
-function xsave_x87(base) = {
+// The x87 component: FCW, FSW, the abridged FTW, FOP, FIP and FDP, and
+// ST(0)-ST(7) in stack order, each in 16 bytes whose last 6 are reserved
+// and written as zeros.  AMD saves FOP, FIP and FDP only while an x87
+// exception is pending (FSW.ES = 1) and zeros otherwise (AMD APM Vol.4
+// FXSAVE); Intel saves them always.
+val xsave_x87 : (qword, bool) -> unit
+function xsave_x87(base, w) = {
+  let pointers : bool = vendor == Vendor_Intel | x87_sw[7] == bitone;
+  let fop : word = if pointers then zero_extend(x87_fop) else zeros();
+  let fip : qword = if pointers then x87_fip else zeros();
+  let fdp : qword = if pointers then x87_fdp else zeros();
+  let fcs : word = if pointers then x87_selector(x87_fcs) else zeros();
+  let fds : word = if pointers then x87_selector(x87_fds) else zeros();
   write_mem(base, x87_cw);
   write_mem(base + 2, x87_sw);
   write_mem(base + 4, ftw_full_to_abridged(x87_tw));
   write_mem(base + 5, 0x00);    // reserved
-  write_mem(base + 6, 0x0000); // FOP
-  write_mem(base + 8, zeros() : qword); // FIP
-  write_mem(base + 16, zeros() : qword); // FDP
-  // ST0-ST7 at offset 32, 16 bytes each (10 bytes used, 6 reserved)
+  write_mem(base + 6, fop);
+  if w then {
+    write_mem(base + 8, fip);
+    write_mem(base + 16, fdp)
+  } else {
+    write_mem(base + 8, fip[31..0]);
+    write_mem(base + 12, zero_extend(fcs) : dword);
+    write_mem(base + 16, fdp[31..0]);
+    write_mem(base + 20, zero_extend(fds) : dword)
+  };
   foreach (i from 0 to 7) {
-    let st_val : fp80 = x87_ST[i];
-    write_mem(base + 32 + 16 * i, st_val);
-    // Zero the reserved 6 bytes
+    write_mem(base + 32 + 16 * i, x87_read_st(i));
     write_mem(48, base + 32 + 16 * i + 10, zeros())
   }
 }
 
-// -------------------------------------------------------------------------
-// Save SSE state to legacy region (component 1)
-// SDM: bytes 24-31 (MXCSR, MXCSR_MASK) and bytes 160-415 (XMM0-XMM15)
-// -------------------------------------------------------------------------
+// The x87 component back from an image.  Both vendors load FOP, FIP and
+// FDP whatever FSW.ES is.  The 64-bit format has no selectors.
+val xrstor_x87 : (qword, bool) -> unit
+function xrstor_x87(base, w) = {
+  x87_set_cw(read_mem(base));
+  x87_set_sw(read_mem(base + 2));
+  x87_tw = ftw_abridged_to_full(read_mem(base + 4));
+  let fop : word = read_mem(base + 6);
+  x87_fop = fop[10..0];
+  if w then {
+    x87_fip = read_mem(base + 8);
+    x87_fdp = read_mem(base + 16);
+    x87_fcs = zeros();
+    x87_fds = zeros()
+  } else {
+    x87_fip = zero_extend(read_mem(base + 8) : dword);
+    x87_fcs = x87_selector(read_mem(base + 12));
+    x87_fdp = zero_extend(read_mem(base + 16) : dword);
+    x87_fds = x87_selector(read_mem(base + 20))
+  };
+  // ST(i) relative to the TOP just loaded.
+  foreach (i from 0 to 7) {
+    x87_ST[x87_physical(i)] = read_mem(base + 32 + 16 * i)
+  }
+}
 
 // MXCSR_MASK reports which MXCSR bits the processor accepts; the SDM
 // leaves the value implementation dependent (Vol. 1, Ch. 11, "Guidelines
 // for Writing to the MXCSR Register").  Intel processors report
 // 0x0000FFFF (bits 15:0, DAZ included); AMD processors report 0x0002FFFF
 // because bit 17 is their misaligned-SSE mode, gated by the MISALIGNSSE
-// CPUID feature.  The value follows the vendor profile register.  The
-// FXSAVE externals in usermode-emu and system-emu call this too, so the
-// FXSAVE and XSAVE images agree.
+// CPUID feature.  The value follows the vendor profile register.
 val mxcsr_mask : unit -> dword
 function mxcsr_mask() = match vendor {
   Vendor_Intel => 0x0000FFFF,
   Vendor_AMD   => 0x0002FFFF
+}
+
+// LDMXCSR and VLDMXCSR: #GP(0) for a value that sets a reserved bit, one
+// clear in MXCSR_MASK (SDM LDMXCSR).
+val load_mxcsr : dword -> unit
+function load_mxcsr(value) = {
+  if (value & ~(mxcsr_mask())) != zeros() then raise_GP0();
+  __ldmxcsr(value)
 }
 
 // Save just MXCSR and MXCSR_MASK (shared between SSE and AVX)
@@ -151,45 +194,63 @@ function xsave_mxcsr(base) = {
   write_mem(base + 28, mxcsr_mask())
 }
 
+// The XMM registers in the legacy region: XMM0-XMM15 in 64-bit mode,
+// XMM0-XMM7 outside it, where the rest of the area is reserved.
+val legacy_xmm_count : unit -> {8, 16}
+function legacy_xmm_count() = if cur_mode == LongMode then 16 else 8
+
+// The SSE component: MXCSR, MXCSR_MASK and the XMM registers' low 128 bits.
 val xsave_sse : qword -> unit
 function xsave_sse(base) = {
   xsave_mxcsr(base);
-  // XMM0-XMM15 at offset 160, 16 bytes each
-  foreach (i from 0 to 15) {
+  foreach (i from 0 to legacy_xmm_count() - 1) {
     write_mem(128, base + 160 + 16 * i, ZMM[i][127..0])
   }
 }
 
-// -------------------------------------------------------------------------
-// Restore x87 state from legacy region (component 0)
-// -------------------------------------------------------------------------
-
-val xrstor_x87 : qword -> unit
-function xrstor_x87(base) = {
-  x87_cw = read_mem(base);
-  x87_sw = read_mem(base + 2);
-  x87_tw = ftw_abridged_to_full(read_mem(base + 4));
-  // FOP, FIP, FDP are not modeled (they're for debugging only)
-  // ST0-ST7
-  foreach (i from 0 to 7) {
-    x87_ST[i] = read_mem(base + 32 + 16 * i)
-  }
-}
-
-// Restore just MXCSR
+// Restore just MXCSR.  The callers have checked its reserved bits
+// (check_image_mxcsr) before loading any state.
 val xrstor_mxcsr : qword -> unit
 function xrstor_mxcsr(base) = {
   __ldmxcsr(read_mem(base + 24))
 }
 
-val xrstor_sse : qword -> unit
-function xrstor_sse(base) = {
-  xrstor_mxcsr(base);
-  // XMM0-XMM15
-  foreach (i from 0 to 15) {
+val xrstor_xmm : qword -> unit
+function xrstor_xmm(base) = {
+  foreach (i from 0 to legacy_xmm_count() - 1) {
     let xmm_val : xmmword = read_mem(base + 160 + 16 * i);
     ZMM[i][127..0] = xmm_val
   }
+}
+
+val xrstor_sse : qword -> unit
+function xrstor_sse(base) = {
+  xrstor_mxcsr(base);
+  xrstor_xmm(base)
+}
+
+// FXRSTOR and XRSTOR are #GP(0) for an image whose MXCSR, when loaded,
+// would set a reserved bit (SDM Vol.2B FXRSTOR, XRSTOR).
+val check_image_mxcsr : qword -> unit
+function check_image_mxcsr(base) = {
+  let mxcsr : dword = read_mem(base + 24);
+  if (mxcsr & ~(mxcsr_mask())) != zeros() then raise_GP0()
+}
+
+// FXSAVE and FXRSTOR m512byte (SDM Vol.2A): the x87 and SSE components of
+// the legacy region.  As non-VEX instructions on XMM state they do not
+// access bits 511:128 of the registers (Vol.1 §14.8).
+val exec_fxsave : (qword, bool) -> unit
+function exec_fxsave(base, w) = {
+  xsave_x87(base, w);
+  xsave_sse(base)
+}
+
+val exec_fxrstor : (qword, bool) -> unit
+function exec_fxrstor(base, w) = {
+  check_image_mxcsr(base);
+  xrstor_x87(base, w);
+  xrstor_sse(base)
 }
 
 // -------------------------------------------------------------------------
@@ -369,11 +430,16 @@ function xrstor_hi16_zmm(base) = xrstor_hi16_zmm_at(base + xsave_std_offset(7))
 val xinit_x87 : unit -> unit
 function xinit_x87() = x87_init()
 
-val xinit_sse : unit -> unit
-function xinit_sse() = {
+val xinit_xmm : unit -> unit
+function xinit_xmm() = {
   foreach (i from 0 to 15) {
     ZMM[i][127..0] = zeros()
-  };
+  }
+}
+
+val xinit_sse : unit -> unit
+function xinit_sse() = {
+  xinit_xmm();
   __ldmxcsr(0x00001F80)
 }
 
@@ -417,12 +483,12 @@ function xinit_hi16_zmm() = {
 // XCOMP_BV = 0, reserved header bytes = 0.
 // =========================================================================
 
-val exec_xsave : (qword, qword) -> unit
-function exec_xsave(base, mask) = {
+val exec_xsave : (qword, qword, bool) -> unit
+function exec_xsave(base, mask, w) = {
   let rfbm : qword = mask & XCR0;
 
   // Save legacy region components
-  if rfbm[0] == bitone then xsave_x87(base);
+  if rfbm[0] == bitone then xsave_x87(base, w);
   if rfbm[1] == bitone then xsave_sse(base);
   // SDM: MXCSR is saved when RFBM[1] OR RFBM[2]
   if rfbm[1] == bitzero & rfbm[2] == bitone then xsave_mxcsr(base);
@@ -459,8 +525,8 @@ function exec_xsave(base, mask) = {
 // we model it as always saving (XMODIFIED = all 1s).
 // =========================================================================
 
-val exec_xsaveopt : (qword, qword) -> unit
-function exec_xsaveopt(base, mask) = exec_xsave(base, mask)
+val exec_xsaveopt : (qword, qword, bool) -> unit
+function exec_xsaveopt(base, mask, w) = exec_xsave(base, mask, w)
 
 // =========================================================================
 // XSAVEC — Compacted format save (SDM Section 13.10)
@@ -472,12 +538,12 @@ function exec_xsaveopt(base, mask) = exec_xsave(base, mask)
 // Components packed contiguously starting at offset 576.
 // =========================================================================
 
-val exec_xsavec : (qword, qword) -> unit
-function exec_xsavec(base, mask) = {
+val exec_xsavec : (qword, qword, bool) -> unit
+function exec_xsavec(base, mask, w) = {
   let rfbm : qword = mask & XCR0;
 
   // Save legacy region (same offsets as standard format)
-  if rfbm[0] == bitone then xsave_x87(base);
+  if rfbm[0] == bitone then xsave_x87(base, w);
   if rfbm[1] == bitone then xsave_sse(base);
   // SDM: XSAVEC does NOT save MXCSR based on RFBM[2], only RFBM[1]
 
@@ -544,24 +610,24 @@ function exec_xsavec(base, mask) = {
 // Requires CPL = 0.  We don't model IA32_XSS (= 0).
 // =========================================================================
 
-val exec_xsaves : (qword, qword) -> unit
-function exec_xsaves(base, mask) = exec_xsavec(base, mask)
+val exec_xsaves : (qword, qword, bool) -> unit
+function exec_xsaves(base, mask, w) = exec_xsavec(base, mask, w)
 
 // Standard form XRSTOR
-val xrstor_standard : (qword, qword, qword) -> unit
-function xrstor_standard(base, rfbm, xstate_bv) = {
+val xrstor_standard : (qword, qword, qword, bool) -> unit
+function xrstor_standard(base, rfbm, xstate_bv, w) = {
   let to_restore : qword = rfbm & xstate_bv;
   let to_init : qword = rfbm & ~(xstate_bv);
 
-  if to_restore[0] == bitone then xrstor_x87(base);
+  if to_restore[0] == bitone then xrstor_x87(base, w);
   if to_init[0] == bitone then xinit_x87();
 
-  if to_restore[1] == bitone then xrstor_sse(base);
-  if to_init[1] == bitone then xinit_sse();
-
-  // SDM: Standard XRSTOR loads MXCSR when (RFBM[1] | RFBM[2]) & XSTATE_BV[1]
-  if rfbm[2] == bitone & xstate_bv[1] == bitone & to_restore[1] == bitzero then
-    xrstor_mxcsr(base);
+  // The standard form loads MXCSR from the image for RFBM[1] or RFBM[2],
+  // whatever XSTATE_BV says, and the SSE component then loads or
+  // initializes only the XMM registers (SDM Vol.2B XRSTOR, Operation).
+  if rfbm[1] == bitone | rfbm[2] == bitone then xrstor_mxcsr(base);
+  if to_restore[1] == bitone then xrstor_xmm(base);
+  if to_init[1] == bitone then xinit_xmm();
 
   if to_restore[2] == bitone then xrstor_avx(base);
   if to_init[2] == bitone then xinit_avx();
@@ -583,10 +649,10 @@ function xrstor_standard(base, rfbm, xstate_bv) = {
 }
 
 // Compacted form XRSTOR
-val xrstor_compacted : (qword, qword, qword, qword) -> unit
-function xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv) = {
+val xrstor_compacted : (qword, qword, qword, qword, bool) -> unit
+function xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv, w) = {
   if rfbm[0] == bitone then {
-    if xstate_bv[0] == bitone then xrstor_x87(base)
+    if xstate_bv[0] == bitone then xrstor_x87(base, w)
     else xinit_x87()
   };
 
@@ -688,8 +754,8 @@ function xrstor_check_xfd(rfbm, xstate_bv) =
 //   If XSTATE_BV[i]=0: initialize to default
 // =========================================================================
 
-val exec_xrstor : (qword, qword) -> unit
-function exec_xrstor(base, mask) = {
+val exec_xrstor : (qword, qword, bool) -> unit
+function exec_xrstor(base, mask, w) = {
   let rfbm : qword = mask & XCR0;
 
   let xstate_bv : qword = read_mem(base + 512);
@@ -702,14 +768,18 @@ function exec_xrstor(base, mask) = {
     foreach (i from 0 to 5) {
       if read_mem(64, base + 528 + 8 * i) != zeros() then raise_GP0()
     };
+    // The compacted form loads MXCSR with the SSE component.
+    if rfbm[1] == bitone & xstate_bv[1] == bitone then check_image_mxcsr(base);
     xrstor_check_xfd(rfbm, xstate_bv);
-    xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv)
+    xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv, w)
   } else {
     // Standard form (Section 13.8.1)
     if (xstate_bv & ~(XCR0)) != zeros() then raise_GP0();
     if xcomp_bv != zeros() then raise_GP0();
+    // The standard form loads MXCSR for RFBM[1] or RFBM[2] (xrstor_standard).
+    if rfbm[1] == bitone | rfbm[2] == bitone then check_image_mxcsr(base);
     xrstor_check_xfd(rfbm, xstate_bv);
-    xrstor_standard(base, rfbm, xstate_bv)
+    xrstor_standard(base, rfbm, xstate_bv, w)
   }
 }
 
@@ -720,8 +790,8 @@ function exec_xrstor(base, mask) = {
 // Requires CPL = 0 and XCOMP_BV[63] = 1.
 // =========================================================================
 
-val exec_xrstors : (qword, qword) -> unit
-function exec_xrstors(base, mask) = {
+val exec_xrstors : (qword, qword, bool) -> unit
+function exec_xrstors(base, mask, w) = {
   let rfbm : qword = mask & XCR0;
 
   let xstate_bv : qword = read_mem(base + 512);
@@ -734,6 +804,7 @@ function exec_xrstors(base, mask) = {
   foreach (i from 0 to 5) {
     if read_mem(64, base + 528 + 8 * i) != zeros() then raise_GP0()
   };
+  if rfbm[1] == bitone & xstate_bv[1] == bitone then check_image_mxcsr(base);
   xrstor_check_xfd(rfbm, xstate_bv);
-  xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv)
+  xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv, w)
 }

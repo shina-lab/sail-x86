@@ -120,6 +120,11 @@ void clone_cpu_state(x86::Model &child, const x86::Model &parent) {
   child.zx87_cw = parent.zx87_cw;
   child.zx87_sw = parent.zx87_sw;
   child.zx87_tw = parent.zx87_tw;
+  child.zx87_fip = parent.zx87_fip;
+  child.zx87_fcs = parent.zx87_fcs;
+  child.zx87_fop = parent.zx87_fop;
+  child.zx87_fdp = parent.zx87_fdp;
+  child.zx87_fds = parent.zx87_fds;
 
   // KREG (mask registers)
   for (size_t i = 0; i < array_len(parent.zKREG.data); i++)

@@ -1561,32 +1561,27 @@ function dispatch_2byte_gpr(op, pfx) = {
       } else match reg_field {
         // FXSAVE m512byte (SDM Vol.2A FXSAVE): #GP(0) unless the operand
         // is aligned on a 16-byte boundary.
-        0 => match (dest, pfx.rex_w) {
-          (RM_mem(m), w) => {
+        0 => match dest {
+          RM_mem(m) => {
             check_alignment(m, 16);
-            if w then __fxsave64(seg_linear(m, 512)) else __fxsave(seg_linear(m, 512))
+            exec_fxsave(seg_linear(m, 512), pfx.rex_w)
           },
           _ => raise_UD(),
         },
 
         // FXRSTOR m512byte (SDM Vol.2A FXRSTOR): #GP(0) unless the operand
-        // is 16-byte aligned, and "for an attempt to set reserved bits in
-        // MXCSR" (those clear in MXCSR_MASK); otherwise the image is loaded.
-        // As a non-VEX instruction on XMM state it does not access bits
-        // 511:128 of the registers (Vol.1 §14.8).
-        1 => match (dest, pfx.rex_w) {
-          (RM_mem(m), w) => {
+        // is 16-byte aligned, and for an image whose MXCSR sets a reserved
+        // bit (exec_fxrstor).
+        1 => match dest {
+          RM_mem(m) => {
             check_alignment(m, 16);
-            let addr : qword = seg_linear(m, 512);
-            let mxcsr : dword = read_mem(addr + 24);
-            if (mxcsr & ~(mxcsr_mask())) != zeros() then raise_GP0();
-            if w then __fxrstor64(addr) else __fxrstor(addr)
+            exec_fxrstor(seg_linear(m, 512), pfx.rex_w)
           },
           _ => raise_UD(),
         },
 
         // LDMXCSR m32
-        2 => __ldmxcsr(rm_mem(dest)),
+        2 => load_mxcsr(rm_mem(dest)),
 
         // STMXCSR m32
         3 => rm_mem(dest) = __stmxcsr(),
@@ -1595,7 +1590,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         4 => match dest {
           RM_mem(m) => {
             let mask : qword = v(32, RDX) @ v(32, RAX);
-            exec_xsave(seg_linear(m, 576), mask)
+            exec_xsave(seg_linear(m, 576), mask, pfx.rex_w)
           },
           RM_reg(_) => raise_UD(),
         },
@@ -1604,7 +1599,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(m) => {
             // /5 mem: XRSTOR m
             let mask : qword = v(32, RDX) @ v(32, RAX);
-            exec_xrstor(seg_linear(m, 576), mask)
+            exec_xrstor(seg_linear(m, 576), mask, pfx.rex_w)
           },
           RM_reg(_) => {
             // /5 mod=11: LFENCE
@@ -1622,7 +1617,7 @@ function dispatch_2byte_gpr(op, pfx) = {
             } else {
               // XSAVEOPT: architecturally equivalent to XSAVE
               let mask : qword = v(32, RDX) @ v(32, RAX);
-              exec_xsaveopt(seg_linear(m, 576), mask)
+              exec_xsaveopt(seg_linear(m, 576), mask, pfx.rex_w)
             }
           },
           RM_reg(r) => match get_mandatory_prefix(pfx) {
@@ -2134,7 +2129,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(m) => {
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = v(32, RDX) @ v(32, RAX);
-            exec_xrstors(seg_linear(m, 576), mask)
+            exec_xrstors(seg_linear(m, 576), mask, pfx.rex_w)
           },
           _ => raise_UD(),
         },
@@ -2142,7 +2137,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         4 => match dest {
           RM_mem(m) => {
             let mask : qword = v(32, RDX) @ v(32, RAX);
-            exec_xsavec(seg_linear(m, 576), mask)
+            exec_xsavec(seg_linear(m, 576), mask, pfx.rex_w)
           },
           _ => raise_UD(),
         },
@@ -2151,7 +2146,7 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(m) => {
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = v(32, RDX) @ v(32, RAX);
-            exec_xsaves(seg_linear(m, 576), mask)
+            exec_xsaves(seg_linear(m, 576), mask, pfx.rex_w)
           },
           _ => raise_UD(),
         },

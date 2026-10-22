@@ -87,6 +87,17 @@ let R13 : gpr_idx = 13
 let R14 : gpr_idx = 14
 let R15 : gpr_idx = 15
 
+// Vendor profile for the values the SDM leaves to the implementation and
+// on which the two vendors differ: the standard-format XSAVE offsets of
+// the AVX-512 components (CPUID.0DH.n:EBX), MXCSR_MASK, and which x87
+// instruction and data pointers are kept and saved.  See xsave_std_offset
+// and mxcsr_mask in insn_xsave.sail and x87_record_last in insn_x87.sail.
+// The CPUID vendor string stays "GenuineIntel" either way.  The KVM
+// differential harness selects the host's vendor so that both profiles are
+// checked against silicon; the emulators keep the Intel default.
+enum Vendor = { Vendor_Intel, Vendor_AMD }
+register vendor : Vendor = Vendor_Intel
+
 // =========================================================================
 // x87 FPU Register State
 //
@@ -99,6 +110,14 @@ register x87_ST : vector(8, fp80)
 register x87_cw : word    // control word (default 0x037F)
 register x87_sw : word    // status word (default 0x0000)
 register x87_tw : word    // tag word (default 0xFFFF = all empty)
+// The last non-control x87 instruction's address, CS selector and opcode,
+// and its memory operand's offset and segment selector (SDM Vol.1 §8.1.8,
+// §8.1.9).  x87_record_last says what each vendor updates.
+register x87_fip : qword
+register x87_fcs : word
+register x87_fop : bits(11)
+register x87_fdp : qword
+register x87_fds : word
 
 val x87_top : unit -> range(0, 7)
 function x87_top() = unsigned(x87_sw[13..11])
@@ -205,9 +224,46 @@ function x87_init() = {
   x87_cw = 0x037F;
   x87_sw = 0x0000;
   x87_tw = 0xFFFF;
+  x87_fip = zeros();
+  x87_fcs = zeros();
+  x87_fop = zeros();
+  x87_fdp = zeros();
+  x87_fds = zeros();
   foreach (i from 0 to 7) {
     x87_ST[i] = zeros()
   }
+}
+
+// FSW.ES (bit 7, error summary) and FSW.B (bit 15) are set exactly when an
+// exception flag is set whose mask bit is clear.  Loading either word
+// recomputes them, as does unmasking a set flag (FLDCW).
+val x87_update_es : unit -> unit
+function x87_update_es() = {
+  let pending : bit = if (x87_sw[5..0] & ~(x87_cw[5..0])) != 0b000000 then bitone else bitzero;
+  x87_sw[7] = pending;
+  x87_sw[15] = pending
+}
+
+// FCW bit 6 is reserved and reads as 1 whatever is loaded into it.
+val x87_set_cw : word -> unit
+function x87_set_cw(cw) = {
+  x87_cw = cw | 0x0040;
+  x87_update_es()
+}
+
+val x87_set_sw : word -> unit
+function x87_set_sw(sw) = {
+  x87_sw = sw;
+  x87_update_es()
+}
+
+// The FCS and FDS saved in or loaded from an image.  Intel processors that
+// enumerate CPUID.(EAX=07H,ECX=0):EBX[13] deprecate both and save them as
+// 0000H (SDM Vol.1 §8.1.8); the Intel profile is such a processor.
+val x87_selector : word -> word
+function x87_selector(sel) = match vendor {
+  Vendor_Intel => 0x0000,
+  Vendor_AMD   => sel
 }
 
 // =========================================================================
@@ -227,22 +283,41 @@ function mmx_touch() = {
   x87_tw = 0x0000          // all valid
 }
 
-// Save 28-byte x87 environment (CW, SW, TW) as bits(224).
+// Save the 28-byte x87 environment in the 32-bit protected-mode format
+// (SDM Vol.1 Figure 8-9) as bits(224): FCW, FSW and FTW in the low halves
+// of three doublewords whose high halves are reserved and written as
+// FFFFH, then FIP[31:0], FCS with FOP in bits 26:16, FDP[31:0], and FDS
+// below another reserved FFFFH.
 val x87_save_env : unit -> bits(224)
 function x87_save_env() = {
   var buf : bits(224) = zeros();
   buf[15..0] = x87_cw;
+  buf[31..16] = 0xFFFF;
   buf[47..32] = x87_sw;
+  buf[63..48] = 0xFFFF;
   buf[79..64] = x87_tag_word();
+  buf[95..80] = 0xFFFF;
+  buf[127..96] = x87_fip[31..0];
+  buf[143..128] = x87_selector(x87_fcs);
+  buf[154..144] = x87_fop;
+  buf[191..160] = x87_fdp[31..0];
+  buf[207..192] = x87_selector(x87_fds);
+  buf[223..208] = 0xFFFF;
   buf
 }
 
-// Load 28-byte x87 environment from bits(224).
+// Load the 28-byte x87 environment from bits(224), the inverse of
+// x87_save_env.  FCW is loaded first, so that FSW.ES reflects its masks.
 val x87_load_env : bits(224) -> unit
 function x87_load_env(buf) = {
-  x87_cw = buf[15..0];
-  x87_sw = buf[47..32];
-  x87_tw = buf[79..64]
+  x87_set_cw(buf[15..0]);
+  x87_set_sw(buf[47..32]);
+  x87_tw = buf[79..64];
+  x87_fip = zero_extend(buf[127..96]);
+  x87_fcs = x87_selector(buf[143..128]);
+  x87_fop = buf[154..144];
+  x87_fdp = zero_extend(buf[191..160]);
+  x87_fds = x87_selector(buf[207..192])
 }
 
 // Save full x87 state (28 bytes env + 8 x 10 bytes regs) as bits(864).
@@ -251,9 +326,7 @@ function x87_load_env(buf) = {
 val x87_save_state : unit -> bits(864)
 function x87_save_state() = {
   var buf : bits(864) = zeros();
-  buf[15..0] = x87_cw;
-  buf[47..32] = x87_sw;
-  buf[79..64] = x87_tag_word();
+  buf[223..0] = x87_save_env();
   foreach (i from 0 to 7) {
     let lo = 224 + i * 80;
     buf[(lo + 79) .. lo] = x87_read_st(i)
@@ -265,9 +338,7 @@ function x87_save_state() = {
 // FRSTOR, Operation), relative to the TOP in the loaded status word.
 val x87_load_state : bits(864) -> unit
 function x87_load_state(buf) = {
-  x87_cw = buf[15..0];
-  x87_sw = buf[47..32];
-  x87_tw = buf[79..64];
+  x87_load_env(buf[223..0]);
   foreach (i from 0 to 7) {
     let lo = 224 + i * 80;
     x87_ST[x87_physical(i)] = buf[(lo + 79) .. lo]
@@ -650,16 +721,6 @@ function amx_init_tilecfg() = {
     tilecfg_rows[n] = 0x00
   }
 }
-
-// Vendor profile for the values the SDM leaves to the implementation and
-// on which the two vendors differ: the standard-format XSAVE offsets of
-// the AVX-512 components (CPUID.0DH.n:EBX) and MXCSR_MASK.  See
-// xsave_std_offset and mxcsr_mask in insn_xsave.sail.  The CPUID vendor
-// string stays "GenuineIntel" either way.  The KVM differential harness
-// selects the host's vendor so that both profiles are checked against
-// silicon; the emulators keep the Intel default.
-enum Vendor = { Vendor_Intel, Vendor_AMD }
-register vendor : Vendor = Vendor_Intel
 
 // =========================================================================
 // XCR0 / feature check helpers

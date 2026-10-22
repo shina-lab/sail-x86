@@ -147,11 +147,11 @@ function dispatch_x87_d9(modrm, operand, _) = {
         2 => v(m) = __f80_to_f32(x87_read_st(0)),
         3 => { v(m) = __f80_to_f32(x87_read_st(0)); let _ = x87_pop() },
         4 => x87_load_env(read_mem(m)),
-        5 => x87_cw = v(m),
+        5 => x87_set_cw(v(m)),
         // FNSTENV stores the environment, then masks all exceptions
         6 => {
           write_mem(m, x87_save_env());
-          x87_cw[5..0] = 0b111111
+          x87_set_cw(x87_cw | 0x003F)
         },
         7 => v(m) = x87_cw,
       }
@@ -599,6 +599,49 @@ function dispatch_x87_df(modrm, operand, _) = {
   }
 }
 
+// The x87 control instructions, which leave the last-instruction pointers
+// and opcode alone (SDM Vol.1 §8.1.8): FLDENV, FLDCW, FNSTENV, FNSTCW,
+// FRSTOR, FNSAVE, FNSTSW, FNCLEX and FNINIT, and the obsolete FENI, FDISI
+// and FSETPM.  Every other x87 instruction is recorded, FFREE, FINCSTP,
+// FDECSTP and FNOP included.
+val x87_control : (byte, byte) -> bool
+function x87_control(opcode, modrm) = {
+  let mem = modrm[7..6] != 0b11;
+  let reg : range(0, 7) = unsigned(modrm[5..3]);
+  match unsigned(opcode) {
+    217 => mem & reg >= 4,                       // D9 /4-/7
+    221 => mem & (reg == 4 | reg >= 6),          // DD /4, /6, /7
+    219 => modrm >=_u 0xE0 & modrm <=_u 0xE4,   // DB E0-E4
+    223 => modrm == 0xE0,                        // FNSTSW AX
+    _ => false,
+  }
+}
+
+// Record the last non-control x87 instruction.  Both vendors keep its
+// address (where its first prefix is).  AMD also keeps the CS selector,
+// the opcode (the low three bits of the first opcode byte, then the ModR/M
+// byte, as encoded), and for a memory operand its offset and segment
+// selector.  Intel processors that enumerate CPUID.(EAX=07H,ECX=0):EBX[6]
+// and EBX[13], as the Intel profile does, update FDP, and by default FOP,
+// only for an instruction that raises an unmasked x87 exception, which the
+// model does not raise, and keep no selectors (SDM Vol.1 §8.1.8-8.1.9).
+// Both behaviours were checked on a Zen 4 and an Emerald Rapids.
+val x87_record_last : (byte, byte, RM) -> unit
+function x87_record_last(opcode, modrm, operand) = {
+  x87_fip = insn_start;
+  if vendor == Vendor_AMD then {
+    x87_fcs = SegReg[CS];
+    x87_fop = opcode[2..0] @ modrm;
+    match operand {
+      RM_mem(m) => {
+        x87_fdp = fixup_addr(m.addr);
+        x87_fds = SegReg[m.seg]
+      },
+      RM_reg(_) => (),
+    }
+  }
+}
+
 // =========================================================================
 // Main x87 dispatcher: takes the opcode byte (D8-DF)
 // =========================================================================
@@ -635,5 +678,7 @@ function dispatch_x87(encoded_opcode, pfx) = {
     223 => dispatch_x87_df(modrm, operand, pfx),
     _   => raise_UD(),
   };
-  x87_finish_cc(opcode, modrm)
+  x87_finish_cc(opcode, modrm);
+  if ~(x87_control(encoded_opcode, encoded_modrm)) then
+    x87_record_last(encoded_opcode, encoded_modrm, operand)
 }
