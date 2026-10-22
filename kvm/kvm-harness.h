@@ -576,11 +576,17 @@ struct TestCase {
 // different behaviour, the APM for AMD) gives, the same on every host; a
 // host whose hardware does something else is listed here, with the reason,
 // instead of changing the expectation.  See kvm-deviations.cpp.
+static constexpr int ANY_OUTCOME = -2;
+
 struct KnownDeviation {
   bool amd;            // the host vendor it applies to: AMD (true) or Intel
-  const char *name;    // the case name; a trailing '*' matches any suffix, so
-                       // that a base case's entry covers its variants
+  const char *name;    // the case name; a '*' matches any characters
   const char *reason;  // what the hardware does and what the manuals say
+  // Where the deviation is in the outcome, the host's: an exception vector,
+  // or -1 for completing.  The entry then covers only a run in which the
+  // host takes it and the model another; any other mismatch fails as
+  // usual.  ANY_OUTCOME where the deviation is in the state a run leaves.
+  int host_outcome = ANY_OUTCOME;
 };
 
 // The entry for `case_name` on this host, or nullptr.

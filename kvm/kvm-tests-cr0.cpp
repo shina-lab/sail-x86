@@ -265,9 +265,11 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
            {0xC4, 0xE2, 0x79, 0x90, 0x04, 0x8E}, unmapped);
     add_ud(cat, bits, "vpgatherdd xmm0,[rsi],xmm2 (no SIB) #UD", {0xC4, 0xE2, 0x69, 0x90, 0x06},
            unmapped);
-    // An opmask register above k7, in ModR/M.reg (VEX.R set) or in
-    // VEX.vvvv (bit 3 set): "Cannot specify a K Register above k7" (APM
-    // Vol.4 §3.2.5).
+    // An opmask register above k7, in ModR/M.reg (VEX.R set): "VEX.R == 0
+    // | When ModR/M.reg specifies a K register | #UD", "Cannot specify a K
+    // Register above k7" (APM Vol.4 §3.2.5); or in VEX.vvvv (bit 3 set):
+    // "K-regs are instruction operands not mask control. | If vvvv =
+    // 0xxxb" (SDM Vol.2A Table 2-42; the APM has no rule for vvvv).
     add_ud(cat, bits, "kandw k1,k10,k3 (vvvv bit 3)", {0xC5, 0xAC, 0x41, 0xCB});
     add_ud(cat, bits, "kmovw k9,k2 (VEX.R)", {0xC5, 0x78, 0x90, 0xCA});
     add_ud(cat, bits, "vaddps zmm0{z},zmm1,zmm2 (zeroing without a mask) #UD",
