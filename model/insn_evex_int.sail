@@ -167,7 +167,7 @@ function dispatch_evex_int(op, pfx) = {
     // SDM MOVDQA,VMOVDQA32/64: a memory operand must be aligned on a 16
     // (EVEX.128)/32 (EVEX.256)/64 (EVEX.512) byte boundary or #GP is
     // generated; the F3/F2 forms are VMOVDQU* and have no such rule.
-    match (mp, src) { (MP_66, XRM_mem(m)) => check_alignment(m, vl / 8), _ => () };
+    match (mp, src) { (MP_66, XRM_mem(m)) => evex_check_alignment_masked(m, vl / 8, pfx, vl / evex_elem(pfx)), _ => () };
     let s = evex_src(vl, src);
     // Element size depends on prefix: F2→byte/word, others→dword/qword
     match mp {
@@ -198,7 +198,7 @@ function dispatch_evex_int(op, pfx) = {
           else (if pfx.rex_w then 8 else 4);
         let nbytes : {16, 32, 64} = match pfx.evex_ll { 0 => 16, 1 => 32, 2 => 64 , 3 => { raise_UD(); 16 } };
         // SDM MOVDQA,VMOVDQA32/64 (66 prefix): #GP unless aligned to the operand size
-        if get_mandatory_prefix(pfx) == MP_66 then check_alignment(m, nbytes);
+        if get_mandatory_prefix(pfx) == MP_66 then evex_check_alignment_masked(m, nbytes, pfx, nbytes / elem_size);
         evex_masked_mem_store(m, ZMM[src], mask, nbytes, elem_size)
       },
     }
@@ -403,11 +403,13 @@ function dispatch_evex_int(op, pfx) = {
 
   // 0F 71: Group 12 — shift word by imm8 (66, EVEX)
   // /2=VPSRLW, /4=VPSRAW, /6=VPSLLW
+  // The source is ModRM.r/m, a register or memory (xmm2/m128 ...: Full
+  // Mem tuple); the destination is EVEX.vvvv.
   113 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let digit : range(0, 7) = unsigned(modrm[5..3]);
-    let xi = xrm_reg(modrm_xrm_evex(modrm, pfx, 1));
+    let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let dst = pfx.evex_vvvvv;
     let imm = fetch(1);
     let count : range(0, 255) = unsigned(imm);
@@ -417,24 +419,25 @@ function dispatch_evex_int(op, pfx) = {
       2 => PS_Srl, 4 => PS_Sra, 6 => PS_Sll,
       _ => { raise_UD(); PS_Srl },
     };
-    evex_write(dst, evex_wmask(pfx, nm), packed_uniform_shift(shift_op, 16, read_simd(vl, xi), count))
+    evex_write(dst, evex_wmask(pfx, nm), packed_uniform_shift(shift_op, 16, evex_src(vl, src), count))
   },
 
   // 0F 72: Group 13 — shift/rotate dword/qword by imm8 (66, EVEX)
   // /0=VPRORD(W0)/VPRORQ(W1), /1=VPROLD(W0)/VPROLQ(W1)
   // /2=VPSRLD(W0)/VPSRLQ(W1), /4=VPSRAD(W0)/VPSRAQ(W1), /6=VPSLLD(W0)/VPSLLQ(W1)
+  // The source is xmm2/m128/m32bcst ... (Full tuple).
   114 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let digit : range(0, 7) = unsigned(modrm[5..3]);
-    let xi = xrm_reg(modrm_xrm_evex(modrm, pfx, 1));
+    let rm = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let dst = pfx.evex_vvvvv;
     let imm = fetch(1);
     let count : range(0, 255) = unsigned(imm);
     let eb = evex_elem(pfx);
     let vl = evex_vl(pfx);
     let nm : range(2, 16) = vl / eb; assert(nm == 2 | nm == 4 | nm == 8 | nm == 16);
-    let src = read_simd(vl, xi);
+    let src = evex_bcast_src(vl, rm, pfx, eb);
     match digit {
       0 => evex_write(dst, evex_wmask(pfx, nm), packed_rotate(ROT_Right, eb, src, count)),
       1 => evex_write(dst, evex_wmask(pfx, nm), packed_rotate(ROT_Left,  eb, src, count)),
@@ -447,17 +450,19 @@ function dispatch_evex_int(op, pfx) = {
 
   // 0F 73: Group 14 — shift qword/dq by imm8 (66, EVEX)
   // /2=VPSRLQ(W1), /3=VPSRLDQ, /6=VPSLLQ(W1), /7=VPSLLDQ
+  // The source is xmm2/m128/m64bcst ... (Full tuple) for the qword
+  // shifts and xmm2/m128 ... (Full Mem) for the byte shifts.
   115 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let digit : range(0, 7) = unsigned(modrm[5..3]);
-    let xi = xrm_reg(modrm_xrm_evex(modrm, pfx, 1));
+    let rm = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let dst = pfx.evex_vvvvv;
     let imm = fetch(1);
     let count : range(0, 255) = unsigned(imm);
     let vl = evex_vl(pfx);
     let nm : range(2, 8) = vl / 64; assert(nm == 2 | nm == 4 | nm == 8);
-    let src = read_simd(vl, xi);
+    let src = evex_bcast_src(vl, rm, pfx, 64);
     match digit {
       2 => evex_write(dst, evex_wmask(pfx, nm), packed_uniform_shift(PS_Srl, 64, src, count)),
       3 => evex_write(dst, evex_wmask(pfx, nm), avx_psrldq(src, count)),

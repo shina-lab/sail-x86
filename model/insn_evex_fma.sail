@@ -60,7 +60,18 @@ function avx_vpmadd52(vl, shift, dst, src1, src2) = {
   r
 }
 
-// EVEX scalar FMA: decode modrm, handle embedded rounding, dispatch
+// EVEX scalar FMA: decode modrm, handle embedded rounding, dispatch.
+// The low element is written under the writemask: if k1[0] is clear it
+// keeps its value (merging) or becomes zero (zeroing); bits 127:eb are
+// DEST's (SDM VFMADD132SS etc., EVEX operation).
+val evex_fma_scalar_elem : forall 'eb, 'eb in {32, 64}.
+  (PackedTernaryOp, FMAOrder, bits('eb), bits('eb), bits('eb)) -> bits('eb)
+function evex_fma_scalar_elem(op, order, d, src2, src3) = match order {
+  FMA_132 => packed_ternary_elem(op, d, src3, src2),
+  FMA_213 => packed_ternary_elem(op, src2, d, src3),
+  FMA_231 => packed_ternary_elem(op, src2, src3, d),
+}
+
 val evex_exec_fma_scalar : (PackedTernaryOp, FMAOrder, Prefixes) -> unit
 function evex_exec_fma_scalar(op, order, pfx) = {
   let modrm = fetch(1);
@@ -68,8 +79,14 @@ function evex_exec_fma_scalar(op, order, pfx) = {
   let src = modrm_xrm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
   let (_, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
   let src2 : xmmword = read_simd(pfx.evex_vvvvv);
-  let src3 = evex_src(128, src);
-  exec_vfma_scalar(op, order, pfx.rex_w, dst, src2, src3);
+  let d : xmmword = read_simd(dst);
+  if pfx.rex_w then {
+    let r = evex_fma_scalar_elem(op, order, d[63..0], src2[63..0], decode_scalar_src(64, src));
+    evex_write_scalar(dst, d[127..64] @ r, pfx, 64)
+  } else {
+    let r = evex_fma_scalar_elem(op, order, d[31..0], src2[31..0], decode_scalar_src(32, src));
+    evex_write_scalar(dst, d[127..32] @ r, pfx, 32)
+  };
   evex_end_rc(saved_mxcsr)
 }
 
@@ -290,7 +307,7 @@ function dispatch_evex_fma(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let (_, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
     let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-    let src2 = evex_src(128, src);
+    let src2 = evex_scalar_xsrc(src, evex_elem(pfx));
     // VSCALEFSD xmm1, xmm2, xmm3/m64 / VSCALEFSS xmm1, xmm2, xmm3/m32
     if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ fp_scalef(src1[63..0], src2[63..0]), pfx, 64)
     else evex_write_scalar(dst, src1[127..32] @ fp_scalef(src1[31..0], src2[31..0]), pfx, 32);
@@ -320,7 +337,7 @@ function dispatch_evex_fma(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let (_, saved_mxcsr) = evex_begin_rc_xrm(pfx, src);
     let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-    let src2 = evex_src(128, src);
+    let src2 = evex_scalar_xsrc(src, evex_elem(pfx));
     // VGETEXPSD xmm1, xmm2, xmm3/m64 / VGETEXPSS xmm1, xmm2, xmm3/m32
     if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ fp_getexp(src2[63..0]), pfx, 64)
     else evex_write_scalar(dst, src1[127..32] @ fp_getexp(src2[31..0]), pfx, 32);
@@ -337,7 +354,7 @@ function dispatch_evex_fma(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-    let src2 = evex_src(128, src);
+    let src2 = evex_scalar_xsrc(src, evex_elem(pfx));
     // VRCP14SD xmm1, xmm2, xmm3/m64 / VRCP14SS xmm1, xmm2, xmm3/m32
     if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ fp_rcp14(src2[63..0]), pfx, 64)
     else evex_write_scalar(dst, src1[127..32] @ fp_rcp14(src2[31..0]), pfx, 32)
@@ -353,7 +370,7 @@ function dispatch_evex_fma(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-    let src2 = evex_src(128, src);
+    let src2 = evex_scalar_xsrc(src, evex_elem(pfx));
     // VRSQRT14SD xmm1, xmm2, xmm3/m64 / VRSQRT14SS xmm1, xmm2, xmm3/m32
     if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ fp_rsqrt14(src2[63..0]), pfx, 64)
     else evex_write_scalar(dst, src1[127..32] @ fp_rsqrt14(src2[31..0]), pfx, 32)
@@ -414,7 +431,7 @@ function dispatch_evex_fma(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-    let src2 = evex_src(128, src);
+    let src2 = evex_scalar_xsrc(src, evex_elem(pfx));
     if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ fp_rcp28(src2[63..0]), pfx, 64)
     else evex_write_scalar(dst, src1[127..32] @ fp_rcp28(src2[31..0]), pfx, 32)
   },
@@ -437,7 +454,7 @@ function dispatch_evex_fma(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
     let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-    let src2 = evex_src(128, src);
+    let src2 = evex_scalar_xsrc(src, evex_elem(pfx));
     if pfx.rex_w then evex_write_scalar(dst, src1[127..64] @ fp_rsqrt28(src2[63..0]), pfx, 64)
     else evex_write_scalar(dst, src1[127..32] @ fp_rsqrt28(src2[31..0]), pfx, 32)
   },
@@ -458,10 +475,13 @@ function dispatch_evex_fma(op, pfx) = {
   // 0F38 DC-DF: VAESENC/VAESENCLAST/VAESDEC/VAESDECLAST (66) [VAES]
   // One AES round per 128-bit lane.  The instructions have no opmask
   // operand, so EVEX.aaa must be 000b and hence EVEX.z must be 0 (SDM
-  // Vol.2A Table 2-42); the result is written unmasked.
+  // Vol.2A Table 2-42); the result is written unmasked.  The vendors
+  // differ on EVEX.z: an Emerald Rapids raises #UD for VAESENC with z=1
+  // (62 F2 6D C8 DC CB), a Zen 4 ignores the bit and executes it, in
+  // register and memory forms.  Both raise #UD for aaa != 000b.
   op if 220 <= op & op <= 223 => {
     if mp != MP_66 | ~(has_vaes) then raise_UD();
-    if pfx.evex_aaa != 0 | pfx.evex_z == bitone then raise_UD();
+    if pfx.evex_aaa != 0 | (pfx.evex_z == bitone & vendor == Vendor_Intel) then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));

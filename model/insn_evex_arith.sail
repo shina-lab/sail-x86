@@ -310,12 +310,14 @@ function dispatch_evex_arith(op, pfx) = {
   // 0F38 13: VCVTPH2PS (66,W0) [F] / VPMOVUSDW (F3) [F]
   19 => {
     if mp == MP_66 then {
-      // VCVTPH2PS: convert packed FP16 (half width) to FP32
+      // VCVTPH2PS: convert packed FP16 (half width: Half Mem tuple,
+      // N = VL/16) to FP32; the register form of the 512-bit one has {sae}
       if pfx.rex_w then raise_UD();
       let modrm = fetch(1);
       let dst = evex_reg_idx(modrm, pfx);
-      let vl = evex_vl(pfx);
-      let src = modrm_xrm_evex(modrm, pfx, vl / 16);
+      let n : range(8, 32) = match pfx.evex_ll { 0 => 8, 1 => 16, _ => 32 };
+      let src = modrm_xrm_evex(modrm, pfx, n);
+      let vl = ll_to_vl(evex_sae_ll(pfx, src));
       let mask = evex_wmask(pfx, vl / 32);
       evex_write(dst, mask, avx_vcvtph2ps(evex_widen_src(vl, 2, src)))
     } else if mp == MP_F3 then {

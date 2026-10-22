@@ -82,6 +82,20 @@ function evex_full_disp_n(pfx) =
     3 => raise_UD(),
   }
 
+// The scale for the "Half" tuple type (SDM Vol.2 §2.7.5, Table 2-34): the
+// memory operand is half a vector, VL/16 bytes, or with EVEX.b one 32-bit
+// element.  Half is the type of the widening conversions from 32-bit
+// elements (VCVTDQ2PD, VCVTUDQ2PD, VCVTPS2PD, VCVT[T]PS2[U]QQ), all W0.
+val evex_half_disp_n : Prefixes -> range(4, 32)
+function evex_half_disp_n(pfx) =
+  if pfx.evex_b then 4
+  else match pfx.evex_ll {
+    0 => 8,
+    1 => 16,
+    2 => 32,
+    3 => raise_UD(),
+  }
+
 // The same for opcodes whose F3/F2 forms are scalar (SS/SD: Tuple1 Scalar,
 // N = element size) and whose NP/66 forms are Full (PS/PD): 0F 10/11/51/
 // 58-5F/C2.

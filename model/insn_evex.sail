@@ -54,17 +54,21 @@ function fetch_modrm_evex(pfx, disp_n) = {
 
 // Masked memory store: write only bytes where mask bit = 1.
 // elem_bytes: element size (1=byte, 2=word, 4=dword, 8=qword).
-// One mask bit per element.
+// One mask bit per element.  nbytes is the size of the memory operand:
+// a vector (16/32/64), or the 2 to 32 bytes of a narrowing store
+// (VPMOV[S|US]QB/QW/QD/DB/DW/WB: Eighth/Quarter/Half Mem, SDM Vol.2
+// Table 2-35; VCVTPS2PH xmm/m64).
 val evex_masked_mem_store : (MemRef, zmmword, qword, int, int) -> unit
 function evex_masked_mem_store(m, data, mask, nbytes, elem_bytes) = {
   if mask == ones() then {
-    // Fast path: no masking, write the full vector.  8 bytes is the
-    // narrowing VCVTPS2PH xmm/m64 form (SDM: a 64-bit memory destination).
+    // Fast path: no masking, write the whole operand.
     match nbytes {
       64 => write_mem(m, data),
       32 => write_mem(256, m, data[255..0]),
+      16 => write_mem(128, m, data[127..0]),
       8  => write_mem(64, m, data[63..0]),
-      _  => write_mem(128, m, data[127..0]),
+      4  => write_mem(32, m, data[31..0]),
+      _  => write_mem(16, m, data[15..0]),
     }
   } else {
     // Slow path: write only elements where the corresponding mask bit = 1
@@ -101,6 +105,18 @@ function ll_to_vl(ll) = match ll {
 val evex_vl : Prefixes -> {128, 256, 512}
 function evex_vl(pfx) = ll_to_vl(pfx.evex_ll)
 
+// The length field of an instruction with {sae}: with a register r/m
+// operand, EVEX.b selects suppress-all-exceptions, L'L is ignored, and
+// the vector length is implied, 512 bits for a packed instruction (SDM
+// Vol.2 §2.7.6, Table 2-36, register-register forms with EVEX.b set).  A
+// Zen 4 and an Emerald Rapids both write all 512 bits of VGETMANTPS ymm
+// with EVEX.b, for example.  evex_begin_rc does the same for {er}.
+val evex_sae_ll : (Prefixes, XRM) -> range(0, 3)
+function evex_sae_ll(pfx, xm) = match xm {
+  XRM_reg(_) => if pfx.evex_b then 2 else pfx.evex_ll,
+  XRM_mem(_) => pfx.evex_ll,
+}
+
 // Element size from EVEX.W: W=1 → 64-bit, W=0 → 32-bit.
 val evex_elem : Prefixes -> {32, 64}
 function evex_elem(pfx) = if pfx.rex_w then 64 else 32
@@ -114,6 +130,16 @@ val evex_src : forall 'vl, 'vl in {128, 256, 512}. (implicit('vl), XRM) -> bits(
 function evex_src(vl, xm) = match xm {
   XRM_reg(xi) => read_simd(xi),
   XRM_mem(m)  => read_mem(m),
+}
+
+// The source of a scalar instruction as an XMM value: the register, or
+// the 'eb-bit element in memory, zero-extended.  A Tuple1 Scalar memory
+// operand is the element alone (SDM Vol.2 Table 2-35), so reading 128 bits
+// could fault where the instruction does not.
+val evex_scalar_xsrc : forall 'eb, 'eb in {16, 32, 64}. (XRM, int('eb)) -> xmmword
+function evex_scalar_xsrc(xm, eb) = match xm {
+  XRM_reg(xi) => read_simd(xi),
+  XRM_mem(m)  => zero_extend(read_mem(eb, m) : bits('eb)),
 }
 
 // Read narrow source for widening instructions.
@@ -134,6 +160,20 @@ val evex_kmask64 : Prefixes -> qword
 function evex_kmask64(pfx) = {
   sign_extend(is_zero(to_bits(3, pfx.evex_aaa))) | read_kreg(pfx.evex_aaa)
 }
+
+// The alignment check of an aligned EVEX move (VMOVAPS/PD, VMOVDQA32/64):
+// #GP(0) unless the memory operand is aligned to its size, nbytes (SDM
+// MOVAPS: "the operand must be aligned on a 16-byte (128-bit version),
+// 32-byte (256-bit) or 64-byte (EVEX.512) boundary").  Like a fault on a
+// masked-off element, the check is suppressed when the writemask selects
+// none of the nelem elements: a Zen 4 and an Emerald Rapids both execute
+// VMOVAPS [rax+4]{k1}, zmm1 (and the load, and VMOVDQA32) with k1 = 0,
+// and the 128-bit form with only k1[15] set, but raise #GP when k1
+// selects any element.
+val evex_check_alignment_masked : forall 'a, 'a in {16, 32, 64}.
+  (MemRef, int('a), Prefixes, range(1, 64)) -> unit
+function evex_check_alignment_masked(m, nbytes, pfx, nelem) =
+  if (evex_kmask64(pfx) << (64 - nelem)) != zeros() then check_alignment(m, nbytes)
 
 struct Writemask('n : Int), 'n > 0 = {
   bits : bits('n),
@@ -223,6 +263,21 @@ function evex_bcast_src(vl, xm, pfx, eb) = match xm {
   XRM_reg(xi) => ZMM[xi][(vl - 1)..0],
 }
 
+
+// The source of a widening conversion, which reads part of a vector:
+// the low 'n bits of a register, 'n bits of memory, or with EVEX.b one
+// 'eb-bit element of memory repeated over 'n bits.  For the Half tuple
+// (see evex_half_disp_n) 'n is VL/2 and 'eb 32; the FP16 conversions to
+// 32- and 64-bit elements read VL/2 and VL/4 bits with m16bcst.
+val evex_part_src : forall 'n 'eb, 'n in {32, 64, 128, 256} & 'eb in {16, 32}.
+  (implicit('n), XRM, Prefixes, int('eb)) -> bits('n)
+function evex_part_src(n, xm, pfx, eb) = match xm {
+  XRM_reg(xi) => ZMM[xi][('n - 1) .. 0],
+  XRM_mem(m)  => if pfx.evex_b then {
+                   let b : zmmword = broadcast(read_mem(eb, m) : bits('eb));
+                   b[('n - 1) .. 0]
+                 } else read_mem(m),
+}
 
 // Helper for VPMOVSX/VPMOVZX widening load instructions (66 prefix).
 // Reads narrow source, sign/zero-extends to wider elements, writes with mask.

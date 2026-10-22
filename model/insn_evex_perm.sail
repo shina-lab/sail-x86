@@ -117,11 +117,12 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 78: VPBROADCASTB (66,W0) / 0F38 79: VPBROADCASTW (66,W0) — from XMM/mem
+  // Tuple1 Scalar on m8/m16: disp8*N with N = 1 or 2 (SDM Vol.2 Table 2-35).
   op if op == 120 | op == 121 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_xrm_evex(modrm, pfx, 4);
+    let src = modrm_xrm_evex(modrm, pfx, if op == 120 then 1 else 2);
     let eb : {8, 16} = if op == 120 then 8 else 16;
     let vl = evex_vl(pfx);
     evex_write(dst, evex_wmask(pfx, vl / eb), broadcast(vl, decode_scalar_src(eb, src)))
@@ -267,23 +268,25 @@ function dispatch_evex_perm(op, pfx) = {
   },
 
   // 0F38 62: VPEXPANDB (66,W0) / VPEXPANDW (66,W1) [VBMI2]
+  // Tuple1 Scalar: disp8*N with N = the element size, 1 or 2.
   98 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
-    let src = modrm_xrm_evex(modrm, pfx, 1);
     let eb = evex_elem_bw(pfx);
+    let src = modrm_xrm_evex(modrm, pfx, eb / 8);
     let vl = evex_vl(pfx);
     evex_write(dst, evex_wmask(pfx, vl / eb), packed_expand(eb, evex_src(vl, src), evex_kmask64(pfx)))
   },
 
   // 0F38 63: VPCOMPRESSB (66,W0) / VPCOMPRESSW (66,W1) [VBMI2]
+  // Tuple1 Scalar: disp8*N with N = the element size, 1 or 2.
   99 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let src = evex_reg_idx(modrm, pfx);
-    let dest = modrm_xrm_evex(modrm, pfx, 1);
     let eb = evex_elem_bw(pfx);
+    let dest = modrm_xrm_evex(modrm, pfx, eb / 8);
     let vl = evex_vl(pfx);
     let k = evex_kmask64(pfx);
     match dest {
