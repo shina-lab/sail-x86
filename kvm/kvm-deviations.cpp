@@ -14,15 +14,23 @@
 // matches any characters: a trailing one also matches the case's variants,
 // whose names extend the base name with " [detail]", and "*[detail]*" one
 // kind of variant of every case.  Where the host takes another outcome
-// (completes where the manuals say #UD, say), the entry names it (-1 for
-// completing, else the vector), and covers only that mismatch: a variant
-// of the kind that completes on both sides, or faults on both, is still
-// compared and fails as usual.
+// than the manuals give, the entry names the model's outcome, which is
+// theirs, or the host's, or both, and covers only a run whose outcomes
+// differ so: a variant of the kind that completes on both sides, or faults
+// alike on both, is still compared and fails as usual.  Where the host
+// passes over a fault the manuals give (#UD for a reserved encoding, say),
+// the entry names the model's alone, for the host then does what the
+// case's instructions go on to do: completes, or faults at a later one, or
+// faults otherwise.  HOST_CANNOT_RUN marks a case that KVM on the host
+// cannot run at all; the entry's reason says why.
 
 #include "kvm-harness.h"
 #include <cpuid.h>
 
 namespace {
+
+// The outcomes the entries name.
+constexpr int COMPLETES = -1, DB = 1, UD = 6, GP = 13;
 
 // The reasons of the gather entries, which share them.
 const char *const GATHER_VEX_UPPER =
@@ -44,26 +52,52 @@ const char *const GATHER_EVEX_UPPER =
     "before the instruction (Vol.3A §7.5, p.7-5).  Only where \"the data element size is less "
     "than the index element size\" may the higher part be zeroed \"even if the instruction "
     "triggers an exception\" (p.5-548).";
+const char *const GATHER_EVEX_UPPER_AMD =
+    "Zen 4 clears the destination above VL when an EVEX gather faults on an element after "
+    "loading one below it.  The SDM's Operation clears DEST[MAXVL-1:VL] after the loop "
+    "(VPGATHERDD etc., Vol.2C p.5-549), and its description lets a fault leave only the "
+    "gathered elements (p.5-548; the rest as before the instruction, Vol.3A §7.5, p.7-5).  "
+    "The APM says only that \"the destination register and the mask operand may be observed "
+    "as partially updated.  Elements that have been loaded will have their mask elements set "
+    "to zero\" (Vol.4 VPGATHERDD p.1397, VGATHERDPD p.1158), nothing of the bits above VL, so "
+    "the model has the SDM's rule on both vendors.";
+
+// The reason of the VEX instructions without an SSE form under CR0.EM.
+const char *const VEX_NO_SSE_FORM_EM =
+    "Zen 4 executes a VEX instruction without a legacy SSE form with CR0.EM = 1; APM Vol.2 "
+    "§8.2.7 (p.252) gives #UD for \"any SSE instruction (uses ZMM/YMM/XMM registers)\" when "
+    "CR0.EM = 1, and of the classes of these instructions (Vol.4 Table 3-1, \"Legacy Type "
+    "—\") 4G, 4H and 4H-1 list \"CR0.EM = 1\" under #UD (pp.1831-1833, VTESTPS, VPERMD, "
+    "VPERMQ), while the others (VPBLENDD, VPSLLVD, VINSERTI128, VBROADCASTSS, VZEROUPPER) "
+    "do not name EM, which leaves §8.2.7.";
 
 const std::vector<KnownDeviation> DEVIATIONS = {
-    // {amd, "case name", "reason"[, host outcome]},
+    // {amd, "case name", "reason"[, model outcome[, host outcome]]},
 
     // CR0.EM and CR0.TS (kvm-tests-cr0.cpp)
     {true, "vpaddd zmm0,zmm1,zmm2 [EM]*",
      "Zen 4 executes an EVEX instruction with CR0.EM = 1; APM Vol.4 §3.2.1 (p. 1878), the "
      "control register exceptions of the AVX512 instructions, lists \"CR0.EM = 1\" under "
      "\"Invalid opcode, #UD\", as Vol.2 §8.2.7 (p. 252) does for \"any SSE instruction (uses "
-     "ZMM/YMM/XMM registers)\"", -1},
+     "ZMM/YMM/XMM registers)\"", UD},
     {true, "vpaddd zmm0,zmm1,zmm2 [EM MP]*",
      "Zen 4 executes an EVEX instruction with CR0.EM = 1; APM Vol.4 §3.2.1 (p. 1878) lists "
-     "\"CR0.EM = 1\" under \"Invalid opcode, #UD\" for the AVX512 instructions", -1},
+     "\"CR0.EM = 1\" under \"Invalid opcode, #UD\" for the AVX512 instructions", UD},
     {true, "kmovw k1,k2 [EM]*",
      "Zen 4 executes VEX KMOVW with CR0.EM = 1; the APM's KMOVW page (Vol.4 p. 212) says "
      "\"Exceptions for AVX512 instructions are enumerated in Section 3.2\", and §3.2.1 "
-     "(p. 1878) lists \"CR0.EM = 1\" under \"Invalid opcode, #UD\"", -1},
+     "(p. 1878) lists \"CR0.EM = 1\" under \"Invalid opcode, #UD\"", UD},
     {true, "kmovw k1,k2 [EM MP]*",
      "Zen 4 executes VEX KMOVW with CR0.EM = 1; the APM's KMOVW page (Vol.4 p. 212) refers to "
-     "§3.2, whose §3.2.1 (p. 1878) lists \"CR0.EM = 1\" under \"Invalid opcode, #UD\"", -1},
+     "§3.2, whose §3.2.1 (p. 1878) lists \"CR0.EM = 1\" under \"Invalid opcode, #UD\"", UD},
+    {true, "vtestps xmm1,xmm2 [EM*", VEX_NO_SSE_FORM_EM, UD},
+    {true, "vpermd ymm0,ymm1,ymm2 [EM*", VEX_NO_SSE_FORM_EM, UD},
+    {true, "vpermq ymm0,ymm1,1Bh [EM*", VEX_NO_SSE_FORM_EM, UD},
+    {true, "vpblendd ymm0,ymm1,ymm2,55h [EM*", VEX_NO_SSE_FORM_EM, UD},
+    {true, "vpsllvd ymm0,ymm1,ymm2 [EM*", VEX_NO_SSE_FORM_EM, UD},
+    {true, "vinserti128 ymm0,ymm1,xmm2,1 [EM*", VEX_NO_SSE_FORM_EM, UD},
+    {true, "vbroadcastss ymm0,xmm1 [EM*", VEX_NO_SSE_FORM_EM, UD},
+    {true, "vzeroupper [EM*", VEX_NO_SSE_FORM_EM, UD},
 
     // x87 stack faults and condition codes (kvm-tests-x87-cc.cpp)
     {false, "fsincos 2^63, ST(7) full (out of range*",
@@ -140,12 +174,19 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "natively, with a ptrace-armed DR0).  The APM does \"not allow external interrupts "
      "or debug exceptions to occur until the instruction immediately following the MOV "
      "SS or POP SS instruction completes execution\" (Vol.2 §8.1.4 p.245); the SDM "
-     "suppresses the breakpoint \"as if EFLAGS.RF were 1\" (Vol.3A §7.8.3 p.7-8).", 1},
+     "suppresses the breakpoint \"as if EFLAGS.RF were 1\" (Vol.3A §7.8.3 p.7-8).",
+     COMPLETES, DB},
     {true, "sysexit*",
      "KVM on AMD intercepts the #UD of SYSEXIT in long mode and emulates the "
      "instruction as the SDM gives it (#GP(0) for IA32_SYSENTER_CS = 0, else the "
      "return to CPL 3).  The APM makes SYSEXIT #UD in long mode: \"An invalid-opcode "
      "exception occurs if this instruction is used in long mode\" (Vol.3 SYSEXIT p.490)."},
+    {true, "sysenter*",
+     "KVM on AMD intercepts the #UD of SYSENTER in long mode and cannot emulate it in 64-bit "
+     "mode (the run ends in KVM_EXIT_INTERNAL_ERROR), so the case does not run.  The APM makes "
+     "SYSENTER #UD in long mode: \"An invalid-opcode exception occurs if this instruction is "
+     "used in long mode\" (Vol.3 SYSENTER p.488).",
+     ANY_OUTCOME, HOST_CANNOT_RUN},
 
     // Gathers and scatters (kvm-tests-avx-vex.cpp, kvm-tests-avx-special.cpp)
     {false, "VPGATHERDD xmm element *", GATHER_VEX_UPPER},
@@ -172,6 +213,25 @@ const std::vector<KnownDeviation> DEVIATIONS = {
     {false, "VGATHERDPD ymm{k1} element *", GATHER_EVEX_UPPER},
     {false, "VGATHERQPD xmm{k1} element *", GATHER_EVEX_UPPER},
     {false, "VGATHERQPD ymm{k1} element *", GATHER_EVEX_UPPER},
+    {true, "VPGATHERDD xmm{k1} element *", GATHER_EVEX_UPPER_AMD},
+    {true, "VPGATHERDD ymm{k1} element *", GATHER_EVEX_UPPER_AMD},
+    {true, "VPGATHERDQ xmm{k1} element *", GATHER_EVEX_UPPER_AMD},
+    {true, "VPGATHERDQ ymm{k1} element *", GATHER_EVEX_UPPER_AMD},
+    {true, "VPGATHERQQ xmm{k1} element *", GATHER_EVEX_UPPER_AMD},
+    {true, "VPGATHERQQ ymm{k1} element *", GATHER_EVEX_UPPER_AMD},
+    {true, "VGATHERDPS xmm{k1} element *", GATHER_EVEX_UPPER_AMD},
+    {true, "VGATHERDPS ymm{k1} element *", GATHER_EVEX_UPPER_AMD},
+    {true, "VGATHERDPD xmm{k1} element *", GATHER_EVEX_UPPER_AMD},
+    {true, "VGATHERDPD ymm{k1} element *", GATHER_EVEX_UPPER_AMD},
+    {true, "VGATHERQPD xmm{k1} element *", GATHER_EVEX_UPPER_AMD},
+    {true, "VGATHERQPD ymm{k1} element *", GATHER_EVEX_UPPER_AMD},
+    {true, "*(#DB in lieu)*",
+     "Zen 4 delivers the #DB of a data breakpoint that a completed gather or scatter element "
+     "hit, in lieu of the later element's fault, with RFLAGS.RF = 0 in the pushed image; "
+     "\"in this case, the RF flag is set so that an instruction breakpoint is not "
+     "re-triggered when the instruction execution is resumed\" (APM Vol.4 VPGATHERDD "
+     "p.1397, VPSCATTERDD p.1573); \"EFLAG.RF is set to one\" (SDM Vol.2C VPGATHERDD "
+     "p.5-551)."},
 
     // VEX and EVEX encodings (evex).
     {false, "Masked-off misaligned EVEX *",
@@ -180,56 +240,60 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "suppression: SDM Vol.2A Table 2-46 (p.2-49), \"EVEX.512: Memory operand is not 64-byte "
      "aligned\" (the other memory faults: \"If fault suppression not set, and ...\"); APM "
      "Vol.4 MOVAPS (p.284), \"A memory operand that is not aligned causes a "
-     "general-protection exception\"", -1},
+     "general-protection exception\"", GP},
     {true, "Masked-off misaligned EVEX *",
      "Zen 4 runs a misaligned VMOVAPS/VMOVAPD/VMOVDQA32/VMOVDQA64 whose writemask selects no "
      "element, without #GP; the alignment #GP of class E1 has no fault suppression: SDM "
      "Vol.2A Table 2-46 (p.2-49), \"EVEX.512: Memory operand is not 64-byte aligned\" (the "
      "other memory faults: \"If fault suppression not set, and ...\"); APM Vol.4 MOVAPS "
      "(p.284), \"A memory operand that is not aligned causes a general-protection "
-     "exception\"", -1},
-    {true, "vmovdqa32 xmm0,xmm1 EVEX.V'̄=0",
+     "exception\"", GP},
+    {true, "vmovdqa32 xmm0,xmm1 EVEX.V'̄=0*",
      "Zen 4 runs VMOVDQA32 with EVEX.V'̄ = 0 in compatibility mode; #UD in both manuals: SDM "
      "Vol.2A Table 2-41 (p.2-44), \"EVEX.V' | Otherwise | If 0 | If 0\"; APM Vol.4 §3.2.4 "
-     "(p.1880), \"EVEX.V' != 1 | Single source operand instructions | #UD3 | #UD\"", -1},
-    {true, "vpgatherdd zmm0{k1},[edi+zmm2*4] EVEX.V'̄=0",
+     "(p.1880), \"EVEX.V' != 1 | Single source operand instructions | #UD3 | #UD\"", UD},
+    {true, "vpgatherdd zmm0{k1},[edi+zmm2*4] EVEX.V'̄=0*",
      "Zen 4 runs VPGATHERDD with EVEX.V'̄ = 0 in compatibility mode; #UD in both manuals: SDM "
      "Vol.2A Table 2-41 (p.2-44), \"EVEX.V' | Encodes ZMM/YMM/XMM | None (valid) | If 0\"; APM "
      "Vol.4 §3.2.4 (p.1880), \"EVEX.V' != 1 | ... | #UD3 | #UD\", whose note 3 exempts VSIB "
-     "in 64-bit mode only", -1},
-    {true, "vpxord xmm0,xmm1,xmm2 EVEX.V'̄=0",
+     "in 64-bit mode only", UD},
+    {true, "vpxord xmm0,xmm1,xmm2 EVEX.V'̄=0*",
      "Zen 4 ignores EVEX.V'̄ = 0 in compatibility mode where EVEX.vvvv names a register; SDM "
      "Vol.2A Table 2-41 (p.2-44): \"EVEX.V' | Encodes ZMM/YMM/XMM | None (valid) | If 0\" "
-     "(#UD outside 64-bit mode); the APM has no rule for it (Vol.4 §3.2.4)", -1},
-    {true, "vpxord zmm0,zmm1,zmm2 EVEX.V'̄=0",
+     "(#UD outside 64-bit mode); the APM has no rule for it (Vol.4 §3.2.4)", UD},
+    {true, "vpxord zmm0,zmm1,zmm2 EVEX.V'̄=0*",
      "Zen 4 ignores EVEX.V'̄ = 0 in compatibility mode where EVEX.vvvv names a register; SDM "
      "Vol.2A Table 2-41 (p.2-44): \"EVEX.V' | Encodes ZMM/YMM/XMM | None (valid) | If 0\" "
-     "(#UD outside 64-bit mode); the APM has no rule for it (Vol.4 §3.2.4)", -1},
-    {true, "vpxord xmm0,xmm1,xmm2 EVEX.V'̄=0 vvvv bit 3",
+     "(#UD outside 64-bit mode); the APM has no rule for it (Vol.4 §3.2.4)", UD},
+    {true, "vpxord xmm0,xmm1,xmm2 EVEX.V'̄=0 vvvv bit 3*",
      "Zen 4 ignores EVEX.V'̄ = 0 in compatibility mode where EVEX.vvvv names a register; SDM "
      "Vol.2A Table 2-41 (p.2-44): \"EVEX.V' | Encodes ZMM/YMM/XMM | None (valid) | If 0\" "
-     "(#UD outside 64-bit mode); the APM has no rule for it (Vol.4 §3.2.4)", -1},
-    {true, "vpextrq eax,xmm1,1 W1",
+     "(#UD outside 64-bit mode); the APM has no rule for it (Vol.4 §3.2.4)", UD},
+    {true, "vpextrq eax,xmm1,1 W1*",
      "Zen 4 faults on VEX VPEXTRQ (W1) in compatibility mode; both manuals make it VPEXTRD: SDM "
      "Vol.2B PEXTRQ (4-286) note 2, \"VEX.W/EVEX.W in non-64 bit is ignored; the instructions "
      "behaves as if the W0 version is used\"; APM Vol.4 VPEXTRD (p.479), \"x.1111.0.01 16 /r "
-     "ib\", \"only available in non-64-bit modes\".  (The EVEX case of this name runs.)"},
-    {true, "vpextrq eax,xmm1,1 W1 [edi]",
+     "ib\", \"only available in non-64-bit modes\".  (The EVEX case of this name runs.)",
+     COMPLETES, UD},
+    {true, "vpextrq eax,xmm1,1 W1 [edi]*",
      "Zen 4 faults on VEX VPEXTRQ (W1) in compatibility mode; both manuals make it VPEXTRD: SDM "
      "Vol.2B PEXTRQ (4-286) note 2, \"VEX.W/EVEX.W in non-64 bit is ignored; the instructions "
      "behaves as if the W0 version is used\"; APM Vol.4 VPEXTRD (p.479), \"x.1111.0.01 16 /r "
-     "ib\", \"only available in non-64-bit modes\""},
-    {true, "vpextrq eax,xmm1,3 W1",
+     "ib\", \"only available in non-64-bit modes\"",
+     COMPLETES, UD},
+    {true, "vpextrq eax,xmm1,3 W1*",
      "Zen 4 faults on VEX VPEXTRQ (W1) in compatibility mode; both manuals make it VPEXTRD: SDM "
      "Vol.2B PEXTRQ (4-286) note 2, \"VEX.W/EVEX.W in non-64 bit is ignored; the instructions "
      "behaves as if the W0 version is used\"; APM Vol.4 VPEXTRD (p.479), \"x.1111.0.01 16 /r "
-     "ib\", \"only available in non-64-bit modes\".  (The EVEX case of this name runs.)"},
-    {true, "vpextrq eax,xmm1,3 W1 [edi]",
+     "ib\", \"only available in non-64-bit modes\".  (The EVEX case of this name runs.)",
+     COMPLETES, UD},
+    {true, "vpextrq eax,xmm1,3 W1 [edi]*",
      "Zen 4 faults on VEX VPEXTRQ (W1) in compatibility mode; both manuals make it VPEXTRD: SDM "
      "Vol.2B PEXTRQ (4-286) note 2, \"VEX.W/EVEX.W in non-64 bit is ignored; the instructions "
      "behaves as if the W0 version is used\"; APM Vol.4 VPEXTRD (p.479), \"x.1111.0.01 16 /r "
-     "ib\", \"only available in non-64-bit modes\""},
-    {true, "kmovq k1,eax W1",
+     "ib\", \"only available in non-64-bit modes\"",
+     COMPLETES, UD},
+    {true, "kmovq k1,eax W1*",
      "Zen 4 runs KMOVQ k1, eax (VEX.W1) in compatibility mode as a 64-bit move, k1[63:32] = "
      "RAX[63:32]; the manuals allow #UD or KMOVD, which zeroes k1[63:32]: SDM Vol.2A KMOVQ "
      "(3-517) \"V/I\" and (3-518) \"VEX.W can only be used to modify the size of the GPR "
@@ -242,31 +306,20 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "that specify neither {er} nor {sae} | #UD | #UD\"; SDM Vol.2A Table 2-43 (p.2-45), valid "
      "only for \"Reg-reg, FP instructions with rounding semantic\", \"Other reg-reg, FP "
      "instructions that can cause #XM\" and reg-mem broadcasts, \"If EVEX.b = 1\" otherwise.  "
-     "(The variant sets EVEX.b in every form, also where it is valid.)", -1},
+     "(The variant sets EVEX.b in every form, also where it is valid.)", UD},
     {true, "*{1toN}* [memory r/m as register]*",
      "Zen 4 ignores EVEX.b in the register form of an instruction with neither {er} nor {sae} "
      "(the variant keeps the broadcast's EVEX.b); #UD in both manuals: APM Vol.4 §3.2.4 "
      "(p.1880), \"EVEX.b == 1 | Non-Memory instructions that specify neither {er} nor {sae} | "
      "#UD | #UD\"; SDM Vol.2A Table 2-43 (p.2-45), valid only for \"Reg-reg, FP instructions "
      "with rounding semantic\", \"Other reg-reg, FP instructions that can cause #XM\" and "
-     "reg-mem broadcasts, \"If EVEX.b = 1\" otherwise", -1},
+     "reg-mem broadcasts, \"If EVEX.b = 1\" otherwise", UD},
     {true, "*[EVEX.z]*",
      "Zen 4 ignores EVEX.z in a form without masking (VAESENC and VPCLMULQDQ among them) unless "
      "the zeroing would apply to an opmask or memory operand; #UD in both manuals: APM Vol.4 "
      "§3.2.4 (p.1879), \"EVEX.z == 1 && EVEX.aaa == 000b | All instructions | #UD | #UD\"; SDM "
      "Vol.2A Table 2-42 (p.2-44), \"EVEX.z | Instructions with EVEX.aaa = 000b. | If EVEX.z != "
-     "0\".  (The variant sets EVEX.z in every form, also where it is valid.)", -1},
-    {true, "kmovw k9,k2 (VEX.R)*",
-     "Zen 4 ignores VEX.R̄ = 0 with an opmask register in ModRM.reg; #UD in both manuals: APM "
-     "Vol.4 §3.2.5 (p.1880), \"VEX.R == 0 | When ModR/M.reg specifies a K register | #UD\", "
-     "\"Cannot specify a K Register above k7\"; SDM Vol.2A Table 2-41 (p.2-44), \"EVEX.R | "
-     "ModRM.reg encodes k-reg | If EVEX.R = 0\", note 1, \"This table also represents VEX "
-     "restrictions\"", -1},
-    {true, "kandw k1,k10,k3 (vvvv bit 3)*",
-     "Zen 4 ignores bit 3 of a VEX.vvvv that names an opmask register in 64-bit mode; SDM "
-     "Vol.2A Table 2-42 (p.2-44), \"VEX.vvvv | ... | K-regs are instruction operands not mask "
-     "control. | If vvvv = 0xxxb\" (#UD in 64-bit mode); the APM has no rule for it (Vol.4 "
-     "§3.2.5)", -1},
+     "0\".  (The variant sets EVEX.z in every form, also where it is valid.)", UD},
     {true, "*[opmask field bit 3 set]*",
      "Zen 4 ignores VEX.R̄ = 0 with an opmask register in ModRM.reg, and bit 3 of a VEX.vvvv "
      "that names one: APM Vol.4 §3.2.5 (p.1880), \"VEX.R == 0 | When ModR/M.reg specifies a K "
@@ -274,7 +327,7 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "EVEX.R = 0\", note 1, \"This table also represents VEX restrictions\", and Table 2-42 "
      "(p.2-44), \"K-regs are instruction operands not mask control. | If vvvv = 0xxxb\".  (The "
      "variant sets bit 3 of the opmask fields of every instruction of its case, also of the VEX "
-     "KMOV that sets up a mask.)", -1},
+     "KMOV that sets up a mask.)", UD},
 
     // x87 state: instruction and data pointers, state images
     {false, "x87 pointers after f*",
@@ -292,6 +345,14 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "(the model's earlier AMD rule, from commit adb9d3c's checks on a Zen 4); \"FXRSTOR "
      "does not restore the x87 error pointers ... except when FXRSTOR sets FSW.ES=1 after "
      "recomputing it\" (APM Vol.5 FXRSTOR p.24)"},
+    {true, "fxsave [rdi] with CR4.OSFXSR = 0*",
+     "Zen 4 saves MXCSR with CR4.OSFXSR = 0; \"If the operating-system FXSAVE/FXRSTOR "
+     "support bit (OSFXSR) of CR4 is cleared to 0, FXSAVE does not save the image of "
+     "XMM0–XMM15 or MXCSR\" (APM Vol.5 FXSAVE p.26)"},
+    {true, "fxrstor [rdi] with CR4.OSFXSR = 0*",
+     "Zen 4 loads MXCSR with CR4.OSFXSR = 0; \"If the operating-system FXSAVE/FXRSTOR "
+     "support bit (OSFXSR) of CR4 is cleared to 0, the saved image of XMM0–XMM15 and MXCSR "
+     "is not loaded into the processor\" (APM Vol.5 FXRSTOR p.24)"},
 };
 
 bool host_is_amd() {

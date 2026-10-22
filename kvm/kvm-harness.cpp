@@ -1646,8 +1646,8 @@ enum class CaseResult { Pass, Deviation, Fail };
 // a run that faults, the architectural state for one that completes, and
 // in either case the memory the run may have written.  A mismatch is a
 // known deviation if `dev`, the case's entry for this host, covers it
-// (KnownDeviation::host_outcome), and a failure otherwise; a harness or
-// model error is always a failure.
+// (KnownDeviation::model_outcome and host_outcome), and a failure
+// otherwise; a harness or model error is always a failure.
 static CaseResult run_case(KvmVm &vm, const TestCase &tc, const KnownDeviation *dev) {
   vm.load_test(tc);
 
@@ -1660,8 +1660,10 @@ static CaseResult run_case(KvmVm &vm, const TestCase &tc, const KnownDeviation *
   bool fault_allowed = tc.expect_fault || tc.may_fault || !tc.allowed_outcomes.empty();
 
   if (!vm.run_test_any(&kvm_state, &kvm_fault, &err)) {
-    fprintf(stderr, "%sFAIL: %s\n", err.c_str(), tc.name.c_str());
-    return CaseResult::Fail;
+    bool covered = dev && dev->host_outcome == HOST_CANNOT_RUN;
+    fprintf(stderr, "%s%s: %s\n", err.c_str(), covered ? "KNOWN DEVIATION" : "FAIL",
+            tc.name.c_str());
+    return covered ? CaseResult::Deviation : CaseResult::Fail;
   }
   vm.read_pages(&kvm_mem);
   sail_state = run_sail(tc, &sail_mem, fault_allowed ? &sail_fault : nullptr, &err,
@@ -1712,9 +1714,13 @@ static CaseResult run_case(KvmVm &vm, const TestCase &tc, const KnownDeviation *
   if (!err.empty())
     fprintf(stderr, "%s", err.c_str());
 
+  bool differ = kvm_out != sail_out ||
+                (kvm_fault.faulted && kvm_fault.faulting_rip != sail_fault.faulting_rip);
+  auto fixed = [](int want, int got) { return want == ANY_OUTCOME || want == got; };
   bool covered = dev && err.empty() &&
-                 (dev->host_outcome == ANY_OUTCOME ||
-                  (kvm_out == dev->host_outcome && sail_out != kvm_out));
+                 ((dev->model_outcome == ANY_OUTCOME && dev->host_outcome == ANY_OUTCOME) ||
+                  (differ && fixed(dev->model_outcome, sail_out) &&
+                   fixed(dev->host_outcome, kvm_out)));
   const char *verdict = covered ? "KNOWN DEVIATION" : "FAIL";
   CaseResult mismatch = covered ? CaseResult::Deviation : CaseResult::Fail;
 

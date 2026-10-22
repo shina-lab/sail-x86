@@ -628,15 +628,21 @@ void fxsave_x87_undefined(TestCase &tc, u16 off, unsigned open, bool w = false);
 // host whose hardware does something else is listed here, with the reason,
 // instead of changing the expectation.  See kvm-deviations.cpp.
 static constexpr int ANY_OUTCOME = -2;
+static constexpr int HOST_CANNOT_RUN = -3;
 
 struct KnownDeviation {
   bool amd;            // the host vendor it applies to: AMD (true) or Intel
   const char *name;    // the case name; a '*' matches any characters
   const char *reason;  // what the hardware does and what the manuals say
-  // Where the deviation is in the outcome, the host's: an exception vector,
-  // or -1 for completing.  The entry then covers only a run in which the
-  // host takes it and the model another; any other mismatch fails as
-  // usual.  ANY_OUTCOME where the deviation is in the state a run leaves.
+  // Where the deviation is in the outcome, the model's and the host's as
+  // far as the entry fixes them: an exception vector, or -1 for completing.
+  // The entry then covers only a run whose two outcomes differ (in the
+  // vector, or in the RIP of the fault) and are these; any other mismatch
+  // fails as usual.  Neither fixed (ANY_OUTCOME) where the deviation is in
+  // the state a run leaves.  HOST_CANNOT_RUN as the host's where KVM on the
+  // host cannot run the case at all (an exit other than at HLT or in the
+  // handlers); nothing is compared then.
+  int model_outcome = ANY_OUTCOME;
   int host_outcome = ANY_OUTCOME;
 };
 
