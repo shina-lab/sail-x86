@@ -51,8 +51,10 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
     tc.flags_mask = undefined_cc ? FL_NO_AF : FL_ALL;
     tc.data_undefined = {{0x104, u8(undefined_cc)}, {0x105, u8(undefined_cc >> 8)}};
     unsigned open = X87_CW_LOADED;
-    if (recorded)
-      open |= X87_NO_DATA | (compat32 ? 0 : X87_LONG_MODE);
+    if (recorded) {
+      open |= X87_NO_DATA;
+      if (!compat32) open |= X87_LONG_MODE;
+    }
     x87_env_undefined(tc, 0x100, open);
     tc.undefined.gpr[0] = 0xE0C0;  // the saved CW
     tc.init_data = std::move(data);
