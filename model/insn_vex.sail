@@ -152,9 +152,12 @@ function vex_exec_binop(op, eb, pfx) = {
 // (VEX.L1 for the three-operand ones, L0 for the others; register r/m
 // except for KMOV) are in vex_forms_0f and vex_forms_0f3a.  Opmask
 // registers have three-bit numbers: an opmask in ModR/M.reg with VEX.R
-// set, or in VEX.vvvv with its bit 3 set, is #UD on Intel, which
-// vex_check_form raises, and ignored on AMD, and VEX.B for an opmask in
-// ModR/M.r/m is ignored on both (checked on an Emerald Rapids and a Zen 4).
+// set, or in 64-bit mode in VEX.vvvv with its bit 3 set, is #UD, which
+// vex_check_form raises, and VEX.B for an opmask in ModR/M.r/m is ignored
+// (SDM Vol.2A Table 2-41 and its note 1, "This table also represents VEX
+// restrictions": "EVEX.B | ModRM.r/m encodes k-reg | None (ignored) |
+// None (ignored)"; APM Vol.4 §3.2.5: "EVEX.B == 0 | When ModRM.bbb
+// specifies a K Register | Ign | Ign | KADDQ").
 val vex_kreg_reg : byte -> kreg_idx
 function vex_kreg_reg(modrm) = unsigned(modrm[5..3])
 

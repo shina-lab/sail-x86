@@ -82,11 +82,11 @@ function dispatch_vex_0f38(opcode, pfx) = {
 // whether it may be a register (xmm2), memory (m64) or either (xmm2/m64).
 // Every other encoding, including a map, opcode and pp the SDM does not
 // define, is #UD, which dispatch_vex_with_byte2 raises before a handler
-// runs.  Run over every map, opcode, pp, L, W, vvvv = 1111b or not, and
-// register or memory r/m, a Zen 4 and an Emerald Rapids agree with these
-// tables wherever the other checks of vex_check_form (ModRM.reg, VSIB,
-// opmask registers, CPUID features) do not decide, except where an entry
-// says otherwise; the AMX opcodes were not probed.
+// runs.  The APM calls the encodings its rows leave out "illegally
+// encoded instructions" that "may cause a #UD" ("Undefined combinations
+// of the opcode, VEX.map_select, and VEX.pp", "Undefined cases of a value
+// of VEX.W", "Undefined cases of values of VEX.L", Vol.4 §3.2.5); the
+// model raises #UD for them on both vendors.
 //
 // A set of forms is a mask over the 16 combinations of VEX.L, VEX.W,
 // V (VEX.vvvv != 1111b) and M (a memory r/m): bit 8 L + 4 W + 2 V + M.
@@ -480,12 +480,12 @@ function vex_forms_0f38(op, mp) = match (op, mp) {
 // The 0F3A map.
 val vex_forms_0f3a : (byte, MandatoryPrefix) -> bits(16)
 function vex_forms_0f3a(op, mp) = match (op, mp) {
-  // VPERMQ and VPERMPD are W1; a Zen 4 ignores VEX.W, an Emerald Rapids
-  // raises #UD for W0.
-  (0x00, MP_66)    => // VPERMQ
-    vex_form(VEX_L1, if vendor == Vendor_AMD then VEX_WIG else VEX_W1, VEX_V1111, VEX_RM),
-  (0x01, MP_66)    => // VPERMPD
-    vex_form(VEX_L1, if vendor == Vendor_AMD then VEX_WIG else VEX_W1, VEX_V1111, VEX_RM),
+  // VPERMQ and VPERMPD are W1: "VEX.256.66.0F3A.W1 00 /r ib" and "... 01
+  // /r ib" are their only VEX rows in the SDM, "C4 RXB.03 1.1111.1.01 00
+  // /r ib" and "... 01 /r ib" in the APM, where W0 is an "Undefined case
+  // of a value of VEX.W" that "may cause a #UD" (Vol.4 §3.2.5).
+  (0x00, MP_66)    => vex_form(VEX_L1, VEX_W1, VEX_V1111, VEX_RM), // VPERMQ
+  (0x01, MP_66)    => vex_form(VEX_L1, VEX_W1, VEX_V1111, VEX_RM), // VPERMPD
   (0x02, MP_66)    => vex_form(VEX_L0 | VEX_L1, VEX_W0, VEX_VVVV, VEX_RM), // VPBLENDD
   (0x04, MP_66)    => vex_form(VEX_L0 | VEX_L1, VEX_W0, VEX_V1111, VEX_RM), // VPERMILPS
   (0x05, MP_66)    => vex_form(VEX_L0 | VEX_L1, VEX_W0, VEX_V1111, VEX_RM), // VPERMILPD
@@ -654,12 +654,12 @@ function vex_no_sse_form(map, op) = match map {
 // whose destination, index and mask registers are not all distinct (SDM
 // VPGATHERDD etc.: "#UD if the memory operand is encoded without the SIB
 // byte", "if any pair of the index, mask, or destination registers are
-// the same"; both on a Zen 4 and an Emerald Rapids); an opmask
-// instruction's opmask in ModR/M.reg with VEX.R set or in VEX.vvvv with
-// its bit 3 set, which is #UD on Intel and ignored on AMD (checked on an
-// Emerald Rapids and a Zen 4; vex_kreg_reg); or a SIMD instruction of a
-// CPUID feature the processor lacks.  The model raises all of these ahead
-// of the #NM of CR0.TS (check_cr0_ts; exceptions.sail).  Returns the
+// the same"; APM VPGATHERDD: "MODRM.rm ! = 100b", "YMM/XMM registers
+// specified for destination, mask, and index not unique"); an opmask
+// instruction's opmask in ModR/M.reg with VEX.R set or, in 64-bit mode,
+// in VEX.vvvv with its bit 3 set (vex_kreg_reg); or a SIMD instruction of
+// a CPUID feature the processor lacks.  The model raises all of these
+// ahead of the #NM of CR0.TS (check_cr0_ts; exceptions.sail).  Returns the
 // prefixes with vvvv as the instruction reads it.
 val vex_check_form : (range(0, 31), byte, Prefixes) -> Prefixes
 function vex_check_form(map, opcode, pfx) = {
@@ -692,7 +692,16 @@ function vex_check_form(map, opcode, pfx) = {
     // The opmask in ModR/M.reg of KAND, KANDN, KNOT, KOR, KXNOR, KXOR,
     // KADD, KUNPCK, KMOV (but the move to a general-purpose register, 0F
     // 93), KORTEST, KTEST (0F 41-4B, 90-92, 98, 99) and KSHIFTR/KSHIFTL
-    // (0F3A 30-33), and the one in vvvv of the two-source ones.
+    // (0F3A 30-33), and the one in vvvv of the two-source ones: opmasks are
+    // k0-k7, so VEX.R and, in 64-bit mode, bit 3 of vvvv are #UD (Table
+    // 2-41, which "also represents VEX restrictions": "EVEX.R | ModRM.reg
+    // encodes k-reg | If EVEX.R = 0", with the encoded, inverted bit; Table
+    // 2-42: "VEX.vvvv | K-regs are instruction operands not mask control |
+    // If vvvv = 0xxxb"; APM Vol.4 §3.2.5: "VEX.R == 0 | When ModR/M.reg
+    // specifies a K register | #UD").  The APM has no rule for an opmask in
+    // vvvv, and the model applies the SDM's to both vendors.  (Outside
+    // 64-bit mode VEX.R is 0, or the instruction is LES or LDS, and vvvv
+    // holds three bits by now.)
     let k_reg : bool = match map {
       1 => (65 <= op & op <= 71 & op != 67) | op == 74 | op == 75 | (144 <= op & op <= 146)
            | op == 152 | op == 153,
@@ -700,7 +709,7 @@ function vex_check_form(map, opcode, pfx) = {
       _ => false,
     };
     let k_vvvv : bool = k_reg & map == 1 & op != 68 & op < 144;
-    if vendor == Vendor_Intel & (k_reg & pfx.rex_r == 0b1 | k_vvvv & pfx.vex_vvvv >= 8)
+    if (k_reg & pfx.rex_r == 0b1) | (k_vvvv & pfx.vex_vvvv >= 8)
     then raise_UD()
   };
   if ~(vex_feature_present(map, opcode, pfx)) then raise_UD();

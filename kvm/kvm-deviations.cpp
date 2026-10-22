@@ -252,6 +252,25 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "§3.2.4 (p.1879), \"EVEX.z == 1 && EVEX.aaa == 000b | All instructions | #UD | #UD\"; SDM "
      "Vol.2A Table 2-42 (p.2-44), \"EVEX.z | Instructions with EVEX.aaa = 000b. | If EVEX.z != "
      "0\".  (The variant sets EVEX.z in every form, also where it is valid.)"},
+    {true, "kmovw k9,k2 (VEX.R)*",
+     "Zen 4 ignores VEX.R̄ = 0 with an opmask register in ModRM.reg; #UD in both manuals: APM "
+     "Vol.4 §3.2.5 (p.1880), \"VEX.R == 0 | When ModR/M.reg specifies a K register | #UD\", "
+     "\"Cannot specify a K Register above k7\"; SDM Vol.2A Table 2-41 (p.2-44), \"EVEX.R | "
+     "ModRM.reg encodes k-reg | If EVEX.R = 0\", note 1, \"This table also represents VEX "
+     "restrictions\""},
+    {true, "kandw k1,k10,k3 (vvvv bit 3)*",
+     "Zen 4 ignores bit 3 of a VEX.vvvv that names an opmask register in 64-bit mode; SDM "
+     "Vol.2A Table 2-42 (p.2-44), \"VEX.vvvv | ... | K-regs are instruction operands not mask "
+     "control. | If vvvv = 0xxxb\" (#UD in 64-bit mode); the APM has no rule for it (Vol.4 "
+     "§3.2.5)"},
+    {true, "*[opmask field bit 3 set]*",
+     "Zen 4 ignores VEX.R̄ = 0 with an opmask register in ModRM.reg, and bit 3 of a VEX.vvvv "
+     "that names one: APM Vol.4 §3.2.5 (p.1880), \"VEX.R == 0 | When ModR/M.reg specifies a K "
+     "register | #UD\"; SDM Vol.2A Table 2-41 (p.2-44), \"EVEX.R | ModRM.reg encodes k-reg | If "
+     "EVEX.R = 0\", note 1, \"This table also represents VEX restrictions\", and Table 2-42 "
+     "(p.2-44), \"K-regs are instruction operands not mask control. | If vvvv = 0xxxb\".  (The "
+     "variant sets bit 3 of the opmask fields of every instruction of its case, also of the VEX "
+     "KMOV that sets up a mask.)"},
 };
 
 bool host_is_amd() {

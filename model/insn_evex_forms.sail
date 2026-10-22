@@ -852,10 +852,13 @@ function evex_check_form(mmm, opcode, pfx) = {
   if pfx.evex_b & (if is_reg then f.rounding == RC_NONE else f.bcst == 0) then raise_UD();
   let rc_form : bool = pfx.evex_b & is_reg & f.rounding != RC_NONE;
 
-  // EVEX.L'L (Table 2-38): one of the vector lengths of the form's rows.
-  // Scalar (LLIG) forms ignore it (§2.7.10) but for 11b, which is reserved
-  // in every form; {er} and {sae} in a register form use it for the
-  // rounding mode or ignore it.
+  // EVEX.L'L (Table 2-38): one of the vector lengths of the form's rows;
+  // {er} and {sae} in a register form use it for the rounding mode or
+  // ignore it.  Of a scalar (LLIG) form the SDM says only that "L'L is
+  // generally ignored" (§2.7.10); the APM makes 11b #UD in every form
+  // ("EVEX.L'L == 11b | Memory instructions | #UD | #UD", "EVEX.L'L == 11b
+  // && EVEX.b == 0 | Non-Memory instructions | #UD | #UD", Vol.4 §3.2.4),
+  // and so does the model, on both vendors.
   let len_ok : bool = match pfx.evex_ll {
     0 => f.lengths == 0b000 | f.lengths[0] == bitone,
     1 => f.lengths == 0b000 | f.lengths[1] == bitone,

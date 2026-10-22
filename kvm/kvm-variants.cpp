@@ -1041,9 +1041,15 @@ void make_regs8(const Base &b, const Emit &e) { permute_registers(b, e, 8); }
 void make_regs16(const Base &b, const Emit &e) { permute_registers(b, e, 16); }
 
 // The extension bits of opmask register fields, which have three bits.
-// An EVEX opmask destination with R or R' set is #UD; an EVEX opmask source
-// and the VEX K instructions ignore theirs.  The renumbering above leaves
-// these fields alone.
+// With an opmask in ModR/M.reg, EVEX.R, EVEX.R' and VEX.R set are #UD, and
+// so is bit 3 of a VEX.vvvv that names one (SDM Vol.2A Table 2-41,
+// "ModRM.reg encodes k-reg | If EVEX.R = 0", note 1 "This table also
+// represents VEX restrictions"; Table 2-42, "K-regs are instruction
+// operands not mask control | If vvvv = 0xxxb"; APM Vol.4 §3.2.4-5, "When
+// ModR/M.reg specifies a K register | #UD").  With one in ModR/M.r/m,
+// EVEX.X, EVEX.B and VEX.B are ignored ("ModRM.r/m encodes k-reg | None
+// (ignored)"; APM "When ModRM.bbb specifies a K Register | Ign").  The
+// renumbering above leaves these fields alone.
 void make_kmask_bits(const Base &b, const Emit &emit) {
   if (!b.movable) return;
   for (int bit : {8, 16}) {
@@ -1321,10 +1327,60 @@ void make_mem_to_reg(const Base &b, const Emit &emit) {
   }
 }
 
+// The EVEX scalar forms, whose rows give the vector length as LLIG.
+bool evex_scalar(const Insn &in) {
+  auto any = [&](std::initializer_list<u8> ops) {
+    for (u8 op : ops)
+      if (op == in.op) return true;
+    return false;
+  };
+  auto fma = [&] {
+    return any({0x99, 0x9B, 0x9D, 0x9F, 0xA9, 0xAB, 0xAD, 0xAF, 0xB9, 0xBB, 0xBD, 0xBF});
+  };
+  switch (in.map) {
+  case 1:
+    return in.pp >= 2 ? any({0x10, 0x11, 0x2A, 0x2C, 0x2D, 0x51, 0x58, 0x59, 0x5A, 0x5C, 0x5D,
+                             0x5E, 0x5F, 0x78, 0x79, 0x7B, 0xC2})
+                      : any({0x2E, 0x2F});
+  case 2:
+    return (in.pp == 1 && (fma() || any({0x2D, 0x43, 0x4D, 0x4F, 0xCB, 0xCD}))) ||
+           (in.pp == 3 && any({0x9B, 0xAB}));
+  case 3:
+    return (in.pp <= 1 && any({0x0A, 0x27, 0x57, 0x67})) ||
+           (in.pp == 1 && any({0x0B, 0x51, 0x55})) || (in.pp == 2 && in.op == 0xC2);
+  case 5:
+    return (in.pp == 2 && any({0x10, 0x11, 0x2A, 0x2C, 0x2D, 0x51, 0x58, 0x59, 0x5A, 0x5C, 0x5D,
+                               0x5E, 0x5F, 0x78, 0x79, 0x7B})) ||
+           (in.pp == 0 && any({0x1D, 0x2E, 0x2F})) || (in.pp == 3 && in.op == 0x5A);
+  case 6:
+    return (in.pp == 0 && in.op == 0x13) ||
+           (in.pp == 1 && (fma() || any({0x2D, 0x43, 0x4D, 0x4F}))) ||
+           (in.pp >= 2 && any({0x57, 0xD7}));
+  }
+  return false;
+}
+
+// Whether the manuals leave open if a change of one field is #UD:
+//   - EVEX.L'L = 11b of a scalar form, which Table 2-38 of the SDM reserves
+//     ("11b: Reserved (#UD)") and the APM makes #UD for all instructions
+//     (Vol.4 §3.2.4, "EVEX.L'L == 11b | Memory instructions | #UD | #UD"),
+//     but of which the SDM also says "When EVEX is used to encode scalar
+//     instructions, L'L is generally ignored" (Vol.2A §2.7.10);
+//   - VEX.W0 of VPERMQ and VPERMPD (VEX.256.66.0F3A 00 and 01), whose rows
+//     are W1 in both manuals, where the APM says "Undefined cases of a
+//     value of VEX.W" "may cause a #UD" (Vol.4 §3.2.5).
+// The model raises #UD for both.
+bool open_encoding(const Insn &orig, const Insn &in) {
+  if (in.enc == Enc::Evex)
+    return in.L == 3 && orig.L != 3 && evex_scalar(in);
+  return in.map == 3 && in.pp == 1 && (in.op == 0x00 || in.op == 0x01) && !in.W && orig.W;
+}
+
 // The fields of VEX and EVEX prefixes, one at a time: W, vvvv and V' (1111b
 // and 1 where there is no such operand), L or L'L, pp, EVEX.b, z and aaa,
 // and the bits EVEX fixes (P0[3] = 0, P1[2] = 1).  The result is another
-// instruction, or #UD.
+// instruction, or #UD, or where the manuals leave that open (open_encoding)
+// either.
 void make_fields(const Base &b, const Emit &emit) {
   if (!b.movable) return;
   for (size_t i = 0; i < b.insns.size(); i++) {
@@ -1358,6 +1414,8 @@ void make_fields(const Base &b, const Emit &emit) {
     for (auto &[detail, in] : flips) {
       if (!claim(b, orig, detail)) continue;
       TestCase v = replace_insn(b, i, in);
+      if (open_encoding(orig, in))
+        v.allowed_outcomes = {6, b.tc.expect_fault ? b.tc.expected_vector : -1};
       emit(b, detail, std::move(v));
     }
   }
