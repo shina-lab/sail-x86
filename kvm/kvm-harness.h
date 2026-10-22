@@ -566,6 +566,8 @@ struct TestCase {
   // Bits of the data page that the instruction sequence leaves undefined,
   // as (offset, bits of that byte): the memory counterpart of flags_mask.
   std::vector<std::pair<u16, u8>> data_undefined;
+  // Bits of the exception's error code that the manuals leave open.
+  u64 error_code_undefined = 0;
   UndefinedState undefined;
 };
 

@@ -1990,6 +1990,23 @@ void add_baseline_tests(std::vector<TestCase> &tests) {
     // ENTER 8, 2: nesting level 2 -- pushes old RBP, copies 1 prior frame ptr, pushes frame_temp
     tests.push_back({"enter 8,2", cat, {0xC8, 0x08, 0x00, 0x02},
                       {.rbp = STACK_TOP - 64}, FL_ALL});
+
+    // "The ENTER instruction causes a page fault whenever a write using
+    // the final value of the stack pointer (within the current stack
+    // segment) would do so" (SDM Vol.2A ENTER p.3-295; APM Vol.3 ENTER
+    // p.183).  The push of RBP goes to the data page and only the final
+    // RSP, 0xFFF8, is below the mapped memory.  Whether the pushed bytes
+    // stay in memory is given by neither manual, so they are not compared.
+    {
+      TestCase tc = {"enter 0x1010,0 with the final RSP unmapped → #PF", cat,
+                     {0xC8, 0x10, 0x10, 0x00},
+                     {.rbp = 0xBBBBBBBBBBBBBBBB, .rsp = DATA_ADDR + 0x10}, FL_ALL};
+      tc.expect_fault = true;
+      tc.expected_vector = 14;
+      tc.enable_paging = true;
+      for (u16 i = 0x08; i < 0x10; i++) tc.data_undefined.push_back({i, 0xFF});
+      tests.push_back(std::move(tc));
+    }
   }
 
   // The remaining templates cover one-byte and two-byte GPR opcodes that the

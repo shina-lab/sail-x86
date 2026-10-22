@@ -290,10 +290,21 @@ function write_rm_val(os, rm, v) =
 // SUB, SBB, AND, OR, XOR, INC, DEC, NOT, NEG, the shifts and rotates,
 // SHLD/SHRD, BTS/BTR/BTC, XCHG, XADD, CMPXCHG, CMPXCHG8B/16B) is read with
 // write intent: the read already needs write access to every page of the
-// operand.  A page fault on it is reported as a write access (error code
-// W/R = 1, SDM Vol.3A §4.7), and a read-only page faults even where the
-// instruction then stores the value unchanged (a shift by 0, a CMPXCHG
-// whose comparison fails).  Checked on a Zen 4 and an Emerald Rapids.
+// operand.  The W/R bit of a page fault is 1 "if the access causing the
+// page-fault exception was a write" (SDM Vol.3A §5.7 p.5-39; APM Vol.2
+// §8.4.2 p.264), and neither manual says whether the read of a
+// read-modify-write is one.  The model reports it as a write, as the SDM
+// does for EPT: "An EPT violation that occurs during as a result of
+// execution of a read-modify-write operation sets bit 1 (data write)"
+// (Vol.3C §30.2.1 p.30-8).  CMPXCHG writes in any case: "the destination
+// operand receives a write cycle without regard to the result of the
+// comparison" (SDM Vol.2A CMPXCHG p.3-194), "CMPXCHG always does a
+// read-modify-write on the memory operand" (APM Vol.3 CMPXCHG p.167).  Of
+// a shift or rotate by 0 the manuals give only the flags ("If the count is
+// 0, the flags are not affected", SDM Vol.2B SAL/SAR/SHL/SHR p.4-606; "If
+// the shift count is 0, no flags are modified", APM Vol.3 SAL p.325), not
+// whether it accesses its memory operand; in the model it is an RMW like
+// any other count.
 val read_rmw_mem : forall 'n, 'n > 0. (implicit('n), MemRef) -> bits('n)
 function read_rmw_mem(n, m) = read_mem_linear(seg_linear(m, n / 8), PT_Write)
 

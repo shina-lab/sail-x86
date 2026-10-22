@@ -2001,10 +2001,16 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F B5: LGS r, m16:16/32/64 — Load far pointer into GS
     // Memory format: [offset (16/32/64-bit)][selector (16-bit)]
     // Register operand only (memory source); #UD for register source.
-    // REX.W selects m16:64 on Intel processors (SDM Vol.2A LDS/LES/LFS/
-    // LGS/LSS); AMD processors have no m16:64 form and load an m16:32
-    // pointer, its offset zero-extended, with or without 66h (AMD APM
-    // Vol.3 LSS; checked on a Zen 4 and an Emerald Rapids).
+    // With REX.W the manuals differ.  The SDM has "REX.W + 0F B2 /r LSS
+    // r64,m16:64" (Vol.2A LDS/LES/LFS/LGS/LSS p.3-540).  The APM lists only
+    // the mem16:16 and mem16:32 forms: "The operand-size attribute
+    // determines whether the pointer loaded is 32 or 48 bits in length.  A
+    // 64-bit operand is not supported" (Vol.3 LDS-LSS p.216), without
+    // saying what REX.W then does.  For AMD the model loads an m16:32
+    // pointer, its offset zero-extended, with or without 66h: REX.W still
+    // overrides 66h ("The W bit field of the REX prefix takes precedence
+    // over the 66h prefix", Vol.3 §1.2.2 p.9), and the size stops at the
+    // 32 bits the APM supports.
     op if op == 178 | op == 180 | op == 181 => {
       let os : {16, 32, 64} = if pfx.rex_w & vendor == Vendor_AMD then 32 else opsize(pfx);
       let (reg, src) = fetch_modrm(pfx);

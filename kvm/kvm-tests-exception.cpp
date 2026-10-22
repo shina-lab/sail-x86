@@ -935,6 +935,13 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     ArchState store = pf; store.rax = 0;
     add_pf("pf write [0x300000]", {0x48, 0x89, 0x03}, store);  // mov [rbx],rax
 
+    // A read-modify-write destination faults on its read.  W/R is 1 "if the
+    // access causing the page-fault exception was a write" (SDM Vol.3A §5.7
+    // p.5-39; the APM's R/W bit likewise, Vol.2 §8.4.2 p.264); whether that
+    // read is a write neither manual says, so W/R is not compared.
+    add_pf("pf add [0x300000],rax (read-modify-write)", {0x48, 0x01, 0x03}, store);
+    tests.back().error_code_undefined = 0x2;
+
     // First unmapped byte
     pf.rbx = 0x200000;
     add_pf("pf read first unmapped byte", {0x48, 0x8B, 0x03}, pf);

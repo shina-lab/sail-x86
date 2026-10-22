@@ -1477,7 +1477,7 @@ static bool compare_faults(const TestCase &tc, KvmVm &vm, const FaultInfo &kvm_f
             kvm_fault.vector, sail_fault.vector);
     ok = false;
   }
-  if (kvm_fault.error_code != sail_fault.error_code) {
+  if ((kvm_fault.error_code ^ sail_fault.error_code) & ~tc.error_code_undefined) {
     fprintf(stderr, "  MISMATCH error_code: kvm=0x%lx sail=0x%lx\n",
             kvm_fault.error_code, sail_fault.error_code);
     ok = false;

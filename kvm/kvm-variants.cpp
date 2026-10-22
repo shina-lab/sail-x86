@@ -21,6 +21,7 @@
 // where a store cannot overwrite the code).
 
 #include "kvm-harness.h"
+#include <cpuid.h>
 #include <unordered_set>
 
 namespace {
@@ -1180,6 +1181,19 @@ bool umonitor(const Insn &in) {
   return false;
 }
 
+// LSS, LFS and LGS (0F B2, B4, B5) with REX.W on an AMD host.  The SDM has
+// "REX.W + 0F B2 /r LSS r64,m16:64" (Vol.2A p.3-540); the APM lists no such
+// form, "A 64-bit operand is not supported" (Vol.3 LDS-LSS p.216), and
+// leaves what the processor does with it open.
+bool amd_far_load_w(const Insn &in) {
+  static const bool amd = [] {
+    u32 a, b, c, d;
+    __get_cpuid(0, &a, &b, &c, &d);
+    return b == 0x68747541;  // "Auth" of AuthenticAMD
+  }();
+  return amd && in.W && (in.legacy(1, 0xB2) || in.legacy(1, 0xB4) || in.legacy(1, 0xB5));
+}
+
 // The instruction with its r/m operand as [r + disp] (no SIB).
 Insn as_memory(Insn in, int r, int disp_len, i32 disp) {
   in.modrm = u8((disp_len == 0 ? 0x00 : disp_len == 1 ? 0x40 : 0x80) | (in.modrm & 0x38) | (r & 7));
@@ -1377,8 +1391,8 @@ bool defined_prefix(const Insn &in, u8 p) {
 // Prefixes added to one instruction at a time: operand size, REPNE/REP,
 // LOCK, CS and FS segment overrides, and for legacy instructions REX, a
 // flipped REX.W, and 66h with REX.W, each where the manuals define the
-// result (defined_prefix).  VEX and EVEX after any of them but a segment
-// override are #UD.
+// result (defined_prefix, amd_far_load_w).  VEX and EVEX after any of them
+// but a segment override are #UD.
 void make_prefixes(const Base &b, const Emit &emit) {
   if (!b.movable) return;
   for (size_t i = 0; i < b.insns.size(); i++) {
@@ -1415,7 +1429,8 @@ void make_prefixes(const Base &b, const Emit &emit) {
       }
     }
     for (auto &[detail, in] : changed) {
-      if ((umonitor(in) && !umonitor(orig)) || !claim(b, orig, detail)) continue;
+      if ((umonitor(in) && !umonitor(orig)) || amd_far_load_w(in) || !claim(b, orig, detail))
+        continue;
       TestCase v = replace_insn(b, i, in);
       emit(b, detail, std::move(v));
     }

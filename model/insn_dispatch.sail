@@ -1868,9 +1868,14 @@ function decode_execute() = {
         if nesting >= 1 then push(frame_temp);
         // "The ENTER instruction causes a page fault whenever a write
         // using the final value of the stack pointer (within the current
-        // stack segment) would do so": an operand-size write at the final
-        // RSP is checked after the pushes, which stay in memory when it
-        // faults (checked on a Zen 4 and an Emerald Rapids).
+        // stack segment) would do so" (SDM Vol.2A ENTER p.3-295), which
+        // gives neither the size of that write nor its place among the
+        // pushes.  The APM's Operation gives both: after the pushes,
+        // "WRITE_MEM.v [SS:RSP.s] = temp_unused // ENTER finishes with a
+        // memory write check on the final stack pointer, but no write
+        // actually occurs" (Vol.3 ENTER p.183); the model follows it on
+        // both vendors.  Neither manual says whether the pushes stay in
+        // memory when the check faults; in the model they do.
         let final_sp : bits('sas) = v(sas, RSP) - zero_extend(size);
         let m : MemRef = struct { seg = SS, addr = zero_extend(final_sp) };
         check_crossing_pages(seg_linear(m, os / 8), os / 8, PT_Write);
