@@ -130,7 +130,6 @@ function dispatch_evex_with_p0(p0, lpfx) = {
   let (pfx, mmm) = decode_evex_with_p0(p0);
   let pfx = { pfx with seg_override = lpfx.seg_override, has_adsize = lpfx.has_adsize };
   let opcode = fetch(1);
-  if mmm == 1 & opcode == 0xAE then check_cr0_fxsave_opcode(peek_modrm());
   if ~(avx512_enabled()) then raise_UD();
   let pfx = evex_check_form(mmm, opcode, pfx);
   // Every EVEX instruction is SIMD: #NM if CR0.TS = 1, after the #UD of

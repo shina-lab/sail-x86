@@ -694,7 +694,6 @@ function dispatch_vex_with_byte2(first_byte, b1, lpfx) = {
   let pfx = { pfx with seg_override = lpfx.seg_override, has_adsize = lpfx.has_adsize };
 
   let opcode = fetch(1);
-  if map == 1 & opcode == 0xAE then check_cr0_fxsave_opcode(vex_peek_modrm());
   let pfx = vex_check_form(map, opcode, pfx);
   // The VEX-encoded general-purpose instructions, BMI1 and BMI2 (0F38
   // F2-F3, F5-F7; 0F3A F0: exception class 13, SDM Vol.2A Table 2-29),

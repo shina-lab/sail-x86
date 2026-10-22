@@ -80,13 +80,13 @@ function raise_NM() = {
 // #UD the encoding decides first: an undefined opcode, prefix, ModR/M.reg
 // extension or r/m form, a VSIB operand without a SIB byte, register
 // operands an instruction forbids, AVX or AVX-512 state disabled in XCR0.
-// The exceptions are the x87 instructions, whose undefined encodings (D9
-// D1, ...) raise the #NM as well, and the opcode of FXSAVE and FXRSTOR
-// (check_cr0_fxsave_opcode).  So the checks come after the decoder's (the
-// tables of insn_dispatch.sail, vex_check_form, evex_check_form) and
-// before the instruction touches its operands.  PAUSE, PREFETCHh, SFENCE,
-// LFENCE, MFENCE, MOVNTI, CLFLUSH, CRC32, POPCNT and the VEX-encoded
-// general-purpose instructions (BMI1, BMI2) are not affected.
+// The exception is the x87 instructions, whose undefined encodings (D9
+// D1, ...) raise the #NM as well.  So the checks come after the
+// decoder's (the tables of insn_dispatch.sail, vex_check_form,
+// evex_check_form) and before the instruction touches its operands.
+// PAUSE, PREFETCHh, SFENCE, LFENCE, MFENCE, MOVNTI, CLFLUSH, CRC32,
+// POPCNT and the VEX-encoded general-purpose instructions (BMI1, BMI2) are
+// not affected.
 
 // MMX and legacy-encoded SSE instructions, LDMXCSR, STMXCSR and EMMS
 // (the exception classes of Vol.2A §2.5, Vol.3B §23.25.3 for MMX and the
@@ -103,17 +103,16 @@ function check_cr0_sse() = {
 val check_cr0_ts : unit -> unit
 function check_cr0_ts() = if CR0[3] == 0b1 then raise_NM()
 
-// x87 instructions (Vol.3A Table 2-2), FXSAVE and FXRSTOR (Vol.2A): #NM
-// if EM = 1 or TS = 1.  WAIT/FWAIT has a rule of its own (opcode 9B).
+// x87 instructions (Vol.3A Table 2-2), FXSAVE and FXRSTOR: #NM if EM = 1
+// or TS = 1.  FXSAVE and FXRSTOR: "#NM If CR0.TS[bit 3] = 1. If
+// CR0.EM[bit 2] = 1." (SDM Vol.2A FXSAVE, FXRSTOR); "setting EM to 1
+// forces an invalid-opcode exception (#UD) when an attempt is made to
+// execute any of the 64-bit or 128-bit media instructions except the
+// FXSAVE and FXRSTOR instructions.  Attempting to execute these
+// instructions when EM is set results in an #NM exception instead" (APM
+// Vol.2 §3.1.1).  That is the rule of the two instructions, NP 0F AE /0
+// and /1 with a memory operand; their opcode under a 66, F2 or F3 prefix,
+// or VEX- or EVEX-encoded, is no instruction and takes the #UD of the
+// decoder.  WAIT/FWAIT has a rule of its own (opcode 9B).
 val check_cr0_x87 : unit -> unit
 function check_cr0_x87() = if CR0[2] == 0b1 | CR0[3] == 0b1 then raise_NM()
-
-// 0F AE /0 and /1 with a memory operand, the opcode of FXSAVE and FXRSTOR,
-// is #UD with a 66, F2 or F3 prefix and VEX- or EVEX-encoded, but an
-// Emerald Rapids raises the #NM of FXSAVE (check_cr0_x87) first, whatever
-// the VEX or EVEX fields and with AVX or AVX-512 state disabled in XCR0.
-// The #UD of a LOCK prefix, of a prefix ahead of VEX and of a reserved
-// EVEX bit still comes first.  modrm is the ModR/M byte after the opcode.
-val check_cr0_fxsave_opcode : byte -> unit
-function check_cr0_fxsave_opcode(modrm) =
-  if modrm[7..6] != 0b11 & modrm[5..4] == 0b00 then check_cr0_x87()

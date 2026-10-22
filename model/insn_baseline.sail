@@ -1665,10 +1665,6 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F AE: Group 15 — FXSAVE/FXRSTOR/LDMXCSR/STMXCSR/XSAVE/XRSTOR/
     //                    LFENCE/MFENCE/SFENCE/RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE
     174 => {
-      // FXSAVE and FXRSTOR (/0 and /1, memory): #NM if CR0.EM or CR0.TS is
-      // set, as for x87 instructions (SDM Vol.2A FXSAVE), even with a
-      // prefix that leaves the opcode undefined (check_cr0_fxsave_opcode).
-      check_cr0_fxsave_opcode(peek_modrm());
       let (reg_field, dest) = fetch_modrm_raw(pfx);
       // The forms the SDM Vol.2 opcode tables define, by mandatory prefix
       // (FXSAVE, FXRSTOR, LDMXCSR, STMXCSR, XSAVE, XRSTOR, XSAVEOPT and
@@ -1726,21 +1722,24 @@ function dispatch_2byte_gpr(op, pfx) = {
           RM_mem(_) => raise_UD(),
         }
       } else match reg_field {
-        // FXSAVE m512byte (SDM Vol.2A FXSAVE): #GP(0) unless the operand
-        // is aligned on a 16-byte boundary.
+        // FXSAVE m512byte (SDM Vol.2A FXSAVE): #NM if CR0.EM or CR0.TS is
+        // set (check_cr0_x87), then #GP(0) unless the operand is aligned on
+        // a 16-byte boundary.
         0 => match dest {
           RM_mem(m) => {
+            check_cr0_x87();
             check_alignment(m, 16);
             exec_fxsave(seg_linear(m, 512), pfx.rex_w)
           },
           _ => raise_UD(),
         },
 
-        // FXRSTOR m512byte (SDM Vol.2A FXRSTOR): #GP(0) unless the operand
-        // is 16-byte aligned, and for an image whose MXCSR sets a reserved
-        // bit (exec_fxrstor).
+        // FXRSTOR m512byte (SDM Vol.2A FXRSTOR): #NM as FXSAVE, then
+        // #GP(0) unless the operand is 16-byte aligned, and for an image
+        // whose MXCSR sets a reserved bit (exec_fxrstor).
         1 => match dest {
           RM_mem(m) => {
+            check_cr0_x87();
             check_alignment(m, 16);
             exec_fxrstor(seg_linear(m, 512), pfx.rex_w)
           },
