@@ -78,3 +78,10 @@ function get_mandatory_prefix(pfx) =
   else if pfx.has_rep then MP_F3
   else if pfx.has_opsize then MP_66
   else MP_NONE
+
+// VEX and EVEX are #UD after a LOCK, 66h, F2h or F3h prefix, or after a REX
+// prefix (one followed by the escape byte; scan_prefixes forgets a REX
+// that another prefix follows) (SDM Vol.2 §2.3.2, §2.7.11.1).
+val vex_after_legacy_prefix : Prefixes -> bool
+function vex_after_legacy_prefix(pfx) =
+  pfx.has_lock | pfx.has_opsize | pfx.has_repne | pfx.has_rep | pfx.has_rex

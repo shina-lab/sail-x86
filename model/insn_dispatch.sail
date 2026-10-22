@@ -940,10 +940,12 @@ function decode_execute() = {
       // In 64-bit mode, 0x62 is always the EVEX prefix.
       98 => {
         if cur_mode == LongMode then {
+          if vex_after_legacy_prefix(pfx) then raise_UD();
           dispatch_evex()
         } else {
           let byte2 = fetch(1);
           if byte2[7..6] == 0b11 then {
+            if vex_after_legacy_prefix(pfx) then raise_UD();
             dispatch_evex_with_p0(byte2)
           } else {
             // BOUND r16/r32, m16&16/m32&32: #BR if index out of bounds.
@@ -1525,6 +1527,7 @@ function decode_execute() = {
       // so mod=11 is an otherwise-invalid encoding reused for VEX.
       196 => {
         if cur_mode == LongMode then {
+          if vex_after_legacy_prefix(pfx) then raise_UD();
           dispatch_vex(0xC4)
         } else {
           // Peek at second byte to distinguish VEX from LES.
@@ -1533,6 +1536,7 @@ function decode_execute() = {
           let byte2 = fetch(1);
           if byte2[7..6] == 0b11 then {
             // mod=11: VEX prefix in non-64-bit mode
+            if vex_after_legacy_prefix(pfx) then raise_UD();
             dispatch_vex_with_byte2(0xC4, byte2)
           } else {
             // mod≠11: LES r, m16:16/32
@@ -1557,10 +1561,12 @@ function decode_execute() = {
       // Same VEX/LDS distinction as C4/LES above.
       197 => {
         if cur_mode == LongMode then {
+          if vex_after_legacy_prefix(pfx) then raise_UD();
           dispatch_vex(0xC5)
         } else {
           let byte2 = fetch(1);
           if byte2[7..6] == 0b11 then {
+            if vex_after_legacy_prefix(pfx) then raise_UD();
             dispatch_vex_with_byte2(0xC5, byte2)
           } else {
             let os = opsize(pfx);
