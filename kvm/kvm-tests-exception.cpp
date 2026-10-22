@@ -833,6 +833,37 @@ void add_exception_tests(std::vector<TestCase> &tests) {
             {0x48, 0x8B, 0x45, 0x00}, {.rbp = 0x0000800000000000ULL}, 12);
   add_fault("mov rax,fs:[rdi] non-canonical → #GP(0)",
             {0x64, 0x48, 0x8B, 0x07}, {.rdi = 0x0000800000000000ULL}, 13);
+  // SS is the default for an rSP or rBP base only (Vol.1 Table 3-5), not for
+  // R12 and R13, which share their encodings with REX.B.  In 64-bit mode
+  // "the CS, DS, ES, and SS segment-override prefixes have no effect"
+  // (AMD64 APM Vol.3 §1.2.4), so that DS leaves [rbp] on SS and SS leaves
+  // [rdi] on DS.
+  add_fault("mov rax,[r12] non-canonical (DS default) → #GP(0)",
+            {0x49, 0x8B, 0x04, 0x24}, {.r12 = 0x0000800000000000ULL}, 13);
+  add_fault("mov rax,[r13+0] non-canonical (DS default) → #GP(0)",
+            {0x49, 0x8B, 0x45, 0x00}, {.r13 = 0x0000800000000000ULL}, 13);
+  add_fault("mov rax,ds:[rbp] non-canonical (no override) → #SS(0)",
+            {0x3E, 0x48, 0x8B, 0x45, 0x00}, {.rbp = 0x0000800000000000ULL}, 12);
+  add_fault("mov rax,ss:[rdi] non-canonical (no override) → #GP(0)",
+            {0x36, 0x48, 0x8B, 0x07}, {.rdi = 0x0000800000000000ULL}, 13);
+  // Nor does a DS prefix replace an FS override before it: with FS's base 1
+  // MB (WRFSBASE first) and RDI 1 MB below the data page, the load reads
+  // the page through FS and faults (#PF) through DS.
+  for (bool fs_last : {false, true}) {
+    TestCase tc;
+    tc.name = fs_last ? "mov rax,ds:fs:[rdi] (FS applies)" : "mov rax,fs:ds:[rdi] (DS has no effect)";
+    tc.category = cat;
+    tc.code = {0xF3, 0x48, 0x0F, 0xAE, 0xD6};  // wrfsbase rsi
+    std::vector<u8> seg = fs_last ? std::vector<u8>{0x3E, 0x64} : std::vector<u8>{0x64, 0x3E};
+    tc.code.insert(tc.code.end(), seg.begin(), seg.end());
+    tc.code.insert(tc.code.end(), {0x48, 0x8B, 0x07});
+    tc.initial = {.rsi = 0x100000, .rdi = DATA_ADDR - 0x100000};
+    tc.init_data = {0x10, 0x32, 0x54, 0x76, 0x98, 0xBA, 0xDC, 0xFE};
+    tc.flags_mask = FL_ALL;
+    tc.may_fault = true;
+    tc.enable_paging = true;
+    tests.push_back(std::move(tc));
+  }
   // The last canonical address of the low half is reachable (a #PF from
   // the unmapped page, not #GP).
   {

@@ -173,9 +173,8 @@ function amx_decode_sibmem(modrm, pfx) = {
   };
   let stride : qword =
     if sib[5..3] == 0b100 & pfx.rex_x == 0b0 then zeros() else v(64, index_idx) << scale;
-  let default_seg : segreg_idx =
-    if (sib[2..0] == 0b100 | sib[2..0] == 0b101) & ~(no_base) then SS else DS;
-  (struct { seg = resolve_seg(pfx, default_seg), addr = base_val + disp }, stride)
+  (struct { seg = resolve_seg(pfx, base_default_seg(sib[2..0], modbits, pfx)), addr = base_val + disp },
+   stride)
 }
 
 // The address of dword j of row r: row 0 plus r strides, truncated to 32

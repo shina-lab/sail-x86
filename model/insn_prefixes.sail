@@ -27,18 +27,22 @@ function scan_prefixes() = {
       // F3 = REP / mandatory prefix
       243 => pfx = {pfx with has_rep = true, has_repne = false, has_rex = false,
                rex_w = false, rex_r = 0b0, rex_x = 0b0, rex_b = 0b0},
-      // 26 = ES override
-      38 => pfx = {pfx with seg_override = Some(ES), has_rex = false,
-              rex_w = false, rex_r = 0b0, rex_x = 0b0, rex_b = 0b0},
+      // 26 = ES override.  In 64-bit mode, "the CS, DS, ES, and SS
+      // segment-override prefixes have no effect" and "are treated as null
+      // prefixes" (AMD64 APM Vol.3 §1.2.4): they leave the segment, and an
+      // FS or GS override before them, as they are.  An Emerald Rapids
+      // agrees: a non-canonical ds:[rbp] is #SS(0), as without the prefix.
+      38 => pfx = {pfx with seg_override = if cur_mode == LongMode then pfx.seg_override else Some(ES),
+              has_rex = false, rex_w = false, rex_r = 0b0, rex_x = 0b0, rex_b = 0b0},
       // 2E = CS override
-      46 => pfx = {pfx with seg_override = Some(CS), has_rex = false,
-              rex_w = false, rex_r = 0b0, rex_x = 0b0, rex_b = 0b0},
+      46 => pfx = {pfx with seg_override = if cur_mode == LongMode then pfx.seg_override else Some(CS),
+              has_rex = false, rex_w = false, rex_r = 0b0, rex_x = 0b0, rex_b = 0b0},
       // 36 = SS override
-      54 => pfx = {pfx with seg_override = Some(SS), has_rex = false,
-              rex_w = false, rex_r = 0b0, rex_x = 0b0, rex_b = 0b0},
+      54 => pfx = {pfx with seg_override = if cur_mode == LongMode then pfx.seg_override else Some(SS),
+              has_rex = false, rex_w = false, rex_r = 0b0, rex_x = 0b0, rex_b = 0b0},
       // 3E = DS override
-      62 => pfx = {pfx with seg_override = Some(DS), has_rex = false,
-              rex_w = false, rex_r = 0b0, rex_x = 0b0, rex_b = 0b0},
+      62 => pfx = {pfx with seg_override = if cur_mode == LongMode then pfx.seg_override else Some(DS),
+              has_rex = false, rex_w = false, rex_r = 0b0, rex_x = 0b0, rex_b = 0b0},
       // 64 = FS override
       100 => pfx = {pfx with seg_override = Some(FS), has_rex = false,
                rex_w = false, rex_r = 0b0, rex_x = 0b0, rex_b = 0b0},

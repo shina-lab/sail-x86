@@ -69,6 +69,16 @@ function resolve_seg(pfx, default_seg) = match pfx.seg_override {
   None()  => default_seg,
 }
 
+// The default segment of a 32- or 64-bit memory operand with the base
+// register field base (ModR/M.rm, or SIB.base after rm = 100b): SS for an
+// rSP or rBP base, DS otherwise (SDM Vol.1 Table 3-5).  R12 and R13, which
+// are rSP's and rBP's encodings with REX.B (VEX.B̄, EVEX.B̄ clear), are not
+// stack pointers: an Emerald Rapids raises #GP(0), not #SS(0), for a
+// non-canonical [r13+0].  SIB.base = 101b with mod = 00b names no base.
+val base_default_seg : (bits(3), range(0, 3), Prefixes) -> segreg_idx
+function base_default_seg(base, modbits, pfx) =
+  if pfx.rex_b == 0b0 & (base == 0b100 | base == 0b101 & modbits != 0) then SS else DS
+
 // Compute EVEX compressed displacement scale factor for "Full" tuple type.
 // Without broadcast: N = vector size in bytes. With broadcast: N = element size.
 val evex_full_disp_n : Prefixes -> range(4, 64)
@@ -213,17 +223,15 @@ function modrm_rm_evex(modrm, pfx, disp_n) = {
     }
   } else {
     let asz = get_address_size(pfx);
-    var default_seg : segreg_idx = DS;
+    var default_seg : segreg_idx = base_default_seg(rm_raw, modbits, pfx);
     let addr : qword =
       if rm_raw == 0b100 then {
         let sib : byte = fetch(1);
-        if (sib[2..0] == 0b100 | sib[2..0] == 0b101) & ~(sib[2..0] == 0b101 & modbits == 0) then
-          default_seg = SS;
+        default_seg = base_default_seg(sib[2..0], modbits, pfx);
         decode_sib_evex(sib, modbits, pfx, disp_n)
       } else if modbits == 0 then {
         v(64, unsigned(pfx.rex_b @ rm_raw))
       } else {
-        if rm_raw == 0b101 then default_seg = SS;
         if modbits == 1 then {
           // disp8 * N
           let d8 : byte = fetch(1);
@@ -326,22 +334,18 @@ function modrm_rm(modrm, pfx) = {
   } else {
     // Memory operand — compute address then apply segment
     let asz = get_address_size(pfx);
-    // Default segment: BP/SP-based → SS, otherwise → DS (SDM Vol.1 Table 3-5)
-    var default_seg : segreg_idx = DS;
+    // Default segment: BP/SP-based → SS, otherwise → DS (base_default_seg)
+    var default_seg : segreg_idx = base_default_seg(rm_raw, modbits, pfx);
     let addr : qword =
       if rm_raw == 0b100 then {
         // SIB byte follows
         let sib : byte = fetch(1);
-        // SIB base = BP(5) or SP(4) → SS default
-        if (sib[2..0] == 0b100 | sib[2..0] == 0b101) & ~(sib[2..0] == 0b101 & modbits == 0) then
-          default_seg = SS;
+        default_seg = base_default_seg(sib[2..0], modbits, pfx);
         decode_sib(sib, modbits, pfx)
       } else if modbits == 0 then {
         // [reg] no displacement
         v(64, unsigned(pfx.rex_b @ rm_raw))
       } else {
-        // rm_raw = 101 is EBP/RBP → SS default
-        if rm_raw == 0b101 then default_seg = SS;
         if modbits == 1 then {
           // [reg] + disp8
           v(64, unsigned(pfx.rex_b @ rm_raw)) + sign_extend(fetch(1))
