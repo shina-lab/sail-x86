@@ -36,6 +36,22 @@ target_link_libraries(kvm_harness PRIVATE x86_model)
 target_compile_options(kvm_harness PRIVATE -Wno-missing-field-initializers -Wno-unused-parameter)
 add_dependencies(kvm_harness generated_sail_x86_model)
 
+# The harness writes its ctest entries after each link (write_ctest_file in
+# kvm-harness.cpp): one per category, in slices short enough for ctest -j.
+# ctest reads them through kvm-tests.cmake.
+set(KVM_TESTS_GENERATED ${CMAKE_CURRENT_BINARY_DIR}/kvm-tests-generated.cmake)
+add_custom_command(TARGET kvm_harness POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E env KVM_CTEST=${KVM_TESTS_GENERATED} $<TARGET_FILE:kvm_harness>
+  VERBATIM)
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/kvm-tests.cmake
+  "if(EXISTS \"${KVM_TESTS_GENERATED}\")\n"
+  "  include(\"${KVM_TESTS_GENERATED}\")\n"
+  "else()\n"
+  "  add_test(kvm_harness_NOT_BUILT kvm_harness_NOT_BUILT)\n"
+  "endif()\n")
+set_property(DIRECTORY APPEND PROPERTY TEST_INCLUDE_FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/kvm-tests.cmake)
+
 add_executable(kvm_state_compare test-state-compare.cpp)
 target_link_libraries(kvm_state_compare PRIVATE x86_model)
 add_dependencies(kvm_state_compare generated_sail_x86_model)
@@ -45,216 +61,10 @@ add_executable(kvm_vm86 test-vm86.cpp)
 target_link_libraries(kvm_vm86 PRIVATE x86_system_model)
 target_compile_options(kvm_vm86 PRIVATE -Wno-missing-field-initializers)
 add_dependencies(kvm_vm86 generated_sail_x86_model)
-add_test(NAME system_vm86 COMMAND kvm_vm86 --model-only)
-add_test(NAME kvm_vm86 COMMAND kvm_vm86)
-set_tests_properties(kvm_vm86 PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
-
-# Each test runs a category filter. Use ctest -j to run in parallel.
-set(KVM_CATEGORIES
-  Baseline
-  "ALU add 8"
-  "ALU add 16"
-  "ALU add 32"
-  "ALU add 64"
-  "ALU or 8"
-  "ALU or 16"
-  "ALU or 32"
-  "ALU or 64"
-  "ALU adc 8"
-  "ALU adc 16"
-  "ALU adc 32"
-  "ALU adc 64"
-  "ALU sbb 8"
-  "ALU sbb 16"
-  "ALU sbb 32"
-  "ALU sbb 64"
-  "ALU and 8"
-  "ALU and 16"
-  "ALU and 32"
-  "ALU and 64"
-  "ALU sub 8"
-  "ALU sub 16"
-  "ALU sub 32"
-  "ALU sub 64"
-  "ALU xor 8"
-  "ALU xor 16"
-  "ALU xor 32"
-  "ALU xor 64"
-  "ALU cmp 8"
-  "ALU cmp 16"
-  "ALU cmp 32"
-  "ALU cmp 64"
-  "ADC/SBB CF=1 adc 8"
-  "ADC/SBB CF=1 adc 16"
-  "ADC/SBB CF=1 adc 32"
-  "ADC/SBB CF=1 adc 64"
-  "ADC/SBB CF=1 sbb 8"
-  "ADC/SBB CF=1 sbb 16"
-  "ADC/SBB CF=1 sbb 32"
-  "ADC/SBB CF=1 sbb 64"
-  "TEST 8"
-  "TEST 16"
-  "TEST 32"
-  "TEST 64"
-  "Shift shl 8"
-  "Shift shl 16"
-  "Shift shl 32"
-  "Shift shl 64"
-  "Shift shr 8"
-  "Shift shr 16"
-  "Shift shr 32"
-  "Shift shr 64"
-  "Shift sar 8"
-  "Shift sar 16"
-  "Shift sar 32"
-  "Shift sar 64"
-  "Shift rol 8"
-  "Shift rol 16"
-  "Shift rol 32"
-  "Shift rol 64"
-  "Shift ror 8"
-  "Shift ror 16"
-  "Shift ror 32"
-  "Shift ror 64"
-  "Shift rcl 8"
-  "Shift rcl 16"
-  "Shift rcl 32"
-  "Shift rcl 64"
-  "Shift rcl CF=1 8"
-  "Shift rcl CF=1 16"
-  "Shift rcl CF=1 32"
-  "Shift rcl CF=1 64"
-  "Shift rcr 8"
-  "Shift rcr 16"
-  "Shift rcr 32"
-  "Shift rcr 64"
-  "Shift rcr CF=1 8"
-  "Shift rcr CF=1 16"
-  "Shift rcr CF=1 32"
-  "Shift rcr CF=1 64"
-  "Unary ops"
-  MUL
-  IMUL
-  DIV
-  IDIV
-  "Register variation"
-  Random
-  SSE
-  SSSE3
-  SSE4.1
-  "SSE Legacy Upper"
-  SSE4.2
-  AES
-  SETcc
-  CMOVcc
-  POP
-  LEAVE
-  LOOP
-  CMPXCHG8B
-  MOVNTI
-  LDMXCSR
-  Fences
-  SSE3
-  SSE4.1v
-  MOVxPS
-  String
-  EMMS
-  x87
-  ENTER
-  CMPXCHG16B
-  "AVX Edge"
-  "FP Edge"
-  ADCX/ADOX
-  DAZ/FTZ
-  "OpSize Edge"
-  "REX R/B/X"
-  NOP
-  Prefix
-  LZCNT/TZCNT
-  POPCNT
-  BSF/BSR
-  BSWAP
-  XCHG
-  MOVSX/MOVSXD
-  BT/BTC
-  MOVBE
-  "String ops"
-  "SSE4.2 str"
-  "XSAVE/XRSTOR"
-  "Exception #DE"
-  "Exception #UD"
-  "Exception #GP"
-  "Exception #DB"
-  "x87 mem"
-  "LOCK mem"
-  "Indirect JMP"
-  "PUSH/POP mem"
-  "FP conv edge"
-  BMI2
-  RETF
-  CRC32
-  GFNI
-  SHA
-  "MMX arith"
-  "MMX saturate"
-  "MMX logical"
-  "MMX compare"
-  "MMX shift"
-  "MMX pack"
-  "MMX minmax"
-  "MMX move"
-  "MMX mem"
-  "Feature gating"
-  "Compat"
-  "RETF compat"
-  BCD
-  "XSAVEC roundtrip"
-  XGETBV
-  IA32_XSS
-  "CPUID XSAVE"
-  "AVX FP packed"
-  "AVX int"
-  "AVX shift"
-  "AVX FMA"
-  "AVX scalar"
-  "AVX narrow"
-  "AVX cmp"
-  "AVX perm"
-  "AVX conv"
-  "AVX special"
-  "AVX mov"
-  "AVX VEX-only"
-  "AVX VEX forms"
-  "AVX-512 hi16"
-  "System"
-  "Exception #PF"
-  "MOVQ store"
-  "K-register ops"
-  "Vec stores"
-  "XSAVE image"
-  "AVX smoke"
-  "EVEX smoke"
-  "AVX-512 FP16"
-  "CALL/RET"
-  FSGSBASE
-  LEA
-  XLAT
-  "MMX SSSE3"
-  FXRSTOR
-  PREFETCHW
-  CLDEMOTE
-  SERIALIZE
-  WAITPKG
-  "AMX config"
-  "AMX tile load/store"
-  "AMX INT8"
-  "AMX BF16"
-  "AMX faults"
-  "AMX XFD"
-)
-
-foreach(cat ${KVM_CATEGORIES})
-  string(REPLACE " " "_" test_name "kvm_${cat}")
-  string(REPLACE "/" "_" test_name "${test_name}")
-  add_test(NAME ${test_name} COMMAND kvm_harness "${cat}")
+# A run of all the cases takes tens of seconds; ctest runs them in slices.
+foreach(slice RANGE 7)
+  math(EXPR n "${slice} + 1")
+  add_test(NAME system_vm86_${n}of8 COMMAND kvm_vm86 --model-only --slice=${slice}/8)
+  add_test(NAME kvm_vm86_${n}of8 COMMAND kvm_vm86 --slice=${slice}/8)
+  set_tests_properties(kvm_vm86_${n}of8 PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 endforeach()

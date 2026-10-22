@@ -12,6 +12,9 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "XSAVEC roundtrip";
 
+  // Every component saved is out of its initial configuration (FLD1 for
+  // x87): XSAVEC writes a component in its initial configuration or not at
+  // the implementation's choice (SDM Vol.1 §13.6, §13.10).
   {
     ArchState s = with_xsave_vector_inputs({}, 0x7);
     s.rflags = initial_flags();
@@ -20,17 +23,20 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     s.rdx = 0;
     s.xmm[0].lo = 0xDEADDEADDEADDEAD;
     s.xmm[0].hi = 0xBEEFBEEFBEEFBEEF;
+    s.xmm[0].q[2] = 0x4444444444444444;  // AVX: bits 255:128
     s.xmm[2].lo = 0x2222222222222222;
     s.xmm[2].hi = 0x3333333333333333;
 
     std::vector<u8> init(XSAVE_AREA_SIZE, 0);
 
+    // FLD1
     // XSAVEC [RDI]          ; save in compacted format
     // PXOR XMM0, XMM0
     // PXOR XMM2, XMM2
     // XRSTOR [RDI]          ; restore (XRSTOR handles compacted via XCOMP_BV[63])
     tests.push_back({"xsavec-xrstor roundtrip", cat,
-                      {0x0F, 0xC7, 0x27,              // XSAVEC [RDI]
+                      {0xD9, 0xE8,                    // FLD1
+                       0x0F, 0xC7, 0x27,              // XSAVEC [RDI]
                        0x66, 0x0F, 0xEF, 0xC0,        // PXOR XMM0, XMM0
                        0x66, 0x0F, 0xEF, 0xD2,        // PXOR XMM2, XMM2
                        0x0F, 0xAE, 0x2F},             // XRSTOR [RDI]
@@ -49,13 +55,17 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     s.xmm[0].hi = 0xEEEEFFFF00001111;
     s.xmm[15].lo = 0x1515151515151515;
     s.xmm[15].hi = 0x1616161616161616;
+    s.xmm[0].q[2] = 0x4444444444444444;   // AVX: bits 255:128
+    s.xmm[0].q[4] = 0x6666666666666666;   // ZMM_Hi256: bits 511:256
+    s.xmm[16].q[0] = 0x1717171717171717;  // Hi16_ZMM
     s.kregs[0] = 0xDEAD;
     s.kregs[7] = 0xBEEF;
 
     std::vector<u8> init(XSAVE_AREA_SIZE, 0);
 
     tests.push_back({"xsavec-xrstor full roundtrip", cat,
-                      {0x0F, 0xC7, 0x27,              // XSAVEC [RDI]
+                      {0xD9, 0xE8,                    // FLD1
+                       0x0F, 0xC7, 0x27,              // XSAVEC [RDI]
                        0x66, 0x0F, 0xEF, 0xC0,        // PXOR XMM0, XMM0
                        0x66, 0x45, 0x0F, 0xEF, 0xFF,  // PXOR XMM15, XMM15
                        0x0F, 0xAE, 0x2F},             // XRSTOR [RDI]

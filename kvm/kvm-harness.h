@@ -10,6 +10,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <format>
+#include <functional>
 #include <linux/kvm.h>
 #include <memory>
 #include <sys/ioctl.h>
@@ -222,6 +223,13 @@ struct ArchState {
   u64 dr[4] = {};        // DR0-DR3 breakpoint addresses (initial state only)
   u64 dr6 = 0xFFFF0FF0;  // DR6: reset value as initial state; compared after the run
   u64 dr7 = 0x400;       // DR7: reset value as initial state; compared after the run
+  // x87 state after the run.  Every test starts from the FNINIT state, so
+  // these are results only.  ST(i) is in stack order, as FXSAVE stores it;
+  // the abridged tag word has bit i set when physical register Ri is valid.
+  u16 fcw = 0x037F;
+  u16 fsw = 0;
+  u8 ftw = 0;
+  std::array<std::array<u8, 10>, 8> st = {};
 
   void print(const char *label) const {
     fprintf(stderr, "  %s:\n", label);
@@ -234,6 +242,8 @@ struct ArchState {
     fprintf(stderr, "    R12=%016lx R13=%016lx R14=%016lx R15=%016lx\n",
             r12, r13, r14, r15);
     fprintf(stderr, "    RIP=%016lx RFLAGS=%016lx MXCSR=%08x\n", rip, rflags, mxcsr);
+    if (fcw != 0x037F || fsw != 0 || ftw != 0)
+      fprintf(stderr, "    FCW=%04x FSW=%04x FTW=%02x\n", fcw, fsw, ftw);
     for (int i = 0; i < 32; i++) {
       if (!xmm[i].is_zero()) {
         bool upper = false;
@@ -249,9 +259,8 @@ struct ArchState {
   }
 
   bool compare(const ArchState &other, u64 flags_mask = FL_ALL,
-               bool cmp_mxcsr = false, double approx_rel_tol = 0,
-               int approx_elem_bits = 0, int approx_result_bits = 0,
-               unsigned approx_reg = 0) const {
+               double approx_rel_tol = 0, int approx_elem_bits = 0,
+               int approx_result_bits = 0, unsigned approx_reg = 0) const {
     // A test may exclude undefined arithmetic flags, but cannot hide changes
     // to the rest of RFLAGS (DF, IF, TF, IOPL, etc.).
     flags_mask |= ~FL_ARITH;
@@ -341,13 +350,32 @@ struct ArchState {
         ok = false;
       }
     }
-    if (cmp_mxcsr) {
-      // Compare MXCSR excluding DAZ (bit 6) and FTZ (bit 15) and exception flags (bits 0-5)
-      u32 mask = 0x7F80;  // rounding mode + exception masks
-      if ((mxcsr & mask) != (other.mxcsr & mask)) {
-        fprintf(stderr, "  MISMATCH MXCSR: kvm=%08x sail=%08x\n", mxcsr, other.mxcsr);
-        ok = false;
-      }
+    // MXCSR except the exception flags (bits 5:0).  The flags are produced
+    // by floating-point arithmetic, which the Sail model leaves to its
+    // externs; the model itself never sets them.
+    if ((mxcsr ^ other.mxcsr) & ~0x3Fu) {
+      fprintf(stderr, "  MISMATCH MXCSR: kvm=%08x sail=%08x\n", mxcsr, other.mxcsr);
+      ok = false;
+    }
+    // x87 state as far as the model defines it: the control word, TOP, the
+    // tags, and the contents of the valid registers.  The rest of the status
+    // word holds exception flags from the externs' arithmetic and condition
+    // codes that many instructions leave undefined.
+    if (fcw != other.fcw || ((fsw ^ other.fsw) & 0x3800) || ftw != other.ftw) {
+      fprintf(stderr, "  MISMATCH x87: kvm FCW=%04x FSW=%04x FTW=%02x"
+              " sail FCW=%04x FSW=%04x FTW=%02x\n",
+              fcw, fsw, ftw, other.fcw, other.fsw, other.ftw);
+      ok = false;
+    }
+    for (int i = 0; i < 8; i++) {
+      int phys = (((fsw >> 11) & 7) + i) & 7;
+      if (!(ftw & (1 << phys)) || st[i] == other.st[i]) continue;
+      fprintf(stderr, "  MISMATCH ST%d: kvm=", i);
+      for (int b = 9; b >= 0; b--) fprintf(stderr, "%02x", st[i][b]);
+      fprintf(stderr, " sail=");
+      for (int b = 9; b >= 0; b--) fprintf(stderr, "%02x", other.st[i][b]);
+      fprintf(stderr, "\n");
+      ok = false;
     }
     for (int i = 0; i < 8; i++) {
       if (kregs[i] != other.kregs[i]) {
@@ -473,9 +501,9 @@ struct TestCase {
   ArchState initial;
   u64 flags_mask = FL_ALL;       // defined arithmetic flags; other RFLAGS bits always compared
   u32 xmm_mask = 0;              // legacy positional field; all ZMM registers are compared
-  bool cmp_mxcsr = false;
+  bool cmp_mxcsr = false;        // legacy positional field; MXCSR is always compared
   std::vector<u8> init_data;       // placed at DATA_ADDR
-  size_t compare_data_len = 0;     // bytes at DATA_ADDR to compare after execution
+  size_t compare_data_len = 0;     // legacy field; the whole data page is always compared
   bool expect_fault = false;       // test expects an exception, not normal HLT
   int expected_vector = -1;        // expected exception vector (-1 = any)
   u8 kreg_mask = 0;              // legacy positional field; all k-registers are compared
@@ -497,7 +525,15 @@ struct TestCase {
   bool system_mode = false;      // the model delivers exceptions through a mirror of the
                                  // guest's IDT; SYSCALL/SYSRET/SYSENTER/SYSEXIT need the
                                  // model's system-mode paths
+  bool may_fault = false;        // the run may fault or complete; the model must do
+                                 // whichever the hardware does
+  // Bits of the data page that the instruction sequence leaves undefined,
+  // as (offset, bits of that byte): the memory counterpart of flags_mask.
+  std::vector<std::pair<u16, u8>> data_undefined;
 };
+
+// The data page's initial contents for a test: init_data, then zeros.
+void fill_data_page(const TestCase &tc, u8 *page);
 
 // Test registration functions (defined in separate kvm-tests-*.cpp files)
 void add_systematic_tests(std::vector<TestCase> &tests);

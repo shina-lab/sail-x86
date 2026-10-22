@@ -52,3 +52,34 @@ reading its apparent operands; those values need no initialization.
 Use `ZmmVal::set<T>` or `memcpy` for element-sized writes. Casting the qword
 storage to a word or dword pointer violates C++ aliasing rules and has caused
 operand initialization to disappear in optimized builds.
+
+# What a run compares
+
+After a run that completes, the harness compares the general-purpose
+registers, RIP, RFLAGS (less a test's undefined arithmetic flags), all 32 ZMM
+registers, the opmask registers, DR6 and DR7, MXCSR, the x87 state, the whole
+data page, and the whole stack page. After a run that faults, it compares the
+exception (vector, error code, RIP, CR2, DR6, DR7, the pushed RFLAGS) and the
+data page, unless the test's stack is in the data page, where the guest's
+exception handler pushes a frame the model does not. A test cannot narrow
+these comparisons except by declaring what its instructions leave undefined:
+`flags_mask` for RFLAGS, and `data_undefined` for bits it stores to the data
+page, such as an x87 status word with undefined condition codes in an FSAVE
+image.
+
+Two parts of the state are left out because the Sail model does not define
+them. Floating-point arithmetic is supplied by externs, so the MXCSR exception
+flags (bits 5:0) are not compared. For the x87 state, the harness compares the
+control word, TOP, the tags, and the contents of the valid registers; the rest
+of the status word holds the externs' exception flags and condition codes that
+many instructions leave undefined.
+
+# Running the suite
+
+`kvm_harness PREFIX` runs the categories whose names start with the prefix.
+ctest instead runs each category exactly once, through entries the harness
+writes after every build (`KVM_CTEST=<file> kvm_harness`): one entry per
+category, `--category=NAME`, split into `--slice=K/N` entries of at most 1500
+cases so that each finishes in a few seconds, and passing `--template=FILE` so
+that the run constructs only that template's cases. `KVM_LIST=<file>` lists
+the selected cases without running them.

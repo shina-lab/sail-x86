@@ -6,7 +6,11 @@
 #include "kvm-harness.h"
 #include "x86-helpers.h"
 
+#include <algorithm>
 #include <cpuid.h>
+#include <csetjmp>
+#include <csignal>
+#include <unordered_map>
 #include <sys/syscall.h>
 #include <sys/utsname.h>
 
@@ -201,6 +205,34 @@ static void print_port_io(const char *label, const std::vector<u64> &log) {
     fprintf(stderr, " %s%u(%#x)=%#x", (e >> 63) ? "out" : "in", unsigned((e >> 48) & 0xFF),
             unsigned((e >> 32) & 0xFFFF), unsigned(e & 0xFFFFFFFF));
   fprintf(stderr, "\n");
+}
+
+void fill_data_page(const TestCase &tc, u8 *page) {
+  memset(page, 0, 0x1000);
+  if (!tc.init_data.empty())
+    memcpy(page, tc.init_data.data(), tc.init_data.size());
+}
+
+// The memory a test can change and the harness compares after a run: the
+// data page, and for a run that completes, the stack page (the guest's
+// exception handlers push frames that the model, outside system mode, does
+// not).
+struct MemPages {
+  u8 data[0x1000];
+  u8 stack[0x1000];
+};
+
+static bool compare_page(const char *label, const u8 *kvm, const u8 *sail) {
+  if (memcmp(kvm, sail, 0x1000) == 0) return true;
+  for (size_t i = 0; i < 0x1000; i += 16) {
+    if (memcmp(kvm + i, sail + i, 16) == 0) continue;
+    fprintf(stderr, "  MISMATCH %s+%#05zx: kvm=", label, i);
+    for (int j = 0; j < 16; j++) fprintf(stderr, "%02x", kvm[i + j]);
+    fprintf(stderr, " sail=");
+    for (int j = 0; j < 16; j++) fprintf(stderr, "%02x", sail[i + j]);
+    fprintf(stderr, "\n");
+  }
+  return false;
 }
 
 // ---- KVM VM ----
@@ -514,7 +546,6 @@ struct KvmVm {
     }
 
     memset(guest_mem + CODE_ADDR, 0, 0x1000);
-    memset(guest_mem + DATA_ADDR, 0, 0x1000);
     memset(guest_mem + STACK_TOP - 0x1000, 0, 0x1000);  // no cross-test residue
     memset(guest_mem + FAULT_INFO_ADDR, 0xFF, 24);  // clear fault info
     io_log.clear();
@@ -522,8 +553,7 @@ struct KvmVm {
     memcpy(guest_mem + CODE_ADDR, tc.code.data(), tc.code.size());
     guest_mem[CODE_ADDR + tc.code.size()] = 0xF4;  // HLT
 
-    if (!tc.init_data.empty())
-      memcpy(guest_mem + DATA_ADDR, tc.init_data.data(), tc.init_data.size());
+    fill_data_page(tc, guest_mem + DATA_ADDR);
 
     struct kvm_regs regs = {};
     regs.rax = tc.initial.rax;
@@ -674,31 +704,12 @@ struct KvmVm {
     }
   }
 
-  // Run test expecting a fault.  Returns fault info; on a divergence that
-  // is not a comparable fault (normal HLT, triple fault, odd exit reason),
-  // appends a description to *err so the caller can count a failure
-  // instead of aborting the whole suite.
-  FaultInfo run_test_fault(std::string *err) {
-    run_vcpu();
-
-    FaultInfo fi;
-    if (run->exit_reason == KVM_EXIT_HLT) {
-      if (check_kvm_fault(fi))
-        return fi;
-      *err += "KVM: expected fault but got normal HLT\n";
-      return fi;
-    }
-    if (run->exit_reason == KVM_EXIT_SHUTDOWN) {
-      *err += "KVM: triple fault (shutdown)\n";
-      poisoned = true;
-      return fi;
-    }
-    *err += std::format("KVM: unexpected exit reason {}\n", run->exit_reason);
-    poisoned = true;
-    return fi;
-  }
-
-  ArchState run_test(std::string *err) {
+  // Run the loaded test.  Returns false, with a description in *err, if
+  // the run ended other than at HLT (a triple fault, an odd exit reason),
+  // so the caller can count a failure instead of aborting the whole suite.
+  // Otherwise sets *fault for a run that ended in the exception handlers,
+  // or *state for one that completed.
+  bool run_test_any(ArchState *state, FaultInfo *fault, std::string *err) {
     run_vcpu();
 
     if (run->exit_reason != KVM_EXIT_HLT) {
@@ -711,18 +722,14 @@ struct KvmVm {
       if (run->exit_reason == KVM_EXIT_INTERNAL_ERROR)
         *err += std::format("  suberror: {}\n", run->internal.suberror);
       poisoned = true;
-      return {};
+      return false;
     }
+    if (!check_kvm_fault(*fault))
+      *state = read_state();
+    return true;
+  }
 
-    // Check for unexpected fault
-    FaultInfo fi;
-    if (check_kvm_fault(fi)) {
-      *err += std::format(
-          "KVM: unexpected fault #{} (error {:#x}) at RIP={:#x}\n",
-          fi.vector, fi.error_code, fi.faulting_rip);
-      return {};
-    }
-
+  ArchState read_state() {
     struct kvm_regs regs;
     ioctl(vcpu_fd, KVM_GET_REGS, &regs);
 
@@ -754,6 +761,13 @@ struct KvmVm {
       memcpy(&state.xmm[i].q[4], xs + xl.zmm_hi256 + i * 32, 32);
     for (int i = 0; i < 16; i++)
       memcpy(&state.xmm[16 + i].q[0], xs + xl.hi16_zmm + i * 64, 64);
+    // x87 from the legacy region, which the kernel fills with the initial
+    // values when the component is in its initial configuration.
+    memcpy(&state.fcw, xs + 0, 2);
+    memcpy(&state.fsw, xs + 2, 2);
+    state.ftw = xs[4];
+    for (int i = 0; i < 8; i++)
+      memcpy(state.st[i].data(), xs + 32 + i * 16, 10);
     return state;
   }
 
@@ -797,9 +811,9 @@ struct KvmVm {
     return s;
   }
 
-  // Read data area for memory comparison
-  void read_data(u8 *buf, size_t len) {
-    memcpy(buf, guest_mem + DATA_ADDR, len);
+  void read_pages(MemPages *pages) {
+    memcpy(pages->data, guest_mem + DATA_ADDR, 0x1000);
+    memcpy(pages->stack, guest_mem + STACK_TOP - 0x1000, 0x1000);
   }
 };
 
@@ -812,6 +826,21 @@ static void map_guest_page(u64 addr, size_t len) {
     fprintf(stderr, "mmap failed at 0x%lx: %s\n", addr, strerror(errno));
     abort();
   }
+}
+
+// A model access to memory this process does not back would kill it, and
+// every case after it with it; run_sail fails the case instead.
+static sigjmp_buf *g_model_jump;
+static void *g_model_fault_addr;
+
+static void model_segv(int sig, siginfo_t *info, void *) {
+  if (!g_model_jump) {
+    signal(sig, SIG_DFL);
+    raise(sig);
+    return;
+  }
+  g_model_fault_addr = info->si_addr;
+  siglongjmp(*g_model_jump, 1);
 }
 
 // The model's tile state in the layout of AmxState: TILECFG as its
@@ -833,8 +862,12 @@ static AmxState sail_amx_state(x86::Model &model) {
   return s;
 }
 
-ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
-                   FaultInfo *fault_out, std::string *err, AmxState *amx_out = nullptr) {
+ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out,
+                   std::string *err, AmxState *amx_out = nullptr) {
+  auto save_pages = [&] {
+    memcpy(pages_out->data, (void *)DATA_ADDR, 0x1000);
+    memcpy(pages_out->stack, (void *)(STACK_TOP - 0x1000), 0x1000);
+  };
   x86::Model model;
   model.model_init();
   model.zinitializze_registers(UNIT);
@@ -888,14 +921,14 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   model.zSegReg.data[x86::SEG_CS] = tc.compat_mode ? 0x48 : 0x08;
   model.zCR4 = 0x50620;  // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
 
-  // Ensure guest pages are mapped (idempotent after first call).
+  // The model reaches guest memory at the same addresses in this process.
+  // Back all of the guest's identity-mapped 2MB that a process can map
+  // (from mmap_min_addr, 0x10000): the test's pages, the model's GDT, IDT
+  // and page tables, and whatever else a test's operand reaches.  The
+  // Sail-side GDT is at 0x14000 as 0x3000 is too low for mmap.
   static bool pages_mapped = false;
   if (!pages_mapped) {
-    map_guest_page(CODE_ADDR, 0x1000);
-    map_guest_page(DATA_ADDR, 0x1000);
-    map_guest_page(STACK_TOP - 0x1000, 0x1000);
-    // Map page for Sail-side GDT (can't use 0x3000, too low for mmap)
-    map_guest_page(0x14000, 0x1000);
+    map_guest_page(CODE_ADDR, 0x200000 - CODE_ADDR);
     pages_mapped = true;
   }
 
@@ -905,10 +938,7 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   u8 hlt = 0xF4;
   memcpy((void *)(CODE_ADDR + tc.code.size()), &hlt, 1);
 
-  // Set up data area
-  memset((void *)DATA_ADDR, 0, 0x1000);
-  if (!tc.init_data.empty())
-    memcpy((void *)DATA_ADDR, tc.init_data.data(), tc.init_data.size());
+  fill_data_page(tc, (u8 *)DATA_ADDR);
 
   // Clear the stack page so no state leaks from the previous test
   // (mirrors the KVM-side reset in load_test).
@@ -996,11 +1026,6 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   static constexpr u64 SAIL_COMMON_HANDLER = SAIL_HANDLER_ADDR + 32 * 16;
   static constexpr u64 SAIL_FAULT_INFO_ADDR = 0x1A000;
   if (tc.system_mode) {
-    static bool idt_mapped = false;
-    if (!idt_mapped) {
-      map_guest_page(SAIL_IDT_ADDR, 0x3000);
-      idt_mapped = true;
-    }
     write_idt(nullptr, SAIL_IDT_ADDR, SAIL_HANDLER_ADDR, SAIL_FAULT_INFO_ADDR);
     memset((void *)SAIL_FAULT_INFO_ADDR, 0xFF, 24);
     model.zIDTR_base = SAIL_IDT_ADDR;
@@ -1036,15 +1061,6 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
   static constexpr u64 SAIL_PDPT_ADDR = 0x16000;
   static constexpr u64 SAIL_PD_ADDR   = 0x17000;
   if (tc.enable_paging) {
-    static bool pt_pages_mapped = false;
-    if (!pt_pages_mapped) {
-      map_guest_page(SAIL_PML4_ADDR, 0x3000);
-      // Back the last page below the 2MB mapping boundary so an access
-      // that straddles into the unmapped region can read its mapped
-      // bytes before faulting on the first unmapped one.
-      map_guest_page(0x1FF000, 0x1000);
-      pt_pages_mapped = true;
-    }
     memset((void *)SAIL_PML4_ADDR, 0, 0x3000);  // fresh tables (A/D bits)
     ((u64 *)SAIL_PML4_ADDR)[0] = SAIL_PDPT_ADDR | 0x7;
     ((u64 *)SAIL_PDPT_ADDR)[0] = SAIL_PD_ADDR | 0x7;
@@ -1053,8 +1069,27 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
     model.zCR0 = 0x80000011;  // PG + ET + PE, as in the KVM guest; EFER.LME + LMA above
   }
 
+  static bool segv_handler = false;
+  if (!segv_handler) {
+    struct sigaction sa = {};
+    sa.sa_sigaction = model_segv;
+    sa.sa_flags = SA_SIGINFO | SA_NODEFER;
+    sigaction(SIGSEGV, &sa, nullptr);
+    sigaction(SIGBUS, &sa, nullptr);
+    segv_handler = true;
+  }
+  sigjmp_buf jump;
+  if (sigsetjmp(jump, 1)) {
+    g_model_jump = nullptr;
+    *err += std::format("Sail: access at {}, which this process does not back\n",
+                        g_model_fault_addr);
+    return {};
+  }
+
   for (int i = 0; i < 1000; i++) {
+    g_model_jump = &jump;
     model.zstep(UNIT);
+    g_model_jump = nullptr;
     if (model.zfault_pending) {
       i64 vec = model.zfault_vector;
       u32 err_code = model.zfault_error_code;
@@ -1084,6 +1119,7 @@ ArchState run_sail(const TestCase &tc, u8 *data_out, size_t data_len,
         // A tile load or store that faults on a row keeps the rows done
         // and records the row in TILECFG.start_row.
         if (amx_out) *amx_out = sail_amx_state(model);
+        save_pages();
         model.model_fini();
         return {};
       }
@@ -1124,14 +1160,13 @@ done:
       *err += std::format("Sail: unexpected fault #{} (error {:#x}) at RIP={:#x}\n",
                           (i64)vec_val, err_val, rip_val);
     }
+    save_pages();
     model.model_fini();
     return {};
   }
 
   u64 rflags = model.zread_rflags(UNIT);
-
-  if (data_len > 0)
-    memcpy(data_out, (void *)DATA_ADDR, data_len);
+  save_pages();
 
   ArchState state = {
     .rax = model.zGPR.data[0],
@@ -1164,6 +1199,18 @@ done:
     state.kregs[i] = model.zKREG.data[i];
   state.dr6 = model.zDR6;
   state.dr7 = model.zDR7;
+  // x87 in FXSAVE's terms: ST(i) is physical register (TOP + i) mod 8, and
+  // a register is valid unless its two-bit tag is 11b (empty).
+  state.fcw = model.zx87_cw;
+  state.fsw = model.zx87_sw;
+  state.ftw = 0;
+  for (int i = 0; i < 8; i++)
+    if (((model.zx87_tw >> (2 * i)) & 3) != 3) state.ftw |= 1 << i;
+  for (int i = 0; i < 8; i++) {
+    u8 bytes[64];
+    zmm_to_bytes(model.zx87_ST.data[(((state.fsw >> 11) & 7) + i) & 7], bytes);
+    memcpy(state.st[i].data(), bytes, 10);
+  }
   if (amx_out) *amx_out = sail_amx_state(model);
 
   model.model_fini();
@@ -1221,31 +1268,61 @@ static bool host_has_avx512_fp16() {
   return d & (1u << 23);
 }
 
-// Constructs the suite.  If `origins` is given, it receives, per case, the
-// template file the case came from.
-std::vector<TestCase> build_tests(std::vector<const char *> *origins = nullptr) {
-  std::vector<TestCase> tests;
+// The cases this run selects.  A prefix argument and KVM_FILTERS=
+// "prefix1;prefix2" (for bisecting interactions between tests) each select
+// the categories that start with one of their prefixes; --category=NAME
+// selects one category exactly, and --slice=K/N every Nth of the selected
+// cases from the Kth on, which is how ctest runs the suite (see
+// write_ctest_file).
+static const char *g_filter;
+static std::vector<std::string> g_filters;
+static std::string g_category;
+static unsigned g_slice = 0, g_slices = 1;
+// --template=FILE (repeatable) constructs only the cases of those template
+// files, which is all a run of their categories needs.
+static std::vector<std::string> g_templates;
 
+static bool wanted_category(const std::string &category) {
+  if (!g_category.empty() && category != g_category)
+    return false;
+  if (g_filter && category.compare(0, strlen(g_filter), g_filter) != 0)
+    return false;
+  if (g_filters.empty()) return true;
+  for (const auto &f : g_filters)
+    if (category.compare(0, f.size(), f) == 0) return true;
+  return false;
+}
+
+// The templates' cases, built for each register fill.
+struct Suite {
+  std::vector<TestCase> tests;
+  std::vector<const char *> origins;  // per case, the template file
+};
+
+Suite build_suite() {
+  Suite s;
   // Rebuild the inputs rather than replacing zero-valued fields afterward:
   // a test may deliberately supply zero as an operand or an exception trigger.
   for (u64 fill : {u64(0), ~u64(0)}) {
     initial_register_fill = fill;
-    size_t first = tests.size();
+    size_t first = s.tests.size();
     for (const Template &t : TEMPLATES) {
+      if (!g_templates.empty() &&
+          std::find(g_templates.begin(), g_templates.end(), t.file) == g_templates.end())
+        continue;
       if (t.add == add_avx_fp16_tests && !host_has_avx512_fp16()) {
         if (fill == 0)
           fprintf(stderr, "AVX-512 FP16 templates skipped: host lacks the extension\n");
         continue;
       }
-      t.add(tests);
-      if (origins) origins->resize(tests.size(), t.file);
+      t.add(s.tests);
+      s.origins.resize(s.tests.size(), t.file);
     }
-    for (size_t i = first; i < tests.size(); i++)
-      tests[i].name += fill ? " [initial fill=ones]" : " [initial fill=zero]";
+    for (size_t i = first; i < s.tests.size(); i++)
+      s.tests[i].name += fill ? " [initial fill=ones]" : " [initial fill=zero]";
   }
   initial_register_fill = 0;
-
-  return tests;
+  return s;
 }
 
 // KVM_LIST=<path>: write one tab-separated line per constructed case and
@@ -1253,10 +1330,36 @@ std::vector<TestCase> build_tests(std::vector<const char *> *origins = nullptr) 
 // one this host would run: templates consult CPUID while constructing, so
 // a case a host cannot run (AVX-512 FP16, VAES, AVX-VNNI, ...) is never
 // constructed rather than skipped later.  The header comments record the
-// host so a listing can be told apart from one made elsewhere.
+// host so a listing can be told apart from one made elsewhere.  The
+// selected categories are listed (wanted_category), by default all.
 static int list_tests(const char *path) {
-  std::vector<const char *> origins;
-  auto tests = build_tests(&origins);
+  Suite suite = build_suite();
+  std::string body;
+  size_t count = 0;
+  auto list = [&](const TestCase &tc, const char *origin) {
+    if (!wanted_category(tc.category)) return;
+    // The fill is the suffix build_suite appended; print it as its own
+    // column and strip it from the name.
+    std::string name = tc.name;
+    const char *fill = "zero";
+    if (size_t p = name.rfind(" [initial fill="); p != std::string::npos) {
+      if (name.compare(p, std::string::npos, " [initial fill=ones]") == 0) fill = "ones";
+      name.erase(p);
+    }
+    for (char &ch : name)
+      if (ch == '\t' || ch == '\n') ch = ' ';
+    body += std::format("{}\t{}\t{}\t{}\t", origin, fill, tc.category, name);
+    for (u8 byte : tc.code) body += std::format("{:02x}", byte);
+    body += std::format("\t{:d}\t{:d}\t{}\t{}\t{:d}\t{:d}\t{:d}\t{:#x}\t{:d}\t{}\t{:#x}\t{:#x}\n",
+                        tc.compat_mode, tc.expect_fault, tc.expected_vector,
+                        tc.init_data.size(), tc.may_fault, tc.enable_paging, tc.system_mode,
+                        tc.flags_mask, tc.approx_rel_tol != 0 || tc.approx_result_bits != 0,
+                        tc.msrs.size(), tc.xcr0_override, tc.cr4_override);
+    count++;
+  };
+  for (size_t i = 0; i < suite.tests.size(); i++)
+    list(suite.tests[i], suite.origins[i]);
+
   FILE *out = strcmp(path, "-") == 0 ? stdout : fopen(path, "w");
   if (!out) {
     fprintf(stderr, "KVM_LIST: cannot open %s: %s\n", path, strerror(errno));
@@ -1269,42 +1372,245 @@ static int list_tests(const char *path) {
   memcpy(vendor + 4, &d, 4);
   memcpy(vendor + 8, &c, 4);
   fprintf(out, "# kvm_harness case listing: %zu cases (%zu per register fill)\n",
-          tests.size(), tests.size() / 2);
+          count, count / 2);
   fprintf(out, "# host vendor: %s; AVX-512 FP16 templates: %s\n", vendor,
           host_has_avx512_fp16() ? "included" : "absent (host lacks the extension)");
   fprintf(out, "template\tfill\tcategory\tname\tcode\tcompat_mode\texpect_fault\t"
-               "expected_vector\tinit_data_len\tcompare_data_len\tenable_paging\t"
-               "system_mode\tflags_mask\tcmp_mxcsr\tapprox\tmsrs\txcr0_override\t"
+               "expected_vector\tinit_data_len\tmay_fault\tenable_paging\t"
+               "system_mode\tflags_mask\tapprox\tmsrs\txcr0_override\t"
                "cr4_override\n");
-  for (size_t i = 0; i < tests.size(); i++) {
-    const TestCase &tc = tests[i];
-    // The fill is the suffix build_tests appended; print it as its own
-    // column and strip it from the name.
-    std::string name = tc.name;
-    const char *fill = "zero";
-    if (size_t p = name.rfind(" [initial fill="); p != std::string::npos) {
-      if (name.compare(p, std::string::npos, " [initial fill=ones]") == 0) fill = "ones";
-      name.erase(p);
-    }
-    for (char &ch : name)
-      if (ch == '\t' || ch == '\n') ch = ' ';
-    fprintf(out, "%s\t%s\t%s\t%s\t", origins[i], fill, tc.category.c_str(), name.c_str());
-    for (u8 byte : tc.code) fprintf(out, "%02x", byte);
-    fprintf(out, "\t%d\t%d\t%d\t%zu\t%zu\t%d\t%d\t%#lx\t%d\t%d\t%zu\t%#lx\t%#lx\n",
-            tc.compat_mode, tc.expect_fault, tc.expected_vector, tc.init_data.size(),
-            tc.compare_data_len, tc.enable_paging, tc.system_mode, tc.flags_mask,
-            tc.cmp_mxcsr, tc.approx_rel_tol != 0 || tc.approx_result_bits != 0,
-            tc.msrs.size(), tc.xcr0_override, tc.cr4_override);
-  }
+  fwrite(body.data(), 1, body.size(), out);
   if (out != stdout) fclose(out);
-  fprintf(stderr, "listed %zu cases to %s\n", tests.size(), path);
+  fprintf(stderr, "listed %zu cases to %s\n", count, path);
+  return 0;
+}
+
+// KVM_CTEST=<path>: write the suite's ctest entries as a CTest script and
+// exit.  Each category gets an entry that selects it exactly, split into
+// slices of at most CTEST_SLICE cases so that no entry runs for more than a
+// few seconds.  The build writes the script after linking the harness
+// (kvm/CMakeLists.txt), so the entries follow the templates
+// with no list to keep in step, and each case runs in exactly one entry.
+static int write_ctest_file(const char *path) {
+  constexpr size_t CTEST_SLICE = 1500;
+  Suite suite = build_suite();
+  std::vector<std::string> categories;
+  std::unordered_map<std::string, size_t> count;
+  std::unordered_map<std::string, std::vector<std::string>> files;  // of a template's category
+  auto add = [&](const TestCase &tc, const char *file) {
+    if (count[tc.category]++ == 0) categories.push_back(tc.category);
+    auto &f = files[tc.category];
+    if (file && std::find(f.begin(), f.end(), file) == f.end()) f.push_back(file);
+  };
+  for (size_t i = 0; i < suite.tests.size(); i++) add(suite.tests[i], suite.origins[i]);
+
+  char exe[4096];
+  ssize_t len = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
+  if (len < 0) {
+    perror("readlink /proc/self/exe");
+    return 1;
+  }
+  exe[len] = '\0';
+  FILE *out = fopen(path, "w");
+  if (!out) {
+    fprintf(stderr, "KVM_CTEST: cannot open %s: %s\n", path, strerror(errno));
+    return 1;
+  }
+  fprintf(out, "# Written by %s (KVM_CTEST).\n", exe);
+  for (const std::string &cat : categories) {
+    std::string name = "kvm_" + cat;
+    for (char &ch : name)
+      if (ch == ' ' || ch == '/') ch = '_';
+    std::string templates;
+    for (const std::string &f : files[cat]) templates += " [==[--template=" + f + "]==]";
+    size_t slices = (count[cat] + CTEST_SLICE - 1) / CTEST_SLICE;
+    for (size_t k = 0; k < slices; k++) {
+      std::string test = slices == 1 ? name : std::format("{}_{}of{}", name, k + 1, slices);
+      fprintf(out, "add_test([==[%s]==] [==[%s]==] [==[--category=%s]==] [==[--slice=%zu/%zu]==]%s)\n",
+              test.c_str(), exe, cat.c_str(), k, slices, templates.c_str());
+    }
+  }
+  fclose(out);
   return 0;
 }
 
 
 
+// Compares the exceptions the two sides took.
+static bool compare_faults(const TestCase &tc, KvmVm &vm, const FaultInfo &kvm_fault,
+                           const FaultInfo &sail_fault) {
+  bool ok = true;
+  // IA32_XFD_ERR, which an XFD #NM loads (SDM Vol.1 §13.14).
+  if (host_has_amx()) {
+    u64 kvm_xfd_err = vm.read_msr(0x1C5);
+    if (kvm_xfd_err != sail_fault.xfd_err) {
+      fprintf(stderr, "  MISMATCH IA32_XFD_ERR: kvm=0x%lx sail=0x%lx\n",
+              kvm_xfd_err, sail_fault.xfd_err);
+      ok = false;
+    }
+  }
+  if (kvm_fault.vector != sail_fault.vector) {
+    fprintf(stderr, "  MISMATCH vector: kvm=%d sail=%d\n",
+            kvm_fault.vector, sail_fault.vector);
+    ok = false;
+  }
+  if (kvm_fault.error_code != sail_fault.error_code) {
+    fprintf(stderr, "  MISMATCH error_code: kvm=0x%lx sail=0x%lx\n",
+            kvm_fault.error_code, sail_fault.error_code);
+    ok = false;
+  }
+  if (kvm_fault.faulting_rip != sail_fault.faulting_rip) {
+    fprintf(stderr, "  MISMATCH RIP: kvm=0x%lx sail=0x%lx\n",
+            kvm_fault.faulting_rip, sail_fault.faulting_rip);
+    ok = false;
+  }
+  if ((kvm_fault.dr6 ^ sail_fault.dr6) & DR6_CMP_MASK) {
+    fprintf(stderr, "  MISMATCH DR6: kvm=0x%lx sail=0x%lx\n",
+            kvm_fault.dr6, sail_fault.dr6);
+    ok = false;
+  }
+  if ((kvm_fault.rflags_image ^ sail_fault.rflags_image) & RFLAGS_IMAGE_MASK
+      & ~tc.rflags_image_ignore) {
+    fprintf(stderr, "  MISMATCH pushed RFLAGS: kvm=0x%lx sail=0x%lx\n",
+            kvm_fault.rflags_image, sail_fault.rflags_image);
+    ok = false;
+  }
+  if (kvm_fault.dr7 != sail_fault.dr7) {
+    fprintf(stderr, "  MISMATCH DR7: kvm=0x%lx sail=0x%lx\n",
+            kvm_fault.dr7, sail_fault.dr7);
+    ok = false;
+  }
+  if (kvm_fault.cr2 != sail_fault.cr2) {
+    fprintf(stderr, "  MISMATCH CR2: kvm=0x%lx sail=0x%lx\n",
+            kvm_fault.cr2, sail_fault.cr2);
+    ok = false;
+  }
+  if (tc.expected_vector >= 0 && kvm_fault.vector != tc.expected_vector) {
+    fprintf(stderr, "  UNEXPECTED vector: got %d expected %d\n",
+            kvm_fault.vector, tc.expected_vector);
+    ok = false;
+  }
+  return ok;
+}
+
+// Runs one case on both sides and compares the outcome: the exception for
+// a run that faults, the architectural state for one that completes, and
+// in either case the memory the run may have written.
+static bool run_case(KvmVm &vm, const TestCase &tc) {
+  vm.load_test(tc);
+
+  std::string err;
+  ArchState kvm_state, sail_state;
+  FaultInfo kvm_fault, sail_fault;
+  MemPages kvm_mem, sail_mem;
+  AmxState sail_amx;
+  bool amx = test_has_amx(tc);
+  bool fault_allowed = tc.expect_fault || tc.may_fault;
+
+  if (!vm.run_test_any(&kvm_state, &kvm_fault, &err)) {
+    fprintf(stderr, "%sFAIL: %s\n", err.c_str(), tc.name.c_str());
+    return false;
+  }
+  vm.read_pages(&kvm_mem);
+  sail_state = run_sail(tc, &sail_mem, fault_allowed ? &sail_fault : nullptr, &err,
+                        amx ? &sail_amx : nullptr);
+  for (auto [offset, bits] : tc.data_undefined) {
+    kvm_mem.data[offset] &= ~bits;
+    sail_mem.data[offset] &= ~bits;
+  }
+
+  bool ok = err.empty();
+  if (kvm_fault.faulted && !fault_allowed) {
+    fprintf(stderr, "  KVM: unexpected fault #%d (error %#lx) at RIP=%#lx\n",
+            kvm_fault.vector, kvm_fault.error_code, kvm_fault.faulting_rip);
+    ok = false;
+  }
+  if (tc.expect_fault && !kvm_fault.faulted) {
+    fprintf(stderr, "  KVM: expected fault but none occurred\n");
+    ok = false;
+  }
+  if (tc.expect_fault && !sail_fault.faulted && err.empty()) {
+    fprintf(stderr, "  Sail: expected fault but none occurred\n");
+    ok = false;
+  }
+  if (tc.may_fault && kvm_fault.faulted != sail_fault.faulted && err.empty()) {
+    fprintf(stderr, "  MISMATCH outcome: kvm %s, sail %s\n",
+            kvm_fault.faulted ? "faulted" : "completed",
+            sail_fault.faulted ? "faulted" : "completed");
+    ok = false;
+  }
+  if (!err.empty())
+    fprintf(stderr, "%s", err.c_str());
+
+  if (ok && kvm_fault.faulted) {
+    // The tile state a faulting tile load or store leaves behind.
+    ok = compare_faults(tc, vm, kvm_fault, sail_fault);
+    if (amx && !vm.read_amx().compare(sail_amx)) ok = false;
+    // The guest's exception handlers push their frame where RSP points;
+    // outside system mode the model pushes none.
+    bool frame_in_data = !tc.system_mode && tc.initial.rsp > DATA_ADDR &&
+                         tc.initial.rsp <= DATA_ADDR + 0x1000;
+    if (!frame_in_data && !compare_page("data", kvm_mem.data, sail_mem.data)) ok = false;
+    if (!ok)
+      fprintf(stderr, "FAIL: %s (kvm: #%d err=0x%lx rip=0x%lx, sail: #%d err=0x%lx rip=0x%lx)\n",
+              tc.name.c_str(),
+              kvm_fault.vector, kvm_fault.error_code, kvm_fault.faulting_rip,
+              sail_fault.vector, sail_fault.error_code, sail_fault.faulting_rip);
+    return ok;
+  }
+
+  if (ok) {
+    ok = kvm_state.compare(sail_state, tc.flags_mask, tc.approx_rel_tol,
+                           tc.approx_elem_bits, tc.approx_result_bits, tc.approx_reg);
+    if (amx && !vm.read_amx().compare(sail_amx)) ok = false;
+    if (!compare_page("data", kvm_mem.data, sail_mem.data)) ok = false;
+    if (!compare_page("stack", kvm_mem.stack, sail_mem.stack)) ok = false;
+  }
+  const std::vector<u64> &sail_io = x86::x86_externals_port_io();
+  bool io_ok = vm.io_log == sail_io;
+  if (!ok || !io_ok) {
+    fprintf(stderr, "FAIL: %s\n", tc.name.c_str());
+    kvm_state.print("KVM");
+    sail_state.print("Sail");
+    if (!io_ok) {
+      fprintf(stderr, "  PORT I/O MISMATCH:\n");
+      print_port_io("KVM ", vm.io_log);
+      print_port_io("Sail", sail_io);
+    }
+    return false;
+  }
+  return true;
+}
+
 int main(int argc, char **argv) {
-  const char *filter = argc > 1 ? argv[1] : nullptr;
+  for (int i = 1; i < argc; i++) {
+    std::string arg = argv[i];
+    if (arg.starts_with("--category=")) {
+      g_category = arg.substr(11);
+    } else if (arg.starts_with("--template=")) {
+      g_templates.push_back(arg.substr(11));
+    } else if (arg.starts_with("--slice=")) {
+      if (sscanf(argv[i] + 8, "%u/%u", &g_slice, &g_slices) != 2 || g_slice >= g_slices) {
+        fprintf(stderr, "bad %s: expected --slice=K/N with K < N\n", argv[i]);
+        return 1;
+      }
+    } else {
+      g_filter = argv[i];
+    }
+  }
+  if (const char *env = getenv("KVM_FILTERS")) {
+    std::string s = env;
+    size_t start = 0;
+    while (start <= s.size()) {
+      size_t end = s.find(';', start);
+      if (end == std::string::npos) end = s.size();
+      if (end > start) g_filters.push_back(s.substr(start, end - start));
+      start = end + 1;
+    }
+  }
+
+  if (const char *path = getenv("KVM_CTEST"))
+    return write_ctest_file(path);
 
   print_host_identity();
 
@@ -1317,34 +1623,16 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  auto tests = build_tests();
+  Suite suite = build_suite();
   int passed = 0;
   int failed = 0;
   std::string last_cat;
+  bool vm_lost = false;
+  size_t selected = 0;
 
-  // KVM_FILTERS="prefix1;prefix2" runs the categories matching any of the
-  // prefixes, in suite order (for bisecting interactions between tests).
-  std::vector<std::string> filters;
-  if (const char *env = getenv("KVM_FILTERS")) {
-    std::string s = env;
-    size_t start = 0;
-    while (start <= s.size()) {
-      size_t end = s.find(';', start);
-      if (end == std::string::npos) end = s.size();
-      if (end > start) filters.push_back(s.substr(start, end - start));
-      start = end + 1;
-    }
-  }
-
-  for (const auto &tc : tests) {
-    if (filter && tc.category.compare(0, strlen(filter), filter) != 0)
-      continue;
-    if (!filters.empty()) {
-      bool any = false;
-      for (const auto &f : filters)
-        if (tc.category.compare(0, f.size(), f) == 0) any = true;
-      if (!any) continue;
-    }
+  auto run = [&](const TestCase &tc) {
+    if (vm_lost || !wanted_category(tc.category) || selected++ % g_slices != g_slice)
+      return;
     if (tc.category != last_cat) {
       last_cat = tc.category;
       fprintf(stderr, "Testing %s ...\n", last_cat.c_str());
@@ -1354,147 +1642,10 @@ int main(int argc, char **argv) {
     // address space).
     if (getenv("KVM_VERBOSE"))
       fprintf(stderr, "  case: %s\n", tc.name.c_str());
-    vm->load_test(tc);
-
-    std::string harness_err;
-    if (tc.expect_fault) {
-      // Fault-expecting test: compare exception vector and error code.
-      FaultInfo kvm_fault = vm->run_test_fault(&harness_err);
-      FaultInfo sail_fault;
-      AmxState sail_amx;
-      run_sail(tc, nullptr, 0, &sail_fault, &harness_err, test_has_amx(tc) ? &sail_amx : nullptr);
-
-      bool ok = harness_err.empty();
-      if (!ok)
-        fprintf(stderr, "%s", harness_err.c_str());
-      // The tile state a faulting tile load or store leaves behind, and
-      // IA32_XFD_ERR, which an XFD #NM loads (SDM Vol.1 §13.14).
-      if (test_has_amx(tc) && kvm_fault.faulted && !vm->read_amx().compare(sail_amx))
-        ok = false;
-      if (host_has_amx() && kvm_fault.faulted && sail_fault.faulted) {
-        u64 kvm_xfd_err = vm->read_msr(0x1C5);
-        if (kvm_xfd_err != sail_fault.xfd_err) {
-          fprintf(stderr, "  MISMATCH IA32_XFD_ERR: kvm=0x%lx sail=0x%lx\n",
-                  kvm_xfd_err, sail_fault.xfd_err);
-          ok = false;
-        }
-      }
-      if (!kvm_fault.faulted) {
-        fprintf(stderr, "  KVM: expected fault but none occurred\n");
-        ok = false;
-      }
-      if (!sail_fault.faulted) {
-        fprintf(stderr, "  Sail: expected fault but none occurred\n");
-        ok = false;
-      }
-      if (kvm_fault.faulted && sail_fault.faulted) {
-        if (kvm_fault.vector != sail_fault.vector) {
-          fprintf(stderr, "  MISMATCH vector: kvm=%d sail=%d\n",
-                  kvm_fault.vector, sail_fault.vector);
-          ok = false;
-        }
-        if (kvm_fault.error_code != sail_fault.error_code) {
-          fprintf(stderr, "  MISMATCH error_code: kvm=0x%lx sail=0x%lx\n",
-                  kvm_fault.error_code, sail_fault.error_code);
-          ok = false;
-        }
-        if (kvm_fault.faulting_rip != sail_fault.faulting_rip) {
-          fprintf(stderr, "  MISMATCH RIP: kvm=0x%lx sail=0x%lx\n",
-                  kvm_fault.faulting_rip, sail_fault.faulting_rip);
-          ok = false;
-        }
-        if ((kvm_fault.dr6 ^ sail_fault.dr6) & DR6_CMP_MASK) {
-          fprintf(stderr, "  MISMATCH DR6: kvm=0x%lx sail=0x%lx\n",
-                  kvm_fault.dr6, sail_fault.dr6);
-          ok = false;
-        }
-        if ((kvm_fault.rflags_image ^ sail_fault.rflags_image) & RFLAGS_IMAGE_MASK
-            & ~tc.rflags_image_ignore) {
-          fprintf(stderr, "  MISMATCH pushed RFLAGS: kvm=0x%lx sail=0x%lx\n",
-                  kvm_fault.rflags_image, sail_fault.rflags_image);
-          ok = false;
-        }
-        if (kvm_fault.dr7 != sail_fault.dr7) {
-          fprintf(stderr, "  MISMATCH DR7: kvm=0x%lx sail=0x%lx\n",
-                  kvm_fault.dr7, sail_fault.dr7);
-          ok = false;
-        }
-        if (kvm_fault.cr2 != sail_fault.cr2) {
-          fprintf(stderr, "  MISMATCH CR2: kvm=0x%lx sail=0x%lx\n",
-                  kvm_fault.cr2, sail_fault.cr2);
-          ok = false;
-        }
-        if (tc.expected_vector >= 0 && kvm_fault.vector != tc.expected_vector) {
-          fprintf(stderr, "  UNEXPECTED vector: got %d expected %d\n",
-                  kvm_fault.vector, tc.expected_vector);
-          ok = false;
-        }
-      }
-
-      if (ok) {
-        passed++;
-      } else {
-        fprintf(stderr, "FAIL: %s (kvm: #%d err=0x%lx rip=0x%lx, sail: #%d err=0x%lx rip=0x%lx)\n",
-                tc.name.c_str(),
-                kvm_fault.vector, kvm_fault.error_code, kvm_fault.faulting_rip,
-                sail_fault.vector, sail_fault.error_code, sail_fault.faulting_rip);
-        failed++;
-      }
-    } else {
-      // Normal test: compare architectural state.
-      ArchState kvm_state = vm->run_test(&harness_err);
-
-      u8 kvm_data[4096] = {}, sail_data[4096] = {};
-      if (tc.compare_data_len > 0)
-        vm->read_data(kvm_data, tc.compare_data_len);
-
-      AmxState sail_amx;
-      ArchState sail_state = run_sail(tc, sail_data, tc.compare_data_len,
-                                      nullptr, &harness_err,
-                                      test_has_amx(tc) ? &sail_amx : nullptr);
-
-      if (!harness_err.empty())
-        fprintf(stderr, "%s", harness_err.c_str());
-      bool ok = harness_err.empty() &&
-                kvm_state.compare(sail_state, tc.flags_mask, tc.cmp_mxcsr,
-                                  tc.approx_rel_tol, tc.approx_elem_bits,
-                                  tc.approx_result_bits, tc.approx_reg);
-      if (ok && test_has_amx(tc) && !vm->read_amx().compare(sail_amx))
-        ok = false;
-
-      if (tc.compare_data_len > 0 &&
-          memcmp(kvm_data, sail_data, tc.compare_data_len) != 0) {
-        ok = false;
-      }
-      const std::vector<u64> &sail_io = x86::x86_externals_port_io();
-      bool io_ok = vm->io_log == sail_io;
-      ok = ok && io_ok;
-
-      if (ok) {
-        passed++;
-      } else {
-        fprintf(stderr, "FAIL: %s\n", tc.name.c_str());
-        kvm_state.print("KVM");
-        sail_state.print("Sail");
-        if (!io_ok) {
-          fprintf(stderr, "  PORT I/O MISMATCH:\n");
-          print_port_io("KVM ", vm->io_log);
-          print_port_io("Sail", sail_io);
-        }
-        if (tc.compare_data_len > 0 &&
-            memcmp(kvm_data, sail_data, tc.compare_data_len) != 0) {
-          fprintf(stderr, "  DATA MISMATCH (%zu bytes):\n", tc.compare_data_len);
-          fprintf(stderr, "    KVM: ");
-          for (size_t i = 0; i < tc.compare_data_len; i++)
-            fprintf(stderr, "%02x", kvm_data[i]);
-          fprintf(stderr, "\n    Sail:");
-          for (size_t i = 0; i < tc.compare_data_len; i++)
-            fprintf(stderr, "%02x", sail_data[i]);
-          fprintf(stderr, "\n");
-        }
-        failed++;
-      }
-    }
+    if (run_case(*vm, tc))
+      passed++;
+    else
+      failed++;
 
     // A triple fault or odd exit can leave the VCPU in a state KVM cannot
     // continue from; rebuild the VM so later tests start clean.
@@ -1502,10 +1653,14 @@ int main(int argc, char **argv) {
       vm = std::make_unique<KvmVm>();
       if (!vm->init()) {
         fprintf(stderr, "Failed to re-initialize KVM VM after poisoned run\n");
-        return 1;
+        vm_lost = true;
       }
     }
-  }
+  };
+  for (const TestCase &tc : suite.tests)
+    run(tc);
+  if (vm_lost)
+    return 1;
 
   fprintf(stderr, "%d passed, %d failed out of %d tests\n",
           passed, failed, passed + failed);

@@ -737,7 +737,11 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.xmm[0].hi = 0xFEDCBA0987654321;
       s.xmm[1].lo = 0xAAAABBBBCCCCDDDD;
       s.xmm[1].hi = 0xEEEEFFFF00001111;
+      // FLD1 takes the x87 component out of its initial configuration:
+      // whether XSAVE reports such a component in XSTATE_BV is up to the
+      // implementation (SDM Vol.1 §13.6).
       std::vector<u8> code = {
+        0xD9, 0xE8,                   // FLD1
         0x0F, 0xAE, 0x27,             // XSAVE [RDI]
         0x66, 0x0F, 0xEF, 0xC0,       // PXOR XMM0, XMM0
         0x66, 0x0F, 0xEF, 0xC9,       // PXOR XMM1, XMM1
@@ -882,7 +886,9 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       s.xmm[15].hi = 0xBBBBBBBBBBBBBBBB;
       // PXOR XMM8,XMM8: 66 45 0F EF C0
       // PXOR XMM15,XMM15: 66 45 0F EF FF
+      // FLD1 as in the mask=3 round trip above.
       std::vector<u8> code = {
+        0xD9, 0xE8,                         // FLD1
         0x0F, 0xAE, 0x27,                   // XSAVE [RDI]
         0x66, 0x45, 0x0F, 0xEF, 0xC0,       // PXOR XMM8, XMM8
         0x66, 0x45, 0x0F, 0xEF, 0xFF,       // PXOR XMM15, XMM15

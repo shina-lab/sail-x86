@@ -97,13 +97,47 @@ int main() {
   changed.rflags ^= FL_DF;
   expect(!original.compare(changed, FL_NONE), "DIV still preserves DF");
 
+  // MXCSR is compared in every test, except the exception flags that the
+  // model's floating-point externs do not produce.
+  for (int bit = 6; bit < 32; bit++) {
+    changed = original;
+    changed.mxcsr ^= 1u << bit;
+    expect(!original.compare(changed), "MXCSR control and reserved bits");
+  }
+  changed = original;
+  changed.mxcsr ^= 0x3F;
+  expect(original.compare(changed), "MXCSR exception flags");
+
+  // x87: the control word, TOP, the tags, and the valid registers.
+  changed = original;
+  changed.fcw ^= 0x0C00;
+  expect(!original.compare(changed), "x87 control word");
+  changed = original;
+  changed.fsw ^= 0x0800;
+  expect(!original.compare(changed), "x87 TOP");
+  changed = original;
+  changed.fsw ^= 0x473F;
+  expect(original.compare(changed), "x87 condition codes and exception flags");
+  changed = original;
+  changed.st[3][9] ^= 0x80;
+  expect(original.compare(changed), "empty x87 register");
+  ArchState pushed = original;
+  pushed.fsw = 7 << 11;   // FLD from the initial state: TOP = 7, R7 valid
+  pushed.ftw = 0x80;
+  changed = pushed;
+  changed.st[0][0] ^= 1;
+  expect(!pushed.compare(changed), "valid x87 register");
+  changed = pushed;
+  changed.st[1][0] ^= 1;
+  expect(pushed.compare(changed), "ST(1) is physical R0, which is empty");
+
   // A scalar approximate result may differ within tolerance. Everything
   // outside that result, including copied lanes and other registers, is exact.
   original.xmm[0] = xmm_from_f32(1, 2, 3, 4);
   changed = original;
   changed.xmm[0] = xmm_from_f32(1.0001f, 2, 3, 4);
   auto approximate = [&](const ArchState &other) {
-    return original.compare(other, FL_ALL, false, 1e-3, 32, 32, 0);
+    return original.compare(other, FL_ALL, 1e-3, 32, 32, 0);
   };
   expect(approximate(changed), "approximate result within tolerance");
   changed.xmm[0].q[0] ^= 1ULL << 32;

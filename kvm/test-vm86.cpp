@@ -2,6 +2,7 @@
 // system model and KVM. Both enter through IRETD, then stop in an IDT handler
 // at HLT. Compare the registers, saved exception frame and application memory.
 // --model-only also runs without /dev/kvm, checking the expected exit vector.
+// --slice=K/N runs every Nth test from the Kth on.
 
 #include "sail_x86_model.h"
 #include "x86-helpers.h"
@@ -493,10 +494,22 @@ static std::vector<Test> tests() {
 }
 
 int main(int argc, char **argv) {
-  bool model_only = argc > 1 && std::string(argv[1]) == "--model-only";
+  bool model_only = false;
+  unsigned slice = 0, slices = 1;
+  for (int i = 1; i < argc; i++) {
+    std::string arg = argv[i];
+    if (arg == "--model-only") {
+      model_only = true;
+    } else if (!arg.starts_with("--slice=") ||
+               sscanf(argv[i] + 8, "%u/%u", &slice, &slices) != 2 || slice >= slices) {
+      fprintf(stderr, "usage: %s [--model-only] [--slice=K/N]\n", argv[0]);
+      return 2;
+    }
+  }
   if (!model_only && access("/dev/kvm", R_OK | W_OK)) return 77;
-  unsigned passed = 0, failed = 0;
+  unsigned passed = 0, failed = 0, index = 0;
   for (const auto &t : tests()) {
+    if (index++ % slices != slice) continue;
     for (u32 fill : {0U, ~0U}) {
       Bytes mem = image(t, fill);
       Result m = run_model(t, mem, fill);
