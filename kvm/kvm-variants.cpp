@@ -1227,14 +1227,28 @@ void make_reg_to_scaled_mem(const Base &b, const Emit &emit) {
   }
 }
 
+// The x87 memory forms DA /0-/3 (FIADD, FIMUL, FICOM, FICOMP m32int) and
+// DB /0-/3 (FILD, FISTTP, FIST, FISTP m32int), whose register forms are
+// FCMOVcc.
+bool x87_fcmov_form(const Insn &in) {
+  return in.enc == Enc::Legacy && in.map == 0 && (in.op == 0xDA || in.op == 0xDB) &&
+         (in.modrm >> 3 & 7) <= 3;
+}
+
 // Memory operands as register operands (mod = 11b, numbered as the base
 // was).  An instruction without a register form raises #UD instead:
-// gathers and scatters, non-temporal stores, LEA, CMPXCHG8B, ...
+// gathers and scatters, non-temporal stores, LEA, CMPXCHG8B, ...  The x87
+// forms whose register form is FCMOVcc are left alone: with ST(i) empty
+// and the condition false, the manuals leave open whether there is a
+// stack underflow (SDM Vol.2A FCMOVcc, p.3-322: "IF condition TRUE THEN
+// ST(0) := ST(i); FI;" and "#IS Stack underflow occurred."), which a case
+// written for the memory form does not choose ST(i) and the flags to avoid.
 void make_mem_to_reg(const Base &b, const Emit &emit) {
   if (!b.movable) return;
   for (size_t i = 0; i < b.insns.size(); i++) {
     const Insn &orig = b.insns[i];
-    if (!orig.has_mem() || system_group(orig) || !claim(b, orig, "memory r/m as register"))
+    if (!orig.has_mem() || system_group(orig) || x87_fcmov_form(orig) ||
+        !claim(b, orig, "memory r/m as register"))
       continue;
     Insn in = orig;
     in.modrm = u8(0xC0 | (in.modrm & 0x3F));
