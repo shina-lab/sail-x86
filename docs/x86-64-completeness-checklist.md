@@ -706,7 +706,7 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [N/A] SENDUIPI, UIRET, TESTUI, STUI, CLUI, WAKEUP — UINTR not targeted
 
 #### 1.25.11 ENQCMD
-- [N/A] ENQCMD, ENQCMDS (enqueue command) — device enqueue not targeted
+- [x] ENQCMD, ENQCMDS (enqueue command) — implemented with IA32_PASID (insn_baseline.sail, exec_enqcmd); no modeled device has an enqueue register, so the store is dropped with ZF = 1 (retry)
 
 #### 1.25.12 PCONFIG
 - [N/A] PCONFIG (platform configuration) — TME/MKTME key management not targeted

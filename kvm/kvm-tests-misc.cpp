@@ -329,6 +329,94 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tests.push_back({"movdir64b rax,[rdi]", cat, {0x66, 0x0F, 0x38, 0xF8, 0x07},
                         s2, FL_ALL, 0, false, data, 256});
     }
+
+    // ENQCMD (F2 0F 38 F8) and ENQCMDS (F3 0F 38 F8): only where the host
+    // has them (CPUID leaf 7, ECX bit 29).  The cases run at CPL 0, where
+    // ENQCMDS completes: its destination is memory, so the enqueue store
+    // is dropped (written neither to memory nor anywhere else) with ZF = 1
+    // and the other arithmetic flags cleared, which the cases start set.
+    // ENQCMD is #GP(0) throughout: the guest runs with the host thread's
+    // IA32_PASID, 0 (not valid) in a process that has no PASID, and KVM
+    // lets the guest neither read nor write the MSR.  The other cases pin
+    // the order of the checks, which the SDM leaves open: the source read
+    // and the check of its bits before anything about the destination, the
+    // destination's alignment before its translation (a write's).  rdi is
+    // the source, rax the destination, as in MOVDIR64B.
+    if (ecx7 & (1u << 29)) {
+      cat = "ENQCMD";
+      const std::vector<u8> ENQCMDS = {0xF3, 0x0F, 0x38, 0xF8, 0x07};
+      const std::vector<u8> ENQCMD = {0xF2, 0x0F, 0x38, 0xF8, 0x07};
+      const u64 dst = DATA_ADDR + 0x80;
+      const u64 unmapped = 0x300000;  // past the guest's identity-mapped 2MB
+      // Commands at DATA_ADDR: for ENQCMDS, PASID 30201H with bit 31
+      // (supervisor) set and bits 30:20 clear, and the same with bit 20
+      // set; for ENQCMD, bits 31:0 clear.
+      std::vector<u8> cmd(256, 0);
+      for (int i = 0; i < 64; i++)
+        cmd[i] = (u8)(i + 1);
+      cmd[3] = 0x80;
+      std::vector<u8> bad_bits = cmd;
+      bad_bits[2] = 0x13;
+      std::vector<u8> user_cmd = cmd;
+      user_cmd[0] = user_cmd[1] = user_cmd[2] = user_cmd[3] = 0;
+
+      // vec: the expected exception, or -1 for none.
+      auto add_enq = [&](const std::string &name, std::vector<u8> code, u64 src, u64 dest,
+                         const std::vector<u8> &data, int vec, ArchState s = {}) {
+        TestCase tc;
+        tc.name = name;
+        tc.category = cat;
+        tc.code = std::move(code);
+        s.rdi = src;
+        s.rax = dest;
+        s.rflags = initial_flags(FL_ARITH, FL_ARITH & ~FL_ZF);
+        tc.initial = s;
+        tc.flags_mask = FL_ALL;
+        tc.init_data = data;
+        tc.enable_paging = true;
+        tc.expect_fault = vec >= 0;
+        tc.expected_vector = vec;
+        tests.push_back(std::move(tc));
+      };
+      add_enq("enqcmds rax,[rdi] to memory: dropped, ZF=1", ENQCMDS, DATA_ADDR, dst, cmd, -1);
+      add_enq("enqcmds eax,[edi] (67h): 32-bit addresses",
+              {0x67, 0xF3, 0x0F, 0x38, 0xF8, 0x07}, 0xFFFFFFFF00000000ULL | DATA_ADDR,
+              0xFFFFFFFF00000000ULL | dst, cmd, -1);
+      add_enq("enqcmds source bits 30:20 not zero → #GP(0)", ENQCMDS, DATA_ADDR, dst, bad_bits, 13);
+      add_enq("enqcmds destination not 64-byte aligned → #GP(0)", ENQCMDS, DATA_ADDR, dst + 8, cmd, 13);
+      add_enq("enqcmds destination unmapped → #PF (write)", ENQCMDS, DATA_ADDR, unmapped, cmd, 14);
+      add_enq("enqcmds source unmapped → #PF", ENQCMDS, unmapped, dst, cmd, 14);
+      add_enq("enqcmds source unmapped, destination misaligned → #PF (source first)",
+              ENQCMDS, unmapped, dst + 8, cmd, 14);
+      add_enq("enqcmds source bits 30:20 not zero, destination unmapped → #GP(0)",
+              ENQCMDS, DATA_ADDR, unmapped, bad_bits, 13);
+      add_enq("enqcmds destination misaligned and unmapped → #GP(0) (alignment first)",
+              ENQCMDS, DATA_ADDR, unmapped + 8, cmd, 13);
+      {
+        // Data breakpoints: on writes at the destination, which the
+        // dropped store hits, and on reads in the source.
+        ArchState s;
+        s.dr[0] = dst;
+        s.dr7 = 0x400 | 0x1 | (1ull << 16) | (3ull << 18);  // L0, R/W0 = 01, LEN0 = 4 bytes
+        add_enq("enqcmds data bp on writes at the destination → #DB",
+                {0xF3, 0x0F, 0x38, 0xF8, 0x07, 0x90, 0xF4}, DATA_ADDR, dst, cmd, 1, s);
+        s.dr[0] = DATA_ADDR + 8;
+        s.dr7 = 0x400 | 0x1 | (3ull << 16) | (3ull << 18);  // L0, R/W0 = 11, LEN0 = 4 bytes
+        add_enq("enqcmds data bp on reads in the source → #DB",
+                {0xF3, 0x0F, 0x38, 0xF8, 0x07, 0x90, 0xF4}, DATA_ADDR, dst, cmd, 1, s);
+      }
+      add_enq("enqcmd rax,[rdi], IA32_PASID not valid → #GP(0)", ENQCMD, DATA_ADDR, dst, user_cmd, 13);
+      add_enq("enqcmd source unmapped, IA32_PASID not valid → #GP(0) (before the read)",
+              ENQCMD, unmapped, dst, user_cmd, 13);
+      // ModRM.mod = 11 is undefined for both, unless the host has USER_MSR
+      // (CPUID.(7,1):EDX[15]), where the forms are UWRMSR and URDMSR.
+      u32 eax71, ebx71, ecx71, edx71;
+      __cpuid_count(7, 1, eax71, ebx71, ecx71, edx71);
+      if (!(edx71 & (1u << 15))) {
+        add_enq("enqcmds register form → #UD", {0xF3, 0x0F, 0x38, 0xF8, 0xC7}, DATA_ADDR, dst, cmd, 6);
+        add_enq("enqcmd register form → #UD", {0xF2, 0x0F, 0x38, 0xF8, 0xC7}, DATA_ADDR, dst, cmd, 6);
+      }
+    }
   }
 
   // =====================================================================

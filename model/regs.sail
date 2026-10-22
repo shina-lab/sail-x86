@@ -689,6 +689,7 @@ register has_rdpid     : bool  // CPUID.07H:ECX[22] — RDPID (F3 0F C7 /7)
 register has_crc32     : bool
 register has_movdiri   : bool
 register has_movdir64b : bool
+register has_enqcmd    : bool  // CPUID.07H:ECX[29] — ENQCMD, ENQCMDS and IA32_PASID
 register has_xsave     : bool  // XSAVE/XRSTOR, XSETBV/XGETBV, XCR0 (CPUID.01H:ECX[26])
 register has_avx512    : bool  // silicon support (separate from XCR0 enable)
 register has_avx512_fp16 : bool  // CPUID.07H:EDX[23] — AVX512-FP16 (EVEX maps 5 and 6, and 0F3A forms)
@@ -705,6 +706,17 @@ register has_waitpkg   : bool  // CPUID.07H:ECX[5] — TPAUSE, UMONITOR, UMWAIT 
 // UMONITOR, consumed by UMWAIT.  Stores to the monitored range are not
 // tracked; UMWAIT is taken to run to its deadline, which the SDM allows.
 register umonitor_armed : bool = false
+
+// IA32_PASID (D93H; SDM Vol.2A ENQCMD, and Vol.4 Table 2-2): bits 19:0
+// hold the process address space identifier that ENQCMD puts in bits 19:0
+// of its command, bit 31 whether it is valid (ENQCMD is #GP(0) while it is
+// 0); bits 30:20 and 63:32 are reserved.  The MSR exists with ENQCMD.  The
+// model starts it at 0, no valid PASID, as a thread that was given none
+// has it (a KVM guest, which cannot write it, runs with that value).
+// XSAVES and XRSTORS manage it as supervisor state component 10, PASID
+// state (CPUID.0DH.01H:ECX[10]), which the model does not implement:
+// IA32_XSS supports no component.
+register IA32_PASID : qword = zeros()
 
 // =========================================================================
 // Intel AMX tile state (SDM Vol.1 Chapter 19)
@@ -817,7 +829,8 @@ function enable_features_v1() = {
   has_amx_bf16 = false;
   has_prefetchw = false;
   has_cldemote = false;
-  has_waitpkg = false
+  has_waitpkg = false;
+  has_enqcmd = false
 }
 
 // x86-64-v2: Nehalem+ (SSE4.2, POPCNT, CMPXCHG16B)
@@ -885,7 +898,8 @@ function enable_features_all() = {
   has_amx_int8 = true;
   has_amx_bf16 = true;
   has_cldemote = true;
-  has_waitpkg = true
+  has_waitpkg = true;
+  has_enqcmd = true
 }
 
 // =========================================================================

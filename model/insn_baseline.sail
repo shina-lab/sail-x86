@@ -171,6 +171,7 @@ function cpuid(leaf, subleaf) = {
         if has_cldemote   then ecx = ecx | 0x02000000;  // bit 25 (CLDEMOTE)
         if has_movdiri    then ecx = ecx | 0x08000000;  // bit 27
         if has_movdir64b  then ecx = ecx | 0x10000000;  // bit 28
+        if has_enqcmd     then ecx = ecx | 0x20000000;  // bit 29 (ENQCMD)
         var edx : dword = 0x00000000;
         if has_avx512     then edx = edx | 0x00000100;  // bit 8 (AVX512_VP2INTERSECT)
         if has_avx512_fp16 then edx = edx | 0x00800000; // bit 23 (AVX512_FP16)
@@ -485,6 +486,74 @@ function exec_umonitor(r, pfx) = {
   };
   let _ : byte = read_mem(struct { seg = resolve_seg(pfx, DS), addr = ea });
   umonitor_armed = true
+}
+
+// ENQCMD r, m512 (F2 0F 38 F8 /r) and ENQCMDS r, m512 (F3 0F 38 F8 /r),
+// mod != 11 — SDM Vol.2A; CPUID.07H.00H:ECX.ENQCMD[29].  Each reads 64
+// bytes of command data from the source (an ordinary load, no alignment)
+// and sends a command built from them with an enqueue store to the
+// destination, whose offset in ES (no override) is the register operand
+// at the address size and whose linear address must be 64-byte aligned.
+// ENQCMD requires a valid IA32_PASID and bits 31:0 of the source to be
+// zero, in whose place the command gets the PASID and a privilege bit of
+// 0 (user); ENQCMDS, CPL 0 only, requires bits 30:20 to be zero and sends
+// the source as it is.  The enqueue store returns a status in ZF: 0 when a
+// device's enqueue register accepted the command, 1 (retry) otherwise,
+// and "if the destination address was not an enqueue register (including
+// the case of a memory address) ... the store is dropped and is written
+// neither to MMIO nor to memory".  The model has no device with an
+// enqueue register, so a store that address translation lets through is
+// dropped with ZF = 1; the other arithmetic flags are cleared.
+//
+// The SDM lists the exceptions in no order; the checks follow the one a
+// Xeon Platinum 8562Y+ (Emerald Rapids) shows.  The PASID and CPL checks
+// come before the source is read: at CPL 3, ENQCMD with IA32_PASID[31] = 0
+// and ENQCMDS are #GP(0) with an unmapped source.  The whole source is
+// read before its bits are checked (one that crosses into an unmapped page
+// is #PF however its first bytes look), and both before the destination
+// is translated: an unmapped source with a misaligned or unmapped
+// destination is a #PF on the source, wrong bits with an unmapped
+// destination #GP(0).  The destination's alignment comes before its
+// translation, which is a write's (#PF with W = 1) and hits a data
+// breakpoint on writes although nothing is written.  (The mod = 11 forms
+// are URDMSR and UWRMSR with USER_MSR, CPUID.07H.01H:EDX[15], which the
+// model does not implement: #UD.)
+val exec_enqcmd : (Prefixes, bool) -> unit
+function exec_enqcmd(pfx, supervisor) = {
+  if ~(has_enqcmd) then raise_UD();
+  let (reg, src) = fetch_modrm(pfx);
+  let m : MemRef = match src { RM_mem(m) => m, RM_reg(_) => raise_UD() };
+  if supervisor then {
+    if cur_cpl != 0 then raise_GP0()
+  } else {
+    if IA32_PASID[31] == bitzero then raise_GP0()
+  };
+  let data : zmmword = read_mem(m);
+  // The destination is not the ModR/M operand: a RIP-relative source's
+  // fixup in seg_linear must not move it.
+  rip_rel_pending = false;
+  if supervisor then {
+    if data[30..20] != zeros() then raise_GP0()
+  } else {
+    if data[31..0] != zeros() then raise_GP0()
+  };
+  // COMMAND := (SRC & ~FFFFFFFFH) | (IA32_PASID & FFFFFH) for ENQCMD,
+  // DEST := SRC for ENQCMDS: the data a device's enqueue register would get.
+  let _command : zmmword =
+    if supervisor then data
+    else data[511..32] @ 0b000000000000 @ IA32_PASID[19..0];
+  let asz = get_address_size(pfx);
+  let dst : MemRef = struct { seg = ES, addr = zero_extend(v(asz, reg)) };
+  let lin : qword = seg_linear(dst, 64);
+  if lin[5..0] != 0b000000 then raise_GP0();
+  note_data_access(lin, 64, true);
+  let _ = translate_addr(lin, PT_Write);
+  CF = 0b0;
+  PF = 0b0;
+  AF = 0b0;
+  ZF = 0b1;
+  SF = 0b0;
+  OF = 0b0
 }
 
 val dispatch_2byte_gpr : (range(0, 255), Prefixes) -> unit
@@ -1284,6 +1353,13 @@ function dispatch_2byte_gpr(op, pfx) = {
         if ~(has_amx_tile) then raise_GP0();
         if (msr_val & ~(0x0000000000040000 : qword)) != zeros() then raise_GP0();
         if ecx == 0x000001C4 then IA32_XFD = msr_val else IA32_XFD_ERR = msr_val
+      } else if ecx == 0x00000D93 then {
+        // IA32_PASID (D93H): exists with ENQCMD; bits 19:0 (PASID) and
+        // 31 (valid) are writable, and a value that sets a reserved bit,
+        // 30:20 or 63:32, is #GP(0) (SDM WRMSR).
+        if ~(has_enqcmd) then raise_GP0();
+        if (msr_val & ~(0x00000000800FFFFF : qword)) != zeros() then raise_GP0();
+        IA32_PASID = msr_val
       } else if ecx >=_u 0x00000480 & ecx <=_u 0x00000491 then {
         // VMX capability MSRs are read-only — #GP(0) on write
         raise_GP0()
@@ -1475,6 +1551,8 @@ function dispatch_2byte_gpr(op, pfx) = {
         // IA32_XFD and IA32_XFD_ERR exist with XFD (here with AMX)
         0x000001C4 => { if ~(has_amx_tile) then raise_GP0(); IA32_XFD },
         0x000001C5 => { if ~(has_amx_tile) then raise_GP0(); IA32_XFD_ERR },
+        // IA32_PASID exists with ENQCMD
+        0x00000D93 => { if ~(has_enqcmd) then raise_GP0(); IA32_PASID },
         0xC0000100 => SegCache[FS].seg_base,
         0xC0000101 => SegCache[GS].seg_base,
         0xC0000102 => KERNEL_GS_BASE,

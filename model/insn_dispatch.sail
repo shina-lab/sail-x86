@@ -575,6 +575,10 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let dst_addr : qword = zero_extend(v(asz, reg));
         if (dst_addr & 0x000000000000003F) != zeros() then raise_GP0();
         write_mem(dst_addr, src_val)
+      } else if op3 == 248 & (get_mandatory_prefix(pfx) == MP_F2
+                              | get_mandatory_prefix(pfx) == MP_F3) then {
+        // ENQCMD r, m512 (F2 0F 38 F8) and ENQCMDS r, m512 (F3 0F 38 F8)
+        exec_enqcmd(pfx, get_mandatory_prefix(pfx) == MP_F3)
       } else if 200 <= op3 & op3 <= 205 & get_mandatory_prefix(pfx) == MP_NONE then {
         // SHA extensions (NP 0F 38 C8-CD)
         if ~(has_sha) then raise_UD();
