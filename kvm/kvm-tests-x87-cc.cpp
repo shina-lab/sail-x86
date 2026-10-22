@@ -87,7 +87,7 @@ TestCase x87_case(const std::string &category, const std::string &name, std::vec
 
 // The status word's exception flags, ES and B, and its condition codes.
 constexpr u16 SW_EXCEPTIONS = 0x003F;
-constexpr u16 C0 = 0x0100, C1 = 0x0200, C3 = 0x4000;
+constexpr u16 C0 = 0x0100, C1 = 0x0200, C2 = 0x0400, C3 = 0x4000;
 const std::vector<u8> FFREE_ST0 = {0xDD, 0xC0}, FFREE_ST1 = {0xDD, 0xC1};
 
 }  // namespace
@@ -102,8 +102,10 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
   // an exception"; FSINCOS and FPTAN push nothing.  Inside it, C2 := 0
   // (SDM Vol.2A, each instruction's Description and Operation).  C0 and C3
   // are undefined, and C1 is undefined when C2 is 1 (Vol.1 Table 8-1,
-  // "Undefined if C2 = 1").  Infinities, NaNs and unsupported formats are
-  // not out of range but invalid (#IA) or propagated, with C2 = 0.
+  // "Undefined if C2 = 1").  An infinity is not out of range but invalid,
+  // with "clear condition code flag C2 to 0" (Vol.1 Table 8-10; APM Vol.1
+  // Table 6-21).  For a NaN or an unsupported format, which is #IA or
+  // propagated, the manuals give no C2, and it is not compared.
   {
     const std::string cat = "x87 trig range";
     struct Op { const char *name; u8 modrm; bool pushes; };
@@ -112,7 +114,7 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
     // exact: the result is exact (sin, tan 0 = 0, cos 0 = 1); inexact and
     // the special values are freed, and C1 (roundup) and the exception
     // flags are not compared there.
-    enum Kind { EXACT, INEXACT, OUT_OF_RANGE, SPECIAL };
+    enum Kind { EXACT, INEXACT, OUT_OF_RANGE, INFINITE, NOT_A_NUMBER };
     struct Src { const char *name; F80 v; Kind kind; };
     const Src srcs[] = {
       {"+0", {0, 0x0000}, EXACT},
@@ -127,10 +129,10 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
       {"1e300", {0xBE2DE0F1B0B0E5EAull, 0x43E3}, OUT_OF_RANGE},
       {"largest finite", {~0ull, 0x7FFE}, OUT_OF_RANGE},
       {"-largest finite", {~0ull, 0xFFFE}, OUT_OF_RANGE},
-      {"+inf", {INT_BIT, 0x7FFF}, SPECIAL},
-      {"-inf", {INT_BIT, 0xFFFF}, SPECIAL},
-      {"QNaN", {0xC000000000000001ull, 0x7FFF}, SPECIAL},
-      {"unnormal, exponent 403EH", {1, 0x403E}, SPECIAL},
+      {"+inf", {INT_BIT, 0x7FFF}, INFINITE},
+      {"-inf", {INT_BIT, 0xFFFF}, INFINITE},
+      {"QNaN", {0xC000000000000001ull, 0x7FFF}, NOT_A_NUMBER},
+      {"unnormal, exponent 403EH", {1, 0x403E}, NOT_A_NUMBER},
     };
     for (const Op &op : ops) {
       for (const Src &src : srcs) {
@@ -138,7 +140,8 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
           u16 unmodeled = C0 | C3;
           std::vector<u8> after;
           if (src.kind == OUT_OF_RANGE) unmodeled |= C1;
-          if (src.kind == INEXACT || src.kind == SPECIAL) {
+          if (src.kind == NOT_A_NUMBER) unmodeled |= C2;
+          if (src.kind == INEXACT || src.kind == INFINITE || src.kind == NOT_A_NUMBER) {
             unmodeled |= C1 | SW_EXCEPTIONS;
             after = FFREE_ST0;
             if (op.pushes) after.insert(after.end(), FFREE_ST1.begin(), FFREE_ST1.end());
@@ -149,24 +152,39 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
         }
       }
     }
-    // A stack fault comes before the range check, which an out-of-range
-    // source then does not pass: FSINCOS and FPTAN with ST(7) full write
-    // the indefinite to both results (masked) or change nothing but the
-    // status word (unmasked), with C2 = 0 either way; an empty ST(0) is
-    // the same for all four.  Unmasked, the instruction ends before it
-    // would change C0 and C3, and the model leaves them.
-    const F80 big = {INT_BIT, 0x403E};
+    // Stack faults.  FSINCOS and FPTAN push only in range ("IF ST(0) <
+    // 2^63 THEN ... TOP := TOP - 1; ... ELSE ... C2 := 1;", SDM Vol.2A
+    // FPTAN and FSINCOS, Operation; "does not change the value in ST(0)",
+    // APM Vol.5), so an out-of-range source with ST(7) full loads no
+    // register and is no stack overflow: C2 = 1 and nothing else changes,
+    // with the invalid operation masked or not.  An in-range source with
+    // ST(7) full is a stack overflow, and an empty ST(0) a stack underflow
+    // for all four.  Masked, the result is the indefinite; FSINCOS and
+    // FPTAN have two, and the manuals do not say which gets it, so both
+    // are freed after FNSTSW.  Unmasked, nothing but the status word
+    // changes.  C1 is the fault's (Vol.1 §8.5.1.1); C0 and C3 are
+    // undefined, and C2 after a stack fault the manuals do not give.
+    const F80 big = {INT_BIT, 0x403E}, zero = {0, 0x0000};
     for (const Op &op : ops) {
       for (u16 cw : {0x037F, 0x037E}) {
-        const char *how = cw == 0x037F ? "masked" : "unmasked";
-        u16 unmodeled = cw == 0x037F ? C0 | C3 : 0;
-        if (op.pushes)
-          tests.push_back(x87_case(cat, std::format("{} 2^63, ST(7) full ({} overflow)", op.name, how),
+        bool masked = cw == 0x037F;
+        const char *how = masked ? "masked" : "unmasked";
+        std::vector<u8> after;
+        if (masked && op.pushes) {
+          after = FFREE_ST0;
+          after.insert(after.end(), FFREE_ST1.begin(), FFREE_ST1.end());
+        }
+        if (op.pushes) {
+          tests.push_back(x87_case(cat, std::format("{} 2^63, ST(7) full (out of range, {})", op.name, how),
                                    x87_image(cw, 0x4700, {big, five, {}, {}, {}, {}, {}, seven}),
-                                   {0xD9, op.modrm}, unmodeled, {}));
+                                   {0xD9, op.modrm}, C0 | C1 | C3, {}));
+          tests.push_back(x87_case(cat, std::format("{} +0, ST(7) full ({} overflow)", op.name, how),
+                                   x87_image(cw, 0x4700, {zero, five, {}, {}, {}, {}, {}, seven}),
+                                   {0xD9, op.modrm}, C0 | C2 | C3, after));
+        }
         tests.push_back(x87_case(cat, std::format("{} ST(0) empty ({} underflow)", op.name, how),
                                  x87_image(cw, 0x4700, {std::nullopt, five}), {0xD9, op.modrm},
-                                 unmodeled, {}));
+                                 C0 | C2 | C3, after));
       }
     }
   }

@@ -37,6 +37,34 @@ const std::vector<KnownDeviation> DEVIATIONS = {
     {true, "kmovw k1,k2 [EM MP]*",
      "Zen 4 executes VEX KMOVW with CR0.EM = 1; the APM's KMOVW page (Vol.4 p. 212) refers to "
      "§3.2, whose §3.2.1 (p. 1878) lists \"CR0.EM = 1\" under \"Invalid opcode, #UD\""},
+
+    // x87 stack faults and condition codes (kvm-tests-x87-cc.cpp)
+    {false, "fsincos 2^63, ST(7) full (out of range*",
+     "An Emerald Rapids treats a source of 2^63 (out of range) with ST(7) full as a stack "
+     "overflow: masked it pushes the indefinite as both results with C2 = 0, unmasked it sets "
+     "IE, SF and ES.  The SDM pushes only in range (FSINCOS Operation, Vol.2A p.3-383: \"IF "
+     "ST(0) < 2^63 THEN ... TOP := TOP - 1; ... ELSE (* Source operand out of range *) C2 := "
+     "1;\"), and \"The instruction does not raise an exception when the source operand is out "
+     "of range\" (Description, p.3-382)."},
+    {false, "fptan 2^63, ST(7) full (out of range*",
+     "An Emerald Rapids treats a source of 2^63 (out of range) with ST(7) full as a stack "
+     "overflow: masked it pushes the indefinite as both results with C2 = 0, unmasked it sets "
+     "IE, SF and ES.  The SDM pushes only in range (FPTAN Operation, Vol.2A p.3-371: \"IF "
+     "ST(0) < 2^63 THEN ... TOP := TOP - 1; ST(0) := 1.0; ELSE (* Source operand is "
+     "out-of-range *) C2 := 1;\"), and \"The instruction does not raise an exception when the "
+     "source operand is out of range\" (Description, p.3-370)."},
+    {true, "fsincos 2^63, ST(7) full (out of range*",
+     "A Zen 4 treats a source of 2^63 (out of range) with ST(7) full as a stack overflow: "
+     "masked it pushes the indefinite as both results with C2 = 0, unmasked it sets IE, SF and "
+     "ES.  The APM: \"If the source operand is outside this range, the instruction sets the C2 "
+     "bit in the x87 status word to 1 and does not change the value in ST(0)\" (Vol.5 FSINCOS, "
+     "p.298), so it loads no register and cannot overflow the stack."},
+    {true, "fptan 2^63, ST(7) full (out of range*",
+     "A Zen 4 treats a source of 2^63 (out of range) with ST(7) full as a stack overflow: "
+     "masked it pushes the indefinite as both results with C2 = 0, unmasked it sets IE, SF and "
+     "ES.  The APM: \"If the source value lies outside the specified range, the instruction "
+     "sets the C2 bit of the x87 status word to 1 and does not change the value in ST(0)\" "
+     "(Vol.5 FPTAN, p.286), so it loads no register and cannot overflow the stack."},
 };
 
 bool host_is_amd() {

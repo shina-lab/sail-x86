@@ -183,25 +183,33 @@ function x87_write_result(i, r) =
 // "If the source operand is outside the acceptable range [-2^63 to
 // +2^63], the C2 flag in the FPU status word is set, and the value in
 // register ST(0) remains unchanged.  The instruction does not raise an
-// exception"; otherwise C2 := 0 (SDM Vol.2A FSIN, FCOS, FSINCOS and FPTAN,
-// Description and Operation).  Out of range is a finite |x| >= 2^63: an
-// exponent of 403EH or more with the integer bit set.  Infinities and
-// unsupported formats, whatever their exponent, are invalid operands
-// instead ("Floating-Point Exceptions": #IA).  A stack fault comes first,
-// and its indefinite results are written even for an out-of-range source;
-// C2 is cleared even when an unmasked stack fault ends the instruction.
-// Both vendors behave so (checked natively on a Zen 4 and an Emerald
-// Rapids).
+// exception when the source operand is out of range"; otherwise C2 := 0
+// (SDM Vol.2A FSIN, FCOS, FSINCOS and FPTAN, Description and Operation;
+// APM Vol.5 FPTAN, FSINCOS: "sets the C2 bit ... to 1 and does not change
+// the value in ST(0)").  Out of range is a finite |x| >= 2^63: an exponent
+// of 403EH or more with the integer bit set.  An infinity is an invalid
+// operand instead: "Return the QNaN floating-point indefinite; clear
+// condition code flag C2 to 0" (SDM Vol.1 Table 8-10, p.8-27; APM Vol.1
+// Table 6-21, p.335), and so is an unsupported format (#IA), whatever its
+// exponent.  The Operation pushes only in range, so an out-of-range
+// FSINCOS or FPTAN loads no register and has no stack overflow, a load
+// into a non-empty register (Vol.1 §8.5.1.1).  An empty ST(0) is a stack
+// underflow, with no source to range-check.  The manuals give no C2 for a
+// NaN or unsupported-format source, nor after a stack fault; the model
+// clears it first, so also when an unmasked stack fault ends the
+// instruction.
 val x87_trig_source : bool -> option(fp80)
 function x87_trig_source(pushes) = {
   x87_sw[10] = 0b0;
   let x = x87_operand(0);
-  if pushes then x87_check_second_result();
   let exp = unsigned(x[78..64]);
   if ~(x87_stack_faulted) & exp >= 16446 & exp < 32767 & x[63] == bitone then {  // 403EH, 7FFFH
     x87_sw[10] = 0b1;
     None()
-  } else Some(x)
+  } else {
+    if pushes then x87_check_second_result();
+    Some(x)
+  }
 }
 
 // FPREM (nearest = false) and FPREM1 (nearest = true): ST(0) := the
