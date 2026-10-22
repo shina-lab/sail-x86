@@ -431,8 +431,6 @@ function dispatch_evex_fma(op, pfx) = {
 
   // 0F38 C7: VGATHERPF0QPS/QPD, VGATHERPF1QPS/QPD (66) [PF]
   // Gather prefetch (qword index) — architectural NOP
-  // 0F38 C7: VGATHERPF0QPS/QPD, VGATHERPF1QPS/QPD (66) [PF]
-  // Gather prefetch (qword index) — architectural NOP
   199 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
