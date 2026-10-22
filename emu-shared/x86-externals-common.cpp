@@ -69,6 +69,23 @@ static void set_rounding(int rc) {
 // Sync host FPU rounding from MXCSR (bits 14:13).
 #define SYNC_MXCSR_RC() set_rounding((mxcsr_state.mxcsr >> 13) & 3)
 
+// ROUNDSS/SD/PS/PD and VRNDSCALE imm8 (SDM Vol. 2): imm8[7:4] is the scale m
+// (VRNDSCALE only; ROUND* passes 0), imm8[3] suppresses the precision
+// exception (no effect on the result), imm8[2] selects MXCSR.RC (1) or
+// imm8[1:0] (0) as the rounding direction.  The result is
+// round(2^m * x) / 2^m.  A source of magnitude >= 2^(p-1-m) (p = precision
+// in bits) is already a multiple of 2^-m and is returned as is (SNaN quieted).
+template <typename F>
+static F round_scaled(F x, u64 imm, u32 mxcsr, int precision) {
+  int m = (int)((imm >> 4) & 0xF);
+  if (!(std::fabs(x) < std::ldexp(F(1), precision - 1 - m))) return x + F(0);
+  int saved = fegetround();
+  set_rounding((imm & 0x04) ? (int)((mxcsr >> 13) & 3) : (int)(imm & 3));
+  F r = std::nearbyint(std::ldexp(x, m));
+  fesetround(saved);
+  return std::ldexp(r, -m);
+}
+
 // DAZ: Denormals-Are-Zeros (MXCSR bit 6) — flush denormal inputs to ±0
 static inline float f32_daz(float f, u32 mxcsr) {
   if (!(mxcsr & 0x0040))
@@ -342,15 +359,7 @@ u64 Model::z__f32_round(u64 a, u64 imm8) {
   a = f32_daz_bits(a, mxcsr_state.mxcsr);
   float fa;
   memcpy(&fa, &a, 4);
-  float fr;
-  int rc = imm8 & 3;
-  switch (rc) {
-    case 0: fr = nearbyintf(fa); break;  // round to nearest
-    case 1: fr = floorf(fa); break;    // round down
-    case 2: fr = ceilf(fa); break;     // round up
-    case 3: fr = truncf(fa); break;    // truncate
-    default: fr = fa; break;
-  }
+  float fr = round_scaled(fa, imm8 & 0x0F, mxcsr_state.mxcsr, 24);
   u32 r;
   memcpy(&r, &fr, 4);
   return r;
@@ -485,15 +494,7 @@ u64 Model::z__f64_round(u64 a, u64 imm8) {
   a = f64_daz_bits(a, mxcsr_state.mxcsr);
   double fa;
   memcpy(&fa, &a, 8);
-  double fr;
-  int rc = imm8 & 3;
-  switch (rc) {
-    case 0: fr = nearbyint(fa); break;
-    case 1: fr = floor(fa); break;
-    case 2: fr = ceil(fa); break;
-    case 3: fr = trunc(fa); break;
-    default: fr = fa; break;
-  }
+  double fr = round_scaled(fa, imm8 & 0x0F, mxcsr_state.mxcsr, 53);
   u64 r;
   memcpy(&r, &fr, 8);
   return r;
@@ -1560,22 +1561,11 @@ u64 Model::z__f64_exp2(u64 a) {
   return a;
 }
 
-// VRNDSCALE: round to number of fraction bits specified by imm8
-// imm8[3:0] = M (number of fraction bits), imm8[7:4] = rounding control
+// VRNDSCALE: round to 2^-imm8[7:4] (see round_scaled for the imm8 layout)
 u64 Model::z__f32_rndscale(u64 a, u64 imm) {
   float fa;
   memcpy(&fa, &a, 4);
-  // imm8[3] (RS): 0 = use imm8[1:0] for rounding, 1 = use MXCSR.RC
-  // imm8[1:0] (RC): 00=RN, 01=RD, 10=RU, 11=RZ
-  int rc = (imm & 8) ? 0 : (imm & 3);  // TODO: read MXCSR.RC when RS=1
-  float result;
-  switch (rc) {
-  case 0: result = nearbyintf(fa); break;  // round to nearest
-  case 1: result = floorf(fa); break;      // round down
-  case 2: result = ceilf(fa); break;       // round up
-  case 3: result = truncf(fa); break;      // round toward zero
-  default: result = nearbyintf(fa); break;
-  }
+  float result = round_scaled(fa, imm, mxcsr_state.mxcsr, 24);
   u32 r;
   memcpy(&r, &result, 4);
   return r;
@@ -1584,15 +1574,7 @@ u64 Model::z__f32_rndscale(u64 a, u64 imm) {
 u64 Model::z__f64_rndscale(u64 a, u64 imm) {
   double da;
   memcpy(&da, &a, 8);
-  int rc = (imm & 8) ? 0 : (imm & 3);
-  double result;
-  switch (rc) {
-  case 0: result = nearbyint(da); break;
-  case 1: result = floor(da); break;
-  case 2: result = ceil(da); break;
-  case 3: result = trunc(da); break;
-  default: result = nearbyint(da); break;
-  }
+  double result = round_scaled(da, imm, mxcsr_state.mxcsr, 53);
   memcpy(&a, &result, 8);
   return a;
 }
