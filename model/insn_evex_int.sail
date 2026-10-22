@@ -167,7 +167,7 @@ function dispatch_evex_int(op, pfx) = {
     // SDM MOVDQA,VMOVDQA32/64: a memory operand must be aligned on a 16
     // (EVEX.128)/32 (EVEX.256)/64 (EVEX.512) byte boundary or #GP is
     // generated; the F3/F2 forms are VMOVDQU* and have no such rule.
-    match (mp, src) { (MP_66, XRM_mem(m)) => evex_check_alignment_masked(m, vl / 8, pfx, vl / evex_elem(pfx)), _ => () };
+    match (mp, src) { (MP_66, XRM_mem(m)) => check_alignment(m, vl / 8), _ => () };
     let s = evex_src(vl, src);
     // Element size depends on prefix: F2→byte/word, others→dword/qword
     match mp {
@@ -198,7 +198,7 @@ function dispatch_evex_int(op, pfx) = {
           else (if pfx.rex_w then 8 else 4);
         let nbytes : {16, 32, 64} = match pfx.evex_ll { 0 => 16, 1 => 32, 2 => 64 , 3 => { raise_UD(); 16 } };
         // SDM MOVDQA,VMOVDQA32/64 (66 prefix): #GP unless aligned to the operand size
-        if get_mandatory_prefix(pfx) == MP_66 then evex_check_alignment_masked(m, nbytes, pfx, nbytes / elem_size);
+        if get_mandatory_prefix(pfx) == MP_66 then check_alignment(m, nbytes);
         evex_masked_mem_store(m, ZMM[src], mask, nbytes, elem_size)
       },
     }

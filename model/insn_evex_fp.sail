@@ -576,8 +576,7 @@ function dispatch_evex_fp(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let src2 = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let vl = evex_vl(pfx);
-    let eb : {32, 64} = if mp == MP_66 then 64 else 32;
-    match src2 { XRM_mem(m) => evex_check_alignment_masked(m, vl / 8, pfx, vl / eb), _ => () };
+    match src2 { XRM_mem(m) => check_alignment(m, vl / 8), _ => () };
     match pfx.evex_ll {
       0 => if mp == MP_66 then evex_write(dst, evex_wmask(pfx, 2), evex_src(128, src2))
              else evex_write(dst, evex_wmask(pfx, 4), evex_src(128, src2)),
@@ -610,7 +609,7 @@ function dispatch_evex_fp(op, pfx) = {
       XRM_mem(m) => {
         let elem : {4, 8} = if mp == MP_66 then 8 else 4;
         let nbytes : {16, 32, 64} = match pfx.evex_ll { 0 => 16, 1 => 32, 2 => 64 , 3 => { raise_UD(); 16 } };
-        evex_check_alignment_masked(m, nbytes, pfx, nbytes / elem);
+        check_alignment(m, nbytes);
         evex_masked_mem_store(m, ZMM[src], evex_kmask64(pfx), nbytes, elem)
       },
     }

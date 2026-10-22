@@ -156,19 +156,14 @@ function evex_kmask64(pfx) = {
   sign_extend(is_zero(to_bits(3, pfx.evex_aaa))) | read_kreg(pfx.evex_aaa)
 }
 
-// The alignment check of an aligned EVEX move (VMOVAPS/PD, VMOVDQA32/64):
-// #GP(0) unless the memory operand is aligned to its size, nbytes (SDM
-// MOVAPS: "the operand must be aligned on a 16-byte (128-bit version),
-// 32-byte (256-bit) or 64-byte (EVEX.512) boundary").  Like a fault on a
-// masked-off element, the check is suppressed when the writemask selects
-// none of the nelem elements: a Zen 4 and an Emerald Rapids both execute
-// VMOVAPS [rax+4]{k1}, zmm1 (and the load, and VMOVDQA32) with k1 = 0,
-// and the 128-bit form with only k1[15] set, but raise #GP when k1
-// selects any element.
-val evex_check_alignment_masked : forall 'a, 'a in {16, 32, 64}.
-  (MemRef, int('a), Prefixes, range(1, 64)) -> unit
-function evex_check_alignment_masked(m, nbytes, pfx, nelem) =
-  if (evex_kmask64(pfx) << (64 - nelem)) != zeros() then check_alignment(m, nbytes)
+// The aligned EVEX moves (VMOVAPS/PD, VMOVDQA32/64) check the alignment of
+// their memory operand whatever the writemask, also where it selects no
+// element: exception class E1 suppresses the #SS, #GP and #PF of an
+// "illegal address" for masked-off elements ("If fault suppression not
+// set, and ..."), but not the alignment #GP ("EVEX.512: Memory operand is
+// not 64-byte aligned", SDM Vol.2A Table 2-46), and APM MOVAPS says "A
+// memory operand that is not aligned causes a general-protection
+// exception" (Vol.4 p.284).  The handlers call check_alignment.
 
 struct Writemask('n : Int), 'n > 0 = {
   bits : bits('n),

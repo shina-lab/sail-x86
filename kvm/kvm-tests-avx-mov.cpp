@@ -412,7 +412,9 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
     }
 
     // The EVEX aligned moves share the alignment rule of the non-temporal
-    // stores: VMOVAPS/VMOVAPD (28/29) and VMOVDQA32/64 (66 0F 6F/7F).
+    // stores: VMOVAPS/VMOVAPD (28/29) and VMOVDQA32/64 (66 0F 6F/7F).  k1
+    // selects every element, so that the moves under it (the EVEX.aaa
+    // variants) fault as well; the masked-off ones follow.
     {
       struct { const char *name; int pp; bool W; u8 load, store; } al[] = {
         {"VMOVAPS", 0, false, 0x28, 0x29},
@@ -425,14 +427,42 @@ void add_avx_mov_tests(std::vector<TestCase> &tests) {
           Evex e; e.mm = 1; e.pp = a.pp; e.W = a.W; e.LL = ll;
           e.opcode = a.store; e.reg = 1;
           add_store_fault(std::format("EVEX {} [rdi+1],{}1 misaligned", a.name, vl_name[ll]), e.encode_mr_mem());
+          tests.back().initial.kregs[1] = ~u64(0);
           e.opcode = a.load; e.reg = 0;
           TestCase f; f.category = cat;
           f.name = std::format("EVEX {} {}0,[rdi+1] misaligned", a.name, vl_name[ll]);
           f.code = e.encode_rm_mem();
           f.initial = {.rdi = DATA_ADDR + 1};
+          f.initial.kregs[1] = ~u64(0);
           f.expect_fault = true; f.expected_vector = 13;
           f.init_data = fill;
           tests.push_back(std::move(f));
+        }
+      }
+      // The same under a writemask that selects no element: the alignment
+      // #GP is the one memory fault of class E1 without "If fault
+      // suppression not set" ("EVEX.512: Memory operand is not 64-byte
+      // aligned", SDM Vol.2A Table 2-46; APM Vol.4 MOVAPS: "A memory
+      // operand that is not aligned causes a general-protection
+      // exception").
+      for (auto &a : al) {
+        for (int ll : {0, 2}) {
+          Evex e; e.mm = 1; e.pp = a.pp; e.W = a.W; e.LL = ll; e.aaa = 1;
+          for (bool store : {false, true}) {
+            e.opcode = store ? a.store : a.load; e.reg = store ? 1 : 0;
+            TestCase f; f.category = cat;
+            f.name = store ? std::format("Masked-off misaligned EVEX {} [rdi+1]{{k1}},{}1",
+                                         a.name, vl_name[ll])
+                           : std::format("Masked-off misaligned EVEX {} {}0{{k1}},[rdi+1]",
+                                         a.name, vl_name[ll]);
+            f.code = store ? e.encode_mr_mem() : e.encode_rm_mem();
+            f.initial = with_vector_inputs(src, 0x2);
+            f.initial.rdi = DATA_ADDR + 1;
+            f.initial.kregs[1] = 0xFFFFFFFFFFFF0000ULL;
+            f.expect_fault = true; f.expected_vector = 13;
+            f.init_data = fill;
+            tests.push_back(std::move(f));
+          }
         }
       }
     }

@@ -166,6 +166,22 @@ const std::vector<KnownDeviation> DEVIATIONS = {
     {false, "VGATHERDPD ymm{k1} element *", GATHER_EVEX_UPPER},
     {false, "VGATHERQPD xmm{k1} element *", GATHER_EVEX_UPPER},
     {false, "VGATHERQPD ymm{k1} element *", GATHER_EVEX_UPPER},
+
+    // VEX and EVEX encodings (evex).
+    {false, "Masked-off misaligned EVEX *",
+     "Emerald Rapids runs a misaligned VMOVAPS/VMOVAPD/VMOVDQA32/VMOVDQA64 whose writemask "
+     "selects no element, without #GP; the alignment #GP of class E1 has no fault "
+     "suppression: SDM Vol.2A Table 2-46 (p.2-49), \"EVEX.512: Memory operand is not 64-byte "
+     "aligned\" (the other memory faults: \"If fault suppression not set, and ...\"); APM "
+     "Vol.4 MOVAPS (p.284), \"A memory operand that is not aligned causes a "
+     "general-protection exception\""},
+    {true, "Masked-off misaligned EVEX *",
+     "Zen 4 runs a misaligned VMOVAPS/VMOVAPD/VMOVDQA32/VMOVDQA64 whose writemask selects no "
+     "element, without #GP; the alignment #GP of class E1 has no fault suppression: SDM "
+     "Vol.2A Table 2-46 (p.2-49), \"EVEX.512: Memory operand is not 64-byte aligned\" (the "
+     "other memory faults: \"If fault suppression not set, and ...\"); APM Vol.4 MOVAPS "
+     "(p.284), \"A memory operand that is not aligned causes a general-protection "
+     "exception\""},
 };
 
 bool host_is_amd() {
