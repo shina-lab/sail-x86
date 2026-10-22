@@ -932,23 +932,26 @@ void Model::z__f80_scale(lbits *rop, lbits a, lbits b) {
 //     QQ := (ST(0) / ST(1)) / 2^(D − N) truncated toward zero (both);
 //     ST(0) := ST(0) – (ST(1) ∗ QQ ∗ 2^(D − N));
 //
-// Both vendors take N = 32 + D mod 32, which AMD's manual specifies (as
-// QEMU records): on 4 million random operand pairs, normals, denormals and
-// pseudo-denormals with D from -84 to 220, this computation gave the
-// hardware's results and condition codes on a Zen 4 and an Emerald
-// Rapids.  The computation is on the 64-bit significands, so it
-// is exact, whatever the rounding control (the "exact result" of the
-// Description); a host fmodl or remainderl would loop to the complete
-// remainder instead.  The exponent of a denormal operand is that of its
-// normalized significand, and the result is normalized, or denormal where
-// its exponent requires; a pseudo-denormal dividend that is the result
-// (|ST(0)| < |ST(1)|) comes back with exponent 1, as on both CPUs.
+// N = 32 + D mod 32 on both vendors: the APM's rule ("N = 32 + (ExpDiff
+// mod 32)", Vol.5 FPREM and FPREM1, Action) and, for Intel, the model's
+// choice of the implementation-dependent N.  The computation is on the
+// 64-bit significands, so it is exact, whatever the rounding control (the
+// "exact result" of the Description); a host fmodl or remainderl would
+// loop to the complete remainder instead.  The exponent of a denormal
+// operand is that of its normalized significand, and the result is
+// normalized, or denormal where its exponent requires; a pseudo-denormal
+// dividend that is the result (|ST(0)| < |ST(1)|) comes back with
+// exponent 1: pseudo-denormals "are handled correctly, considering the
+// biased exponent as 1" (SDM Vol.1 §8.2.2), "the processor accepts
+// pseudo-denormal source operands but it does not produce pseudo-denormal
+// results" (APM Vol.1 §6.3.3.3).
 //
-// The special operands follow Table 3-31 (FPREM) and 3-32 (FPREM1): an
+// The special operands follow Table 3-33 (FPREM) and 3-34 (FPREM1): an
 // unsupported format, an infinite dividend or a zero divisor give the
-// indefinite (#IA); a NaN, the QNaN that Vol.1 Table 4-7 selects (as in
-// Bochs, with a tie of significands going to the positive NaN); a zero
-// dividend or an infinite divisor give ST(0).
+// indefinite (#IA); a NaN, the QNaN that Vol.1 Table 4-8 selects (as in
+// Bochs, with a tie of significands, which the SDM does not decide and the
+// APM leaves undefined (Vol.1 Table 6-7, note 4), going to the positive
+// NaN); a zero dividend or an infinite divisor give ST(0).
 //
 // Returns the result in bits 79..0 and Q0, Q1, Q2 and C2 in bits 80..83,
 // all zero for a NaN result, which has no quotient.

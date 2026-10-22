@@ -217,11 +217,14 @@ function x87_trig_source(pushes) = {
 // partial remainder, which the externs compute (__f80_prem).  "C2 := 0;
 // C0, C3, C1 := LeastSignificantBits(Q); (* Q2, Q1, Q0 *)" for a complete
 // reduction, "C2 := 1" for a partial one (SDM Vol.2A FPREM and FPREM1,
-// Operation), where C0, C3 and C1 are cleared.  A NaN result (an invalid
-// operation, a NaN operand, a masked stack fault) has no quotient: C2 and
-// C1 are cleared, C0 and C3 left.  C2 is cleared also when an unmasked
-// stack fault ends the instruction.  Both vendors behave so (checked
-// natively on a Zen 4 and an Emerald Rapids).
+// Operation).  There the SDM leaves C0, C3 and C1 open and the APM clears
+// them ("SW.C2 = 1 / {SW.C0, SW.C3, SW.C1} = 0", Vol.5 FPREM and FPREM1,
+// Action), as the model does on both vendors.  A NaN result (an invalid
+// operation, a NaN operand, a masked stack fault) has no quotient, and the
+// manuals give only C2 := 0 for a zero divisor or an infinite dividend
+// (SDM Vol.1 Table 8-10, APM Vol.1 Table 6-21) and C1 := 0 for a stack
+// underflow; the model clears C2 and C1 and leaves C0 and C3.  It clears
+// C2 first, so also when an unmasked stack fault ends the instruction.
 val x87_partial_remainder : bool -> unit
 function x87_partial_remainder(nearest) = {
   x87_sw[10] = 0b0;

@@ -6,16 +6,19 @@
 // condition codes all clear or C3, C2, C1 and C0 all set, so that a code
 // the instruction leaves is told from one it sets or clears), executes the
 // instruction, and reads the status word with FNSTSW AX.  AX is then
-// masked to what the model defines there: the condition codes the SDM
-// leaves undefined go, and so do the exception flags of floating-point
-// arithmetic, which the externs compute without reporting them (the
-// trigonometric instructions raise none for a source out of range, so
-// there they stay).  The harness compares TOP, the tags and the registers
-// that are left valid; a result that the externs compute other than the
-// hardware does (sin(2^63 - ulp): the hardware reduces with its own
-// approximation of pi) is freed after FNSTSW, so that only its tag is.
+// masked to what the manuals define there: the condition codes they leave
+// undefined or do not give go, and so do the exception flags of
+// floating-point arithmetic, which the externs compute without reporting
+// them (the trigonometric instructions raise none for a source out of
+// range, so there they stay).  The harness compares TOP, the tags and the
+// registers that are left valid; a result that the externs compute other
+// than the hardware does (sin(2^63 - ulp): the hardware reduces with its
+// own approximation of pi), or that the manuals leave open, is freed after
+// FNSTSW, so that only its tag is.
 
 #include "kvm-harness.h"
+#include <bit>
+#include <cpuid.h>
 #include <optional>
 
 namespace {
@@ -41,6 +44,21 @@ u16 tag_of(F80 v) {
   if (exp == 0) return v.m == 0 ? 1 : 2;
   if (exp == 0x7FFF || !(v.m & INT_BIT)) return 2;
   return 0;
+}
+
+bool finite_nonzero(F80 v) { return (v.se & 0x7FFF) != 0x7FFF && v.m != 0; }
+
+// The biased exponent of a finite nonzero value as normalized: a denormal
+// or pseudo-denormal counts its biased exponent as 1 (SDM Vol.1 §8.2.2).
+int exponent_of(F80 v) {
+  int exp = v.se & 0x7FFF;
+  return exp == 0 ? 1 - std::countl_zero(v.m) : exp;
+}
+
+bool host_is_amd() {
+  u32 a, b, c, d;
+  __get_cpuid(0, &a, &b, &c, &d);
+  return b == 0x68747541;  // "Auth" of AuthenticAMD
 }
 
 // The 108-byte FRSTOR image (32-bit protected-mode layout, SDM Vol.1
@@ -93,6 +111,7 @@ const std::vector<u8> FFREE_ST0 = {0xDD, 0xC0}, FFREE_ST1 = {0xDD, 0xC1};
 }  // namespace
 
 void add_x87_cc_tests(std::vector<TestCase> &tests) {
+  const bool amd_host = host_is_amd();
   const F80 five = {0xA000000000000000ull, 0x4001};
   const F80 seven = {0xE000000000000000ull, 0x4001};
 
@@ -196,14 +215,41 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
   // (SDM Vol.2A FPREM and FPREM1, Description and Operation).  The results
   // are exact, so ST(0) is compared, and so are the exception flags but
   // where an operand is a denormal or NaN, or invalid.  ST(1) = b.
+  //
+  // A partial step reduces by ST(1) * 2^(D - N) for "N := An
+  // implementation-dependent number between 32 and 63" (SDM, Operation),
+  // and its ELSE branch writes only C2; the APM defines both ("N = 32 +
+  // (ExpDiff mod 32)" and "{SW.C0, SW.C3, SW.C1} = 0", Vol.5 FPREM and
+  // FPREM1, Action), as the model does for both vendors.  So on an Intel
+  // host a partial remainder is freed after FNSTSW, and C0, C3 and C1 are
+  // not compared there.  The APM's Action contradicts itself for FPREM1
+  // with an exponent difference of -1: for ExpDiff < 0 it leaves ST(0)
+  // and clears C0, C3 and C1, while its Description says "The remainder
+  // returned is a complete remainder and is less than or equal to one half
+  // of the magnitude of the divisor", as the SDM's Operation computes for
+  // any D < 64.  So on an AMD host, where ST(0) is above half of ST(1)
+  // there (and the quotient rounds to 1), the result and C1 are not
+  // compared.
   {
     const std::string cat = "x87 fprem";
     struct Op { const char *name; u8 modrm; bool nearest; };
     const Op ops[] = {{"fprem", 0xF8, false}, {"fprem1", 0xF5, true}};
     auto add = [&](const Op &op, const std::string &what, F80 a, F80 b, u16 cc,
                    u16 unmodeled = 0, u16 cw = 0x037F) {
+      std::vector<u8> after;
+      if (finite_nonzero(a) && finite_nonzero(b)) {
+        int d = exponent_of(a) - exponent_of(b);
+        if (!amd_host && d >= 64) {  // a partial step, by an open N
+          unmodeled |= C0 | C1 | C3;
+          after = FFREE_ST0;
+        }
+        if (amd_host && op.nearest && d == -1 && a.m > b.m) {  // |Q| rounds to 1
+          unmodeled |= C1;
+          after = FFREE_ST0;
+        }
+      }
       tests.push_back(x87_case(cat, std::format("{} {} (SW={:04x})", op.name, what, cc),
-                               x87_image(cw, cc, {a, b}), {0xD9, op.modrm}, unmodeled, {}));
+                               x87_image(cw, cc, {a, b}), {0xD9, op.modrm}, unmodeled, after));
     };
     for (const Op &op : ops) {
       for (u16 cc : {0x0000, 0x4700}) {
@@ -236,33 +282,46 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
         add(op, "1 / denormal (partial)", f80(1.0), tiny2, cc, SW_EXCEPTIONS);
         add(op, "pseudo-denormal / 1", pseudo, f80(1.0), cc, SW_EXCEPTIONS);
         add(op, "denormal / 3", tiny3, f80(3.0), cc, SW_EXCEPTIONS);
-        // No quotient: C2 and C1 cleared, C0 and C3 left.  #IA is not
-        // modeled for these.
-        add(op, "1 / 0", f80(1.0), f80(0.0), cc, SW_EXCEPTIONS);
-        add(op, "+inf / 1", {INT_BIT, 0x7FFF}, f80(1.0), cc, SW_EXCEPTIONS);
-        add(op, "QNaN / 1", {0xC000000000000005ull, 0x7FFF}, f80(1.0), cc, SW_EXCEPTIONS);
-        add(op, "1 / -SNaN", f80(1.0), {0x8000000000000003ull, 0xFFFF}, cc, SW_EXCEPTIONS);
+        // No quotient, and no condition codes in the manuals but "clear
+        // condition code flag C2 to 0" for a zero divisor or an infinite
+        // dividend (SDM Vol.1 Table 8-10, APM Vol.1 Table 6-21); the model
+        // clears C2 and C1 and leaves C0 and C3.  #IA is not modeled for
+        // these.
+        add(op, "1 / 0", f80(1.0), f80(0.0), cc, SW_EXCEPTIONS | C0 | C1 | C3);
+        add(op, "+inf / 1", {INT_BIT, 0x7FFF}, f80(1.0), cc, SW_EXCEPTIONS | C0 | C1 | C3);
+        const u16 no_cc = SW_EXCEPTIONS | C0 | C1 | C2 | C3;
+        add(op, "QNaN / 1", {0xC000000000000005ull, 0x7FFF}, f80(1.0), cc, no_cc);
+        add(op, "1 / -SNaN", f80(1.0), {0x8000000000000003ull, 0xFFFF}, cc, no_cc);
         add(op, "QNaN / QNaN (larger significand)", {0xC000000000000005ull, 0x7FFF},
-            {0xC000000000000009ull, 0xFFFF}, cc, SW_EXCEPTIONS);
-        // Stack underflow: the indefinite, C1 = 0 (masked); nothing but the
-        // status word (unmasked); C2 cleared either way.
+            {0xC000000000000009ull, 0xFFFF}, cc, no_cc);
+        // Stack underflow: the indefinite (masked); nothing but the status
+        // word (unmasked); C1 = 0 either way ("Set to 0 if stack underflow
+        // occurred", SDM FPREM, FPU Flags Affected).  The manuals give no
+        // C0, C2 and C3 for it.
         for (u16 cw : {0x037F, 0x037E})
           tests.push_back(x87_case(cat, std::format("{} ST(1) empty ({}, SW={:04x})", op.name,
                                                     cw == 0x037F ? "masked" : "unmasked", cc),
-                                   x87_image(cw, cc, {f80(7.0)}), {0xD9, op.modrm}, 0, {}));
+                                   x87_image(cw, cc, {f80(7.0)}), {0xD9, op.modrm},
+                                   C0 | C2 | C3, {}));
       }
       // Repeated until the reduction is complete, counting the executions
       // in ECX: xor ecx, ecx; 1: fprem; inc ecx; fnstsw ax; test ah, 4;
       // jnz 1b.  The last FNSTSW gives the status word.  (The harness runs
-      // the model for at most 1000 instructions.)
+      // the model for at most 1000 instructions.)  The final remainder does
+      // not depend on N, and the final quotient bits locate "the original
+      // angle in the correct one of eight sectors" (SDM FPREM and FPREM1,
+      // Description), but the count does: an Intel host does not compare
+      // ECX.
       for (int d : {64, 100, 1000, 5000}) {
         std::vector<u8> loop = {0x31, 0xC9, 0xD9, op.modrm, 0xFF, 0xC1,
                                 0xDF, 0xE0, 0xF6, 0xC4, 0x04, 0x75, 0xF5};
-        tests.push_back(x87_case(cat, std::format("{} loop, exponents {} apart", op.name, d),
-                                 x87_image(0x037F, 0x4700,
-                                           {F80{0xC90FDAA22168C234ull, u16(0x3FFF + d)},
-                                            F80{0xADF85458A2B5A3EBull, 0x3FFF}}),
-                                 loop, 0, {}, false));
+        TestCase tc = x87_case(cat, std::format("{} loop, exponents {} apart", op.name, d),
+                               x87_image(0x037F, 0x4700,
+                                         {F80{0xC90FDAA22168C234ull, u16(0x3FFF + d)},
+                                          F80{0xADF85458A2B5A3EBull, 0x3FFF}}),
+                               loop, 0, {}, false);
+        if (!amd_host) tc.undefined.gpr[1] = ~0ull;  // RCX
+        tests.push_back(std::move(tc));
       }
     }
   }
