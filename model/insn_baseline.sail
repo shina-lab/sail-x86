@@ -3,8 +3,6 @@
 // CMOVcc, Jcc, SETcc, BT/BTS/BTR/BTC, SHLD/SHRD, IMUL, MOVZX/MOVSX,
 // BSF/BSR, POPCNT, CMPXCHG, XADD, BSWAP, CPUID, RDTSC, and more.
 
-// Check LOCK prefix validity: requires memory destination on a lockable instruction.
-// LOCK with register operand or on CMP (which doesn't write) raises #UD.
 // DR7.GD (SDM Vol.3B §20.2.4, §20.3.1.3): any MOV DR while GD is set raises
 // #DB before the access, a fault with DR6.BD set and RF = 1 in the pushed
 // image; the processor clears GD on the way to the handler so that the
@@ -27,6 +25,9 @@ function is_canonical_linear(addr) =
   if CR4[12] == 0b1 then addr[63..56] == zeros() | addr[63..56] == ones()
   else addr[63..47] == zeros() | addr[63..47] == ones()
 
+// LOCK is valid only on the lockable instructions and only where the
+// destination is in memory (SDM Vol.2B LOCK): with a register operand,
+// or on CMP (which does not write), it raises #UD.
 val check_lock_rm : (Prefixes, RM, bool) -> unit
 function check_lock_rm(pfx, dest, is_cmp) = {
   if pfx.has_lock then {
@@ -1510,8 +1511,12 @@ function dispatch_2byte_gpr(op, pfx) = {
       v(reg) = blend(v(os, reg), v(os, src), eval_cc(cc))
     },
 
-    // 0F 77: EMMS — set x87 tag word to all empty
-    119 => x87_tw = 0xFFFF,
+    // 0F 77: EMMS — set x87 tag word to all empty.  NP 0F 77 (SDM Vol.2A
+    // EMMS): 66, F2 or F3 leaves it undefined; #UD also when CR0.EM = 1.
+    119 => {
+      if get_mandatory_prefix(pfx) != MP_NONE | sse_em_blocked() then raise_UD();
+      x87_tw = 0xFFFF
+    },
 
     // 0F 80-8F: Jcc rel16/rel32 (forced64)
     op if 128 <= op & op <= 143 => {
@@ -1536,6 +1541,39 @@ function dispatch_2byte_gpr(op, pfx) = {
     //                    LFENCE/MFENCE/SFENCE/RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE
     174 => {
       let (reg_field, dest) = fetch_modrm_raw(pfx);
+      // The forms the SDM Vol.2 opcode tables define, by mandatory prefix
+      // (FXSAVE, FXRSTOR, LDMXCSR, STMXCSR, XSAVE, XRSTOR, XSAVEOPT and
+      // CLFLUSH are NP, as are LFENCE, MFENCE and SFENCE); any other is #UD.
+      // PTWRITE (F3 /4), which also takes no 66, is an Intel instruction
+      // (Emerald Rapids executes it; Zen 4 raises #UD).  Not implemented:
+      // F3 /5 reg INCSSP (CET shadow stacks, #UD while CR4.CET = 0).
+      let is_reg : bool = match dest { RM_reg(_) => true, RM_mem(_) => false };
+      let ptwrite : bool = reg_field == 4 & vendor == Vendor_Intel & ~(pfx.has_opsize);
+      let defined : bool = match (get_mandatory_prefix(pfx), is_reg) {
+        // FXSAVE ... CLFLUSH m8
+        (MP_NONE, false) => true,
+        // LFENCE, MFENCE, SFENCE
+        (MP_NONE, true)  => reg_field >= 5,
+        // CLWB m8, CLFLUSHOPT m8
+        (MP_66, false)   => reg_field >= 6,
+        // TPAUSE r32
+        (MP_66, true)    => reg_field == 6,
+        // RDFSBASE, RDGSBASE, WRFSBASE, WRGSBASE; UMONITOR; PTWRITE r32/r64
+        (MP_F3, true)    => reg_field <= 3 | reg_field == 6 | ptwrite,
+        // PTWRITE m32/m64
+        (MP_F3, false)   => ptwrite,
+        // UMWAIT r32
+        (MP_F2, true)    => reg_field == 6,
+        _                => false,
+      };
+      if ~(defined) then raise_UD();
+      if ptwrite & pfx.has_rep then {
+        // PTWRITE r/m32, r/m64 (REX.W): the operand goes to a PTW packet
+        // when Intel PT traces it (SDM Vol.2B PTWRITE).  The model has no
+        // processor trace, so only the read, and its faults, remain.
+        let _ = if pfx.rex_w then zero_extend(64, v(64, dest)) else zero_extend(64, v(32, dest));
+        return ()
+      };
       // F3 prefix with mod=11 and reg_field 0-3: FSGSBASE instructions
       // SDM: #UD if CR4.FSGSBASE (bit 16) = 0
       if pfx.has_rep & reg_field <= 3 then {
@@ -2086,22 +2124,49 @@ function dispatch_2byte_gpr(op, pfx) = {
       v(reg) = result[(os - 1) .. 0]
     },
 
-    // 0F C3: MOVNTI m32/64, r
+    // 0F C3: MOVNTI m32/64, r — NP 0F C3 (SDM Vol.2B MOVNTI): 66, F2 or F3
+    // leaves it undefined.
     195 => {
+      if get_mandatory_prefix(pfx) != MP_NONE then raise_UD();
       let os = opsize(pfx);
       let (reg, dest) = fetch_modrm(pfx);
       rm_mem(dest) = v(os, reg)
     },
 
-    // 0F C7 /1: CMPXCHG8B/CMPXCHG16B m64/m128
+    // 0F C7: Group 9
     199 => {
       let (reg_field, dest) = fetch_modrm_raw(pfx);
+      // The forms the SDM Vol.2 opcode tables define, by mandatory prefix;
+      // any other is #UD.  NFx (RDRAND, RDSEED) excludes F2 and F3 (SDM
+      // Vol.2A §3.1.1.1); F3 /6 reg is SENDUIPI (UINTR, not implemented).
+      // Of Group 9 only CMPXCHG8B/16B takes LOCK (SDM Vol.2B LOCK).
+      let mp = get_mandatory_prefix(pfx);
+      let is_reg : bool = match dest { RM_reg(_) => true, RM_mem(_) => false };
+      let defined : bool = match (reg_field, is_reg) {
+        // CMPXCHG8B m64, CMPXCHG16B m128
+        (1, false) => true,
+        // XRSTORS, XSAVEC, XSAVES (NP)
+        (r, false) if 3 <= r & r <= 5 => mp == MP_NONE,
+        // VMPTRLD (NP), VMCLEAR (66), VMXON (F3)
+        (6, false) => mp != MP_F2,
+        // RDRAND (NFx)
+        (6, true)  => mp == MP_NONE | mp == MP_66,
+        // VMPTRST (NP)
+        (7, false) => mp == MP_NONE,
+        // RDSEED (NFx), RDPID (F3)
+        (7, true)  => mp != MP_F2,
+        _          => false,
+      };
+      if ~(defined) | (pfx.has_lock & reg_field != 1) then raise_UD();
       match reg_field {
         // CMPXCHG8B/CMPXCHG16B m64/m128
         1 => match dest {
           RM_mem(m) => {
             if pfx.rex_w then {
               if ~(has_cx16) then raise_UD();
+              // SDM Vol.2A CMPXCHG8B/CMPXCHG16B: #GP(0) if the memory
+              // operand of CMPXCHG16B is not aligned on a 16-byte boundary.
+              check_alignment(m, 16);
               let mem_val : bits(128) = read_mem(m);
               let mem_lo : qword = mem_val[63..0];
               let mem_hi : qword = mem_val[127..64];
@@ -2123,7 +2188,6 @@ function dispatch_2byte_gpr(op, pfx) = {
           },
           RM_reg(_) => raise_UD(),
         },
-        // /4 mem: XSAVEC — save extended state with compaction
         // /3 mem: XRSTORS — restore extended state (supervisor, requires CPL=0)
         3 => match dest {
           RM_mem(m) => {
@@ -2153,10 +2217,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // /6: RDRAND (mod=11) or VMX (mod!=11)
         6 => match dest {
           RM_reg(r) => {
-            // /6 mod=11: NFx RDRAND r16/r32/r64.  F3 0F C7 /6 is SENDUIPI
-            // (UINTR, not implemented: #UD); F2 is not allowed with an NFx
-            // opcode (SDM Vol.2A §3.1.1.1).
-            if pfx.has_rep | pfx.has_repne then raise_UD();
+            // /6 mod=11: NFx RDRAND r16/r32/r64
             if ~(has_rdrand) then raise_UD();
             let os = opsize(pfx);
             let (rnd, cf_val) = __rdrand64();
@@ -2191,7 +2252,6 @@ function dispatch_2byte_gpr(op, pfx) = {
         // /7: RDSEED or RDPID (mod=11) or VMPTRST (mod!=11)
         7 => match dest {
           RM_reg(r) => {
-            if pfx.has_repne then raise_UD();  // F2 not allowed with NFx RDSEED
             if pfx.has_rep then {
               // F3 0F C7 /7: RDPID r32/r64 (SDM Vol.2B RDPID): DEST :=
               // IA32_TSC_AUX.  "The value of CS.D and operand-size prefixes
@@ -2235,6 +2295,13 @@ function dispatch_2byte_gpr(op, pfx) = {
       } else {
         v(os, reg) = bswap(v(os, reg))
       }
+    },
+
+    // 66/F2 0F 78 and 0F 79 on AMD: SSE4A EXTRQ and INSERTQ (exec_sse4a)
+    op if (op == 120 | op == 121) & vendor == Vendor_AMD
+          & (get_mandatory_prefix(pfx) == MP_66 | get_mandatory_prefix(pfx) == MP_F2) => {
+      if sse_em_blocked() then raise_UD();
+      exec_sse4a(op, pfx)
     },
 
     // 0F 78: VMREAD r/m64, r64 (SDM Vol.3C §31.2.4)

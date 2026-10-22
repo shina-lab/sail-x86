@@ -307,6 +307,155 @@ function is_lockable_2byte(op) = match op {
   _   => false,
 }
 
+// What one mandatory prefix lets a legacy-encoded SIMD opcode take in
+// ModR/M.rm: nothing (the opcode is undefined with that prefix), only a
+// register, only memory, or either.
+enum RMForms = { RMF_None, RMF_Reg, RMF_Mem, RMF_Any }
+
+// rm_forms(mp, NP, 66, F3, F2): the entry of an opcode's row for prefix mp.
+val rm_forms : (MandatoryPrefix, RMForms, RMForms, RMForms, RMForms) -> RMForms
+function rm_forms(mp, np, p66, f3, f2) = match mp {
+  MP_NONE => np,
+  MP_66   => p66,
+  MP_F3   => f3,
+  MP_F2   => f2,
+}
+
+// The SIMD opcodes of the 0F map (those dispatch_2byte_sse_fp,
+// dispatch_2byte_sse_int and dispatch_mmx implement) by mandatory prefix,
+// F2/F3 taking precedence over 66 (get_mandatory_prefix), as the opcode
+// tables of the SDM Vol.2 instruction pages give them.  A prefix that an
+// opcode's table does not list leaves it undefined (#UD): the MMX forms
+// are "NP", which allows no 66, F2 or F3 (SDM Vol.2 §3.1.1.1).  An r/m
+// operand the table writes m64, m128 or mem is memory only, and one it
+// writes mm, xmm or reg alone a register only.  reg is ModR/M.reg, the
+// opcode extension of the 0F 71-73 groups.
+val simd_0f_forms : (range(0, 255), MandatoryPrefix, range(0, 7)) -> RMForms
+function simd_0f_forms(op, mp, reg) = match op {
+  // MOVUPS, MOVUPD, MOVSS, MOVSD (load and store)
+  op if op == 16 | op == 17 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_Any),
+  // MOVLPS xmm, m64 or MOVHLPS xmm, xmm; MOVLPD xmm, m64; MOVSLDUP; MOVDDUP
+  18 => rm_forms(mp, RMF_Any,  RMF_Mem,  RMF_Any,  RMF_Any),
+  // MOVLPS m64, xmm; MOVLPD m64, xmm
+  19 => rm_forms(mp, RMF_Mem,  RMF_Mem,  RMF_None, RMF_None),
+  // UNPCKLPS, UNPCKLPD; UNPCKHPS, UNPCKHPD
+  op if op == 20 | op == 21 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  // MOVHPS xmm, m64 or MOVLHPS xmm, xmm; MOVHPD xmm, m64; MOVSHDUP
+  22 => rm_forms(mp, RMF_Any,  RMF_Mem,  RMF_Any,  RMF_None),
+  // MOVHPS m64, xmm; MOVHPD m64, xmm
+  23 => rm_forms(mp, RMF_Mem,  RMF_Mem,  RMF_None, RMF_None),
+  // MOVAPS, MOVAPD (load and store)
+  op if op == 40 | op == 41 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  // CVTPI2PS, CVTPI2PD, CVTSI2SS, CVTSI2SD
+  42 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_Any),
+  // MOVNTPS m128, xmm; MOVNTPD m128, xmm; and on AMD the SSE4A MOVNTSS
+  // mem32, xmm and MOVNTSD mem64, xmm (AMD APM Vol.4), which Intel leaves
+  // undefined
+  43 => if vendor == Vendor_AMD
+        then rm_forms(mp, RMF_Mem,  RMF_Mem,  RMF_Mem,  RMF_Mem)
+        else rm_forms(mp, RMF_Mem,  RMF_Mem,  RMF_None, RMF_None),
+  // CVT(T)PS2PI, CVT(T)PD2PI, CVT(T)SS2SI, CVT(T)SD2SI
+  op if op == 44 | op == 45 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_Any),
+  // UCOMISS, UCOMISD; COMISS, COMISD
+  op if op == 46 | op == 47 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  // MOVMSKPS reg, xmm; MOVMSKPD reg, xmm
+  80 => rm_forms(mp, RMF_Reg,  RMF_Reg,  RMF_None, RMF_None),
+  // SQRTPS, SQRTPD, SQRTSS, SQRTSD
+  81 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_Any),
+  // RSQRTPS, RSQRTSS; RCPPS, RCPSS
+  op if op == 82 | op == 83 => rm_forms(mp, RMF_Any,  RMF_None, RMF_Any,  RMF_None),
+  // ANDPS/PD, ANDNPS/PD, ORPS/PD, XORPS/PD
+  op if 84 <= op & op <= 87 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  // ADD, MUL, CVTPS2PD/CVTPD2PS/CVTSS2SD/CVTSD2SS (PS, PD, SS, SD)
+  op if 88 <= op & op <= 90 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_Any),
+  // CVTDQ2PS, CVTPS2DQ, CVTTPS2DQ
+  91 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_None),
+  // SUB, MIN, DIV, MAX (PS, PD, SS, SD)
+  op if 92 <= op & op <= 95 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_Any),
+  // PUNPCKL*, PACKSSWB, PCMPGT*, PACKUSWB, PUNPCKH*, PACKSSDW (mm, xmm)
+  op if 96 <= op & op <= 107 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  // PUNPCKLQDQ, PUNPCKHQDQ
+  op if op == 108 | op == 109 => rm_forms(mp, RMF_None, RMF_Any,  RMF_None, RMF_None),
+  // MOVD/MOVQ mm, r/m; MOVD/MOVQ xmm, r/m
+  110 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  // MOVQ mm, mm/m64; MOVDQA; MOVDQU (load)
+  111 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_None),
+  // PSHUFW, PSHUFD, PSHUFHW, PSHUFLW
+  112 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_Any),
+  // Groups 12 and 13: PSRLW/D /2, PSRAW/D /4, PSLLW/D /6 (mm, xmm)
+  op if op == 113 | op == 114 =>
+    if reg == 2 | reg == 4 | reg == 6
+    then rm_forms(mp, RMF_Reg,  RMF_Reg,  RMF_None, RMF_None)
+    else RMF_None,
+  // Group 14: PSRLQ /2, PSLLQ /6 (mm, xmm); PSRLDQ /3, PSLLDQ /7 (xmm)
+  115 =>
+    if reg == 2 | reg == 6
+    then rm_forms(mp, RMF_Reg,  RMF_Reg,  RMF_None, RMF_None)
+    else if reg == 3 | reg == 7
+    then rm_forms(mp, RMF_None, RMF_Reg,  RMF_None, RMF_None)
+    else RMF_None,
+  // PCMPEQB, PCMPEQW, PCMPEQD (mm, xmm)
+  op if 116 <= op & op <= 118 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  // HADDPD, HADDPS; HSUBPD, HSUBPS
+  op if op == 124 | op == 125 => rm_forms(mp, RMF_None, RMF_Any,  RMF_None, RMF_Any),
+  // MOVD/MOVQ r/m, mm; MOVD/MOVQ r/m, xmm; MOVQ xmm, xmm/m64
+  126 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_None),
+  // MOVQ mm/m64, mm; MOVDQA; MOVDQU (store)
+  127 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_None),
+  // CMPPS, CMPPD, CMPSS, CMPSD
+  194 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_Any),
+  // PINSRW mm, r32/m16; PINSRW xmm, r32/m16
+  196 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  // PEXTRW reg, mm; PEXTRW reg, xmm
+  197 => rm_forms(mp, RMF_Reg,  RMF_Reg,  RMF_None, RMF_None),
+  // SHUFPS, SHUFPD
+  198 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  // ADDSUBPD, ADDSUBPS
+  208 => rm_forms(mp, RMF_None, RMF_Any,  RMF_None, RMF_Any),
+  // PSRLW, PSRLD, PSRLQ, PADDQ, PMULLW (mm, xmm)
+  op if 209 <= op & op <= 213 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  // MOVQ xmm/m64, xmm; MOVQ2DQ xmm, mm; MOVDQ2Q mm, xmm
+  214 => rm_forms(mp, RMF_None, RMF_Any,  RMF_Reg,  RMF_Reg),
+  // PMOVMSKB reg, mm; PMOVMSKB reg, xmm
+  215 => rm_forms(mp, RMF_Reg,  RMF_Reg,  RMF_None, RMF_None),
+  // PSUBUS*, PMINUB, PAND, PADDUS*, PMAXUB, PANDN, PAVGB, PSRAW, PSRAD,
+  // PAVGW, PMULHUW, PMULHW (mm, xmm)
+  op if 216 <= op & op <= 229 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  // CVTTPD2DQ, CVTDQ2PD, CVTPD2DQ
+  230 => rm_forms(mp, RMF_None, RMF_Any,  RMF_Any,  RMF_Any),
+  // MOVNTQ m64, mm; MOVNTDQ m128, xmm
+  231 => rm_forms(mp, RMF_Mem,  RMF_Mem,  RMF_None, RMF_None),
+  // PSUBS*, PMINSW, POR, PADDS*, PMAXSW, PXOR (mm, xmm)
+  op if 232 <= op & op <= 239 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  // LDDQU xmm, mem
+  240 => rm_forms(mp, RMF_None, RMF_None, RMF_None, RMF_Mem),
+  // PSLLW, PSLLD, PSLLQ, PMULUDQ, PMADDWD, PSADBW (mm, xmm)
+  op if 241 <= op & op <= 246 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  // MASKMOVQ mm, mm; MASKMOVDQU xmm, xmm
+  247 => rm_forms(mp, RMF_Reg,  RMF_Reg,  RMF_None, RMF_None),
+  // PSUBB/W/D/Q, PADDB/W/D (mm, xmm)
+  op if 248 <= op & op <= 254 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
+  _ => RMF_None,
+}
+
+// #UD for a 0F-map SIMD opcode under a mandatory prefix that leaves it
+// undefined, or with an r/m form it does not take.  Either is a fault from
+// decoding the instruction (SDM Vol.3A §7.9, Table 7-2), so it comes ahead
+// of the #GP, #PF or #AC of an operand access, which arise only as the
+// instruction executes: it is checked on the ModR/M byte, before the
+// instruction's handler decodes and reads its operands.
+val check_simd_0f_encoding : (range(0, 255), Prefixes) -> unit
+function check_simd_0f_encoding(op, pfx) = {
+  let modrm = peek_modrm();
+  let is_reg : bool = modrm[7..6] == 0b11;
+  match simd_0f_forms(op, get_mandatory_prefix(pfx), unsigned(modrm[5..3])) {
+    RMF_None => raise_UD(),
+    RMF_Reg  => if ~(is_reg) then raise_UD(),
+    RMF_Mem  => if is_reg then raise_UD(),
+    RMF_Any  => (),
+  }
+}
+
 val dispatch_opcode_2byte : (byte, Prefixes) -> unit
 function dispatch_opcode_2byte(opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
@@ -346,7 +495,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         if sse_em_blocked() then raise_UD();
         if ~(has_sse4_1) then raise_UD();
         dispatch_3byte_38_sse_fp(opcode3, pfx)
-      } else if op3 == 128 then {
+      } else if op3 == 128 & get_mandatory_prefix(pfx) == MP_66 then {
         // 66 0F 38 80: INVEPT r64, m128 — Invalidate EPT TLB
         if cur_cpl != 0 then raise_GP0();
         if ~(in_vmx_root) & ~(in_vmx_non_root) then raise_UD();
@@ -358,11 +507,14 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let _ : xmmword = rm_mem(src); // consume operand
         __tlb_flush();
         vmx_succeed()
-      } else if op3 == 130 then {
-        // 66 0F 38 82: INVPCID r64, m128 — Invalidate TLB by PCID
-        if cur_cpl != 0 then raise_GP0();
+      } else if op3 == 130 & get_mandatory_prefix(pfx) == MP_66 then {
+        // 66 0F 38 82: INVPCID r64, m128 — Invalidate TLB by PCID.  The
+        // register form is undefined, a decode-time #UD ahead of the
+        // privilege check (SDM Vol.3A §7.9).
         let (reg, src) = fetch_modrm(pfx);
-        let desc : xmmword = rm_mem(src);
+        let m : MemRef = match src { RM_mem(m) => m, RM_reg(_) => raise_UD() };
+        if cur_cpl != 0 then raise_GP0();
+        let desc : xmmword = read_mem(m);
         let inv_type : qword = v(reg);
         if unsigned(inv_type) > 3 then raise_GP0();
         let reserved : bits(52) = desc[63..12];
@@ -395,7 +547,10 @@ function dispatch_opcode_2byte(opcode, pfx) = {
             v(reg) = result
           }
         } else {
-          // MOVBE (0F 38 F0/F1) — load/store with byte swap
+          // MOVBE (0F 38 F0/F1) — load/store with byte swap.  The opcode
+          // is defined with no prefix, 66 (16-bit operands) and F2 (CRC32)
+          // only (SDM Vol.2B MOVBE, CRC32): F3 is #UD.
+          if mp == MP_F3 then raise_UD();
           if ~(has_movbe) then raise_UD();
           let os = opsize(pfx);
           let (reg, dest) = fetch_modrm(pfx);
@@ -482,14 +637,17 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         | op == 124 | op == 125 | op == 194 | op == 198
         | op == 208 | op == 214 | op == 230 => {
       if sse_em_blocked() then raise_UD();
+      check_simd_0f_encoding(op, pfx);
       dispatch_2byte_sse_fp(op, pfx)
     },
 
     // SSE integer (packed integer arithmetic, logical, shift, pack/unpack)
+    // and, without a mandatory prefix, MMX (dispatch_mmx)
     op if (96 <= op & op <= 118) | op == 126 | op == 127 | op == 196 | op == 197
         | (209 <= op & op <= 213) | (215 <= op & op <= 229)
         | (231 <= op & op <= 255) => {
       if sse_em_blocked() then raise_UD();
+      check_simd_0f_encoding(op, pfx);
       dispatch_2byte_sse_int(op, pfx)
     },
 
@@ -1141,6 +1299,7 @@ function decode_execute() = {
       // 86: XCHG r/m8, r8
       134 => {
         let (reg, dest) = fetch_modrm(pfx);
+        check_lock_rm(pfx, dest, false);
         let tmp : byte = v(dest);
         v(dest) = v(8, reg);
         v(reg) = tmp
@@ -1150,6 +1309,7 @@ function decode_execute() = {
       135 => {
         let os = opsize(pfx);
         let (reg, dest) = fetch_modrm(pfx);
+        check_lock_rm(pfx, dest, false);
         let tmp = v(os, dest);
         v(dest) = v(os, reg);
         v(reg) = tmp
@@ -1246,9 +1406,11 @@ function decode_execute() = {
         }
       },
 
-      // 90: NOP / PAUSE (F3 90) / XCHG R8D,EAX (REX.B)
+      // 90: NOP / PAUSE (F3 90) / XCHG R8D,EAX (REX.B).  With both F3 and
+      // REX.B, Intel executes PAUSE (Emerald Rapids leaves R8 and RAX as
+      // they were) and AMD the XCHG (Zen 4 swaps them).
       144 => {
-        if ~(pfx.has_rep) & pfx.rex_b == 0b1 then {
+        if pfx.rex_b == 0b1 & (~(pfx.has_rep) | vendor == Vendor_AMD) then {
           let os = opsize(pfx);
           exec_xchg_reg_reg(RAX, R8, os)
         } else {

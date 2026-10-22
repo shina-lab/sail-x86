@@ -260,16 +260,12 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     },
     // 0F 28: MOVAPS/MOVAPD xmm, xmm/m128
     40 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_NONE & mp != MP_66 then raise_UD();
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       ZMM[xreg][127..0] = decode_xmm_src(modrm_xrm(modrm, pfx))
     },
     // 0F 29: MOVAPS/MOVAPD xmm/m128, xmm
     41 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_NONE & mp != MP_66 then raise_UD();
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let dest = modrm_xrm(modrm, pfx);
@@ -284,19 +280,16 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
-      let os = opsize(pfx);
-      let src_val : qword = zero_extend(v(os, src));
+      // The integer source is r/m32, or r/m64 with REX.W: 66 selects no
+      // 16-bit form (SDM Vol.2A CVTSI2SS, CVTSI2SD).
+      let rex_w = pfx.rex_w;
       match mp {
         // CVTSI2SS xmm, r/m32/64 (F3 prefix)
-        MP_F3 => ZMM[xreg][31..0] = match os {
-          64 => __int64_to_f32(src_val),
-          _  => __int32_to_f32(src_val[31..0]),
-        },
+        MP_F3 => ZMM[xreg][31..0] =
+          if rex_w then __int64_to_f32(v(64, src)) else __int32_to_f32(v(32, src)),
         // CVTSI2SD xmm, r/m32/64 (F2 prefix)
-        MP_F2 => ZMM[xreg][63..0] = match os {
-          64 => __int64_to_f64(src_val),
-          _  => __int32_to_f64(src_val[31..0]),
-        },
+        MP_F2 => ZMM[xreg][63..0] =
+          if rex_w then __int64_to_f64(v(64, src)) else __int32_to_f64(v(32, src)),
         // CVTPI2PS xmm, mm/m64 (NP) — SDM: DEST[31:0] := cvt(SRC[31:0]); DEST[63:32] := cvt(SRC[63:32])
         // High quadword unchanged.
         MP_NONE => {
@@ -406,7 +399,6 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 2E: UCOMISS/UCOMISD
     46 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_NONE & mp != MP_66 then raise_UD();
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_xrm(modrm, pfx);
@@ -417,7 +409,6 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     // 0F 2F: COMISS/COMISD
     47 => {
       let mp = get_mandatory_prefix(pfx);
-      if mp != MP_NONE & mp != MP_66 then raise_UD();
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_xrm(modrm, pfx);
@@ -462,17 +453,13 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         // 0F 51: SQRT
         1 => sse_exec_fp_unop(PU_FSqrt, xreg, src_xmm, mp),
         // 0F 54: ANDPS/ANDPD
-        4 => { if mp != MP_NONE & mp != MP_66 then raise_UD();
-               ZMM[xreg][127..0] = read_simd(xreg) & src_xmm },
+        4 => ZMM[xreg][127..0] = read_simd(xreg) & src_xmm,
         // 0F 55: ANDNPS/ANDNPD
-        5 => { if mp != MP_NONE & mp != MP_66 then raise_UD();
-               ZMM[xreg][127..0] = ~(read_simd(xreg)) & src_xmm },
+        5 => ZMM[xreg][127..0] = ~(read_simd(xreg)) & src_xmm,
         // 0F 56: ORPS/ORPD
-        6 => { if mp != MP_NONE & mp != MP_66 then raise_UD();
-               ZMM[xreg][127..0] = read_simd(xreg) | src_xmm },
+        6 => ZMM[xreg][127..0] = read_simd(xreg) | src_xmm,
         // 0F 57: XORPS/XORPD
-        7 => { if mp != MP_NONE & mp != MP_66 then raise_UD();
-               ZMM[xreg][127..0] = read_simd(xreg) ^ src_xmm },
+        7 => ZMM[xreg][127..0] = read_simd(xreg) ^ src_xmm,
         // 0F 58: ADD
         8 => sse_exec_fp_binop(PB_FAdd, xreg, src_xmm, mp),
         // 0F 59: MUL
@@ -580,12 +567,14 @@ function dispatch_2byte_sse_fp(op, pfx) = {
           mmx_touch();
           x87_ST[mm_dst] = ones(16) @ (read_simd(128, xi)[63..0])
         },
-        // F3 0F D6: MOVQ2DQ xmm, mm — SDM: DEST[63:0] := SRC; DEST[127:64] := 0
+        // F3 0F D6: MOVQ2DQ xmm, mm — SDM: DEST[63:0] := SRC; DEST[127:64] := 0,
+        // with the transition to MMX operation (TOP := 0, all tags valid)
         MP_F3 => {
           let modrm = fetch(1);
           let _ = modrm_rm(modrm, pfx);
           let dst_xmm = modrm_xreg(modrm, pfx);
           let mm_src : range(0, 7) = unsigned(modrm[2..0]);
+          mmx_touch();
           ZMM[dst_xmm][127..0] = zero_extend(x87_ST[mm_src][63..0])
         },
         _ => raise_UD(),
@@ -621,15 +610,21 @@ function dispatch_2byte_sse_fp(op, pfx) = {
         _ => raise_UD(),
       }
     },
-    // 0F 2B: MOVNTPS/MOVNTPD m128, xmm (requires 16-byte alignment)
+    // 0F 2B: MOVNTPS/MOVNTPD m128, xmm (requires 16-byte alignment); on AMD
+    // also MOVNTSS m32, xmm (F3) and MOVNTSD m64, xmm (F2), the low element
+    // with no alignment requirement (AMD APM Vol.4 MOVNTSS, MOVNTSD)
     43 => {
-      let mp = get_mandatory_prefix(pfx);
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let dest = modrm_rm(modrm, pfx);
-      if mp != MP_NONE & mp != MP_66 then raise_UD();
-      check_alignment(dest, 16);
-      rm_mem(dest) = read_simd(128, xreg)
+      match get_mandatory_prefix(pfx) {
+        MP_F3 => rm_mem(dest) = read_simd(128, xreg)[31..0],
+        MP_F2 => rm_mem(dest) = read_simd(128, xreg)[63..0],
+        _ => {
+          check_alignment(dest, 16);
+          rm_mem(dest) = read_simd(128, xreg)
+        },
+      }
     },
     // 0F 7C: HADDPS/HADDPD (SSE3)
     124 => {

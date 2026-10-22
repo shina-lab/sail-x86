@@ -462,8 +462,6 @@ function dispatch_2byte_sse_int(op, pfx) = {
 
     // 0F 6C: PUNPCKLQDQ (SSE2 only, no MMX form)
     108 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD();
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_xrm(modrm, pfx);
@@ -473,8 +471,6 @@ function dispatch_2byte_sse_int(op, pfx) = {
 
     // 0F 6D: PUNPCKHQDQ (SSE2 only, no MMX form)
     109 => {
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_66 then raise_UD();
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_xrm(modrm, pfx);
@@ -503,7 +499,6 @@ function dispatch_2byte_sse_int(op, pfx) = {
       if mp == MP_NONE then {
         dispatch_mmx(op, pfx)
       } else {
-        if mp != MP_66 & mp != MP_F3 then raise_UD();
         let modrm = fetch(1);
         let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_xrm(modrm, pfx);
@@ -542,7 +537,6 @@ function dispatch_2byte_sse_int(op, pfx) = {
       if mp == MP_NONE then {
         dispatch_mmx(op, pfx)
       } else {
-        if mp != MP_66 then raise_UD();
         let modrm = fetch(1);
         let xreg = xrm_reg(modrm_xrm(modrm, pfx));
         let c : nat = unsigned(fetch(1));
@@ -614,7 +608,6 @@ function dispatch_2byte_sse_int(op, pfx) = {
       if mp == MP_NONE then {
         dispatch_mmx(op, pfx)
       } else {
-        if mp != MP_66 & mp != MP_F3 then raise_UD();
         let modrm = fetch(1);
         let xreg = modrm_xreg(modrm, pfx);
         let dest = modrm_xrm(modrm, pfx);
@@ -690,7 +683,6 @@ function dispatch_2byte_sse_int(op, pfx) = {
       if mp == MP_NONE then {
         dispatch_mmx(op, pfx)
       } else {
-        if mp != MP_66 then raise_UD();
         let modrm = fetch(1);
         let xreg = modrm_xreg(modrm, pfx);
         let dest = modrm_rm(modrm, pfx);
@@ -766,8 +758,6 @@ function dispatch_2byte_sse_int(op, pfx) = {
     // 0F F0: LDDQU xmm, m128 (F2 prefix, SSE3)
     240 => {
       if ~(has_sse3) then raise_UD();
-      let mp = get_mandatory_prefix(pfx);
-      if mp != MP_F2 then raise_UD();
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
@@ -805,6 +795,59 @@ function dispatch_2byte_sse_int(op, pfx) = {
 }
 
 // =========================================================================
+// AMD SSE4A: EXTRQ and INSERTQ (AMD APM Vol.4), on the opcodes Intel
+// decodes as VMREAD (0F 78) and VMWRITE (0F 79):
+//   66 0F 78 /0 ib ib  EXTRQ xmm1, imm8, imm8   (xmm1 in ModR/M.rm)
+//   66 0F 79 /r        EXTRQ xmm1, xmm2
+//   F2 0F 78 /r ib ib  INSERTQ xmm1, xmm2, imm8, imm8
+//   F2 0F 79 /r        INSERTQ xmm1, xmm2
+// Each takes registers only.  The field is LENGTH bits (0 meaning 64) at
+// bit INDEX, from the first and second imm8 or, in the register forms,
+// from xmm2[5:0] and [13:8] (EXTRQ) or [69:64] and [77:72] (INSERTQ).  The
+// APM leaves undefined a field past bit 63 and bits 127:64 of the result;
+// Zen 4 cuts the field at bit 63 and clears bits 127:64, as here.
+// =========================================================================
+
+val sse4a_field_mask : bits(6) -> qword
+function sse4a_field_mask(len) = {
+  let n : range(0, 63) = unsigned(len);
+  if n == 0 then ones() else ones(64) >> (64 - n)
+}
+
+val exec_sse4a : (range(0, 255), Prefixes) -> unit
+function exec_sse4a(op, pfx) = {
+  let is_insertq : bool = get_mandatory_prefix(pfx) == MP_F2;
+  let modrm = fetch(1);
+  if modrm[7..6] != 0b11 | (op == 120 & ~(is_insertq) & modrm[5..3] != 0b000) then raise_UD();
+  let xreg = modrm_xreg(modrm, pfx);
+  let xrm : simd_idx = unsigned(pfx.rex_b @ modrm[2..0]);
+  let (len, idx) : (bits(6), bits(6)) =
+    if op == 120 then {
+      let l = fetch(1);
+      let i = fetch(1);
+      (l[5..0], i[5..0])
+    } else if is_insertq then {
+      let s : xmmword = read_simd(xrm);
+      (s[69..64], s[77..72])
+    } else {
+      let s : xmmword = read_simd(xrm);
+      (s[5..0], s[13..8])
+    };
+  let mask = sse4a_field_mask(len);
+  let sh : range(0, 63) = unsigned(idx);
+  if is_insertq then {
+    let d : qword = read_simd(128, xreg)[63..0];
+    let s : qword = read_simd(128, xrm)[63..0];
+    ZMM[xreg][127..0] = zero_extend((d & ~(mask << sh)) | ((s & mask) << sh))
+  } else {
+    // EXTRQ xmm1, imm8, imm8 names its operand in ModR/M.rm
+    let dst : simd_idx = if op == 120 then xrm else xreg;
+    let d : qword = read_simd(128, dst)[63..0];
+    ZMM[dst][127..0] = zero_extend((d >> sh) & mask)
+  }
+}
+
+// =========================================================================
 // 3-Byte Opcode Map: SSE Integer Operations
 // =========================================================================
 
@@ -821,7 +864,13 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     dispatch_mmx_38(op, pfx);
     return ()
   };
-  if mp != MP_66 then raise_UD();
+  // The opcodes the match below implements.  Another one is undefined,
+  // and its #UD, a decoding fault, comes ahead of the source read (SDM
+  // Vol.3A §7.9).
+  let defined : bool = op <= 11 | op == 16 | op == 23 | (28 <= op & op <= 30)
+    | (32 <= op & op <= 37) | (40 <= op & op <= 43) | (48 <= op & op <= 53)
+    | (55 <= op & op <= 65) | op == 207 | (219 <= op & op <= 223);
+  if mp != MP_66 | ~(defined) then raise_UD();
   let modrm = fetch(1);
   let xreg = modrm_xreg(modrm, pfx);
   let src = modrm_xrm(modrm, pfx);
@@ -1029,9 +1078,15 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
       }
     },
 
-    // SSE4.1 — PINSRB xmm, r/m8, imm8
+    // SSE4.1 — PINSRB xmm1, r32/m8, imm8: a register source is r32, whose
+    // low byte is inserted (never AH-BH, which an r/m8 operand without REX
+    // would name).
     32 => {
-      ZMM[xreg][127..0] = insert_byte(read_simd(xreg), v(src), unsigned(imm[3..0]))
+      let b : byte = match src {
+        RM_reg(_) => v(32, src)[7..0],
+        RM_mem(m) => read_mem(m),
+      };
+      ZMM[xreg][127..0] = insert_byte(read_simd(xreg), b, unsigned(imm[3..0]))
     },
 
     // SSE4.1 — PINSRD/PINSRQ xmm, r/m, imm8

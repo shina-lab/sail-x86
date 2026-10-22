@@ -151,6 +151,16 @@ function fetch(n) = {
   result
 }
 
+// The next instruction byte, left in the stream: the ModR/M byte of an
+// opcode whose validity depends on it, checked before the instruction
+// decodes its operands (check_simd_0f_encoding).
+val peek_modrm : unit -> byte
+function peek_modrm() = {
+  let modrm : byte = fetch(1);
+  decode_pos = decode_pos - 1;
+  modrm
+}
+
 // =========================================================================
 // Operand size determination
 // =========================================================================
