@@ -79,6 +79,22 @@ val base_default_seg : (bits(3), range(0, 3), Prefixes) -> segreg_idx
 function base_default_seg(base, modbits, pfx) =
   if pfx.rex_b == 0b0 & (base == 0b100 | base == 0b101 & modbits != 0) then SS else DS
 
+// Byte i of the destination of MASKMOVQ, MASKMOVDQU and VMASKMOVDQU: "the
+// effective address in the DI/EDI/RDI register (the default segment
+// register is DS, but this may be overridden with a segment-override
+// prefix) ... (The size of the store address depends on the address-size
+// attribute.)" (SDM Vol.2B MASKMOVDQU, MASKMOVQ).
+val maskmov_dest : (Prefixes, range(0, 15)) -> MemRef
+function maskmov_dest(pfx, i) = {
+  let ea : qword = v(64, RDI) + to_bits(64, i);
+  let addr : qword = match get_address_size(pfx) {
+    16 => zero_extend(ea[15..0]),
+    32 => zero_extend(ea[31..0]),
+    64 => ea,
+  };
+  struct { seg = resolve_seg(pfx, DS), addr = addr }
+}
+
 // Compute EVEX compressed displacement scale factor for "Full" tuple type.
 // Without broadcast: N = vector size in bytes. With broadcast: N = element size.
 val evex_full_disp_n : Prefixes -> range(4, 64)

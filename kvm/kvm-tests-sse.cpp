@@ -1997,6 +1997,39 @@ void add_sse_tests(std::vector<TestCase> &tests) {
         tests.push_back({"maskmovdqu misaligned",
           cat, {0x66, 0x0F, 0xF7, 0xC1}, ms, FL_ALL, 0x0, false, align_data, 16});
       }
+
+      // The destination is "the effective address in the DI/EDI/RDI
+      // register (the default segment register is DS, but this may be
+      // overridden with a segment-override prefix)", of the address size
+      // (SDM Vol.2B MASKMOVDQU): 67h makes it EDI, whose upper half is
+      // ignored, and FS and GS (based at 100h by WRFSBASE and WRGSBASE
+      // first) add their bases.  Both the segmented and the flat address
+      // are in the data page, so that a prefix variant does not fault: a
+      // faulting MASKMOVDQU reports a CR2 of its own (an Emerald Rapids
+      // gave the destination + 8 for a mask whose first byte set is 1).
+      {
+        ArchState ps = {};
+        ps.rflags = initial_flags();
+        ps.rsi = 0x100;
+        ps.xmm[0] = xmm_from_u64(0x1111111111111111, 0x2222222222222222);
+        ps.xmm[1] = xmm_from_u64(0x8000800080008000, 0x0080008000800080);
+        auto add_seg = [&](const std::string &name, std::vector<u8> code, u64 rdi) {
+          TestCase tc;
+          tc.name = name;
+          tc.category = cat;
+          tc.code = std::move(code);
+          tc.code.insert(tc.code.end(), {0x66, 0x0F, 0xF7, 0xC1});
+          tc.initial = ps;
+          tc.initial.rdi = rdi;
+          tc.init_data = std::vector<u8>(16, 0xCC);
+          tc.may_fault = true;
+          tc.enable_paging = true;
+          tests.push_back(std::move(tc));
+        };
+        add_seg("maskmovdqu [edi] (67h, RDI[63:32] ignored)", {0x67}, 0x1234567800000000ULL | DATA_ADDR);
+        add_seg("maskmovdqu fs:[rdi]", {0xF3, 0x48, 0x0F, 0xAE, 0xD6, 0x64}, DATA_ADDR + 0x100);
+        add_seg("maskmovdqu gs:[rdi]", {0xF3, 0x48, 0x0F, 0xAE, 0xDE, 0x65}, DATA_ADDR + 0x100);
+      }
     }
   }
 

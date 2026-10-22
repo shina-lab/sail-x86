@@ -1081,6 +1081,30 @@ void add_mmx_tests(std::vector<TestCase> &tests) {
         0x0F, 0x77,
       }, s, FL_ALL, 0, false, std::vector<u8>(16, 0xCC), 16});
     }
+    // DS:rDI of the address size, with a segment override (SDM Vol.2B
+    // MASKMOVQ), as for MASKMOVDQU in kvm-tests-sse.cpp.
+    struct Seg { const char *name; std::vector<u8> prefix; u64 rdi; };
+    const Seg segs[] = {
+      {"[edi] (67h, RDI[63:32] ignored)", {0x67}, 0x1234567800000000ULL | DATA_ADDR},
+      {"fs:[rdi]", {0xF3, 0x48, 0x0F, 0xAE, 0xD6, 0x64}, DATA_ADDR + 0x100},  // wrfsbase rsi; fs:
+      {"gs:[rdi]", {0xF3, 0x48, 0x0F, 0xAE, 0xDE, 0x65}, DATA_ADDR + 0x100},  // wrgsbase rsi; gs:
+    };
+    for (const Seg &sg : segs) {
+      TestCase tc;
+      tc.name = std::string("maskmovq mm0,mm1 ") + sg.name;
+      tc.category = cat;
+      tc.code = {0x48, 0x0F, 0x6E, 0xC0, 0x48, 0x0F, 0x6E, 0xCB};  // MOVQ mm0, rax; MOVQ mm1, rbx
+      tc.code.insert(tc.code.end(), sg.prefix.begin(), sg.prefix.end());
+      tc.code.insert(tc.code.end(), {0x0F, 0xF7, 0xC1, 0x0F, 0x77});  // MASKMOVQ mm0, mm1; EMMS
+      tc.initial.rax = 0x1122334455667788;
+      tc.initial.rbx = 0x8000800080008000ULL;
+      tc.initial.rsi = 0x100;
+      tc.initial.rdi = sg.rdi;
+      tc.init_data = std::vector<u8>(16, 0xCC);
+      tc.may_fault = true;
+      tc.enable_paging = true;
+      tests.push_back(std::move(tc));
+    }
   }
 
   // =====================================================================

@@ -349,12 +349,11 @@ function dispatch_mmx(op, pfx) = {
         RM_reg(_) => {
           let data : qword = x87_ST[src][63..0];
           let mask : qword = x87_ST[mask_reg][63..0];
-          let addr : qword = v(7);  // RDI
           foreach (i from 0 to 7) {
             let base = i * 8;
             if mask[base + 7] == 0b1 then {
               let b : byte = data[(base + 7) .. base];
-              write_mem(addr + zero_extend(to_bits(64, i)), b)
+              write_mem(8, maskmov_dest(pfx, i), b)
             }
           }
         },

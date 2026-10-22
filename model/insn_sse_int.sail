@@ -119,14 +119,15 @@ function pclmulqdq_lane(src1, src2, imm8) =
 // MASKMOVDQU — Store Selected Bytes (SDM Vol.2B §4-1)
 //
 // For each byte position, if the high bit of the corresponding mask byte
-// is set, write the source byte to memory at DS:RDI + offset.
+// is set, write the source byte to memory at DS:rDI + offset
+// (maskmov_dest).  VMASKMOVDQU shares it.
 // =========================================================================
 
-val maskmovdqu : (xmmword, xmmword, qword) -> unit
-function maskmovdqu(src, mask, addr) = {
+val maskmovdqu : (xmmword, xmmword, Prefixes) -> unit
+function maskmovdqu(src, mask, pfx) = {
   foreach (i from 0 to 15) {
     if mask[i * 8 + 7] == bitone then
-      write_mem(addr + i, src[(i * 8 + 7) .. (i * 8)])
+      write_mem(8, maskmov_dest(pfx, i), src[(i * 8 + 7) .. (i * 8)])
   }
 }
 
@@ -781,8 +782,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let xreg = modrm_xreg(modrm, pfx);
         let xi = xrm_reg(modrm_xrm(modrm, pfx));
         let src_xmm : xmmword = read_simd(xi);
-        let addr = v(64, RDI);
-        maskmovdqu(read_simd(xreg), src_xmm, addr)
+        maskmovdqu(read_simd(xreg), src_xmm, pfx)
       }
     },
 

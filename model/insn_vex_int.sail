@@ -614,15 +614,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let src = modrm_xreg(modrm, pfx);
     let dest = modrm_xrm(modrm, pfx);
     match dest {
-      XRM_reg(xi) => {
-        let data : xmmword = read_simd(src);
-        let mask : xmmword = read_simd(xi);
-        let addr : bits(64) = v(7); // RDI
-        foreach (i from 0 to 15) {
-          if mask[(i * 8 + 7)] == 0b1 then
-            write_mem(8, addr + to_bits(64, i), data[(i * 8 + 7) .. (i * 8)])
-        }
-      },
+      XRM_reg(xi) => maskmovdqu(read_simd(src), read_simd(xi), pfx),
       XRM_mem(_) => raise_UD(),
     }
   },

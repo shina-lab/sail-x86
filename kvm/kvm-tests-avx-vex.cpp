@@ -1227,11 +1227,14 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
       }
 
       // The same 67h and FS/GS prefixes before a VEX instruction without
-      // VSIB: VMOVDQU xmm0,[rdi] (C5 FA 6F 07).  FS and GS are based at
+      // VSIB: VMOVDQU xmm0,[rdi] (C5 FA 6F 07), and VMASKMOVDQU xmm5,xmm6
+      // (C5 F9 F7 EE), whose destination is DS:rDI.  FS and GS are based at
       // 100h, so that the flat address is in the table too and a prefix
-      // variant does not fault.
+      // variant does not fault (as for MASKMOVDQU in kvm-tests-sse.cpp).
       {
         ArchState st = g;
+        st.xmm[5] = xmm_from_u64(0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL);
+        st.xmm[6] = xmm_from_u64(0x8000800080008000ULL, 0x0080008000800080ULL);
         ArchState a = st;
         a.rdi = 0x1234567800000000ULL | (DATA_ADDR + 1024);
         ArchState f = st;
@@ -1240,6 +1243,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
         struct Mem { const char *name; std::vector<u8> code; };
         const Mem mems[] = {
           {"VMOVDQU xmm0,", {0xC5, 0xFA, 0x6F, 0x07}},
+          {"VMASKMOVDQU xmm5,xmm6,", {0xC5, 0xF9, 0xF7, 0xEE}},
         };
         for (const Mem &m : mems) {
           auto add_mem = [&](const std::string &form, std::vector<u8> code, const ArchState &init) {
