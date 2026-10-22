@@ -1532,7 +1532,7 @@ static CaseResult run_case(KvmVm &vm, const TestCase &tc, const char *verdict) {
   MemPages kvm_mem, sail_mem;
   AmxState sail_amx;
   bool amx = test_has_amx(tc);
-  bool fault_allowed = tc.expect_fault || tc.may_fault;
+  bool fault_allowed = tc.expect_fault || tc.may_fault || !tc.allowed_outcomes.empty();
 
   if (!vm.run_test_any(&kvm_state, &kvm_fault, &err)) {
     fprintf(stderr, "%sFAIL: %s\n", err.c_str(), tc.name.c_str());
@@ -1565,6 +1565,18 @@ static CaseResult run_case(KvmVm &vm, const TestCase &tc, const char *verdict) {
             kvm_fault.faulted ? "faulted" : "completed",
             sail_fault.faulted ? "faulted" : "completed");
     ok = false;
+  }
+  if (!tc.allowed_outcomes.empty() && err.empty()) {
+    auto outcome = [](const FaultInfo &f) { return f.faulted ? f.vector : -1; };
+    auto allowed = [&](int o) { return std::ranges::count(tc.allowed_outcomes, o) > 0; };
+    int kvm_out = outcome(kvm_fault), sail_out = outcome(sail_fault);
+    if (!allowed(kvm_out) || !allowed(sail_out)) {
+      fprintf(stderr, "  OUTCOME not allowed: kvm %d, sail %d (-1: completed)\n",
+              kvm_out, sail_out);
+      ok = false;
+    } else if (kvm_out != sail_out) {
+      return CaseResult::Pass;
+    }
   }
   if (!err.empty())
     fprintf(stderr, "%s", err.c_str());

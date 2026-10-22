@@ -555,6 +555,12 @@ struct TestCase {
   bool may_fault = false;        // the case does not state whether the run faults: the
                                  // model's outcome, from the manuals, is the expected
                                  // one, and the host must agree (variants, below)
+  // Where the manuals leave the outcome open (which of two exceptions is
+  // raised first, or whether an encoding faults at all), the outcomes they
+  // allow: exception vectors, and -1 for completing.  Each side must take
+  // one of them; when the two take different ones, nothing more is
+  // compared.
+  std::vector<int> allowed_outcomes;
   // Bits of the data page that the instruction sequence leaves undefined,
   // as (offset, bits of that byte): the memory counterpart of flags_mask.
   std::vector<std::pair<u16, u8>> data_undefined;
