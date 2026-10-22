@@ -666,10 +666,15 @@ function vex_check_form(map, opcode, pfx) = {
   if ~(vex_form_valid(map, opcode, pfx)) then raise_UD();
   // Outside 64-bit mode, "the 3-byte VEX version will ignore" the top bit
   // of vvvv (SDM Vol.2A §2.3.5.6; in the 2-byte VEX it is 1, or the
-  // instruction is LDS).  An Emerald Rapids ignores it where vvvv names a
-  // register, a vector, a GPR, a gather's mask or an opmask, but raises
-  // #UD for 0111b where vvvv is reserved, as in 64-bit mode: the forms
-  // above have checked the whole field.
+  // instruction is LDS) where vvvv names a register, a vector, a GPR, a
+  // gather's mask or an opmask, but where vvvv is reserved it must be
+  // 1111b in every mode, as the forms above have checked (Table 2-41,
+  // which "also represents VEX restrictions": "vvvv encodes ZMM/YMM/XMM |
+  // None (valid) | None (valid) P[14] ignored", "Otherwise | If != 1111b |
+  // If != 1111b"; Table 2-42: "K-regs are instruction operands not mask
+  // control | If vvvv = 0xxxb | None").  The APM says only that "Values
+  // 0000h to 0111h are not valid in 32-bit modes" (Vol.3 Table 1-21), and
+  // the model follows the SDM on both vendors.
   let pfx = if cur_mode != LongMode then { pfx with vex_vvvv = pfx.vex_vvvv % 8 } else pfx;
   let op : range(0, 255) = unsigned(opcode);
   // VZEROUPPER and VZEROALL have no ModR/M byte.

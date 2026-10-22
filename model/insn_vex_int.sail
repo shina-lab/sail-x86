@@ -324,7 +324,11 @@ function dispatch_vex_0f_int(op, pfx) = {
       RM_reg(r) => {
         // KMOVQ with a GPR is 64-bit mode only ("V/I"): "VEX.W can only be
         // used to modify the size of the GPR operand in 64b mode" (SDM
-        // Vol.2A KMOV), and an Emerald Rapids executes it as KMOVD outside.
+        // Vol.2A KMOV), so VEX.W1 is KMOVD outside it.  The APM has the
+        // W1 rows for 64-bit mode only ("These encodings are only
+        // available in 64-bit mode", Vol.4 KMOVQ) and makes another W an
+        // "Undefined case of a value of VEX.W" that "may cause a #UD"
+        // (§3.2.5); the model follows the SDM on both vendors.
         if mp == MP_F2 then {
           if vex_gpr_size(pfx) == 64 then write_kreg(k1, v(64, r))     // KMOVQ
           else write_kreg(k1, zero_extend(v(32, r)))                   // KMOVD

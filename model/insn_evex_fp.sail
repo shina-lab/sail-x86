@@ -618,9 +618,9 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F 2A: VCVTSI2SS (F3) / VCVTSI2SD (F2) — scalar, GPR/mem to XMM
   // F3: {er}, F2/W1: {er}.  Outside 64-bit mode EVEX.W1 here and in the
   // other conversions to and from a GPR "is ignored; the instructions
-  // behaves as if the W0 version is used" (vex_gpr_size): an Emerald
-  // Rapids converts a 32-bit source, and scales a disp8 by 4, the Tuple1
-  // Scalar N of the W0 form.
+  // behaves as if the W0 version is used" (vex_gpr_size): the source is 32
+  // bits, and a disp8 is scaled by 4, the Tuple1 Scalar N of a 32-bit
+  // operand (SDM Vol.2A Table 2-37).
   42 => {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);

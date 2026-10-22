@@ -867,13 +867,18 @@ function evex_check_form(mmm, opcode, pfx) = {
   // EVEX.vvvv and EVEX.V' (Table 2-41) are 1111b and 1 where they encode
   // no register (pfx.evex_vvvvv holds them inverted).  Outside 64-bit mode
   // the top bit of a vvvv that names a register is ignored ("P[14]
-  // ignored"), and V' = 1 is #UD where it would extend a register number,
-  // the vvvv operand or the VSIB index; where vvvv names nothing, the whole
-  // field must still be 1111b.  An Emerald Rapids follows these rules; a
-  // Zen 4 ignores V' as well where vvvv names a register.
+  // ignored"), and an EVEX.V' of 0 as encoded, which would select
+  // registers 16-31, is #UD, also where it would extend the vvvv operand
+  // or the VSIB index ("EVEX.V' | Encodes ZMM/YMM/XMM | None (valid) | If
+  // 0"); where vvvv names nothing, the whole field must still be 1111b.
+  // The APM agrees where vvvv names nothing or the VSIB index ("EVEX.V' !=
+  // 1 | Single source operand instructions | #UD | #UD", whose VSIB
+  // exemption, note 3, is in the 64-bit column only; Vol.4 §3.2.4) and has
+  // no rule for V' or P[14] where vvvv names a register outside 64-bit
+  // mode, so the model applies the SDM's to both vendors.
   let legacy : bool = cur_mode != LongMode;
   match f.vvvv {
-    V_REG  => if legacy & pfx.evex_vvvvv >= 16 & vendor == Vendor_Intel then raise_UD(),
+    V_REG  => if legacy & pfx.evex_vvvvv >= 16 then raise_UD(),
     V_NONE => if pfx.evex_vvvvv != 0 then raise_UD(),
     V_VSIB => if pfx.evex_vvvvv % 16 != 0 | legacy & pfx.evex_vvvvv >= 16 then raise_UD(),
   };

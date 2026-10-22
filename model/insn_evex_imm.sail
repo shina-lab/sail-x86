@@ -861,6 +861,12 @@ function dispatch_evex_imm(op, pfx) = {
   },
 
   // 0F3A 22: VPINSRD (66, W=0) / VPINSRQ (66, W=1) — insert dword/qword from GPR/mem into XMM
+  // Outside 64-bit mode EVEX.W1 is VPINSRD: "VEX.W/EVEX.W in non-64 bit is
+  // ignored; the instructions behaves as if the W0 version is used" (SDM
+  // PINSRB/PINSRD/PINSRQ, whose "#UD" for VPINSRQ there is said of the
+  // VEX.128 version).  The APM's non-64-bit EVEX row is W0 only ("62
+  // RXBR'.3 0.vvvv.01", Vol.4 VPINSRD), which makes W1 an "Undefined case
+  // of a value of EVEX.W" that "may cause a #UD" (§3.2.4).
   34 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);

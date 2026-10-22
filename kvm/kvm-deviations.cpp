@@ -182,6 +182,54 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "other memory faults: \"If fault suppression not set, and ...\"); APM Vol.4 MOVAPS "
      "(p.284), \"A memory operand that is not aligned causes a general-protection "
      "exception\""},
+    {true, "vmovdqa32 xmm0,xmm1 EVEX.V'̄=0",
+     "Zen 4 runs VMOVDQA32 with EVEX.V'̄ = 0 in compatibility mode; #UD in both manuals: SDM "
+     "Vol.2A Table 2-41 (p.2-44), \"EVEX.V' | Otherwise | If 0 | If 0\"; APM Vol.4 §3.2.4 "
+     "(p.1880), \"EVEX.V' != 1 | Single source operand instructions | #UD3 | #UD\""},
+    {true, "vpgatherdd zmm0{k1},[edi+zmm2*4] EVEX.V'̄=0",
+     "Zen 4 runs VPGATHERDD with EVEX.V'̄ = 0 in compatibility mode; #UD in both manuals: SDM "
+     "Vol.2A Table 2-41 (p.2-44), \"EVEX.V' | Encodes ZMM/YMM/XMM | None (valid) | If 0\"; APM "
+     "Vol.4 §3.2.4 (p.1880), \"EVEX.V' != 1 | ... | #UD3 | #UD\", whose note 3 exempts VSIB "
+     "in 64-bit mode only"},
+    {true, "vpxord xmm0,xmm1,xmm2 EVEX.V'̄=0",
+     "Zen 4 ignores EVEX.V'̄ = 0 in compatibility mode where EVEX.vvvv names a register; SDM "
+     "Vol.2A Table 2-41 (p.2-44): \"EVEX.V' | Encodes ZMM/YMM/XMM | None (valid) | If 0\" "
+     "(#UD outside 64-bit mode); the APM has no rule for it (Vol.4 §3.2.4)"},
+    {true, "vpxord zmm0,zmm1,zmm2 EVEX.V'̄=0",
+     "Zen 4 ignores EVEX.V'̄ = 0 in compatibility mode where EVEX.vvvv names a register; SDM "
+     "Vol.2A Table 2-41 (p.2-44): \"EVEX.V' | Encodes ZMM/YMM/XMM | None (valid) | If 0\" "
+     "(#UD outside 64-bit mode); the APM has no rule for it (Vol.4 §3.2.4)"},
+    {true, "vpxord xmm0,xmm1,xmm2 EVEX.V'̄=0 vvvv bit 3",
+     "Zen 4 ignores EVEX.V'̄ = 0 in compatibility mode where EVEX.vvvv names a register; SDM "
+     "Vol.2A Table 2-41 (p.2-44): \"EVEX.V' | Encodes ZMM/YMM/XMM | None (valid) | If 0\" "
+     "(#UD outside 64-bit mode); the APM has no rule for it (Vol.4 §3.2.4)"},
+    {true, "vpextrq eax,xmm1,1 W1",
+     "Zen 4 faults on VEX VPEXTRQ (W1) in compatibility mode; both manuals make it VPEXTRD: SDM "
+     "Vol.2B PEXTRQ (4-286) note 2, \"VEX.W/EVEX.W in non-64 bit is ignored; the instructions "
+     "behaves as if the W0 version is used\"; APM Vol.4 VPEXTRD (p.479), \"x.1111.0.01 16 /r "
+     "ib\", \"only available in non-64-bit modes\".  (The EVEX case of this name runs.)"},
+    {true, "vpextrq eax,xmm1,1 W1 [edi]",
+     "Zen 4 faults on VEX VPEXTRQ (W1) in compatibility mode; both manuals make it VPEXTRD: SDM "
+     "Vol.2B PEXTRQ (4-286) note 2, \"VEX.W/EVEX.W in non-64 bit is ignored; the instructions "
+     "behaves as if the W0 version is used\"; APM Vol.4 VPEXTRD (p.479), \"x.1111.0.01 16 /r "
+     "ib\", \"only available in non-64-bit modes\""},
+    {true, "vpextrq eax,xmm1,3 W1",
+     "Zen 4 faults on VEX VPEXTRQ (W1) in compatibility mode; both manuals make it VPEXTRD: SDM "
+     "Vol.2B PEXTRQ (4-286) note 2, \"VEX.W/EVEX.W in non-64 bit is ignored; the instructions "
+     "behaves as if the W0 version is used\"; APM Vol.4 VPEXTRD (p.479), \"x.1111.0.01 16 /r "
+     "ib\", \"only available in non-64-bit modes\".  (The EVEX case of this name runs.)"},
+    {true, "vpextrq eax,xmm1,3 W1 [edi]",
+     "Zen 4 faults on VEX VPEXTRQ (W1) in compatibility mode; both manuals make it VPEXTRD: SDM "
+     "Vol.2B PEXTRQ (4-286) note 2, \"VEX.W/EVEX.W in non-64 bit is ignored; the instructions "
+     "behaves as if the W0 version is used\"; APM Vol.4 VPEXTRD (p.479), \"x.1111.0.01 16 /r "
+     "ib\", \"only available in non-64-bit modes\""},
+    {true, "kmovq k1,eax W1",
+     "Zen 4 runs KMOVQ k1, eax (VEX.W1) in compatibility mode as a 64-bit move, k1[63:32] = "
+     "RAX[63:32]; the manuals allow #UD or KMOVD, which zeroes k1[63:32]: SDM Vol.2A KMOVQ "
+     "(3-517) \"V/I\" and (3-518) \"VEX.W can only be used to modify the size of the GPR "
+     "operand in 64b mode\"; APM Vol.4 KMOVQ (p.211), \"These encodings are only available in "
+     "64-bit mode\", and §3.2.5 (p.1881), \"Undefined cases of a value of VEX.W\" \"may cause a "
+     "#UD\""},
 };
 
 bool host_is_amd() {

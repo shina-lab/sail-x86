@@ -299,8 +299,15 @@ function dispatch_vex_0f3a(opcode, pfx) = {
 
   // 0F3A 20/22: VPINSRB / VPINSRD/Q — VEX.128.  Outside 64-bit mode the SDM
   // says both "Attempt to execute VPINSRQ in non-64-bit mode will cause
-  // #UD" and "VEX.W/EVEX.W in non-64 bit is ignored"; an Emerald Rapids
-  // executes VEX.W1 there as VPINSRD (and VPEXTRQ, 0F3A 16, as VPEXTRD).
+  // #UD" and "VEX.W/EVEX.W in non-64 bit is ignored; the instructions
+  // behaves as if the W0 version is used" (PINSRB/PINSRD/PINSRQ).  The
+  // model takes the second, which §2.3.5.5 states for every AVX form of a
+  // legacy instruction whose REX.W promotes a GPR operand ("In 32-bit
+  // modes for these instructions, VEX.W is silently ignored") and the APM
+  // for this one ("VPINSRD xmm, reg32/mem32, xmm, imm8 C4 RXB.03
+  // x.1111.0.01", "only available in non-64-bit modes", Vol.4 VPINSRD):
+  // VEX.W1 is VPINSRD there (and VPEXTRQ, 0F3A 16, VPEXTRD, as both
+  // manuals say).
   op if op == 32 | op == 34 => {
     if pfx.vex_l then raise_UD();
     let modrm = fetch(1);
