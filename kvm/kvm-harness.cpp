@@ -914,13 +914,24 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
   // 0F AE /6 register forms and IA32_UMWAIT_CONTROL are #UD and #GP.  And
   // AVX512-FP16 (EDX[23]), whose encodings are #UD on a host without it,
   // and ENQCMD (ECX[29]), without which F2/F3 0F 38 F8 are #UD.  The guest
-  // executes ENQCMD and ENQCMDS natively whatever its CPUID says.
+  // executes ENQCMD and ENQCMDS natively whatever its CPUID says, and so
+  // PTWRITE, whose bit is CPUID.(14H,0):EBX[4], a leaf that exists with
+  // Intel PT (EBX[25]).
   {
     u32 a, b, c, d;
     __cpuid_count(7, 0, a, b, c, d);
     model.zhas_waitpkg = (c & (1u << 5)) != 0;
     model.zhas_enqcmd = (c & (1u << 29)) != 0;
     model.zhas_avx512_fp16 = (d & (1u << 23)) != 0;
+    model.zhas_ptwrite = false;
+    if ((b & (1u << 25)) && __get_cpuid_max(0, nullptr) >= 0x14) {
+      __cpuid_count(0x14, 0, a, b, c, d);
+      model.zhas_ptwrite = (b & (1u << 4)) != 0;
+    }
+    // AMD SSE4A (CPUID Fn8000_0001_ECX[6]): EXTRQ, INSERTQ, MOVNTSS and
+    // MOVNTSD, which the guest also executes natively.
+    __cpuid(0x80000001, a, b, c, d);
+    model.zhas_sse4a = (c & (1u << 6)) != 0;
   }
   // XCR0 as the guest starts every test (x87, SSE, AVX and the AVX-512
   // components); a test's override, below, may add the AMX components.

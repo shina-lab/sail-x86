@@ -577,6 +577,34 @@ struct Base {
   std::unordered_set<std::string> *seen;  // the kind's variants of single instructions so far
 };
 
+// Marks what the manuals leave undefined in the results of an instruction
+// that a variant made, which its case could not mark:
+// - EXTRQ and INSERTQ (66 and F2 0F 78/79, register operands), which an
+//   SSE4A host runs where a variant adds 66h or F2h to VMREAD or VMWRITE:
+//   bits 127:64 of the destination are undefined, and bits 63:0 are too
+//   where "the sum of the bit index + length field is greater than 64" or
+//   the length is 0 with a nonzero index (AMD APM Vol.4 EXTRQ p.172,
+//   INSERTQ p.195).  A register form takes its field from a register that
+//   the code before it may have changed, so its whole destination is left
+//   out.
+void mark_undefined(TestCase &v) {
+  std::vector<Insn> insns;
+  if (!decode_all(v.code, &insns)) return;
+  for (const Insn &in : insns) {
+    int mp = mandatory_prefix(in);
+    if ((in.legacy(1, 0x78) || in.legacy(1, 0x79)) && (mp == 1 || mp == 3) && in.mod() == 3) {
+      int dst = in.op == 0x78 && mp == 1 ? in.rm() : in.reg();
+      bool in_range = false;
+      if (in.op == 0x78 && in.imm.size() == 2) {
+        int len = in.imm[0] & 63, idx = in.imm[1] & 63;
+        in_range = len == 0 ? idx == 0 : idx + len <= 64;
+      }
+      v.undefined.zmm[dst][1] = ~0ULL;
+      if (!in_range) v.undefined.zmm[dst][0] = ~0ULL;
+    }
+  }
+}
+
 // Names a variant and passes it on.
 struct Emit {
   const std::string &category;
@@ -588,6 +616,7 @@ struct Emit {
     if (p == std::string::npos) p = b.tc.name.size();
     v.name = b.tc.name.substr(0, p) + " [" + detail + "]" + b.tc.name.substr(p);
     v.category = category;
+    mark_undefined(v);
     fn(std::move(v));
   }
 };

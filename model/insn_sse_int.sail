@@ -802,9 +802,14 @@ function dispatch_2byte_sse_int(op, pfx) = {
 //   F2 0F 79 /r        INSERTQ xmm1, xmm2
 // Each takes registers only.  The field is LENGTH bits (0 meaning 64) at
 // bit INDEX, from the first and second imm8 or, in the register forms,
-// from xmm2[5:0] and [13:8] (EXTRQ) or [69:64] and [77:72] (INSERTQ).  The
-// APM leaves undefined a field past bit 63 and bits 127:64 of the result;
-// Zen 4 cuts the field at bit 63 and clears bits 127:64, as here.
+// from xmm2[5:0] and [13:8] (EXTRQ) or [69:64] and [77:72] (INSERTQ).
+// The APM leaves bits 127:64 of the destination undefined ("The upper
+// quadword of the destination register is undefined", Vol.4 EXTRQ p.172;
+// "The upper 64 bits of the destination are undefined", INSERTQ p.195),
+// and bits 63:0 as well when "the sum of the bit index + length field is
+// greater than 64" or the length field is 0 with a nonzero index ("For
+// any other value of the bit index, the results are undefined").  The
+// model writes `undefined` there.
 // =========================================================================
 
 val sse4a_field_mask : bits(6) -> qword
@@ -835,15 +840,18 @@ function exec_sse4a(op, pfx) = {
     };
   let mask = sse4a_field_mask(len);
   let sh : range(0, 63) = unsigned(idx);
+  let in_range : bool = if len == 0b000000 then sh == 0 else sh + unsigned(len) <= 64;
   if is_insertq then {
     let d : qword = read_simd(128, xreg)[63..0];
     let s : qword = read_simd(128, xrm)[63..0];
-    ZMM[xreg][127..0] = zero_extend((d & ~(mask << sh)) | ((s & mask) << sh))
+    let lo : qword = if in_range then (d & ~(mask << sh)) | ((s & mask) << sh) else undefined;
+    ZMM[xreg][127..0] = (undefined : qword) @ lo
   } else {
     // EXTRQ xmm1, imm8, imm8 names its operand in ModR/M.rm
     let dst : simd_idx = if op == 120 then xrm else xreg;
     let d : qword = read_simd(128, dst)[63..0];
-    ZMM[dst][127..0] = zero_extend((d >> sh) & mask)
+    let lo : qword = if in_range then (d >> sh) & mask else undefined;
+    ZMM[dst][127..0] = (undefined : qword) @ lo
   }
 }
 

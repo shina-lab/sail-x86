@@ -1,4 +1,5 @@
 #include "kvm-harness.h"
+#include <cpuid.h>
 
 void add_sse_tests(std::vector<TestCase> &tests) {
   std::string cat;
@@ -2071,5 +2072,48 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     memcpy(data.data(), s.xmm[1].q, 16);
     tests.push_back({"pmuldq xmm0,[rdi]", cat, {0x66, 0x0F, 0x38, 0x28, 0x07}, m,
                      FL_ALL, 0x1, false, data});
+  }
+
+  // =====================================================================
+  // AMD SSE4A (AMD APM Vol.4), on hosts with CPUID Fn8000_0001_ECX[6]:
+  // EXTRQ and INSERTQ take a field of LENGTH bits (0 meaning 64) at bit
+  // INDEX, from two imm8 (length first) or from xmm2[5:0] and [13:8]
+  // (EXTRQ) or [69:64] and [77:72] (INSERTQ).  "The upper quadword of the
+  // destination register is undefined" (EXTRQ p.172), "The upper 64 bits
+  // of the destination are undefined" (INSERTQ p.195), so each case leaves
+  // them out; its fields end by bit 63, the results the APM defines.  MOVNTSS and MOVNTSD store the low element (p.326-329).
+  // =====================================================================
+  u32 ext_a, ext_b, ext_c, ext_d;
+  __cpuid(0x80000001, ext_a, ext_b, ext_c, ext_d);
+  if (ext_c & (1u << 6)) {
+    cat = "SSE4A";
+    ArchState s;
+    s.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
+    auto add_field = [&](const std::string &name, std::vector<u8> code, ZmmVal xmm2) {
+      TestCase tc;
+      tc.name = name;
+      tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = with_vector_inputs(s, 0x2);
+      tc.initial.xmm[2] = xmm2;
+      tc.flags_mask = FL_ALL;
+      tc.undefined.zmm[1][1] = ~0ULL;
+      tests.push_back(std::move(tc));
+    };
+    ZmmVal src = xmm_from_u64(0x00000000CAFEF00D, 0x1122334455667788);
+    add_field("extrq xmm1,16,32", {0x66, 0x0F, 0x78, 0xC1, 0x10, 0x20}, src);
+    add_field("extrq xmm1,4,60 (field ends at bit 63)", {0x66, 0x0F, 0x78, 0xC1, 0x04, 0x3C}, src);
+    add_field("extrq xmm1,0,0 (length 64)", {0x66, 0x0F, 0x78, 0xC1, 0x00, 0x00}, src);
+    add_field("extrq xmm1,xmm2 (length 8, index 4)", {0x66, 0x0F, 0x79, 0xCA},
+              xmm_from_u64(0xFFFFFFFFFFFF0408, 0xFFFFFFFFFFFFFFFF));
+    add_field("insertq xmm1,xmm2,16,8", {0xF2, 0x0F, 0x78, 0xCA, 0x10, 0x08}, src);
+    add_field("insertq xmm1,xmm2,1,63", {0xF2, 0x0F, 0x78, 0xCA, 0x01, 0x3F}, src);
+    add_field("insertq xmm1,xmm2,0,0 (length 64)", {0xF2, 0x0F, 0x78, 0xCA, 0x00, 0x00}, src);
+    add_field("insertq xmm1,xmm2 (length 16, index 12)", {0xF2, 0x0F, 0x79, 0xCA},
+              xmm_from_u64(0x000000000000BEEF, 0xFFFFFFFFFFFF0C10));
+    ArchState m = with_vector_inputs(s, 0x2);
+    m.rdi = DATA_ADDR + 3;  // no alignment requirement
+    tests.push_back({"movntss [rdi],xmm1", cat, {0xF3, 0x0F, 0x2B, 0x0F}, m, FL_ALL});
+    tests.push_back({"movntsd [rdi],xmm1", cat, {0xF2, 0x0F, 0x2B, 0x0F}, m, FL_ALL});
   }
 }

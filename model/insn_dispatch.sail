@@ -355,12 +355,10 @@ function simd_0f_forms(op, mp, reg) = match op {
   op if op == 40 | op == 41 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_None, RMF_None),
   // CVTPI2PS, CVTPI2PD, CVTSI2SS, CVTSI2SD
   42 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_Any),
-  // MOVNTPS m128, xmm; MOVNTPD m128, xmm; and on AMD the SSE4A MOVNTSS
-  // mem32, xmm and MOVNTSD mem64, xmm (AMD APM Vol.4), which Intel leaves
-  // undefined
-  43 => if vendor == Vendor_AMD
-        then rm_forms(mp, RMF_Mem,  RMF_Mem,  RMF_Mem,  RMF_Mem)
-        else rm_forms(mp, RMF_Mem,  RMF_Mem,  RMF_None, RMF_None),
+  // MOVNTPS m128, xmm; MOVNTPD m128, xmm; and the SSE4A MOVNTSS mem32, xmm
+  // and MOVNTSD mem64, xmm (AMD APM Vol.4), which the SDM leaves undefined
+  43 => rm_forms(mp, RMF_Mem,  RMF_Mem,  with_feature(has_sse4a, RMF_Mem),
+                 with_feature(has_sse4a, RMF_Mem)),
   // CVT(T)PS2PI, CVT(T)PD2PI, CVT(T)SS2SI, CVT(T)SD2SI
   op if op == 44 | op == 45 => rm_forms(mp, RMF_Any,  RMF_Any,  RMF_Any,  RMF_Any),
   // UCOMISS, UCOMISD; COMISS, COMISD

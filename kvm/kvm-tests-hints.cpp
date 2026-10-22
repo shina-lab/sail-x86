@@ -1,7 +1,8 @@
 // Hint instructions with no architectural effect: PREFETCHW (0F 0D /1) and
-// the reserved-NOP forms of its opcode, CLDEMOTE (0F 1C /0), and SERIALIZE
-// (0F 01 E8).  Each is checked to leave every register, flag and the data
-// page unchanged; the LOCK prefix is #UD on all of them.
+// the reserved-NOP forms of its opcode, CLDEMOTE (0F 1C /0), PTWRITE (F3
+// 0F AE /4) without processor trace, and SERIALIZE (0F 01 E8).  Each is
+// checked to leave every register, flag and the data page unchanged; the
+// LOCK prefix is #UD on all of them.
 
 #include "kvm-harness.h"
 #include <cpuid.h>
@@ -99,6 +100,35 @@ void add_hint_tests(std::vector<TestCase> &tests) {
   add("0F 1C /3 [rdi] (reserved NOP)", {0x0F, 0x1C, 0x1F});
   add("66 cldemote [rdi]", {0x66, 0x0F, 0x1C, 0x07});
   add_ud("lock cldemote [rdi] #UD", {0xF0, 0x0F, 0x1C, 0x07});
+
+  // =====================================================================
+  // PTWRITE r/m32, r/m64 — F3 (REX.W) 0F AE /4.  It reads its operand for
+  // a PTW packet, which the guest's processor trace (off) never makes.
+  // "#UD If CPUID.14H.00H:EBX.PTWRITE[4] = 0.  If LOCK prefix is used.  If
+  // 66H prefix is used" (SDM Vol.2B PTWRITE, 4-501); leaf 14H exists with
+  // CPUID.07H:EBX[25].
+  // =====================================================================
+  cat = "PTWRITE";
+  {
+    u32 a, b, c, d;
+    __cpuid_count(7, 0, a, b, c, d);
+    bool ptwrite = false;
+    if ((b & (1u << 25)) && __get_cpuid_max(0, nullptr) >= 0x14) {
+      __cpuid_count(0x14, 0, a, b, c, d);
+      ptwrite = (b & (1u << 4)) != 0;
+    }
+    if (ptwrite) {
+      add("ptwrite eax", {0xF3, 0x0F, 0xAE, 0xE0});
+      add("ptwrite rax (REX.W)", {0xF3, 0x48, 0x0F, 0xAE, 0xE0});
+      add("ptwrite dword [rdi]", {0xF3, 0x0F, 0xAE, 0x27});
+      add("ptwrite qword [rdi] (REX.W)", {0xF3, 0x48, 0x0F, 0xAE, 0x27});
+    } else {
+      add_ud("ptwrite eax #UD (no PTWRITE)", {0xF3, 0x0F, 0xAE, 0xE0});
+      add_ud("ptwrite dword [rdi] #UD (no PTWRITE)", {0xF3, 0x0F, 0xAE, 0x27});
+    }
+    add_ud("66 ptwrite eax #UD", {0x66, 0xF3, 0x0F, 0xAE, 0xE0});
+    add_ud("lock ptwrite dword [rdi] #UD", {0xF0, 0xF3, 0x0F, 0xAE, 0x27});
+  }
 
   // =====================================================================
   // SERIALIZE — NP 0F 01 E8: no effect on registers, flags or memory.

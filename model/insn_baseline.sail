@@ -159,6 +159,7 @@ function cpuid(leaf, subleaf) = {
         if has_avx512     then ebx = ebx | 0xD0230000;  // F(16)+DQ(17)+IFMA(21)+CD(28)+BW(30)+VL(31)
         if has_rdseed     then ebx = ebx | 0x00040000;  // bit 18
         if has_adx        then ebx = ebx | 0x00080000;  // bit 19
+        if has_ptwrite    then ebx = ebx | 0x02000000;  // bit 25 (Intel PT: leaf 14H)
         if has_sha        then ebx = ebx | 0x20000000;  // bit 29
         var ecx : dword = 0x00000000;
         if has_avx512     then ecx = ecx | 0x00005842;  // VBMI(1)+VBMI2(6)+VNNI(11)+BITALG(12)+VPOPCNTDQ(14)
@@ -239,6 +240,12 @@ function cpuid(leaf, subleaf) = {
     30 => if has_amx_tile & sub_val == 0 then (0x00000000, 0x00004010, 0x00000000, 0x00000000)
           else (0x00000000, 0x00000000, 0x00000000, 0x00000000),
 
+    // Leaf 0x14: Intel PT (SDM Table 21-49), valid with CPUID.07H:EBX[25].
+    // Sub-leaf 0: EAX the highest sub-leaf, EBX[4] PTWRITE; no trace
+    // output scheme (ECX = 0).
+    20 => if has_ptwrite & sub_val == 0 then (0x00000000, 0x00000010, 0x00000000, 0x00000000)
+          else (0x00000000, 0x00000000, 0x00000000, 0x00000000),
+
     // Leaf 0x15: Time Stamp Counter / Core Crystal Clock
     // EAX = denominator, EBX = numerator, ECX = crystal frequency (Hz)
     // TSC freq = crystal_freq * numerator / denominator = 25MHz * 40 / 1 = 1GHz
@@ -253,9 +260,10 @@ function cpuid(leaf, subleaf) = {
 
     // Leaf 0x80000001: Extended feature bits
     2147483649 => {
-      // ECX: LAHF(0), conditionally LZCNT(5) and PREFETCHW(8)
+      // ECX: LAHF(0), conditionally LZCNT(5), SSE4A(6) and PREFETCHW(8)
       var ecx : dword = 0x00000001;  // LAHF
       if has_lzcnt     then ecx = ecx | 0x00000020;  // bit 5
+      if has_sse4a     then ecx = ecx | 0x00000040;  // bit 6 (AMD APM Vol.3 Appendix E)
       if has_prefetchw then ecx = ecx | 0x00000100;  // bit 8
       // EDX: SYSCALL(11), NX(20), LM(29)
       let edx : dword = 0x20100800;
@@ -1669,11 +1677,11 @@ function dispatch_2byte_gpr(op, pfx) = {
       // The forms the SDM Vol.2 opcode tables define, by mandatory prefix
       // (FXSAVE, FXRSTOR, LDMXCSR, STMXCSR, XSAVE, XRSTOR, XSAVEOPT and
       // CLFLUSH are NP, as are LFENCE, MFENCE and SFENCE); any other is #UD.
-      // PTWRITE (F3 /4), which also takes no 66, is an Intel instruction
-      // (Emerald Rapids executes it; Zen 4 raises #UD).  Not implemented:
-      // F3 /5 reg INCSSP (CET shadow stacks, #UD while CR4.CET = 0).
+      // PTWRITE (F3 /4) is #UD with 66h or without CPUID.(14H,0):EBX[4]
+      // (SDM Vol.2B PTWRITE).  Not implemented: F3 /5 reg INCSSP (CET
+      // shadow stacks, #UD while CR4.CET = 0).
       let is_reg : bool = match dest { RM_reg(_) => true, RM_mem(_) => false };
-      let ptwrite : bool = reg_field == 4 & vendor == Vendor_Intel & ~(pfx.has_opsize);
+      let ptwrite : bool = reg_field == 4 & has_ptwrite & ~(pfx.has_opsize);
       let defined : bool = match (get_mandatory_prefix(pfx), is_reg) {
         // FXSAVE ... CLFLUSH m8
         (MP_NONE, false) => true,
@@ -2444,8 +2452,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       }
     },
 
-    // 66/F2 0F 78 and 0F 79 on AMD: SSE4A EXTRQ and INSERTQ (exec_sse4a)
-    op if (op == 120 | op == 121) & vendor == Vendor_AMD
+    // 66/F2 0F 78 and 0F 79 with SSE4A: EXTRQ and INSERTQ (exec_sse4a)
+    op if (op == 120 | op == 121) & has_sse4a
           & (get_mandatory_prefix(pfx) == MP_66 | get_mandatory_prefix(pfx) == MP_F2) =>
       exec_sse4a(op, pfx),
 
