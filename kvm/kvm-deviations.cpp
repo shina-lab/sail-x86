@@ -9,9 +9,11 @@
 // host-specific expectation.  A listed case that mismatches is reported as
 // a known deviation, not a failure; one that matches passes as usual.
 //
-// Each entry names the host vendor, the case (a trailing '*' also matches
-// the case's variants, whose names extend the base name), and what the
-// hardware does against what the manuals say, with section and page.
+// Each entry names the host vendor, the case, and what the hardware does
+// against what the manuals say, with section and page.  A '*' in the name
+// matches any characters: a trailing one also matches the case's variants,
+// whose names extend the base name with " [detail]", and "*[detail]*" one
+// kind of variant of every case.
 
 #include "kvm-harness.h"
 #include <cpuid.h>
@@ -238,11 +240,11 @@ bool host_is_amd() {
   return b == 0x68747541;  // "Auth" of AuthenticAMD
 }
 
-bool matches(const char *pattern, const std::string &name) {
-  std::string p = pattern;
-  if (!p.empty() && p.back() == '*')
-    return name.compare(0, p.size() - 1, p, 0, p.size() - 1) == 0;
-  return name == p;
+bool matches(const char *pattern, const char *name) {
+  if (*pattern == '*')
+    return matches(pattern + 1, name) || (*name && matches(pattern, name + 1));
+  if (!*pattern) return !*name;
+  return *pattern == *name && matches(pattern + 1, name + 1);
 }
 
 }  // namespace
@@ -250,7 +252,7 @@ bool matches(const char *pattern, const std::string &name) {
 const KnownDeviation *known_deviation(const std::string &case_name) {
   static const bool amd = host_is_amd();
   for (const KnownDeviation &d : DEVIATIONS)
-    if (d.amd == amd && matches(d.name, case_name))
+    if (d.amd == amd && matches(d.name, case_name.c_str()))
       return &d;
   return nullptr;
 }
