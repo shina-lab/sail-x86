@@ -21,7 +21,26 @@ function scan_prefixes() = {
       // F0 = LOCK
       240 => pfx = {pfx with has_lock = true, has_rex = false,
                rex_w = false, rex_r = 0b0, rex_x = 0b0, rex_b = 0b0},
-      // F2 = REPNE / mandatory prefix
+      // F2 = REPNE / mandatory prefix.  F2 and F3 repeat the string and I/O
+      // instructions (exec_rep) and form the opcodes the opcode tables
+      // list with them (get_mandatory_prefix).  Any other instruction
+      // ignores them, on both vendors.  The APM defines that: "Repeat
+      // Prefixes—These prefixes affect only certain string instructions"
+      // (Vol.3 §1.2.1, p.6), and "The following prefixes are ignored by x87
+      // instructions: REP—The F3h and F2h prefixes" (Vol.1 §6.6.2, p.327).
+      // The SDM leaves it open: "Use of repeat prefixes and/or undefined
+      // opcodes with other Intel 64 or IA-32 instructions is reserved; such
+      // use may cause unpredictable behavior" (Vol.2A §2.1.1, p.2-2), but
+      // for NOP, "NP 90", where other prefixes "will either cause an
+      // invalid-opcode exception (#UD) or result in the encoding for a
+      // different instruction" (Vol.2A §3.1.1.1, p.3-2): F2 90 is no
+      // instruction, and the model runs the NOP, as the APM has it.
+      // Where the APM's opcode maps form the opcode with F2 or F3 and list
+      // no instruction, "cells shaded gray represent reserved opcodes"
+      // (Vol.3 §A.1, p.524), #UD: the model raises it in the SSE, 0F 38
+      // and 0F 3A maps and Groups 9 and 15, but not for 0F BA, 0F BB, MOVSX
+      // and CMPXCHG8B with either, nor BSF and BSR with F2 (Table A-4,
+      // p.532, Table A-7, p.536), which it runs as without the prefix.
       242 => pfx = {pfx with has_repne = true, has_rep = false, has_rex = false,
                rex_w = false, rex_r = 0b0, rex_x = 0b0, rex_b = 0b0},
       // F3 = REP / mandatory prefix

@@ -588,22 +588,10 @@ struct Base {
 //   INSERTQ p.195).  A register form takes its field from a register that
 //   the code before it may have changed, so its whole destination is left
 //   out.
-// - 90 with REX.B and an F3h prefix (the last of F2h and F3h), which a
-//   variant makes of XCHG r8,rAX: PAUSE is F3 90 alone, and a repeat
-//   prefix on another instruction "is reserved; such use may cause
-//   unpredictable behavior" (SDM Vol.2A §2.1.1, p.2-2).  Whether RAX
-//   and R8 are exchanged is left open.
 void mark_undefined(TestCase &v) {
   std::vector<Insn> insns;
   if (!decode_all(v.code, &insns)) return;
   for (const Insn &in : insns) {
-    if (in.legacy(0, 0x90) && in.B) {
-      for (size_t i = in.prefixes.size(); i-- > 0;) {
-        if (in.prefixes[i] != 0xF2 && in.prefixes[i] != 0xF3) continue;
-        if (in.prefixes[i] == 0xF3) v.undefined.gpr[0] = v.undefined.gpr[8] = ~0ULL;
-        break;
-      }
-    }
     int mp = mandatory_prefix(in);
     if ((in.legacy(1, 0x78) || in.legacy(1, 0x79)) && (mp == 1 || mp == 3) && in.mod() == 3) {
       int dst = in.op == 0x78 && mp == 1 ? in.rm() : in.reg();
@@ -1192,17 +1180,21 @@ bool umonitor(const Insn &in) {
   return false;
 }
 
-// LSS, LFS and LGS (0F B2, B4, B5) with REX.W on an AMD host.  The SDM has
-// "REX.W + 0F B2 /r LSS r64,m16:64" (Vol.2A p.3-540); the APM lists no such
-// form, "A 64-bit operand is not supported" (Vol.3 LDS-LSS p.216), and
-// leaves what the processor does with it open.
-bool amd_far_load_w(const Insn &in) {
+bool amd_host() {
   static const bool amd = [] {
     u32 a, b, c, d;
     __get_cpuid(0, &a, &b, &c, &d);
     return b == 0x68747541;  // "Auth" of AuthenticAMD
   }();
-  return amd && in.W && (in.legacy(1, 0xB2) || in.legacy(1, 0xB4) || in.legacy(1, 0xB5));
+  return amd;
+}
+
+// LSS, LFS and LGS (0F B2, B4, B5) with REX.W on an AMD host.  The SDM has
+// "REX.W + 0F B2 /r LSS r64,m16:64" (Vol.2A p.3-540); the APM lists no such
+// form, "A 64-bit operand is not supported" (Vol.3 LDS-LSS p.216), and
+// leaves what the processor does with it open.
+bool amd_far_load_w(const Insn &in) {
+  return amd_host() && in.W && (in.legacy(1, 0xB2) || in.legacy(1, 0xB4) || in.legacy(1, 0xB5));
 }
 
 // The instruction with its r/m operand as [r + disp] (no SIB).
@@ -1463,11 +1455,149 @@ bool defined_prefix(const Insn &in, u8 p) {
   return true;
 }
 
+// The hosts on which a variant that adds 66h, F2h or F3h to a legacy
+// instruction compares: those whose manual defines what the prefixes of the
+// result do, as the model implements it.  Both manuals define the repeat
+// prefixes of the string and I/O instructions, the mandatory prefixes their
+// opcode tables list, and 66h as the operand size of a general-purpose
+// instruction, which leaves an operand of fixed size alone (SDM Vol.2D
+// Table B-6, p.B-4: w = 0 is 8 bits for either operand-size attribute; APM
+// Vol.3 Appendix A, p.523: operand type b is "A byte, irrespective of the
+// effective operand size").  The SDM reserves the other uses: "Use of
+// repeat prefixes and/or undefined opcodes with other Intel 64 or IA-32
+// instructions is reserved; such use may cause unpredictable behavior", and
+// "Other use of the 66H prefix is reserved" (Vol.2A §2.1.1, p.2-2).  The
+// APM defines more:
+// - "Repeat Prefixes—These prefixes affect only certain string
+//   instructions" (Vol.3 §1.2.1, p.6), and "The following prefixes are
+//   ignored by x87 instructions: REP—The F3h and F2h prefixes" (Vol.1
+//   §6.6.2, p.327); 66h "is ignored by all other x87 instructions" than
+//   FLDENV, FNSTENV, FNSAVE and FRSTOR (Vol.3 §1.2.2, p.9).  The model
+//   leaves the instruction as it is on both vendors, so the expectation is
+//   the same on both hosts; the Intel host only compares less, because the
+//   SDM leaves the result open (Hosts::Amd).
+// - Where the APM's maps form the opcode with them (SSE and MMX, the 0F 38
+//   and 0F 3A maps, Groups 9 and 15, MOVNTI), a cell that lists no
+//   instruction is a reserved opcode: "cells shaded gray represent reserved
+//   opcodes" (Vol.3 §A.1, p.524), and "#UD ... Execution of any reserved or
+//   undefined opcode" (Vol.2 §8.2.7, p.251).  The SDM marks most of those
+//   instructions NP: other prefixes "will either cause an invalid-opcode
+//   exception (#UD) or result in the encoding for a different instruction"
+//   (Vol.2A §3.1.1.1, p.3-2).  Where it does, both hosts compare; where it
+//   does not, the AMD host alone.  The SDM marks NOP 90 NP as well, which
+//   would make F2 90 #UD, there being no such instruction; the APM's
+//   primary map forms no opcode with F2h, and the model ignores it there,
+//   as the APM does.  The hint opcodes: hint_nop.
+// No host compares:
+// - REPNE with MOVS, LODS, STOS, INS and OUTS: it "can be added to the CMPS
+//   and SCAS instructions" (SDM Vol.2B REPNE p.4-567), and "The prefix can
+//   only be used with the CMPSx and SCASx instructions" (APM Vol.1
+//   §3.5.1.4, p.79).  The model repeats as for REP.
+// - 66h beside the F3h of RDFSBASE, RDGSBASE, WRFSBASE, WRGSBASE and ADOX,
+//   whose pages in both manuals list 32- and 64-bit forms only, and 66h on
+//   CMPXCHG8B, which APM Table A-7 makes CMPXCHG16B (p.536) and neither
+//   manual's instruction page mentions.
+// - F2h and F3h on 0F BA (BT, BTS, BTR, BTC with an immediate), 0F BB
+//   (BTC) and MOVSX, F2h on BSF and BSR, and both on CMPXCHG8B: reserved
+//   opcodes in APM Tables A-4 (p.532) and A-7 (p.536), for which the model,
+//   ignoring the prefix on both vendors, raises no #UD.
+// 66h on MOVDIRI compares on Intel only: NP, so #UD, which the model
+// raises; the APM's MOVDIRI stores "4 bytes in all other cases" than REX.W
+// (Vol.3 p.249), which the model does not.
+enum class Hosts { None, Intel, Amd, Both };
+
+// The hint opcodes, 0F 0D and 0F 18-1F but MPX's 0F 1A and 0F 1B, which do
+// with 66h, F2h or F3h what they do without them in both manuals.  The
+// SDM: "Instructions encoded with the opcode 0F0DH or with the opcodes 0F18H
+// through 0F1FH result in the behavior of the NOP (No Operation)
+// instruction, except for those opcodes defined in" Vol.2, and they "are
+// decoded with a ModR/M byte and typical instruction prefix options but
+// still result in the behavior of the NOP instruction" (Vol.3B §25.15,
+// p.25-6).  The encodings Vol.2 defines there change no architectural state
+// either: PREFETCHW, PREFETCHh, CLDEMOTE and NOP, and RDSSP and ENDBR,
+// which are NOPs with CET off (RDSSP: "This opcode is a NOP when CET shadow
+// stacks are not enabled", Vol.2B p.4-558).  The APM's map takes no
+// prefixes in these rows ("n/a", Table A-4, p.531) but RDSSP's F3h, so
+// they leave the instruction as it is (Vol.3 §1.2.1).
+bool hint_nop(const Insn &in) {
+  return in.enc == Enc::Legacy && in.map == 1 &&
+         (in.op == 0x0D || (in.op >= 0x18 && in.op <= 0x1F && in.op != 0x1A && in.op != 0x1B));
+}
+
+Hosts prefix_hosts(const Insn &in) {
+  u8 op = in.op;
+  int reg = in.modrm >> 3 & 7;
+  bool mem = in.has_mem();
+  bool os = in.has_prefix(0x66);
+  u8 rep = 0;  // the last of F2h and F3h
+  for (u8 p : in.prefixes)
+    if (p == 0xF2 || p == 0xF3) rep = p;
+
+  if (in.map == 0 && ((op >= 0x6C && op <= 0x6F) || (op >= 0xA4 && op <= 0xA7) ||
+                      (op >= 0xAA && op <= 0xAF))) {
+    bool cmps_scas = op == 0xA6 || op == 0xA7 || op == 0xAE || op == 0xAF;
+    return rep == 0xF2 && !cmps_scas ? Hosts::None : Hosts::Both;
+  }
+  if (hint_nop(in)) return Hosts::Both;
+
+  if (!rep) {
+    // 66h: the operand size of a general-purpose instruction, or part of
+    // the opcode, as above.
+    if (in.map == 0 && ((op >= 0xD8 && op <= 0xDF) || op == 0x9B))
+      return mem && (op == 0xD9 || op == 0xDD) && (reg == 4 || reg == 6) ? Hosts::Both
+                                                                         : Hosts::Amd;
+    if (in.legacy(1, 0xC7) && reg == 1) return Hosts::None;
+    if (in.map == 2 && op == 0xF9) return Hosts::Intel;
+    return Hosts::Both;
+  }
+
+  bool opcode = (simd(in) && !(in.map == 2 && op >= 0xF0)) || in.legacy(1, 0xAE) ||
+                in.legacy(1, 0xC3) || (in.legacy(1, 0xC7) && reg != 1);
+  if (opcode) {
+    if (!os) return Hosts::Both;
+    // 66h beside the F2h or F3h of a Group 9 or 15 instruction: RDPID,
+    // where "Normal operand size prefixes do not apply" (APM Vol.3 RDPID
+    // p.307) and "do not affect the behavior" (SDM Vol.2B RDPID), and
+    // PTWRITE, #UD "If 66H prefix is used" (SDM Vol.2B PTWRITE p.4-500)
+    // and a reserved opcode on AMD.  UMONITOR, UMWAIT and SENDUIPI are
+    // reserved opcodes on AMD, #UD.
+    if (in.legacy(1, 0xC7) && reg == 7 && !mem) return Hosts::Both;
+    if (in.legacy(1, 0xAE) && reg == 4 && rep == 0xF3) return Hosts::Both;
+    if (in.legacy(1, 0xAE) && reg <= 3 && !mem && rep == 0xF3) return Hosts::None;
+    return Hosts::Amd;
+  }
+  if (in.map == 1 && op >= 0xB8 && op <= 0xBF) {
+    // POPCNT, TZCNT and LZCNT, where 66h is the operand size; UD1 is #UD.
+    if (rep == 0xF3 && (op == 0xB8 || op == 0xBC || op == 0xBD)) return Hosts::Both;
+    return op == 0xB9 ? Hosts::Amd : Hosts::None;
+  }
+  if (in.legacy(1, 0xC7)) return Hosts::None;  // CMPXCHG8B, CMPXCHG16B
+  if (in.map == 2) {
+    // Row F of the 0F 38 map, where 66h is an operand size (APM Vol.3
+    // §A.1.1, p.538): CRC32, ADOX, ENQCMD and ENQCMDS, and MOVDIRI (NP).
+    // The SDM reserves 66h beside the F2h of ENQCMD and the F3h of ENQCMDS,
+    // F3h on MOVBE and F2h on ADCX; on AMD they are reserved opcodes, #UD.
+    if (op == 0xF0 || op == 0xF1) return rep == 0xF2 ? Hosts::Both : Hosts::Amd;
+    if (op == 0xF6 && rep == 0xF3) return os ? Hosts::None : Hosts::Both;
+    if (op == 0xF8) return os ? Hosts::Amd : Hosts::Both;
+    return op == 0xF9 ? Hosts::Both : Hosts::Amd;
+  }
+  // PAUSE and WBNOINVD.  66h beside their F3h the SDM reserves, and to the
+  // APM it is the operand size of an instruction without operands.
+  if (rep == 0xF3 && !os && ((in.legacy(0, 0x90) && !in.B) || in.legacy(1, 0x09)))
+    return Hosts::Both;
+  return Hosts::Amd;
+}
+
+bool compares_here(Hosts h) {
+  return h == Hosts::Both || h == (amd_host() ? Hosts::Amd : Hosts::Intel);
+}
+
 // Prefixes added to one instruction at a time: operand size, REPNE/REP,
 // LOCK, CS and FS segment overrides, and for legacy instructions REX, a
 // flipped REX.W, and 66h with REX.W, each where the manuals define the
-// result (defined_prefix, amd_far_load_w).  VEX and EVEX after any of them
-// but a segment override are #UD.
+// result (defined_prefix, amd_far_load_w) for the host (prefix_hosts).  VEX
+// and EVEX after any of them but a segment override are #UD.
 void make_prefixes(const Base &b, const Emit &emit) {
   if (!b.movable) return;
   for (size_t i = 0; i < b.insns.size(); i++) {
@@ -1480,6 +1610,8 @@ void make_prefixes(const Base &b, const Emit &emit) {
       Insn in = orig;
       in.prefixes.push_back(p);
       resize_immediate(in);
+      if (legacy && (p == 0x66 || p == 0xF2 || p == 0xF3) && !compares_here(prefix_hosts(in)))
+        continue;
       changed.push_back({std::format("prefix {:02X}h", p), in});
     }
     Insn in = orig;
@@ -1500,7 +1632,7 @@ void make_prefixes(const Base &b, const Emit &emit) {
         in.prefixes.push_back(0x66);
         in.W = true;
         resize_immediate(in);
-        changed.push_back({"66h and REX.W", in});
+        if (compares_here(prefix_hosts(in))) changed.push_back({"66h and REX.W", in});
       }
     }
     for (auto &[detail, in] : changed) {

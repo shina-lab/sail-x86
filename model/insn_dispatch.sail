@@ -255,8 +255,12 @@ function exec_cmps(os, asz, pfx) = {
 enum RepPrefix = { REP_none, REP_rep, REP_repe, REP_repne }
 
 // SDM Vol.2A 2.1.1: F2 and F3 repeat string and I/O instructions.
-// The ZF termination conditions apply only to CMPS/SCAS (Vol.1 7.3.9.2);
-// either prefix uses count-only repetition for MOVS/STOS/LODS/INS/OUTS.
+// The ZF termination conditions apply only to CMPS/SCAS (Vol.1 7.3.9.2).
+// What F2 does to MOVS, STOS, LODS, INS and OUTS neither manual says: "The
+// REPE/REPZ and REPNE/REPNZ prefixes are used only with the CMPS and SCAS
+// instructions" (SDM Vol.1 §7.3.9.2, p.7-19), and REPNE "can only be used
+// with the CMPSx and SCASx instructions" (APM Vol.1 §3.5.1.4, p.79).  The
+// model repeats them by the count alone, as for F3, on both vendors.
 enum StringOp = { STR_movs, STR_stos, STR_lods, STR_cmps, STR_scas, STR_ins, STR_outs }
 
 val exec_rep : (RepPrefix, StringOp, operand_size, address_size, Prefixes) -> unit
@@ -1478,14 +1482,12 @@ function decode_execute() = {
         }
       },
 
-      // 90: NOP / PAUSE (F3 90) / XCHG R8D,EAX (REX.B).  Both manuals leave
-      // F3 with REX.B open: PAUSE is F3 90 alone (SDM Vol.2B PAUSE), and a
-      // repeat prefix on another instruction "is reserved; such use may
-      // cause unpredictable behavior" (SDM Vol.2A §2.1.1) or "should only
-      // be used with such string instructions" (APM Vol.3 §1.2.6).  The
-      // model runs the XCHG, as REX.B selects R8 for 90 on both XCHG pages
-      // (SDM Vol.2D XCHG, 90+rd; APM Vol.3 XCHG: "Opcode 90h can still be
-      // used to exchange rAX and r8 if the appropriate REX prefix is used").
+      // 90: NOP / PAUSE (F3 90) / XCHG R8D,EAX (REX.B).  REX.B selects R8
+      // for 90 on both XCHG pages (SDM Vol.2D XCHG, 90+rd; APM Vol.3 XCHG:
+      // "Opcode 90h can still be used to exchange rAX and r8 if the
+      // appropriate REX prefix is used"), and PAUSE is F3 90 alone (SDM
+      // Vol.2B PAUSE).  F3 on the XCHG is a repeat prefix on a non-string
+      // instruction, which the model ignores (scan_prefixes).
       144 => {
         if pfx.rex_b == 0b1 then {
           let os = opsize(pfx);
