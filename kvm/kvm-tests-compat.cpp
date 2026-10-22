@@ -967,6 +967,13 @@ void add_compat_tests(std::vector<TestCase> &tests) {
   // These start in 64-bit mode (compat_mode=false) and transition
   // to compat mode mid-test via IRET.
   // =====================================================================
+  // At the end "the upper 32 bits of any general-purpose register are not
+  // preserved when switching from 64-bit mode to a 32-bit mode" (SDM Vol.1
+  // §3.4.1.1, p.3-13; APM Vol.1 §3.4.5, p.74): RAX-RDI[63:32] are not
+  // compared.
+  auto ends_in_compat = [](TestCase &tc) {
+    for (int i = 0; i < 8; i++) tc.undefined.gpr[i] = 0xFFFFFFFF00000000ULL;
+  };
 
   // --- IRET 64-bit -> compat mode ---
   // Build an IRET frame at DATA_ADDR targeting CS=0x48 (compat).
@@ -1014,6 +1021,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     tc.flags_mask = FL_ALL;
     tc.init_data = data;
     tc.compat_mode = false;  // starts in 64-bit mode
+    ends_in_compat(tc);
     tests.push_back(std::move(tc));
   }
 
@@ -1052,6 +1060,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     tc.flags_mask = FL_ALL;
     tc.init_data = data;
     tc.compat_mode = false;
+    ends_in_compat(tc);
     tests.push_back(std::move(tc));
   }
 
@@ -1097,6 +1106,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
     tc.flags_mask = FL_ALL;
     tc.init_data = data;
     tc.compat_mode = false;
+    ends_in_compat(tc);
     tests.push_back(std::move(tc));
   }
 

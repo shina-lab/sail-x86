@@ -896,8 +896,7 @@ function exec_retf(pfx, maybe_imm) = {
   load_segment_register(CS, new_cs);
   // Update cur_mode: in IA-32e mode, CS.L determines 64-bit vs compatibility
   if EFER[10] == 0b1 then {
-    if SegCache[CS].seg_l == 0b1 then cur_mode = LongMode
-    else cur_mode = CompatibilityMode
+    set_mode(if SegCache[CS].seg_l == 0b1 then LongMode else CompatibilityMode)
   };
   // In real mode, CPL is always 0 (no privilege levels).
   if protected_return then cur_cpl = return_rpl;
@@ -2018,8 +2017,7 @@ function decode_execute() = {
           let stack_desc = access_segment_descriptor(new_ss[15..0], parse_seg_descriptor(ss_desc_lo, ss_desc_hi));
           write_segreg(CS, new_cs[15..0]);
           SegCache[CS] = code_desc;
-          if SegCache[CS].seg_l == 0b1 then cur_mode = LongMode
-          else cur_mode = CompatibilityMode;
+          set_mode(if SegCache[CS].seg_l == 0b1 then LongMode else CompatibilityMode);
 
           cur_cpl = unsigned(new_cs[1..0]);
           restore_iret_flags(os, new_rflags, iret_cpl, protected_return);

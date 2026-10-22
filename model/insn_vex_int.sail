@@ -459,7 +459,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let src : ymmword = read_simd(256, xi);
     var mask : bits(32) = zeros();
     foreach (i from 0 to (nb - 1)) { mask[i] = src[i * 8 + 7] };
-    v(reg) = zero_extend(64, mask)
+    v(reg) = zero_extend(32, mask)
   },
 
   // 0F D8: VPSUBUSB (66 prefix)

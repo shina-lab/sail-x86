@@ -379,14 +379,13 @@ function vm_entry(is_launch) = {
   IDTR_limit = vmcs.guest_idtr_limit[15..0];
 
   // --- Set processor mode from guest state ---
-  if EFER[10] == 0b1 then {
-    if SegCache[CS].seg_l == 0b1 then cur_mode = LongMode
-    else cur_mode = CompatibilityMode
+  set_mode(if EFER[10] == 0b1 then {
+    if SegCache[CS].seg_l == 0b1 then LongMode else CompatibilityMode
   } else if CR0[0] == 0b1 then {
-    cur_mode = if vmcs.guest_rflags[17] == bitone then Virtual8086Mode else ProtectedMode
+    if vmcs.guest_rflags[17] == bitone then Virtual8086Mode else ProtectedMode
   } else {
-    cur_mode = RealMode
-  };
+    RealMode
+  });
 
   // Virtual-8086 CPL is always 3; selector low bits are address bits.
   cur_cpl = if cur_mode == Virtual8086Mode then 3
@@ -607,13 +606,9 @@ function complete_vm_exit(reason, qual) = {
   if vmcs.host_efer[10] == 0b1 then SegCache[CS].seg_l = 0b1;
 
   // Determine host processor mode from EFER.LMA
-  if vmcs.host_efer[10] == 0b1 then {
-    cur_mode = LongMode
-  } else if vmcs.host_cr0[0] == 0b1 then {
-    cur_mode = ProtectedMode
-  } else {
-    cur_mode = RealMode
-  };
+  set_mode(if vmcs.host_efer[10] == 0b1 then LongMode
+           else if vmcs.host_cr0[0] == 0b1 then ProtectedMode
+           else RealMode);
 
   // Host is always CPL 0
   cur_cpl = 0;

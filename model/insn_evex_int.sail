@@ -503,7 +503,7 @@ function dispatch_evex_int(op, pfx) = {
     let dst_gpr = modrm_reg(modrm, pfx);
     let imm = fetch(1);
     let word_val : bits(16) = velem(16, src_xmm, imm[2..0]);
-    v(dst_gpr) = zero_extend(64, word_val)
+    v(dst_gpr) = zero_extend(32, word_val)
   },
 
   // 0F D6: VMOVQ store (66,W1) — store low qword of XMM to XMM/m64

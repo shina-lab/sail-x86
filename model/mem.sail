@@ -508,8 +508,7 @@ function finish_far_transfer(desc, selector, offset, os) = {
   write_segreg(CS, adj_sel);
   SegCache[CS] = desc;
   if EFER[10] == 0b1 then {
-    if desc.seg_l == 0b1 then cur_mode = LongMode
-    else cur_mode = CompatibilityMode
+    set_mode(if desc.seg_l == 0b1 then LongMode else CompatibilityMode)
   };
   next_rip = Some(match os {
     16 => zero_extend(offset[15..0]),

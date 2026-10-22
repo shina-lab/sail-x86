@@ -1194,8 +1194,7 @@ function dispatch_2byte_gpr(op, pfx) = {
       // Return to ring 3
       cur_cpl = 3;
       // REX.W -> 64-bit mode; without REX.W -> 32-bit compat mode
-      if pfx.rex_w then cur_mode = LongMode
-      else cur_mode = CompatibilityMode;
+      set_mode(if pfx.rex_w then LongMode else CompatibilityMode);
       next_rip = Some(new_rip)
     },
 
@@ -1581,10 +1580,9 @@ function dispatch_2byte_gpr(op, pfx) = {
           seg_g       = 0b1,
         };
         cur_cpl = 3;
-        if EFER[10] == 0b1 then cur_mode = CompatibilityMode
-        else cur_mode = ProtectedMode;
+        set_mode(if EFER[10] == 0b1 then CompatibilityMode else ProtectedMode);
         next_rip = Some(zero_extend(v(32, RDX)));
-        v(RSP) = zero_extend(64, v(32, RCX))
+        v(32, RSP) = v(32, RCX)
       }
     },
 

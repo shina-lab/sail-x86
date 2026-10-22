@@ -11,6 +11,13 @@ register RIP : qword
 register next_rip : option(qword) = None()
 
 // =========================================================================
+// Processor mode and privilege
+// =========================================================================
+
+register cur_mode : ProcessorMode
+register cur_cpl : cpl_t
+
+// =========================================================================
 // General-purpose registers
 //
 // x86-64 has 16 64-bit GPRs. Sub-register access (e.g. AL, AX, EAX)
@@ -28,12 +35,17 @@ function read_gpr(os, idx) = match os {
   64 => GPR[idx]
 }
 
-// Polymorphic GPR write by operand size.
+// Polymorphic GPR write by operand size.  A 32-bit result is zero-extended
+// to 64 bits in 64-bit mode (SDM Vol.1 §3.4.1.1).  Outside it "the upper
+// 32 bits of 64-bit general-purpose registers are undefined" (SDM Vol.1
+// §3.4.1.1, p.3-13; APM Vol.1 §3.4.5, p.74: "undefined and not accessible
+// to software"), and a 32-bit write leaves them so.  An 8- or 16-bit
+// write keeps the rest of the register.
 val write_gpr : forall 'os, 'os in {8, 16, 32, 64}. (implicit('os), gpr_idx, bits('os)) -> unit
 function write_gpr(os, idx, v) = match os {
   8  => GPR[idx] = GPR[idx][63..8] @ v,
   16 => GPR[idx] = GPR[idx][63..16] @ v,
-  32 => GPR[idx] = zero_extend(v),
+  32 => GPR[idx] = if cur_mode == LongMode then zero_extend(v) else (undefined : dword) @ v,
   64 => GPR[idx] = v
 }
 
@@ -68,6 +80,25 @@ function write_gpr_ref(os, r, v) = {
 }
 
 overload v = {read_gpr, write_gpr, read_gpr_ref, write_gpr_ref}
+
+// A change of processor mode: "the upper 32 bits of any general-purpose
+// register are not preserved when switching from 64-bit mode to a 32-bit
+// mode (to protected mode or compatibility mode)" (SDM Vol.1 §3.4.1.1,
+// p.3-13); "The processor does not preserve the upper 32 bits of the
+// 64-bit GPRs across changes from 64-bit mode to compatibility or legacy
+// modes" (APM Vol.1 §3.4.5, p.74).  Those of RAX-RDI become undefined.
+// R8-R15, which a 32-bit mode cannot reach, "are preserved across
+// transitions from 64-bit mode into compatibility mode then back into
+// 64-bit mode" (SDM, ibid.).
+val set_mode : ProcessorMode -> unit
+function set_mode(m) = {
+  if cur_mode == LongMode & m != LongMode then {
+    foreach (i from 0 to 7) {
+      GPR[i] = (undefined : dword) @ GPR[i][31..0]
+    }
+  };
+  cur_mode = m
+}
 
 // Named GPR indices for readability.
 let RAX : gpr_idx = 0
@@ -436,13 +467,6 @@ function write_segreg(idx, v) = SegReg[idx] = v
 
 // Kernel GS base (shadow register swapped with SegCache[GS].seg_base by SWAPGS).
 register KERNEL_GS_BASE : qword
-
-// =========================================================================
-// Processor mode and privilege
-// =========================================================================
-
-register cur_mode : ProcessorMode
-register cur_cpl : cpl_t
 
 // =========================================================================
 // Descriptor table registers
