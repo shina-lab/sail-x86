@@ -1268,7 +1268,7 @@ function dispatch_evex_fp(op, pfx) = {
   // 0F C2: VCMPPS (NP,W0) / VCMPPD (66,W1) / VCMPSS (F3) / VCMPSD (F2) → kmask
   194 => {
     let modrm = fetch(1);
-    let dst_k : range(0, 7) = evex_reg_idx(modrm, pfx) % 8;
+    let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_fp_disp_n(mp, pfx));
     let is_mem : bool = match src { XRM_mem(_) => true, _ => false };
     let src1_idx = pfx.evex_vvvvv;

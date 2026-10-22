@@ -739,7 +739,7 @@ function dispatch_evex_imm(op, pfx) = {
   30 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
-    let dst_k : range(0, 7) = unsigned(modrm[5..3]);
+    let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let imm = fetch(1);
     let pred : range(0, 7) = unsigned(imm[2..0]);
@@ -752,7 +752,7 @@ function dispatch_evex_imm(op, pfx) = {
   31 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
-    let dst_k : range(0, 7) = unsigned(modrm[5..3]);
+    let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let imm = fetch(1);
     let pred : range(0, 7) = unsigned(imm[2..0]);
@@ -1017,7 +1017,7 @@ function dispatch_evex_imm(op, pfx) = {
   62 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
-    let dst_k : range(0, 7) = unsigned(modrm[5..3]);
+    let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let imm = fetch(1);
     let pred : range(0, 7) = unsigned(imm[2..0]);
@@ -1030,7 +1030,7 @@ function dispatch_evex_imm(op, pfx) = {
   63 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
-    let dst_k : range(0, 7) = unsigned(modrm[5..3]);
+    let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let imm = fetch(1);
     let pred : range(0, 7) = unsigned(imm[2..0]);
@@ -1393,7 +1393,7 @@ function dispatch_evex_imm(op, pfx) = {
     match mp {
       MP_66 => {
         let modrm = fetch(1);
-        let dst_k : range(0, 7) = unsigned(modrm[5..3]);
+        let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
         let imm = fetch(1);
         let eb = evex_elem(pfx);
@@ -1404,7 +1404,7 @@ function dispatch_evex_imm(op, pfx) = {
         // VFPCLASSPH: classify packed FP16 → kmask
         if pfx.vex_w then raise_UD();
         let modrm = fetch(1);
-        let dst_k : range(0, 7) = unsigned(modrm[5..3]);
+        let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n_fp16(pfx));
         let imm = fetch(1);
         let vl = evex_vl(pfx);
@@ -1419,7 +1419,7 @@ function dispatch_evex_imm(op, pfx) = {
     match mp {
       MP_66 => {
         let modrm = fetch(1);
-        let dst_k : range(0, 7) = unsigned(modrm[5..3]);
+        let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, if pfx.vex_w then 8 else 4);
         let imm = fetch(1);
         let src = evex_src(128, src);
@@ -1433,7 +1433,7 @@ function dispatch_evex_imm(op, pfx) = {
         // VFPCLASSSH: classify scalar FP16 → kmask
         if pfx.vex_w then raise_UD();
         let modrm = fetch(1);
-        let dst_k : range(0, 7) = unsigned(modrm[5..3]);
+        let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, 2);
         let imm = fetch(1);
         let src = evex_src(128, src);
@@ -1530,7 +1530,7 @@ function dispatch_evex_imm(op, pfx) = {
       MP_NONE => {
         // VCMPPH: packed FP16 compare → kmask
         let modrm = fetch(1);
-        let k_idx : range(0, 7) = evex_reg_idx(modrm, pfx) % 8;
+        let k_idx : range(0, 7) = evex_kreg_dest(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
         match pfx.evex_ll {
           0 => {
@@ -1560,7 +1560,7 @@ function dispatch_evex_imm(op, pfx) = {
       MP_F3 => {
         // VCMPSH: scalar FP16 compare → kmask bit 0
         let modrm = fetch(1);
-        let k_idx : range(0, 7) = evex_reg_idx(modrm, pfx) % 8;
+        let k_idx : range(0, 7) = evex_kreg_dest(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, 2);
         let src1 : xmmword = read_simd(pfx.evex_vvvvv);
         let src2 = evex_src(128, src);

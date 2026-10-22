@@ -130,7 +130,7 @@ function dispatch_evex_arith(op, pfx) = {
   // 0F38 26: VPTESTMB (66, W=0) / VPTESTMW (66, W=1) / VPTESTNMB (F3, W=0) / VPTESTNMW (F3, W=1)
   38 => {
     let modrm = fetch(1);
-    let dst_k : range(0, 7) = unsigned(modrm[5..3]);
+    let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     if mp != MP_66 & mp != MP_F3 then raise_UD();
     let neg_bit : bit = bool_to_bit(mp == MP_F3);
@@ -145,7 +145,7 @@ function dispatch_evex_arith(op, pfx) = {
   // 0F38 27: VPTESTMD (66, W=0) / VPTESTMQ (66, W=1) / VPTESTNMD (F3, W=0) / VPTESTNMQ (F3, W=1)
   39 => {
     let modrm = fetch(1);
-    let dst_k : range(0, 7) = unsigned(modrm[5..3]);
+    let dst_k : range(0, 7) = evex_kreg_dest(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     if mp != MP_66 & mp != MP_F3 then raise_UD();
     let neg_bit : bit = bool_to_bit(mp == MP_F3);
@@ -160,7 +160,7 @@ function dispatch_evex_arith(op, pfx) = {
     if mp == MP_F3 then {
       // VPMOVB2M (W0) / VPMOVW2M (W1): vector -> mask register
       let modrm = fetch(1);
-      let dst_k : kreg_idx = unsigned(modrm[5..3]);
+      let dst_k : kreg_idx = evex_kreg_dest(modrm, pfx);
       let xi = xrm_reg(modrm_xrm_evex(modrm, pfx, 1));
       let eb = evex_elem_bw(pfx);
       let vl = evex_vl(pfx);
@@ -199,7 +199,7 @@ function dispatch_evex_arith(op, pfx) = {
     } else if mp == MP_F3 then {
       // VPMOVD2M (W0) / VPMOVQ2M (W1): vector -> mask register
       let modrm = fetch(1);
-      let dst_k : kreg_idx = unsigned(modrm[5..3]);
+      let dst_k : kreg_idx = evex_kreg_dest(modrm, pfx);
       let xi = xrm_reg(modrm_xrm_evex(modrm, pfx, 1));
       let eb = evex_elem(pfx);
       let vl = evex_vl(pfx);
@@ -660,7 +660,7 @@ function dispatch_evex_arith(op, pfx) = {
     let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
     let eb = evex_elem(pfx);
     let vl = evex_vl(pfx);
-    let base : range(0, 6) = 2 * (unsigned(modrm[5..3]) / 2);
+    let base : range(0, 6) = 2 * (evex_kreg_dest(modrm, pfx) / 2);
     let (m1, m2) = vp2intersect(eb, read_simd(vl, pfx.evex_vvvvv), evex_bcast_src(vl, src, pfx, eb));
     write_kreg(base, m1);
     write_kreg(base + 1, m2)
