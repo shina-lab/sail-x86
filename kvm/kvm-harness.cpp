@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cpuid.h>
+#include <cfenv>
 #include <csetjmp>
 #include <csignal>
 #include <unordered_map>
@@ -873,6 +874,11 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
     memcpy(pages_out->data, (void *)DATA_ADDR, 0x1000);
     memcpy(pages_out->stack, (void *)(STACK_TOP - 0x1000), 0x1000);
   };
+  // The externs compute in the host's floating-point environment, and set
+  // its rounding mode only where they need MXCSR.RC; a previous run (or one
+  // its exception cut short) must not leave a mode this one does not have.
+  fesetround(FE_TONEAREST);
+  feclearexcept(FE_ALL_EXCEPT);
   x86::Model model;
   model.model_init();
   model.zinitializze_registers(UNIT);
