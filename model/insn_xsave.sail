@@ -269,17 +269,45 @@ function check_image_mxcsr(base) = {
 // FXSAVE and FXRSTOR m512byte (SDM Vol.2A): the x87 and SSE components of
 // the legacy region.  As non-VEX instructions on XMM state they do not
 // access bits 511:128 of the registers (Vol.1 §14.8).
+//
+// With CR4.OSFXSR = 0, "FXSAVE and FXRSTOR may or may not operate on SSE
+// state; this behavior is implementation dependent" (SDM Vol.1 §10.5.1
+// p.10-16; FXSAVE p.3-414, FXRSTOR p.3-409), so on Intel the MXCSR and
+// XMM fields FXSAVE writes, and MXCSR and the XMM registers after FXRSTOR,
+// are undefined (MXCSR within MXCSR_MASK, as either outcome is).  AMD's
+// FXSAVE "does not save the image of XMM0–XMM15 or MXCSR", and its
+// FXRSTOR does not load it (APM Vol.5 FXSAVE p.26, FXRSTOR p.24).
+// MXCSR_MASK is outside either rule and is saved.  Whether FXRSTOR's #GP
+// for reserved MXCSR bits remains when MXCSR is not loaded neither manual
+// says; the model keeps it where MXCSR may be loaded, on Intel.
 val exec_fxsave : (qword, bool) -> unit
 function exec_fxsave(base, w) = {
   xsave_x87(base, w);
-  xsave_sse(base)
+  if CR4[9] == bitone then xsave_sse(base)   // OSFXSR
+  else {
+    if vendor == Vendor_Intel then {
+      write_mem(base + 24, undefined : dword);
+      foreach (i from 0 to legacy_xmm_count() - 1) {
+        write_mem(128, base + 160 + 16 * i, undefined)
+      }
+    };
+    write_mem(base + 28, mxcsr_mask())
+  }
 }
 
 val exec_fxrstor : (qword, bool) -> unit
 function exec_fxrstor(base, w) = {
-  check_image_mxcsr(base);
+  let osfxsr = CR4[9] == bitone;
+  let intel = vendor == Vendor_Intel;
+  if osfxsr | intel then check_image_mxcsr(base);
   xrstor_x87(base, w, true);
-  xrstor_sse(base)
+  if osfxsr then xrstor_sse(base)
+  else if intel then {
+    __ldmxcsr((undefined : dword) & mxcsr_mask());
+    foreach (i from 0 to legacy_xmm_count() - 1) {
+      ZMM[i][127..0] = undefined
+    }
+  }
 }
 
 // -------------------------------------------------------------------------

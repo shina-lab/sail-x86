@@ -514,6 +514,7 @@ struct UndefinedState {
   std::array<std::array<u64, 8>, 32> zmm = {};  // ZMM0-ZMM31, by quadword
   std::array<u64, 8> kregs = {};
   u16 fcw = 0;
+  u32 mxcsr = 0;
 };
 
 // Clears the bits `u` marks undefined in `s`.  In compatibility mode the

@@ -376,6 +376,37 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
       fx("fxrstor [rdi] (arbitrary image bytes, valid MXCSR)", fxrstor, s, pat);
     }
 
+    // CR4.OSFXSR = 0: "FXSAVE and FXRSTOR may or may not operate on SSE
+    // state; this behavior is implementation dependent" (SDM Vol.1 §10.5.1
+    // p.10-16), so the SSE state is open on Intel hosts; on AMD, FXSAVE
+    // "does not save the image of XMM0–XMM15 or MXCSR" and FXRSTOR does not
+    // load it (APM Vol.5 FXSAVE p.26, FXRSTOR p.24).  MXCSR_MASK is written
+    // either way.  The image MXCSR is valid: whether its #GP remains when
+    // MXCSR is not loaded, neither manual says.
+    {
+      const u64 CR4_NO_OSFXSR = 0x50420;  // the guest's CR4 without bit 9
+      u32 a, b, c, d;
+      __get_cpuid(0, &a, &b, &c, &d);
+      const bool intel = b != 0x68747541;  // "Auth" of AuthenticAMD
+      ArchState o = s;
+      o.mxcsr = 0x7F80;
+      for (int i = 0; i < 16; i++)
+        for (int q = 0; q < 2; q++) o.xmm[i].q[q] = 0x5A5A5A5A5A5A5A5AULL ^ (0x0101010101010101ULL * (i * 2 + q));
+      fx("fxsave [rdi] with CR4.OSFXSR = 0", fxsave, o, std::vector<u8>(512, 0xEE));
+      tests.back().cr4_override = CR4_NO_OSFXSR;
+      fxsave_x87_undefined(tests.back(), 0, X87_FXSAVE_NO_ES);
+      if (intel) {
+        for (u16 j = 0x18; j < 0x1C; j++) tests.back().data_undefined.push_back({j, 0xFF});
+        for (u16 j = 0xA0; j < 0x1A0; j++) tests.back().data_undefined.push_back({j, 0xFF});
+      }
+      fx("fxrstor [rdi] with CR4.OSFXSR = 0", fxrstor, o, image(0x1F80));
+      tests.back().cr4_override = CR4_NO_OSFXSR;
+      if (intel) {
+        tests.back().undefined.mxcsr = ~0u;
+        for (int i = 0; i < 16; i++) tests.back().undefined.zmm[i][0] = tests.back().undefined.zmm[i][1] = ~0ULL;
+      }
+    }
+
     // The x87 pointers an image carries, read back with FNSTENV: Intel's
     // FXRSTOR and XRSTOR load FOP, FIP and FDP, and FCS and FDS from the
     // 32-bit format (SDM Vol.1 §8.1.8), which FNSTENV then saves as 0000H

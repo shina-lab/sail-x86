@@ -1581,6 +1581,7 @@ void clear_undefined(ArchState &s, const UndefinedState &u, bool compat_mode) {
     for (int q = 0; q < 8; q++) s.xmm[i].q[q] &= ~u.zmm[i][q];
   for (int i = 0; i < 8; i++) s.kregs[i] &= ~u.kregs[i];
   s.fcw &= ~u.fcw;
+  s.mxcsr &= ~u.mxcsr;
 }
 
 static void undefined_bytes(TestCase &tc, unsigned off, unsigned len, u8 bits = 0xFF) {
