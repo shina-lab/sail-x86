@@ -1594,20 +1594,22 @@ void x87_cw_undefined(TestCase &tc, u16 off) {
   undefined_bytes(tc, off + 1, 1, 0xE0);
 }
 
-void x87_env_undefined(TestCase &tc, u16 off, unsigned open) {
+void x87_env_undefined(TestCase &tc, u16 off, unsigned open, bool o16) {
   // The reserved high halves of the FCW, FSW, FTW and FDS doublewords
-  // ("Reserved, IGN", APM Vol.2 Figure 11-4).
-  for (unsigned half : {0x02, 0x06, 0x0A, 0x1A})
-    undefined_bytes(tc, off + half, 2);
+  // ("Reserved, IGN", APM Vol.2 Figure 11-4).  The 16-bit format is all
+  // words, with no reserved fields.
+  if (!o16)
+    for (unsigned half : {0x02, 0x06, 0x0A, 0x1A})
+      undefined_bytes(tc, off + half, 2);
   if (open & X87_CW_LOADED)
     x87_cw_undefined(tc, off);
   bool amd = host_vendor() == x86::zVendor_AMD;
   if ((open & (X87_LONG_MODE | X87_NO_DATA)) && amd)
-    undefined_bytes(tc, off + 0x18, 2);  // FDS
+    undefined_bytes(tc, off + (o16 ? 0x0C : 0x18), 2);  // FDS
   if ((open & X87_LONG_MODE) && amd)
-    undefined_bytes(tc, off + 0x10, 2);  // FCS
+    undefined_bytes(tc, off + (o16 ? 0x08 : 0x10), 2);  // FCS
   if (open & X87_NO_DATA)
-    undefined_bytes(tc, off + 0x14, 4);  // FDP
+    undefined_bytes(tc, off + (o16 ? 0x0A : 0x14), o16 ? 2 : 4);  // FDP
 }
 
 void fxsave_x87_undefined(TestCase &tc, u16 off, unsigned open, bool w) {

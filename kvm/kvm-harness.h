@@ -614,8 +614,9 @@ void x87_cw_undefined(TestCase &tc, u16 off);
 
 // Marks data_undefined the open fields, per `open`, of an FNSTENV/FNSAVE
 // image in the 32-bit protected-mode format at data-page offset `off`
-// (SDM Vol.1 Figure 8-9; APM Vol.2 Figure 11-4).
-void x87_env_undefined(TestCase &tc, u16 off, unsigned open);
+// (SDM Vol.1 Figure 8-9; APM Vol.2 Figure 11-4), or with `o16` in the
+// 16-bit one (SDM Vol.1 Figure 8-11; APM Vol.2 Figure 11-6).
+void x87_env_undefined(TestCase &tc, u16 off, unsigned open, bool o16 = false);
 
 // The same for the x87 part of an FXSAVE or XSAVE legacy region at `off`,
 // in the 64-bit format of REX.W (`w`) or the 32-bit one (SDM Vol.2A

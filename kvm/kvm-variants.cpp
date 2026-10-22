@@ -1222,6 +1222,15 @@ bool x87_loads_number(const Insn &in) {
   return false;
 }
 
+// FLDENV, FNSTENV, FRSTOR and FNSAVE (D9 /4, /6, DD /4, /6) with a 16-bit
+// operand size, 66h without REX.W: the image is in the 16-bit format (SDM
+// Vol.1 §8.1.10; APM Vol.2 §11.4.4.2), its fields at other offsets.
+bool x87_image16(const Insn &in) {
+  int digit = in.modrm >> 3 & 7;
+  return in.has_mem() && (in.legacy(0, 0xD9) || in.legacy(0, 0xDD)) && (digit == 4 || digit == 6) &&
+         in.has_prefix(0x66) && !in.W;
+}
+
 // Register operands as memory operands: an r/m register operand becomes
 // [r] for a register r the code does not use, pointing at 800h in the data
 // page, which holds the initial value of the register the operand named.
@@ -1259,9 +1268,10 @@ void make_reg_to_mem(const Base &b, const Emit &emit) {
       // condition codes the instructions before may leave undefined.
       int digit = in.modrm >> 3 & 7;
       bool d9 = in.legacy(0, 0xD9), dd = in.legacy(0, 0xDD);
-      if ((d9 || dd) && digit == 6 && !in.has_prefix(0x66)) {
-        x87_env_undefined(v, 0x800, X87_CW_LOADED | X87_NO_DATA | X87_LONG_MODE);
-        v.data_undefined.push_back({0x805, 0x47});  // C3, C2, C1, C0
+      if ((d9 || dd) && digit == 6) {
+        bool o16 = x87_image16(in);
+        x87_env_undefined(v, 0x800, X87_CW_LOADED | X87_NO_DATA | X87_LONG_MODE, o16);
+        v.data_undefined.push_back({u16(o16 ? 0x803 : 0x805), 0x47});  // C3, C2, C1, C0
       }
       if (d9 && digit == 7)
         x87_cw_undefined(v, 0x800);
@@ -1636,7 +1646,15 @@ void make_prefixes(const Base &b, const Emit &emit) {
       }
     }
     for (auto &[detail, in] : changed) {
-      if ((umonitor(in) && !umonitor(orig)) || amd_far_load_w(in) || !claim(b, orig, detail))
+      if ((umonitor(in) && !umonitor(orig)) || amd_far_load_w(in))
+        continue;
+      // An x87 image keeps the format of its case, whose masks of the open
+      // fields (x87_env_undefined, which depend on the host) and reads of
+      // the image are for that format; in the other one other fields are
+      // there.  Each format has cases of its own.
+      if (x87_image16(in) != x87_image16(orig))
+        continue;
+      if (!claim(b, orig, detail))
         continue;
       TestCase v = replace_insn(b, i, in);
       emit(b, detail, std::move(v));

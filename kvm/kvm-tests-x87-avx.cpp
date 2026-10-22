@@ -2198,6 +2198,21 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
         env_open(8, X87_LONG_MODE | X87_NO_DATA);
         tests.back().data_undefined.push_back({8 + 5, c.undefined_cc});  // FSW C3, C2, C1, C0
       }
+      // With a 16-bit operand size, 66h without REX.W, the 14-byte format:
+      // FCW, FSW, FTW, FIP[15:0], FCS, FDP[15:0] and FDS, a word each (SDM
+      // Vol.1 §8.1.10, Figure 8-11; APM Vol.2 Figure 11-6, §11.4.4.2).
+      const std::vector<u8> ENV16_WORDS = {
+        0x0F, 0xB7, 0x47, 0x08,  // movzx eax, word [rdi+8]   (FCW)
+        0x0F, 0xB7, 0x5F, 0x0A,  // movzx ebx, word [rdi+10]  (FSW)
+        0x0F, 0xB7, 0x4F, 0x0C,  // movzx ecx, word [rdi+12]  (FTW)
+      };
+      add_mem("fld a; fld b; o16 fnstenv [rdi+8]; read FCW/FSW/FTW",
+              join({FLD_A, FLD_B, {0x66, 0xD9, 0x77, 0x08}, ENV16_WORDS}), s, FL_ALL, ab(3.0, 1.5), 0);
+      x87_env_undefined(tests.back(), 8, X87_LONG_MODE, true);
+      add_mem("fld a; fld b; fstp st(1); o16 fnstenv [rdi+8]; read FCW/FSW/FTW",
+              join({FLD_A, FLD_B, {0xDD, 0xD9, 0x66, 0xD9, 0x77, 0x08}, ENV16_WORDS}),
+              s, FL_ALL, ab(3.0, 1.5), 0);
+      x87_env_undefined(tests.back(), 8, X87_LONG_MODE | X87_NO_DATA, true);
 
       // DD /6 FNSAVE writes the 108-byte state image and reinitializes the
       // FPU; DD /4 FRSTOR loads one.  The registers follow the 28-byte
@@ -2242,6 +2257,35 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
                 join({FLD_A, FLD_B, {0xDD, 0xB7, 0x00, 0x01, 0x00, 0x00}, {0xDD, 0xA7, 0x00, 0x01, 0x00, 0x00},
                       FNSTSW_AX, FSTP_16, FSTP_24}), s, FL_ALL, ab(3.0, 1.5), 32);
         env_open(0x100, X87_LONG_MODE);
+
+        // The same with a 16-bit operand size: the registers follow the
+        // 14-byte environment, a 94-byte image
+        const std::vector<u8> SAVE16_AND_COPY = {
+          0x66, 0xDD, 0xB7, 0x00, 0x01, 0x00, 0x00,  // o16 fnsave [rdi+0x100]
+          0x0F, 0xB7, 0x87, 0x00, 0x01, 0x00, 0x00,  // movzx eax, word [rdi+0x100]  (FCW)
+          0x0F, 0xB7, 0x9F, 0x02, 0x01, 0x00, 0x00,  // movzx ebx, word [rdi+0x102]  (FSW)
+          0x0F, 0xB7, 0x97, 0x04, 0x01, 0x00, 0x00,  // movzx edx, word [rdi+0x104]  (FTW)
+          0x48, 0x8D, 0xB7, 0x0E, 0x01, 0x00, 0x00,  // lea rsi, [rdi+0x10e]        (ST(0) image)
+          0xB9, 0x50, 0x00, 0x00, 0x00,              // mov ecx, 80
+          0xF3, 0xA4,                                // rep movsb
+        };
+        add_mem("fld a; fld b; o16 fnsave [rdi+0x100]; read FCW/FSW/FTW and the registers",
+                join({FLD_A, FLD_B, SAVE16_AND_COPY}), s, FL_ALL, ab(3.0, 1.5), 80);
+        x87_env_undefined(tests.back(), 0x100, X87_LONG_MODE, true);
+        std::vector<u8> image16(94, 0);
+        memcpy(&image16[0], &cw, 2);
+        memcpy(&image16[2], &sw, 2);
+        memcpy(&image16[4], &tw, 2);
+        memcpy(&image16[14], st0.data(), 10);
+        memcpy(&image16[24], st1.data(), 10);
+        add_mem("o16 frstor [rdi+0x100] (TOP 6); fnstsw ax; fstp [rdi]; fstp [rdi+8]",
+                join({{0x66, 0xDD, 0xA7, 0x00, 0x01, 0x00, 0x00}, FNSTSW_AX, {0xDD, 0x1F}, {0xDD, 0x5F, 0x08}}),
+                s, FL_ALL, join({std::vector<u8>(0x100, 0), image16}), 16);
+        add_mem("fld a; fld b; o16 fnsave; o16 frstor; fnstsw ax; fstp [rdi+16]; fstp [rdi+24]",
+                join({FLD_A, FLD_B, {0x66, 0xDD, 0xB7, 0x00, 0x01, 0x00, 0x00},
+                      {0x66, 0xDD, 0xA7, 0x00, 0x01, 0x00, 0x00}, FNSTSW_AX, FSTP_16, FSTP_24}),
+                s, FL_ALL, ab(3.0, 1.5), 32);
+        x87_env_undefined(tests.back(), 0x100, X87_LONG_MODE, true);
       }
       // FNSTENV then masks all exceptions in the control word
       add_mem("fldcw 0x0340; fnstenv [rdi+16]; fnstcw [rdi+48]; read both control words",
@@ -2263,6 +2307,14 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
         add_mem("fldenv [rdi+8]; fnstsw ax; fnstcw [rdi+40]; fld a; fstp [rdi+48]",
                 join({{0xD9, 0x67, 0x08}, FNSTSW_AX, {0xD9, 0x7F, 0x28}, FLD_A, {0xDD, 0x5F, 0x30}}),
                 s, FL_ALL, join({f64b(2.7), env}), 56);
+        x87_cw_undefined(tests.back(), 40);
+        std::vector<u8> env16(14, 0);
+        memcpy(&env16[0], &cw, 2);
+        memcpy(&env16[2], &sw, 2);
+        memcpy(&env16[4], &tw, 2);
+        add_mem("o16 fldenv [rdi+8]; fnstsw ax; fnstcw [rdi+40]; fld a; fstp [rdi+48]",
+                join({{0x66, 0xD9, 0x67, 0x08}, FNSTSW_AX, {0xD9, 0x7F, 0x28}, FLD_A, {0xDD, 0x5F, 0x30}}),
+                s, FL_ALL, join({f64b(2.7), env16}), 56);
         x87_cw_undefined(tests.back(), 40);
       }
     }
