@@ -217,20 +217,26 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
   // are exact, so ST(0) is compared, and so are the exception flags but
   // where an operand is a denormal or NaN, or invalid.  ST(1) = b.
   //
-  // A partial step reduces by ST(1) * 2^(D - N) for "N := An
-  // implementation-dependent number between 32 and 63" (SDM, Operation),
-  // and its ELSE branch writes only C2; the APM defines both ("N = 32 +
-  // (ExpDiff mod 32)" and "{SW.C0, SW.C3, SW.C1} = 0", Vol.5 FPREM and
-  // FPREM1, Action), as the model does for both vendors.  So on an Intel
-  // host a partial remainder is freed after FNSTSW, and C0, C3 and C1 are
-  // not compared there.  The APM's Action contradicts itself for FPREM1
-  // with an exponent difference of -1: for ExpDiff < 0 it leaves ST(0)
-  // and clears C0, C3 and C1, while its Description says "The remainder
-  // returned is a complete remainder and is less than or equal to one half
-  // of the magnitude of the divisor", as the SDM's Operation computes for
-  // any D < 64.  So on an AMD host, where ST(0) is above half of ST(1)
-  // there (and the quotient rounds to 1), the result and C1 are not
-  // compared.
+  // Every case expects the same on both hosts.  In two places one manual
+  // defines the outcome and the other leaves it open, and there the host
+  // whose manual leaves it open compares less; it is never given another
+  // value.
+  // - A partial step (D >= 64).  The APM defines it: "N = 32 + (ExpDiff
+  //   mod 32)", "SW.C2 = 1", "{SW.C0, SW.C3, SW.C1} = 0" (Vol.5 FPREM
+  //   and FPREM1, Action, p.282 and p.284), as the model computes it.  The
+  //   SDM leaves it open: "N := An implementation-dependent number between
+  //   32 and 63", and its ELSE branch sets only "C2 := 1" (Vol.2A FPREM
+  //   and FPREM1, Operation, p.3-367 and p.3-369).  So an Intel host frees
+  //   the partial remainder after FNSTSW and does not compare C0, C3 and
+  //   C1 there.
+  // - FPREM1 with D = -1.  The SDM defines it: for "IF D < 64" its
+  //   Operation computes the complete remainder, as the model does.  The
+  //   APM leaves it open, since its Action leaves ST(0) for "IF (ExpDiff <
+  //   0)" while its Description says "The remainder returned is a complete
+  //   remainder and is less than or equal to one half of the magnitude of
+  //   the divisor".  So where |ST(0)| is above half of |ST(1)| there (the
+  //   quotient rounds to 1), an AMD host frees ST(0) and does not compare
+  //   C1.
   {
     const std::string cat = "x87 fprem";
     struct Op { const char *name; u8 modrm; bool nearest; };
@@ -311,8 +317,9 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
       // the model for at most 1000 instructions.)  The final remainder does
       // not depend on N, and the final quotient bits locate "the original
       // angle in the correct one of eight sectors" (SDM FPREM and FPREM1,
-      // Description), but the count does: an Intel host does not compare
-      // ECX.
+      // Description), so both hosts compare them.  The count depends on N,
+      // which the APM defines and the SDM leaves open (above): the expected
+      // count is the same, and an Intel host does not compare ECX.
       for (int d : {64, 100, 1000, 5000}) {
         std::vector<u8> loop = {0x31, 0xC9, 0xD9, op.modrm, 0xFF, 0xC1,
                                 0xDF, 0xE0, 0xF6, 0xC4, 0x04, 0x75, 0xF5};
@@ -372,12 +379,13 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
     // operand is always in the ST(i) register and the destination operand
     // is always ST(0)" (SDM Vol.2A FCMOVcc, p.3-322), and a stack
     // underflow references "an empty x87 FPU register as a source operand"
-    // (Vol.1 §8.5.1.1).  So an empty ST(0) is no underflow: taken, it gets
-    // ST(i); not taken, it stays empty.  The APM's underflow, "referencing
-    // an empty stack register" (Vol.1 §6.2.2.7, p.291), may or may not
-    // include the destination, so on an AMD host the outcome is open, and
-    // the exception flags, C1 and ST(0) are not compared there.  An empty
-    // ST(i) is an underflow when the move is taken: the indefinite
+    // (Vol.1 §8.5.1.1).  So the SDM defines an empty ST(0) as no
+    // underflow: taken, it gets ST(i); not taken, it stays empty.  The APM
+    // leaves it open: its underflow, "referencing an empty stack register"
+    // (Vol.1 §6.2.2.7, p.291), may or may not include the destination.
+    // Both hosts expect the SDM's outcome; an AMD host compares less, not
+    // the exception flags, C1 and ST(0), and is never given another value.
+    // An empty ST(i) is an underflow when the move is taken: the indefinite
     // (masked) or nothing (unmasked).  Not taken, the Operation does not
     // reference ST(i), and neither manual says whether its tag is checked:
     // open on every host.  C0, C2 and C3 are undefined; C1 is "Set to 0 if
