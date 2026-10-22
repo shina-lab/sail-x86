@@ -581,12 +581,15 @@ struct TestCase {
 enum X87ImageOpen : unsigned {
   // The last non-control x87 instruction had no memory operand: "the
   // value in the data pointer is undefined (reserved)" (SDM Vol.1
-  // §8.1.8), "implementation dependent" (APM Vol.2 §11.4.3).  FDP and FDS.
+  // §8.1.8), "implementation dependent" (APM Vol.2 §11.4.3).  FDP, and FDS
+  // on AMD hosts.  (With CPUID.(7,0):EBX[13], which the harness checks an
+  // Intel host for, the SDM saves FCS and FDS "each as 0000H", §8.1.8.)
   X87_NO_DATA = 1u << 0,
-  // A non-control x87 instruction ran in 64-bit mode.  The APM keeps no
-  // selectors there (Vol.1 §6.2.5.1, §6.2.5.3) but saves "sel:offset32"
-  // in the 32-bit format (Vol.5 FXSAVE); the model's reading (0) is not
-  // compared.  FCS and FDS.
+  // The image is saved in 64-bit mode after a non-control x87 instruction
+  // or a load of the pointers there.  The APM keeps no selectors in 64-bit
+  // mode (Vol.1 §6.2.5.1, §6.2.5.3) but saves "sel:offset32" in the
+  // 32-bit format (Vol.5 FXSAVE); the model's reading is not compared.
+  // FCS and FDS, on AMD hosts.
   X87_LONG_MODE = 1u << 1,
   // An FXSAVE with FSW.ES = 0: AMD "does not save the x87 pointer
   // registers" (APM Vol.5 FXSAVE p.26) and does not say what the fields

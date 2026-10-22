@@ -1601,14 +1601,13 @@ void x87_env_undefined(TestCase &tc, u16 off, unsigned open) {
     undefined_bytes(tc, off + half, 2);
   if (open & X87_CW_LOADED)
     x87_cw_undefined(tc, off);
-  if (open & X87_LONG_MODE) {
+  bool amd = host_vendor() == x86::zVendor_AMD;
+  if ((open & (X87_LONG_MODE | X87_NO_DATA)) && amd)
+    undefined_bytes(tc, off + 0x18, 2);  // FDS
+  if ((open & X87_LONG_MODE) && amd)
     undefined_bytes(tc, off + 0x10, 2);  // FCS
-    undefined_bytes(tc, off + 0x18, 2);  // FDS
-  }
-  if (open & X87_NO_DATA) {
+  if (open & X87_NO_DATA)
     undefined_bytes(tc, off + 0x14, 4);  // FDP
-    undefined_bytes(tc, off + 0x18, 2);  // FDS
-  }
 }
 
 void fxsave_x87_undefined(TestCase &tc, u16 off, unsigned open, bool w) {
@@ -1631,12 +1630,12 @@ void fxsave_x87_undefined(TestCase &tc, u16 off, unsigned open, bool w) {
   }
   if (open & X87_CW_LOADED)
     x87_cw_undefined(tc, off);
-  if ((open & X87_LONG_MODE) && !w) {
-    undefined_bytes(tc, off + 0x0C, 2);  // FCS
+  if ((open & (X87_LONG_MODE | X87_NO_DATA)) && !w && amd)
     undefined_bytes(tc, off + 0x14, 2);  // FDS
-  }
+  if ((open & X87_LONG_MODE) && !w && amd)
+    undefined_bytes(tc, off + 0x0C, 2);  // FCS
   if (open & X87_NO_DATA)
-    undefined_bytes(tc, off + 0x10, w ? 8 : 6);  // FDP, and FDS
+    undefined_bytes(tc, off + 0x10, w ? 8 : 4);  // FDP
   if ((open & X87_FXSAVE_NO_ES) && amd)
     undefined_bytes(tc, off + 0x06, 18);  // FOP, FIP, FCS, FDP, FDS
 }
