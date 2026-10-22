@@ -296,7 +296,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
     match mp {
       // VCVTSI2SS xmm1, xmm2, r/m32
       MP_F3 => {
-        if pfx.vex_w then {
+        if vex_gpr_size(pfx) == 64 then {
           let x : qword = v(src);
           write_simd(128, dst, src1[127..32] @ __int64_to_f32(x));
         } else {
@@ -306,7 +306,7 @@ function dispatch_vex_0f_fp(op, pfx) = {
       },
       // VCVTSI2SD xmm1, xmm2, r/m32
       MP_F2 => {
-        if pfx.vex_w then {
+        if vex_gpr_size(pfx) == 64 then {
           let x : qword = v(src);
           write_simd(128, dst, src1[127..64] @ __int64_to_f64(x));
         } else {
@@ -346,10 +346,10 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let dst_gpr = modrm_reg(modrm, pfx);
     match mp {
       MP_F3 => { let src : dword = decode_scalar_src(src2);
-                  if pfx.vex_w then v(dst_gpr) = __f32_to_int64_trunc(src)
+                  if vex_gpr_size(pfx) == 64 then v(dst_gpr) = __f32_to_int64_trunc(src)
                   else v(dst_gpr) = __f32_to_int32_trunc(src) },
       MP_F2 => { let src : qword = decode_scalar_src(src2);
-                  if pfx.vex_w then v(dst_gpr) = __f64_to_int64_trunc(src)
+                  if vex_gpr_size(pfx) == 64 then v(dst_gpr) = __f64_to_int64_trunc(src)
                   else v(dst_gpr) = __f64_to_int32_trunc(src) },
       _ => raise_UD(),
     }
@@ -362,10 +362,10 @@ function dispatch_vex_0f_fp(op, pfx) = {
     let src2 = modrm_xrm(modrm, pfx);
     match mp {
       MP_F3 => { let src : dword = decode_scalar_src(src2);
-                  if pfx.vex_w then v(reg) = __f32_to_int64(src)
+                  if vex_gpr_size(pfx) == 64 then v(reg) = __f32_to_int64(src)
                   else v(reg) = __f32_to_int32(src) },
       MP_F2 => { let src : qword = decode_scalar_src(src2);
-                  if pfx.vex_w then v(reg) = __f64_to_int64(src)
+                  if vex_gpr_size(pfx) == 64 then v(reg) = __f64_to_int64(src)
                   else v(reg) = __f64_to_int32(src) },
       _ => raise_UD(),
     }

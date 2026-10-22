@@ -259,7 +259,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
         match dest { RM_reg(r) => v(r) = zero_extend(32, w), RM_mem(m) => v(m) = w }
       },
       22 => { // VPEXTRD (SEL = imm8[1:0]) / VPEXTRQ (SEL = imm8[0])
-        if pfx.rex_w then v(dest) = velem(64, ZMM[src], imm[0])
+        if vex_gpr_size(pfx) == 64 then v(dest) = velem(64, ZMM[src], imm[0])
         else v(dest) = velem(32, ZMM[src], imm[1..0])
       },
       _ => v(dest) = velem(32, ZMM[src], imm[1..0]), // VEXTRACTPS
@@ -301,7 +301,10 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     }
   },
 
-  // 0F3A 20/22: VPINSRB / VPINSRD/Q — VEX.128
+  // 0F3A 20/22: VPINSRB / VPINSRD/Q — VEX.128.  Outside 64-bit mode the SDM
+  // says both "Attempt to execute VPINSRQ in non-64-bit mode will cause
+  // #UD" and "VEX.W/EVEX.W in non-64 bit is ignored"; an Emerald Rapids
+  // executes VEX.W1 there as VPINSRD (and VPEXTRQ, 0F3A 16, as VPEXTRD).
   op if op == 32 | op == 34 => {
     if pfx.vex_l then raise_UD();
     let modrm = fetch(1);
@@ -311,7 +314,7 @@ function dispatch_vex_0f3a(opcode, pfx) = {
     let imm = fetch(1);
     if op == 32 then
       write_simd(128, dst, insert_byte(src1, v(src), unsigned(imm[3..0])))
-    else if pfx.rex_w then {
+    else if vex_gpr_size(pfx) == 64 then {
       let x : qword = v(src);
       write_simd(128, dst, match unsigned(imm[0]) { 0 => src1[127..64] @ x, _ => x @ src1[63..0] })
     } else {
@@ -430,9 +433,9 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   240 => {
     if ~(has_bmi2) | mp != MP_F2 | pfx.vex_l | pfx.vex_vvvv != 0 then raise_UD();
     let (dst, src2) = fetch_modrm(pfx);
-    let os : {32, 64} = if pfx.vex_w then 64 else 32;
+    let os : {32, 64} = vex_gpr_size(pfx);
     let imm = fetch(1);
-    let shift : range(0, 63) = unsigned(imm[(if pfx.vex_w then 5 else 4)..0]);
+    let shift : range(0, 63) = unsigned(imm[(if os == 64 then 5 else 4)..0]);
     assert(shift < os);
     v(os, dst) = rotr(v(os, src2), shift);
   },

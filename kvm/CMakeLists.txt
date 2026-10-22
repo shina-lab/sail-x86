@@ -13,6 +13,7 @@ add_executable(kvm_harness
   kvm-tests-mmx.cpp
   kvm-tests-features.cpp
   kvm-tests-compat.cpp
+  kvm-tests-compat-avx.cpp
   kvm-tests-xsave.cpp
   kvm-tests-avx-fp.cpp
   kvm-tests-avx-int.cpp

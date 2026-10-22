@@ -1238,6 +1238,7 @@ static const Template TEMPLATES[] = {
   {"kvm-tests-mmx.cpp", add_mmx_tests},
   {"kvm-tests-features.cpp", add_feature_tests},
   {"kvm-tests-compat.cpp", add_compat_tests},
+  {"kvm-tests-compat-avx.cpp", add_compat_avx_tests},
   {"kvm-tests-xsave.cpp", add_xsave_tests},
   {"kvm-tests-avx-fp.cpp", add_avx_fp_tests},
   {"kvm-tests-avx-int.cpp", add_avx_int_tests},

@@ -93,7 +93,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xreg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
-    if pfx.vex_w then {
+    if vex_gpr_size(pfx) == 64 then {
       // VMOVQ xmm, r/m64
       let x : qword = v(src);
       write_simd(128, dst, zero_extend(x))
@@ -231,7 +231,7 @@ function dispatch_vex_0f_int(op, pfx) = {
       MP_66 => {
         // VMOVD/VMOVQ xmm -> r/m
         let src : xmmword = read_simd(modrm_xreg(modrm, pfx));
-        let os : {32, 64} = if pfx.vex_w then 64 else 32;
+        let os : {32, 64} = vex_gpr_size(pfx);
         v(src2) = src[os - 1 .. 0]
       },
       MP_F3 => {
@@ -322,8 +322,11 @@ function dispatch_vex_0f_int(op, pfx) = {
     let src = modrm_rm(modrm, pfx);
     match src {
       RM_reg(r) => {
+        // KMOVQ with a GPR is 64-bit mode only ("V/I"): "VEX.W can only be
+        // used to modify the size of the GPR operand in 64b mode" (SDM
+        // Vol.2A KMOV), and an Emerald Rapids executes it as KMOVD outside.
         if mp == MP_F2 then {
-          if pfx.vex_w then write_kreg(k1, v(64, r))                   // KMOVQ
+          if vex_gpr_size(pfx) == 64 then write_kreg(k1, v(64, r))     // KMOVQ
           else write_kreg(k1, zero_extend(v(32, r)))                   // KMOVD
         } else if mp == MP_66 then {
           write_kreg(k1, zero_extend(v(32, r)[7..0]))                  // KMOVB
@@ -341,7 +344,7 @@ function dispatch_vex_0f_int(op, pfx) = {
     let dst_gpr = modrm_reg(modrm, pfx);
     let k1 : range(0, 7) = unsigned(modrm[2..0]);
     if mp == MP_F2 then {
-      if pfx.vex_w then v(dst_gpr) = read_kreg(k1)                       // KMOVQ
+      if vex_gpr_size(pfx) == 64 then v(dst_gpr) = read_kreg(k1)         // KMOVQ (as for 92)
       else v(dst_gpr) = read_kreg(k1)[31..0]                             // KMOVD
     } else if mp == MP_66 then {
       v(dst_gpr) = zero_extend(32, read_kreg(k1)[7..0])                  // KMOVB

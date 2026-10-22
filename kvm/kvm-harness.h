@@ -566,6 +566,7 @@ void add_exception_tests(std::vector<TestCase> &tests);
 void add_mmx_tests(std::vector<TestCase> &tests);
 void add_feature_tests(std::vector<TestCase> &tests);
 void add_compat_tests(std::vector<TestCase> &tests);
+void add_compat_avx_tests(std::vector<TestCase> &tests);
 void add_xsave_tests(std::vector<TestCase> &tests);
 void add_avx_fp_tests(std::vector<TestCase> &tests);
 void add_avx_int_tests(std::vector<TestCase> &tests);

@@ -192,11 +192,12 @@ function dispatch_vex_0f38_arith(op, pfx) = {
 
   // 0F38 F2: ANDN (NP, VEX.NDS.LZ) — dest = ~vvvv & src.  The BMI1 and
   // BMI2 instructions are VEX.LZ: #UD if VEX.L = 1 (SDM Vol.2A Table
-  // 2-29, Type 13 exception conditions).
+  // 2-29, Type 13 exception conditions).  VEX.W1 makes their operands 64
+  // bits in 64-bit mode only (vex_gpr_size).
   242 => {
     if ~(has_bmi1) | mp != MP_NONE | pfx.vex_l then raise_UD();
     let (dst, src2) = fetch_modrm(pfx);
-    let os : {32, 64} = if pfx.vex_w then 64 else 32;
+    let os : {32, 64} = vex_gpr_size(pfx);
     let src = v(os, src2);
     let vvvv : gpr_idx = pfx.vex_vvvv % 16;
     let vval = v(os, vvvv);
@@ -216,7 +217,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     if ~(has_bmi1) | mp != MP_NONE | pfx.vex_l then raise_UD();
     let (reg_field, src2) = fetch_modrm_raw(pfx);
     if reg_field == 0 | reg_field > 3 then raise_UD();
-    let 'os : {32, 64} = if pfx.vex_w then 64 else 32;
+    let 'os : {32, 64} = vex_gpr_size(pfx);
     let src = v(os, src2);
     let dst : gpr_idx = pfx.vex_vvvv % 16;
     let (result, cf) : (bits('os), bit) = match reg_field {
@@ -281,7 +282,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
   245 => {
     if ~(has_bmi2) | pfx.vex_l then raise_UD();
     let (dst, src2) = fetch_modrm(pfx);
-    let os : {32, 64} = if pfx.vex_w then 64 else 32;
+    let os : {32, 64} = vex_gpr_size(pfx);
     match mp {
       MP_NONE => {
         // BZHI: VEX.NDS.LZ.0F38.W0/W1 F5
@@ -337,7 +338,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     if ~(has_bmi2) | pfx.vex_l then raise_UD();
     if mp != MP_F2 then raise_UD();
     let (dst_hi, src) = fetch_modrm(pfx);
-    let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
+    let os : {16, 32, 64} = vex_gpr_size(pfx);
     let dst_lo : gpr_idx = pfx.vex_vvvv % 16;
     // Implicit source is EDX/RDX
     let src1 = v(os, RDX);
@@ -353,7 +354,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
     else { if ~(has_bmi2) then raise_UD() };
     if pfx.vex_l then raise_UD();
     let (dst, src2) = fetch_modrm(pfx);
-    let os : {16, 32, 64} = if pfx.vex_w then 64 else 32;
+    let os : {16, 32, 64} = vex_gpr_size(pfx);
     match mp {
       MP_NONE => {
         // BEXTR: VEX.NDS.LZ.0F38 F7 — bit field extract
@@ -384,7 +385,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let src1 = v(os, src2);
         let vvvv : gpr_idx = pfx.vex_vvvv % 16;
         let count_val = v(os, vvvv);
-        let count : range(0, 63) = if pfx.vex_w then unsigned(count_val[5..0])
+        let count : range(0, 63) = if os == 64 then unsigned(count_val[5..0])
                                     else unsigned(count_val[4..0]);
         v(dst) = src1 >>> count
       },
@@ -393,7 +394,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let src1 = v(os, src2);
         let vvvv : gpr_idx = pfx.vex_vvvv % 16;
         let count_val = v(os, vvvv);
-        let count : range(0, 63) = if pfx.vex_w then unsigned(count_val[5..0])
+        let count : range(0, 63) = if os == 64 then unsigned(count_val[5..0])
                                     else unsigned(count_val[4..0]);
         v(dst) = src1 << count
       },
@@ -402,7 +403,7 @@ function dispatch_vex_0f38_arith(op, pfx) = {
         let src1 = v(os, src2);
         let vvvv : gpr_idx = pfx.vex_vvvv % 16;
         let count_val = v(os, vvvv);
-        let count : range(0, 63) = if pfx.vex_w then unsigned(count_val[5..0])
+        let count : range(0, 63) = if os == 64 then unsigned(count_val[5..0])
                                     else unsigned(count_val[4..0]);
         v(dst) = src1 >> count
       },

@@ -48,6 +48,10 @@ function decode_vex2(byte1) = {
 }
 
 // Decode a 3-byte VEX prefix (C4 already consumed, byte1 and byte2 follow).
+// Outside 64-bit mode only eight registers exist: R̄ and X̄ are 1, or the
+// instruction would be LES (insn_dispatch.sail), and "In 32-bit modes,
+// [VEX.B̄] is ignored" (SDM Vol.2A §2.3.5.4).  The top bit of vvvv is
+// ignored there only where vvvv names a register (dispatch_vex_with_byte2).
 val decode_vex3 : (byte, byte) -> (Prefixes, range(0, 31))
 function decode_vex3(byte1, byte2) = {
   let mmmmm : range(0, 31) = unsigned(byte1[4..0]);
@@ -56,7 +60,7 @@ function decode_vex3(byte1, byte2) = {
     // R̄, X̄, B̄ are bits 7, 6, 5 of byte1 (inverted)
     rex_r = ~(byte1[7]),
     rex_x = ~(byte1[6]),
-    rex_b = ~(byte1[5]),
+    rex_b = if cur_mode != LongMode then bitzero else ~(byte1[5]),
     // W is bit 7 of byte2
     vex_w = byte2[7] == 0b1,
     rex_w = byte2[7] == 0b1,
@@ -79,6 +83,17 @@ function vex_vl(pfx) = if pfx.vex_l then 256 else 128
 
 val vex_elem : Prefixes -> {32, 64}
 function vex_elem(pfx) = if pfx.vex_w then 64 else 32
+
+// The size of a general-purpose register or memory operand that VEX.W or
+// EVEX.W selects as REX.W does in a legacy instruction: 64 bits with W1 in
+// 64-bit mode, else 32.  "VEX.W1 is ignored in non-64-bit modes" (BMI1 and
+// BMI2, e.g. SDM Vol.2A ANDN), and "VEX.W1/EVEX.W1 in non-64 bit is
+// ignored; the instructions behaves as if the W0 version is used" (VMOVQ,
+// VPEXTRQ, VPINSRQ, VCVTSI2SD and the other conversions to and from a GPR;
+// §2.3.5.5).  W is an opcode extension or element size elsewhere and is
+// not ignored there.
+val vex_gpr_size : Prefixes -> {32, 64}
+function vex_gpr_size(pfx) = if pfx.vex_w & cur_mode == LongMode then 64 else 32
 
 // Polymorphic VEX source read from r/m field: register or memory.
 val decode_vex_src : forall 'vl, 'vl in {128, 256}. (implicit('vl), XRM) -> bits('vl)

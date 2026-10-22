@@ -597,6 +597,13 @@ function dispatch_vex_with_byte2(first_byte, b1) = {
 
   let opcode = fetch(1);
   if ~(vex_form_valid(map, opcode, pfx)) then raise_UD();
+  // Outside 64-bit mode, "the 3-byte VEX version will ignore" the top bit
+  // of vvvv (SDM Vol.2A §2.3.5.6; in the 2-byte VEX it is 1, or the
+  // instruction is LDS).  An Emerald Rapids ignores it where vvvv names a
+  // register, a vector or a GPR, but raises #UD for 0111b where vvvv is
+  // reserved, as in 64-bit mode: the forms above have checked the whole
+  // field.
+  let pfx = if cur_mode != LongMode then { pfx with vex_vvvv = pfx.vex_vvvv % 8 } else pfx;
 
   match map {
     1 => { if ~(avx_enabled()) then raise_UD(); dispatch_vex_0f(opcode, pfx) },
