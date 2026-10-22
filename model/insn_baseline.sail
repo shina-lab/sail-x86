@@ -1156,13 +1156,17 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F 07: SYSRET (requires CPL=0)
     // SDM Vol.2B SYSRET, Operation: #UD unless CS.L = 1, IA32_EFER.LMA = 1
     // and IA32_EFER.SCE = 1; then #GP(0) if CPL != 0; with a 64-bit operand
-    // size, #GP(0) if RCX is not canonical.
+    // size, #GP(0) if RCX is not canonical, and RIP := RCX, else RIP :=
+    // ECX.  The APM's SYSRET has no canonical check ("temp_RIP.q = RCX",
+    // Vol.3 SYSRET p.494): an AMD processor returns to CPL 3 and faults on
+    // the fetch there, "Attempting to execute code ... at a non-canonical
+    // RIP" (APM Vol.2 §8.2.14, Table 8-6, p.256).
     7 => {
       if SegCache[CS].seg_l != 0b1 | EFER[10] != 0b1 | EFER[0] != 0b1 then raise_UD();
       if cur_cpl != 0 then raise_GP0();
       // SYSRET: restore RIP from RCX, RFLAGS from R11
-      let new_rip : qword = v(RCX);
-      if pfx.rex_w & ~(is_canonical_linear(new_rip)) then raise_GP0();
+      let new_rip : qword = if pfx.rex_w then v(RCX) else zero_extend(v(32, RCX));
+      if pfx.rex_w & vendor == Vendor_Intel & ~(is_canonical_linear(new_rip)) then raise_GP0();
 
       // SDM: RFLAGS := (R11 & 3C7FD7H) | 2
       // Clear RF (bit 16), VM (bit 17), reserved bits; force bit 1 = 1
@@ -1432,10 +1436,11 @@ function dispatch_2byte_gpr(op, pfx) = {
 
     // 0F 0D: PREFETCHW m8 (/1; SDM Vol.2B) and the reserved NOPs of the
     // opcode's other forms.  Every 0F 0D encoding is decoded with a ModR/M
-    // byte and behaves as NOP (SDM Vol.3B, "Reserved NOP"): the hint moves
-    // no architectural state and takes no memory fault.  AMD, whose APM
-    // defines the opcode as PREFETCH/PREFETCHW with a memory operand,
-    // raises #UD for the register form (observed on Zen 4 under KVM).
+    // byte and behaves as NOP (SDM Vol.3B §25.15, "Reserved NOP"): the
+    // hint moves no architectural state and takes no memory fault.  The
+    // APM defines the opcode as PREFETCH/PREFETCHW, where "only the memory
+    // form of ModRM is valid.  The register form of ModRM causes an
+    // invalid-opcode exception" (Vol.3 PREFETCH, p.293-294): #UD on AMD.
     13 => {
       let modrm = fetch(1);
       if modrm[7..6] == 0b11 & vendor == Vendor_AMD then raise_UD();
@@ -1480,6 +1485,10 @@ function dispatch_2byte_gpr(op, pfx) = {
     // so the kernel entry point ran with stack_addr_size() returning 32,
     // truncating PUSH addresses to the low 32 bits of RSP.
     52 => {
+      // The SDM defines SYSENTER in IA-32e mode (Vol.2B SYSENTER); on AMD
+      // "An invalid-opcode exception occurs if this instruction is used in
+      // long mode" (APM Vol.3 SYSENTER, p.488).
+      if vendor == Vendor_AMD & EFER[10] == 0b1 then raise_UD();
       let sysenter_cs : qword = __rdmsr(0x00000174);
       // SDM Vol.2B SYSENTER, Operation: #GP(0) if IA32_SYSENTER_CS[15:2] = 0
       if sysenter_cs[15..2] == zeros() then raise_GP0();
@@ -1527,6 +1536,8 @@ function dispatch_2byte_gpr(op, pfx) = {
     // Without the descriptor-cache / cur_mode updates, the user code runs
     // with stale kernel-CS metadata (or whatever was last loaded).
     53 => {
+      // As SYSENTER: #UD in long mode on AMD (APM Vol.3 SYSEXIT, p.490).
+      if vendor == Vendor_AMD & EFER[10] == 0b1 then raise_UD();
       // SDM Vol.2B SYSEXIT, Operation: #GP(0) if IA32_SYSENTER_CS[15:2] = 0
       // or CPL != 0 (the 64-bit exception list says "= 0", but the silicon
       // follows the pseudocode); with a 64-bit operand size also if RCX or

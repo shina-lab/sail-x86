@@ -142,6 +142,13 @@ function fetch(n) = {
   };
   if cur_mode == Virtual8086Mode then check_seg_limit(CS, decode_pos, n);
   let linear : qword = decode_pos + get_seg_base(CS);
+  // "Attempting to execute code ... at a non-canonical RIP" is #GP(0)
+  // (APM Vol.2 §8.2.14, Table 8-6), where an AMD SYSRET can leave RIP.
+  // The control transfers check their targets themselves.
+  if cur_mode == LongMode then {
+    let high : bits(17) = if CR4[12] == 0b1 then sign_extend(linear[63..56]) else linear[63..47];
+    if high != zeros() & high != ones() then throw(Fault(EXN_GP, 0x00000000))
+  };
   // SDM Vol.3A sections 3.4 and 5.1.1: outside 64-bit mode the
   // segment-base addition produces a 32-bit linear address. Instruction
   // fetch needs the same truncation as segmented data accesses.

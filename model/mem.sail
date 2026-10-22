@@ -391,7 +391,14 @@ function read_descriptor(selector) = {
 //   SS: null selector -> #GP(0); index beyond the table limit, RPL != CPL,
 //       not a writable data segment, or DPL != CPL -> #GP(selector);
 //       not present -> #SS(selector).  In 64-bit mode a null SS is
-//       permitted when CPL < 3 and RPL = CPL (MOV, 64-Bit Mode Exceptions).
+//       permitted when CPL < 3 and RPL = CPL ("#GP(0) If an attempt is
+//       made to load SS register with NULL segment selector when CPL < 3
+//       and CPL ≠ RPL", MOV, 64-Bit Mode Exceptions).  The APM has no RPL
+//       condition: "A #GP occurs if software attempts to ... load the SS
+//       register with a null selector in non 64-bit mode or at CPL 3"
+//       (Vol.2 §4.5.1, p.79; Vol.3 MOV p.242 and LSS p.217, "in
+//       non-64-bit mode or while CPL = 3"), so on AMD a null SS of any RPL
+//       loads at CPL 0-2.
 //   DS/ES/FS/GS with a non-null selector: index beyond the table limit,
 //       neither a data nor a readable code segment, or a data or
 //       nonconforming code segment with RPL > DPL or CPL > DPL
@@ -407,7 +414,7 @@ function load_data_segment_register(idx, selector) = {
     let null_selector : bool = selector[15..2] == zeros();
     if idx == SS then {
       if null_selector then {
-        if cur_mode == LongMode & cur_cpl < 3 & rpl == cur_cpl then
+        if cur_mode == LongMode & cur_cpl < 3 & (rpl == cur_cpl | vendor == Vendor_AMD) then
           load_segment_register(idx, selector)
         else
           raise_GP0()

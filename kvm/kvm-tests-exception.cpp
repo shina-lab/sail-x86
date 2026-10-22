@@ -172,17 +172,18 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   u32 vendor_eax, vendor_ebx, vendor_ecx, vendor_edx;
   __get_cpuid(0, &vendor_eax, &vendor_ebx, &vendor_ecx, &vendor_edx);
   const bool amd_host = (vendor_ebx == 0x68747541);  // "Auth" of AuthenticAMD
-  // A completed MOV DR leaves arithmetic flags undefined on Intel (SDM
-  // Vol.2B, MOV debug-register entry); AMD preserves them (APM Vol.3).
+  // A completed MOV DR, where the manuals differ: "The OF, SF, ZF, AF, PF,
+  // and CF flags are undefined" (SDM Vol.2B MOV—Move to/from Debug
+  // Registers, 4-35); "rFLAGS Affected: None" (APM Vol.3 MOV DRn, p.428).
   const u64 mov_dr_undefined_flags = amd_host ? 0 : FL_ARITH;
 
   // INT1/ICEBP (F1) is a trap: the pushed RIP is past the instruction and
-  // DR6 is not modified.  Both hosts' silicon pushes the next RIP (measured
-  // natively through the RIP a SIGTRAP handler sees), but KVM on AMD (SVM)
-  // delivers this #DB to the guest with the INT1's own RIP, so the plain
-  // case is a hypervisor artifact there and runs on Intel hosts only.
-  if (!amd_host)
-    add_fault("int1 (F1) trap, RIP past the instruction", {0xF1, 0xF4}, {}, 1);
+  // DR6 is not modified (SDM Vol.2A INT n/INTO/INT3/INT1; APM Vol.2 §8.2.2:
+  // for #DB other than an instruction breakpoint or general detect, "the
+  // saved instruction pointer points to the instruction after the one that
+  // caused the #DB").  KVM on AMD pushes the INT1's own RIP
+  // (kvm-deviations.cpp).
+  add_fault("int1 (F1) trap, RIP past the instruction", {0xF1, 0xF4}, {}, 1);
 
   // Single-step (RFLAGS.TF = 0x100): TF is sampled before each instruction
   // and the trap is taken after it, with the next RIP pushed and DR6.BS set
@@ -255,18 +256,17 @@ void add_exception_tests(std::vector<TestCase> &tests) {
             {0x90, 0x66, 0x90, 0xF4}, bp_state(0, CODE_ADDR + 1, 0x1), 1);
   add_no_fault("insn bp on the opcode byte after a prefix (no match)",
                {0x90, 0x66, 0x90, 0xF4}, bp_state(0, CODE_ADDR + 2, 0x1));
-  // The instruction after MOV SS is exempt on Intel, as if RF were set
-  // (§7.8.3); AMD Zen 4 takes the breakpoint (both measured natively with
-  // a ptrace-armed DR0), and the model follows its vendor profile.  The
-  // instruction after that is not exempt anywhere.
+  // The instruction after MOV SS is exempt: "Any instruction breakpoint
+  // on the next instruction is suppressed (as if EFLAGS.RF were 1)" (SDM
+  // Vol.3A §7.8.3); the processor "does not allow external interrupts or
+  // debug exceptions to occur until the instruction immediately following
+  // the MOV SS or POP SS instruction completes execution" (APM Vol.2
+  // §8.1.4).  An AMD host takes the breakpoint (kvm-deviations.cpp).  The
+  // instruction after that is not exempt.
   {
     ArchState s = bp_state(0, CODE_ADDR + 2, 0x1); s.rax = 0x10;
-    if (amd_host)
-      add_fault("insn bp on the instruction after mov ss (AMD: taken)",
-                {0x8E, 0xD0, 0x90, 0xF4}, s, 1);
-    else
-      add_no_fault("insn bp on the instruction after mov ss (Intel: suppressed)",
-                   {0x8E, 0xD0, 0x90, 0xF4}, s);
+    add_no_fault("insn bp on the instruction after mov ss (suppressed)",
+                 {0x8E, 0xD0, 0x90, 0xF4}, s);
     s.dr[0] = CODE_ADDR + 3;
     add_fault("insn bp two instructions after mov ss",
               {0x8E, 0xD0, 0x90, 0xF4}, s, 1);
@@ -512,9 +512,15 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     tests.push_back({"mov ds,ax (0x53 DPL 3 code); mov eax,ds", cat, seg_load(0x0053, 0xD8, 0xD8), {}, FL_ALL});
     tests.push_back({"mov es,ax (0x38 read-only data); mov eax,es", cat, seg_load(0x0038, 0xC0, 0xC0), {}, FL_ALL});
     tests.push_back({"mov ds,ax (null); mov eax,ds", cat, seg_load(0x0000, 0xD8, 0xD8), {}, FL_ALL});
-    // #GP(0): a null SS whose RPL differs from CPL.  The Xeon faults as the
-    // SDM says; the AMD host loads the selector, so the case is Intel-only.
-    if (!amd_host)
+    // A null SS whose RPL differs from CPL, where the manuals differ: the
+    // SDM's 64-bit MOV raises "#GP(0) If an attempt is made to load SS
+    // register with NULL segment selector when CPL < 3 and CPL ≠ RPL"
+    // (Vol.2B MOV); the APM faults on a null SS only "in non-64-bit mode or
+    // while CPL = 3" (Vol.3 MOV p.242; Vol.2 §4.5.1), so AMD loads it.
+    if (amd_host)
+      tests.push_back({"mov ss,ax (null, RPL 3 at CPL 0) → loaded (AMD)", cat,
+                       seg_load(0x0003, 0xD0, 0xD0), {}, FL_ALL});
+    else
       add_fault("mov ss,ax (null, RPL 3 at CPL 0) → #GP(0)", seg_load(0x0003, 0xD0, 0xD0), {}, 13);
     // #GP(selector): SS must be a writable data segment with RPL = DPL = CPL
     add_fault("mov ss,ax (0x38 read-only) → #GP", seg_load(0x0038, 0xD0, 0xD0), {}, 13);

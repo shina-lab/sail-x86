@@ -64,8 +64,12 @@ void add_hint_tests(std::vector<TestCase> &tests) {
   add("0F 0D /2 [rdi] (PREFETCHWT1 slot, reserved NOP)", {0x0F, 0x0D, 0x17});
   add("0F 0D /3 [rdi] (reserved NOP)", {0x0F, 0x0D, 0x1F});
   add("0F 0D /7 [rdi] (reserved NOP)", {0x0F, 0x0D, 0x3F});
-  // The register form (mod = 11): a reserved NOP on Intel; AMD, whose APM
-  // gives PREFETCH/PREFETCHW a memory operand, raises #UD (Zen 4).
+  // The register form (mod = 11), where the manuals differ.  The SDM:
+  // "Instructions encoded with the opcode 0F0DH ... result in the behavior
+  // of the NOP (No Operation) instruction" (Vol.3B §25.15, "Reserved
+  // NOP").  The APM: "only the memory form of ModRM is valid.  The
+  // register form of ModRM causes an invalid-opcode exception" (Vol.3
+  // PREFETCH, p.293-294).
   {
     u32 a, b, c, d;
     __get_cpuid(0, &a, &b, &c, &d);

@@ -17,8 +17,9 @@ void add_system_tests(std::vector<TestCase> &tests) {
   u32 vendor_eax, vendor_ebx, vendor_ecx, vendor_edx;
   __get_cpuid(0, &vendor_eax, &vendor_ebx, &vendor_ecx, &vendor_edx);
   const bool amd_host = (vendor_ebx == 0x68747541);  // "Auth" of AuthenticAMD
-  // MOV to/from CR leaves the arithmetic flags undefined on Intel (SDM
-  // Vol.2B, MOV control-register entry); AMD preserves them (APM Vol.3).
+  // MOV to/from CR, where the manuals differ: "The OF, SF, ZF, AF, PF, and
+  // CF flags are undefined" (SDM Vol.2B MOV—Move to/from Control
+  // Registers, 4-33); "rFLAGS Affected: None" (APM Vol.3 MOV CRn, p.427).
   const u64 mov_cr_flags = amd_host ? FL_ALL : FL_DF;
 
   // The model's CR0 and EFER equal the guest's (0x80000011, 0x500) only
@@ -178,13 +179,16 @@ void add_system_tests(std::vector<TestCase> &tests) {
     add_fault("syscall with EFER.SCE=0 (#UD)", {0x0F, 0x05}, {}, 6);
     add_fault("sysret with EFER.SCE=0 (#UD)", {0x0F, 0x07}, {}, 6);
     add_fault("sysretq with EFER.SCE=0 (#UD)", {0x48, 0x0F, 0x07}, {}, 6);
-    // AMD processors have no SYSENTER in 64-bit mode (it is #UD), and KVM's
-    // emulator declines to emulate it there, so this case runs on Intel
-    // hosts only.  SYSEXIT is emulated by KVM on AMD with the Intel #GP.
-    if (!amd_host)
-      add_fault("sysenter with IA32_SYSENTER_CS=0 (#GP)", {0x0F, 0x34}, {}, 13);
-    add_fault("sysexit with IA32_SYSENTER_CS=0 (#GP)", {0x0F, 0x35}, {}, 13);
-    add_fault("sysexitq with IA32_SYSENTER_CS=0 (#GP)", {0x48, 0x0F, 0x35}, {}, 13);
+    // SYSENTER and SYSEXIT in 64-bit mode, where the manuals differ: the
+    // SDM defines them in IA-32e mode (Vol.2B SYSENTER, SYSEXIT), here
+    // #GP(0) for IA32_SYSENTER_CS[15:2] = 0, and the APM makes them #UD:
+    // "An invalid-opcode exception occurs if this instruction is used in
+    // long mode" (Vol.3 SYSENTER p.488, SYSEXIT p.490).  On AMD hosts KVM
+    // emulates SYSEXIT the SDM's way instead (kvm-deviations.cpp).
+    auto sys_vec = [&](int intel) { return amd_host ? 6 : intel; };
+    add_fault("sysenter with IA32_SYSENTER_CS=0", {0x0F, 0x34}, {}, sys_vec(13));
+    add_fault("sysexit with IA32_SYSENTER_CS=0", {0x0F, 0x35}, {}, sys_vec(13));
+    add_fault("sysexitq with IA32_SYSENTER_CS=0", {0x48, 0x0F, 0x35}, {}, sys_vec(13));
   }
 
   // =====================================================================
@@ -333,11 +337,14 @@ void add_system_tests(std::vector<TestCase> &tests) {
           {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 6);
       sys("sysret to compatibility mode CPL 3 (ud2 there)", layout({0x0F, 0x07}, ud2), s,
           {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 6);
-      // Intel raises the #GP(0) in SYSRET itself (SDM Vol.2B SYSRET); AMD
-      // completes the return and faults on the fetch at CPL 3, with the
-      // non-canonical RIP and the new RFLAGS in the frame (observed on the
-      // Threadripper), so this case runs on Intel hosts only.
-      if (!amd_host) {
+      // A non-canonical RCX, where the manuals differ: the SDM raises the
+      // #GP(0) in SYSRET itself ("#GP(0) ... If the return is to 64-bit
+      // mode and RCX contains a non-canonical address", Vol.2B SYSRET);
+      // the APM's SYSRET has no such check ("temp_RIP.q = RCX", Vol.3
+      // p.494), so it returns to CPL 3, where "Attempting to execute code
+      // ... at a non-canonical RIP" is #GP(0) (Vol.2 §8.2.14, Table 8-6),
+      // the frame holding that RIP and the new RFLAGS.
+      {
         ArchState nc = {.rcx = 0x0000800000000000ULL, .r11 = 0x202};
         sys("sysretq with a non-canonical RCX (#GP)", layout({0x48, 0x0F, 0x07}, ud2), nc,
             {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 13);
@@ -347,14 +354,22 @@ void add_system_tests(std::vector<TestCase> &tests) {
           {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 13);
     }
 
-    // SYSENTER (Intel hosts only, see above): CS 0x08, SS 0x10, RSP and RIP
-    // from the MSRs, IF cleared.  Bits 15:2 of IA32_SYSENTER_CS zero: #GP(0).
-    if (!amd_host) {
+    // SYSENTER and SYSEXIT on Intel, as the SDM gives them; on AMD each is
+    // #UD in long mode (APM Vol.3 SYSENTER p.488, SYSEXIT p.490; above).
+    // vec: the SDM's outcome, -2 for completing.
+    auto sys_x = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                     std::vector<std::pair<u32, u64>> msrs, int vec = -2) {
+      sys(name, std::move(code), init, std::move(msrs), amd_host ? 6 : vec);
+    };
+
+    // SYSENTER: CS 0x08, SS 0x10, RSP and RIP from the MSRs, IF cleared.
+    // Bits 15:2 of IA32_SYSENTER_CS zero: #GP(0).
+    {
       ArchState s = {.rflags = initial_flags() | 0x200};
-      sys("sysenter to CPL 0 (HLT at SYSENTER_EIP)", layout({0x0F, 0x34}, {}), s,
-          {{MSR_SYSENTER_CS, 0x08}, {MSR_SYSENTER_ESP, STACK_TOP - 0x100}, {MSR_SYSENTER_EIP, TARGET}});
-      sys("sysenter with IA32_SYSENTER_CS=3 (#GP: bits 15:2 zero)", layout({0x0F, 0x34}, {}), s,
-          {{MSR_SYSENTER_CS, 0x3}, {MSR_SYSENTER_ESP, STACK_TOP - 0x100}, {MSR_SYSENTER_EIP, TARGET}}, 13);
+      sys_x("sysenter to CPL 0 (HLT at SYSENTER_EIP)", layout({0x0F, 0x34}, {}), s,
+            {{MSR_SYSENTER_CS, 0x08}, {MSR_SYSENTER_ESP, STACK_TOP - 0x100}, {MSR_SYSENTER_EIP, TARGET}});
+      sys_x("sysenter with IA32_SYSENTER_CS=3 (#GP: bits 15:2 zero)", layout({0x0F, 0x34}, {}), s,
+            {{MSR_SYSENTER_CS, 0x3}, {MSR_SYSENTER_ESP, STACK_TOP - 0x100}, {MSR_SYSENTER_EIP, TARGET}}, 13);
     }
 
     // SYSEXIT: CS := IA32_SYSENTER_CS + 32 (64-bit) or + 16, RPL 3, SS := CS + 8,
@@ -362,17 +377,15 @@ void add_system_tests(std::vector<TestCase> &tests) {
     // are the GDT's user code and data (0x53, 0x5B) or 0x43 and 0x4B.
     {
       ArchState s = {.rcx = STACK_TOP - 0x200, .rdx = TARGET};
-      sys("sysexitq to CPL 3 (ud2 there)", layout({0x48, 0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x33}}, 6);
-      sys("sysexit to compatibility mode CPL 3 (ud2 there)", layout({0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x33}}, 6);
+      sys_x("sysexitq to CPL 3 (ud2 there)", layout({0x48, 0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x33}}, 6);
+      sys_x("sysexit to compatibility mode CPL 3 (ud2 there)", layout({0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x33}}, 6);
       ArchState nc = {.rcx = STACK_TOP - 0x200, .rdx = 0x0000800000000000ULL};
-      sys("sysexitq with a non-canonical RDX (#GP)", layout({0x48, 0x0F, 0x35}, ud2), nc, {{MSR_SYSENTER_CS, 0x33}}, 13);
+      sys_x("sysexitq with a non-canonical RDX (#GP)", layout({0x48, 0x0F, 0x35}, ud2), nc, {{MSR_SYSENTER_CS, 0x33}}, 13);
       // IA32_SYSENTER_CS = 3: bits 15:2 zero, #GP(0) per the SDM's Operation
-      // section and its compatibility-mode list.  The 64-bit list says the
-      // selector must be zero; the Xeon follows the pseudocode, and KVM's
-      // emulator on AMD follows the list, so the 64-bit case is Intel-only.
-      sys("sysexit with IA32_SYSENTER_CS=3 (#GP: bits 15:2 zero)", layout({0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x3}}, 13);
-      if (!amd_host)
-        sys("sysexitq with IA32_SYSENTER_CS=3 (#GP: bits 15:2 zero)", layout({0x48, 0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x3}}, 13);
+      // section and its compatibility-mode list.  The 64-bit list says only
+      // "If IA32_SYSENTER_CS = 0"; the model follows the Operation section.
+      sys_x("sysexit with IA32_SYSENTER_CS=3 (#GP: bits 15:2 zero)", layout({0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x3}}, 13);
+      sys_x("sysexitq with IA32_SYSENTER_CS=3 (#GP: bits 15:2 zero)", layout({0x48, 0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x3}}, 13);
     }
   }
 

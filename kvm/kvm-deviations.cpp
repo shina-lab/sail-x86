@@ -101,6 +101,24 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "destination operand is always ST(0)\" (Vol.2A FCMOVcc, p.3-322), and a stack underflow is "
      "when \"An instruction references an empty x87 FPU register as a source operand\" (Vol.1 "
      "§8.5.1.1, p.8-26)."},
+
+    // System instructions, the MOV SS shadow, INT1 (sysmisc)
+    {true, "int1 (F1) trap, RIP past the instruction*",
+     "KVM on AMD (SVM) delivers the #DB of INT1 with the INT1's own RIP; the silicon "
+     "pushes the next RIP natively (the RIP a SIGTRAP handler sees).  INT1 is a trap: "
+     "SDM Vol.2A INT1, \"Generate debug trap\"; APM Vol.2 §8.2.2 p.249, \"the saved "
+     "instruction pointer points to the instruction after the one that caused the #DB\"."},
+    {true, "insn bp on the instruction after mov ss (suppressed)*",
+     "A Zen 4 takes the instruction breakpoint on the instruction after MOV SS (also "
+     "natively, with a ptrace-armed DR0).  The APM does \"not allow external interrupts "
+     "or debug exceptions to occur until the instruction immediately following the MOV "
+     "SS or POP SS instruction completes execution\" (Vol.2 §8.1.4 p.245); the SDM "
+     "suppresses the breakpoint \"as if EFLAGS.RF were 1\" (Vol.3A §7.8.3 p.7-8)."},
+    {true, "sysexit*",
+     "KVM on AMD intercepts the #UD of SYSEXIT in long mode and emulates the "
+     "instruction as the SDM gives it (#GP(0) for IA32_SYSENTER_CS = 0, else the "
+     "return to CPL 3).  The APM makes SYSEXIT #UD in long mode: \"An invalid-opcode "
+     "exception occurs if this instruction is used in long mode\" (Vol.3 SYSEXIT p.490)."},
 };
 
 bool host_is_amd() {

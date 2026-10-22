@@ -105,12 +105,15 @@ function step() = {
 
   // Instruction breakpoint (SDM Vol.3B §20.3.1.1): the highest-priority
   // debug exception, a fault before the instruction.  The check is skipped
-  // when RF is set (IRET restoring a handler's frame) and, on Intel, for
-  // the instruction after MOV SS/POP SS (§7.8.3, "as if RF were 1"); AMD
-  // Zen 4 takes that breakpoint (measured natively with a ptrace-armed DR0
-  // on both hosts).  RF is then cleared, so it protects exactly one
+  // when RF is set (IRET restoring a handler's frame) and for the
+  // instruction after MOV SS/POP SS: "Any instruction breakpoint on the
+  // next instruction is suppressed (as if EFLAGS.RF were 1)" (SDM Vol.3A
+  // §7.8.3, p.7-8); the processor "does not allow external interrupts or
+  // debug exceptions to occur until the instruction immediately following
+  // the MOV SS or POP SS instruction completes execution" (APM Vol.2
+  // §8.1.4, p.245).  RF is then cleared, so it protects exactly one
   // instruction.
-  if RF == 0b0 & ~(vendor == Vendor_Intel & ss_shadow == 1) then {
+  if RF == 0b0 & ss_shadow != 1 then {
     let hits = insn_breakpoint_hits(RIP + get_seg_base(CS));
     if hits != 0x0 then {
       raise_debug_exception(zero_extend(hits));

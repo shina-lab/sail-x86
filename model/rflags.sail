@@ -67,9 +67,11 @@ function write_rflags(v) = {
   ID      = v[21];
 }
 
-// MOV to/from CRn and DRn: Intel leaves the arithmetic flags undefined
-// (SDM Vol.2B, MOV entries); AMD specifies no flags affected (APM Vol.3).
-// Call only after the access succeeds, so faults retain the original flags.
+// MOV to/from CRn and DRn, where the manuals differ: "The OF, SF, ZF, AF,
+// PF, and CF flags are undefined" (SDM Vol.2B MOV—Move to/from Control
+// Registers, 4-33; MOV—Move to/from Debug Registers, 4-35); "rFLAGS
+// Affected: None" (APM Vol.3 MOV CRn p.427, MOV DRn p.428).  Call only
+// after the access succeeds, so faults retain the original flags.
 val finish_system_register_move : unit -> unit
 function finish_system_register_move() = {
   if vendor == Vendor_Intel then {
