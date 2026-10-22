@@ -77,6 +77,32 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     fxsave_x87_undefined(tests.back(), 0, X87_NO_DATA | X87_LONG_MODE);  // FLD1
   }
 
+  // SSE with the XMM registers 0 and MXCSR 7F80H: "if RFBM[1] = 1 and MXCSR
+  // does not have the value 1F80H, XSAVEC writes XSTATE_BV[1] as 1 even if
+  // XINUSE[1] = 0" and "saves all of state component 1" (SDM Vol.1
+  // §13.10).  The area starts as EEh, so the bytes XSAVEC leaves show.  The
+  // APM has XSTATE_BV = "the logical AND of the RFBM and XINUSE bitmaps"
+  // and no MXCSR rule (Vol.4 XSAVEC p.1776), so on AMD hosts the bit and
+  // the component are open.
+  {
+    ArchState s = with_xsave_vector_inputs({}, 0x2);
+    s.rflags = initial_flags();
+    s.rdi = DATA_ADDR;
+    s.rax = 0x2;
+    s.rdx = 0;
+    s.mxcsr = 0x7F80;
+    tests.push_back({"xsavec [rdi] mask SSE (XMM registers 0, MXCSR 7F80H)", cat,
+                      {0x0F, 0xC7, 0x27},             // XSAVEC [RDI]
+                      s, FL_ALL, 0, false, std::vector<u8>(XSAVE_AREA_SIZE, 0xEE), 0});
+    u32 a, b, c, d;
+    __get_cpuid(0, &a, &b, &c, &d);
+    if (b == 0x68747541) {  // "Auth" of AuthenticAMD
+      tests.back().data_undefined.push_back({0x200, 0x02});
+      for (u16 j = 0x18; j < 0x20; j++) tests.back().data_undefined.push_back({j, 0xFF});
+      for (u16 j = 0xA0; j < 0x1A0; j++) tests.back().data_undefined.push_back({j, 0xFF});
+    }
+  }
+
   // =====================================================================
   // XGETBV tests
   // =====================================================================
@@ -91,9 +117,33 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                       s, FL_ALL});
   }
 
-  // XGETBV ECX=1: KVM intercepts XGETBV and doesn't support ECX=1 for guests,
-  // so we can't test this via KVM differential testing. Our Sail model
-  // correctly returns XCR0 | IA32_XSS per the SDM.
+  // XGETBV ECX=1: XCR0 AND XINUSE, where XINUSE[i] is 1 for a component
+  // out of its initial configuration and either value for one in it
+  // (SDM Vol.1 §13.6), and EAX[1] is 1 "if XCR0[1] = 1 and MXCSR does not
+  // have its RESET value of 1F80H" (SDM XGETBV; APM Vol.4 XGETBV).  The
+  // bits of the components left initial are masked.
+  {
+    ArchState s;
+    s.rcx = 1;
+    s.xmm[0].lo = 0x1234;  // SSE in use
+    TestCase tc;
+    tc.name = "fld1; xgetbv ecx=1 (x87 and SSE in use)";
+    tc.category = cat;
+    tc.code = {0xD9, 0xE8, 0x0F, 0x01, 0xD0};
+    tc.initial = s;
+    tc.flags_mask = FL_ALL;
+    tc.undefined.gpr[0] = 0xFFFFFFFC;
+    tests.push_back(tc);
+
+    s = ArchState{};
+    s.rcx = 1;
+    s.mxcsr = 0x7F80;
+    tc.name = "xgetbv ecx=1 (XMM registers 0, MXCSR 7F80H)";
+    tc.code = {0x0F, 0x01, 0xD0};
+    tc.initial = s;
+    tc.undefined.gpr[0] = 0xFFFFFFFD;
+    tests.push_back(tc);
+  }
 
   // XGETBV ECX=2: should #GP
   {

@@ -366,8 +366,12 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     {
       ArchState s = with_xsave_vector_inputs({.rax = 3, .rdx = 0, .rdi = DATA_ADDR}, 3);
       add(cat, bits, name("xsave [rdi] (x87, SSE)"), {0x0F, 0xAE, 0x27}, ts, s);
-      if (ts == NONE)
+      // Both components are in their initial configuration, for which
+      // XSTATE_BV[i] "may be written with either 0 or 1" (SDM Vol.1 §13.7).
+      if (ts == NONE) {
         fxsave_x87_undefined(tests.back(), 0, 0);
+        tests.back().data_undefined.push_back({0x200, 0x03});
+      }
     }
     {
       ArchState s = vectors;

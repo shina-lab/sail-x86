@@ -371,7 +371,7 @@ function xrstor_zmm_hi256_at(addr) = {
 // access the component then raises #NM after loading IA32_XFD_ERR with the
 // component's bit.  XSAVE* save the component as if it were in its initial
 // configuration (XSTATE_BV[i] = 0; XSAVE writes the initial state, the
-// compacted forms nothing); XRSTOR* raise #NM only when XSTATE_BV[i] = 1.
+// others nothing); XRSTOR* raise #NM only when XSTATE_BV[i] = 1.
 // -------------------------------------------------------------------------
 
 val xfd_enabled : range(0, 63) -> bool
@@ -531,78 +531,131 @@ function xinit_hi16_zmm() = {
 }
 
 // =========================================================================
-// XSAVE — Standard format save (SDM Section 13.7)
-//
-// RFBM = XCR0 & EDX:EAX
-// For each component i where RFBM[i]=1, save component to XSAVE area.
-// XSTATE_BV[i] = (old_BV[i] & ~RFBM[i]) | (XINUSE[i] & RFBM[i])
-// We set XINUSE = XCR0 (no init optimization, always in-use).
-// XCOMP_BV = 0, reserved header bytes = 0.
+// XINUSE, the state-component bitmap of the init optimization (SDM Vol.1
+// §13.6 p.13-18): "If XINUSE[i] = 0, state component i is known to be in
+// its initial configuration; otherwise XINUSE[i] = 1.  It is possible for
+// XINUSE[i] to be 1 even when state component i is in its initial
+// configuration."  So bit i is 1 for a component out of its initial
+// configuration and undefined for one in it; the APM leaves the same
+// choice "implementation-dependent" (Vol.4 XSAVE p.1774).  The initial
+// configurations, from §13.6: x87 with FCW 037FH, FSW 0000H, FTW FFFFH,
+// FCS, FDS, FIP and FDP 0 and ST0-ST7 0; SSE with the XMM registers 0
+// ("XINUSE[1] pertains only to the state of the XMM registers and not to
+// MXCSR"); AVX, ZMM_Hi256 and Hi16_ZMM with their parts of the vector
+// registers 0, of registers 0-15 in 64-bit mode and 0-7 outside it, where
+// Hi16_ZMM "is always in its initial configuration"; opmask with k0-k7 0;
+// and AMX with "the TILECFG register is zero and all tile data are zero"
+// (both components).
 // =========================================================================
 
-val exec_xsave : (qword, qword, bool) -> unit
-function exec_xsave(base, mask, w) = {
-  let rfbm : qword = mask & XCR0;
-
-  // Save legacy region components
-  if rfbm[0] == bitone then xsave_x87(base, w);
-  if rfbm[1] == bitone then xsave_sse(base);
-  // SDM: MXCSR is saved when RFBM[1] OR RFBM[2]
-  if rfbm[1] == bitzero & rfbm[2] == bitone then xsave_mxcsr(base);
-
-  // Save extended region components (standard fixed offsets)
-  if rfbm[2] == bitone then xsave_avx(base);
-  if rfbm[5] == bitone then xsave_opmask(base);
-  if rfbm[6] == bitone then xsave_zmm_hi256(base);
-  if rfbm[7] == bitone then xsave_hi16_zmm(base);
-  if rfbm[17] == bitone then xsave_tilecfg_at(base + xsave_std_offset(17));
-  if rfbm[18] == bitone then xsave_tiledata_at(base + xsave_std_offset(18));
-
-  // Update XSAVE header
-  // Read old XSTATE_BV, merge with RFBM
-  let old_bv : qword = read_mem(base + 512);
-  // XINUSE = XCR0 (no init optimization), except that a component XFD
-  // disables is saved as if in its initial configuration (§13.14)
-  let xinuse : qword = XCR0 & ~(IA32_XFD);
-  let xstate_bv : qword = (old_bv & ~(rfbm)) | (xinuse & rfbm);
-  write_mem(base + 512, xstate_bv);
-  // XCOMP_BV = 0 (standard format)
-  write_mem(base + 520, zeros() : qword);
-  // Zero reserved bytes 16-63 of header (offsets 528-575)
-  foreach (i from 0 to 5) {
-    write_mem(base + 528 + 8 * i, zeros() : qword)
-  }
+val xinuse : unit -> qword
+function xinuse() = {
+  let n = legacy_xmm_count();
+  var x87 : bool = x87_cw != 0x037F | x87_sw != 0x0000 | x87_tw != 0xFFFF |
+    x87_fcs != 0x0000 | x87_fds != 0x0000 | x87_fip != zeros() | x87_fdp != zeros();
+  var opmask : bool = false;
+  foreach (i from 0 to 7) {
+    if x87_ST[i] != zeros() then x87 = true;
+    if KREG[i] != zeros() then opmask = true
+  };
+  var sse : bool = false;
+  var avx : bool = false;
+  var zmm_hi256 : bool = false;
+  foreach (i from 0 to n - 1) {
+    if ZMM[i][127..0] != zeros() then sse = true;
+    if ZMM[i][255..128] != zeros() then avx = true;
+    if ZMM[i][511..256] != zeros() then zmm_hi256 = true
+  };
+  var hi16_zmm : bool = false;
+  if cur_mode == LongMode then foreach (i from 16 to 31) {
+    if ZMM[i] != zeros() then hi16_zmm = true
+  };
+  var amx : bool = tilecfg_palette != 0x00 | tilecfg_start_row != 0x00;
+  foreach (j from 0 to 7) {
+    if tilecfg_colsb[j] != 0x0000 | tilecfg_rows[j] != 0x00 then amx = true
+  };
+  foreach (i from 0 to 127) {
+    if TMM[i] != zeros() then amx = true
+  };
+  var used : qword = undefined;
+  if x87 then used[0] = bitone;
+  if sse then used[1] = bitone;
+  if avx then used[2] = bitone;
+  if opmask then used[5] = bitone;
+  if zmm_hi256 then used[6] = bitone;
+  if hi16_zmm then used[7] = bitone;
+  if amx then { used[17] = bitone; used[18] = bitone };
+  used
 }
 
+// What XSAVE* save XSTATE_BV from: a component XFD disables they save "as
+// if XINUSE[i] = 0 (and the state component was in its initial state)"
+// (§13.14 p.13-27).
+val xinuse_saved : unit -> qword
+function xinuse_saved() = xinuse() & ~(XCR0 & IA32_XFD)
+
 // =========================================================================
-// XSAVEOPT — Optimized save (SDM Section 13.9)
+// XSAVE and XSAVEOPT — standard format save (SDM Vol.1 §13.7 p.13-19,
+// §13.9 p.13-22)
 //
-// Architecturally identical to XSAVE for our specification.
-// The "modified optimization" is implementation-specific and optional;
-// we model it as always saving (XMODIFIED = all 1s).
+// RFBM = XCR0 & EDX:EAX.  XSTATE_BV[i] is kept for RFBM[i] = 0 and set to
+// XINUSE[i] for RFBM[i] = 1; neither instruction "write[s] any part of the
+// XSAVE header other than the XSTATE_BV field; in particular, it does not
+// write to the XCOMP_BV field."  XSAVE saves every component of RFBM.
+// XSAVEOPT uses the init optimization, "If XINUSE[i] = 0, state component
+// i is not saved to the XSAVE area (even if RFBM[i] = 1)", except for
+// MXCSR and MXCSR_MASK, saved for RFBM[1] or RFBM[2] by both; the model
+// does not use its modified optimization, which an implementation may
+// lack ("XMODIFIED[i] is always 1", §13.6).
 // =========================================================================
+
+val xsave_standard : (qword, qword, bool, bool) -> unit
+function xsave_standard(base, mask, w, opt) = {
+  let rfbm : qword = mask & XCR0;
+  let used : qword = xinuse_saved();
+  let save : qword = if opt then rfbm & used else rfbm;
+
+  if save[0] == bitone then xsave_x87(base, w);
+  if save[1] == bitone then xsave_sse(base)
+  else if rfbm[1] == bitone | rfbm[2] == bitone then xsave_mxcsr(base);
+  if save[2] == bitone then xsave_avx(base);
+  if save[5] == bitone then xsave_opmask(base);
+  if save[6] == bitone then xsave_zmm_hi256(base);
+  if save[7] == bitone then xsave_hi16_zmm(base);
+  if save[17] == bitone then xsave_tilecfg_at(base + xsave_std_offset(17));
+  if save[18] == bitone then xsave_tiledata_at(base + xsave_std_offset(18));
+
+  let old_bv : qword = read_mem(base + 512);
+  write_mem(base + 512, (old_bv & ~(rfbm)) | (used & rfbm))
+}
+
+val exec_xsave : (qword, qword, bool) -> unit
+function exec_xsave(base, mask, w) = xsave_standard(base, mask, w, false)
 
 val exec_xsaveopt : (qword, qword, bool) -> unit
-function exec_xsaveopt(base, mask, w) = exec_xsave(base, mask, w)
+function exec_xsaveopt(base, mask, w) = xsave_standard(base, mask, w, true)
 
 // =========================================================================
-// XSAVEC — Compacted format save (SDM Section 13.10)
+// XSAVEC — Compacted format save (SDM Vol.1 §13.10 p.13-23)
 //
-// RFBM = XCR0 & EDX:EAX
-// Uses compacted format: XCOMP_BV[63] = 1, XCOMP_BV[62:0] = RFBM
-// XSTATE_BV = XINUSE & RFBM (fresh write, not merged with old)
-// We set XINUSE = XCR0 so XSTATE_BV = RFBM.
-// Components packed contiguously starting at offset 576.
+// RFBM = XCR0 & EDX:EAX.  XCOMP_BV[63] = 1 and XCOMP_BV[62:0] = RFBM;
+// XSTATE_BV = RFBM & XINUSE, written whole, but "if RFBM[1] = 1 and MXCSR
+// does not have the value 1F80H, XSAVEC writes XSTATE_BV[1] as 1 even if
+// XINUSE[1] = 0".  With the init optimization a component is saved only
+// where XSTATE_BV is 1, the SSE one with MXCSR and MXCSR_MASK, whatever
+// RFBM[2] is.  Components are packed from offset 576 in the order of
+// XCOMP_BV, each in its place whether saved or not.
 // =========================================================================
 
 val exec_xsavec : (qword, qword, bool) -> unit
 function exec_xsavec(base, mask, w) = {
   let rfbm : qword = mask & XCR0;
+  var save : qword = rfbm & xinuse_saved();
+  if rfbm[1] == bitone & __stmxcsr() != 0x00001F80 then save[1] = bitone;
 
   // Save legacy region (same offsets as standard format)
-  if rfbm[0] == bitone then xsave_x87(base, w);
-  if rfbm[1] == bitone then xsave_sse(base);
-  // SDM: XSAVEC does NOT save MXCSR based on RFBM[2], only RFBM[1]
+  if save[0] == bitone then xsave_x87(base, w);
+  if save[1] == bitone then xsave_sse(base);
 
   // Save extended region in compacted format.
   // Components packed starting at offset 576.
@@ -614,50 +667,47 @@ function exec_xsavec(base, mask, w) = {
   var offset : qword = base + 576;
 
   if rfbm[2] == bitone then {
-    xsave_avx_at(offset);
+    if save[2] == bitone then xsave_avx_at(offset);
     offset = offset + 256
   };
 
   // Components 3, 4 not supported — skip
   if rfbm[5] == bitone then {
     offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0; // 64-byte align
-    xsave_opmask_at(offset);
+    if save[5] == bitone then xsave_opmask_at(offset);
     offset = offset + 64
   };
 
   if rfbm[6] == bitone then {
     offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
-    xsave_zmm_hi256_at(offset);
+    if save[6] == bitone then xsave_zmm_hi256_at(offset);
     offset = offset + 512
   };
 
   if rfbm[7] == bitone then {
     offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
-    xsave_hi16_zmm_at(offset);
+    if save[7] == bitone then xsave_hi16_zmm_at(offset);
     offset = offset + 1024
   };
 
   // Components 17 (TILECFG, 64 bytes) and 18 (TILEDATA, 8192), both
   // 64-byte aligned.  A component XFD disables keeps its place in the
-  // layout (XCOMP_BV is unaffected, §13.14) but is not written.
+  // layout (XCOMP_BV is unaffected, §13.14) but is not written
+  // (xinuse_saved).
   if rfbm[17] == bitone then {
     offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
-    xsave_tilecfg_at(offset);
+    if save[17] == bitone then xsave_tilecfg_at(offset);
     offset = offset + 64
   };
 
   if rfbm[18] == bitone then {
     offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
-    if ~(xfd_enabled(18)) then xsave_tiledata_at(offset);
+    if save[18] == bitone then xsave_tiledata_at(offset);
     offset = offset + 8192
   };
 
-  // Write XSAVE header
-  // XSTATE_BV = XINUSE & RFBM = RFBM (since XINUSE = XCR0, RFBM <= XCR0),
-  // less the components XFD disables (saved as in their initial state)
-  write_mem(base + 512, rfbm & ~(IA32_XFD));
-  // XCOMP_BV = RFBM | bit 63
-  write_mem(base + 520, rfbm | 0x8000000000000000)
+  write_mem(base + 512, save);                       // XSTATE_BV
+  write_mem(base + 520, rfbm | 0x8000000000000000)   // XCOMP_BV
 }
 
 // =========================================================================

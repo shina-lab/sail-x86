@@ -829,13 +829,21 @@ function dispatch_2byte_gpr(op, pfx) = {
           XCR0 = new_xcr0
         },
 
-        // 0F 01 D0: XGETBV — Read XCR0
+        // 0F 01 D0: XGETBV — Read XCR0.  ECX = 1 (CPUID.(0DH,1):EAX[2])
+        // returns "the logical-AND of XCR0 and the current value of the
+        // XINUSE state-component bitmap", with "EAX[1] to 1 if XCR0[1] = 1
+        // and MXCSR does not have its RESET value of 1F80H" (SDM XGETBV;
+        // Vol.1 §13.6 p.13-18; APM Vol.4 XGETBV p.1763).
         208 => {
           let ecx_val : dword = v(RCX);
           if ecx_val == 0x00000000 | ecx_val == 0x00000001 then {
-            // ECX=0: read XCR0; ECX=1: read XCR0 | IA32_XSS (IA32_XSS is 0)
-            v(RAX) = XCR0[31..0];
-            v(RDX) = XCR0[63..32]
+            var xcr : qword = XCR0;
+            if ecx_val == 0x00000001 then {
+              xcr = XCR0 & xinuse();
+              if XCR0[1] == bitone & __stmxcsr() != 0x00001F80 then xcr[1] = bitone
+            };
+            v(RAX) = xcr[31..0];
+            v(RDX) = xcr[63..32]
           } else {
             raise_GP0()
           }
