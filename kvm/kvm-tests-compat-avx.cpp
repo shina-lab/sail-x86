@@ -15,6 +15,7 @@
 //   - VEX.W1 and EVEX.W1 of the instructions where W is REX.W for a
 //     general-purpose operand are ignored: BMI1/BMI2, VMOVQ, VPEXTRQ,
 //     VPINSRQ, VCVTSI2SS/SD and the other conversions to and from a GPR.
+//   - VSIB addresses are 32 bits, and 16 bits (67h) are #UD (§2.3.12).
 // The registers and memory hold distinct values in their upper halves and
 // at the register numbers 8 above the encoded ones, so that reading either
 // shows.  The SDM's statements disagree in places (VPINSRQ is "#UD in
@@ -192,6 +193,33 @@ void add_compat_avx_tests(std::vector<TestCase> &tests) {
       }
     }
 
+    // VEX gathers: VSIB with 32-bit addresses (EDI, not RDI), the mask
+    // register in VEX.vvvv with its top bit ignored, VEX.B̄ ignored for the
+    // base, and #UD with the 67h prefix: "In 32-bit mode, VSIB addressing is
+    // not supported when address size attribute is overridden to 16 bits"
+    // (SDM Vol.2A §2.3.12).
+    {
+      ArchState s = g;
+      s.rdi = 0x5A5A5A5A00000000 | (DATA_ADDR + 16);
+      for (int j = 0; j < 8; j++) s.xmm[2].set<int32_t>(j, (j * 5) % 8 - 4);
+      for (int j = 0; j < 8; j++) s.xmm[1].set<u32>(j, j == 3 ? 0 : 0x80000000u);
+      Vex v; v.mm = 2; v.pp = 1; v.opcode = 0x90; v.reg = 0; v.vvvv = 1;
+      for (bool l : {false, true}) {
+        v.L = l;
+        const char *x = l ? "ymm" : "xmm";
+        add(std::format("vpgatherdd {0}0,[edi+{0}2*4],{0}1", x), v.encode_vsib(2, 4), s, FL_ALL, data);
+        Vex m = v; m.vvvv = 9;
+        add(std::format("vpgatherdd {0}0,[edi+{0}2*4],{0}1 vvvv bit 3", x), m.encode_vsib(2, 4), s,
+            FL_ALL, data);
+        std::vector<u8> code = v.encode_vsib(2, 4);
+        code[1] &= ~0x20;
+        add(std::format("vpgatherdd {0}0,[edi+{0}2*4],{0}1 VEX.B̄=0", x), code, s, FL_ALL, data);
+        code = v.encode_vsib(2, 4);
+        code.insert(code.begin(), 0x67);
+        add(std::format("vpgatherdd {0}0,[di+{0}2*4],{0}1 (67h)", x), code, s, FL_ALL, data);
+      }
+    }
+
     // Opmask instructions: KANDW k1, k2, k3 with vvvv's top bit clear (#UD
     // on Intel in 64-bit mode, where it would name k10), and KMOVQ with a
     // GPR, "V/I" (64-bit only) on its page.
@@ -342,6 +370,29 @@ void add_compat_avx_tests(std::vector<TestCase> &tests) {
         add(std::format("{} W1 [edi+1*N]", g1.name), mem, hs, FL_ALL,
             !to_int ? ints : is_unsigned ? pos : neg);
       }
+    }
+
+    // EVEX gathers and scatters: VSIB with 32-bit addresses, EVEX.V'̄ = 0
+    // (it would extend the index register), and 67h (16-bit addresses,
+    // #UD).  The guest's data segments are all flat, so a segment override
+    // shows only in 64-bit mode, with the FS and GS bases (the VSIB cases
+    // of kvm-tests-avx-vex.cpp and kvm-tests-avx-special.cpp).
+    {
+      ArchState v = s;
+      v.rdi = 0x5A5A5A5A00000000 | (DATA_ADDR + 64);
+      for (int j = 0; j < 16; j++) v.xmm[2].set<int32_t>(j, (j * 7) % 16 - 8);
+      v.kregs[1] = 0xFFFF;
+      Evex e; e.mm = 2; e.pp = 1; e.opcode = 0x90; e.reg = 0; e.aaa = 1; e.LL = 2;
+      std::vector<u8> code = e.encode_vsib(2, 4);
+      add("vpgatherdd zmm0{k1},[edi+zmm2*4]", code, v, FL_ALL, data);
+      code[3] &= ~0x08;
+      add("vpgatherdd zmm0{k1},[edi+zmm2*4] EVEX.V'̄=0", code, v, FL_ALL, data);
+      code = e.encode_vsib(2, 4);
+      code.insert(code.begin(), 0x67);
+      add("vpgatherdd zmm0{k1},[di+zmm2*4] (67h)", code, v, FL_ALL, data);
+      e.opcode = 0xA0; e.reg = 1;
+      code = e.encode_vsib(2, 4);
+      add("vpscatterdd [edi+zmm2*4]{k1},zmm1", code, v, FL_ALL, data);
     }
   }
 }

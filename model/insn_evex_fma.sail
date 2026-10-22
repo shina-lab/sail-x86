@@ -14,7 +14,7 @@ function exec_gather(vl, iw, ew, dst, vsib, k_idx) = {
   foreach (i from 0 to (n - 1)) {
     if mask[i] == 0b1 then {
       let idx : bits('iw) = (indices >> (i * iw))[iw - 1 .. 0];
-      let v : bits('ew) = read_mem(gather_addr(vsib.vsib_base, idx, vsib.vsib_scale));
+      let v : bits('ew) = read_mem(gather_addr(vsib, idx));
       let olo = i * ew;
       result = (result & ~(zero_extend(ones() : bits('ew)) << olo)) | (zero_extend(v) << olo);
     }
@@ -36,7 +36,7 @@ function exec_scatter(vl, iw, ew, src, vsib, k_idx) = {
     if mask[i] == 0b1 then {
       let idx : bits('iw) = (indices >> (i * iw))[iw - 1 .. 0];
       let v : bits('ew) = (data >> (i * ew))[ew - 1 .. 0];
-      write_mem(ew, gather_addr(vsib.vsib_base, idx, vsib.vsib_scale), v);
+      write_mem(ew, gather_addr(vsib, idx), v);
     }
   };
   write_kreg(k_idx, zeros())

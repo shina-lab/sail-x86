@@ -554,6 +554,8 @@ struct VSIB = {
   vsib_base : qword,        // base address (GPR + displacement)
   vsib_vidx : simd_idx,     // vector register containing indices
   vsib_scale : range(0, 3), // scale factor (0=1, 1=2, 2=4, 3=8)
+  vsib_seg : segreg_idx,    // segment of the accesses
+  vsib_addr64 : bool,       // 64-bit addresses (else 32-bit)
 }
 
 // =========================================================================

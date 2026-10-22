@@ -1101,12 +1101,12 @@ function decode_execute() = {
       98 => {
         if cur_mode == LongMode then {
           if vex_after_legacy_prefix(pfx) then raise_UD();
-          dispatch_evex()
+          dispatch_evex(pfx)
         } else {
           let byte2 = fetch(1);
           if byte2[7..6] == 0b11 then {
             if vex_after_legacy_prefix(pfx) then raise_UD();
-            dispatch_evex_with_p0(byte2)
+            dispatch_evex_with_p0(byte2, pfx)
           } else {
             // BOUND r16/r32, m16&16/m32&32: #BR if index out of bounds.
             let modrm = byte2;
@@ -1692,7 +1692,7 @@ function decode_execute() = {
       196 => {
         if cur_mode == LongMode then {
           if vex_after_legacy_prefix(pfx) then raise_UD();
-          dispatch_vex(0xC4)
+          dispatch_vex(0xC4, pfx)
         } else {
           // Peek at second byte to distinguish VEX from LES.
           // SDM Vol.2A §2.3.5: VEX requires mod=11 (bits 7:6 both set).
@@ -1701,7 +1701,7 @@ function decode_execute() = {
           if byte2[7..6] == 0b11 then {
             // mod=11: VEX prefix in non-64-bit mode
             if vex_after_legacy_prefix(pfx) then raise_UD();
-            dispatch_vex_with_byte2(0xC4, byte2)
+            dispatch_vex_with_byte2(0xC4, byte2, pfx)
           } else {
             // mod≠11: LES r, m16:16/32
             let os = opsize(pfx);
@@ -1726,12 +1726,12 @@ function decode_execute() = {
       197 => {
         if cur_mode == LongMode then {
           if vex_after_legacy_prefix(pfx) then raise_UD();
-          dispatch_vex(0xC5)
+          dispatch_vex(0xC5, pfx)
         } else {
           let byte2 = fetch(1);
           if byte2[7..6] == 0b11 then {
             if vex_after_legacy_prefix(pfx) then raise_UD();
-            dispatch_vex_with_byte2(0xC5, byte2)
+            dispatch_vex_with_byte2(0xC5, byte2, pfx)
           } else {
             let os = opsize(pfx);
             let reg = modrm_reg(byte2, pfx);

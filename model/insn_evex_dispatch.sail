@@ -121,12 +121,15 @@ function dispatch_evex_0f3a(opcode, pfx) = {
 
 // Dispatch an EVEX-encoded instruction when P0 has already been fetched
 // (needed for 62h in non-64-bit modes, where P0 is peeked at to
-// distinguish EVEX from BOUND).
-val dispatch_evex_with_p0 : byte -> unit
-function dispatch_evex_with_p0(p0) = {
+// distinguish EVEX from BOUND).  lpfx holds the legacy prefixes before
+// 62h, of which a segment override and 67h apply as for VEX
+// (dispatch_vex_with_byte2).
+val dispatch_evex_with_p0 : (byte, Prefixes) -> unit
+function dispatch_evex_with_p0(p0, lpfx) = {
   if cur_mode == Virtual8086Mode then raise_UD();
   if ~(avx512_enabled()) then raise_UD();
   let (pfx, mmm) = decode_evex_with_p0(p0);
+  let pfx = { pfx with seg_override = lpfx.seg_override, has_adsize = lpfx.has_adsize };
   let opcode = fetch(1);
   let pfx = evex_check_form(mmm, opcode, pfx);
   match mmm {
@@ -139,8 +142,8 @@ function dispatch_evex_with_p0(p0) = {
   }
 }
 
-val dispatch_evex : unit -> unit
-function dispatch_evex() = {
+val dispatch_evex : Prefixes -> unit
+function dispatch_evex(lpfx) = {
   let p0 = fetch(1);
-  dispatch_evex_with_p0(p0)
+  dispatch_evex_with_p0(p0, lpfx)
 }

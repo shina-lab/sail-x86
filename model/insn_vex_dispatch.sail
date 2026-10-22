@@ -579,9 +579,12 @@ function vex_form_valid(map, opcode, pfx) = {
 
 // Dispatch VEX-encoded instruction when the second byte has already been
 // fetched (needed for C4/C5 in non-64-bit mode where the second byte is
-// peeked at to distinguish VEX from LES/LDS).
-val dispatch_vex_with_byte2 : (byte, byte) -> unit
-function dispatch_vex_with_byte2(first_byte, b1) = {
+// peeked at to distinguish VEX from LES/LDS).  lpfx holds the legacy
+// prefixes before the VEX prefix.  Of those, only a segment override and
+// 67h are not #UD (vex_after_legacy_prefix), and they apply to the memory
+// operand as in any other instruction.
+val dispatch_vex_with_byte2 : (byte, byte, Prefixes) -> unit
+function dispatch_vex_with_byte2(first_byte, b1, lpfx) = {
   if cur_mode == Virtual8086Mode then raise_UD();
   // NOTE: avx_enabled() is NOT checked here.  VEX-encoded GPR-only
   // instructions (BMI1/BMI2) do not require CR4.OSXSAVE or XCR0[AVX].
@@ -594,6 +597,7 @@ function dispatch_vex_with_byte2(first_byte, b1) = {
       let b2 = fetch(1);
       decode_vex3(b1, b2)
     };
+  let pfx = { pfx with seg_override = lpfx.seg_override, has_adsize = lpfx.has_adsize };
 
   let opcode = fetch(1);
   if ~(vex_form_valid(map, opcode, pfx)) then raise_UD();
@@ -613,8 +617,8 @@ function dispatch_vex_with_byte2(first_byte, b1) = {
   }
 }
 
-val dispatch_vex : byte -> unit
-function dispatch_vex(first_byte) = {
+val dispatch_vex : (byte, Prefixes) -> unit
+function dispatch_vex(first_byte, lpfx) = {
   let b1 = fetch(1);
-  dispatch_vex_with_byte2(first_byte, b1)
+  dispatch_vex_with_byte2(first_byte, b1, lpfx)
 }

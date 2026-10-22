@@ -1160,6 +1160,100 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
           }
         }
       }
+
+      // The address of an element is BASE_ADDR + SignExtend(index)*SCALE +
+      // DISP (SDM Vol.2 VPGATHERDD etc., Operation) in the effective address
+      // size, in the segment of the base register (Vol.1 Table 3-5): with 67h
+      // the base is EDI, whose upper half is ignored, and the sum wraps at
+      // 4 GB; FS and GS overrides add their bases (written by WRFSBASE and
+      // WRGSBASE first); RBP as the base makes it an SS access, so that a
+      // non-canonical address is #SS(0) rather than #GP(0).  Each case lets
+      // the hardware decide whether it faults.
+      for (const Gather &ga : {gathers[0], gathers[3]}) {
+        ArchState st = g;
+        if (ga.W) for (int i = 0; i < 4; i++) st.xmm[1].set<u64>(i, qmask[i]);
+        else for (int i = 0; i < 8; i++) st.xmm[1].set<u32>(i, dmask[i]);
+        if (ga.qword_index) for (int i = 0; i < 4; i++) st.xmm[2].set<int64_t>(i, qidx[i]);
+        else for (int i = 0; i < 8; i++) st.xmm[2].set<int32_t>(i, didx[i]);
+        Vex v; v.mm = 2; v.pp = 1; v.W = ga.W; v.L = ga.W; v.opcode = ga.opcode;
+        v.reg = 0; v.vvvv = 1; v.rm = 2;
+        auto add_vsib = [&](const std::string &name, std::vector<u8> code, const ArchState &init) {
+          TestCase tc; tc.name = std::format("{} {}", ga.name, name); tc.category = cat;
+          tc.code = std::move(code); tc.initial = init; tc.init_data = table;
+          tc.may_fault = true;
+          tc.enable_paging = true;  // an unwrapped sum reaches unmapped memory
+          tests.push_back(std::move(tc));
+        };
+        auto with_prefix = [](std::vector<u8> pre, const std::vector<u8> &code) {
+          return concat(std::move(pre), code);
+        };
+        std::vector<u8> code = v.encode_vsib(2, 4);
+        ArchState a = st;
+        a.rdi = 0x1234567800000000ULL | (DATA_ADDR + 1024);
+        add_vsib("[edi+idx*4] (67h, RDI[63:32] ignored)", with_prefix({0x67}, code), a);
+        add_vsib("[rdi+idx*4] (RDI non-canonical)", code, a);
+        // EDI = FFFFF000h, index*1 = 12400h + 4i: 32-bit sums wrap to the table.
+        ArchState w = st;
+        w.rdi = 0xFFFFF000;
+        if (ga.qword_index) for (int i = 0; i < 4; i++) w.xmm[2].set<int64_t>(i, 0x12400 + 8 * qidx[i]);
+        else for (int i = 0; i < 8; i++) w.xmm[2].set<int32_t>(i, 0x12400 + 4 * didx[i]);
+        add_vsib("[edi+idx*1] (67h, wraps at 4 GB)", with_prefix({0x67}, v.encode_vsib(2, 1)), w);
+        add_vsib("[rdi+idx*1] (no wrap)", v.encode_vsib(2, 1), w);
+        // FS/GS bases of 1 MB with RDI 1 MB below the table.
+        ArchState f = st;
+        f.rsi = 0x100000;
+        f.rdi = DATA_ADDR + 1024 - 0x100000;
+        std::vector<u8> wrfsbase = {0xF3, 0x48, 0x0F, 0xAE, 0xD6, 0x64};  // wrfsbase rsi; fs:
+        std::vector<u8> wrgsbase = {0xF3, 0x48, 0x0F, 0xAE, 0xDE, 0x65};  // wrgsbase rsi; gs:
+        add_vsib("fs:[rdi+idx*4]", with_prefix(wrfsbase, code), f);
+        add_vsib("gs:[rdi+idx*4]", with_prefix(wrgsbase, code), f);
+        // [rbp+idx*4+0]: mod = 01, SIB.base = 101b, disp8 = 0.
+        std::vector<u8> bp = code;
+        bp[4] = (bp[4] & 0x3F) | 0x40;
+        bp[5] = (bp[5] & 0xF8) | 5;
+        bp.push_back(0);
+        ArchState b = st;
+        b.rbp = DATA_ADDR + 1024;
+        add_vsib("[rbp+idx*4+0]", bp, b);
+        b.rbp = 0x8000000000000000ULL | (DATA_ADDR + 1024);
+        add_vsib("[rbp+idx*4+0] (RBP non-canonical)", bp, b);
+        add_vsib("ds:[rbp+idx*4+0] (RBP non-canonical)", with_prefix({0x3E}, bp), b);
+        // R13 (SIB.base = 101b with VEX.B) as the base.
+        std::vector<u8> r13 = bp;
+        r13[1] &= ~0x20;
+        ArchState r = st;
+        r.r13 = 0x8000000000000000ULL | (DATA_ADDR + 1024);
+        add_vsib("[r13+idx*4+0] (R13 non-canonical)", r13, r);
+      }
+
+      // The same 67h and FS/GS prefixes before a VEX instruction without
+      // VSIB: VMOVDQU xmm0,[rdi] (C5 FA 6F 07).  FS and GS are based at
+      // 100h, so that the flat address is in the table too and a prefix
+      // variant does not fault.
+      {
+        ArchState st = g;
+        ArchState a = st;
+        a.rdi = 0x1234567800000000ULL | (DATA_ADDR + 1024);
+        ArchState f = st;
+        f.rsi = 0x100;
+        f.rdi = DATA_ADDR + 1024 - 0x100;
+        struct Mem { const char *name; std::vector<u8> code; };
+        const Mem mems[] = {
+          {"VMOVDQU xmm0,", {0xC5, 0xFA, 0x6F, 0x07}},
+        };
+        for (const Mem &m : mems) {
+          auto add_mem = [&](const std::string &form, std::vector<u8> code, const ArchState &init) {
+            TestCase tc; tc.name = std::format("{}{}", m.name, form); tc.category = cat;
+            tc.code = std::move(code); tc.initial = init; tc.init_data = table;
+            tc.may_fault = true;
+            tc.enable_paging = true;
+            tests.push_back(std::move(tc));
+          };
+          add_mem("[edi] (67h, RDI[63:32] ignored)", concat({0x67}, m.code), a);
+          add_mem("fs:[rdi]", concat({0xF3, 0x48, 0x0F, 0xAE, 0xD6, 0x64}, m.code), f);
+          add_mem("gs:[rdi]", concat({0xF3, 0x48, 0x0F, 0xAE, 0xDE, 0x65}, m.code), f);
+        }
+      }
     }
 
     // VCVTTSS2SI/VCVTTSD2SI (0F 2C) and VCVTSS2SI/VCVTSD2SI (0F 2D) into a

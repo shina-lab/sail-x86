@@ -161,8 +161,24 @@ function decode_sib_evex(sib, modbits, pfx, disp_n) = {
   base_val + index_val
 }
 
+// The segment and address size of a VSIB memory operand, as for any other
+// memory operand (modrm_rm): the segment of the base register
+// (base_default_seg) unless a prefix overrides it, and 32-bit addresses
+// with 67h in 64-bit mode.  "VSIB memory addressing requires 32-bit or
+// 64-bit effective address.  In 32-bit mode, VSIB addressing is not
+// supported when address size attribute is overridden to 16 bits", which
+// is #UD (Vol.2A §2.3.12).  Returns the segment and whether the addresses
+// are 64 bits.
+val vsib_seg_asize : (byte, range(0, 3), Prefixes) -> (segreg_idx, bool)
+function vsib_seg_asize(sib, modbits, pfx) = {
+  let asz = get_address_size(pfx);
+  if asz == 16 then raise_UD();
+  (resolve_seg(pfx, base_default_seg(sib[2..0], modbits, pfx)), asz == 64)
+}
+
 // Decode VSIB for gather/scatter instructions.
-// Returns base address (GPR + displacement) and vector index register + scale.
+// Returns base address (GPR + displacement), vector index register, scale,
+// segment and address size.
 // The SIB byte's index field references a vector register (extended by EVEX.V'/X).
 val decode_vsib_evex : (byte, Prefixes, range(1, 64)) -> VSIB
 function decode_vsib_evex(modrm, pfx, disp_n) = {
@@ -172,6 +188,7 @@ function decode_vsib_evex(modrm, pfx, disp_n) = {
   if modrm[2..0] != 0b100 then raise_UD();
   let sib : byte = fetch(1);
   let scale : range(0, 3) = unsigned(sib[7..6]);
+  let (seg, addr64) = vsib_seg_asize(sib, modbits, pfx);
 
   // Base register uses EVEX.B extension (same as normal SIB)
   let base_idx : gpr_idx = unsigned(pfx.rex_b @ sib[2..0]);
@@ -195,7 +212,8 @@ function decode_vsib_evex(modrm, pfx, disp_n) = {
       v(64, base_idx) + sign_extend(fetch(4))
     };
 
-  struct { vsib_base = base_val, vsib_vidx = vidx, vsib_scale = scale }
+  struct { vsib_base = base_val, vsib_vidx = vidx, vsib_scale = scale,
+           vsib_seg = seg, vsib_addr64 = addr64 }
 }
 
 // Decode ModR/M with EVEX compressed disp8. disp_n is the scale factor.

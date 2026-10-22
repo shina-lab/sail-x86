@@ -954,6 +954,86 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
           }
         }
       }
+
+      // The address size and segment of a VSIB address, as for the VEX
+      // gathers in kvm-tests-avx-vex.cpp: with 67h EDI (its upper half
+      // ignored) and a sum that wraps at 4 GB, the FS and GS bases with
+      // their overrides, and SS for an RBP base (#SS(0) when not
+      // canonical).  Each case lets the hardware decide whether it faults.
+      for (bool scatter : {false, true}) {
+        Evex e; e.mm = 2; e.pp = 1; e.W = false; e.LL = 2; e.aaa = 1;
+        e.opcode = scatter ? 0xA0 : 0x90; e.reg = scatter ? 1 : 0;
+        const char *name = scatter ? "VPSCATTERDD" : "VPGATHERDD";
+        ArchState st = scatter_state(false);
+        for (int i = 0; i < 8; i++) st.xmm[0].q[i] = 0xDEADDEADDEADDEADULL;
+        st = with_vector_inputs(st, scatter ? 0x6 : 0x5);
+        st.kregs[1] = 0xF0F5;
+        auto add_vsib = [&](const std::string &form, std::vector<u8> code, const ArchState &init) {
+          TestCase tc; tc.category = cat;
+          tc.name = std::format("{} {} zmm", name, form);
+          tc.code = std::move(code); tc.initial = init; tc.init_data = gmem;
+          tc.may_fault = true;
+          tc.enable_paging = true;  // an unwrapped sum reaches unmapped memory
+          tests.push_back(std::move(tc));
+        };
+        std::vector<u8> code = e.encode_vsib(2, 4);
+        ArchState a = st;
+        a.rdi = 0x1234567800000000ULL | (DATA_ADDR + 0x800);
+        add_vsib("[edi+zmm2*4] (67h, RDI[63:32] ignored)", concat({0x67}, code), a);
+        add_vsib("[rdi+zmm2*4] (RDI non-canonical)", code, a);
+        // EDI = FFFFF000h, index*1 = 12800h + 4i: 32-bit sums wrap into the page.
+        ArchState w = st;
+        w.rdi = 0xFFFFF000;
+        for (int i = 0; i < 16; i++) w.xmm[2].set<int32_t>(i, 0x12800 + 4 * (i * 7 % 16 - 8));
+        add_vsib("[edi+zmm2*1] (67h, wraps at 4 GB)", concat({0x67}, e.encode_vsib(2, 1)), w);
+        add_vsib("[rdi+zmm2*1] (no wrap)", e.encode_vsib(2, 1), w);
+        ArchState f = st;
+        f.rsi = 0x100000;
+        f.rdi = DATA_ADDR + 0x800 - 0x100000;
+        add_vsib("fs:[rdi+zmm2*4]", concat({0xF3, 0x48, 0x0F, 0xAE, 0xD6, 0x64}, code), f);
+        add_vsib("gs:[rdi+zmm2*4]", concat({0xF3, 0x48, 0x0F, 0xAE, 0xDE, 0x65}, code), f);
+        // [rbp+zmm2*4+0]: mod = 01, SIB.base = 101b, disp8 = 0.
+        std::vector<u8> bp = code;
+        bp[5] = (bp[5] & 0x3F) | 0x40;
+        bp[6] = (bp[6] & 0xF8) | 5;
+        bp.push_back(0);
+        ArchState b = st;
+        b.rbp = DATA_ADDR + 0x800;
+        add_vsib("[rbp+zmm2*4+0]", bp, b);
+        b.rbp = 0x8000000000000000ULL | (DATA_ADDR + 0x800);
+        add_vsib("[rbp+zmm2*4+0] (RBP non-canonical)", bp, b);
+        add_vsib("ds:[rbp+zmm2*4+0] (RBP non-canonical)", concat({0x3E}, bp), b);
+      }
+
+      // The same 67h and FS/GS prefixes before an EVEX instruction without
+      // VSIB: VMOVDQU32 zmm0,[rdi] (62 F1 7E 48 6F 07) and the store
+      // VMOVDQU32 [rdi],zmm1 (62 F1 7E 48 7F 0F).
+      {
+        ArchState st = with_vector_inputs(scatter_state(false), 0x6);
+        ArchState a = st;
+        a.rdi = 0x1234567800000000ULL | (DATA_ADDR + 0x800);
+        ArchState f = st;
+        f.rsi = 0x100000;
+        f.rdi = DATA_ADDR + 0x800 - 0x100000;
+        struct Mem { const char *name; const char *op; std::vector<u8> code; };
+        const Mem mems[] = {
+          {"VMOVDQU32 zmm0,", "", {0x62, 0xF1, 0x7E, 0x48, 0x6F, 0x07}},
+          {"VMOVDQU32 ", ",zmm1", {0x62, 0xF1, 0x7E, 0x48, 0x7F, 0x0F}},
+        };
+        for (const Mem &m : mems) {
+          auto add_mem = [&](const std::string &form, std::vector<u8> code, const ArchState &init) {
+            TestCase tc; tc.category = cat;
+            tc.name = std::format("{}{}{}", m.name, form, m.op);
+            tc.code = std::move(code); tc.initial = init; tc.init_data = gmem;
+            tc.may_fault = true;
+            tc.enable_paging = true;
+            tests.push_back(std::move(tc));
+          };
+          add_mem("[edi] (67h, RDI[63:32] ignored)", concat({0x67}, m.code), a);
+          add_mem("fs:[rdi]", concat({0xF3, 0x48, 0x0F, 0xAE, 0xD6, 0x64}, m.code), f);
+          add_mem("gs:[rdi]", concat({0xF3, 0x48, 0x0F, 0xAE, 0xDE, 0x65}, m.code), f);
+        }
+      }
     }
   }
 }

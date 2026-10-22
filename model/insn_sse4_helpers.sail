@@ -8,20 +8,25 @@
 // Gather address computation (shared by VEX and EVEX gather instructions)
 // =========================================================================
 
-val gather_addr : forall 'n, 'n in {32, 64}. (qword, bits('n), range(0, 3)) -> qword
-function gather_addr(base, idx, scale) = {
+// The memory operand of the element with index idx: "BASE_ADDR +
+// (SignExtend(VINDEX[i])*SCALE + DISP" (SDM Vol.2 VPGATHERDD etc.,
+// Operation), an effective address of the instruction's address size, in
+// the segment of the base register or the override (vsib_seg_asize).
+val gather_addr : forall 'n, 'n in {32, 64}. (VSIB, bits('n)) -> MemRef
+function gather_addr(vsib, idx) = {
   let offset : qword = sign_extend(idx);
-  match scale {
-    0 => base + offset,
-    1 => base + (offset << 1),
-    2 => base + (offset << 2),
-    3 => base + (offset << 3),
-  }
+  let ea : qword = match vsib.vsib_scale {
+    0 => vsib.vsib_base + offset,
+    1 => vsib.vsib_base + (offset << 1),
+    2 => vsib.vsib_base + (offset << 2),
+    3 => vsib.vsib_base + (offset << 3),
+  };
+  struct { seg = vsib.vsib_seg, addr = if vsib.vsib_addr64 then ea else zero_extend(ea[31..0]) }
 }
 
 // VEX VSIB decoder: decode SIB for VEX gather instructions.
-// Returns (base_addr, vector_index_reg, scale).
-// Unlike EVEX, index register is only 4-bit (REX.X extends it).
+// Returns the base address, vector index register, scale, segment and
+// address size.  Unlike EVEX, index register is only 4-bit (REX.X extends it).
 // A gather "will cause a #UD if the memory operand is encoded without the
 // SIB byte", and "if any pair of the index, mask [VEX.vvvv], or
 // destination [ModRM.reg] registers are the same" (SDM VPGATHERDD etc.;
@@ -33,6 +38,7 @@ function decode_vsib_vex(modrm, pfx) = {
   if modrm[2..0] != 0b100 then raise_UD();
   let sib = fetch(1);
   let scale : range(0, 3) = unsigned(sib[7..6]);
+  let (seg, addr64) = vsib_seg_asize(sib, modbits, pfx);
 
   let base_idx : gpr_idx = unsigned(pfx.rex_b @ sib[2..0]);
   let vidx : simd_idx = unsigned(pfx.rex_x @ sib[5..3]);
@@ -59,6 +65,7 @@ function decode_vsib_vex(modrm, pfx) = {
       v(64, base_idx) + sign_extend(b3 @ b2 @ b1 @ b0)
     };
 
-  struct { vsib_base = base_val, vsib_vidx = vidx, vsib_scale = scale }
+  struct { vsib_base = base_val, vsib_vidx = vidx, vsib_scale = scale,
+           vsib_seg = seg, vsib_addr64 = addr64 }
 }
 
