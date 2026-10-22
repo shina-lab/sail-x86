@@ -106,11 +106,32 @@ function check_cr0_sse() = {
   if CR0[3] == 0b1 then raise_NM()    // TS
 }
 
-// VEX- and EVEX-encoded SIMD instructions (Vol.2A §2.5 Types 1-12, §2.8
-// Types E1-E12, §2.9 Types K20 and K21) and XSAVE, XRSTOR, XSAVEOPT,
-// XSAVEC, XSAVES and XRSTORS: #NM if TS = 1.  EM does not affect them.
+// VEX-encoded SIMD instructions (Vol.2A §2.5, Types 1-12) and XSAVE,
+// XRSTOR, XSAVEOPT, XSAVEC, XSAVES and XRSTORS: #NM if TS = 1.  EM does
+// not affect them: the SDM's classes name it only as "Legacy SSE
+// instruction: If CR0.EM[bit 2] = 1" (Type 5, Table 2-22), and neither
+// manual's XSAVE pages name it.  For VEX the APM contradicts itself:
+// Vol.2 §8.2.7 gives #UD for "any SSE instruction (uses ZMM/YMM/XMM
+// registers) ... when CR0.EM = 1", while the Vol.4 pages of the
+// instructions with an SSE form (PADDD/VPADDD, LDMXCSR/VLDMXCSR, Class 1)
+// mark the EM row "S — SSE exception" only.  The model follows the SDM on
+// both vendors.
 val check_cr0_ts : unit -> unit
 function check_cr0_ts() = if CR0[3] == 0b1 then raise_NM()
+
+// AVX-512 instructions: EVEX-encoded (Vol.2A §2.8, Types E1-E12) and the
+// VEX-encoded opmask instructions (§2.9, Types K20 and K21).  The SDM's
+// classes give #NM if TS = 1 and nothing for EM.  The APM lists "CR0.EM =
+// 1" with the #UD of the AVX512 instructions (Vol.4 §3.2.1, "Control
+// Register Exceptions"), to which the pages of the opmask instructions
+// refer as well ("Exceptions for AVX512 instructions are enumerated in
+// Section 3.2"), so on AMD EM gives #UD, ahead of the #NM like the other
+// #UDs the enabled state decides.
+val check_cr0_avx512 : unit -> unit
+function check_cr0_avx512() = {
+  if vendor == Vendor_AMD & CR0[2] == 0b1 then raise_UD();  // EM
+  check_cr0_ts()
+}
 
 // x87 instructions (Vol.3A Table 2-2), FXSAVE and FXRSTOR: #NM if EM = 1
 // or TS = 1.  FXSAVE and FXRSTOR: "#NM If CR0.TS[bit 3] = 1. If

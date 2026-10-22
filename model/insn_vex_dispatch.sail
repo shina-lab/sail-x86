@@ -701,16 +701,23 @@ function dispatch_vex_with_byte2(first_byte, b1, lpfx) = {
   // AMX (0F38 49, 4B, 5C, 5E) has its own state requirement (dispatch_amx)
   // and no #NM of CR0.TS (the AMX exception classes, Vol.2A §2.10; its #NM
   // is that of XFD).  Every other VEX instruction is SIMD: #UD unless AVX
-  // is enabled, then #NM if CR0.TS = 1 (check_cr0_ts).
+  // is enabled, then #NM if CR0.TS = 1 (check_cr0_ts), and for the opmask
+  // instructions (0F 41-4B, 90-93, 98, 99; 0F3A 30-33), which are AVX-512
+  // instructions, first the #UD of CR0.EM on AMD (check_cr0_avx512).
   let op : range(0, 255) = unsigned(opcode);
   let gpr_or_amx : bool = match map {
     2 => (242 <= op & op <= 247) | op == 73 | op == 75 | op == 92 | op == 94,
     3 => op == 240,
     _ => false,
   };
+  let opmask : bool = match map {
+    1 => (65 <= op & op <= 75) | (144 <= op & op <= 147) | op == 152 | op == 153,
+    3 => 48 <= op & op <= 51,
+    _ => false,
+  };
   if ~(gpr_or_amx) then {
     if ~(avx_enabled()) then raise_UD();
-    check_cr0_ts()
+    if opmask then check_cr0_avx512() else check_cr0_ts()
   };
 
   match map {

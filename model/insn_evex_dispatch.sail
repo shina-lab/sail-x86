@@ -132,9 +132,10 @@ function dispatch_evex_with_p0(p0, lpfx) = {
   let opcode = fetch(1);
   if ~(avx512_enabled()) then raise_UD();
   let pfx = evex_check_form(mmm, opcode, pfx);
-  // Every EVEX instruction is SIMD: #NM if CR0.TS = 1, after the #UD of
-  // its encoding (SDM Vol.2A §2.8, exception classes E1-E12).
-  check_cr0_ts();
+  // Every EVEX instruction is an AVX-512 instruction: on AMD #UD if CR0.EM
+  // = 1, and #NM if CR0.TS = 1, after the #UD of its encoding
+  // (check_cr0_avx512).
+  check_cr0_avx512();
   match mmm {
     1 => dispatch_evex_0f(opcode, pfx),
     2 => dispatch_evex_0f38(opcode, pfx),

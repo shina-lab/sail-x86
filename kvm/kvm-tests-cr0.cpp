@@ -296,8 +296,9 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   for (u64 bits : {EM, EM | TS, EM | MP, EM | MP | TS}) {
     std::string cat = "CR0.EM";
-    std::string tag = (bits & MP ? std::string(" MP") : "") + (bits & TS ? " TS" : "");
-    auto name = [&](const std::string &n) { return n + (tag.empty() ? "" : " [" + tag.substr(1) + "]"); };
+    // " [EM]", " [EM MP]", " [EM TS]", " [EM MP TS]"
+    std::string tag = std::string(" [EM") + (bits & MP ? " MP" : "") + (bits & TS ? " TS" : "");
+    auto name = [&](const std::string &n) { return n + tag + "]"; };
 
     // Legacy SSE and MMX: #UD, whatever TS.
     add(cat, bits, name("addps xmm0,xmm1"), {0x0F, 0x58, 0xC1}, UD);
@@ -331,7 +332,7 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add_ud(cat, bits, name("VEX.0F AE /0"), {0xC5, 0xF8, 0xAE, 0x07}, mem);
     add_ud(cat, bits, name("EVEX.0F AE /1"), {0x62, 0xF1, 0x7C, 0x48, 0xAE, 0x0F}, mem);
 
-    // The XSAVE family, VEX and EVEX ignore EM; TS still applies.
+    // The XSAVE family and VEX ignore EM; TS still applies.
     int ts = bits & TS ? NM : NONE;
     {
       ArchState s = with_xsave_vector_inputs({.rax = 3, .rdx = 0, .rdi = DATA_ADDR}, 3);
@@ -341,8 +342,15 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
       ArchState s = vectors;
       s.rdi = DATA_ADDR;
       add(cat, bits, name("vpaddd ymm0,ymm1,ymm2"), {0xC5, 0xF5, 0xFE, 0xC2}, ts, s);
-      add(cat, bits, name("vpaddd zmm0,zmm1,zmm2"), {0x62, 0xF1, 0x75, 0x48, 0xFE, 0xC2}, ts, s);
-      add(cat, bits, name("kmovw k1,k2"), {0xC5, 0xF8, 0x90, 0xCA}, ts, s);
+      // AVX-512, EVEX and the opmask instructions: the SDM's classes
+      // (E1-E12, K20, K21) give EM no rule; the APM gives it #UD (Vol.4
+      // §3.2.1), and with TS set as well #UD or #NM, in no order.
+      int avx512 = amd_host ? UD : ts;
+      add(cat, bits, name("vpaddd zmm0,zmm1,zmm2"), {0x62, 0xF1, 0x75, 0x48, 0xFE, 0xC2}, avx512,
+          s);
+      if (amd_host && bits & TS) allow(UD_OR_NM);
+      add(cat, bits, name("kmovw k1,k2"), {0xC5, 0xF8, 0x90, 0xCA}, avx512, s);
+      if (amd_host && bits & TS) allow(UD_OR_NM);
       add(cat, bits, name("vldmxcsr [rdi]"), {0xC5, 0xF8, 0xAE, 0x17}, ts, s, mxcsr_1f80);
       add(cat, bits, name("vstmxcsr [rdi]"), {0xC5, 0xF8, 0xAE, 0x1F}, ts, s);
     }

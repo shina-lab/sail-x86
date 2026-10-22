@@ -20,6 +20,23 @@ namespace {
 
 const std::vector<KnownDeviation> DEVIATIONS = {
     // {amd, "case name", "reason"},
+
+    // CR0.EM and CR0.TS (kvm-tests-cr0.cpp)
+    {true, "vpaddd zmm0,zmm1,zmm2 [EM]*",
+     "Zen 4 executes an EVEX instruction with CR0.EM = 1; APM Vol.4 §3.2.1 (p. 1878), the "
+     "control register exceptions of the AVX512 instructions, lists \"CR0.EM = 1\" under "
+     "\"Invalid opcode, #UD\", as Vol.2 §8.2.7 (p. 252) does for \"any SSE instruction (uses "
+     "ZMM/YMM/XMM registers)\""},
+    {true, "vpaddd zmm0,zmm1,zmm2 [EM MP]*",
+     "Zen 4 executes an EVEX instruction with CR0.EM = 1; APM Vol.4 §3.2.1 (p. 1878) lists "
+     "\"CR0.EM = 1\" under \"Invalid opcode, #UD\" for the AVX512 instructions"},
+    {true, "kmovw k1,k2 [EM]*",
+     "Zen 4 executes VEX KMOVW with CR0.EM = 1; the APM's KMOVW page (Vol.4 p. 212) says "
+     "\"Exceptions for AVX512 instructions are enumerated in Section 3.2\", and §3.2.1 "
+     "(p. 1878) lists \"CR0.EM = 1\" under \"Invalid opcode, #UD\""},
+    {true, "kmovw k1,k2 [EM MP]*",
+     "Zen 4 executes VEX KMOVW with CR0.EM = 1; the APM's KMOVW page (Vol.4 p. 212) refers to "
+     "§3.2, whose §3.2.1 (p. 1878) lists \"CR0.EM = 1\" under \"Invalid opcode, #UD\""},
 };
 
 bool host_is_amd() {
