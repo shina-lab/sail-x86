@@ -259,9 +259,9 @@ function dispatch_vex_0f3a(opcode, pfx) = {
         let w : word = velem(16, ZMM[src], imm[2..0]);
         match dest { RM_reg(r) => v(r) = zero_extend(32, w), RM_mem(m) => v(m) = w }
       },
-      22 => { // VPEXTRD/Q
-        let eb = if pfx.rex_w then 64 else 32;
-        v(dest) = (ZMM[src] >> (unsigned(imm[(eb / 32 - 1)..0]) * eb))[(eb - 1)..0]
+      22 => { // VPEXTRD (SEL = imm8[1:0]) / VPEXTRQ (SEL = imm8[0])
+        if pfx.rex_w then v(dest) = velem(64, ZMM[src], imm[0])
+        else v(dest) = velem(32, ZMM[src], imm[1..0])
       },
       _ => v(dest) = velem(32, ZMM[src], imm[1..0]), // VEXTRACTPS
     }
