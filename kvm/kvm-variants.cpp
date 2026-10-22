@@ -1018,8 +1018,12 @@ void permute_registers(const Base &b, const Emit &emit, int bit) {
   TestCase v = derive(b.tc);
   v.code = assemble(pieces);
   if (v.code == b.tc.code) return;
+  // The registers' undefined bits move with their contents.
   for (int i = 0; i < 32; i++)
-    if (!(i & bit)) std::swap(v.initial.xmm[i], v.initial.xmm[i | bit]);
+    if (!(i & bit)) {
+      std::swap(v.initial.xmm[i], v.initial.xmm[i | bit]);
+      std::swap(v.undefined.zmm[i], v.undefined.zmm[i | bit]);
+    }
   if (v.approx_rel_tol > 0) v.approx_reg ^= bit;
   if (bit == 8) {
     for (int r = 0; r < 8; r++) {
@@ -1027,6 +1031,7 @@ void permute_registers(const Base &b, const Emit &emit, int bit) {
       u64 lo = gpr(v.initial, r), hi = gpr(v.initial, r + 8);
       set_gpr(v.initial, r, hi);
       set_gpr(v.initial, r + 8, lo);
+      std::swap(v.undefined.gpr[r], v.undefined.gpr[r + 8]);
     }
   }
   emit(b, std::format("register numbers ^ {}", bit), std::move(v));

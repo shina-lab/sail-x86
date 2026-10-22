@@ -289,6 +289,31 @@ static bool compare_page(const char *label, const u8 *kvm, const u8 *sail) {
   return false;
 }
 
+// The vector and opmask registers after a run that faults, which the
+// handlers do not touch.  A fault restores "the machine state to the
+// state prior to the beginning of execution of the faulting instruction"
+// (SDM Vol.3A §7.5, p.7-5), except what an instruction's description lets
+// it leave behind, such as the elements a gather completed below the
+// faulting one and the mask bits of those a scatter completed.
+static bool compare_vector_state(const ArchState &kvm, const ArchState &sail) {
+  bool ok = true;
+  for (int i = 0; i < 32; i++) {
+    if (kvm.xmm[i] == sail.xmm[i]) continue;
+    fprintf(stderr, "  MISMATCH ZMM%d: kvm=", i);
+    for (int q = 7; q >= 0; q--) fprintf(stderr, "%016lx", kvm.xmm[i].q[q]);
+    fprintf(stderr, "\n                 sail=");
+    for (int q = 7; q >= 0; q--) fprintf(stderr, "%016lx", sail.xmm[i].q[q]);
+    fprintf(stderr, "\n");
+    ok = false;
+  }
+  for (int i = 0; i < 8; i++) {
+    if (kvm.kregs[i] == sail.kregs[i]) continue;
+    fprintf(stderr, "  MISMATCH K%d: kvm=%016lx sail=%016lx\n", i, kvm.kregs[i], sail.kregs[i]);
+    ok = false;
+  }
+  return ok;
+}
+
 // ---- KVM VM ----
 
 struct KvmVm {
@@ -730,8 +755,8 @@ struct KvmVm {
   // Run the loaded test.  Returns false, with a description in *err, if
   // the run ended other than at HLT (a triple fault, an odd exit reason),
   // so the caller can count a failure instead of aborting the whole suite.
-  // Otherwise sets *fault for a run that ended in the exception handlers,
-  // or *state for one that completed.
+  // Otherwise sets *state, and *fault for a run that ended in the
+  // exception handlers.
   bool run_test_any(ArchState *state, FaultInfo *fault, std::string *err) {
     run_vcpu();
 
@@ -747,8 +772,8 @@ struct KvmVm {
       poisoned = true;
       return false;
     }
-    if (!check_kvm_fault(*fault))
-      *state = read_state();
+    check_kvm_fault(*fault);
+    *state = read_state();
     return true;
   }
 
@@ -1098,6 +1123,18 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
     return {};
   }
 
+  // The vector and opmask registers, which a run that faults compares as
+  // well (compare_vector_state).
+  auto read_vector_state = [&](ArchState &s) {
+    for (int i = 0; i < 32; i++) {
+      u8 bytes[64];
+      zmm_to_bytes(model.zZMM.data[i], bytes);
+      memcpy(&s.xmm[i].q[0], bytes, 64);
+    }
+    for (int i = 0; i < 8; i++)
+      s.kregs[i] = model.zKREG.data[i];
+  };
+
   for (int i = 0; i < 1000; i++) {
     g_model_jump = &jump;
     model.zstep(UNIT);
@@ -1132,8 +1169,10 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
         // and records the row in TILECFG.start_row.
         if (amx_out) *amx_out = sail_amx_state(model);
         save_pages();
+        ArchState state;
+        read_vector_state(state);
         model.model_fini();
-        return {};
+        return state;
       }
       *err += std::format("Sail: unexpected fault #{} (error {:#x}) at RIP={:#x}\n",
                           vec, err_code, (u64)model.zRIP);
@@ -1173,8 +1212,10 @@ done:
                           (i64)vec_val, err_val, rip_val);
     }
     save_pages();
+    ArchState state;
+    read_vector_state(state);
     model.model_fini();
-    return {};
+    return state;
   }
 
   u64 rflags = model.zread_rflags(UNIT);
@@ -1202,13 +1243,7 @@ done:
   };
 
   state.mxcsr = model.mxcsr_state.mxcsr;
-  for (int i = 0; i < 32; i++) {
-    u8 bytes[64];
-    zmm_to_bytes(model.zZMM.data[i], bytes);
-    memcpy(&state.xmm[i].q[0], bytes, 64);
-  }
-  for (int i = 0; i < 8; i++)
-    state.kregs[i] = model.zKREG.data[i];
+  read_vector_state(state);
   state.dr6 = model.zDR6;
   state.dr7 = model.zDR7;
   // x87 in FXSAVE's terms: ST(i) is physical register (TOP + i) mod 8, and
@@ -1602,6 +1637,9 @@ static CaseResult run_case(KvmVm &vm, const TestCase &tc, const char *verdict) {
     // The tile state a faulting tile load or store leaves behind.
     ok = compare_faults(tc, vm, kvm_fault, sail_fault);
     if (amx && !vm.read_amx().compare(sail_amx)) ok = false;
+    clear_undefined(kvm_state, tc.undefined, tc.compat_mode);
+    clear_undefined(sail_state, tc.undefined, tc.compat_mode);
+    if (!compare_vector_state(kvm_state, sail_state)) ok = false;
     // The handlers push their frame on their own stack (IST1), so the
     // test's pages hold only what its instructions wrote.
     if (!compare_page("data", kvm_mem.data, sail_mem.data)) ok = false;
