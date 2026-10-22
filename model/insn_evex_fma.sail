@@ -1,45 +1,85 @@
 // x86-64 — EVEX FMA Instructions (0F38 map)
 
-// gather_addr is defined in insn_sse4_helpers.sail
+// gather_addr, vsib_read and vsib_write are defined in insn_sse4_helpers.sail
 
-// Unified EVEX gather: parameterized by index width 'iw and element width 'ew.
-// Covers all four combinations: d32 (32,32), d64 (32,64), q32 (64,32), q64 (64,64).
+// EVEX gathers: 'iw-bit indices and 'ew-bit elements, as many as the wider
+// of the two fits in VL, under k1.  Covers all four combinations: d32
+// (32,32), d64 (32,64), q32 (64,32), q64 (64,64).  Element by element from
+// the LSB (SDM VPGATHERDD etc., Operation, Vol.2C p.5-549: "IF k1[j] THEN
+// DEST[i+31:i] := MEM[...]; k1[j] := 0"), and both registers are written
+// as the loop goes, so that a fault on an element leaves "the destination
+// register and the mask register (k1) ... partially updated; those
+// elements that have been gathered are placed into the destination
+// register and have their mask bits set to zero" (p.5-548), and the rest
+// as it was (Vol.3A §7.5, p.7-5).  The rest of k1 and of the destination
+// are cleared only after the loop: "k1[MAX_KL-1:KL] := 0",
+// "DEST[MAXVL-1:VL] := 0" (DEST[MAXVL-1:VL/2] for qword indices and dword
+// elements).  For dword elements with qword indices the SDM also lets
+// those higher parts be zeroed "even if the instruction triggers an
+// exception" (p.5-548), which the model does not do.
 val exec_gather : forall 'vl 'iw 'ew, 'vl in {128, 256, 512} & 'iw in {32, 64} & 'ew in {32, 64}.
   (implicit('vl), int('iw), int('ew), simd_idx, VSIB, kreg_idx) -> unit
 function exec_gather(vl, iw, ew, dst, vsib, k_idx) = {
-  let mask = read_kreg(k_idx);
-  var result : bits(512) = ZMM[dst];
   let indices : bits(512) = ZMM[vsib.vsib_vidx];
   let n = vl / (if iw >= ew then iw else ew);
+  let elem : bits(512) = zero_extend(ones() : bits('ew));
+  let hits = pending_dbp;
+  var k : qword = read_kreg(k_idx);
+  var stopped : bool = false;
   foreach (i from 0 to (n - 1)) {
-    if mask[i] == 0b1 then {
+    if ~(stopped) & k[i] == bitone then {
       let idx : bits('iw) = (indices >> (i * iw))[iw - 1 .. 0];
-      let v : bits('ew) = read_mem(gather_addr(vsib, idx));
-      let olo = i * ew;
-      result = (result & ~(zero_extend(ones() : bits('ew)) << olo)) | (zero_extend(v) << olo);
+      match vsib_read(ew, gather_addr(vsib, idx), hits) {
+        Some(v) => {
+          let olo = i * ew;
+          ZMM[dst] = (ZMM[dst] & ~(elem << olo)) | (zero_extend(v) << olo);
+          k[i] = bitzero;
+          write_kreg(k_idx, k)
+        },
+        None() => stopped = true,
+      }
     }
   };
-  // Zero from active region (n * ew) to 511
-  ZMM[dst] = result & (ones() >> (512 - n * ew));
-  write_kreg(k_idx, zeros())
+  if ~(stopped) then {
+    ZMM[dst] = ZMM[dst] & (ones() >> (512 - n * ew));
+    write_kreg(k_idx, zeros())
+  }
 }
 
-// Unified EVEX scatter: parameterized by index width 'iw and element width 'ew.
+// EVEX scatters, with the same indices, elements and order as the
+// gathers (SDM VPSCATTERDD etc., Operation, Vol.2C p.5-619: "IF k1[j] ...
+// THEN MEM[...] := SRC[i+31:i]; k1[j] := 0").  k1 is written as the loop
+// goes, so that after a fault on an element "the mask register [is]
+// partially updated" (p.5-619), with the bits of the stored elements
+// clear (APM VPSCATTERDD p.1573: "Elements that have been stored will
+// have their mask elements set to zero"); the VPSCATTERQQ Operation omits
+// its "k1[j] := 0", which the description and the other forms have.
+// Writes in order from the LSB are one of those the SDM allows ("Only
+// writes to overlapping vector indices are guaranteed to be ordered with
+// respect to each other (from LSB to MSB of the source registers) ...
+// Writes that are not overlapped may happen in any order"); the model does
+// not skip the "earlier" of two writes that completely overlap, which "may
+// be skipped".  k1[MAX_KL-1:KL] is cleared at the end.
 val exec_scatter : forall 'vl 'iw 'ew, 'vl in {128, 256, 512} & 'iw in {32, 64} & 'ew in {32, 64}.
   (implicit('vl), int('iw), int('ew), simd_idx, VSIB, kreg_idx) -> unit
 function exec_scatter(vl, iw, ew, src, vsib, k_idx) = {
-  let mask = read_kreg(k_idx);
   let data : bits(512) = ZMM[src];
   let indices : bits(512) = ZMM[vsib.vsib_vidx];
   let n = vl / (if iw >= ew then iw else ew);
+  let hits = pending_dbp;
+  var k : qword = read_kreg(k_idx);
+  var stopped : bool = false;
   foreach (i from 0 to (n - 1)) {
-    if mask[i] == 0b1 then {
+    if ~(stopped) & k[i] == bitone then {
       let idx : bits('iw) = (indices >> (i * iw))[iw - 1 .. 0];
       let v : bits('ew) = (data >> (i * ew))[ew - 1 .. 0];
-      write_mem(ew, gather_addr(vsib, idx), v);
+      if vsib_write(ew, gather_addr(vsib, idx), v, hits) then {
+        k[i] = bitzero;
+        write_kreg(k_idx, k)
+      } else stopped = true
     }
   };
-  write_kreg(k_idx, zeros())
+  if ~(stopped) then write_kreg(k_idx, zeros())
 }
 
 /* ---- VPMADD52LUQ / VPMADD52HUQ: 52-bit multiply-add ---- */

@@ -955,6 +955,108 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
         }
       }
 
+      // A fault on element f of n leaves the elements below it completed:
+      // "if a fault is triggered by an element and delivered, all elements
+      // closer to the LSB of the destination zmm will be completed (and
+      // non-faulting).  Individual elements closer to the MSB may or may
+      // not be completed" (SDM VPGATHERDD etc., Vol.2C p.5-548; VPSCATTERDD
+      // p.5-619; APM Vol.4 §1.3.3, p.11).  Open, then: the elements above f,
+      // in the destination of a gather and the memory of a scatter, and
+      // their k1 bits; and for dword elements with qword indices "the
+      // higher part of the destination register and the mask register",
+      // which a gather "may update ... even if the instruction triggers an
+      // exception" (p.5-548).
+      auto vsib_fault_undefined = [](TestCase &tc, bool scatter, int n, int f, int iw, int ew) {
+        bool narrow = !scatter && ew < iw;
+        if (!scatter)
+          for (int b = (f + 1) * ew; b < (narrow ? 512 : n * ew); b++)
+            tc.undefined.zmm[0][b / 64] |= 1ULL << (b % 64);
+        for (int b = f + 1; b < (narrow ? 64 : n); b++) tc.undefined.kregs[1] |= 1ULL << b;
+      };
+      // Below, element i is at RDI + 8i, but the faulting element f = n/2
+      // reaches the unmapped page at 8000h (RDI + 4 * -2600h), and element
+      // 1 below f is not selected.  The k1 bits above the elements and,
+      // but for the narrow gathers, the destination bits above them are
+      // compared, and stay as they were: the Operation clears them only
+      // after the last element ("k1[MAX_KL-1:KL] := 0", "DEST[MAXVL-1:VL]
+      // := 0", p.5-549), and the description lets a fault leave only the
+      // gathered elements.  kvm-deviations.cpp lists the Xeon, which
+      // clears the destination's.
+      struct Vsib { const char *name; u8 op; bool W; bool qidx; };
+      static const Vsib vsibs[] = {
+        {"VPGATHERDD", 0x90, false, false}, {"VPGATHERDQ", 0x90, true, false},
+        {"VPGATHERQD", 0x91, false, true},  {"VPGATHERQQ", 0x91, true, true},
+        {"VGATHERDPS", 0x92, false, false}, {"VGATHERDPD", 0x92, true, false},
+        {"VGATHERQPS", 0x93, false, true},  {"VGATHERQPD", 0x93, true, true},
+        {"VPSCATTERDD", 0xA0, false, false}, {"VPSCATTERDQ", 0xA0, true, false},
+        {"VPSCATTERQD", 0xA1, false, true},  {"VPSCATTERQQ", 0xA1, true, true},
+        {"VSCATTERDPS", 0xA2, false, false}, {"VSCATTERDPD", 0xA2, true, false},
+        {"VSCATTERQPS", 0xA3, false, true},  {"VSCATTERQPD", 0xA3, true, true},
+      };
+      // A case of form c at EVEX.L'L = ll whose element f has the index
+      // fault_index (2f, its place in the page, for a case without a fault),
+      // with a data breakpoint at dr0 when dr0_rw (its R/W field) is set.
+      auto add_vsib_fault = [&](const Vsib &c, int ll, int f, int64_t fault_index,
+                                const std::string &what, int vec, u64 dr0 = 0, unsigned dr0_rw = 0) {
+        bool scatter = c.op >= 0xA0;
+        bool faults = fault_index != 2 * f;
+        int iw = c.qidx ? 64 : 32, ew = c.W ? 64 : 32, n = (128 << ll) / std::max(iw, ew);
+        ArchState s = scatter_state(c.qidx);
+        for (int i = 0; i < 8; i++) s.xmm[0].q[i] = 0xDEADDEADDEADDEADULL;
+        for (int i = 0; i < n; i++) {
+          int64_t idx = i == f ? fault_index : 2 * i;
+          if (c.qidx) s.xmm[2].set<int64_t>(i, idx); else s.xmm[2].set<int32_t>(i, int32_t(idx));
+        }
+        s = with_vector_inputs(s, scatter ? 0x6 : 0x5);
+        s.kregs[1] = f > 1 ? ~0x2ULL : ~0ULL;
+        if (dr0_rw) {
+          s.dr[0] = dr0;
+          s.dr7 = 0x1 | ((u64)dr0_rw << 16) | ((ew == 64 ? 2ULL : 3ULL) << 18);  // LEN = 8 or 4
+        }
+        Evex e; e.mm = 2; e.pp = 1; e.W = c.W; e.opcode = c.op; e.reg = scatter ? 1 : 0;
+        e.LL = ll; e.aaa = 1;
+        TestCase tc; tc.category = cat;
+        tc.name = std::format("{} {}{{k1}} element {} {}", c.name, vl_name[ll], f, what);
+        tc.code = e.encode_vsib(2, 4);
+        tc.initial = s;
+        tc.init_data = scatter ? std::vector<u8>(4096, 0xCC) : gmem;
+        tc.expect_fault = true; tc.expected_vector = vec;
+        tc.enable_paging = true;
+        if (faults) {
+          vsib_fault_undefined(tc, scatter, n, f, iw, ew);
+          if (scatter)
+            for (int i = f + 1; i < n; i++)
+              if (s.kregs[1] >> i & 1)
+                for (int b = 0; b < ew / 8; b++) tc.data_undefined.push_back({u16(0x800 + 8 * i + b), 0xFF});
+        }
+        tests.push_back(std::move(tc));
+      };
+      for (const Vsib &c : vsibs)
+        for (int ll = 0; ll <= 2; ll++) {
+          int n = (128 << ll) / (c.W || c.qidx ? 64 : 32);
+          add_vsib_fault(c, ll, n / 2, -0x2600, "unmapped (#PF)", 14);
+        }
+      // VPGATHERQQ and VPSCATTERQQ zmm with a non-canonical address for
+      // element 4 (RDI + 8000000000000000h): #GP(0) after elements 0 to 3.
+      // With a data breakpoint on element 0 as well (DR0, LEN = 8, R/W = 11b
+      // for the gather, 01b for the scatter), its trap takes the fault's
+      // place: "If any traps or interrupts are pending from already
+      // gathered elements, they will be delivered in lieu of the exception;
+      // in this case, EFLAG.RF is set to one so an instruction breakpoint
+      // is not re-triggered when the instruction is continued" (p.5-548,
+      // VPSCATTERDD p.5-619; APM VPGATHERDD p.1397, VPSCATTERDD p.1573), a
+      // #DB with B0, the instruction's RIP and RF = 1 in the image.  Without
+      // the fault the #DB follows the instruction (Vol.3B §20.3.1.2).
+      for (const Vsib &c : {vsibs[3], vsibs[11]}) {
+        bool scatter = c.op >= 0xA0;
+        const int64_t nc = 0x2000000000000000LL;
+        add_vsib_fault(c, 2, 4, nc, "non-canonical (#GP)", 13);
+        add_vsib_fault(c, 2, 4, nc, "non-canonical, data bp on element 0 (#DB in lieu)", 1,
+                       DATA_ADDR + 0x800, scatter ? 1 : 3);
+        add_vsib_fault(c, 2, 4, 8, "with a data bp (#DB after)", 1, DATA_ADDR + 0x800 + 32,
+                       scatter ? 1 : 3);
+      }
+
       // The address size and segment of a VSIB address, as for the VEX
       // gathers in kvm-tests-avx-vex.cpp: with 67h EDI (its upper half
       // ignored) and a sum that wraps at 4 GB, the FS and GS bases with
@@ -968,25 +1070,28 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
         for (int i = 0; i < 8; i++) st.xmm[0].q[i] = 0xDEADDEADDEADDEADULL;
         st = with_vector_inputs(st, scatter ? 0x6 : 0x5);
         st.kregs[1] = 0xF0F5;
-        auto add_vsib = [&](const std::string &form, std::vector<u8> code, const ArchState &init) {
+        // A case that faults does so on element 0 (of 16).
+        auto add_vsib = [&](const std::string &form, std::vector<u8> code, const ArchState &init,
+                            bool faults = false) {
           TestCase tc; tc.category = cat;
           tc.name = std::format("{} {} zmm", name, form);
           tc.code = std::move(code); tc.initial = init; tc.init_data = gmem;
           tc.may_fault = true;
           tc.enable_paging = true;  // an unwrapped sum reaches unmapped memory
+          if (faults) vsib_fault_undefined(tc, scatter, 16, 0, 32, 32);
           tests.push_back(std::move(tc));
         };
         std::vector<u8> code = e.encode_vsib(2, 4);
         ArchState a = st;
         a.rdi = 0x1234567800000000ULL | (DATA_ADDR + 0x800);
         add_vsib("[edi+zmm2*4] (67h, RDI[63:32] ignored)", concat({0x67}, code), a);
-        add_vsib("[rdi+zmm2*4] (RDI non-canonical)", code, a);
+        add_vsib("[rdi+zmm2*4] (RDI non-canonical)", code, a, true);
         // EDI = FFFFF000h, index*1 = 12800h + 4i: 32-bit sums wrap into the page.
         ArchState w = st;
         w.rdi = 0xFFFFF000;
         for (int i = 0; i < 16; i++) w.xmm[2].set<int32_t>(i, 0x12800 + 4 * (i * 7 % 16 - 8));
         add_vsib("[edi+zmm2*1] (67h, wraps at 4 GB)", concat({0x67}, e.encode_vsib(2, 1)), w);
-        add_vsib("[rdi+zmm2*1] (no wrap)", e.encode_vsib(2, 1), w);
+        add_vsib("[rdi+zmm2*1] (no wrap)", e.encode_vsib(2, 1), w, true);
         ArchState f = st;
         f.rsi = 0x100000;
         f.rdi = DATA_ADDR + 0x800 - 0x100000;
@@ -1001,8 +1106,8 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
         b.rbp = DATA_ADDR + 0x800;
         add_vsib("[rbp+zmm2*4+0]", bp, b);
         b.rbp = 0x8000000000000000ULL | (DATA_ADDR + 0x800);
-        add_vsib("[rbp+zmm2*4+0] (RBP non-canonical)", bp, b);
-        add_vsib("ds:[rbp+zmm2*4+0] (RBP non-canonical)", concat({0x3E}, bp), b);
+        add_vsib("[rbp+zmm2*4+0] (RBP non-canonical)", bp, b, true);
+        add_vsib("ds:[rbp+zmm2*4+0] (RBP non-canonical)", concat({0x3E}, bp), b, true);
       }
 
       // The same 67h and FS/GS prefixes before an EVEX instruction without

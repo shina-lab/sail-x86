@@ -18,6 +18,27 @@
 
 namespace {
 
+// The reasons of the gather entries, which share them.
+const char *const GATHER_VEX_UPPER =
+    "An Emerald Rapids clears the destination above VL when a gather faults on an element "
+    "after loading one below it (and leaves it when the first element faults).  The SDM's "
+    "Operation clears DEST[MAXVL-1:VL] after the last element, and \"a fault exits the "
+    "instruction\" at the load before it (VPGATHERDD etc., Vol.2C p.5-552); the description "
+    "lets a fault leave only the gathered elements: \"partially updated; those elements that "
+    "have been gathered are placed into the destination register and have their mask bits set "
+    "to zero\" (p.5-551), the rest as before the instruction (Vol.3A §7.5, p.7-5).  Only the "
+    "parts that \"do not correspond to any elements\", above the dword elements of qword "
+    "indices, may be zeroed \"even if the instruction triggers an exception\" (p.5-551).";
+const char *const GATHER_EVEX_UPPER =
+    "An Emerald Rapids clears the destination above VL when a gather faults on an element "
+    "after loading one below it.  The SDM's Operation clears DEST[MAXVL-1:VL] after the loop "
+    "(VPGATHERDD etc., Vol.2C p.5-549); the description lets a fault leave only the gathered "
+    "elements: \"partially updated; those elements that have been gathered are placed into "
+    "the destination register and have their mask bits set to zero\" (p.5-548), the rest as "
+    "before the instruction (Vol.3A §7.5, p.7-5).  Only where \"the data element size is less "
+    "than the index element size\" may the higher part be zeroed \"even if the instruction "
+    "triggers an exception\" (p.5-548).";
+
 const std::vector<KnownDeviation> DEVIATIONS = {
     // {amd, "case name", "reason"},
 
@@ -119,6 +140,32 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "instruction as the SDM gives it (#GP(0) for IA32_SYSENTER_CS = 0, else the "
      "return to CPL 3).  The APM makes SYSEXIT #UD in long mode: \"An invalid-opcode "
      "exception occurs if this instruction is used in long mode\" (Vol.3 SYSEXIT p.490)."},
+
+    // Gathers and scatters (kvm-tests-avx-vex.cpp, kvm-tests-avx-special.cpp)
+    {false, "VPGATHERDD xmm element *", GATHER_VEX_UPPER},
+    {false, "VPGATHERDD ymm element *", GATHER_VEX_UPPER},
+    {false, "VPGATHERDQ xmm element *", GATHER_VEX_UPPER},
+    {false, "VPGATHERDQ ymm element *", GATHER_VEX_UPPER},
+    {false, "VPGATHERQQ xmm element *", GATHER_VEX_UPPER},
+    {false, "VPGATHERQQ ymm element *", GATHER_VEX_UPPER},
+    {false, "VGATHERDPS xmm element *", GATHER_VEX_UPPER},
+    {false, "VGATHERDPS ymm element *", GATHER_VEX_UPPER},
+    {false, "VGATHERDPD xmm element *", GATHER_VEX_UPPER},
+    {false, "VGATHERDPD ymm element *", GATHER_VEX_UPPER},
+    {false, "VGATHERQPD xmm element *", GATHER_VEX_UPPER},
+    {false, "VGATHERQPD ymm element *", GATHER_VEX_UPPER},
+    {false, "VPGATHERDD xmm{k1} element *", GATHER_EVEX_UPPER},
+    {false, "VPGATHERDD ymm{k1} element *", GATHER_EVEX_UPPER},
+    {false, "VPGATHERDQ xmm{k1} element *", GATHER_EVEX_UPPER},
+    {false, "VPGATHERDQ ymm{k1} element *", GATHER_EVEX_UPPER},
+    {false, "VPGATHERQQ xmm{k1} element *", GATHER_EVEX_UPPER},
+    {false, "VPGATHERQQ ymm{k1} element *", GATHER_EVEX_UPPER},
+    {false, "VGATHERDPS xmm{k1} element *", GATHER_EVEX_UPPER},
+    {false, "VGATHERDPS ymm{k1} element *", GATHER_EVEX_UPPER},
+    {false, "VGATHERDPD xmm{k1} element *", GATHER_EVEX_UPPER},
+    {false, "VGATHERDPD ymm{k1} element *", GATHER_EVEX_UPPER},
+    {false, "VGATHERQPD xmm{k1} element *", GATHER_EVEX_UPPER},
+    {false, "VGATHERQPD ymm{k1} element *", GATHER_EVEX_UPPER},
 };
 
 bool host_is_amd() {

@@ -1144,6 +1144,29 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
         {"VGATHERDPS", 0x92, false, false}, {"VGATHERDPD", 0x92, true, false},
         {"VGATHERQPS", 0x93, false, true},  {"VGATHERQPD", 0x93, true, true},
       };
+      // The bits the manuals leave open after a fault on element f of n
+      // (iw-bit indices, ew-bit elements): the elements above f, which "may
+      // or may not be completed" (SDM VPGATHERDD etc., Vol.2C p.5-552; APM
+      // Vol.4 §1.3.3, p.11); with qword indices and dword elements, the
+      // parts above the elements, which "do not correspond to any
+      // elements" and may be zeroed "even if the instruction triggers an
+      // exception" (p.5-551; with dword indices and qword elements every
+      // part below VL holds an element); and of the mask the bits outside
+      // the signs of its elements, where the Operation's first step and
+      // the description with the general fault rule disagree (vex_gather
+      // in insn_sse4_helpers.sail).  Compared: destination elements 0 to
+      // f, loaded where selected below f and as they were otherwise, the
+      // destination above VL as it was (the Operation clears it after the
+      // last element), and the signs of mask elements 0 to f, clear below
+      // f ("have their mask bits set to zero", p.5-551) and still set at
+      // f.  kvm-deviations.cpp lists the Xeon, which clears the
+      // destination above VL after a fault on a middle element.
+      auto gather_fault_undefined = [](TestCase &tc, int n, int f, int iw, int ew) {
+        for (int b = (f + 1) * ew; b < (iw > ew ? 512 : n * ew); b++)
+          tc.undefined.zmm[0][b / 64] |= 1ULL << (b % 64);
+        for (int b = 0; b < 512; b++)
+          if (b >= (f + 1) * ew || b % ew != ew - 1) tc.undefined.zmm[1][b / 64] |= 1ULL << (b % 64);
+      };
       for (const Gather &ga : gathers) {
         for (int l = 0; l <= 1; l++) {
           for (int scale : {1, 4, 8}) {
@@ -1177,11 +1200,14 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
         else for (int i = 0; i < 8; i++) st.xmm[2].set<int32_t>(i, didx[i]);
         Vex v; v.mm = 2; v.pp = 1; v.W = ga.W; v.L = ga.W; v.opcode = ga.opcode;
         v.reg = 0; v.vvvv = 1; v.rm = 2;
-        auto add_vsib = [&](const std::string &name, std::vector<u8> code, const ArchState &init) {
+        // A case that faults does so on element 0 (of 4).
+        auto add_vsib = [&](const std::string &name, std::vector<u8> code, const ArchState &init,
+                            bool faults = false) {
           TestCase tc; tc.name = std::format("{} {}", ga.name, name); tc.category = cat;
           tc.code = std::move(code); tc.initial = init; tc.init_data = table;
           tc.may_fault = true;
           tc.enable_paging = true;  // an unwrapped sum reaches unmapped memory
+          if (faults) gather_fault_undefined(tc, 4, 0, ga.qword_index ? 64 : 32, ga.W ? 64 : 32);
           tests.push_back(std::move(tc));
         };
         auto with_prefix = [](std::vector<u8> pre, const std::vector<u8> &code) {
@@ -1191,18 +1217,22 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
         ArchState a = st;
         a.rdi = 0x1234567800000000ULL | (DATA_ADDR + 1024);
         add_vsib("[edi+idx*4] (67h, RDI[63:32] ignored)", with_prefix({0x67}, code), a);
-        add_vsib("[rdi+idx*4] (RDI non-canonical)", code, a);
+        add_vsib("[rdi+idx*4] (RDI non-canonical)", code, a, true);
         // EDI = FFFFF000h, index*1 = 12400h + 4i: 32-bit sums wrap to the table.
         ArchState w = st;
         w.rdi = 0xFFFFF000;
         if (ga.qword_index) for (int i = 0; i < 4; i++) w.xmm[2].set<int64_t>(i, 0x12400 + 8 * qidx[i]);
         else for (int i = 0; i < 8; i++) w.xmm[2].set<int32_t>(i, 0x12400 + 4 * didx[i]);
         add_vsib("[edi+idx*1] (67h, wraps at 4 GB)", with_prefix({0x67}, v.encode_vsib(2, 1)), w);
-        add_vsib("[rdi+idx*1] (no wrap)", v.encode_vsib(2, 1), w);
-        // FS/GS bases of 1 MB with RDI 1 MB below the table.
+        add_vsib("[rdi+idx*1] (no wrap)", v.encode_vsib(2, 1), w, true);
+        // FS/GS bases of 100h with RDI 100h below the table, so that the
+        // flat address is in the data page too and the variant with another
+        // segment override completes rather than faulting on element 0,
+        // which would leave bits open (gather_fault_undefined) that a
+        // variant of a completing case compares.
         ArchState f = st;
-        f.rsi = 0x100000;
-        f.rdi = DATA_ADDR + 1024 - 0x100000;
+        f.rsi = 0x100;
+        f.rdi = DATA_ADDR + 1024 - 0x100;
         std::vector<u8> wrfsbase = {0xF3, 0x48, 0x0F, 0xAE, 0xD6, 0x64};  // wrfsbase rsi; fs:
         std::vector<u8> wrgsbase = {0xF3, 0x48, 0x0F, 0xAE, 0xDE, 0x65};  // wrgsbase rsi; gs:
         add_vsib("fs:[rdi+idx*4]", with_prefix(wrfsbase, code), f);
@@ -1216,14 +1246,92 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
         b.rbp = DATA_ADDR + 1024;
         add_vsib("[rbp+idx*4+0]", bp, b);
         b.rbp = 0x8000000000000000ULL | (DATA_ADDR + 1024);
-        add_vsib("[rbp+idx*4+0] (RBP non-canonical)", bp, b);
-        add_vsib("ds:[rbp+idx*4+0] (RBP non-canonical)", with_prefix({0x3E}, bp), b);
+        add_vsib("[rbp+idx*4+0] (RBP non-canonical)", bp, b, true);
+        add_vsib("ds:[rbp+idx*4+0] (RBP non-canonical)", with_prefix({0x3E}, bp), b, true);
         // R13 (SIB.base = 101b with VEX.B) as the base.
         std::vector<u8> r13 = bp;
         r13[1] &= ~0x20;
         ArchState r = st;
         r.r13 = 0x8000000000000000ULL | (DATA_ADDR + 1024);
-        add_vsib("[r13+idx*4+0] (R13 non-canonical)", r13, r);
+        add_vsib("[r13+idx*4+0] (R13 non-canonical)", r13, r, true);
+      }
+
+      // A fault on element f = n/2 of n, whose index reaches the unmapped
+      // page at 8000h: "if a fault is triggered by an element and
+      // delivered, all elements closer to the LSB of the destination will
+      // be completed (and non-faulting)" (p.5-552).  So before the #PF,
+      // elements 0 to f-1 are loaded where selected, and the signs of
+      // their mask elements are clear, that of element 1 (unselected, the
+      // other bits set) included; destination element f is as it was and
+      // mask element f, 80..01h, keeps its sign.  Scale 4 throughout.
+      auto set_index = [](ArchState &st, bool qword_index, int i, int64_t idx) {
+        if (qword_index) st.xmm[2].set<int64_t>(i, idx);
+        else st.xmm[2].set<int32_t>(i, int32_t(idx));
+      };
+      auto gather_state = [&](const Gather &ga, int l, int f) {
+        int iw = ga.qword_index ? 64 : 32, ew = ga.W ? 64 : 32;
+        int n = (l ? 256 : 128) / std::max(iw, ew);
+        u64 sign = 1ULL << (ew - 1);
+        ArchState st = g;
+        for (int i = 0; i < n; i++) {
+          u64 m = i == 1 && i < f ? sign - 1 : i == f ? sign | 1 : sign;
+          if (ga.W) st.xmm[1].set<u64>(i, m);
+          else st.xmm[1].set<u32>(i, u32(m));
+          set_index(st, ga.qword_index, i, ga.qword_index ? qidx[i] : didx[i]);
+        }
+        return st;
+      };
+      for (const Gather &ga : gathers) {
+        for (int l = 0; l <= 1; l++) {
+          int iw = ga.qword_index ? 64 : 32, ew = ga.W ? 64 : 32;
+          int n = (l ? 256 : 128) / std::max(iw, ew), f = n / 2;
+          ArchState st = gather_state(ga, l, f);
+          set_index(st, ga.qword_index, f, -0x2500);  // DATA_ADDR + 1024 - 9400h
+          Vex v; v.mm = 2; v.pp = 1; v.W = ga.W; v.L = l; v.opcode = ga.opcode;
+          v.reg = 0; v.vvvv = 1; v.rm = 2;
+          TestCase tc; tc.category = cat;
+          tc.name = std::format("{} {} element {} unmapped (#PF)", ga.name, l ? "ymm" : "xmm", f);
+          tc.code = v.encode_vsib(2, 4); tc.initial = st; tc.init_data = table;
+          tc.expect_fault = true; tc.expected_vector = 14;
+          tc.enable_paging = true;
+          gather_fault_undefined(tc, n, f, iw, ew);
+          tests.push_back(std::move(tc));
+        }
+      }
+      // VPGATHERQQ ymm with a non-canonical address for element 2: #GP(0)
+      // after elements 0 and 1.  With a data breakpoint on element 0 as
+      // well (DR0, LEN = 8, R/W = 11b), the trap of that completed element
+      // takes the fault's place: "If any traps or interrupts are pending
+      // from already gathered elements, they will be delivered in lieu of
+      // the exception; in this case, EFLAG.RF is set to one so an
+      // instruction breakpoint is not re-triggered when the instruction is
+      // continued" (p.5-555; APM VPGATHERDD p.1397), a #DB with B0, the
+      // gather's RIP and RF = 1 in the image.  Without the fault the #DB
+      // follows the instruction (Vol.3B §20.3.1.2).
+      {
+        Vex v; v.mm = 2; v.pp = 1; v.W = true; v.L = true; v.opcode = gathers[3].opcode;
+        v.reg = 0; v.vvvv = 1; v.rm = 2;
+        auto add_qq = [&](const std::string &name, const ArchState &st, int vec, bool faults) {
+          TestCase tc; tc.category = cat;
+          tc.name = std::format("VPGATHERQQ ymm {}", name);
+          tc.code = v.encode_vsib(2, 4); tc.initial = st; tc.init_data = table;
+          tc.expect_fault = true; tc.expected_vector = vec;
+          tc.enable_paging = true;
+          if (faults) gather_fault_undefined(tc, 4, 2, 64, 64);
+          tests.push_back(std::move(tc));
+        };
+        auto data_bp = [](ArchState s, u64 addr) {
+          s.dr[0] = addr;
+          s.dr7 = 0x1 | (3ULL << 16) | (2ULL << 18);
+          return s;
+        };
+        ArchState st = gather_state(gathers[3], 1, 2);
+        ArchState nc = st;
+        set_index(nc, true, 2, 0x2000000000000000LL);  // RDI + 8000000000000000h
+        add_qq("element 2 non-canonical (#GP)", nc, 13, true);
+        add_qq("element 2 non-canonical, data bp on element 0 (#DB in lieu)",
+               data_bp(nc, DATA_ADDR + 1024 + 4 * qidx[0]), 1, true);
+        add_qq("data bp on element 2 (#DB after)", data_bp(st, DATA_ADDR + 1024 + 4 * qidx[2]), 1, false);
       }
 
       // The same 67h and FS/GS prefixes before a VEX instruction without
