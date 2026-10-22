@@ -74,6 +74,70 @@ control word, TOP, the tags, and the contents of the valid registers; the rest
 of the status word holds the externs' exception flags and condition codes that
 many instructions leave undefined.
 
+# Variants
+
+A test case fixes one value in each of several dimensions that the hardware
+and the model must agree on throughout. `kvm-variants.cpp` decodes every
+case's code and derives variants along those dimensions, so that coverage
+does not rely on each test's author choosing the values that matter. Each
+kind of variant is a category of its own (`Variant ...`):
+
+- Memory operands. A `[reg]` or `[reg+disp]` operand is re-encoded with a
+  disp8, a disp32, a SIB byte (R13 base, R12 index), RIP-relative addressing,
+  and the 67h address-size prefix. Each encoding reaches the same address; for
+  the forms with a displacement, the base register is adjusted before the
+  instruction and restored after it. EVEX operands also get disp8 = +1 and -1
+  over a data page that differs at every offset. These move the access by
+  the instruction's disp8*N scale, which only the hardware decides.
+- The imm8 control byte of the last SSE/AVX instruction, with every value of
+  its low five bits, every value of its high nibble, and FFh.
+- MXCSR.RC set to round down, round up, and round toward zero.
+- Register numbers. Every register field is renumbered by flipping bit 3 (or,
+  for EVEX-only code, bit 4), and the initial state is permuted to match.
+  This exercises the REX, VEX and EVEX extension bits. A further kind sets
+  those bits on opmask register fields, which have three-bit numbers: the
+  hardware ignores them or raises #UD.
+- Operand values. The vector registers, the opmask registers, and the data
+  page are filled with pseudo-random bits.
+
+The kinds above keep each instruction what it was. The kinds below change
+one instruction of a case into another encoding, so that what is tested is
+how the model decodes it: its other operand forms, the fields it does not
+use, and the prefixes it does not take. The result may be another
+instruction or #UD, and the hardware decides which.
+
+- Register operands as memory operands. An r/m register operand becomes
+  `[r]` for a register the code does not use, pointing into the data page
+  where the register's initial value is stored. EVEX forms are also tried
+  with EVEX.b (broadcast) and with disp8 = +1 and -1, which move the access
+  by the disp8*N of the instruction's tuple type.
+- Memory operands as register operands (mod = 11b), which an instruction
+  without a register form, such as a gather or a non-temporal store, rejects.
+- VEX and EVEX fields, one at a time: W, vvvv and V', L or L'L, pp, EVEX.b,
+  z and aaa, and the bits EVEX fixes.
+- Prefixes: 66h, F2h, F3h, LOCK, CS and FS overrides, and for legacy
+  instructions REX, a flipped REX.W, and 66h with REX.W. An immediate whose
+  size the prefix decides is extended or cut to match.
+
+Variants run with the model translating through the guest's page tables, an
+identity map of the low 2MB, so that an access outside it faults on both
+sides rather than reaching the harness's own memory.
+
+Floating-point arithmetic is left to the model's externs, so the kinds that
+change operand values, the rounding mode or the immediate leave it out, and
+the EVEX disp8*N kind gives it data whose elements are positive normal
+numbers. Approximate results keep their tolerance only for the template's
+inputs, so the kinds that change inputs leave them out as well.
+
+A variant may fault where its case does not, and the reverse. The model must do
+whatever the hardware does. Cases with the same instruction forms (encoding,
+opcode, prefixes, vector length, masking, operand kinds) get one set of
+variants, from the first of them. Variants are constructed only for the
+categories that a run selects. Some cases get no variants: compatibility-mode
+cases, and cases whose code the decoder does not handle. A case with a
+transfer of control or a RIP-relative operand gets only the variants that leave
+instruction lengths unchanged.
+
 # Running the suite
 
 `kvm_harness PREFIX` runs the categories whose names start with the prefix.

@@ -924,7 +924,7 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
   // The model reaches guest memory at the same addresses in this process.
   // Back all of the guest's identity-mapped 2MB that a process can map
   // (from mmap_min_addr, 0x10000): the test's pages, the model's GDT, IDT
-  // and page tables, and whatever else a test's operand reaches.  The
+  // and page tables, and whatever else a variant's operand reaches.  The
   // Sail-side GDT is at 0x14000 as 0x3000 is too low for mmap.
   static bool pages_mapped = false;
   if (!pages_mapped) {
@@ -1279,7 +1279,7 @@ static std::vector<std::string> g_filters;
 static std::string g_category;
 static unsigned g_slice = 0, g_slices = 1;
 // --template=FILE (repeatable) constructs only the cases of those template
-// files, which is all a run of their categories needs.
+// files, which is all a run of their categories needs; variants need all.
 static std::vector<std::string> g_templates;
 
 static bool wanted_category(const std::string &category) {
@@ -1297,6 +1297,12 @@ static bool wanted_category(const std::string &category) {
 struct Suite {
   std::vector<TestCase> tests;
   std::vector<const char *> origins;  // per case, the template file
+
+  // The variants of the cases (kvm-variants.cpp) that the run selects,
+  // passed to fn one at a time: there are far more than a run needs.
+  void for_each_variant(const std::function<void(TestCase &&)> &fn) const {
+    ::for_each_variant(tests, wanted_category, fn);
+  }
 };
 
 Suite build_suite() {
@@ -1359,6 +1365,7 @@ static int list_tests(const char *path) {
   };
   for (size_t i = 0; i < suite.tests.size(); i++)
     list(suite.tests[i], suite.origins[i]);
+  suite.for_each_variant([&](TestCase &&tc) { list(tc, "kvm-variants.cpp"); });
 
   FILE *out = strcmp(path, "-") == 0 ? stdout : fopen(path, "w");
   if (!out) {
@@ -1389,7 +1396,7 @@ static int list_tests(const char *path) {
 // exit.  Each category gets an entry that selects it exactly, split into
 // slices of at most CTEST_SLICE cases so that no entry runs for more than a
 // few seconds.  The build writes the script after linking the harness
-// (kvm/CMakeLists.txt), so the entries follow the templates
+// (kvm/CMakeLists.txt), so the entries follow the templates and variants
 // with no list to keep in step, and each case runs in exactly one entry.
 static int write_ctest_file(const char *path) {
   constexpr size_t CTEST_SLICE = 1500;
@@ -1403,6 +1410,7 @@ static int write_ctest_file(const char *path) {
     if (file && std::find(f.begin(), f.end(), file) == f.end()) f.push_back(file);
   };
   for (size_t i = 0; i < suite.tests.size(); i++) add(suite.tests[i], suite.origins[i]);
+  suite.for_each_variant([&](TestCase &&tc) { add(tc, nullptr); });
 
   char exe[4096];
   ssize_t len = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
@@ -1659,6 +1667,7 @@ int main(int argc, char **argv) {
   };
   for (const TestCase &tc : suite.tests)
     run(tc);
+  suite.for_each_variant([&](TestCase &&tc) { run(tc); });
   if (vm_lost)
     return 1;
 

@@ -526,7 +526,7 @@ struct TestCase {
                                  // guest's IDT; SYSCALL/SYSRET/SYSENTER/SYSEXIT need the
                                  // model's system-mode paths
   bool may_fault = false;        // the run may fault or complete; the model must do
-                                 // whichever the hardware does
+                                 // whichever the hardware does (variants, below)
   // Bits of the data page that the instruction sequence leaves undefined,
   // as (offset, bits of that byte): the memory counterpart of flags_mask.
   std::vector<std::pair<u16, u8>> data_undefined;
@@ -534,6 +534,14 @@ struct TestCase {
 
 // The data page's initial contents for a test: init_data, then zeros.
 void fill_data_page(const TestCase &tc, u8 *page);
+
+// The variants of the cases whose category `wanted` accepts, constructed
+// one at a time and passed to `fn`: the same instruction sequences with
+// other addressing forms, immediates, rounding modes, register numbers,
+// and operand values.  See kvm-variants.cpp.
+void for_each_variant(const std::vector<TestCase> &tests,
+                      bool (*wanted)(const std::string &category),
+                      const std::function<void(TestCase &&)> &fn);
 
 // Test registration functions (defined in separate kvm-tests-*.cpp files)
 void add_systematic_tests(std::vector<TestCase> &tests);
