@@ -79,11 +79,10 @@ function raise_NM() = {
 // §2.8 and §2.9 list them in that order).  An Emerald Rapids raises every
 // #UD the encoding decides first: an undefined opcode, prefix, ModR/M.reg
 // extension or r/m form, a VSIB operand without a SIB byte, register
-// operands an instruction forbids, AVX or AVX-512 state disabled in XCR0.
-// The exception is the x87 instructions, whose undefined encodings (D9
-// D1, ...) raise the #NM as well.  So the checks come after the
-// decoder's (the tables of insn_dispatch.sail, vex_check_form,
-// evex_check_form) and before the instruction touches its operands.
+// operands an instruction forbids, AVX or AVX-512 state disabled in XCR0,
+// an undefined x87 form.  So the checks come after the decoder's (the
+// tables of insn_dispatch.sail, vex_check_form, evex_check_form,
+// x87_undefined) and before the instruction touches its operands.
 // PAUSE, PREFETCHh, SFENCE, LFENCE, MFENCE, MOVNTI, CLFLUSH, CRC32,
 // POPCNT and the VEX-encoded general-purpose instructions (BMI1, BMI2) are
 // not affected.

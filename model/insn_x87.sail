@@ -828,6 +828,33 @@ function x87_record_last(opcode, modrm, operand, unmasked) = {
 // Main x87 dispatcher: takes the opcode byte (D8-DF)
 // =========================================================================
 
+// The encodings of D8-DF that are no x87 instruction, on which the
+// dispatchers above raise #UD: the ones the APM marks "invalid" (Vol.3
+// Table A-15) and the SDM leaves blank (Vol.2D Tables A-7 to A-22: "All
+// blanks in opcode maps are reserved and must not be used"), once
+// dispatch_x87 has mapped the aliases of FCOM, FCOMP, FXCH and FSTP onto
+// their encodings.  With a memory operand D9 /1, DB /4 and /6 and DD /5;
+// with a register operand D9 D1-D7, E2, E3, E6, E7 and EF, DA E0-E8 and
+// EA-FF, DB E5-E7 and F8-FF, DD F0-FF, DE D8 and DA-DF, DF E1-E7 and
+// F8-FF.
+val x87_undefined : (byte, byte) -> bool
+function x87_undefined(opcode, modrm) = {
+  let reg : range(0, 7) = unsigned(modrm[5..3]);
+  let m : range(0, 255) = unsigned(modrm);
+  if modrm[7..6] != 0b11 then
+    opcode == 0xD9 & reg == 1 | opcode == 0xDB & (reg == 4 | reg == 6)
+    | opcode == 0xDD & reg == 5
+  else match opcode {
+    0xD9 => (209 <= m & m <= 215) | m == 226 | m == 227 | m == 230 | m == 231 | m == 239,
+    0xDA => reg >= 4 & m != 233,
+    0xDB => (229 <= m & m <= 231) | reg == 7,
+    0xDD => reg >= 6,
+    0xDE => reg == 3 & m != 217,
+    0xDF => reg == 4 & m != 224 | reg == 7,
+    _ => false,
+  }
+}
+
 val dispatch_x87 : (byte, Prefixes) -> unit
 function dispatch_x87(encoded_opcode, pfx) = {
   let encoded_modrm = fetch(1);
@@ -850,7 +877,12 @@ function dispatch_x87(encoded_opcode, pfx) = {
   let operand = modrm_rm(modrm, pfx);
   let op : range(0, 255) = unsigned(opcode);
   // #NM if CR0.EM or CR0.TS is set, for every x87 instruction, the control
-  // instructions (FNINIT, FNSTSW, ...) included (SDM Vol.3A Table 2-2).
+  // instructions (FNINIT, FNSTSW, ...) included (SDM Vol.3A Table 2-2;
+  // APM Vol.2 §8.2.8: "Any x87 instruction").  An encoding that is no x87
+  // instruction is #UD; of the two, which comes first is open (SDM Vol.3A
+  // Table 7-2, class 9; APM Vol.2 Table 8-9, group 6), and the model
+  // raises the #UD, as for every other encoding (exceptions.sail).
+  if x87_undefined(opcode, modrm) then raise_UD();
   check_cr0_x87();
   // A fault leaves the status word as it was: the stack-fault flags an
   // operand read may have set before a store faults are undone.  An

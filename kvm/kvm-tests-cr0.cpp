@@ -15,8 +15,7 @@
 //   - #NM and #UD are both faults from decoding the instruction (Vol.3A
 //     §7.9, Table 7-2), ahead of the faults of its memory operands.
 // An Emerald Rapids raises every #UD the encoding decides ahead of the
-// #NM, register operands an instruction forbids included, but for the x87
-// instructions, whose undefined encodings (D9 D1, ...) raise the #NM.
+// #NM, register operands an instruction forbids included.
 //
 // rdi points to the data page, rsi to an unmapped page (the harness maps
 // nothing below CODE_ADDR).
@@ -256,15 +255,18 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
       add(cat, bits, "vfcmulcph zmm0,zmm0,zmm1 (destination = source) #UD",
           {0x62, 0xF6, 0x7F, 0x48, 0xD6, 0xC1}, UD);
 
-    // x87 instructions raise the #NM ahead of the #UD of an undefined
-    // encoding.  0F AE /0 and /1 with a memory operand are FXSAVE and
-    // FXRSTOR without a prefix only (SDM "NP 0F AE /0"; APM Vol.3 Table
-    // A-7): with a 66, F2 or F3 prefix and VEX- or EVEX-encoded they are
-    // no instruction, #UD with CR0.EM = CR0.TS = 0 (the cases below with
-    // bits 0), and with TS set either fault, which the manuals do not
-    // order (SDM Vol.3A Table 7-2, class 9; APM Vol.2 Table 8-9, group 6).
-    // The model raises the #UD.  A LOCK prefix is #UD first.
-    add(cat, bits, "D9 D1 (undefined x87)", {0xD9, 0xD1}, NM);
+    // Encodings that are no instruction but whose opcode is that of an x87
+    // instruction or of FXSAVE and FXRSTOR: an undefined D8-DF form (APM
+    // Vol.3 Table A-15 "invalid"), and 0F AE /0 and /1 with a memory
+    // operand, which are FXSAVE and FXRSTOR without a prefix only (SDM "NP
+    // 0F AE /0"; APM Vol.3 Table A-7), under a 66, F2 or F3 prefix and
+    // VEX- or EVEX-encoded.  They are #UD with CR0.EM = CR0.TS = 0 (the
+    // cases below with bits 0), and with TS set either fault, which the
+    // manuals do not order (SDM Vol.3A Table 7-2, class 9; APM Vol.2 Table
+    // 8-9, group 6).  The model raises the #UD.  A LOCK prefix is #UD
+    // first.
+    add(cat, bits, "D9 D1 (undefined x87)", {0xD9, 0xD1}, UD);
+    allow(UD_OR_NM);
     add(cat, bits, "66 0F AE /0 (fxsave with 66)", {0x66, 0x0F, 0xAE, 0x07}, UD, mem);
     allow(UD_OR_NM);
     add(cat, bits, "F3 0F AE /1 (fxrstor with F3)", {0xF3, 0x0F, 0xAE, 0x0F}, UD, mem);
@@ -306,10 +308,11 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add(cat, bits, name("cvtpi2ps xmm0,mm1"), {0x0F, 0x2A, 0xC1}, UD);
     add(cat, bits, name("emms"), {0x0F, 0x77}, UD);
 
-    // x87 and FXSAVE/FXRSTOR: #NM.  WAIT: #NM only with TS and MP.  The
-    // FXSAVE opcode under a prefix or VEX/EVEX is no instruction: its #UD
-    // and the #NM that EM gives FXSAVE are in one class, in no order (as
-    // under TS above).
+    // x87 and FXSAVE/FXRSTOR: #NM.  WAIT: #NM only with TS and MP.  An
+    // undefined x87 form and the FXSAVE opcode under a prefix or VEX/EVEX
+    // are no instruction: their #UD and the #NM that EM gives the x87
+    // instructions and FXSAVE are in one class, in no order (as under TS
+    // above).
     add(cat, bits, name("fld1"), {0xD9, 0xE8}, NM);
     add(cat, bits, name("fnstsw ax"), {0xDF, 0xE0}, NM);
     add(cat, bits, name("fninit"), {0xDB, 0xE3}, NM);
@@ -317,7 +320,8 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add(cat, bits, name("fwait"), {0x9B}, (bits & (MP | TS)) == (MP | TS) ? NM : NONE);
     add(cat, bits, name("fxsave [rsi] (unmapped)"), {0x0F, 0xAE, 0x06}, NM, unmapped);
     add(cat, bits, name("fxrstor [rsi] (unmapped)"), {0x0F, 0xAE, 0x0E}, NM, unmapped);
-    add(cat, bits, name("D9 D1 (undefined x87)"), {0xD9, 0xD1}, NM);
+    add(cat, bits, name("D9 D1 (undefined x87)"), {0xD9, 0xD1}, UD);
+    allow(UD_OR_NM);
     add(cat, bits, name("66 0F AE /0 (fxsave with 66)"), {0x66, 0x0F, 0xAE, 0x07}, UD, mem);
     allow(UD_OR_NM);
     add(cat, bits, name("VEX.0F AE /0"), {0xC5, 0xF8, 0xAE, 0x07}, UD, mem);
