@@ -366,15 +366,18 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         let inv_type : qword = v(reg);
         if unsigned(inv_type) > 3 then raise_GP0();
         let reserved : bits(52) = desc[63..12];
+        let pcid : bits(12) = desc[11..0];
         let top17 : bits(17) = desc[127..111];
-        // types 0,1: reserved bits must be zero
-        // type 0: linear address must be canonical
+        // SDM INVPCID, 64-bit mode #GP(0): bits 63:12 of the descriptor
+        // are not all zero (any type); CR4.PCIDE = 0, type 0 or 1, and a
+        // nonzero PCID; type 0 and a non-canonical linear address.
         let is_type_01 : bit = ~(inv_type[1]);
         let is_type_0 : bit = ~(inv_type[1] | inv_type[0]);
         let bad_reserved : bit = ~(((0b0 @ reserved) - 1)[52]);
+        let bad_pcid : bit = ~(((0b0 @ pcid) - 1)[12]) & ~(CR4[17]);  // CR4.PCIDE
         let diff : bits(17) = top17 ^ sign_extend(top17[16]);
         let non_canonical : bit = ~(((0b0 @ diff) - 1)[17]);
-        let fault : bit = (is_type_01 & bad_reserved) | (is_type_0 & non_canonical);
+        let fault : bit = bad_reserved | (is_type_01 & bad_pcid) | (is_type_0 & non_canonical);
         if fault == 0b1 then raise_GP0();
         __tlb_flush()
       } else if (op3 == 240 | op3 == 241) then {
