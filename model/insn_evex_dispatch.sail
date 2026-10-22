@@ -134,8 +134,8 @@ function dispatch_evex_with_p0(p0, lpfx) = {
   let pfx = evex_check_form(mmm, opcode, pfx);
   // Every EVEX instruction is an AVX-512 instruction: on AMD #UD if CR0.EM
   // = 1, and #NM if CR0.TS = 1, after the #UD of its encoding
-  // (check_cr0_avx512).
-  check_cr0_avx512();
+  // (check_cr0_em_amd).
+  check_cr0_em_amd();
   match mmm {
     1 => dispatch_evex_0f(opcode, pfx),
     2 => dispatch_evex_0f38(opcode, pfx),

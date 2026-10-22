@@ -615,6 +615,39 @@ function vex_feature_present(map, opcode, pfx) = {
   }
 }
 
+// Whether a VEX-encoded SIMD instruction has no legacy SSE form, for the
+// #UD of CR0.EM on AMD (check_cr0_em_amd).  These are the instructions of
+// APM Vol.4 Table 3-1 whose "Legacy Type" is "—" (classes 4G, 4H, 4H-1,
+// 4J, 4K, 6A-1 to 6F, 8, 11 and 12; pp. 1785-1796), and FMA3 and AVX-VNNI,
+// which the table does not list and whose pages name no legacy
+// instruction: VZEROUPPER, VZEROALL (0F 77); 0F38 0C-0F (VPERMILPS,
+// VPERMILPD, VTESTPS, VTESTPD), 13 (VCVTPH2PS), 16 (VPERMPS), 18-1A
+// (VBROADCASTSS, VBROADCASTSD, VBROADCASTF128), 2C-2F (VMASKMOVPS,
+// VMASKMOVPD), 36 (VPERMD), 45-47 (VPSRLVD/Q, VPSRAVD, VPSLLVD/Q), 50-53
+// (VPDPBUSD, VPDPBUSDS, VPDPWSSD, VPDPWSSDS), 58-5A (VPBROADCASTD,
+// VPBROADCASTQ, VBROADCASTI128), 78, 79 (VPBROADCASTB, VPBROADCASTW), 8C,
+// 8E (VPMASKMOVD/Q), 90-93 (the gathers), 96-9F, A6-AF, B6-BF (FMA3); 0F3A
+// 00-02 (VPERMQ, VPERMPD, VPBLENDD), 04-06 (VPERMILPS, VPERMILPD,
+// VPERM2F128), 18, 19 (VINSERTF128, VEXTRACTF128), 1D (VCVTPS2PH), 38, 39
+// (VINSERTI128, VEXTRACTI128), 46 (VPERM2I128).  Every other VEX SIMD
+// opcode the forms tables define is the VEX form of a legacy SSE
+// instruction (the "AVX / SSE" classes of the table, and the pages of
+// AESENC, PCLMULQDQ, GF2P8MULB, BLENDVPS and the rest), whose EM row is "S
+// — SSE exception" only.  The opmask instructions, which have none either,
+// are AVX-512 instructions (dispatch_vex_with_byte2).
+val vex_no_sse_form : (range(0, 31), range(0, 255)) -> bool
+function vex_no_sse_form(map, op) = match map {
+  1 => op == 119,
+  2 => (12 <= op & op <= 15) | op == 19 | op == 22 | (24 <= op & op <= 26)
+       | (44 <= op & op <= 47) | op == 54 | (69 <= op & op <= 71) | (80 <= op & op <= 83)
+       | (88 <= op & op <= 90) | op == 120 | op == 121 | op == 140 | op == 142
+       | (144 <= op & op <= 147) | (150 <= op & op <= 159) | (166 <= op & op <= 175)
+       | (182 <= op & op <= 191),
+  3 => op <= 2 | (4 <= op & op <= 6) | op == 24 | op == 25 | op == 29 | op == 56 | op == 57
+       | op == 70,
+  _ => false,
+}
+
 // #UD for a VEX encoding that is no instruction: not one of its opcode's
 // forms (vex_form_valid); a ModR/M.reg extension its group does not
 // define; a gather (0F38 90-93) whose memory operand has no SIB byte or
@@ -703,7 +736,8 @@ function dispatch_vex_with_byte2(first_byte, b1, lpfx) = {
   // is that of XFD).  Every other VEX instruction is SIMD: #UD unless AVX
   // is enabled, then #NM if CR0.TS = 1 (check_cr0_ts), and for the opmask
   // instructions (0F 41-4B, 90-93, 98, 99; 0F3A 30-33), which are AVX-512
-  // instructions, first the #UD of CR0.EM on AMD (check_cr0_avx512).
+  // instructions, and those without a legacy SSE form (vex_no_sse_form),
+  // first the #UD of CR0.EM on AMD (check_cr0_em_amd).
   let op : range(0, 255) = unsigned(opcode);
   let gpr_or_amx : bool = match map {
     2 => (242 <= op & op <= 247) | op == 73 | op == 75 | op == 92 | op == 94,
@@ -717,7 +751,7 @@ function dispatch_vex_with_byte2(first_byte, b1, lpfx) = {
   };
   if ~(gpr_or_amx) then {
     if ~(avx_enabled()) then raise_UD();
-    if opmask then check_cr0_avx512() else check_cr0_ts()
+    if opmask | vex_no_sse_form(map, op) then check_cr0_em_amd() else check_cr0_ts()
   };
 
   match map {

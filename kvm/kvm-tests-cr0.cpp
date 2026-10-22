@@ -14,10 +14,12 @@
 //     LDMXCSR/STMXCSR and EMMS: on Intel whatever TS ("If the EM flag is
 //     set, the setting of the TS flag has no effect", SDM Vol.3A §2.5);
 //     the APM gives EM its #UD and TS its #NM in no order.  The XSAVE
-//     family ignores EM.  The SDM's VEX and EVEX classes ignore it; the APM
-//     gives #UD for AVX-512 (EVEX and the opmask instructions), and
-//     contradicts itself for the VEX SIMD instructions (Vol.2 §8.2.7: #UD;
-//     the PADDD and LDMXCSR pages: SSE forms only), so there an AMD case
+//     family ignores EM.  The SDM's VEX and EVEX classes ignore it.  The
+//     APM gives #UD for AVX-512 (EVEX and the opmask instructions; Vol.4
+//     §3.2.1) and for the VEX SIMD instructions without a legacy SSE form
+//     (Vol.2 §8.2.7; Vol.4 Table 3-1, Classes 4G and 4H), and contradicts
+//     itself for the VEX forms of SSE instructions (Vol.2 §8.2.7: #UD; the
+//     PADDD and LDMXCSR pages: SSE forms only), so there an AMD case
 //     accepts either.
 //   - WAIT/FWAIT: #NM only when TS = 1 and MP = 1.
 //   - #NM and #UD are both faults from decoding the instruction, in one
@@ -356,7 +358,8 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add_ud(cat, bits, name("VEX.0F AE /0"), {0xC5, 0xF8, 0xAE, 0x07}, mem);
     add_ud(cat, bits, name("EVEX.0F AE /1"), {0x62, 0xF1, 0x7C, 0x48, 0xAE, 0x0F}, mem);
 
-    // The XSAVE family and VEX ignore EM; TS still applies.
+    // The XSAVE family and the VEX forms of SSE instructions ignore EM; TS
+    // still applies.
     int ts = bits & TS ? NM : NONE;
     {
       ArchState s = with_xsave_vector_inputs({.rax = 3, .rdx = 0, .rdi = DATA_ADDR}, 3);
@@ -378,12 +381,29 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
       // AVX-512, EVEX and the opmask instructions: the SDM's classes
       // (E1-E12, K20, K21) give EM no rule; the APM gives it #UD (Vol.4
       // §3.2.1), and with TS set as well #UD or #NM, in no order.
-      int avx512 = amd_host ? UD : ts;
-      add(cat, bits, name("vpaddd zmm0,zmm1,zmm2"), {0x62, 0xF1, 0x75, 0x48, 0xFE, 0xC2}, avx512,
+      int em_amd = amd_host ? UD : ts;
+      add(cat, bits, name("vpaddd zmm0,zmm1,zmm2"), {0x62, 0xF1, 0x75, 0x48, 0xFE, 0xC2}, em_amd,
           s);
       if (amd_host && bits & TS) allow(UD_OR_NM);
-      add(cat, bits, name("kmovw k1,k2"), {0xC5, 0xF8, 0x90, 0xCA}, avx512, s);
+      add(cat, bits, name("kmovw k1,k2"), {0xC5, 0xF8, 0x90, 0xCA}, em_amd, s);
       if (amd_host && bits & TS) allow(UD_OR_NM);
+      // The VEX SIMD instructions without a legacy SSE form: the SDM's
+      // classes (Types 4, 6 and 8) give EM no rule; the APM gives it #UD
+      // (Vol.2 §8.2.7; Classes 4G, 4H and 4H-1 name it, the others do not
+      // contradict it), and with TS set as well #UD or #NM, in no order.
+      // One of each kind of class: 4G, 4H, 4H-1, 4J, 4K, 6B, 6D-X, 8.
+      for (const auto &[n, insn] : std::vector<std::pair<std::string, std::vector<u8>>>{
+               {"vtestps xmm1,xmm2", {0xC4, 0xE2, 0x79, 0x0E, 0xCA}},
+               {"vpermd ymm0,ymm1,ymm2", {0xC4, 0xE2, 0x75, 0x36, 0xC2}},
+               {"vpermq ymm0,ymm1,1Bh", {0xC4, 0xE3, 0xFD, 0x00, 0xC1, 0x1B}},
+               {"vpblendd ymm0,ymm1,ymm2,55h", {0xC4, 0xE3, 0x75, 0x02, 0xC2, 0x55}},
+               {"vpsllvd ymm0,ymm1,ymm2", {0xC4, 0xE2, 0x75, 0x47, 0xC2}},
+               {"vinserti128 ymm0,ymm1,xmm2,1", {0xC4, 0xE3, 0x75, 0x38, 0xC2, 0x01}},
+               {"vbroadcastss ymm0,xmm1", {0xC4, 0xE2, 0x7D, 0x18, 0xC1}},
+               {"vzeroupper", {0xC5, 0xF8, 0x77}}}) {
+        add(cat, bits, name(n), insn, em_amd, s);
+        if (amd_host && bits & TS) allow(UD_OR_NM);
+      }
     }
 
     // Unaffected
