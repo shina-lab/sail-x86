@@ -330,20 +330,17 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
                         s2, FL_ALL, 0, false, data, 256});
     }
 
-    // MOVDIR64B's destination and the order of its checks, which the SDM
-    // leaves open.  The destination is ES:rax at the address size, not the
-    // ModR/M operand, so a RIP-relative source does not move it.  The whole
-    // source is read before anything about the destination: a #PF or
-    // #GP(0) on the source, also on its second page, beats a destination
-    // that is misaligned, non-canonical or unmapped.  The destination's
-    // alignment comes before its translation, a write's (#PF, error code
-    // 2).  A Xeon Platinum 8562Y+ shows the same order at CPL 3 natively.
-    // There, in compatibility mode with ES from the LDT, the alignment is
-    // the linear address's (the ES base added), and an offset beyond the
-    // ES limit is #GP(0) after the source read, as are a read-only and a
-    // null ES.  No case pins these: the guest's GDT has no data segment
-    // with a base or a small limit, and the model checks neither a
-    // read-only nor a null data segment on any access.
+    // MOVDIR64B's destination and the order of its checks.  The
+    // destination is ES:rax at the address size, not the ModR/M operand,
+    // so a RIP-relative source does not move it.  "MOVDIR64B first reads
+    // 64-bytes from the source memory address.  It then performs a 64-byte
+    // direct-store operation to the destination address" (SDM Vol.2B
+    // 4-51): a #PF or #GP(0) on the source, also on its second page, comes
+    // before a destination that is non-canonical or unmapped.  Where the
+    // misaligned destination's #GP(0) falls (it is the register offset's
+    // alignment, 4-52) the exception lists leave open, so a case that
+    // pairs it with a #PF allows both.  No case has an ES base or limit:
+    // the guest's GDT has no data segment with either.
     if (ecx7 & (1u << 28)) {
       cat = "MOVDIR64B";
       const std::vector<u8> MOVDIR64B = {0x66, 0x0F, 0x38, 0xF8, 0x07};
@@ -371,6 +368,12 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
         tc.expected_vector = vec;
         tests.push_back(std::move(tc));
       };
+      // A misaligned destination with a #PF elsewhere: #GP(0) or #PF.
+      auto add_md_open = [&](const std::string &name, ArchState s) {
+        add_md(name, MOVDIR64B, s, -1);
+        tests.back().expect_fault = false;
+        tests.back().allowed_outcomes = {13, 14};
+      };
       add_md("movdir64b rax,[rdi]: stores at ES:rax", MOVDIR64B, {.rax = dst, .rdi = DATA_ADDR}, -1);
       // The upper halves would make both addresses non-canonical.
       add_md("movdir64b eax,[edi] (67h): 32-bit addresses", {0x67, 0x66, 0x0F, 0x38, 0xF8, 0x07},
@@ -392,12 +395,12 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
              {.rax = noncanonical, .rdi = DATA_ADDR}, 13);
       add_md("movdir64b destination unmapped → #PF (write)", MOVDIR64B,
              {.rax = unmapped, .rdi = DATA_ADDR}, 14);
-      add_md("movdir64b destination misaligned and unmapped → #GP(0) (alignment first)", MOVDIR64B,
-             {.rax = unmapped + 8, .rdi = DATA_ADDR}, 13);
+      add_md_open("movdir64b destination misaligned and unmapped → #GP(0) or #PF",
+                  {.rax = unmapped + 8, .rdi = DATA_ADDR});
       add_md("movdir64b source unmapped → #PF (read)", MOVDIR64B,
              {.rax = dst, .rdi = unmapped}, 14);
-      add_md("movdir64b source unmapped, destination misaligned → #PF (source first)", MOVDIR64B,
-             {.rax = dst + 8, .rdi = unmapped}, 14);
+      add_md_open("movdir64b source unmapped, destination misaligned → #PF or #GP(0)",
+                  {.rax = dst + 8, .rdi = unmapped});
       add_md("movdir64b source unmapped, destination not canonical → #PF (source first)", MOVDIR64B,
              {.rax = noncanonical, .rdi = unmapped}, 14);
       add_md("movdir64b source and destination unmapped → #PF at the source", MOVDIR64B,
@@ -429,11 +432,16 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // and the other arithmetic flags cleared, which the cases start set.
     // ENQCMD is #GP(0) throughout: the guest runs with the host thread's
     // IA32_PASID, 0 (not valid) in a process that has no PASID, and KVM
-    // lets the guest neither read nor write the MSR.  The other cases pin
-    // the order of the checks, which the SDM leaves open: the source read
-    // and the check of its bits before anything about the destination, the
-    // destination's alignment before its translation (a write's).  rdi is
-    // the source, rax the destination, as in MOVDIR64B.
+    // lets the guest neither read nor write the MSR, which the SDM checks
+    // before it reads the source (Vol.2A 3-290, Operation).  The source's
+    // faults come before those of the enqueue store (a write's #PF at the
+    // destination), "after loading the instruction's source operand from
+    // memory ... before the actual enqueue store" (SDM Vol.3C §28.3).  The
+    // exception lists leave the rest open: where the source's bits or the
+    // destination's alignment, both #GP(0), meet a #PF, a case allows
+    // both, and whether the dropped store hits a data breakpoint on writes
+    // is open too.  rdi is the source, rax the destination, as in
+    // MOVDIR64B.
     if (ecx7 & (1u << 29)) {
       cat = "ENQCMD";
       const std::vector<u8> ENQCMDS = {0xF3, 0x0F, 0x38, 0xF8, 0x07};
@@ -478,20 +486,30 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       add_enq("enqcmds destination not 64-byte aligned → #GP(0)", ENQCMDS, DATA_ADDR, dst + 8, cmd, 13);
       add_enq("enqcmds destination unmapped → #PF (write)", ENQCMDS, DATA_ADDR, unmapped, cmd, 14);
       add_enq("enqcmds source unmapped → #PF", ENQCMDS, unmapped, dst, cmd, 14);
-      add_enq("enqcmds source unmapped, destination misaligned → #PF (source first)",
-              ENQCMDS, unmapped, dst + 8, cmd, 14);
-      add_enq("enqcmds source bits 30:20 not zero, destination unmapped → #GP(0)",
-              ENQCMDS, DATA_ADDR, unmapped, bad_bits, 13);
-      add_enq("enqcmds destination misaligned and unmapped → #GP(0) (alignment first)",
-              ENQCMDS, DATA_ADDR, unmapped + 8, cmd, 13);
+      // Each side may take either outcome.
+      auto allow = [&](std::vector<int> outcomes) {
+        tests.back().expect_fault = false;
+        tests.back().expected_vector = -1;
+        tests.back().allowed_outcomes = std::move(outcomes);
+      };
+      add_enq("enqcmds source unmapped, destination misaligned → #PF or #GP(0)",
+              ENQCMDS, unmapped, dst + 8, cmd, -1);
+      allow({13, 14});
+      add_enq("enqcmds source bits 30:20 not zero, destination unmapped → #GP(0) or #PF",
+              ENQCMDS, DATA_ADDR, unmapped, bad_bits, -1);
+      allow({13, 14});
+      add_enq("enqcmds destination misaligned and unmapped → #GP(0) or #PF",
+              ENQCMDS, DATA_ADDR, unmapped + 8, cmd, -1);
+      allow({13, 14});
       {
-        // Data breakpoints: on writes at the destination, which the
-        // dropped store hits, and on reads in the source.
+        // Data breakpoints: on writes at the destination, where the store
+        // is dropped, and on reads in the source.
         ArchState s;
         s.dr[0] = dst;
         s.dr7 = 0x400 | 0x1 | (1ull << 16) | (3ull << 18);  // L0, R/W0 = 01, LEN0 = 4 bytes
-        add_enq("enqcmds data bp on writes at the destination → #DB",
-                {0xF3, 0x0F, 0x38, 0xF8, 0x07, 0x90, 0xF4}, DATA_ADDR, dst, cmd, 1, s);
+        add_enq("enqcmds data bp on writes at the destination → #DB or none",
+                {0xF3, 0x0F, 0x38, 0xF8, 0x07, 0x90, 0xF4}, DATA_ADDR, dst, cmd, -1, s);
+        allow({1, -1});
         s.dr[0] = DATA_ADDR + 8;
         s.dr7 = 0x400 | 0x1 | (3ull << 16) | (3ull << 18);  // L0, R/W0 = 11, LEN0 = 4 bytes
         add_enq("enqcmds data bp on reads in the source → #DB",

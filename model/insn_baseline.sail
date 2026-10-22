@@ -501,22 +501,25 @@ function exec_umonitor(r, pfx) = {
 // address size, is an offset into ES, which no prefix overrides (SDM
 // Vol.2B MOVDIR64B, Vol.2A ENQCMD).  Segmentation checks the 64 bytes as
 // any access (#GP(0) for a non-canonical address in 64-bit mode, beyond
-// the ES limit outside it), the linear address must be 64-byte aligned
+// the ES limit outside it), the destination must be 64-byte aligned
 // (#GP(0)), and the translation is a write's (#PF with W = 1), after a
-// data breakpoint on writes has seen the access.  (The MOVDIR64B page asks
-// for an aligned "address in destination (register) operand", the ENQCMD
-// page for an aligned linear address.  A Xeon Platinum 8562Y+ checks the
-// linear address for MOVDIR64B too: in compatibility mode with an ES base
-// of 20H, an offset of 20H mod 64 is stored to and one of 0 mod 64 is
-// #GP(0).)  The destination is not the ModR/M operand: a RIP-relative
-// source's fixup in seg_linear must not move it.
-val es_dest64_paddr : (Prefixes, GPRRef) -> qword
-function es_dest64_paddr(pfx, reg) = {
+// data breakpoint on writes has seen the access.  MOVDIR64B is #GP(0) "If
+// address in destination (register) operand is not aligned to a 64-byte
+// boundary" (SDM Vol.2B 4-52; APM Vol.3 MOVDIR64B: "The destination
+// operand was not 64-byte aligned"), the offset; ENQCMD and ENQCMDS "If
+// destination linear address is not aligned" (SDM Vol.2A 3-290, 3-293),
+// the ES base added: `linear_aligned` selects the second.  The destination
+// is not the ModR/M operand: a RIP-relative source's fixup in seg_linear
+// must not move it.
+val es_dest64_paddr : (Prefixes, GPRRef, bool) -> qword
+function es_dest64_paddr(pfx, reg, linear_aligned) = {
   rip_rel_pending = false;
   let asz = get_address_size(pfx);
-  let dst : MemRef = struct { seg = ES, addr = zero_extend(v(asz, reg)) };
+  let offset : qword = zero_extend(v(asz, reg));
+  let dst : MemRef = struct { seg = ES, addr = offset };
   let lin : qword = seg_linear(dst, 64);
-  if lin[5..0] != 0b000000 then raise_GP0();
+  let aligned : bits(6) = if linear_aligned then lin[5..0] else offset[5..0];
+  if aligned != 0b000000 then raise_GP0();
   note_data_access(lin, 64, true);
   translate_addr(lin, PT_Write)
 }
@@ -524,17 +527,20 @@ function es_dest64_paddr(pfx, reg) = {
 // MOVDIR64B r16/r32/r64, m512 (66 0F 38 F8 /r), mod != 11 — SDM Vol.2B;
 // CPUID.07H.00H:ECX.MOVDIR64B[28].  It reads 64 bytes from the source, an
 // ordinary load that need not be aligned, and writes them to the
-// destination with one 64-byte direct store.  The SDM lists the exceptions
-// in no order.  A Xeon Platinum 8562Y+ reads the whole source first, at
-// CPL 3 natively and at CPL 0 under KVM: a #PF or #GP(0) on the source,
-// also on its second page, beats a destination that is misaligned,
-// non-canonical, beyond the ES limit or unmapped.
+// destination with one 64-byte direct store: "MOVDIR64B first reads
+// 64-bytes from the source memory address.  It then performs a 64-byte
+// direct-store operation to the destination address" (SDM Vol.2B 4-51),
+// so a fault on the source comes before one of the store (a non-canonical
+// or unmapped destination).  The exception lists give no order between a
+// source fault and a misaligned destination, nor between that and the
+// destination's translation; the model checks the alignment with the
+// store, after the source is read and before the translation.
 val exec_movdir64b : Prefixes -> unit
 function exec_movdir64b(pfx) = {
   if ~(has_movdir64b) then raise_UD();
   let (reg, src) = fetch_modrm(pfx);
   let data : zmmword = rm_mem(src);
-  phys_write(es_dest64_paddr(pfx, reg), data)
+  phys_write(es_dest64_paddr(pfx, reg, false), data)
 }
 
 // ENQCMD r, m512 (F2 0F 38 F8 /r) and ENQCMDS r, m512 (F3 0F 38 F8 /r),
@@ -554,19 +560,24 @@ function exec_movdir64b(pfx) = {
 // enqueue register, so a store that address translation lets through is
 // dropped with ZF = 1; the other arithmetic flags are cleared.
 //
-// The SDM lists the exceptions in no order; the checks follow the one a
-// Xeon Platinum 8562Y+ (Emerald Rapids) shows.  The PASID and CPL checks
-// come before the source is read: at CPL 3, ENQCMD with IA32_PASID[31] = 0
-// and ENQCMDS are #GP(0) with an unmapped source.  The whole source is
-// read before its bits are checked (one that crosses into an unmapped page
-// is #PF however its first bytes look), and both before the destination
-// is translated: an unmapped source with a misaligned or unmapped
-// destination is a #PF on the source, wrong bits with an unmapped
-// destination #GP(0).  The destination's alignment comes before its
-// translation, which is a write's (#PF with W = 1) and hits a data
-// breakpoint on writes although nothing is written.  (The mod = 11 forms
-// are URDMSR and UWRMSR with USER_MSR, CPUID.07H.01H:EDX[15], which the
-// model does not implement: #UD.)
+// The order of the checks: ENQCMD reads the source only once IA32_PASID
+// is valid ("IF IA32_PASID[31] = 0 THEN #GP; ELSE COMMAND := (SRC & ...",
+// SDM Vol.2A 3-290, Operation), and in VMX non-root operation both
+// instructions translate the PASID "only after checking for conditions
+// that may result in general-protection exception (the check of
+// IA32_PASID.Valid for ENQCMD; the privilege-level check for ENQCMDS),
+// after loading the instruction's source operand from memory, and thus
+// after any faults ... that the loading may cause", and "before the
+// actual enqueue store and thus before any faults ... that it may cause"
+// (SDM Vol.3C §28.3): the source's faults come before the store's.  The
+// rest the exception lists leave open, and the model chooses: ENQCMDS's
+// CPL check before the source is read, the whole source read before its
+// bits are checked, and the destination's alignment (with the store, as
+// for MOVDIR64B) after the bits and before the translation, which is a
+// write's (#PF with W = 1) and hits a data breakpoint on writes although
+// the store is dropped.  (The mod = 11 forms are URDMSR and UWRMSR with
+// USER_MSR, CPUID.07H.01H:EDX[15], which the model does not implement:
+// #UD.)
 val exec_enqcmd : (Prefixes, bool) -> unit
 function exec_enqcmd(pfx, supervisor) = {
   if ~(has_enqcmd) then raise_UD();
@@ -588,7 +599,7 @@ function exec_enqcmd(pfx, supervisor) = {
   let _command : zmmword =
     if supervisor then data
     else data[511..32] @ 0b000000000000 @ IA32_PASID[19..0];
-  let _ = es_dest64_paddr(pfx, reg);
+  let _ = es_dest64_paddr(pfx, reg, true);
   CF = 0b0;
   PF = 0b0;
   AF = 0b0;
