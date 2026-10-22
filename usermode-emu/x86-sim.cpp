@@ -56,6 +56,10 @@ int main(int argc, char *argv[], char *envp[]) {
   x86::Model model;
   model.model_init();
   model.zinitializze_registers(UNIT);
+  // A Linux process starts with the x87 FPU as FNINIT leaves it (FCW =
+  // 037FH: all exceptions masked, 64-bit precision), as the x86-64 psABI
+  // requires.  The registers' default values would select single precision.
+  model.zx87_init(UNIT);
   switch (cpu_level) {
     case 1: model.zenable_features_v1(UNIT); break;
     case 2: model.zenable_features_v2(UNIT); break;
