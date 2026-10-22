@@ -109,40 +109,55 @@ function ftw_abridged_to_full(ab) = {
 // -------------------------------------------------------------------------
 
 // The x87 component: FCW, FSW, the abridged FTW, FOP, FIP and FDP, and
-// ST(0)-ST(7) in stack order, each in 16 bytes whose last 6 are reserved
-// and written as zeros.  Intel saves FOP, FIP and FDP always (SDM Vol.1
-// §8.1.8).  AMD saves them only while an x87 exception is pending (FSW.ES
-// = 1).  Otherwise, with RstrFpErrPtrs (the AMD profile), XSAVE writes
-// zeros: "the error pointer fields in the save area are zeroed if there
-// is no pending #MF" (APM Vol.2 §11.5.10 p.361, Vol.4 XSAVE p.1774).
-// FXSAVE "does not save the x87 pointer registers" then (Vol.5 FXSAVE
-// p.26), without saying what the fields hold; the model writes the same
-// zeros.
+// ST(0)-ST(7) in stack order, each in 16 bytes (SDM Vol.2A FXSAVE, Field
+// Definitions p.3-413-3-414; APM Vol.2 §11.5.10, Figures 11-9 and 11-10
+// p.362-363).  The reserved parts, for which neither manual gives a value,
+// are written undefined: FOP bits 15:11 ("upper 5 bits are reserved"),
+// bytes 0Eh-0Fh and 16h-17h of the 32-bit format ("rsrvd, IGN" in the
+// APM), and the last 6 bytes of each register; byte 5 as well on Intel
+// ("Rsvd"), where the APM has "(Byte 05h contains the value 00h.)".  Two
+// more rules are the SDM's alone: after MMX code "the high 16 bits of the
+// field are reserved" for each register, and in 16-bit mode the "high 16
+// bits are reserved" of FIP and FDP.
+//
+// Intel saves FOP, FIP and FDP always (SDM Vol.1 §8.1.8).  AMD saves them
+// only while an x87 exception is pending (FSW.ES = 1).  Otherwise, with
+// RstrFpErrPtrs (the AMD profile), XSAVE writes zeros: "the error pointer
+// fields in the save area are zeroed if there is no pending #MF" (APM
+// Vol.2 §11.5.10 p.361, Vol.4 XSAVE p.1774).  FXSAVE "does not save the
+// x87 pointer registers" then (Vol.5 FXSAVE p.26), without saying what
+// the fields hold; the model writes the same zeros.
 val xsave_x87 : (qword, bool) -> unit
 function xsave_x87(base, w) = {
-  let pointers : bool = vendor == Vendor_Intel | x87_sw[7] == bitone;
-  let fop : word = if pointers then zero_extend(x87_fop) else zeros();
+  let intel = vendor == Vendor_Intel;
+  let pointers : bool = intel | x87_sw[7] == bitone;
+  let fop : bits(11) = if pointers then x87_fop else zeros();
   let fip : qword = if pointers then x87_fip else zeros();
   let fdp : qword = if pointers then x87_fdp else zeros();
   let fcs : word = if pointers then x87_saved_selector(x87_fcs) else zeros();
   let fds : word = if pointers then x87_saved_selector(x87_fds) else zeros();
+  let mode16 = intel & cur_mode != LongMode & get_cs_db() == bitzero;
+  let fip32 : dword = if mode16 then (undefined : word) @ fip[15..0] else fip[31..0];
+  let fdp32 : dword = if mode16 then (undefined : word) @ fdp[15..0] else fdp[31..0];
   write_mem(base, x87_cw);
   write_mem(base + 2, x87_sw);
   write_mem(base + 4, ftw_full_to_abridged(x87_tw));
-  write_mem(base + 5, 0x00);    // reserved
-  write_mem(base + 6, fop);
+  write_mem(base + 5, if intel then (undefined : byte) else 0x00);
+  write_mem(base + 6, (undefined : bits(5)) @ fop);
   if w then {
     write_mem(base + 8, fip);
     write_mem(base + 16, fdp)
   } else {
-    write_mem(base + 8, fip[31..0]);
-    write_mem(base + 12, zero_extend(fcs) : dword);
-    write_mem(base + 16, fdp[31..0]);
-    write_mem(base + 20, zero_extend(fds) : dword)
+    write_mem(base + 8, fip32);
+    write_mem(base + 12, (undefined : word) @ fcs);
+    write_mem(base + 16, fdp32);
+    write_mem(base + 20, (undefined : word) @ fds)
   };
   foreach (i from 0 to 7) {
-    write_mem(base + 32 + 16 * i, x87_read_st(i));
-    write_mem(48, base + 32 + 16 * i + 10, zeros())
+    let st : fp80 = x87_read_st(i);
+    let high : word = if intel & x87_mmx_last then undefined else st[79..64];
+    write_mem(base + 32 + 16 * i, high @ st[63..0]);
+    write_mem(48, base + 32 + 16 * i + 10, undefined)
   }
 }
 

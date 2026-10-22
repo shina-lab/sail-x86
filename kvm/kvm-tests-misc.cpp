@@ -774,7 +774,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
          0x0F, 0xAE, 0x07},       // FXSAVE [RDI]
         with_xsave_vector_inputs({.rax = 0x42, .rdi = DATA_ADDR}, 0x2),
         FL_ALL, 0, false, init_data, 512});
-      fxsave_x87_undefined(tests.back(), 0, X87_FXSAVE_NO_ES);
+      fxsave_x87_undefined(tests.back(), 0, X87_FXSAVE_NO_ES | X87_MMX);
     }
   }
 

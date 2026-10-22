@@ -149,6 +149,11 @@ register x87_fcs : word
 register x87_fop : bits(11)
 register x87_fdp : qword
 register x87_fds : word
+// Whether MMX instructions ran after the last x87 instruction: FXSAVE and
+// XSAVE then save "the MMX technology registers", and "the high 16 bits
+// of the field are reserved" (SDM Vol.2A FXSAVE, Field Definitions
+// p.3-414).  mmx_touch and EMMS set it, and dispatch_x87 clears it.
+register x87_mmx_last : bool = false
 
 val x87_top : unit -> range(0, 7)
 function x87_top() = unsigned(x87_sw[13..11])
@@ -284,10 +289,14 @@ function x87_update_es() = {
   x87_sw[15] = pending
 }
 
-// FCW bit 6 is reserved and reads as 1 whatever is loaded into it.
+// FCW bits 15:13 and 7:6 are reserved (SDM Vol.1 Figure 8-6 p.8-7; APM
+// Vol.1 Figure 6-4 p.293, §6.2.3: "All bits, except reserved bits, can be
+// read and written"), and neither manual says what they read after a
+// load, so a load leaves them undefined.  FNINIT and FNSAVE set the whole
+// word to 037FH (SDM §8.1.5; x87_init).
 val x87_set_cw : word -> unit
 function x87_set_cw(cw) = {
-  x87_cw = cw | 0x0040;
+  x87_cw = (cw & 0x1F3F) | ((undefined : word) & 0xE0C0);
   x87_update_es()
 }
 
@@ -334,29 +343,32 @@ function x87_saved_selector(sel) = if fcs_fds_deprecated() then 0x0000 else sel
 val mmx_touch : unit -> unit
 function mmx_touch() = {
   x87_sw[13..11] = 0b000;  // TOP = 0
-  x87_tw = 0x0000          // all valid
+  x87_tw = 0x0000;         // all valid
+  x87_mmx_last = true
 }
 
 // Save the 28-byte x87 environment in the 32-bit protected-mode format
-// (SDM Vol.1 Figure 8-9) as bits(224): FCW, FSW and FTW in the low halves
-// of three doublewords whose high halves are reserved and written as
-// FFFFH, then FIP[31:0], FCS with FOP in bits 26:16, FDP[31:0], and FDS
-// below another reserved FFFFH.
+// (SDM Vol.1 Figure 8-9 p.8-11; APM Vol.2 Figure 11-4 p.352) as
+// bits(224): FCW, FSW and FTW in the low halves of three doublewords,
+// then FIP[31:0], FCS with FOP in bits 26:16 and 00000b above it,
+// FDP[31:0], and FDS.  The high halves of the FCW, FSW, FTW and FDS
+// doublewords are reserved ("Reserved, IGN" in the APM) with no value
+// given, so they are written undefined.
 val x87_save_env : unit -> bits(224)
 function x87_save_env() = {
   var buf : bits(224) = zeros();
   buf[15..0] = x87_cw;
-  buf[31..16] = 0xFFFF;
+  buf[31..16] = (undefined : word);
   buf[47..32] = x87_sw;
-  buf[63..48] = 0xFFFF;
+  buf[63..48] = (undefined : word);
   buf[79..64] = x87_tag_word();
-  buf[95..80] = 0xFFFF;
+  buf[95..80] = (undefined : word);
   buf[127..96] = x87_fip[31..0];
   buf[143..128] = x87_saved_selector(x87_fcs);
   buf[154..144] = x87_fop;
   buf[191..160] = x87_fdp[31..0];
   buf[207..192] = x87_saved_selector(x87_fds);
-  buf[223..208] = 0xFFFF;
+  buf[223..208] = (undefined : word);
   buf
 }
 

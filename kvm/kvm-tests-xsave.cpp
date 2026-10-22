@@ -399,6 +399,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
       std::vector<u8> code = fxrstor;
       code.insert(code.end(), {0xD9, 0xB7, 0x00, 0x02, 0x00, 0x00});  // fnstenv [rdi+0x200]
       fx("fxrstor [rdi] (" + what + "); fnstenv: the x87 pointers", code, s, img);
+      x87_env_undefined(tests.back(), 0x200, X87_CW_LOADED);
       img.resize(576, 0);
       img[512] = 1;  // XSTATE_BV: x87
       code = {0x0F, 0xAE, 0x2F,                       // xrstor [rdi]
@@ -407,6 +408,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
       x.rax = 1;
       x.rdx = 0;
       fx("xrstor [rdi] (" + what + "); fnstenv: the x87 pointers", code, x, img);
+      x87_env_undefined(tests.back(), 0x240, X87_CW_LOADED);
     }
   }
 }

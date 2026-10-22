@@ -7,9 +7,10 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
   // Load an explicit x87 state, execute the instruction, and save its
   // result. Compare all eight 80-bit registers, CW, SW and the full tag
   // word, and the whole FSAVE image but for the undefined condition codes
-  // and the fields the manuals leave open.  Every instruction here but
+  // and the fields the manuals leave open, among them the reserved CW bits
+  // that FRSTOR loads (x87_env_undefined).  Every instruction here but
   // the obsolete NOPs is recorded as the last non-control instruction on
-  // at least one vendor and has no memory operand (x87_env_undefined).
+  // at least one vendor and has no memory operand.
   auto add_state = [&](const std::string &name, std::vector<u8> insn,
                        u16 cw, u16 sw, u16 tw, u16 undefined_cc, bool compat32,
                        bool recorded = true) {
@@ -49,8 +50,11 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
     tc.initial.rdi = DATA_ADDR;
     tc.flags_mask = undefined_cc ? FL_NO_AF : FL_ALL;
     tc.data_undefined = {{0x104, u8(undefined_cc)}, {0x105, u8(undefined_cc >> 8)}};
+    unsigned open = X87_CW_LOADED;
     if (recorded)
-      x87_env_undefined(tc, 0x100, X87_NO_DATA | (compat32 ? 0 : X87_LONG_MODE));
+      open |= X87_NO_DATA | (compat32 ? 0 : X87_LONG_MODE);
+    x87_env_undefined(tc, 0x100, open);
+    tc.undefined.gpr[0] = 0xE0C0;  // the saved CW
     tc.init_data = std::move(data);
     tc.compare_data_len = 80;
     tc.compat_mode = compat32;

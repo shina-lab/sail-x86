@@ -343,11 +343,13 @@ function dispatch_x87_d9(modrm, operand, pfx) = {
         4 => if opsize(pfx) == 16 then x87_load_env16(read_mem(m))
              else x87_load_env(read_mem(m)),
         5 => x87_set_cw(v(m)),
-        // FNSTENV stores the environment, then masks all exceptions
+        // FNSTENV stores the environment, "then masks all floating-point
+        // exceptions" (SDM FSTENV/FNSTENV), the rest of FCW unchanged
         6 => {
           if opsize(pfx) == 16 then write_mem(m, x87_save_env16())
           else write_mem(m, x87_save_env());
-          x87_set_cw(x87_cw | 0x003F)
+          x87_cw = x87_cw | 0x003F;
+          x87_update_es()
         },
         7 => v(m) = x87_cw,
       }
@@ -984,5 +986,6 @@ function dispatch_x87(encoded_opcode, pfx) = {
   if completed then x87_finish_cc(opcode, modrm)
   else x87_undefine_cc(x87_undefined_cc(opcode, modrm));
   if ~(x87_control(encoded_opcode, encoded_modrm)) then
-    x87_record_last(encoded_opcode, encoded_modrm, operand, ~(completed))
+    x87_record_last(encoded_opcode, encoded_modrm, operand, ~(completed));
+  x87_mmx_last = false
 }

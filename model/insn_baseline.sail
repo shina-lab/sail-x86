@@ -1676,7 +1676,8 @@ function dispatch_2byte_gpr(op, pfx) = {
     119 => {
       if get_mandatory_prefix(pfx) != MP_NONE then raise_UD();
       check_cr0_sse();
-      x87_tw = 0xFFFF
+      x87_tw = 0xFFFF;
+      x87_mmx_last = true
     },
 
     // 0F 80-8F: Jcc rel16/rel32 (forced64)

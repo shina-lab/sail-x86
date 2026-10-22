@@ -366,11 +366,13 @@ struct ArchState {
       fprintf(stderr, "  MISMATCH MXCSR: kvm=%08x sail=%08x\n", mxcsr, other.mxcsr);
       ok = false;
     }
-    // x87 state as far as the model defines it: the control word, TOP, the
-    // tags, and the contents of the valid registers.  The rest of the status
+    // x87 state as far as the model defines it: the control word but for
+    // its reserved bits 15:13 and 7:6 (SDM Vol.1 Figure 8-6; APM Vol.1
+    // Figure 6-4), which no manual defines after a load, TOP, the tags,
+    // and the contents of the valid registers.  The rest of the status
     // word holds exception flags from the externs' arithmetic and condition
     // codes that many instructions leave undefined.
-    if (fcw != other.fcw || ((fsw ^ other.fsw) & 0x3800) || ftw != other.ftw) {
+    if (((fcw ^ other.fcw) & ~0xE0C0) || ((fsw ^ other.fsw) & 0x3800) || ftw != other.ftw) {
       fprintf(stderr, "  MISMATCH x87: kvm FCW=%04x FSW=%04x FTW=%02x"
               " sail FCW=%04x FSW=%04x FTW=%02x\n",
               fcw, fsw, ftw, other.fcw, other.fsw, other.ftw);
@@ -573,7 +575,8 @@ struct TestCase {
 
 // What ran before a case saves an x87 state image, for the fields of the
 // image that the manuals then leave open (x87_env_undefined and
-// fxsave_x87_undefined, below).
+// fxsave_x87_undefined, below).  The reserved fields that have no value
+// in either manual are always open.
 enum X87ImageOpen : unsigned {
   // The last non-control x87 instruction had no memory operand: "the
   // value in the data pointer is undefined (reserved)" (SDM Vol.1
@@ -589,7 +592,21 @@ enum X87ImageOpen : unsigned {
   // hold; Intel saves them (SDM Vol.1 §8.1.8).  FOP, FIP, FCS, FDP and
   // FDS, on AMD hosts.
   X87_FXSAVE_NO_ES = 1u << 2,
+  // FCW was loaded (FLDCW, FLDENV, FRSTOR, FXRSTOR, XRSTOR) and not
+  // reinitialized since: bits 15:13 and 7:6 are reserved (SDM Vol.1
+  // Figure 8-6; APM Vol.1 Figure 6-4) and no manual says what a load
+  // leaves in them.
+  X87_CW_LOADED = 1u << 3,
+  // MMX instructions ran after the last x87 instruction: on Intel "the
+  // high 16 bits of the field are reserved" for each register in an
+  // FXSAVE image (SDM Vol.2A FXSAVE p.3-414); the APM has no such rule.
+  // Bytes 8-9 of each register, on Intel hosts.
+  X87_MMX = 1u << 4,
 };
+
+// Marks data_undefined the reserved bits 15:13 and 7:6 of a control word
+// stored at data-page offset `off` after a load (X87_CW_LOADED).
+void x87_cw_undefined(TestCase &tc, u16 off);
 
 // Marks data_undefined the open fields, per `open`, of an FNSTENV/FNSAVE
 // image in the 32-bit protected-mode format at data-page offset `off`

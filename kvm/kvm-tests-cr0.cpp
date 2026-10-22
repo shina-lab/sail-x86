@@ -366,6 +366,8 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     {
       ArchState s = with_xsave_vector_inputs({.rax = 3, .rdx = 0, .rdi = DATA_ADDR}, 3);
       add(cat, bits, name("xsave [rdi] (x87, SSE)"), {0x0F, 0xAE, 0x27}, ts, s);
+      if (ts == NONE)
+        fxsave_x87_undefined(tests.back(), 0, 0);
     }
     {
       ArchState s = vectors;

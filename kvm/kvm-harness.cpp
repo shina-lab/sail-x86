@@ -1588,7 +1588,18 @@ static void undefined_bytes(TestCase &tc, unsigned off, unsigned len, u8 bits = 
     tc.data_undefined.push_back({u16(off + i), bits});
 }
 
+void x87_cw_undefined(TestCase &tc, u16 off) {
+  undefined_bytes(tc, off, 1, 0xC0);
+  undefined_bytes(tc, off + 1, 1, 0xE0);
+}
+
 void x87_env_undefined(TestCase &tc, u16 off, unsigned open) {
+  // The reserved high halves of the FCW, FSW, FTW and FDS doublewords
+  // ("Reserved, IGN", APM Vol.2 Figure 11-4).
+  for (unsigned half : {0x02, 0x06, 0x0A, 0x1A})
+    undefined_bytes(tc, off + half, 2);
+  if (open & X87_CW_LOADED)
+    x87_cw_undefined(tc, off);
   if (open & X87_LONG_MODE) {
     undefined_bytes(tc, off + 0x10, 2);  // FCS
     undefined_bytes(tc, off + 0x18, 2);  // FDS
@@ -1600,13 +1611,32 @@ void x87_env_undefined(TestCase &tc, u16 off, unsigned open) {
 }
 
 void fxsave_x87_undefined(TestCase &tc, u16 off, unsigned open, bool w) {
+  bool amd = host_vendor() == x86::zVendor_AMD;
+  // Byte 5 is "Rsvd" in the SDM; "(Byte 05h contains the value 00h.)" in
+  // the APM (Vol.2 p.363).  FOP bits 15:11 are reserved (SDM FXSAVE), as
+  // are bytes 0Eh-0Fh and 16h-17h of the 32-bit format and the last six
+  // bytes of each register (both manuals).
+  if (!amd)
+    undefined_bytes(tc, off + 0x05, 1);
+  undefined_bytes(tc, off + 0x07, 1, 0xF8);
+  if (!w) {
+    undefined_bytes(tc, off + 0x0E, 2);
+    undefined_bytes(tc, off + 0x16, 2);
+  }
+  for (unsigned i = 0; i < 8; i++) {
+    undefined_bytes(tc, off + 0x20 + 16 * i + 10, 6);
+    if ((open & X87_MMX) && !amd)
+      undefined_bytes(tc, off + 0x20 + 16 * i + 8, 2);
+  }
+  if (open & X87_CW_LOADED)
+    x87_cw_undefined(tc, off);
   if ((open & X87_LONG_MODE) && !w) {
     undefined_bytes(tc, off + 0x0C, 2);  // FCS
     undefined_bytes(tc, off + 0x14, 2);  // FDS
   }
   if (open & X87_NO_DATA)
     undefined_bytes(tc, off + 0x10, w ? 8 : 6);  // FDP, and FDS
-  if ((open & X87_FXSAVE_NO_ES) && host_vendor() == x86::zVendor_AMD)
+  if ((open & X87_FXSAVE_NO_ES) && amd)
     undefined_bytes(tc, off + 0x06, 18);  // FOP, FIP, FCS, FDP, FDS
 }
 

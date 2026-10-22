@@ -2077,17 +2077,20 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
     cat = "x87 env";
     {
       // D9 /5 FLDCW, read back with FNSTCW after FRNDINT, which rounds per
-      // the RC field (SDM FRNDINT).
+      // the RC field (SDM FRNDINT).  The reserved bits of a loaded control
+      // word are open (x87_cw_undefined).
       struct { double v; u16 cw; const char *rc; } rcs[] = {
         {2.7, 0x037F, "nearest"}, {2.5, 0x037F, "nearest even"}, {-2.5, 0x037F, "nearest even, negative"},
         {2.7, 0x077F, "down"}, {-2.7, 0x077F, "down, negative"}, {2.5, 0x077F, "down, tie"},
         {2.2, 0x0B7F, "up"}, {-2.2, 0x0B7F, "up, negative"}, {-2.5, 0x0B7F, "up, tie"},
         {2.7, 0x0F7F, "toward zero"}, {-2.7, 0x0F7F, "toward zero, negative"},
       };
-      for (auto &r : rcs)
+      for (auto &r : rcs) {
         add_mem(std::format("fldcw {:#06x} ({}); fld {}; frndint; fstp; fnstcw", r.cw, r.rc, r.v),
                 join({{0xD9, 0x6F, 0x08}, FLD_A, {0xD9, 0xFC}, FSTP_16, {0xD9, 0x7F, 0x18}}),
                 s, FL_ALL, pad(join({f64b(r.v), i16b((int16_t)r.cw)}), 16), 26);
+        x87_cw_undefined(tests.back(), 0x18);
+      }
       // The precision-control field rounds the significand of FADD, FSUB,
       // FMUL, FDIV and FSQRT results to 24 or 53 bits (SDM Vol.1 §8.1.5.2);
       // stored as binary64, the 24-bit results show trailing zeros.
@@ -2246,7 +2249,9 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
                     {0x0F, 0xB7, 0x47, 0x10,     // movzx eax, word [rdi+16] (image FCW)
                      0x0F, 0xB7, 0x5F, 0x30}}),  // movzx ebx, word [rdi+48] (FCW after)
               s, FL_ALL, pad(join({f64b(0), i16b(0x0340)}), 16), 0);
-
+      env_open(16, X87_CW_LOADED);
+      x87_cw_undefined(tests.back(), 48);
+      tests.back().undefined.gpr[0] = tests.back().undefined.gpr[3] = 0xE0C0;  // rax, rbx
       // D9 /4 FLDENV: RC = truncate, TOP = 5 with C3 and ZE set, all registers
       // empty; observed through FNSTSW, FNSTCW, and a load/store at the new TOP
       {
@@ -2258,6 +2263,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
         add_mem("fldenv [rdi+8]; fnstsw ax; fnstcw [rdi+40]; fld a; fstp [rdi+48]",
                 join({{0xD9, 0x67, 0x08}, FNSTSW_AX, {0xD9, 0x7F, 0x28}, FLD_A, {0xDD, 0x5F, 0x30}}),
                 s, FL_ALL, join({f64b(2.7), env}), 56);
+        x87_cw_undefined(tests.back(), 40);
       }
     }
 
