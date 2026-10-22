@@ -525,8 +525,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch(1);
         let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_xrm(modrm, pfx);
-        let src_xmm : xmmword = decode_xmm_src(src);
         let imm = fetch(1);
+        let src_xmm : xmmword = decode_xmm_src(src);
         match mp {
           MP_66 => ZMM[xreg][127..0] = packed_lane_imm_op(PLI_Pshufd, src_xmm, imm),
           MP_F3 => ZMM[xreg][127..0] = packed_lane_imm_op(PLI_Pshufhw, src_xmm, imm),
@@ -708,8 +708,8 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let modrm = fetch(1);
         let xreg = modrm_xreg(modrm, pfx);
         let src = modrm_rm(modrm, pfx);
-        let x : word = v(src);
         let imm = fetch(1);
+        let x : word = v(src);
         let sel : nat = unsigned(imm[2..0]);
         let mask : xmmword = ~(zero_extend(0xFFFF) << (sel * 16));
         ZMM[xreg][127..0] = (read_simd(xreg) & mask) | (zero_extend(x) << (sel * 16))
@@ -982,12 +982,15 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     RM_reg(_) => XRM_reg(unsigned(pfx.rex_b @ modrm[2..0])),
     RM_mem(m) => XRM_mem(m),
   };
+  // Every 0F 3A instruction ends with an imm8.  Fetch it before any operand
+  // is accessed: a RIP-relative operand is relative to the end of the
+  // instruction (see fixup_addr).
+  let imm = fetch(1);
   match op {
 
     // SSE4.1 — PBLENDW
     14 => {
       let src_xmm = decode_xmm_src(xsrc);
-      let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
       var r : xmmword = zeros();
       foreach (i from 0 to 7) {
@@ -1000,14 +1003,12 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     // SSSE3 — PALIGNR
     15 => {
       let src_xmm = decode_xmm_src(xsrc);
-      let imm = fetch(1);
       let concat : ymmword = read_simd(xreg) @ src_xmm;
       ZMM[xreg][127..0] = (concat >> (unsigned(imm) * 8))[127..0]
     },
 
     // SSE4.1 — PEXTRB r/m8, xmm, imm8
     20 => {
-      let imm = fetch(1);
       let x = velem(8, ZMM[xreg], imm[3..0]);
       match src {
         RM_reg(_) => {
@@ -1020,7 +1021,6 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
 
     // SSE4.1 — PEXTRD/PEXTRQ r/m, xmm, imm8
     22 => {
-      let imm = fetch(1);
       let xmm_src : xmmword = read_simd(xreg);
       if pfx.rex_w then {
         v(src) = velem(64, xmm_src, imm[0])
@@ -1031,13 +1031,11 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
 
     // SSE4.1 — PINSRB xmm, r/m8, imm8
     32 => {
-      let imm = fetch(1);
       ZMM[xreg][127..0] = insert_byte(read_simd(xreg), v(src), unsigned(imm[3..0]))
     },
 
     // SSE4.1 — PINSRD/PINSRQ xmm, r/m, imm8
     34 => {
-      let imm = fetch(1);
       if pfx.rex_w then {
         let x : qword = v(src);
         let v_0 : xmmword = read_simd(xreg);
@@ -1059,7 +1057,6 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     // SSE4.1 — MPSADBW
     66 => {
       let src_xmm = decode_xmm_src(xsrc);
-      let imm = fetch(1);
       ZMM[xreg][127..0] = mpsadbw(read_simd(xreg), src_xmm, imm)
     },
 
@@ -1067,14 +1064,12 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     68 => {
       if ~(has_pclmulqdq) then raise_UD();
       let src_xmm = decode_xmm_src(xsrc);
-      let imm = fetch(1);
       ZMM[xreg][127..0] = pclmulqdq_lane(read_simd(xreg), src_xmm, imm)
     },
 
     // SSE4.2 — PCMPESTRM (no alignment requirement — SDM exception class 4)
     96 => {
       let src_xmm = decode_xmm_src_u(xsrc);
-      let imm = fetch(1);
       let la : dword = v(RAX);
       let lb : dword = v(RDX);
       let (mask, cf_val, zf_val, sf_val, of_val) = pcmpestrm(read_simd(xreg), la, src_xmm, lb, imm);
@@ -1089,7 +1084,6 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     // SSE4.2 — PCMPESTRI (no alignment requirement — SDM exception class 4)
     97 => {
       let src_xmm = decode_xmm_src_u(xsrc);
-      let imm = fetch(1);
       let la : dword = v(RAX);
       let lb : dword = v(RDX);
       let (idx, cf_val, zf_val, sf_val, of_val) = pcmpestri(read_simd(xreg), la, src_xmm, lb, imm);
@@ -1104,7 +1098,6 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     // SSE4.2 — PCMPISTRM (no alignment requirement — SDM exception class 4)
     98 => {
       let src_xmm = decode_xmm_src_u(xsrc);
-      let imm = fetch(1);
       let (mask, cf_val, zf_val, sf_val, of_val) = pcmpistrm(read_simd(xreg), src_xmm, imm);
       ZMM[0][127..0] = mask;
       CF = cf_val;
@@ -1117,7 +1110,6 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     // SSE4.2 — PCMPISTRI (no alignment requirement — SDM exception class 4)
     99 => {
       let src_xmm = decode_xmm_src_u(xsrc);
-      let imm = fetch(1);
       let (idx, cf_val, zf_val, sf_val, of_val) = pcmpistri(read_simd(xreg), src_xmm, imm);
       v(RCX) = idx;
       CF = cf_val;
@@ -1131,7 +1123,6 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     // AES-NI — AESKEYGENASSIST
     223 => {
       if ~(has_aesni) then raise_UD();
-      let imm = fetch(1);
       ZMM[xreg][127..0] = aeskeygenassist(decode_xmm_src(xsrc), imm)
     },
 
@@ -1139,7 +1130,6 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     206 => {
       if ~(has_gfni) then raise_UD();
       let src_xmm = decode_xmm_src(xsrc);
-      let imm = fetch(1);
       ZMM[xreg][127..0] = avx_gf2p8affineqb(read_simd(xreg), src_xmm, imm)
     },
 
@@ -1147,7 +1137,6 @@ function dispatch_3byte_3a_sse_int(opcode, pfx) = {
     207 => {
       if ~(has_gfni) then raise_UD();
       let src_xmm = decode_xmm_src(xsrc);
-      let imm = fetch(1);
       ZMM[xreg][127..0] = avx_gf2p8affineinvqb(read_simd(xreg), src_xmm, imm)
     },
 

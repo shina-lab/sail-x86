@@ -570,8 +570,8 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, 16);
-    let src2 : xmmword = evex_src(128, src);
     let imm = fetch(1);
+    let src2 : xmmword = evex_src(128, src);
     match pfx.evex_ll {
       1 => {
         // 256-bit: imm8[0] selects which 128-bit lane
@@ -650,8 +650,8 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, 32);
-    let src2 : ymmword = evex_src(256, src);
     let imm = fetch(1);
+    let src2 : ymmword = evex_src(256, src);
     match pfx.evex_ll {
       2 => {
         // 512-bit only: imm8[0] selects which 256-bit half
@@ -818,11 +818,11 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, 1);
+    let imm = fetch(1);
     let byte_val : byte = match src {
       RM_reg(r) => v(32, r)[7..0],
       RM_mem(m) => v(m),
     };
-    let imm = fetch(1);
     let sel : range(0, 15) = unsigned(imm[3..0]);
     var result : xmmword = read_simd(pfx.evex_vvvvv);
     let lo : range(0, 120) = sel * 8;
@@ -869,8 +869,8 @@ function dispatch_evex_imm(op, pfx) = {
     if pfx.vex_w then {
       // VPINSRQ: imm8[0] selects qword position
       let src = modrm_rm_evex(modrm, pfx, 8);
-      let qword_val : qword = v(src);
       let imm = fetch(1);
+      let qword_val : qword = v(src);
       let sel : range(0, 1) = unsigned(imm[0]);
       var result : xmmword = read_simd(pfx.evex_vvvvv);
       let lo : range(0, 64) = sel * 64;
@@ -879,8 +879,8 @@ function dispatch_evex_imm(op, pfx) = {
     } else {
       // VPINSRD: imm8[1:0] selects dword position
       let src = modrm_rm_evex(modrm, pfx, 4);
-      let dword_val : dword = v(src);
       let imm = fetch(1);
+      let dword_val : dword = v(src);
       let sel : range(0, 3) = unsigned(imm[1..0]);
       var result : xmmword = read_simd(pfx.evex_vvvvv);
       let lo : range(0, 96) = sel * 32;
@@ -895,8 +895,8 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, 16);
-    let src2 : xmmword = evex_src(128, src);
     let imm = fetch(1);
+    let src2 : xmmword = evex_src(128, src);
     match pfx.evex_ll {
       1 => {
         var result = read_simd(256, pfx.evex_vvvvv);
@@ -973,8 +973,8 @@ function dispatch_evex_imm(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_xrm_evex(modrm, pfx, 32);
-    let src2 : ymmword = evex_src(256, src);
     let imm = fetch(1);
+    let src2 : ymmword = evex_src(256, src);
     match pfx.evex_ll {
       2 => {
         var result = ZMM[pfx.evex_vvvvv];
@@ -1532,26 +1532,22 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let k_idx : range(0, 7) = evex_kreg_dest(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, evex_full_disp_n(pfx));
+        let pred_byte = fetch(1);
+        let pred : range(0, 31) = unsigned(pred_byte[4..0]);
         match pfx.evex_ll {
           0 => {
             let src1 : xmmword = read_simd(pfx.evex_vvvvv);
             let src2 = evex_src(128, src);
-            let pred_byte = fetch(1);
-            let pred : range(0, 31) = unsigned(pred_byte[4..0]);
             write_kreg(k_idx, avx_vcmpph_kmask(src1, src2, pred))
           },
           1 => {
             let src1 = read_simd(256, pfx.evex_vvvvv);
             let src2 = evex_src(256, src);
-            let pred_byte = fetch(1);
-            let pred : range(0, 31) = unsigned(pred_byte[4..0]);
             write_kreg(k_idx, avx_vcmpph_kmask(src1, src2, pred))
           },
           2 => {
             let src1 = ZMM[pfx.evex_vvvvv];
             let src2 = evex_src(512, src);
-            let pred_byte = fetch(1);
-            let pred : range(0, 31) = unsigned(pred_byte[4..0]);
             write_kreg(k_idx, avx_vcmpph_kmask(src1, src2, pred))
           },
           3 => raise_UD(),
@@ -1562,10 +1558,10 @@ function dispatch_evex_imm(op, pfx) = {
         let modrm = fetch(1);
         let k_idx : range(0, 7) = evex_kreg_dest(modrm, pfx);
         let src = modrm_xrm_evex(modrm, pfx, 2);
-        let src1 : xmmword = read_simd(pfx.evex_vvvvv);
-        let src2 = evex_src(128, src);
         let pred_byte = fetch(1);
         let pred : range(0, 31) = unsigned(pred_byte[4..0]);
+        let src1 : xmmword = read_simd(pfx.evex_vvvvv);
+        let src2 = evex_src(128, src);
         write_kreg(k_idx, zero_extend(cmp_pred5_f16(src1[15..0], src2[15..0], pred)))
       },
       _ => raise_UD(),

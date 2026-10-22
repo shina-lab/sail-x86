@@ -465,8 +465,8 @@ function dispatch_opcode_2byte(opcode, pfx) = {
           let modrm = fetch(1);
           let xreg = modrm_xreg(modrm, pfx);
           let src = modrm_xrm(modrm, pfx);
-          let src_xmm : xmmword = decode_xmm_src(src);
           let imm : byte = fetch(1);
+          let src_xmm : xmmword = decode_xmm_src(src);
           ZMM[xreg][127..0] = sha1rnds4(read_simd(xreg), src_xmm, imm)
         },
         _  => {

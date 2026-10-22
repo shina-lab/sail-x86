@@ -139,8 +139,8 @@ function dispatch_vex_0f_int(op, pfx) = {
     let dst = modrm_xreg(modrm, pfx);
     let src = modrm_xrm(modrm, pfx);
     let vl = vex_vl(pfx);
-    let s = decode_vex_src(vl, src);
     let imm = fetch(1);
+    let s = decode_vex_src(vl, src);
     match mp {
       MP_66 => write_simd(vl, dst, packed_lane_imm_op(PLI_Pshufd, s, imm)),
       MP_F3 => write_simd(vl, dst, packed_lane_imm_op(PLI_Pshufhw, s, imm)),
@@ -397,12 +397,12 @@ function dispatch_vex_0f_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = modrm_xreg(modrm, pfx);
     let src = modrm_rm(modrm, pfx);
+    let imm = fetch(1);
     let src1 : xmmword = read_simd(pfx.vex_vvvv);
     let x : word = match src {
       RM_reg(r) => v(32, r)[15..0],
       RM_mem(m) => v(m),
     };
-    let imm = fetch(1);
     let sel : range(0, 7) = unsigned(imm[2..0]);
     var result : xmmword = src1;
     result[(16 * sel + 15) .. (16 * sel)] = x;

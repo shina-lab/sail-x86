@@ -473,12 +473,12 @@ function dispatch_evex_int(op, pfx) = {
     let modrm = fetch(1);
     let dst = evex_reg_idx(modrm, pfx);
     let src = modrm_rm_evex(modrm, pfx, 2);
+    let imm = fetch(1);
     let src1 : xmmword = read_simd(pfx.evex_vvvvv);
     let word_val : bits(16) = match src {
       RM_reg(r) => v(32, r)[15..0],
       RM_mem(m) => v(m),
     };
-    let imm = fetch(1);
     let sel : range(0, 7) = unsigned(imm[2..0]);
     var result = src1;
     let lo : range(0, 112) = sel * 16;

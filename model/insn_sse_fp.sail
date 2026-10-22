@@ -665,8 +665,8 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_xrm(modrm, pfx);
-      let src_xmm : xmmword = decode_sse_fp_src(src, mp);
       let imm = fetch(1);
+      let src_xmm : xmmword = decode_sse_fp_src(src, mp);
       let a : xmmword = read_simd(xreg);
       let pred : bits(5) = zero_extend(imm[2..0]);
       match mp {
@@ -772,11 +772,14 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
   let modrm = fetch(1);
   let xreg = modrm_xreg(modrm, pfx);
   let src = modrm_xrm(modrm, pfx);
+  // Every 0F 3A instruction ends with an imm8.  Fetch it before any operand
+  // is accessed: a RIP-relative operand is relative to the end of the
+  // instruction (see fixup_addr).
+  let imm = fetch(1);
   match op {
     // SSE4.1 — ROUNDPS xmm1, xmm2/m128, imm8
     8 => {
       let src_xmm = decode_xmm_src(src);
-      let imm = fetch(1);
       var r : xmmword = zeros();
       foreach (i from 0 to 3) {
         let lo = i * 32;
@@ -787,7 +790,6 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // ROUNDPD xmm1, xmm2/m128, imm8
     9 => {
       let src_xmm = decode_xmm_src(src);
-      let imm = fetch(1);
       var r : xmmword = zeros();
       foreach (i from 0 to 1) {
         let lo = i * 64;
@@ -798,7 +800,6 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // ROUNDSS: reads 32 bits from memory, no alignment required
     10 => {
       let src32 : dword = decode_scalar_src(src);
-      let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
       let lo : dword = fp_round(src32, imm);
       ZMM[xreg][127..0] = a[127..32] @ lo
@@ -806,7 +807,6 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // ROUNDSD: reads 64 bits from memory, no alignment required
     11 => {
       let src64 : qword = decode_scalar_src(src);
-      let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
       let lo : qword = fp_round(src64, imm);
       ZMM[xreg][127..0] = a[127..64] @ lo
@@ -815,7 +815,6 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // SSE4.1 — BLENDPS xmm1, xmm2/m128, imm8
     12 => {
       let src_xmm = decode_xmm_src(src);
-      let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
       var r : xmmword = zeros();
       foreach (i from 0 to 3) {
@@ -827,7 +826,6 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // BLENDPD xmm1, xmm2/m128, imm8
     13 => {
       let src_xmm = decode_xmm_src(src);
-      let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
       var r : xmmword = zeros();
       foreach (i from 0 to 1) {
@@ -840,7 +838,6 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // PEXTRW r/m16, xmm, imm8 (SSE4.1, 66 0F 3A 15)
     // SDM: ModRM:reg = source XMM, ModRM:r/m = dest (reg: zero-extend to 32, mem: 16 bits)
     21 => {
-      let imm = fetch(1);
       let sel : range(0, 7) = unsigned(imm[2..0]);
       let w : word = velem(16, ZMM[xreg], sel);
       match src {
@@ -851,7 +848,6 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
 
     // EXTRACTPS r/m32, xmm, imm8
     23 => {
-      let imm = fetch(1);
       let data = velem(32, ZMM[xreg], imm[1..0]);
       match src {
         XRM_reg(_) => v(modrm_rm_reg(modrm, pfx)) = data,
@@ -862,7 +858,6 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // INSERTPS xmm, xmm/m32, imm8
     // Memory form: reads 32 bits, imm8[7:6] forced to 0 (count_s ignored).
     33 => {
-      let imm = fetch(1);
       match src {
         XRM_reg(xi) => exec_insertps(xreg, read_simd(xi), imm),
         XRM_mem(m) => {
@@ -875,7 +870,6 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     // SSE4.1 — dot product
     64 => {
       let src_xmm = decode_xmm_src(src);
-      let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
       let temp0 : dword = fp_mul(a[31..0], src_xmm[31..0]) & sign_extend(imm[4]);
       let temp1 : dword = fp_mul(a[63..32], src_xmm[63..32]) & sign_extend(imm[5]);
@@ -892,7 +886,6 @@ function dispatch_3byte_3a_sse_fp(opcode, pfx) = {
     },
     65 => {
       let src_xmm = decode_xmm_src(src);
-      let imm = fetch(1);
       let a : xmmword = read_simd(xreg);
       let temp0 : qword = fp_mul(a[63..0], src_xmm[63..0]) & sign_extend(imm[4]);
       let temp1 : qword = fp_mul(a[127..64], src_xmm[127..64]) & sign_extend(imm[5]);
