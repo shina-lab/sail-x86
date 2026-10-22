@@ -883,11 +883,13 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
     model.zXCR0_SUPPORTED &= ~(3ULL << 17);
   }
   // WAITPKG (CPUID.(7,0):ECX[5]) likewise: without it the guest's 66/F2/F3
-  // 0F AE /6 register forms and IA32_UMWAIT_CONTROL are #UD and #GP.
+  // 0F AE /6 register forms and IA32_UMWAIT_CONTROL are #UD and #GP.  And
+  // AVX512-FP16 (EDX[23]), whose encodings are #UD on a host without it.
   {
     u32 a, b, c, d;
     __cpuid_count(7, 0, a, b, c, d);
     model.zhas_waitpkg = (c & (1u << 5)) != 0;
+    model.zhas_avx512_fp16 = (d & (1u << 23)) != 0;
   }
   // XCR0 as the guest starts every test (x87, SSE, AVX and the AVX-512
   // components); a test's override, below, may add the AMX components.

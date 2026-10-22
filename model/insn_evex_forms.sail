@@ -774,6 +774,10 @@ function evex_check_form(mmm, opcode, pfx) = {
     Some(f) => f,
     None() => raise_UD(),
   };
+  // AVX512-FP16 (CPUID.(EAX=07H,ECX=0):EDX[23]): maps 5 and 6, and the
+  // 0F3A forms with no prefix or F3 (VRNDSCALEPH ... VCMPSH).
+  let fp16 : bool = mmm == 5 | mmm == 6 | (mmm == 3 & (pp == 0b00 | pp == 0b10));
+  if fp16 & ~(has_avx512_fp16) then raise_UD();
 
   // EVEX.b (Table 2-43): in a register form, static rounding ({er}) or SAE
   // ({sae}); in a memory form, embedded broadcast (§2.7.7); #UD otherwise.

@@ -691,6 +691,7 @@ register has_movdiri   : bool
 register has_movdir64b : bool
 register has_xsave     : bool  // XSAVE/XRSTOR, XSETBV/XGETBV, XCR0 (CPUID.01H:ECX[26])
 register has_avx512    : bool  // silicon support (separate from XCR0 enable)
+register has_avx512_fp16 : bool  // CPUID.07H:EDX[23] — AVX512-FP16 (EVEX maps 5 and 6, and 0F3A forms)
 register has_la57      : bool  // CPUID.07H:ECX[16] — 5-Level Paging
 register has_vmx       : bool  // CPUID.01H:ECX[5] — VMX support
 register has_amx_tile  : bool  // CPUID.07H:EDX[24] — AMX tile architecture (LDTILECFG, TILELOADD, ...)
@@ -809,6 +810,7 @@ function enable_features_v1() = {
   has_crc32 = false;
   has_xsave = false;
   has_avx512 = false;
+  has_avx512_fp16 = false;
   has_vmx = false;
   has_amx_tile = false;
   has_amx_int8 = false;
@@ -862,6 +864,7 @@ function enable_features_v4() = {
   XCR0_SUPPORTED = 0x00000000000000E7;  // + opmask + ZMM_Hi256 + Hi16_ZMM
   XCR0 = 0x00000000000000E7;
   has_avx512 = true;
+  has_avx512_fp16 = true;
   has_rdseed = true;
   has_rdpid = true;
   has_sha = true;
