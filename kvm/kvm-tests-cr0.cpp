@@ -2,15 +2,23 @@
 // writes CR0 from R11 and then executes one instruction, which raises #NM
 // or #UD or completes.  The harness restores CR0 before every case.
 //
-// The SDM's rules (Vol.3A §2.5, Table 2-2; Vol.2A §§2.5, 2.8 and 2.9, the
-// exception classes; Vol.3B §23.25.3 for MMX; the instruction pages):
+// The rules (SDM Vol.3A §2.5 and Tables 2-2, 15-1 and 16-1, Vol.2A
+// §§2.5-2.9, the exception classes; APM Vol.2 §3.1.1, §8.2.7 and §8.2.8,
+// Vol.4 §3.2.1; the instruction pages):
 //   - TS = 1: #NM before any x87, MMX, SSE, AVX or AVX-512 instruction,
 //     the XSAVE family, FXSAVE/FXRSTOR, LDMXCSR/STMXCSR and EMMS; not
 //     before PAUSE, PREFETCHh, SFENCE, LFENCE, MFENCE, MOVNTI, CLFLUSH,
 //     CRC32, POPCNT, the VEX-encoded general-purpose instructions (BMI1,
 //     BMI2: exception class 13) or XGETBV.
-//   - EM = 1: #UD for MMX, legacy SSE (not VEX or EVEX), LDMXCSR/STMXCSR
-//     and EMMS, whatever TS; #NM for x87 and FXSAVE/FXRSTOR.
+//   - EM = 1: #NM for x87 and FXSAVE/FXRSTOR.  #UD for MMX, legacy SSE,
+//     LDMXCSR/STMXCSR and EMMS: on Intel whatever TS ("If the EM flag is
+//     set, the setting of the TS flag has no effect", SDM Vol.3A §2.5);
+//     the APM gives EM its #UD and TS its #NM in no order.  The XSAVE
+//     family ignores EM.  The SDM's VEX and EVEX classes ignore it; the APM
+//     gives #UD for AVX-512 (EVEX and the opmask instructions), and
+//     contradicts itself for the VEX SIMD instructions (Vol.2 §8.2.7: #UD;
+//     the PADDD and LDMXCSR pages: SSE forms only), so there an AMD case
+//     accepts either.
 //   - WAIT/FWAIT: #NM only when TS = 1 and MP = 1.
 //   - #NM and #UD are both faults from decoding the instruction, in one
 //     class whose internal order the manuals leave open (SDM Vol.3A §7.9,
@@ -43,9 +51,13 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
   __cpuid_count(7, 0, a, b, c, d);
   const bool amx_host = d & (1u << 24);  // AMX-TILE
   const bool fp16_host = d & (1u << 23);  // AVX512-FP16
+  __get_cpuid(0x80000001, &a, &b, &c, &d);
+  const bool sse4a_host = c & (1u << 6);  // SSE4A: CPUID Fn8000_0001_ECX[6]
   const u64 AMX_XCR0 = 0xE7 | (3ULL << 17);
-  // MOV to CR0 leaves the arithmetic flags undefined on Intel (SDM Vol.2B
-  // MOV, control registers); AMD preserves them.
+  // The arithmetic flags after MOV to CR0, where the manuals differ: "The
+  // OF, SF, ZF, AF, PF, and CF flags are undefined" (SDM Vol.2B MOV—Move
+  // to/from Control Registers); "rFLAGS Affected None" (APM Vol.3 MOV
+  // CRn).
   const u64 flags = amd_host ? FL_ALL : FL_DF;
 
   // vec is the exception the instruction raises, or NONE when it completes.
@@ -87,6 +99,12 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add(cat, bits, name, std::move(insn), UD, init);
     allow(UD_OR_NM);
   };
+  // ANDN leaves AF and PF undefined: "AF and PF flags are undefined" (SDM
+  // Vol.2A ANDN), "AF U PF U" (APM Vol.3 ANDN).
+  auto af_pf_undefined = [&] {
+    tests.back().flags_mask &= ~(FL_AF | FL_PF);
+    tests.back().rflags_image_ignore |= FL_AF | FL_PF;
+  };
 
   const ArchState mem = {.rdi = DATA_ADDR};
   const ArchState unmapped = {.rsi = UNMAPPED};
@@ -127,7 +145,7 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add(cat, bits, "gf2p8mulb xmm0,xmm1", {0x66, 0x0F, 0x38, 0xCF, 0xC1}, NM);
     add(cat, bits, "ldmxcsr [rsi] (unmapped)", {0x0F, 0xAE, 0x16}, NM, unmapped);
     add(cat, bits, "stmxcsr [rsi] (unmapped)", {0x0F, 0xAE, 0x1E}, NM, unmapped);
-    if (amd_host)
+    if (sse4a_host)
       add(cat, bits, "extrq xmm0,xmm1 (SSE4A)", {0x66, 0x0F, 0x79, 0xC1}, NM);
 
     // MMX
@@ -202,6 +220,7 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add(cat, bits, "mfence", {0x0F, 0xAE, 0xF0}, NONE);
     add(cat, bits, "clflush [rdi]", {0x0F, 0xAE, 0x3F}, NONE, mem);
     add(cat, bits, "andn eax,ebx,ecx (BMI1)", {0xC4, 0xE2, 0x60, 0xF2, 0xC1}, NONE, gprs);
+    af_pf_undefined();
     add(cat, bits, "rorx eax,ebx,3 (BMI2)", {0xC4, 0xE3, 0x7B, 0xF0, 0xC3, 0x03}, NONE, gprs);
     {
       ArchState s = {.rcx = 0};
@@ -300,21 +319,26 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     std::string tag = std::string(" [EM") + (bits & MP ? " MP" : "") + (bits & TS ? " TS" : "");
     auto name = [&](const std::string &n) { return n + tag + "]"; };
 
-    // Legacy SSE and MMX: #UD, whatever TS.
-    add(cat, bits, name("addps xmm0,xmm1"), {0x0F, 0x58, 0xC1}, UD);
-    add(cat, bits, name("movups xmm0,[rsi] (unmapped)"), {0x0F, 0x10, 0x06}, UD, unmapped);
-    add(cat, bits, name("pshufb xmm0,xmm1"), {0x66, 0x0F, 0x38, 0x00, 0xC1}, UD);
-    add(cat, bits, name("palignr xmm0,xmm1,4"), {0x66, 0x0F, 0x3A, 0x0F, 0xC1, 0x04}, UD);
-    add(cat, bits, name("aesenc xmm0,xmm1"), {0x66, 0x0F, 0x38, 0xDC, 0xC1}, UD);
-    add(cat, bits, name("sha1nexte xmm0,xmm1"), {0x0F, 0x38, 0xC8, 0xC1}, UD);
-    add(cat, bits, name("ldmxcsr [rsi] (unmapped)"), {0x0F, 0xAE, 0x16}, UD, unmapped);
-    add(cat, bits, name("stmxcsr [rsi] (unmapped)"), {0x0F, 0xAE, 0x1E}, UD, unmapped);
-    if (amd_host)
-      add(cat, bits, name("extrq xmm0,xmm1 (SSE4A)"), {0x66, 0x0F, 0x79, 0xC1}, UD);
-    add(cat, bits, name("paddb mm0,mm1"), {0x0F, 0xFC, 0xC1}, UD);
-    add(cat, bits, name("pshufb mm0,mm1"), {0x0F, 0x38, 0x00, 0xC1}, UD);
-    add(cat, bits, name("cvtpi2ps xmm0,mm1"), {0x0F, 0x2A, 0xC1}, UD);
-    add(cat, bits, name("emms"), {0x0F, 0x77}, UD);
+    // Legacy SSE and MMX: #UD.  With TS set as well, #UD on Intel (SDM
+    // Vol.3A §2.5, Tables 15-1 and 16-1); the APM gives the #UD of EM
+    // (Vol.2 §3.1.1) and the #NM of TS in no order (Table 8-9, group 6).
+    auto add_media = [&](const std::string &n, std::vector<u8> insn, ArchState init = {}) {
+      add(cat, bits, name(n), std::move(insn), UD, init);
+      if (amd_host && bits & TS) allow(UD_OR_NM);
+    };
+    add_media("addps xmm0,xmm1", {0x0F, 0x58, 0xC1});
+    add_media("movups xmm0,[rsi] (unmapped)", {0x0F, 0x10, 0x06}, unmapped);
+    add_media("pshufb xmm0,xmm1", {0x66, 0x0F, 0x38, 0x00, 0xC1});
+    add_media("palignr xmm0,xmm1,4", {0x66, 0x0F, 0x3A, 0x0F, 0xC1, 0x04});
+    add_media("aesenc xmm0,xmm1", {0x66, 0x0F, 0x38, 0xDC, 0xC1});
+    add_media("sha1nexte xmm0,xmm1", {0x0F, 0x38, 0xC8, 0xC1});
+    add_media("ldmxcsr [rsi] (unmapped)", {0x0F, 0xAE, 0x16}, unmapped);
+    add_media("stmxcsr [rsi] (unmapped)", {0x0F, 0xAE, 0x1E}, unmapped);
+    if (sse4a_host) add_media("extrq xmm0,xmm1 (SSE4A)", {0x66, 0x0F, 0x79, 0xC1});
+    add_media("paddb mm0,mm1", {0x0F, 0xFC, 0xC1});
+    add_media("pshufb mm0,mm1", {0x0F, 0x38, 0x00, 0xC1});
+    add_media("cvtpi2ps xmm0,mm1", {0x0F, 0x2A, 0xC1});
+    add_media("emms", {0x0F, 0x77});
 
     // x87 and FXSAVE/FXRSTOR: #NM.  WAIT: #NM only with TS and MP.  An
     // undefined x87 form and the FXSAVE opcode under a prefix or VEX/EVEX
@@ -341,7 +365,16 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     {
       ArchState s = vectors;
       s.rdi = DATA_ADDR;
+      // For the VEX SIMD instructions the APM contradicts itself (Vol.2
+      // §8.2.7: #UD for "any SSE instruction (uses ZMM/YMM/XMM registers)
+      // ... when CR0.EM = 1"; the PADDD/VPADDD and LDMXCSR/VLDMXCSR pages:
+      // the EM row for the SSE forms only), so an AMD host may raise #UD.
       add(cat, bits, name("vpaddd ymm0,ymm1,ymm2"), {0xC5, 0xF5, 0xFE, 0xC2}, ts, s);
+      if (amd_host) allow({UD, ts});
+      add(cat, bits, name("vldmxcsr [rdi]"), {0xC5, 0xF8, 0xAE, 0x17}, ts, s, mxcsr_1f80);
+      if (amd_host) allow({UD, ts});
+      add(cat, bits, name("vstmxcsr [rdi]"), {0xC5, 0xF8, 0xAE, 0x1F}, ts, s);
+      if (amd_host) allow({UD, ts});
       // AVX-512, EVEX and the opmask instructions: the SDM's classes
       // (E1-E12, K20, K21) give EM no rule; the APM gives it #UD (Vol.4
       // §3.2.1), and with TS set as well #UD or #NM, in no order.
@@ -351,14 +384,13 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
       if (amd_host && bits & TS) allow(UD_OR_NM);
       add(cat, bits, name("kmovw k1,k2"), {0xC5, 0xF8, 0x90, 0xCA}, avx512, s);
       if (amd_host && bits & TS) allow(UD_OR_NM);
-      add(cat, bits, name("vldmxcsr [rdi]"), {0xC5, 0xF8, 0xAE, 0x17}, ts, s, mxcsr_1f80);
-      add(cat, bits, name("vstmxcsr [rdi]"), {0xC5, 0xF8, 0xAE, 0x1F}, ts, s);
     }
 
     // Unaffected
     add(cat, bits, name("crc32 eax,ebx"), {0xF2, 0x0F, 0x38, 0xF1, 0xC3}, NONE, gprs);
     add(cat, bits, name("popcnt eax,ebx"), {0xF3, 0x0F, 0xB8, 0xC3}, NONE, gprs);
     add(cat, bits, name("andn eax,ebx,ecx (BMI1)"), {0xC4, 0xE2, 0x60, 0xF2, 0xC1}, NONE, gprs);
+    af_pf_undefined();
     add(cat, bits, name("sfence"), {0x0F, 0xAE, 0xF8}, NONE);
     add(cat, bits, name("clflush [rdi]"), {0x0F, 0xAE, 0x3F}, NONE, mem);
   }

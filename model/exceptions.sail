@@ -97,9 +97,15 @@ function raise_NM() = {
 // POPCNT (SDM Vol.3A §2.5) and the VEX-encoded general-purpose
 // instructions (BMI1, BMI2: Vol.2A §2.6.1, Type 13) are not affected.
 
-// MMX and legacy-encoded SSE instructions, LDMXCSR, STMXCSR and EMMS
-// (the exception classes of Vol.2A §2.5, Vol.3B §23.25.3 for MMX and the
-// EMMS page): #UD if EM = 1, whatever TS; else #NM if TS = 1.
+// MMX and legacy-encoded SSE instructions, LDMXCSR, STMXCSR and EMMS: #UD
+// if EM = 1, whatever TS; else #NM if TS = 1.  SDM Vol.3A §2.5: "If the EM
+// flag is set, the setting of the TS flag has no effect on the execution
+// of x87 FPU/MMX/SSE/SSE2/SSE3/SSSE3/SSE4 instructions" (Table 15-1 for
+// MMX, Table 16-1 for SSE; the exception classes of Vol.2A §2.5; the EMMS
+// page).  APM Vol.2 §3.1.1: EM "forces an invalid-opcode exception (#UD)
+// when an attempt is made to execute any of the 64-bit or 128-bit media
+// instructions", TS an #NM, whose order is open (§8.5, Table 8-9, group
+// 6); the model takes the SDM's.
 val check_cr0_sse : unit -> unit
 function check_cr0_sse() = {
   if CR0[2] == 0b1 then raise_UD();   // EM
