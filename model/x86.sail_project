@@ -59,6 +59,7 @@ decode {
     insn_evex_arith.sail,
     insn_evex_fp16.sail,
     insn_evex_imm.sail,
+    insn_evex_forms.sail,
     insn_evex_dispatch.sail,
     insn_dispatch.sail,
     fetch_execute.sail,

@@ -145,6 +145,9 @@ function dispatch_evex_fma(op, pfx) = {
     let dst = evex_reg_idx(modrm, pfx);
     let vl = evex_vl(pfx);
     let vsib = decode_vsib_evex(modrm, pfx, if pfx.rex_w then 8 else 4);
+    // SDM (VPGATHERDD et al.): "#UD fault if the destination vector zmm1
+    // is the same as index vector VINDEX".
+    if dst == vsib.vsib_vidx then raise_UD();
     let idx_eb : {32, 64} = if op == 144 | op == 146 then 32 else 64;
     let eb = evex_elem(pfx);
     exec_gather(vl, idx_eb, eb, dst, vsib, pfx.evex_aaa)

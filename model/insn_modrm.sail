@@ -157,7 +157,9 @@ function decode_sib_evex(sib, modbits, pfx, disp_n) = {
 val decode_vsib_evex : (byte, Prefixes, range(1, 64)) -> VSIB
 function decode_vsib_evex(modrm, pfx, disp_n) = {
   let modbits : range(0, 3) = unsigned(modrm[7..6]);
-  // VSIB always has rm=100 (SIB present), mod != 11
+  // VSIB always has rm=100 (SIB present), mod != 11: "the instruction will
+  // #UD fault if ModRM.rm is different than 100b" (SDM, VPGATHERDD et al.)
+  if modrm[2..0] != 0b100 then raise_UD();
   let sib : byte = fetch(1);
   let scale : range(0, 3) = unsigned(sib[7..6]);
 

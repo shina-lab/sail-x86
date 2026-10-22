@@ -133,6 +133,7 @@ function dispatch_evex_with_p0(p0) = {
   if ~(avx512_enabled()) then raise_UD();
   let (pfx, mmm) = decode_evex_with_p0(p0);
   let opcode = fetch(1);
+  let pfx = evex_check_form(mmm, opcode, pfx);
   match mmm {
     1 => dispatch_evex_0f(opcode, pfx),
     2 => dispatch_evex_0f38(opcode, pfx),
