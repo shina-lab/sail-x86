@@ -15,8 +15,8 @@
 // bytes, has no variants.  Each variant runs with may_fault: whether it
 // faults is the hardware's decision, and the model must agree either way.
 // A variant that moves an operand to an address the case did not use
-// stays inside the data page, because outside paging tests the model
-// reaches guest memory through the harness's own address space.
+// keeps it inside the data page, the memory the harness compares (and
+// where a store cannot overwrite the code).
 
 #include "kvm-harness.h"
 #include <unordered_set>
@@ -629,12 +629,15 @@ std::string forms(const std::vector<Insn> &insns, bool with_imm) {
 
 // A variant runs with the model translating through the guest's identity
 // map of the low 2MB, so that an access beyond it faults on both sides.
+// A variant that faults after the instructions leaving the case's
+// undefined flags pushes them in its RFLAGS image.
 TestCase derive(const TestCase &tc) {
   TestCase v = tc;
   v.expect_fault = false;
   v.expected_vector = -1;
   v.may_fault = true;
   v.enable_paging = true;
+  v.rflags_image_ignore |= FL_ARITH & ~tc.flags_mask;
   return v;
 }
 
@@ -686,6 +689,20 @@ std::vector<u8> distinct_page(bool fp, u64 seed) {
 // most of them special values: no data page keeps it from them.
 bool fixupimm(const Insn &in) {
   return in.enc == Enc::Evex && in.map == 3 && (in.op == 0x54 || in.op == 0x55);
+}
+
+// The approximate reciprocals and reciprocal square roots: RCPPS/SS and
+// RSQRTPS/SS (0F 52, 53) in their legacy and VEX forms, VRCP14 and
+// VRSQRT14 (EVEX 0F 38 4C-4F), and VRCPPH/SH and VRSQRTPH/SH (EVEX MAP6
+// 4C-4F).  The SDM bounds their relative error but leaves the results to
+// the implementation; the model computes the exact value.  A case compares
+// them only on inputs whose results are exact (powers of two), or within a
+// tolerance for its own instruction and vector length, and other data or
+// another form of the instruction would test the approximation, not the
+// decoding.
+bool approximation(const Insn &in) {
+  if (in.enc != Enc::Evex) return in.map == 1 && (in.op == 0x52 || in.op == 0x53);
+  return (in.map == 2 || in.map == 6) && in.op >= 0x4C && in.op <= 0x4F;
 }
 
 // Memory operands: the same address through other encodings of it.  The
@@ -821,7 +838,7 @@ void mem_variant(const Base &b, const Emit &emit, MemForm form) {
   if (form == MemForm::ScaledUp || form == MemForm::ScaledDown) {
     bool fp = false;
     for (const Insn &in : b.insns) {
-      if (fixupimm(in)) return;
+      if (fixupimm(in) || approximation(in)) return;
       fp |= fp_arithmetic(in);
     }
     v.init_data = distinct_page(fp, b.seed);
@@ -894,7 +911,7 @@ void make_rounding(const Base &b, const Emit &emit) {
 // leaves and MSRs exist, what they hold) the model and the host need not
 // agree on.  A case keeps such results out of its comparison (by shifting
 // them away, or by its choice of selector), which renumbering the
-// registers would undo.
+// registers, or changing an instruction, would undo.
 bool host_specific(const Insn &in) {
   if (in.enc != Enc::Legacy || in.map != 1) return false;
   return (in.op >= 0x30 && in.op <= 0x33) || in.op == 0xA2 ||
@@ -1004,27 +1021,88 @@ void make_kmask_bits(const Base &b, const Emit &emit) {
 //
 // The kinds below change a single instruction of a case, and one case per
 // instruction form gets each change (Base::seen): what is tested is the
-// instruction's decoding, not the rest of the case.
+// instruction's decoding, not the rest of the case.  A case with results
+// of the host's own gets none, as the instruction that keeps them out of
+// the comparison may be the one changed, and nor does an approximation.
 
 bool claim(const Base &b, const Insn &in, const std::string &detail) {
+  if (approximation(in)) return false;
+  for (const Insn &i : b.insns)
+    if (host_specific(i)) return false;
   return b.seen->insert(forms({in}, false) + detail).second;
 }
 
-std::vector<u8> replace_insn(const std::vector<Insn> &insns, size_t at, const Insn &in) {
+// The arithmetic flags that a VEX-encoded general-purpose instruction
+// leaves undefined (SDM Vol.2, "Flags Affected"): ANDN, BLSI, BLSMSK,
+// BLSR and BZHI leave AF and PF, BEXTR AF, SF and PF.  A change of pp
+// turns PDEP, PEXT, SARX, SHLX and SHRX, which leave the flags alone,
+// into BZHI or BEXTR.
+u64 undefined_flags(const Insn &in) {
+  if (in.enc != Enc::Vex || in.map != 2 || in.pp != 0) return 0;
+  switch (in.op) {
+  case 0xF2: case 0xF3: case 0xF5: return FL_AF | FL_PF;
+  case 0xF7: return FL_AF | FL_SF | FL_PF;
+  }
+  return 0;
+}
+
+// The case with instruction `at` replaced by `in`, whose undefined flags
+// are as undefined as the case's own.  Where the change makes
+// floating-point arithmetic read its operands as another element type (a
+// change of W or of the mandatory prefix, as from PD to PS or from SD to
+// SS), the values the case chose are no longer the ones it reads, and the
+// vector registers and the data page get values whose elements of any size
+// are positive normal numbers instead (see distinct_page).
+TestCase replace_insn(const Base &b, size_t at, const Insn &in) {
+  const Insn &orig = b.insns[at];
+  TestCase v = derive(b.tc);
   std::vector<Piece> pieces;
-  for (size_t i = 0; i < insns.size(); i++) pieces.push_back({{}, i == at ? in : insns[i], {}});
-  return assemble(pieces);
+  for (size_t i = 0; i < b.insns.size(); i++)
+    pieces.push_back({{}, i == at ? in : b.insns[i], {}});
+  v.code = assemble(pieces);
+  v.flags_mask &= ~undefined_flags(in);
+  v.rflags_image_ignore |= undefined_flags(in);
+  // (x87 instructions have no element types: there a prefix selects the
+  // format of an environment image, whose control word the case chose.)
+  if (in.map != 0 && (fp_arithmetic(orig) || fp_arithmetic(in)) &&
+      (orig.W != in.W || mandatory_prefix(orig) != mandatory_prefix(in))) {
+    std::mt19937_64 rng(b.seed);
+    for (auto &reg : v.initial.xmm)
+      for (u64 &q : reg.q) q = (rng() & 0x0F0F0F0F0F0F0F0F) | 0x4040404040404040;
+    if (in.has_mem()) v.init_data = distinct_page(true, b.seed);
+  }
+  return v;
+}
+
+// Whether an instruction may address memory through general-purpose
+// register r: as a base or index, or implicitly.
+bool addresses_through(const Insn &in, int r) {
+  if (implicit_memory(in) && (r == 6 || r == 7)) return true;
+  if (!in.has_mem() || in.rip_relative()) return false;
+  if (!in.has_sib) return in.rm() == r;
+  bool no_base = in.mod() == 0 && (in.sib & 7) == 5;
+  return (!no_base && ((in.sib & 7) | in.B << 3) == r) || ((in.sib >> 3 & 7) | in.X << 3) == r;
 }
 
 // Whether an instruction may use general-purpose register r in any way:
 // in a register field, as a base or index, or implicitly.
 bool names_gpr(const Insn &in, int r) {
-  if (may_write_gpr(in, r) || (implicit_memory(in) && (r == 6 || r == 7))) return true;
-  if (is4_operand(in) && (in.imm[0] >> 4) == r) return true;
-  if (!in.has_mem() || in.rip_relative()) return false;
-  if (!in.has_sib) return in.rm() == r;
-  bool no_base = in.mod() == 0 && (in.sib & 7) == 5;
-  return (!no_base && ((in.sib & 7) | in.B << 3) == r) || ((in.sib >> 3 & 7) | in.X << 3) == r;
+  return may_write_gpr(in, r) || addresses_through(in, r) ||
+         (is4_operand(in) && (in.imm[0] >> 4) == r);
+}
+
+// Whether instruction i may write a general-purpose register through which
+// a later instruction addresses memory.  A prefix that changes its operand
+// size would move that access to an address the case did not use, which
+// need not be in the data page.
+bool feeds_address(const std::vector<Insn> &insns, size_t i) {
+  if (simd(insns[i])) return false;
+  for (int r = 0; r < 16; r++) {
+    if (!may_write_gpr(insns[i], r)) continue;
+    for (size_t j = i + 1; j < insns.size(); j++)
+      if (addresses_through(insns[j], r)) return true;
+  }
+  return false;
 }
 
 // A register the code does not use, to hold an address, or -1.  RAX-RBX
@@ -1056,26 +1134,44 @@ Insn as_memory(Insn in, int r, int disp_len, i32 disp) {
   return in;
 }
 
+// The x87 memory forms that load a number: FLD, FILD, FBLD, and the
+// arithmetic and comparisons with a memory operand.
+bool x87_loads_number(const Insn &in) {
+  if (in.enc != Enc::Legacy || in.map != 0) return false;
+  int digit = in.modrm >> 3 & 7;
+  switch (in.op) {
+  case 0xD8: case 0xDA: case 0xDC: case 0xDE: return true;
+  case 0xD9: case 0xDD: return digit == 0;
+  case 0xDB: return digit == 0 || digit == 5;
+  case 0xDF: return digit == 0 || digit == 4 || digit == 5;
+  }
+  return false;
+}
+
 // Register operands as memory operands: an r/m register operand becomes
 // [r] for a register r the code does not use, pointing at 800h in the data
 // page, which holds the initial value of the register the operand named.
 // An instruction without a memory form raises #UD instead.  EVEX forms
-// also get EVEX.b, which with a memory operand is broadcast.
+// also get EVEX.b, which with a memory operand is broadcast.  An x87
+// register form whose memory form loads a number is left alone: it would
+// load the bytes of a general-purpose register, values no case chose, for
+// the externs' floating-point arithmetic.
 void make_reg_to_mem(const Base &b, const Emit &emit) {
   if (!b.movable || b.tc.init_data.size() > 0x800) return;
   int r = free_gpr(b.insns);
   if (r < 0) return;
   for (size_t i = 0; i < b.insns.size(); i++) {
     const Insn &orig = b.insns[i];
-    if (!orig.has_modrm || orig.mod() != 3 || orig.modrm_reg_only || system_group(orig)) continue;
+    if (!orig.has_modrm || orig.mod() != 3 || orig.modrm_reg_only || system_group(orig) ||
+        x87_loads_number(orig))
+      continue;
     for (bool bcast : {false, true}) {
       if (bcast && orig.enc != Enc::Evex) continue;
       const char *detail = bcast ? "register r/m as broadcast memory" : "register r/m as memory";
       if (!claim(b, orig, detail)) continue;
       Insn in = as_memory(orig, r, 0, 0);
       in.evex_zbaaa = u8((in.evex_zbaaa & ~0x10) | (bcast ? 0x10 : 0));
-      TestCase v = derive(b.tc);
-      v.code = replace_insn(b.insns, i, in);
+      TestCase v = replace_insn(b, i, in);
       set_gpr(v.initial, r, DATA_ADDR + 0x800);
       v.init_data.resize(0x840);
       int reg = orig.rm() | (orig.enc == Enc::Evex ? orig.X << 4 : 0);
@@ -1106,8 +1202,7 @@ void make_reg_to_scaled_mem(const Base &b, const Emit &emit) {
         if (!claim(b, orig, detail)) continue;
         Insn in = as_memory(orig, r, 1, d);
         in.evex_zbaaa = u8((in.evex_zbaaa & ~0x10) | (bcast ? 0x10 : 0));
-        TestCase v = derive(b.tc);
-        v.code = replace_insn(b.insns, i, in);
+        TestCase v = replace_insn(b, i, in);
         set_gpr(v.initial, r, DATA_ADDR + 0x800);
         v.init_data = distinct_page(fp_arithmetic(orig), b.seed);
         emit(b, detail, std::move(v));
@@ -1131,8 +1226,7 @@ void make_mem_to_reg(const Base &b, const Emit &emit) {
     in.has_sib = false;
     in.disp_len = 0;
     in.disp = 0;
-    TestCase v = derive(b.tc);
-    v.code = replace_insn(b.insns, i, in);
+    TestCase v = replace_insn(b, i, in);
     emit(b, "memory r/m as register", std::move(v));
   }
 }
@@ -1173,8 +1267,7 @@ void make_fields(const Base &b, const Emit &emit) {
     }
     for (auto &[detail, in] : flips) {
       if (!claim(b, orig, detail)) continue;
-      TestCase v = derive(b.tc);
-      v.code = replace_insn(b.insns, i, in);
+      TestCase v = replace_insn(b, i, in);
       emit(b, detail, std::move(v));
     }
   }
@@ -1196,7 +1289,7 @@ void make_prefixes(const Base &b, const Emit &emit) {
   if (!b.movable) return;
   for (size_t i = 0; i < b.insns.size(); i++) {
     const Insn &orig = b.insns[i];
-    if (system_group(orig) || orig.modrm_reg_only) continue;
+    if (system_group(orig) || orig.modrm_reg_only || feeds_address(b.insns, i)) continue;
     bool legacy = orig.enc == Enc::Legacy;
     std::vector<std::pair<std::string, Insn>> changed;
     for (u8 p : {0x66, 0xF2, 0xF3, 0xF0, 0x2E, 0x64}) {
@@ -1229,8 +1322,7 @@ void make_prefixes(const Base &b, const Emit &emit) {
     }
     for (auto &[detail, in] : changed) {
       if (!claim(b, orig, detail)) continue;
-      TestCase v = derive(b.tc);
-      v.code = replace_insn(b.insns, i, in);
+      TestCase v = replace_insn(b, i, in);
       emit(b, detail, std::move(v));
     }
   }
