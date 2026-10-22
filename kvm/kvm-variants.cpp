@@ -97,7 +97,7 @@ bool one_byte_has_modrm(u8 op) {
 
 int one_byte_imm_len(const Insn &in) {
   u8 op = in.op;
-  int z = in.has_prefix(0x66) ? 2 : 4;
+  int z = in.has_prefix(0x66) && !in.W ? 2 : 4;  // REX.W overrides 66h
   if (op < 0x40) return (op & 7) == 4 ? 1 : (op & 7) == 5 ? z : 0;
   if ((op >= 0x70 && op <= 0x7F) || (op >= 0xB0 && op <= 0xB7) || (op >= 0xE0 && op <= 0xE7))
     return 1;
