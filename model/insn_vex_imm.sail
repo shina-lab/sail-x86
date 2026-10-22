@@ -335,7 +335,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   // 0F3A 30-33: KSHIFTR/L {B,W,D,Q}
   op if 48 <= op & op <= 51 => {
     let modrm = fetch(1);
-    let k1 : range(0, 7) = unsigned(modrm[5..3]);
+    vex_k_form(pfx, false);
+    let k1 = vex_kreg_reg(modrm, pfx);
     let k2 : range(0, 7) = unsigned(modrm[2..0]);
     let shift : range(0, 255) = unsigned(fetch(1));
     let w_mask : qword = sign_extend(bool_to_bit(pfx.vex_w));
