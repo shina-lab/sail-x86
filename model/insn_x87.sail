@@ -175,7 +175,7 @@ function x87_write_result(i, r) =
   x87_write_st(i, if x87_stack_faulted then x87_indefinite else r)
 
 // =========================================================================
-// C2: trigonometric source out of range
+// C2: trigonometric source out of range, partial remainder
 // =========================================================================
 
 // The source of FSIN, FCOS, FSINCOS and FPTAN (pushes: the last two, which
@@ -202,6 +202,31 @@ function x87_trig_source(pushes) = {
     x87_sw[10] = 0b1;
     None()
   } else Some(x)
+}
+
+// FPREM (nearest = false) and FPREM1 (nearest = true): ST(0) := the
+// remainder of ST(0) / ST(1), or, for exponents 64 or more apart, a
+// partial remainder, which the externs compute (__f80_prem).  "C2 := 0;
+// C0, C3, C1 := LeastSignificantBits(Q); (* Q2, Q1, Q0 *)" for a complete
+// reduction, "C2 := 1" for a partial one (SDM Vol.2A FPREM and FPREM1,
+// Operation), where C0, C3 and C1 are cleared.  A NaN result (an invalid
+// operation, a NaN operand, a masked stack fault) has no quotient: C2 and
+// C1 are cleared, C0 and C3 left.  C2 is cleared also when an unmasked
+// stack fault ends the instruction.  Both vendors behave so (checked
+// natively on a Zen 4 and an Emerald Rapids).
+val x87_partial_remainder : bool -> unit
+function x87_partial_remainder(nearest) = {
+  x87_sw[10] = 0b0;
+  let st0 = x87_operand(0);
+  let st1 = x87_operand(1);
+  let r : bits(84) = if nearest then __f80_prem1(st0, st1) else __f80_prem(st0, st1);
+  x87_write_result(0, r[79..0]);
+  x87_sw[10] = r[83];  // C2: the reduction is incomplete
+  x87_sw[9] = r[80];   // C1 := Q0
+  if ~(r[78..64] == ones() & r[62..0] != zeros()) then {
+    x87_sw[8] = r[82];   // C0 := Q2
+    x87_sw[14] = r[81]   // C3 := Q1
+  }
 }
 
 // =========================================================================
@@ -374,13 +399,13 @@ function dispatch_x87_d9(modrm, operand, pfx) = {
                        else __f80_extract_significand(val80))
             },
             // FPREM1
-            245 => x87_write_result(0, __f80_prem1(x87_operand(0), x87_operand(1))),
+            245 => x87_partial_remainder(true),
             // FDECSTP
             246 => x87_dec_top(),
             // FINCSTP
             247 => x87_inc_top(),
             // FPREM
-            248 => x87_write_result(0, __f80_prem(x87_operand(0), x87_operand(1))),
+            248 => x87_partial_remainder(false),
             // FYL2XP1 — ST(1) * log2(ST(0) + 1), pop
             249 => {
               let result = __f80_yl2xp1(x87_operand(1), x87_operand(0));

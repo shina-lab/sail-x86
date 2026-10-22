@@ -333,8 +333,12 @@ val __f80_tan : fp80 -> fp80
 val __f80_atan2 : (fp80, fp80) -> fp80
 val __f80_2xm1 : fp80 -> fp80
 val __f80_scale : (fp80, fp80) -> fp80
-val __f80_prem : (fp80, fp80) -> fp80
-val __f80_prem1 : (fp80, fp80) -> fp80
+// FPREM and FPREM1 of (ST(0), ST(1)): the remainder, or the partial
+// remainder of their Operation for exponents 64 or more apart, in bits
+// 79..0, and Q0, Q1, Q2 of the quotient and C2 (the reduction is
+// incomplete) in bits 80..83, all 0 for a NaN result.
+val __f80_prem : (fp80, fp80) -> bits(84)
+val __f80_prem1 : (fp80, fp80) -> bits(84)
 val __f80_round : fp80 -> fp80
 
 // BCD conversions (for FBLD/FBSTP)
