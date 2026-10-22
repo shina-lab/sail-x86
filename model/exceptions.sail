@@ -70,22 +70,32 @@ function raise_NM() = {
   exit()  // never reached; satisfies type checker
 }
 
-// CR0.EM and CR0.TS (SDM Vol.3A §2.5).  An OS sets TS on a task switch
-// and saves the x87, MMX and SIMD state of the old task only when the new
-// one first uses it, on the #NM; EM says there is no x87 FPU.  #UD and
-// #NM are both faults from decoding the instruction (Vol.3A §7.9, Table
-// 7-2), whose order the SDM leaves open, and come ahead of the #GP, #SS,
-// #PF and #AC of a memory operand (the exception classes of Vol.2A §2.5,
-// §2.8 and §2.9 list them in that order).  An Emerald Rapids raises every
-// #UD the encoding decides first: an undefined opcode, prefix, ModR/M.reg
-// extension or r/m form, a VSIB operand without a SIB byte, register
-// operands an instruction forbids, AVX or AVX-512 state disabled in XCR0,
-// an undefined x87 form.  So the checks come after the decoder's (the
-// tables of insn_dispatch.sail, vex_check_form, evex_check_form,
-// x87_undefined) and before the instruction touches its operands.
-// PAUSE, PREFETCHh, SFENCE, LFENCE, MFENCE, MOVNTI, CLFLUSH, CRC32,
-// POPCNT and the VEX-encoded general-purpose instructions (BMI1, BMI2) are
-// not affected.
+// CR0.EM and CR0.TS (SDM Vol.3A §2.5; APM Vol.2 §3.1.1).  An OS sets TS
+// on a task switch and saves the x87, MMX and SIMD state of the old task
+// only when the new one first uses it, on the #NM; EM says there is no
+// x87 FPU.
+//
+// #UD and #NM are both faults from decoding the instruction, in one class
+// whose internal order the manuals leave open: "Faults from Decoding the
+// Next Instruction ... Invalid Opcode (#UD), Coprocessor Not Available
+// (#NM)", and "the priority of events within a class is
+// implementation-dependent" (SDM Vol.3A §7.9, Table 7-2, class 9);
+// "interrupt prioritization within a group is implementation dependent"
+// (APM Vol.2 §8.5, Table 8-9, group 6).  The model's choice is to raise
+// every #UD the encoding or the enabled state decides first: an undefined
+// opcode, prefix, ModR/M.reg extension or r/m form, a VSIB operand without
+// a SIB byte, register operands an instruction forbids, a CPUID feature
+// the processor lacks, AVX or AVX-512 state disabled in XCR0, an undefined
+// x87 form.  So the checks come after the decoder's (the tables of
+// insn_dispatch.sail, vex_check_form, evex_check_form, x87_undefined).
+// Both come before the instruction touches its operands: Table 7-2 "does
+// not specify the prioritization of faults that arise during instruction
+// execution" (#GP, #SS, #PF, #AC), which follow the decoding, and the
+// APM puts those in group 7, below group 6.
+//
+// PAUSE, PREFETCHh, SFENCE, LFENCE, MFENCE, MOVNTI, CLFLUSH, CRC32 and
+// POPCNT (SDM Vol.3A §2.5) and the VEX-encoded general-purpose
+// instructions (BMI1, BMI2: Vol.2A §2.6.1, Type 13) are not affected.
 
 // MMX and legacy-encoded SSE instructions, LDMXCSR, STMXCSR and EMMS
 // (the exception classes of Vol.2A §2.5, Vol.3B §23.25.3 for MMX and the

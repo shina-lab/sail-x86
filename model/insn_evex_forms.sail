@@ -887,12 +887,14 @@ function evex_check_form(mmm, opcode, pfx) = {
   // and a gather's destination must not be its index register (SDM
   // VPGATHERDD etc.: "#UD fault if ModRM.rm is different than 100b", "if
   // the destination vector zmm1 is the same as index vector VINDEX"); an
-  // opmask destination is k0-k7, so EVEX.R and EVEX.R' must be 0 (a Zen 4
-  // raises #UD for every opmask-destination form tried: VCMPPS, VPCMPD,
-  // VPCMPEQD, VPTESTMD, VFPCLASSPS, VPMOVD2M, VPSHUFBITQMB); and a complex
-  // FP16 multiply's destination must be neither source (SDM VFCMADDCPH
-  // etc.: "#UD If (dest_reg == src1_reg) or (dest_reg == src2_reg)").  An
-  // Emerald Rapids raises these, too, ahead of the #NM of CR0.TS.
+  // opmask destination is k0-k7, so R and R' must be 0 (SDM Vol.2A Table
+  // 2-41, of the encoded, inverted bits: "ModRM.reg encodes k-reg If
+  // EVEX.R = 0", "ModRM.reg encodes k-reg or GPR If 0"; APM Vol.4 §3.2.4:
+  // "When ModR/M.reg specifies a K register #UD ... Cannot specify a K
+  // register above k7"); and a complex FP16 multiply's destination must be
+  // neither source (SDM VFCMADDCPH etc.: "#UD If (dest_reg == src1_reg) or
+  // (dest_reg == src2_reg)").  Like every #UD of the encoding, these come
+  // ahead of the #NM of CR0.TS (exceptions.sail).
   let op : range(0, 255) = unsigned(opcode);
   let dst = evex_reg_idx(modrm, pfx);
   if f.vvvv == V_VSIB then {

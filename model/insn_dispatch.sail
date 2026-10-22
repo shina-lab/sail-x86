@@ -518,8 +518,8 @@ function simd_0f3a_forms(op, mp) = {
 // the #NM of CR0.TS (check_cr0_sse).  These are faults from decoding the
 // instruction (SDM Vol.3A §7.9, Table 7-2), so they come ahead of the #GP,
 // #PF or #AC of an operand access, which arise only as the instruction
-// executes.  Of the #UD and #NM, the SDM gives no order; the hardware
-// raises the #UD of an undefined encoding.
+// executes.  Of the #UD and #NM, the manuals give no order; the model
+// raises the #UD of the encoding first (exceptions.sail).
 val check_legacy_simd : (range(1, 3), range(0, 255), Prefixes) -> unit
 function check_legacy_simd(map, op, pfx) = {
   let modrm = peek_modrm();

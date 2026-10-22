@@ -12,10 +12,12 @@
 //   - EM = 1: #UD for MMX, legacy SSE (not VEX or EVEX), LDMXCSR/STMXCSR
 //     and EMMS, whatever TS; #NM for x87 and FXSAVE/FXRSTOR.
 //   - WAIT/FWAIT: #NM only when TS = 1 and MP = 1.
-//   - #NM and #UD are both faults from decoding the instruction (Vol.3A
-//     §7.9, Table 7-2), ahead of the faults of its memory operands.
-// An Emerald Rapids raises every #UD the encoding decides ahead of the
-// #NM, register operands an instruction forbids included.
+//   - #NM and #UD are both faults from decoding the instruction, in one
+//     class whose internal order the manuals leave open (SDM Vol.3A §7.9,
+//     Table 7-2, class 9; APM Vol.2 §8.5, Table 8-9, group 6), ahead of
+//     the faults of its memory operands.  The model raises the #UD of the
+//     encoding first; a case of an encoding that is #UD accepts either
+//     fault when TS (or, where it applies, EM) is set.
 //
 // rdi points to the data page, rsi to an unmapped page (the harness maps
 // nothing below CODE_ADDR).
@@ -76,6 +78,15 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     tc.allowed_outcomes = std::move(outcomes);
   };
   const std::vector<int> UD_OR_NM = {UD, NM};
+  // An encoding that is #UD, run with TS set (or EM, for an opcode EM
+  // gives #NM): the #UD and the #NM are in one class, in no order (SDM
+  // Vol.3A Table 7-2, class 9; APM Vol.2 Table 8-9, group 6).  The model
+  // raises the #UD; the case accepts either.
+  auto add_ud = [&](const std::string &cat, u64 bits, const std::string &name,
+                    std::vector<u8> insn, ArchState init = {}) {
+    add(cat, bits, name, std::move(insn), UD, init);
+    allow(UD_OR_NM);
+  };
 
   const ArchState mem = {.rdi = DATA_ADDR};
   const ArchState unmapped = {.rsi = UNMAPPED};
@@ -203,57 +214,61 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
       tests.back().xcr0_override = AMX_XCR0;
     }
 
-    // Undefined encodings: #UD, a fault from decoding like #NM, comes first.
-    add(cat, bits, "F2 0F 14 (unpcklps with F2) #UD", {0xF2, 0x0F, 0x14, 0xC1}, UD);
-    add(cat, bits, "66 0F 13 /r reg (movlpd store, register form) #UD",
-        {0x66, 0x0F, 0x13, 0xC1}, UD);
-    add(cat, bits, "lock addps #UD", {0xF0, 0x0F, 0x58, 0xC1}, UD);
-    add(cat, bits, "66 0F 71 /0 (group 12, /0) #UD", {0x66, 0x0F, 0x71, 0xC1, 0x00}, UD);
-    add(cat, bits, "F3 0F 38 00 (pshufb with F3) #UD", {0xF3, 0x0F, 0x38, 0x00, 0xC1}, UD);
-    add(cat, bits, "66 0F 38 2A reg (movntdqa, register form) #UD",
-        {0x66, 0x0F, 0x38, 0x2A, 0xC1}, UD);
-    add(cat, bits, "66 0F 38 FF (undefined) #UD", {0x66, 0x0F, 0x38, 0xFF, 0xC1}, UD);
-    add(cat, bits, "F3 0F 3A 0F (palignr with F3) #UD", {0xF3, 0x0F, 0x3A, 0x0F, 0xC1, 0x01}, UD);
-    add(cat, bits, "66 0F 3A FF (undefined) #UD", {0x66, 0x0F, 0x3A, 0xFF, 0xC1, 0x00}, UD);
-    add(cat, bits, "66 0F 77 (emms with 66) #UD", {0x66, 0x0F, 0x77}, UD);
-    add(cat, bits, "0F AE /2 reg (ldmxcsr, register form) #UD", {0x0F, 0xAE, 0xD0}, UD);
-    add(cat, bits, "0F AE /0 reg (fxsave, register form) #UD", {0x0F, 0xAE, 0xC0}, UD);
-    add(cat, bits, "0F C7 /4 reg (xsavec, register form) #UD", {0x0F, 0xC7, 0xE0}, UD);
-    add(cat, bits, "lock fld1 #UD", {0xF0, 0xD9, 0xE8}, UD);
-    add(cat, bits, "vmovd xmm0,eax with vvvv = 1110b #UD", {0xC5, 0xF1, 0x6E, 0xC0}, UD);
-    add(cat, bits, "vmovd xmm0,eax with VEX.L = 1 #UD", {0xC5, 0xFD, 0x6E, 0xC0}, UD);
-    add(cat, bits, "VEX.128.66.0F 71 /0 #UD", {0xC5, 0xF9, 0x71, 0xC1, 0x00}, UD);
-    add(cat, bits, "VEX.0F AE /4 (no vxsave) #UD", {0xC5, 0xF8, 0xAE, 0x27}, UD, mem);
-    add(cat, bits, "vpgatherdd xmm0,[rsi+xmm0*4],xmm2 (destination = index) #UD",
-        {0xC4, 0xE2, 0x69, 0x90, 0x04, 0x86}, UD, unmapped);
-    add(cat, bits, "vpgatherdd xmm0,[rsi+xmm1*4],xmm0 (destination = mask) #UD",
-        {0xC4, 0xE2, 0x79, 0x90, 0x04, 0x8E}, UD, unmapped);
-    add(cat, bits, "vpgatherdd xmm0,[rsi],xmm2 (no SIB) #UD", {0xC4, 0xE2, 0x69, 0x90, 0x06}, UD,
-        unmapped);
-    // An opmask in ModR/M.reg with VEX.R set, or in VEX.vvvv with its bit
-    // 3 set: #UD on Intel, ignored on AMD.
-    add(cat, bits, "kandw k1,k10,k3 (vvvv bit 3)", {0xC5, 0xAC, 0x41, 0xCB}, amd_host ? NM : UD);
-    add(cat, bits, "kmovw k9,k2 (VEX.R)", {0xC5, 0x78, 0x90, 0xCA}, amd_host ? NM : UD);
-    add(cat, bits, "vaddps zmm0{z},zmm1,zmm2 (zeroing without a mask) #UD",
-        {0x62, 0xF1, 0x74, 0xC8, 0x58, 0xC2}, UD);
-    add(cat, bits, "vaddps with EVEX.L'L = 11b #UD", {0x62, 0xF1, 0x74, 0x68, 0x58, 0xC2}, UD);
-    add(cat, bits, "vpgatherdd zmm0{k1},[rsi+zmm0*4] (destination = index) #UD",
-        {0x62, 0xF2, 0x7D, 0x49, 0x90, 0x04, 0x86}, UD, unmapped);
-    add(cat, bits, "vpgatherdd zmm0,[rsi+zmm1*4] (k0) #UD", {0x62, 0xF2, 0x7D, 0x48, 0x90, 0x04, 0x8E},
-        UD, unmapped);
-    add(cat, bits, "vpgatherdd zmm0{k1},[rsi] (no SIB) #UD", {0x62, 0xF2, 0x7D, 0x49, 0x90, 0x06},
-        UD, unmapped);
-    add(cat, bits, "vpscatterdd [rsi]{k1},zmm0 (no SIB) #UD", {0x62, 0xF2, 0x7D, 0x49, 0xA0, 0x06},
-        UD, unmapped);
-    add(cat, bits, "vpcmpeqd k1,zmm0,zmm1 with EVEX.R #UD", {0x62, 0x71, 0x7D, 0x48, 0x76, 0xC9},
-        UD);
-    add(cat, bits, "vpcmpeqd k1,zmm0,zmm1 with EVEX.R' #UD", {0x62, 0xE1, 0x7D, 0x48, 0x76, 0xC9},
-        UD);
-    add(cat, bits, "v4fmaddps (AVX512_4FMAPS) #UD", {0x62, 0xF2, 0x77, 0x48, 0x9A, 0x06}, UD,
-        unmapped);
+    // Encodings that are #UD: undefined opcodes, mandatory prefixes,
+    // ModR/M.reg extensions and r/m forms, LOCK, and register operands an
+    // instruction forbids.  With TS set they may raise either fault
+    // (add_ud).
+    add_ud(cat, bits, "F2 0F 14 (unpcklps with F2) #UD", {0xF2, 0x0F, 0x14, 0xC1});
+    add_ud(cat, bits, "66 0F 13 /r reg (movlpd store, register form) #UD",
+           {0x66, 0x0F, 0x13, 0xC1});
+    add_ud(cat, bits, "lock addps #UD", {0xF0, 0x0F, 0x58, 0xC1});
+    add_ud(cat, bits, "66 0F 71 /0 (group 12, /0) #UD", {0x66, 0x0F, 0x71, 0xC1, 0x00});
+    add_ud(cat, bits, "F3 0F 38 00 (pshufb with F3) #UD", {0xF3, 0x0F, 0x38, 0x00, 0xC1});
+    add_ud(cat, bits, "66 0F 38 2A reg (movntdqa, register form) #UD",
+           {0x66, 0x0F, 0x38, 0x2A, 0xC1});
+    add_ud(cat, bits, "66 0F 38 FF (undefined) #UD", {0x66, 0x0F, 0x38, 0xFF, 0xC1});
+    add_ud(cat, bits, "F3 0F 3A 0F (palignr with F3) #UD", {0xF3, 0x0F, 0x3A, 0x0F, 0xC1, 0x01});
+    add_ud(cat, bits, "66 0F 3A FF (undefined) #UD", {0x66, 0x0F, 0x3A, 0xFF, 0xC1, 0x00});
+    add_ud(cat, bits, "66 0F 77 (emms with 66) #UD", {0x66, 0x0F, 0x77});
+    add_ud(cat, bits, "0F AE /2 reg (ldmxcsr, register form) #UD", {0x0F, 0xAE, 0xD0});
+    add_ud(cat, bits, "0F AE /0 reg (fxsave, register form) #UD", {0x0F, 0xAE, 0xC0});
+    add_ud(cat, bits, "0F C7 /4 reg (xsavec, register form) #UD", {0x0F, 0xC7, 0xE0});
+    add_ud(cat, bits, "lock fld1 #UD", {0xF0, 0xD9, 0xE8});
+    add_ud(cat, bits, "vmovd xmm0,eax with vvvv = 1110b #UD", {0xC5, 0xF1, 0x6E, 0xC0});
+    add_ud(cat, bits, "vmovd xmm0,eax with VEX.L = 1 #UD", {0xC5, 0xFD, 0x6E, 0xC0});
+    add_ud(cat, bits, "VEX.128.66.0F 71 /0 #UD", {0xC5, 0xF9, 0x71, 0xC1, 0x00});
+    add_ud(cat, bits, "VEX.0F AE /4 (no vxsave) #UD", {0xC5, 0xF8, 0xAE, 0x27}, mem);
+    add_ud(cat, bits, "vpgatherdd xmm0,[rsi+xmm0*4],xmm2 (destination = index) #UD",
+           {0xC4, 0xE2, 0x69, 0x90, 0x04, 0x86}, unmapped);
+    add_ud(cat, bits, "vpgatherdd xmm0,[rsi+xmm1*4],xmm0 (destination = mask) #UD",
+           {0xC4, 0xE2, 0x79, 0x90, 0x04, 0x8E}, unmapped);
+    add_ud(cat, bits, "vpgatherdd xmm0,[rsi],xmm2 (no SIB) #UD", {0xC4, 0xE2, 0x69, 0x90, 0x06},
+           unmapped);
+    // An opmask register above k7, in ModR/M.reg (VEX.R set) or in
+    // VEX.vvvv (bit 3 set): "Cannot specify a K Register above k7" (APM
+    // Vol.4 §3.2.5).
+    add_ud(cat, bits, "kandw k1,k10,k3 (vvvv bit 3)", {0xC5, 0xAC, 0x41, 0xCB});
+    add_ud(cat, bits, "kmovw k9,k2 (VEX.R)", {0xC5, 0x78, 0x90, 0xCA});
+    add_ud(cat, bits, "vaddps zmm0{z},zmm1,zmm2 (zeroing without a mask) #UD",
+           {0x62, 0xF1, 0x74, 0xC8, 0x58, 0xC2});
+    add_ud(cat, bits, "vaddps with EVEX.L'L = 11b #UD", {0x62, 0xF1, 0x74, 0x68, 0x58, 0xC2});
+    add_ud(cat, bits, "vpgatherdd zmm0{k1},[rsi+zmm0*4] (destination = index) #UD",
+           {0x62, 0xF2, 0x7D, 0x49, 0x90, 0x04, 0x86}, unmapped);
+    add_ud(cat, bits, "vpgatherdd zmm0,[rsi+zmm1*4] (k0) #UD",
+           {0x62, 0xF2, 0x7D, 0x48, 0x90, 0x04, 0x8E}, unmapped);
+    add_ud(cat, bits, "vpgatherdd zmm0{k1},[rsi] (no SIB) #UD",
+           {0x62, 0xF2, 0x7D, 0x49, 0x90, 0x06}, unmapped);
+    add_ud(cat, bits, "vpscatterdd [rsi]{k1},zmm0 (no SIB) #UD",
+           {0x62, 0xF2, 0x7D, 0x49, 0xA0, 0x06}, unmapped);
+    add_ud(cat, bits, "vpcmpeqd k1,zmm0,zmm1 with EVEX.R #UD",
+           {0x62, 0x71, 0x7D, 0x48, 0x76, 0xC9});
+    add_ud(cat, bits, "vpcmpeqd k1,zmm0,zmm1 with EVEX.R' #UD",
+           {0x62, 0xE1, 0x7D, 0x48, 0x76, 0xC9});
+    add_ud(cat, bits, "v4fmaddps (AVX512_4FMAPS) #UD", {0x62, 0xF2, 0x77, 0x48, 0x9A, 0x06},
+           unmapped);
     if (fp16_host)
-      add(cat, bits, "vfcmulcph zmm0,zmm0,zmm1 (destination = source) #UD",
-          {0x62, 0xF6, 0x7F, 0x48, 0xD6, 0xC1}, UD);
+      add_ud(cat, bits, "vfcmulcph zmm0,zmm0,zmm1 (destination = source) #UD",
+             {0x62, 0xF6, 0x7F, 0x48, 0xD6, 0xC1});
 
     // Encodings that are no instruction but whose opcode is that of an x87
     // instruction or of FXSAVE and FXRSTOR: an undefined D8-DF form (APM
@@ -261,23 +276,15 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     // operand, which are FXSAVE and FXRSTOR without a prefix only (SDM "NP
     // 0F AE /0"; APM Vol.3 Table A-7), under a 66, F2 or F3 prefix and
     // VEX- or EVEX-encoded.  They are #UD with CR0.EM = CR0.TS = 0 (the
-    // cases below with bits 0), and with TS set either fault, which the
-    // manuals do not order (SDM Vol.3A Table 7-2, class 9; APM Vol.2 Table
-    // 8-9, group 6).  The model raises the #UD.  A LOCK prefix is #UD
-    // first.
-    add(cat, bits, "D9 D1 (undefined x87)", {0xD9, 0xD1}, UD);
-    allow(UD_OR_NM);
-    add(cat, bits, "66 0F AE /0 (fxsave with 66)", {0x66, 0x0F, 0xAE, 0x07}, UD, mem);
-    allow(UD_OR_NM);
-    add(cat, bits, "F3 0F AE /1 (fxrstor with F3)", {0xF3, 0x0F, 0xAE, 0x0F}, UD, mem);
-    allow(UD_OR_NM);
-    add(cat, bits, "VEX.0F AE /0", {0xC5, 0xF8, 0xAE, 0x07}, UD, mem);
-    allow(UD_OR_NM);
-    add(cat, bits, "VEX.256.66.0F AE /1", {0xC5, 0xFD, 0xAE, 0x0F}, UD, mem);
-    allow(UD_OR_NM);
-    add(cat, bits, "EVEX.0F AE /0", {0x62, 0xF1, 0x7C, 0x48, 0xAE, 0x07}, UD, mem);
-    allow(UD_OR_NM);
-    add(cat, bits, "lock fxsave #UD", {0xF0, 0x0F, 0xAE, 0x07}, UD, mem);
+    // cases below with bits 0), and with TS set either fault (add_ud), as
+    // with a LOCK prefix.
+    add_ud(cat, bits, "D9 D1 (undefined x87)", {0xD9, 0xD1});
+    add_ud(cat, bits, "66 0F AE /0 (fxsave with 66)", {0x66, 0x0F, 0xAE, 0x07}, mem);
+    add_ud(cat, bits, "F3 0F AE /1 (fxrstor with F3)", {0xF3, 0x0F, 0xAE, 0x0F}, mem);
+    add_ud(cat, bits, "VEX.0F AE /0", {0xC5, 0xF8, 0xAE, 0x07}, mem);
+    add_ud(cat, bits, "VEX.256.66.0F AE /1", {0xC5, 0xFD, 0xAE, 0x0F}, mem);
+    add_ud(cat, bits, "EVEX.0F AE /0", {0x62, 0xF1, 0x7C, 0x48, 0xAE, 0x07}, mem);
+    add_ud(cat, bits, "lock fxsave #UD", {0xF0, 0x0F, 0xAE, 0x07}, mem);
   }
   for (const auto &[name, insn] : std::vector<std::pair<std::string, std::vector<u8>>>{
            {"D9 D1 (undefined x87) #UD", {0xD9, 0xD1}},
@@ -311,8 +318,7 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     // x87 and FXSAVE/FXRSTOR: #NM.  WAIT: #NM only with TS and MP.  An
     // undefined x87 form and the FXSAVE opcode under a prefix or VEX/EVEX
     // are no instruction: their #UD and the #NM that EM gives the x87
-    // instructions and FXSAVE are in one class, in no order (as under TS
-    // above).
+    // instructions and FXSAVE are in one class, in no order (add_ud).
     add(cat, bits, name("fld1"), {0xD9, 0xE8}, NM);
     add(cat, bits, name("fnstsw ax"), {0xDF, 0xE0}, NM);
     add(cat, bits, name("fninit"), {0xDB, 0xE3}, NM);
@@ -320,14 +326,10 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add(cat, bits, name("fwait"), {0x9B}, (bits & (MP | TS)) == (MP | TS) ? NM : NONE);
     add(cat, bits, name("fxsave [rsi] (unmapped)"), {0x0F, 0xAE, 0x06}, NM, unmapped);
     add(cat, bits, name("fxrstor [rsi] (unmapped)"), {0x0F, 0xAE, 0x0E}, NM, unmapped);
-    add(cat, bits, name("D9 D1 (undefined x87)"), {0xD9, 0xD1}, UD);
-    allow(UD_OR_NM);
-    add(cat, bits, name("66 0F AE /0 (fxsave with 66)"), {0x66, 0x0F, 0xAE, 0x07}, UD, mem);
-    allow(UD_OR_NM);
-    add(cat, bits, name("VEX.0F AE /0"), {0xC5, 0xF8, 0xAE, 0x07}, UD, mem);
-    allow(UD_OR_NM);
-    add(cat, bits, name("EVEX.0F AE /1"), {0x62, 0xF1, 0x7C, 0x48, 0xAE, 0x0F}, UD, mem);
-    allow(UD_OR_NM);
+    add_ud(cat, bits, name("D9 D1 (undefined x87)"), {0xD9, 0xD1});
+    add_ud(cat, bits, name("66 0F AE /0 (fxsave with 66)"), {0x66, 0x0F, 0xAE, 0x07}, mem);
+    add_ud(cat, bits, name("VEX.0F AE /0"), {0xC5, 0xF8, 0xAE, 0x07}, mem);
+    add_ud(cat, bits, name("EVEX.0F AE /1"), {0x62, 0xF1, 0x7C, 0x48, 0xAE, 0x0F}, mem);
 
     // The XSAVE family, VEX and EVEX ignore EM; TS still applies.
     int ts = bits & TS ? NM : NONE;

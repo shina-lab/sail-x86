@@ -625,9 +625,9 @@ function vex_feature_present(map, opcode, pfx) = {
 // instruction's opmask in ModR/M.reg with VEX.R set or in VEX.vvvv with
 // its bit 3 set, which is #UD on Intel and ignored on AMD (checked on an
 // Emerald Rapids and a Zen 4; vex_kreg_reg); or a SIMD instruction of a
-// CPUID feature the processor lacks.  An Emerald Rapids raises all of
-// these ahead of the #NM of CR0.TS (check_cr0_ts).  Returns the prefixes
-// with vvvv as the instruction reads it.
+// CPUID feature the processor lacks.  The model raises all of these ahead
+// of the #NM of CR0.TS (check_cr0_ts; exceptions.sail).  Returns the
+// prefixes with vvvv as the instruction reads it.
 val vex_check_form : (range(0, 31), byte, Prefixes) -> Prefixes
 function vex_check_form(map, opcode, pfx) = {
   if ~(vex_form_valid(map, opcode, pfx)) then raise_UD();
