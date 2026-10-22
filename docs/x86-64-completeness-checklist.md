@@ -675,8 +675,8 @@ All 132/213/231 forms, scalar and packed, float32 and float64:
 - [x] MOVNTDQ, MOVNTPD, MOVNTPS (non-temporal SIMD stores) — verified in SSE dispatch
 - [x] MOVNTQ (MMX non-temporal store) — implemented + KVM tests
 - [x] MOVNTDQA (non-temporal aligned load) — verified in SSE dispatch
-- [N/A] MOVDIR64B (64-byte direct store) — MOVDIR extension not targeted
-- [N/A] MOVDIRI (direct store) — MOVDIR extension not targeted
+- [x] MOVDIR64B (64-byte direct store) — implemented (insn_baseline.sail, exec_movdir64b): ES:reg destination at the address size, 64-byte aligned linear address, source read before any destination check; KVM tests
+- [x] MOVDIRI (direct store) — implemented: NP 0F 38 F9, an ordinary 32/64-bit store in the sequential model; KVM tests
 - [x] SERIALIZE (execution serialization) — verified: 0F 01 E8, NOP in sequential model
 
 #### 1.25.5 Task/Interrupt

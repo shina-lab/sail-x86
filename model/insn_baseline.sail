@@ -488,6 +488,47 @@ function exec_umonitor(r, pfx) = {
   umonitor_armed = true
 }
 
+// The destination of MOVDIR64B, ENQCMD and ENQCMDS (66/F2/F3 0F 38 F8),
+// translated for their 64-byte store.  The register operand, at the
+// address size, is an offset into ES, which no prefix overrides (SDM
+// Vol.2B MOVDIR64B, Vol.2A ENQCMD).  Segmentation checks the 64 bytes as
+// any access (#GP(0) for a non-canonical address in 64-bit mode, beyond
+// the ES limit outside it), the linear address must be 64-byte aligned
+// (#GP(0)), and the translation is a write's (#PF with W = 1), after a
+// data breakpoint on writes has seen the access.  (The MOVDIR64B page asks
+// for an aligned "address in destination (register) operand", the ENQCMD
+// page for an aligned linear address.  A Xeon Platinum 8562Y+ checks the
+// linear address for MOVDIR64B too: in compatibility mode with an ES base
+// of 20H, an offset of 20H mod 64 is stored to and one of 0 mod 64 is
+// #GP(0).)  The destination is not the ModR/M operand: a RIP-relative
+// source's fixup in seg_linear must not move it.
+val es_dest64_paddr : (Prefixes, GPRRef) -> qword
+function es_dest64_paddr(pfx, reg) = {
+  rip_rel_pending = false;
+  let asz = get_address_size(pfx);
+  let dst : MemRef = struct { seg = ES, addr = zero_extend(v(asz, reg)) };
+  let lin : qword = seg_linear(dst, 64);
+  if lin[5..0] != 0b000000 then raise_GP0();
+  note_data_access(lin, 64, true);
+  translate_addr(lin, PT_Write)
+}
+
+// MOVDIR64B r16/r32/r64, m512 (66 0F 38 F8 /r), mod != 11 — SDM Vol.2B;
+// CPUID.07H.00H:ECX.MOVDIR64B[28].  It reads 64 bytes from the source, an
+// ordinary load that need not be aligned, and writes them to the
+// destination with one 64-byte direct store.  The SDM lists the exceptions
+// in no order.  A Xeon Platinum 8562Y+ reads the whole source first, at
+// CPL 3 natively and at CPL 0 under KVM: a #PF or #GP(0) on the source,
+// also on its second page, beats a destination that is misaligned,
+// non-canonical, beyond the ES limit or unmapped.
+val exec_movdir64b : Prefixes -> unit
+function exec_movdir64b(pfx) = {
+  if ~(has_movdir64b) then raise_UD();
+  let (reg, src) = fetch_modrm(pfx);
+  let data : zmmword = rm_mem(src);
+  phys_write(es_dest64_paddr(pfx, reg), data)
+}
+
 // ENQCMD r, m512 (F2 0F 38 F8 /r) and ENQCMDS r, m512 (F3 0F 38 F8 /r),
 // mod != 11 — SDM Vol.2A; CPUID.07H.00H:ECX.ENQCMD[29].  Each reads 64
 // bytes of command data from the source (an ordinary load, no alignment)
@@ -529,9 +570,6 @@ function exec_enqcmd(pfx, supervisor) = {
     if IA32_PASID[31] == bitzero then raise_GP0()
   };
   let data : zmmword = read_mem(m);
-  // The destination is not the ModR/M operand: a RIP-relative source's
-  // fixup in seg_linear must not move it.
-  rip_rel_pending = false;
   if supervisor then {
     if data[30..20] != zeros() then raise_GP0()
   } else {
@@ -542,12 +580,7 @@ function exec_enqcmd(pfx, supervisor) = {
   let _command : zmmword =
     if supervisor then data
     else data[511..32] @ 0b000000000000 @ IA32_PASID[19..0];
-  let asz = get_address_size(pfx);
-  let dst : MemRef = struct { seg = ES, addr = zero_extend(v(asz, reg)) };
-  let lin : qword = seg_linear(dst, 64);
-  if lin[5..0] != 0b000000 then raise_GP0();
-  note_data_access(lin, 64, true);
-  let _ = translate_addr(lin, PT_Write);
+  let _ = es_dest64_paddr(pfx, reg);
   CF = 0b0;
   PF = 0b0;
   AF = 0b0;

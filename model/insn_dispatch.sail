@@ -568,13 +568,7 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         rm_mem(dest) = v(os, reg)
       } else if op3 == 248 & get_mandatory_prefix(pfx) == MP_66 then {
         // MOVDIR64B r, m512 (66 0F 38 F8)
-        if ~(has_movdir64b) then raise_UD();
-        let (reg, src) = fetch_modrm(pfx);
-        let src_val : zmmword = rm_mem(src);
-        let asz = get_address_size(pfx);
-        let dst_addr : qword = zero_extend(v(asz, reg));
-        if (dst_addr & 0x000000000000003F) != zeros() then raise_GP0();
-        write_mem(dst_addr, src_val)
+        exec_movdir64b(pfx)
       } else if op3 == 248 & (get_mandatory_prefix(pfx) == MP_F2
                               | get_mandatory_prefix(pfx) == MP_F3) then {
         // ENQCMD r, m512 (F2 0F 38 F8) and ENQCMDS r, m512 (F3 0F 38 F8)

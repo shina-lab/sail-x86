@@ -330,6 +330,98 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
                         s2, FL_ALL, 0, false, data, 256});
     }
 
+    // MOVDIR64B's destination and the order of its checks, which the SDM
+    // leaves open.  The destination is ES:rax at the address size, not the
+    // ModR/M operand, so a RIP-relative source does not move it.  The whole
+    // source is read before anything about the destination: a #PF or
+    // #GP(0) on the source, also on its second page, beats a destination
+    // that is misaligned, non-canonical or unmapped.  The destination's
+    // alignment comes before its translation, a write's (#PF, error code
+    // 2).  A Xeon Platinum 8562Y+ shows the same order at CPL 3 natively.
+    // There, in compatibility mode with ES from the LDT, the alignment is
+    // the linear address's (the ES base added), and an offset beyond the
+    // ES limit is #GP(0) after the source read, as are a read-only and a
+    // null ES.  No case pins these: the guest's GDT has no data segment
+    // with a base or a small limit, and the model checks neither a
+    // read-only nor a null data segment on any access.
+    if (ecx7 & (1u << 28)) {
+      cat = "MOVDIR64B";
+      const std::vector<u8> MOVDIR64B = {0x66, 0x0F, 0x38, 0xF8, 0x07};
+      const u64 dst = DATA_ADDR + 0x80;
+      const u64 unmapped = 0x300000;  // past the guest's identity-mapped 2MB
+      const u64 noncanonical = 0x0000800000000000ULL;  // with 4-level paging
+      const u64 last32 = 0x200000 - 32;  // its second page unmapped
+      std::vector<u8> data(256, 0);
+      for (int i = 0; i < 64; i++)
+        data[i] = (u8)(i + 1);
+
+      // vec: the expected exception, or -1 for none.
+      auto add_md = [&](const std::string &name, std::vector<u8> code, ArchState s, int vec,
+                        bool compat = false) {
+        TestCase tc;
+        tc.name = name;
+        tc.category = cat;
+        tc.code = std::move(code);
+        tc.initial = s;
+        tc.flags_mask = FL_ALL;
+        tc.init_data = data;
+        tc.enable_paging = true;
+        tc.compat_mode = compat;
+        tc.expect_fault = vec >= 0;
+        tc.expected_vector = vec;
+        tests.push_back(std::move(tc));
+      };
+      add_md("movdir64b rax,[rdi]: stores at ES:rax", MOVDIR64B, {.rax = dst, .rdi = DATA_ADDR}, -1);
+      // The upper halves would make both addresses non-canonical.
+      add_md("movdir64b eax,[edi] (67h): 32-bit addresses", {0x67, 0x66, 0x0F, 0x38, 0xF8, 0x07},
+             {.rax = 0x8000000000000000ULL | dst, .rdi = 0x8000000000000000ULL | DATA_ADDR}, -1);
+      add_md("movdir64b eax,[edi] in compatibility mode: 32-bit addresses", MOVDIR64B,
+             {.rax = 0x8000000000000000ULL | dst, .rdi = 0x8000000000000000ULL | DATA_ADDR}, -1,
+             true);
+      {
+        // [rip+disp32] is DATA_ADDR, from the end of the 9-byte instruction.
+        u32 disp = (u32)(DATA_ADDR - (CODE_ADDR + 9));
+        std::vector<u8> code = {0x66, 0x0F, 0x38, 0xF8, 0x05};
+        for (int i = 0; i < 4; i++)
+          code.push_back((u8)(disp >> (8 * i)));
+        add_md("movdir64b rax,[rip+disp32]: the destination stays rax", code, {.rax = dst}, -1);
+      }
+      add_md("movdir64b destination not 64-byte aligned → #GP(0)", MOVDIR64B,
+             {.rax = dst + 8, .rdi = DATA_ADDR}, 13);
+      add_md("movdir64b destination not canonical → #GP(0)", MOVDIR64B,
+             {.rax = noncanonical, .rdi = DATA_ADDR}, 13);
+      add_md("movdir64b destination unmapped → #PF (write)", MOVDIR64B,
+             {.rax = unmapped, .rdi = DATA_ADDR}, 14);
+      add_md("movdir64b destination misaligned and unmapped → #GP(0) (alignment first)", MOVDIR64B,
+             {.rax = unmapped + 8, .rdi = DATA_ADDR}, 13);
+      add_md("movdir64b source unmapped → #PF (read)", MOVDIR64B,
+             {.rax = dst, .rdi = unmapped}, 14);
+      add_md("movdir64b source unmapped, destination misaligned → #PF (source first)", MOVDIR64B,
+             {.rax = dst + 8, .rdi = unmapped}, 14);
+      add_md("movdir64b source unmapped, destination not canonical → #PF (source first)", MOVDIR64B,
+             {.rax = noncanonical, .rdi = unmapped}, 14);
+      add_md("movdir64b source and destination unmapped → #PF at the source", MOVDIR64B,
+             {.rax = unmapped + 0x1000, .rdi = unmapped}, 14);
+      add_md("movdir64b source's second page unmapped, destination unmapped → #PF at the source",
+             MOVDIR64B, {.rax = unmapped, .rdi = last32}, 14);
+      add_md("movdir64b source not canonical, destination unmapped → #GP(0) (source first)",
+             MOVDIR64B, {.rax = unmapped, .rdi = noncanonical}, 13);
+      {
+        // Data breakpoints: on writes in the destination, and on reads in
+        // the source.
+        ArchState s = {.rax = dst, .rdi = DATA_ADDR};
+        s.dr[0] = dst + 0x3C;
+        s.dr7 = 0x400 | 0x1 | (1ull << 16) | (3ull << 18);  // L0, R/W0 = 01, LEN0 = 4 bytes
+        add_md("movdir64b data bp on writes at the destination → #DB",
+               {0x66, 0x0F, 0x38, 0xF8, 0x07, 0x90, 0xF4}, s, 1);
+        s.dr[0] = DATA_ADDR + 8;
+        s.dr7 = 0x400 | 0x1 | (3ull << 16) | (3ull << 18);  // L0, R/W0 = 11, LEN0 = 4 bytes
+        add_md("movdir64b data bp on reads in the source → #DB",
+               {0x66, 0x0F, 0x38, 0xF8, 0x07, 0x90, 0xF4}, s, 1);
+      }
+      add_md("movdir64b register form → #UD", {0x66, 0x0F, 0x38, 0xF8, 0xC7}, {}, 6);
+    }
+
     // ENQCMD (F2 0F 38 F8) and ENQCMDS (F3 0F 38 F8): only where the host
     // has them (CPUID leaf 7, ECX bit 29).  The cases run at CPL 0, where
     // ENQCMDS completes: its destination is memory, so the enqueue store
