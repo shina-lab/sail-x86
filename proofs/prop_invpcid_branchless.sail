@@ -7,8 +7,9 @@ $include "../model/prelude.sail"
 
 // inv_type is 0..3 (the >3 case is handled before this code).
 // We use bits(2) to represent the type.
-// reserved = desc[63..12], pcid = desc[11..0], top17 = desc[127..111] =
-// lin_addr[63..47], pcide = CR4.PCIDE.
+// reserved = desc[63..12], pcid = desc[11..0], top17 = lin_addr[63..47],
+// or lin_addr[63..56] sign-extended with CR4.LA57, where lin_addr =
+// desc[127..64]; pcide = CR4.PCIDE.
 
 $property
 function prop_invpcid_fault(inv_type : bits(2), reserved : bits(52), pcid : bits(12),
@@ -41,12 +42,15 @@ function prop_invpcid_fault(inv_type : bits(2), reserved : bits(52), pcid : bits
   old_fault == new_fault
 }
 
-// Prove that desc[127..111] == desc[127..64][63..47]
-// (extracting top17 directly from desc vs via lin_addr intermediate)
+// top17 as insn_dispatch.sail extracts it is all zeros or all ones exactly
+// when lin_addr is canonical: bits 63:N repeat bit N-1, with N = 48, or 57
+// under 5-level paging (SDM Vol.1 §3.3.7.1, Vol.3A §4.5).
 $property
-function prop_invpcid_top17_equiv(desc_hi : bits(64)) -> bool = {
-  let lin_addr : bits(64) = desc_hi;
-  let via_lin_addr : bits(17) = lin_addr[63..47];
-  let direct : bits(17) = desc_hi[63..47];
-  via_lin_addr == direct
+function prop_invpcid_top17_canonical(lin_addr : bits(64), la57 : bit) -> bool = {
+  let top17 : bits(17) =
+    if la57 == bitone then sign_extend(lin_addr[63..56]) else lin_addr[63..47];
+  let canonical : bool =
+    if la57 == bitone then lin_addr == sign_extend(lin_addr[56..0])
+    else lin_addr == sign_extend(lin_addr[47..0]);
+  (top17 == zeros() | top17 == ones()) == canonical
 }

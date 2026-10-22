@@ -519,7 +519,11 @@ function dispatch_opcode_2byte(opcode, pfx) = {
         if unsigned(inv_type) > 3 then raise_GP0();
         let reserved : bits(52) = desc[63..12];
         let pcid : bits(12) = desc[11..0];
-        let top17 : bits(17) = desc[127..111];
+        // The bits of the linear address that are all equal when it is
+        // canonical: 63:47, or 63:56 with 5-level paging (CR4.LA57), as in
+        // seg_linear.
+        let top17 : bits(17) =
+          if CR4[12] == 0b1 then sign_extend(desc[127..120]) else desc[127..111];
         // SDM INVPCID, 64-bit mode #GP(0): bits 63:12 of the descriptor
         // are not all zero (any type); CR4.PCIDE = 0, type 0 or 1, and a
         // nonzero PCID; type 0 and a non-canonical linear address.

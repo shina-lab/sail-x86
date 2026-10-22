@@ -13,8 +13,10 @@ $include "../model/prelude.sail"
 // which holds outside IA-32e mode: MOV to CR4 cannot set PCIDE there.)
 // INVPCID_TYPE > 3, also #GP(0), is checked before this code, so the type
 // is 0-3 and only its low 2 bits matter.  reserved = desc[63..12], pcid =
-// desc[11..0], top17 = desc[127..111], the bits of the linear address that
-// a canonical one has all equal; pcide = CR4.PCIDE.
+// desc[11..0], top17 = the bits of the linear address that a canonical one
+// has all equal (63:47, or 63:56 sign-extended with CR4.LA57; see
+// prop_invpcid_top17_canonical in prop_invpcid_branchless.sail); pcide =
+// CR4.PCIDE.
 
 $property
 function prop_invpcid_fault(inv_type : bits(2), reserved : bits(52), pcid : bits(12),
