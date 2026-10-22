@@ -106,10 +106,13 @@ static x86::zVendor host_vendor() {
 
 // Exception handlers for vectors 0-31 at handler_addr (16-byte stubs, then a
 // common handler 32 * 16 bytes in), and a 64-bit IDT of interrupt gates to
-// them at idt_addr.  The common handler records vector, error code, pushed
-// RIP and pushed RFLAGS at fault_info_addr and halts.  Addresses are
-// relative to base: the guest memory for the KVM side, the process's own
-// address space (base 0) for the model.
+// them at idt_addr.  The gates select IST1, the handlers' own stack, so
+// that delivery neither depends on the test's RSP (which may point where
+// nothing is mapped) nor writes the test's memory.  The common handler
+// records vector, error code, pushed RIP and pushed RFLAGS at
+// fault_info_addr and halts.  Addresses are relative to base: the guest
+// memory for the KVM side, the process's own address space (base 0) for
+// the model.
 static void write_idt(u8 *base, u64 idt_addr, u64 handler_addr, u64 fault_info_addr) {
   // Vectors with error codes pushed by CPU
   auto has_error_code = [](int v) {
@@ -169,12 +172,64 @@ static void write_idt(u8 *base, u64 idt_addr, u64 handler_addr, u64 fault_info_a
     u32 offset_hi = (handler >> 32) & 0xFFFFFFFF;
     memcpy(entry + 0, &offset_lo, 2);
     memcpy(entry + 2, &selector, 2);
-    entry[4] = 0;  // IST = 0
+    entry[4] = 1;  // IST1
     entry[5] = type_attr;
     memcpy(entry + 6, &offset_mid, 2);
     memcpy(entry + 8, &offset_hi, 4);
     memcpy(base + idt_addr + v * 16, entry, 16);
   }
+}
+
+// The descriptor tables and exception handlers, which both sides keep at
+// the same addresses, written for every case: segment loads set Accessed
+// bits and LTR a busy bit that a later LAR or LTR would see, and a stray
+// store can reach them.  Relative to base, as in write_idt.
+static void write_system_tables(u8 *base) {
+  // GDT: null, 64-bit code, data, plus test entries for LAR/LSL/VERR/VERW
+  u64 *gdt = (u64 *)(base + GDT_ADDR);
+  gdt[0] = 0;
+  gdt[1] = 0x00AF9A000000FFFF;  // 64-bit code (selector 0x08): type=0xA, S=1
+  gdt[2] = 0x00CF92000000FFFF;  // data (selector 0x10): type=0x2, S=1
+  // 64-bit TSS at TSS_ADDR (selector 0x18): type=0x9, S=0, P=1
+  // Descriptor: base=TSS_ADDR, limit=0x67 (103 bytes)
+  gdt[3] = 0x0000890000000067ULL
+         | ((TSS_ADDR & 0x00FFFFFF) << 16)
+         | ((TSS_ADDR & 0xFF000000) << 32);
+  gdt[4] = 0;  // upper half: base[63:32] = 0
+  gdt[5] = 0x00008E0000000000;  // interrupt gate type (selector 0x28): type=0xE, S=0, P=1
+  gdt[6] = 0;                   // upper half
+  gdt[7] = 0x00CF90000000FFFF;  // read-only data (selector 0x38): type=0x0, S=1, P=1
+  gdt[8] = 0x00AF98000000FFFF;  // execute-only code (selector 0x40): type=0x8, S=1, P=1
+  gdt[9] = 0x00CF9A000000FFFF;   // 32-bit code (selector 0x48): type=0xA, S=1, D=1, L=0
+  gdt[10] = 0x00AFFA000000FFFF;  // 64-bit user code (selector 0x53): type=0xA, S=1, DPL=3, L=1
+  gdt[11] = 0x00CFF2000000FFFF;  // user data (selector 0x5B): type=0x2, S=1, DPL=3
+
+  // TSS: RSP0 at offset 4, IST1 at offset 0x24
+  u8 *tss = base + TSS_ADDR;
+  memset(tss, 0, 104);
+  u64 rsp0 = STACK_TOP, ist1 = HANDLER_STACK_TOP;
+  memcpy(tss + 4, &rsp0, 8);
+  memcpy(tss + 0x24, &ist1, 8);
+
+  // IDT: exception handlers for vectors 0-31, and no fault recorded yet
+  write_idt(base, IDT_ADDR, HANDLER_ADDR, FAULT_INFO_ADDR);
+  memset(base + FAULT_INFO_ADDR, 0xFF, 32);
+}
+
+// Identity page tables for the low 2MB in four consecutive pages from
+// pml4_addr: PML4, PDPT, PD, and a page table of 4KB pages, present from
+// CODE_ADDR up (see the layout in kvm-harness.h).  U/S is set at every
+// level so that user-mode (CPL 3) tests can work.  Relative to base, as
+// in write_idt.
+static void write_page_tables(u8 *base, u64 pml4_addr) {
+  u64 *pml4 = (u64 *)(base + pml4_addr);
+  u64 *pdpt = pml4 + 512, *pd = pdpt + 512, *pt = pd + 512;
+  memset(pml4, 0, 4 * 0x1000);
+  pml4[0] = (pml4_addr + 0x1000) | 0x7;  // present + writable + user
+  pdpt[0] = (pml4_addr + 0x2000) | 0x7;
+  pd[0] = (pml4_addr + 0x3000) | 0x7;
+  for (u64 addr = CODE_ADDR; addr < GUEST_MEM_SIZE; addr += 0x1000)
+    pt[addr / 0x1000] = addr | 0x7;
 }
 
 // MSRs the fast system calls and RDPID read, reset to zero before every
@@ -215,9 +270,7 @@ void fill_data_page(const TestCase &tc, u8 *page) {
 }
 
 // The memory a test can change and the harness compares after a run: the
-// data page, and for a run that completes, the stack page (the guest's
-// exception handlers push frames that the model, outside system mode, does
-// not).
+// data page and the stack page.
 struct MemPages {
   u8 data[0x1000];
   u8 stack[0x1000];
@@ -244,7 +297,6 @@ struct KvmVm {
   int vcpu_fd = -1;
   struct kvm_run *run = nullptr;
   u8 *guest_mem = nullptr;
-  std::vector<u8> initial_system;  // guest memory below CODE_ADDR as set up
   const XsaveLayout xl = host_xsave_layout();
   // The XSAVE image exchanged with KVM: struct kvm_xsave (4096 bytes)
   // unless the guest's area is larger, which KVM_CAP_XSAVE2 reports and
@@ -348,46 +400,10 @@ struct KvmVm {
 
   void setup_long_mode() {
     memset(guest_mem, 0, GUEST_MEM_SIZE);
-
-    // Identity-map first 2MB with a single 2MB page.
-    // U/S bit set at all levels so user-mode (CPL 3) tests can work.
-    u64 *pml4 = (u64 *)(guest_mem + PML4_ADDR);
-    pml4[0] = PDPT_ADDR | 0x7;  // present + writable + user
-
-    u64 *pdpt = (u64 *)(guest_mem + PDPT_ADDR);
-    pdpt[0] = PD_ADDR | 0x7;    // present + writable + user
-
-    u64 *pd = (u64 *)(guest_mem + PD_ADDR);
-    pd[0] = 0x0 | 0x87;  // 2MB page, present + writable + user + PS
-
-    // IDT: exception handlers for vectors 0-31
-    write_idt(guest_mem, IDT_ADDR, HANDLER_ADDR, FAULT_INFO_ADDR);
-
-    // GDT: null, 64-bit code, data, plus test entries for LAR/LSL/VERR/VERW
-    u64 *gdt = (u64 *)(guest_mem + GDT_ADDR);
-    gdt[0] = 0;
-    gdt[1] = 0x00AF9A000000FFFF;  // 64-bit code (selector 0x08): type=0xA, S=1
-    gdt[2] = 0x00CF92000000FFFF;  // data (selector 0x10): type=0x2, S=1
-    // 64-bit TSS at TSS_ADDR (selector 0x18): type=0x9, S=0, P=1
-    // Descriptor: base=TSS_ADDR, limit=0x67 (103 bytes)
-    gdt[3] = 0x0000890000000067ULL
-           | ((TSS_ADDR & 0x00FFFFFF) << 16)
-           | ((TSS_ADDR & 0xFF000000) << 32);
-    gdt[4] = 0;  // upper half: base[63:32] = 0
-
-    // Write TSS data: RSP0 at offset 4
-    u8 *tss = guest_mem + TSS_ADDR;
-    memset(tss, 0, 104);
-    u64 rsp0 = STACK_TOP;
-    memcpy(tss + 4, &rsp0, 8);
-    gdt[5] = 0x00008E0000000000;  // interrupt gate type (selector 0x28): type=0xE, S=0, P=1
-    gdt[6] = 0;                   // upper half
-    gdt[7] = 0x00CF90000000FFFF;  // read-only data (selector 0x38): type=0x0, S=1, P=1
-    gdt[8] = 0x00AF98000000FFFF;  // execute-only code (selector 0x40): type=0x8, S=1, P=1
-    gdt[9] = 0x00CF9A000000FFFF;   // 32-bit code (selector 0x48): type=0xA, S=1, D=1, L=0
-    gdt[10] = 0x00AFFA000000FFFF;  // 64-bit user code (selector 0x53): type=0xA, S=1, DPL=3, L=1
-    gdt[11] = 0x00CFF2000000FFFF;  // user data (selector 0x5B): type=0x2, S=1, DPL=3
-    initial_system.assign(guest_mem, guest_mem + CODE_ADDR);
+    // The guest cannot reach its page tables, below CODE_ADDR, so they are
+    // written once; load_test rewrites the system tables for every case.
+    write_page_tables(guest_mem, PML4_ADDR);
+    write_system_tables(guest_mem);
 
     struct kvm_sregs sregs;
     ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
@@ -441,6 +457,13 @@ struct KvmVm {
     sregs.tr.present = 1;
     sregs.tr.s = 0;
 
+    // No LDT, as in the model (LDTR_valid = false): a selector with TI = 1
+    // is #GP.  The vCPU's reset LDTR is usable with base 0, and the guest
+    // read its descriptors from address 0.
+    sregs.ldt = {};
+    sregs.ldt.type = 0x2;
+    sregs.ldt.unusable = 1;
+
     ioctl(vcpu_fd, KVM_SET_SREGS, &sregs);
 
     // Enable AVX in XCR0: bit 0 (x87), bit 1 (SSE), bit 2 (AVX)
@@ -455,12 +478,7 @@ struct KvmVm {
   }
 
   void load_test(const TestCase &tc) {
-    // Restore the page tables, descriptor tables and handlers.  Segment loads
-    // set descriptor Accessed bits, so that later LAR tests would not see the
-    // image a fresh Sail execution does, and a store through a stray address
-    // (such as RDI = 0 in a variant whose instruction became a store) lands
-    // in the page tables at address 0 and breaks every later case.
-    memcpy(guest_mem, initial_system.data(), initial_system.size());
+    write_system_tables(guest_mem);  // as the previous case may have left them
 
     // Restore the default XCR0, CR0 and CR4, which a previous test may have
     // changed ("mov cr0,rax sets TS" leaves CR0.TS set, and an SSE
@@ -553,7 +571,6 @@ struct KvmVm {
 
     memset(guest_mem + CODE_ADDR, 0, 0x1000);
     memset(guest_mem + STACK_TOP - 0x1000, 0, 0x1000);  // no cross-test residue
-    memset(guest_mem + FAULT_INFO_ADDR, 0xFF, 24);  // clear fault info
     io_log.clear();
 
     memcpy(guest_mem + CODE_ADDR, tc.code.data(), tc.code.size());
@@ -935,10 +952,9 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
   model.zCR4 = 0x50620;  // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
 
   // The model reaches guest memory at the same addresses in this process.
-  // Back all of the guest's identity-mapped 2MB that a process can map
-  // (from mmap_min_addr, 0x10000): the test's pages, the model's GDT, IDT
-  // and page tables, and whatever else a variant's operand reaches.  The
-  // Sail-side GDT is at 0x14000 as 0x3000 is too low for mmap.
+  // Back all that the guest maps, its 2MB from CODE_ADDR: the test's pages,
+  // the system tables, the model's page tables, and whatever else a
+  // variant's operand reaches.
   static bool pages_mapped = false;
   if (!pages_mapped) {
     map_guest_page(CODE_ADDR, 0x200000 - CODE_ADDR);
@@ -987,34 +1003,11 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
   model.zDR6 = tc.initial.dr6;
   model.zDR7 = tc.initial.dr7;
 
-  // Initialize GDTR and write GDT entries to match KVM guest
-  // Use 0x14000 for Sail-side GDT (0x3000 is too low for mmap)
-  static constexpr u64 SAIL_GDT_ADDR = 0x14000;
-  model.zGDTR_base = SAIL_GDT_ADDR;
+  // The guest's GDT, TSS, IDT and handlers, at its addresses
+  write_system_tables(nullptr);
+  model.zGDTR_base = GDT_ADDR;
   model.zGDTR_limit = 12 * 8 - 1;
-
-  // Set up Sail-side TSS with RSP0
-  static constexpr u64 SAIL_TSS_ADDR = SAIL_GDT_ADDR + 0x800;
-  model.zTR_base = SAIL_TSS_ADDR;
-  memset((void *)SAIL_TSS_ADDR, 0, 104);
-  u64 sail_rsp0 = STACK_TOP;
-  memcpy((void *)(SAIL_TSS_ADDR + 4), &sail_rsp0, 8);
-
-  ((u64 *)SAIL_GDT_ADDR)[0] = 0;
-  ((u64 *)SAIL_GDT_ADDR)[1] = 0x00AF9A000000FFFF;  // 64-bit code (selector 0x08)
-  ((u64 *)SAIL_GDT_ADDR)[2] = 0x00CF92000000FFFF;  // data (selector 0x10)
-  // 64-bit TSS descriptor at SAIL_TSS_ADDR
-  ((u64 *)SAIL_GDT_ADDR)[3] = 0x0000890000000067ULL
-    | ((SAIL_TSS_ADDR & 0x00FFFFFFULL) << 16)
-    | ((SAIL_TSS_ADDR & 0xFF000000ULL) << 32);
-  ((u64 *)SAIL_GDT_ADDR)[4] = 0;  // upper half: base[63:32] = 0
-  ((u64 *)SAIL_GDT_ADDR)[5] = 0x00008E0000000000;  // interrupt gate type (selector 0x28)
-  ((u64 *)SAIL_GDT_ADDR)[6] = 0;                   // upper half
-  ((u64 *)SAIL_GDT_ADDR)[7] = 0x00CF90000000FFFF;  // read-only data (selector 0x38)
-  ((u64 *)SAIL_GDT_ADDR)[8] = 0x00AF98000000FFFF;  // execute-only code (selector 0x40)
-  ((u64 *)SAIL_GDT_ADDR)[9] = 0x00CF9A000000FFFF;   // 32-bit code (selector 0x48)
-  ((u64 *)SAIL_GDT_ADDR)[10] = 0x00AFFA000000FFFF;  // 64-bit user code (selector 0x53)
-  ((u64 *)SAIL_GDT_ADDR)[11] = 0x00CFF2000000FFFF;  // user data (selector 0x5B)
+  model.zTR_base = TSS_ADDR;
 
   // Initialize x87 FPU to default state (CW=0x037F, etc.)
   model.zx87_init(UNIT);
@@ -1030,18 +1023,10 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
     else x86::x86_externals_set_msr(msr, value);
   }
 
-  // System mode: the model delivers exceptions through an IDT that mirrors
-  // the guest's, at addresses this process can map (the guest's handler
-  // page lies below the lowest mappable address).  The stubs record the
-  // same information as the guest's at SAIL_FAULT_INFO_ADDR and halt.
-  static constexpr u64 SAIL_IDT_ADDR = 0x18000;
-  static constexpr u64 SAIL_HANDLER_ADDR = 0x19000;
-  static constexpr u64 SAIL_COMMON_HANDLER = SAIL_HANDLER_ADDR + 32 * 16;
-  static constexpr u64 SAIL_FAULT_INFO_ADDR = 0x1A000;
+  // System mode: the model delivers exceptions through the guest's IDT, and
+  // its handlers record them at FAULT_INFO_ADDR and halt, as the guest's do.
   if (tc.system_mode) {
-    write_idt(nullptr, SAIL_IDT_ADDR, SAIL_HANDLER_ADDR, SAIL_FAULT_INFO_ADDR);
-    memset((void *)SAIL_FAULT_INFO_ADDR, 0xFF, 24);
-    model.zIDTR_base = SAIL_IDT_ADDR;
+    model.zIDTR_base = IDT_ADDR;
     model.zIDTR_limit = 32 * 16 - 1;
     model.zsystem_mode = true;
   }
@@ -1066,18 +1051,12 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
     model.zCR4 = tc.cr4_override;
 
   // Identity page tables for paging-enabled tests.  The KVM guest always
-  // runs with paging on (long mode requires it) over an identity-mapped
-  // first 2MB; tests that probe translation and #PF enable the same
-  // mapping in the model, so both sides translate — and fault — on the
-  // same addresses.
-  static constexpr u64 SAIL_PML4_ADDR = 0x15000;
-  static constexpr u64 SAIL_PDPT_ADDR = 0x16000;
-  static constexpr u64 SAIL_PD_ADDR   = 0x17000;
+  // runs with paging on (long mode requires it) over an identity map of
+  // the first 2MB less the pages below CODE_ADDR; tests that probe
+  // translation and #PF enable the same mapping in the model, so both
+  // sides translate — and fault — on the same addresses.
   if (tc.enable_paging) {
-    memset((void *)SAIL_PML4_ADDR, 0, 0x3000);  // fresh tables (A/D bits)
-    ((u64 *)SAIL_PML4_ADDR)[0] = SAIL_PDPT_ADDR | 0x7;
-    ((u64 *)SAIL_PDPT_ADDR)[0] = SAIL_PD_ADDR | 0x7;
-    ((u64 *)SAIL_PD_ADDR)[0]   = 0x0 | 0x87;  // 2MB page, P+RW+U+PS
+    write_page_tables(nullptr, SAIL_PML4_ADDR);  // fresh tables (A/D bits)
     model.zCR3 = SAIL_PML4_ADDR;
     model.zCR0 = 0x80000011;  // PG + ET + PE, as in the KVM guest; EFER.LME + LMA above
   }
@@ -1096,6 +1075,12 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
     g_model_jump = nullptr;
     *err += std::format("Sail: access at {}, which this process does not back\n",
                         g_model_fault_addr);
+    // This process backs all that the guest maps, so an access it does not
+    // back is a #PF in the guest, which the model raises only when it
+    // translates.
+    if (!tc.enable_paging)
+      *err += "  (not mapped in the guest either: the model translates, and raises\n"
+              "   the #PF the guest takes, only for a test with enable_paging)\n";
     return {};
   }
 
@@ -1152,14 +1137,14 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
   return {};
 
 done:
-  // In system mode an exception ends in the mirror's common handler.
-  if (tc.system_mode && model.zRIP > SAIL_COMMON_HANDLER &&
-      model.zRIP <= SAIL_COMMON_HANDLER + 0x100) {
+  // In system mode an exception ends in the common handler.
+  if (tc.system_mode && model.zRIP > COMMON_HANDLER &&
+      model.zRIP <= COMMON_HANDLER + 0x100) {
     u64 vec_val, err_val, rip_val, rflags_val;
-    memcpy(&vec_val, (void *)SAIL_FAULT_INFO_ADDR, 8);
-    memcpy(&err_val, (void *)(SAIL_FAULT_INFO_ADDR + 8), 8);
-    memcpy(&rip_val, (void *)(SAIL_FAULT_INFO_ADDR + 16), 8);
-    memcpy(&rflags_val, (void *)(SAIL_FAULT_INFO_ADDR + 24), 8);
+    memcpy(&vec_val, (void *)FAULT_INFO_ADDR, 8);
+    memcpy(&err_val, (void *)(FAULT_INFO_ADDR + 8), 8);
+    memcpy(&rip_val, (void *)(FAULT_INFO_ADDR + 16), 8);
+    memcpy(&rflags_val, (void *)(FAULT_INFO_ADDR + 24), 8);
     if (fault_out) {
       fault_out->faulted = true;
       fault_out->vector = (int)vec_val;
@@ -1567,11 +1552,10 @@ static bool run_case(KvmVm &vm, const TestCase &tc) {
     // The tile state a faulting tile load or store leaves behind.
     ok = compare_faults(tc, vm, kvm_fault, sail_fault);
     if (amx && !vm.read_amx().compare(sail_amx)) ok = false;
-    // The guest's exception handlers push their frame where RSP points;
-    // outside system mode the model pushes none.
-    bool frame_in_data = !tc.system_mode && tc.initial.rsp > DATA_ADDR &&
-                         tc.initial.rsp <= DATA_ADDR + 0x1000;
-    if (!frame_in_data && !compare_page("data", kvm_mem.data, sail_mem.data)) ok = false;
+    // The handlers push their frame on their own stack (IST1), so the
+    // test's pages hold only what its instructions wrote.
+    if (!compare_page("data", kvm_mem.data, sail_mem.data)) ok = false;
+    if (!compare_page("stack", kvm_mem.stack, sail_mem.stack)) ok = false;
     if (!ok)
       fprintf(stderr, "FAIL: %s (kvm: #%d err=0x%lx rip=0x%lx, sail: #%d err=0x%lx rip=0x%lx)\n",
               tc.name.c_str(),

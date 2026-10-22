@@ -859,9 +859,10 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // checking reserved bits or canonical addresses. The Sail model does
   // validate these per the SDM.
 
-  // ---- #PF (vector 14): page faults beyond the identity-mapped 2MB ----
+  // ---- #PF (vector 14): page faults outside the identity-mapped 2MB ----
   //
-  // The guest maps only the first 2MB; any access at or above 0x200000
+  // The guest maps only the first 2MB, and none of it below CODE_ADDR (see
+  // kvm-harness.h); any access below CODE_ADDR or at or above 0x200000
   // takes a not-present #PF.  These are the suite's first tests that
   // compare the page-fault path itself — vector, error code (R/W and
   // I/D bits), and CR2 — rather than avoiding it.  enable_paging gives
@@ -898,6 +899,15 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     // second page, so CR2 must point into the unmapped page
     pf.rbx = 0x1FFFFC;
     add_pf("pf read straddling 2MB boundary", {0x48, 0x8B, 0x03}, pf);
+
+    // Below CODE_ADDR: address 0, and an 8-byte read from the last
+    // unmapped page into the code page, which faults on the first page
+    pf.rbx = 0;
+    add_pf("pf read [0]", {0x48, 0x8B, 0x03}, pf);
+    store.rbx = 0;
+    add_pf("pf write [0]", {0x48, 0x89, 0x03}, store);
+    pf.rbx = CODE_ADDR - 4;
+    add_pf("pf read straddling up to the code page", {0x48, 0x8B, 0x03}, pf);
 
     // Instruction fetch from an unmapped page
     pf.rbx = 0x400000;

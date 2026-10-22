@@ -628,7 +628,8 @@ std::string forms(const std::vector<Insn> &insns, bool with_imm) {
 }
 
 // A variant runs with the model translating through the guest's identity
-// map of the low 2MB, so that an access beyond it faults on both sides.
+// map of the low 2MB (less the pages below CODE_ADDR), so that an access
+// outside it faults on both sides.
 // A variant that faults after the instructions leaving the case's
 // undefined flags pushes them in its RFLAGS image.
 TestCase derive(const TestCase &tc) {
@@ -1123,6 +1124,19 @@ bool system_group(const Insn &in) {
   return in.enc == Enc::Legacy && in.map == 1 && in.op <= 0x01;
 }
 
+// UMONITOR (F3 0F AE /6, mod = 11), which an F3h prefix makes of MFENCE,
+// TPAUSE and UMWAIT (the last of F2h and F3h counts, on the hardware and
+// in the model).  Its address is then whatever the register holds,
+// usually 0, where the guest maps nothing, and an unmapped address is no
+// case (kvm-tests-waitpkg.cpp): the model raises the #PF of the SDM's
+// byte load, the Xeon Platinum 8562Y+ under KVM completes.
+bool umonitor(const Insn &in) {
+  if (!in.legacy(1, 0xAE) || in.mod() != 3 || (in.modrm >> 3 & 7) != 6) return false;
+  for (size_t i = in.prefixes.size(); i-- > 0;)
+    if (in.prefixes[i] == 0xF2 || in.prefixes[i] == 0xF3) return in.prefixes[i] == 0xF3;
+  return false;
+}
+
 // The instruction with its r/m operand as [r + disp] (no SIB).
 Insn as_memory(Insn in, int r, int disp_len, i32 disp) {
   in.modrm = u8((disp_len == 0 ? 0x00 : disp_len == 1 ? 0x40 : 0x80) | (in.modrm & 0x38) | (r & 7));
@@ -1321,7 +1335,7 @@ void make_prefixes(const Base &b, const Emit &emit) {
       }
     }
     for (auto &[detail, in] : changed) {
-      if (!claim(b, orig, detail)) continue;
+      if ((umonitor(in) && !umonitor(orig)) || !claim(b, orig, detail)) continue;
       TestCase v = replace_insn(b, i, in);
       emit(b, detail, std::move(v));
     }

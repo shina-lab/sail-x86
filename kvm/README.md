@@ -60,12 +60,12 @@ registers, RIP, RFLAGS (less a test's undefined arithmetic flags), all 32 ZMM
 registers, the opmask registers, DR6 and DR7, MXCSR, the x87 state, the whole
 data page, and the whole stack page. After a run that faults, it compares the
 exception (vector, error code, RIP, CR2, DR6, DR7, the pushed RFLAGS) and the
-data page, unless the test's stack is in the data page, where the guest's
-exception handler pushes a frame the model does not. A test cannot narrow
-these comparisons except by declaring what its instructions leave undefined:
-`flags_mask` for RFLAGS, and `data_undefined` for bits it stores to the data
-page, such as an x87 status word with undefined condition codes in an FSAVE
-image.
+same two pages: the guest's exception handlers run on a stack of their own
+(IST1), so delivery does not write the test's memory, nor depend on its RSP.
+A test cannot narrow these comparisons except by declaring what its
+instructions leave undefined: `flags_mask` for RFLAGS, and `data_undefined`
+for bits it stores to the data page, such as an x87 status word with
+undefined condition codes in an FSAVE image.
 
 Two parts of the state are left out because the Sail model does not define
 them. Floating-point arithmetic is supplied by externs, so the MXCSR exception
@@ -117,11 +117,18 @@ instruction or #UD, and the hardware decides which.
   z and aaa, and the bits EVEX fixes.
 - Prefixes: 66h, F2h, F3h, LOCK, CS and FS overrides, and for legacy
   instructions REX, a flipped REX.W, and 66h with REX.W. An immediate whose
-  size the prefix decides is extended or cut to match.
+  size the prefix decides is extended or cut to match. F3h is not added
+  where it makes UMONITOR (of MFENCE, TPAUSE or UMWAIT): its address would
+  be unmapped, which is no case (see `kvm-tests-waitpkg.cpp`).
 
 Variants run with the model translating through the guest's page tables, an
 identity map of the low 2MB, so that an access outside it faults on both
-sides rather than reaching the harness's own memory.
+sides rather than reaching the harness's own memory. The map leaves out the
+first 64KB, which the harness process cannot map (`vm.mmap_min_addr`): an
+access through a zeroed base register is a #PF on both sides. The guest's
+page tables lie there, reached physically, and its descriptor tables and
+exception handlers are above it, at the same addresses and with the same
+contents as the model's.
 
 Floating-point arithmetic is left to the model's externs, so the kinds that
 change operand values, the rounding mode or the immediate leave it out, and

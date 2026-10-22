@@ -45,26 +45,35 @@ inline void bytes_to_zmm(lbits *out, const u8 *in) {
 inline void xmm_to_bytes(lbits val, u8 *out) { zmm_to_bytes(val, out); }
 inline void bytes_to_xmm(lbits *out, const u8 *in) { bytes_to_zmm(out, in); }
 
-// Guest physical memory layout (identity-mapped, 2MB total):
-//   0x00000 - 0x00FFF  PML4
-//   0x01000 - 0x01FFF  PDPT
-//   0x02000 - 0x02FFF  PD
-//   0x03000 - 0x03FFF  GDT
+// Guest physical memory layout (2MB total), identity-mapped in 4KB pages
+// from CODE_ADDR up.  The model reaches the same addresses in the harness
+// process, which cannot map below 0x10000 (vm.mmap_min_addr), so neither
+// side maps the pages below CODE_ADDR: an access there is a #PF on both.
+// The structures the guest reaches through linear addresses are at the
+// same addresses on both sides, with the same contents.
+//   0x00000 - 0x03FFF  KVM guest page tables: PML4, PDPT, PD, PT
+//                      (reached physically; not mapped)
 //   0x10000 - 0x10FFF  Test code (instructions + HLT)
 //   0x11000 - 0x11FFF  Test data (for memory operands)
+//   0x14000 - 0x14FFF  GDT, with the TSS at 0x14800
+//   0x15000 - 0x18FFF  Model page tables (enable_paging): PML4, PDPT, PD, PT
+//   0x19000 - 0x19FFF  IDT
+//   0x1A000 - 0x1AFFF  Exception handlers
+//   0x1B000 - 0x1BFFF  Fault information the handlers record
+//   0x1C000 - 0x1CFFF  The handlers' stack (IST1)
 //   0x1F000 - 0x1FFFF  Stack (RSP starts at 0x20000)
 static constexpr u64 GUEST_MEM_SIZE = 2 * 1024 * 1024;
 static constexpr u64 PML4_ADDR      = 0x00000;
-static constexpr u64 PDPT_ADDR      = 0x01000;
-static constexpr u64 PD_ADDR        = 0x02000;
-static constexpr u64 GDT_ADDR       = 0x03000;
-static constexpr u64 TSS_ADDR       = 0x03800;  // 64-bit TSS (104 bytes, within GDT page)
-static constexpr u64 IDT_ADDR        = 0x04000;
-static constexpr u64 HANDLER_ADDR    = 0x05000;
-static constexpr u64 COMMON_HANDLER  = HANDLER_ADDR + 32 * 16;  // 0x05200
 static constexpr u64 CODE_ADDR      = 0x10000;
 static constexpr u64 DATA_ADDR      = 0x11000;
-static constexpr u64 FAULT_INFO_ADDR = 0x12000;
+static constexpr u64 GDT_ADDR       = 0x14000;
+static constexpr u64 TSS_ADDR       = 0x14800;  // 64-bit TSS (104 bytes, within GDT page)
+static constexpr u64 SAIL_PML4_ADDR = 0x15000;
+static constexpr u64 IDT_ADDR        = 0x19000;
+static constexpr u64 HANDLER_ADDR    = 0x1A000;
+static constexpr u64 COMMON_HANDLER  = HANDLER_ADDR + 32 * 16;  // 0x1A200
+static constexpr u64 FAULT_INFO_ADDR = 0x1B000;
+static constexpr u64 HANDLER_STACK_TOP = 0x1D000;
 static constexpr u64 STACK_TOP      = 0x20000;
 
 // RFLAGS bit positions
