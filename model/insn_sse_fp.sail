@@ -277,8 +277,12 @@ function dispatch_2byte_sse_fp(op, pfx) = {
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
       let src = modrm_rm(modrm, pfx);
-      // The integer source is r/m32, or r/m64 with REX.W: 66 selects no
-      // 16-bit form (SDM Vol.2A CVTSI2SS, CVTSI2SD).
+      // The integer source is r/m32, or r/m64 with REX.W (SDM Vol.2A
+      // CVTSI2SS, CVTSI2SD); there is no 16-bit form.  A 66h beside the F2h
+      // or F3h is "Other use of the 66H prefix", which "is reserved; such
+      // use may cause unpredictable behavior" (SDM Vol.2A §2.1.1, p.2-2);
+      // the model ignores it, as F2h and F3h take precedence over 66h for
+      // every legacy SIMD opcode (get_mandatory_prefix).
       let rex_w = pfx.rex_w;
       match mp {
         // CVTSI2SS xmm, r/m32/64 (F3 prefix)

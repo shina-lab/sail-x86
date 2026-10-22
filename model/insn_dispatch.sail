@@ -1479,11 +1479,16 @@ function decode_execute() = {
         }
       },
 
-      // 90: NOP / PAUSE (F3 90) / XCHG R8D,EAX (REX.B).  With both F3 and
-      // REX.B, Intel executes PAUSE (Emerald Rapids leaves R8 and RAX as
-      // they were) and AMD the XCHG (Zen 4 swaps them).
+      // 90: NOP / PAUSE (F3 90) / XCHG R8D,EAX (REX.B).  Both manuals leave
+      // F3 with REX.B open: PAUSE is F3 90 alone (SDM Vol.2B PAUSE), and a
+      // repeat prefix on another instruction "is reserved; such use may
+      // cause unpredictable behavior" (SDM Vol.2A §2.1.1) or "should only
+      // be used with such string instructions" (APM Vol.3 §1.2.6).  The
+      // model runs the XCHG, as REX.B selects R8 for 90 on both XCHG pages
+      // (SDM Vol.2D XCHG, 90+rd; APM Vol.3 XCHG: "Opcode 90h can still be
+      // used to exchange rAX and r8 if the appropriate REX prefix is used").
       144 => {
-        if pfx.rex_b == 0b1 & (~(pfx.has_rep) | vendor == Vendor_AMD) then {
+        if pfx.rex_b == 0b1 then {
           let os = opsize(pfx);
           exec_xchg_reg_reg(RAX, R8, os)
         } else {

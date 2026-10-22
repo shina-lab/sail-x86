@@ -587,10 +587,22 @@ struct Base {
 //   INSERTQ p.195).  A register form takes its field from a register that
 //   the code before it may have changed, so its whole destination is left
 //   out.
+// - 90 with REX.B and an F3h prefix (the last of F2h and F3h), which a
+//   variant makes of XCHG r8,rAX: PAUSE is F3 90 alone, and a repeat
+//   prefix on another instruction "is reserved; such use may cause
+//   unpredictable behavior" (SDM Vol.2A §2.1.1, p.2-2).  Whether RAX
+//   and R8 are exchanged is left open.
 void mark_undefined(TestCase &v) {
   std::vector<Insn> insns;
   if (!decode_all(v.code, &insns)) return;
   for (const Insn &in : insns) {
+    if (in.legacy(0, 0x90) && in.B) {
+      for (size_t i = in.prefixes.size(); i-- > 0;) {
+        if (in.prefixes[i] != 0xF2 && in.prefixes[i] != 0xF3) continue;
+        if (in.prefixes[i] == 0xF3) v.undefined.gpr[0] = v.undefined.gpr[8] = ~0ULL;
+        break;
+      }
+    }
     int mp = mandatory_prefix(in);
     if ((in.legacy(1, 0x78) || in.legacy(1, 0x79)) && (mp == 1 || mp == 3) && in.mod() == 3) {
       int dst = in.op == 0x78 && mp == 1 ? in.rm() : in.reg();
@@ -1155,9 +1167,9 @@ bool system_group(const Insn &in) {
   return in.enc == Enc::Legacy && in.map == 1 && in.op <= 0x01;
 }
 
-// UMONITOR (F3 0F AE /6, mod = 11), which an F3h prefix makes of MFENCE,
-// TPAUSE and UMWAIT (the last of F2h and F3h counts, on the hardware and
-// in the model).  Its address is then whatever the register holds,
+// UMONITOR (F3 0F AE /6, mod = 11), which an F3h prefix makes of MFENCE
+// and TPAUSE (and of UMWAIT, but F3h is not added beside its F2h:
+// defined_prefix).  Its address is then whatever the register holds,
 // usually 0, where the guest maps nothing, and an unmapped address is no
 // case (kvm-tests-waitpkg.cpp): the model raises the #PF of the SDM's
 // byte load, the Xeon Platinum 8562Y+ under KVM completes.
@@ -1340,10 +1352,33 @@ void resize_immediate(Insn &in) {
   in.imm.resize(in.map == 0 ? one_byte_imm_len(in) : map1_imm_len(in), 0);
 }
 
+// Whether the manuals define the instruction with prefix p added:
+// - "An instruction encoding may include a maximum of one prefix from each
+//   of the five groups ... The result of using multiple prefixes from a
+//   single group is undefined" (AMD APM Vol.3 §1.2.1, p.6): no F2h with
+//   F3h, nor FS with GS.  In 64-bit mode the CS, DS, ES and SS overrides
+//   "are not treated as segment-override prefixes for the purposes of
+//   multiple-prefix rules" (§1.2.4, p.11).
+// - Beside the F2h or F3h of an SSE instruction a 66h is "Other use of the
+//   66H prefix", which "is reserved; such use may cause unpredictable
+//   behavior" (SDM Vol.2A §2.1.1, p.2-2), as it is when F2h or F3h joins
+//   the 66h of one.  Row F of the 0F 38 map takes 66h as an operand size
+//   (APM Vol.3 §A.1.1, p.538), as do POPCNT, LZCNT and TZCNT.
+bool defined_prefix(const Insn &in, u8 p) {
+  bool repeat = in.has_prefix(0xF2) || in.has_prefix(0xF3);
+  if ((p == 0xF2 || p == 0xF3) && repeat) return false;
+  if (p == 0x64 && in.has_prefix(0x65)) return false;
+  bool sse = in.enc == Enc::Legacy && simd(in) && !(in.map == 2 && in.op >= 0xF0);
+  if (sse && p == 0x66 && repeat) return false;
+  if (sse && (p == 0xF2 || p == 0xF3) && in.has_prefix(0x66)) return false;
+  return true;
+}
+
 // Prefixes added to one instruction at a time: operand size, REPNE/REP,
 // LOCK, CS and FS segment overrides, and for legacy instructions REX, a
-// flipped REX.W, and 66h with REX.W.  VEX and EVEX after any of them but
-// a segment override are #UD.
+// flipped REX.W, and 66h with REX.W, each where the manuals define the
+// result (defined_prefix).  VEX and EVEX after any of them but a segment
+// override are #UD.
 void make_prefixes(const Base &b, const Emit &emit) {
   if (!b.movable) return;
   for (size_t i = 0; i < b.insns.size(); i++) {
@@ -1352,7 +1387,7 @@ void make_prefixes(const Base &b, const Emit &emit) {
     bool legacy = orig.enc == Enc::Legacy;
     std::vector<std::pair<std::string, Insn>> changed;
     for (u8 p : {0x66, 0xF2, 0xF3, 0xF0, 0x2E, 0x64}) {
-      if (orig.has_prefix(p)) continue;
+      if (orig.has_prefix(p) || !defined_prefix(orig, p)) continue;
       Insn in = orig;
       in.prefixes.push_back(p);
       resize_immediate(in);
@@ -1371,7 +1406,7 @@ void make_prefixes(const Base &b, const Emit &emit) {
       in.W = !in.W;
       resize_immediate(in);
       changed.push_back({"REX.W flipped", in});
-      if (!orig.W && !orig.has_prefix(0x66)) {
+      if (!orig.W && !orig.has_prefix(0x66) && defined_prefix(orig, 0x66)) {
         in = orig;
         in.prefixes.push_back(0x66);
         in.W = true;
