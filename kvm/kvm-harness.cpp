@@ -243,7 +243,7 @@ struct KvmVm {
   int vcpu_fd = -1;
   struct kvm_run *run = nullptr;
   u8 *guest_mem = nullptr;
-  u8 initial_gdt[12 * 8] = {};
+  std::vector<u8> initial_system;  // guest memory below CODE_ADDR as set up
   const XsaveLayout xl = host_xsave_layout();
   // The XSAVE image exchanged with KVM: struct kvm_xsave (4096 bytes)
   // unless the guest's area is larger, which KVM_CAP_XSAVE2 reports and
@@ -386,7 +386,7 @@ struct KvmVm {
     gdt[9] = 0x00CF9A000000FFFF;   // 32-bit code (selector 0x48): type=0xA, S=1, D=1, L=0
     gdt[10] = 0x00AFFA000000FFFF;  // 64-bit user code (selector 0x53): type=0xA, S=1, DPL=3, L=1
     gdt[11] = 0x00CFF2000000FFFF;  // user data (selector 0x5B): type=0x2, S=1, DPL=3
-    memcpy(initial_gdt, gdt, sizeof(initial_gdt));
+    initial_system.assign(guest_mem, guest_mem + CODE_ADDR);
 
     struct kvm_sregs sregs;
     ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
@@ -454,12 +454,16 @@ struct KvmVm {
   }
 
   void load_test(const TestCase &tc) {
-    // Segment loads can set descriptor Accessed bits in guest memory. Restore
-    // the complete table so later LAR tests see the same image as fresh Sail
-    // executions, regardless of preceding faults, far returns, or mode switches.
-    memcpy(guest_mem + GDT_ADDR, initial_gdt, sizeof(initial_gdt));
+    // Restore the page tables, descriptor tables and handlers.  Segment loads
+    // set descriptor Accessed bits, so that later LAR tests would not see the
+    // image a fresh Sail execution does, and a store through a stray address
+    // (such as RDI = 0 in a variant whose instruction became a store) lands
+    // in the page tables at address 0 and breaks every later case.
+    memcpy(guest_mem, initial_system.data(), initial_system.size());
 
-    // Restore default XCR0 and CR4 (may have been overridden by previous test)
+    // Restore the default XCR0, CR0 and CR4, which a previous test may have
+    // changed ("mov cr0,rax sets TS" leaves CR0.TS set, and an SSE
+    // instruction in a later case then raised #NM on KVM only).
     struct kvm_xcrs xcrs_default = {};
     xcrs_default.nr_xcrs = 1;
     xcrs_default.xcrs[0].xcr = 0;
@@ -468,6 +472,7 @@ struct KvmVm {
 
     struct kvm_sregs sregs_tmp;
     ioctl(vcpu_fd, KVM_GET_SREGS, &sregs_tmp);
+    sregs_tmp.cr0 = 0x80000011;  // PE + PG + ET, as in init and the model's start
     sregs_tmp.cr4 = 0x50620;  // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
     // TPR, as the model starts every run with it.  KVM on AMD also keeps a
     // guest's CR8 write in the VMCB, which this does not reach, so a
