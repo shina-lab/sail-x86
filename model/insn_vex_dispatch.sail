@@ -575,12 +575,44 @@ function vex_digit_valid(map, opcode, digit) = match (map, opcode) {
   _ => true,
 }
 
+// The opmask instructions: KAND, KANDN, KNOT, KOR, KXNOR, KXOR, KADD,
+// KUNPCK, KMOV, KORTEST, KTEST (0F 41-4B, 90-93, 98, 99) and KSHIFTR,
+// KSHIFTL (0F3A 30-33), which are AVX-512 instructions.
+val vex_opmask_insn : (range(0, 31), range(0, 255)) -> bool
+function vex_opmask_insn(map, op) = match map {
+  1 => (65 <= op & op <= 75) | (144 <= op & op <= 147) | op == 152 | op == 153,
+  3 => 48 <= op & op <= 51,
+  _ => false,
+}
+
+// The AVX-512 extension of an opmask instruction: AVX512F for the word
+// forms (no prefix and W0, or KSHIFTRW and KSHIFTLW, 66 0F3A 30 and 32
+// W1) and KUNPCKBW, AVX512DQ for the byte forms (66 and W0), KADDW and
+// KTESTW, AVX512BW for the doubleword and quadword forms (W1, or F2 for
+// KMOVD and KMOVQ with a general-purpose register), KUNPCKWD and
+// KUNPCKDQ: the "CPUID Feature Flag" column of the SDM (Vol.2A KADDW ...
+// KXORW, pp. 3-513 to 3-531) and the "Instruction Support" lists of the
+// APM (Vol.4 KADDB ... KXORW, pp. 197-247), which agree.
+val vex_opmask_feature_present : (range(0, 31), range(0, 255), Prefixes) -> bool
+function vex_opmask_feature_present(map, op, pfx) = {
+  let mp = get_mandatory_prefix(pfx);
+  if map == 3 then {
+    if op == 49 | op == 51 then has_avx512bw
+    else if pfx.vex_w then has_avx512f else has_avx512dq
+  } else if op == 75 then {
+    if mp == MP_66 then has_avx512f else has_avx512bw
+  } else if mp == MP_F2 | pfx.vex_w then has_avx512bw
+  else if mp == MP_66 | op == 74 | op == 153 then has_avx512dq
+  else has_avx512f
+}
+
 // Whether the processor has the CPUID feature a VEX-encoded SIMD
 // instruction needs beyond AVX and AVX2.  The general-purpose instructions
 // (BMI1, BMI2) and AMX check theirs in their handlers.
 val vex_feature_present : (range(0, 31), byte, Prefixes) -> bool
 function vex_feature_present(map, opcode, pfx) = {
   let op : range(0, 255) = unsigned(opcode);
+  if vex_opmask_insn(map, op) then vex_opmask_feature_present(map, op, pfx) else
   match map {
     2 => match op {
       // VCVTPH2PS
@@ -657,8 +689,9 @@ function vex_no_sse_form(map, op) = match map {
 // the same"; APM VPGATHERDD: "MODRM.rm ! = 100b", "YMM/XMM registers
 // specified for destination, mask, and index not unique"); an opmask
 // instruction's opmask in ModR/M.reg with VEX.R set or, in 64-bit mode,
-// in VEX.vvvv with its bit 3 set (vex_kreg_reg); or a SIMD instruction of
-// a CPUID feature the processor lacks.  The model raises all of these
+// in VEX.vvvv with its bit 3 set (vex_kreg_reg); a SIMD instruction of a
+// CPUID feature the processor lacks; or an opmask instruction while the
+// AVX-512 state is not enabled (avx512_enabled).  The model raises all of these
 // ahead of the #NM of CR0.TS (check_cr0_ts; exceptions.sail).  Returns the
 // prefixes with vvvv as the instruction reads it.
 val vex_check_form : (range(0, 31), byte, Prefixes) -> Prefixes
@@ -713,6 +746,9 @@ function vex_check_form(map, opcode, pfx) = {
     then raise_UD()
   };
   if ~(vex_feature_present(map, opcode, pfx)) then raise_UD();
+  // The opmask instructions need the AVX-512 state (Table 2-65, "TYPE K20
+  // Exception Definition": "State requirement, Table 2-39 not met").
+  if vex_opmask_insn(map, op) & ~(avx512_enabled()) then raise_UD();
   pfx
 }
 

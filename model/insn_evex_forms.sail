@@ -26,7 +26,7 @@
 // ignored.  The table was generated from the SDM reference pages of the
 // February 2026 revision (one page per mnemonic, as in ~/sdm); it includes
 // the forms of AVX512_4FMAPS and AVX512_4VNNIW, which the model does not
-// implement (evex_feature_present).
+// implement (evex_extension, which gives each form its CPUID feature).
 //
 // The SDM rows of VCVTSI2SD and VCVTUSI2SD (W0), VCVTDQ2PD and VCVTUDQ2PD
 // have no {er}, but their pages accept EVEX.b in the register form:
@@ -744,36 +744,284 @@ function evex_form_map6(op, pp, w, digit, is_reg) = match (op, pp, w, digit, is_
   _ => None()
 }
 
-// Whether the processor has the extension of an EVEX form beyond those
-// has_avx512 stands for (CPUID leaf 7 in insn_baseline.sail): AVX512-FP16
-// (CPUID.(EAX=07H,ECX=0):EDX[23]) for maps 5 and 6 and the 0F3A forms
-// with no prefix or F3 (VRNDSCALEPH ... VCMPSH), GFNI, VAES and
-// VPCLMULQDQ.  The model implements neither AVX512_4FMAPS nor
-// AVX512_4VNNIW (F2 0F38 52, 53, 9A, 9B, AA, AB; Xeon Phi only).
-val evex_feature_present : (range(0, 7), byte, bits(2)) -> bool
-function evex_feature_present(mmm, opcode, pp) = {
-  let op : range(0, 255) = unsigned(opcode);
-  match mmm {
-    2 => match op {
-      // VP4DPWSSD, VP4DPWSSDS, V4FMADDPS, V4FMADDSS, V4FNMADDPS, V4FNMADDSS
-      op if op == 82 | op == 83 | op == 154 | op == 155 | op == 170 | op == 171 =>
-        pp != 0b11,
-      // VGF2P8MULB
-      207 => has_gfni,
-      // VAESENC, VAESENCLAST, VAESDEC, VAESDECLAST
-      op if 220 <= op & op <= 223 => has_vaes,
-      _ => true,
-    },
-    3 => match op {
-      // VPCLMULQDQ
-      68 => has_vpclmulqdq,
-      // VGF2P8AFFINEQB, VGF2P8AFFINEINVQB
-      op if op == 206 | op == 207 => has_gfni,
-      _ => has_avx512_fp16 | pp == 0b01 | pp == 0b11,
-    },
-    5 => has_avx512_fp16,
-    6 => has_avx512_fp16,
-    _ => true,
+// The CPUID feature of each EVEX form: the extension in the "CPUID Feature
+// Flag" column of its rows in the SDM (Vol.2A-2D Chapters 3-5, e.g.
+// "(AVX512VL AND AVX512_VBMI) OR AVX10.1" and "AVX512_VBMI OR AVX10.1" of
+// VPERMB, Vol.2C p. 5-498) and in the "Instruction Support" list of its
+// page in the APM (Vol.4, e.g. "EVEX VPERMB 512-bit  AVX512VBMI", p.
+// 1338).  The forms of the same opcode, pp and W have the same one, but
+// for the /digit of 0F 73.  Besides the AVX-512 extensions they are GFNI,
+// VAES and VPCLMULQDQ, and AVX512_4FMAPS and AVX512_4VNNIW (F2 0F38 52,
+// 53, 9A, 9B, AA, AB, of the Xeon Phi processors), which the model does
+// not implement (EXT_NONE: #UD).  AVX10.1, which the SDM's rows accept in
+// place of the AVX-512 flags, is not implemented either (the model's
+// CPUID.(07H,1):EDX[19] is 0).
+enum EvexExt = {
+  EXT_F, EXT_CD, EXT_ER, EXT_PF, EXT_BW, EXT_DQ, EXT_IFMA, EXT_VBMI, EXT_VBMI2,
+  EXT_VNNI, EXT_BITALG, EXT_VPOPCNTDQ, EXT_VP2INTERSECT, EXT_BF16, EXT_FP16,
+  EXT_GFNI, EXT_VAES, EXT_VPCLMULQDQ, EXT_NONE
+}
+
+// 0F: AVX512DQ for the logical instructions of packed FP values and the
+// conversions to and from quadword integers, AVX512BW for the byte and
+// word instructions, AVX512F for the rest (the rows with no prefix or 66
+// of opcodes that also have rows with another prefix or W, such as
+// VCVTDQ2PS, VPSHUFD and VMOVDQA32, among them).
+val evex_extension_0f : (byte, bits(2), bit, bits(3)) -> EvexExt
+function evex_extension_0f(op, pp, w, digit) = match (op, pp, w) {
+  (0x54,    _,   _) => EXT_DQ,  // VANDPS, VANDPD
+  (0x55,    _,   _) => EXT_DQ,  // VANDNPS, VANDNPD
+  (0x56,    _,   _) => EXT_DQ,  // VORPS, VORPD
+  (0x57,    _,   _) => EXT_DQ,  // VXORPS, VXORPD
+  (0x5B, 0b00, 0b1) => EXT_DQ,  // VCVTQQ2PS
+  (0x60, 0b01,   _) => EXT_BW,  // VPUNPCKLBW
+  (0x61, 0b01,   _) => EXT_BW,  // VPUNPCKLWD
+  (0x63, 0b01,   _) => EXT_BW,  // VPACKSSWB
+  (0x64, 0b01,   _) => EXT_BW,  // VPCMPGTB
+  (0x65, 0b01,   _) => EXT_BW,  // VPCMPGTW
+  (0x67, 0b01,   _) => EXT_BW,  // VPACKUSWB
+  (0x68, 0b01,   _) => EXT_BW,  // VPUNPCKHBW
+  (0x69, 0b01,   _) => EXT_BW,  // VPUNPCKHWD
+  (0x6B, 0b01,   _) => EXT_BW,  // VPACKSSDW
+  (0x6F, 0b11,   _) => EXT_BW,  // VMOVDQU8, VMOVDQU16
+  (0x70, 0b10,   _) => EXT_BW,  // VPSHUFHW
+  (0x70, 0b11,   _) => EXT_BW,  // VPSHUFLW
+  (0x71, 0b01,   _) => EXT_BW,  // VPSRLW, VPSRAW, VPSLLW imm8
+  // VPSRLDQ (/3) and VPSLLDQ (/7); VPSRLQ (/2) and VPSLLQ (/6) imm8
+  (0x73, 0b01,   _) => if digit == 0b011 | digit == 0b111 then EXT_BW else EXT_F,
+  (0x74, 0b01,   _) => EXT_BW,  // VPCMPEQB
+  (0x75, 0b01,   _) => EXT_BW,  // VPCMPEQW
+  (0x78, 0b01,   _) => EXT_DQ,  // VCVTTPS2UQQ, VCVTTPD2UQQ
+  (0x79, 0b01,   _) => EXT_DQ,  // VCVTPS2UQQ, VCVTPD2UQQ
+  (0x7A, 0b01,   _) => EXT_DQ,  // VCVTTPS2QQ, VCVTTPD2QQ
+  (0x7A, 0b10, 0b1) => EXT_DQ,  // VCVTUQQ2PD
+  (0x7A, 0b11, 0b1) => EXT_DQ,  // VCVTUQQ2PS
+  (0x7B, 0b01,   _) => EXT_DQ,  // VCVTPS2QQ, VCVTPD2QQ
+  (0x7F, 0b11,   _) => EXT_BW,  // VMOVDQU8, VMOVDQU16
+  (0xC4, 0b01,   _) => EXT_BW,  // VPINSRW
+  (0xC5, 0b01,   _) => EXT_BW,  // VPEXTRW
+  (0xD1, 0b01,   _) => EXT_BW,  // VPSRLW
+  (0xD5, 0b01,   _) => EXT_BW,  // VPMULLW
+  (0xD8, 0b01,   _) => EXT_BW,  // VPSUBUSB
+  (0xD9, 0b01,   _) => EXT_BW,  // VPSUBUSW
+  (0xDA, 0b01,   _) => EXT_BW,  // VPMINUB
+  (0xDC, 0b01,   _) => EXT_BW,  // VPADDUSB
+  (0xDD, 0b01,   _) => EXT_BW,  // VPADDUSW
+  (0xDE, 0b01,   _) => EXT_BW,  // VPMAXUB
+  (0xE0, 0b01,   _) => EXT_BW,  // VPAVGB
+  (0xE1, 0b01,   _) => EXT_BW,  // VPSRAW
+  (0xE3, 0b01,   _) => EXT_BW,  // VPAVGW
+  (0xE4, 0b01,   _) => EXT_BW,  // VPMULHUW
+  (0xE5, 0b01,   _) => EXT_BW,  // VPMULHW
+  (0xE6, 0b10, 0b1) => EXT_DQ,  // VCVTQQ2PD
+  (0xE8, 0b01,   _) => EXT_BW,  // VPSUBSB
+  (0xE9, 0b01,   _) => EXT_BW,  // VPSUBSW
+  (0xEA, 0b01,   _) => EXT_BW,  // VPMINSW
+  (0xEC, 0b01,   _) => EXT_BW,  // VPADDSB
+  (0xED, 0b01,   _) => EXT_BW,  // VPADDSW
+  (0xEE, 0b01,   _) => EXT_BW,  // VPMAXSW
+  (0xF1, 0b01,   _) => EXT_BW,  // VPSLLW
+  (0xF5, 0b01,   _) => EXT_BW,  // VPMADDWD
+  (0xF6, 0b01,   _) => EXT_BW,  // VPSADBW
+  (0xF8, 0b01,   _) => EXT_BW,  // VPSUBB
+  (0xF9, 0b01,   _) => EXT_BW,  // VPSUBW
+  (0xFC, 0b01,   _) => EXT_BW,  // VPADDB
+  (0xFD, 0b01,   _) => EXT_BW,  // VPADDW
+  _ => EXT_F,
+}
+
+// 0F38.  W selects the extension of the broadcasts (0F38 19, 1A, 1B, 59,
+// 5A, 5B: VBROADCASTSD and VPBROADCASTQ with W1, the 32X4 forms with W0
+// and the 64X4 forms with W1 are AVX512F) and of the byte and word
+// permutes (VPERMB etc. with W0, VPERMW etc. with W1).
+val evex_extension_0f38 : (byte, bits(2), bit) -> EvexExt
+function evex_extension_0f38(op, pp, w) = match (op, pp, w) {
+  (0x00, 0b01,   _) => EXT_BW,  // VPSHUFB
+  (0x04, 0b01,   _) => EXT_BW,  // VPMADDUBSW
+  (0x0B, 0b01,   _) => EXT_BW,  // VPMULHRSW
+  (0x10, 0b01,   _) => EXT_BW,  // VPSRLVW
+  (0x10, 0b10,   _) => EXT_BW,  // VPMOVUSWB
+  (0x11, 0b01,   _) => EXT_BW,  // VPSRAVW
+  (0x12, 0b01,   _) => EXT_BW,  // VPSLLVW
+  (0x19, 0b01, 0b0) => EXT_DQ,  // VBROADCASTF32X2
+  (0x1A, 0b01, 0b1) => EXT_DQ,  // VBROADCASTF64X2
+  (0x1B, 0b01, 0b0) => EXT_DQ,  // VBROADCASTF32X8
+  (0x1C, 0b01,   _) => EXT_BW,  // VPABSB
+  (0x1D, 0b01,   _) => EXT_BW,  // VPABSW
+  (0x20, 0b01,   _) => EXT_BW,  // VPMOVSXBW
+  (0x20, 0b10,   _) => EXT_BW,  // VPMOVSWB
+  (0x26,    _,   _) => EXT_BW,  // VPTESTMB, VPTESTMW (66); VPTESTNMB, VPTESTNMW (F3)
+  (0x28, 0b10,   _) => EXT_BW,  // VPMOVM2B, VPMOVM2W
+  (0x29, 0b10,   _) => EXT_BW,  // VPMOVB2M, VPMOVW2M
+  (0x2A, 0b10,   _) => EXT_CD,  // VPBROADCASTMB2Q
+  (0x2B, 0b01,   _) => EXT_BW,  // VPACKUSDW
+  (0x30, 0b01,   _) => EXT_BW,  // VPMOVZXBW
+  (0x30, 0b10,   _) => EXT_BW,  // VPMOVWB
+  (0x38, 0b01,   _) => EXT_BW,  // VPMINSB
+  (0x38, 0b10,   _) => EXT_DQ,  // VPMOVM2D, VPMOVM2Q
+  (0x39, 0b10,   _) => EXT_DQ,  // VPMOVD2M, VPMOVQ2M
+  (0x3A, 0b01,   _) => EXT_BW,  // VPMINUW
+  (0x3A, 0b10,   _) => EXT_CD,  // VPBROADCASTMW2D
+  (0x3C, 0b01,   _) => EXT_BW,  // VPMAXSB
+  (0x3E, 0b01,   _) => EXT_BW,  // VPMAXUW
+  (0x40, 0b01, 0b1) => EXT_DQ,  // VPMULLQ
+  (0x44, 0b01,   _) => EXT_CD,  // VPLZCNTD, VPLZCNTQ
+  (0x50, 0b01,   _) => EXT_VNNI,  // VPDPBUSD
+  (0x51, 0b01,   _) => EXT_VNNI,  // VPDPBUSDS
+  (0x52, 0b01,   _) => EXT_VNNI,  // VPDPWSSD
+  (0x52, 0b10,   _) => EXT_BF16,  // VDPBF16PS
+  (0x52, 0b11,   _) => EXT_NONE,  // VP4DPWSSD (AVX512_4VNNIW)
+  (0x53, 0b01,   _) => EXT_VNNI,  // VPDPWSSDS
+  (0x53, 0b11,   _) => EXT_NONE,  // VP4DPWSSDS (AVX512_4VNNIW)
+  (0x54, 0b01,   _) => EXT_BITALG,  // VPOPCNTB, VPOPCNTW
+  (0x55, 0b01,   _) => EXT_VPOPCNTDQ,  // VPOPCNTD, VPOPCNTQ
+  (0x59, 0b01, 0b0) => EXT_DQ,  // VBROADCASTI32X2
+  (0x5A, 0b01, 0b1) => EXT_DQ,  // VBROADCASTI64X2
+  (0x5B, 0b01, 0b0) => EXT_DQ,  // VBROADCASTI32X8
+  (0x62, 0b01,   _) => EXT_VBMI2,  // VPEXPANDB, VPEXPANDW
+  (0x63, 0b01,   _) => EXT_VBMI2,  // VPCOMPRESSB, VPCOMPRESSW
+  (0x66, 0b01,   _) => EXT_BW,  // VPBLENDMB, VPBLENDMW
+  (0x68, 0b11,   _) => EXT_VP2INTERSECT,  // VP2INTERSECTD, VP2INTERSECTQ
+  (0x70, 0b01,   _) => EXT_VBMI2,  // VPSHLDVW
+  (0x71, 0b01,   _) => EXT_VBMI2,  // VPSHLDVD, VPSHLDVQ
+  (0x72, 0b01,   _) => EXT_VBMI2,  // VPSHRDVW
+  (0x72, 0b10,   _) => EXT_BF16,  // VCVTNEPS2BF16
+  (0x72, 0b11,   _) => EXT_BF16,  // VCVTNE2PS2BF16
+  (0x73, 0b01,   _) => EXT_VBMI2,  // VPSHRDVD, VPSHRDVQ
+  (0x75, 0b01, 0b0) => EXT_VBMI,  // VPERMI2B
+  (0x75, 0b01, 0b1) => EXT_BW,  // VPERMI2W
+  (0x78, 0b01,   _) => EXT_BW,  // VPBROADCASTB
+  (0x79, 0b01,   _) => EXT_BW,  // VPBROADCASTW
+  (0x7A, 0b01,   _) => EXT_BW,  // VPBROADCASTB r32
+  (0x7B, 0b01,   _) => EXT_BW,  // VPBROADCASTW r32
+  (0x7D, 0b01, 0b0) => EXT_VBMI,  // VPERMT2B
+  (0x7D, 0b01, 0b1) => EXT_BW,  // VPERMT2W
+  (0x83, 0b01,   _) => EXT_VBMI,  // VPMULTISHIFTQB
+  (0x8D, 0b01, 0b0) => EXT_VBMI,  // VPERMB
+  (0x8D, 0b01, 0b1) => EXT_BW,  // VPERMW
+  (0x8F, 0b01,   _) => EXT_BITALG,  // VPSHUFBITQMB
+  (0x9A, 0b11,   _) => EXT_NONE,  // V4FMADDPS (AVX512_4FMAPS)
+  (0x9B, 0b11,   _) => EXT_NONE,  // V4FMADDSS (AVX512_4FMAPS)
+  (0xAA, 0b11,   _) => EXT_NONE,  // V4FNMADDPS (AVX512_4FMAPS)
+  (0xAB, 0b11,   _) => EXT_NONE,  // V4FNMADDSS (AVX512_4FMAPS)
+  (0xB4, 0b01,   _) => EXT_IFMA,  // VPMADD52LUQ
+  (0xB5, 0b01,   _) => EXT_IFMA,  // VPMADD52HUQ
+  (0xC4, 0b01,   _) => EXT_CD,  // VPCONFLICTD, VPCONFLICTQ
+  (0xC6, 0b01,   _) => EXT_PF,  // VGATHERPF0/1DPS/DPD, VSCATTERPF0/1DPS/DPD
+  (0xC7, 0b01,   _) => EXT_PF,  // VGATHERPF0/1QPS/QPD, VSCATTERPF0/1QPS/QPD
+  (0xC8, 0b01,   _) => EXT_ER,  // VEXP2PS, VEXP2PD
+  (0xCA, 0b01,   _) => EXT_ER,  // VRCP28PS, VRCP28PD
+  (0xCB, 0b01,   _) => EXT_ER,  // VRCP28SS, VRCP28SD
+  (0xCC, 0b01,   _) => EXT_ER,  // VRSQRT28PS, VRSQRT28PD
+  (0xCD, 0b01,   _) => EXT_ER,  // VRSQRT28SS, VRSQRT28SD
+  (0xCF, 0b01,   _) => EXT_GFNI,  // VGF2P8MULB
+  (0xDC, 0b01,   _) => EXT_VAES,  // VAESENC
+  (0xDD, 0b01,   _) => EXT_VAES,  // VAESENCLAST
+  (0xDE, 0b01,   _) => EXT_VAES,  // VAESDEC
+  (0xDF, 0b01,   _) => EXT_VAES,  // VAESDECLAST
+  _ => EXT_F,
+}
+
+// 0F3A.  The forms with no prefix or F3 are those of AVX512-FP16
+// (VRNDSCALEPH ... VCMPSH); W selects the extension of the 128- and
+// 256-bit inserts and extracts (the 32X4 forms with W0 and the 64X4 forms
+// with W1 are AVX512F).
+val evex_extension_0f3a : (byte, bits(2), bit) -> EvexExt
+function evex_extension_0f3a(op, pp, w) = match (op, pp, w) {
+  (0x0F, 0b01,   _) => EXT_BW,  // VPALIGNR
+  (0x14, 0b01,   _) => EXT_BW,  // VPEXTRB
+  (0x15, 0b01,   _) => EXT_BW,  // VPEXTRW
+  (0x16, 0b01,   _) => EXT_DQ,  // VPEXTRD, VPEXTRQ
+  (0x18, 0b01, 0b1) => EXT_DQ,  // VINSERTF64X2
+  (0x19, 0b01, 0b1) => EXT_DQ,  // VEXTRACTF64X2
+  (0x1A, 0b01, 0b0) => EXT_DQ,  // VINSERTF32X8
+  (0x1B, 0b01, 0b0) => EXT_DQ,  // VEXTRACTF32X8
+  (0x20, 0b01,   _) => EXT_BW,  // VPINSRB
+  (0x22, 0b01,   _) => EXT_DQ,  // VPINSRD, VPINSRQ
+  (0x38, 0b01, 0b1) => EXT_DQ,  // VINSERTI64X2
+  (0x39, 0b01, 0b1) => EXT_DQ,  // VEXTRACTI64X2
+  (0x3A, 0b01, 0b0) => EXT_DQ,  // VINSERTI32X8
+  (0x3B, 0b01, 0b0) => EXT_DQ,  // VEXTRACTI32X8
+  (0x3E, 0b01,   _) => EXT_BW,  // VPCMPUB, VPCMPUW
+  (0x3F, 0b01,   _) => EXT_BW,  // VPCMPB, VPCMPW
+  (0x42, 0b01,   _) => EXT_BW,  // VDBPSADBW
+  (0x44, 0b01,   _) => EXT_VPCLMULQDQ,  // VPCLMULQDQ
+  (0x50, 0b01,   _) => EXT_DQ,  // VRANGEPS, VRANGEPD
+  (0x51, 0b01,   _) => EXT_DQ,  // VRANGESS, VRANGESD
+  (0x56, 0b01,   _) => EXT_DQ,  // VREDUCEPS, VREDUCEPD
+  (0x57, 0b01,   _) => EXT_DQ,  // VREDUCESS, VREDUCESD
+  (0x66, 0b01,   _) => EXT_DQ,  // VFPCLASSPS, VFPCLASSPD
+  (0x67, 0b01,   _) => EXT_DQ,  // VFPCLASSSS, VFPCLASSSD
+  (0x70, 0b01,   _) => EXT_VBMI2,  // VPSHLDW
+  (0x71, 0b01,   _) => EXT_VBMI2,  // VPSHLDD, VPSHLDQ
+  (0x72, 0b01,   _) => EXT_VBMI2,  // VPSHRDW
+  (0x73, 0b01,   _) => EXT_VBMI2,  // VPSHRDD, VPSHRDQ
+  (0xCE, 0b01,   _) => EXT_GFNI,  // VGF2P8AFFINEQB
+  (0xCF, 0b01,   _) => EXT_GFNI,  // VGF2P8AFFINEINVQB
+  (   _, 0b00,   _) => EXT_FP16,
+  (   _, 0b10,   _) => EXT_FP16,
+  _ => EXT_F,
+}
+
+// Maps 5 and 6 are AVX512-FP16's.
+val evex_extension : (range(0, 7), byte, bits(2), bit, bits(3)) -> EvexExt
+function evex_extension(mmm, opcode, pp, w, digit) = match mmm {
+  1 => evex_extension_0f(opcode, pp, w, digit),
+  2 => evex_extension_0f38(opcode, pp, w),
+  3 => evex_extension_0f3a(opcode, pp, w),
+  _ => EXT_FP16,
+}
+
+// Whether the processor has the extension of an EVEX form at the vector
+// length it executes with.  The 128- and 256-bit forms of an instruction
+// that has a 512-bit form (short) need AVX512VL as well: "Encoding
+// support for vector lengths smaller than 512-bits is indicated by
+// CPUID.07H.00H:EBX[31], abbreviated as AVX512VL" (SDM Vol.1 §15.4, p.
+// 15-7), the "AVX512VL" of their rows, which the instructions with 128-bit
+// forms only (VMOVHPS, VPEXTRB, VMOVW, ...), the scalar ones and those
+// with static rounding or SAE, which run at 512 bits, do not have.  GFNI,
+// VAES and VPCLMULQDQ also need AVX512F at 512 bits ("(AVX512F OR
+// AVX10.1) GFNI", "(AVX512VL OR AVX10.1) GFNI", SDM Vol.2A p. 3-431;
+// "AVX512F, GFNI", "AVX512VL, GFNI", APM Vol.4 p. 180).
+// Where one manual has a flag the other has not, an encoding that only
+// one makes #UD is executed, as either manual allows:
+//   - VDPBF16PS, VCVTNEPS2BF16 and VCVTNE2PS2BF16 at 512 bits:
+//     "(AVX512_BF16 AND AVX512F) OR AVX10.1" (SDM Vol.2C pp. 5-32, 5-38,
+//     5-160), "AVX512VL, AVX512_BF16" for every form (APM Vol.4 pp. 862,
+//     874, 994);
+//   - VP2INTERSECTD and VP2INTERSECTQ: "AVX512VL AVX512_VP2INTERSECT" and
+//     "AVX512F AVX512_VP2INTERSECT" (SDM Vol.2C p. 5-433),
+//     "AVX512_VP2INTERSECT" (APM Vol.4 p. 1229);
+//   - VPTESTNMB and VPTESTNMW at 512 bits: "(AVX512F AND AVX512BW) OR
+//     AVX10.1" (SDM Vol.2C p. 5-657), "AVX512BW" (APM Vol.4 p. 1655).
+// In four places the APM names another extension than the SDM, "AVX512BW"
+// for VPABSD (p. 377) and "AVX512DQ" for VCVTPS2UDQ (p. 909), or none, the
+// "AVX512VL" alone of the 256-bit forms of VBROADCASTF32X2 and
+// VBROADCASTF32X4 (pp. 831, 832), whose 512-bit forms it gives "AVX512VL,
+// AVX512DQ" and "AVX512VL, AVX512F"; the model follows the SDM there.
+val evex_extension_present : (EvexExt, bool) -> bool
+function evex_extension_present(ext, short) = {
+  let vl : bool = ~(short) | has_avx512vl;
+  match ext {
+    EXT_F => has_avx512f & vl,
+    EXT_CD => has_avx512cd & vl,
+    EXT_ER => has_avx512er & vl,
+    EXT_PF => has_avx512pf & vl,
+    EXT_BW => has_avx512bw & vl,
+    EXT_DQ => has_avx512dq & vl,
+    EXT_IFMA => has_avx512_ifma & vl,
+    EXT_VBMI => has_avx512_vbmi & vl,
+    EXT_VBMI2 => has_avx512_vbmi2 & vl,
+    EXT_VNNI => has_avx512_vnni & vl,
+    EXT_BITALG => has_avx512_bitalg & vl,
+    EXT_VPOPCNTDQ => has_avx512_vpopcntdq & vl,
+    EXT_VP2INTERSECT => has_avx512_vp2intersect,
+    EXT_BF16 => has_avx512_bf16 & (if short then has_avx512vl else has_avx512f | has_avx512vl),
+    EXT_FP16 => has_avx512_fp16 & vl,
+    EXT_GFNI => has_gfni & (if short then has_avx512vl else has_avx512f),
+    EXT_VAES => has_vaes & (if short then has_avx512vl else has_avx512f),
+    EXT_VPCLMULQDQ => has_vpclmulqdq & (if short then has_avx512vl else has_avx512f),
+    EXT_NONE => false,
   }
 }
 
@@ -842,7 +1090,6 @@ function evex_check_form(mmm, opcode, pfx) = {
     Some(f) => f,
     None() => raise_UD(),
   };
-  if ~(evex_feature_present(mmm, opcode, pp)) then raise_UD();
 
   // EVEX.b (Table 2-43): in a register form, static rounding ({er}) or SAE
   // ({sae}); in a memory form, embedded broadcast (§2.7.7); #UD otherwise,
@@ -866,6 +1113,12 @@ function evex_check_form(mmm, opcode, pfx) = {
     _ => false,
   };
   if ~(rc_form) & ~(len_ok) then raise_UD();
+
+  // The form's CPUID feature, and AVX512VL for a 128- or 256-bit form of
+  // an instruction that has a 512-bit one.
+  let short : bool = ~(rc_form) & f.lengths[2] == bitone & pfx.evex_ll < 2;
+  if ~(evex_extension_present(evex_extension(mmm, opcode, pp, w, modrm[5..3]), short))
+  then raise_UD();
 
   // EVEX.vvvv and EVEX.V' (Table 2-41) are 1111b and 1 where they encode
   // no register (pfx.evex_vvvvv holds them inverted).  Outside 64-bit mode

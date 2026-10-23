@@ -152,11 +152,16 @@ function cpuid(leaf, subleaf) = {
         if has_bmi1       then ebx = ebx | 0x00000008;  // bit 3
         if XCR0[2] == 0b1 then ebx = ebx | 0x00000020;  // AVX2 (bit 5)
         if has_bmi2       then ebx = ebx | 0x00000100;  // bit 8
-        // AVX-512: has_avx512 covers the F/CD/BW/DQ/VL base and every
-        // sub-extension the model implements in full (IFMA, VBMI, VBMI2,
-        // VNNI, BITALG, VPOPCNTDQ, VP2INTERSECT, FP16, and BF16 in
-        // sub-leaf 1), so all are advertised together.
-        if has_avx512     then ebx = ebx | 0xD0230000;  // F(16)+DQ(17)+IFMA(21)+CD(28)+BW(30)+VL(31)
+        // AVX-512 (SDM Vol.1 Tables 21-19 to 21-22): each extension its
+        // own bit, from its own feature register (regs.sail).
+        if has_avx512f    then ebx = ebx | 0x00010000;  // bit 16 (AVX512F)
+        if has_avx512dq   then ebx = ebx | 0x00020000;  // bit 17 (AVX512DQ)
+        if has_avx512_ifma then ebx = ebx | 0x00200000; // bit 21 (AVX512_IFMA)
+        if has_avx512pf   then ebx = ebx | 0x04000000;  // bit 26 (AVX512PF)
+        if has_avx512er   then ebx = ebx | 0x08000000;  // bit 27 (AVX512ER)
+        if has_avx512cd   then ebx = ebx | 0x10000000;  // bit 28 (AVX512CD)
+        if has_avx512bw   then ebx = ebx | 0x40000000;  // bit 30 (AVX512BW)
+        if has_avx512vl   then ebx = ebx | 0x80000000;  // bit 31 (AVX512VL)
         if has_rdseed     then ebx = ebx | 0x00040000;  // bit 18
         if has_adx        then ebx = ebx | 0x00080000;  // bit 19
         if has_smap       then ebx = ebx | 0x00100000;  // bit 20 (SMAP)
@@ -168,7 +173,11 @@ function cpuid(leaf, subleaf) = {
         if fdp_excptn_only()    then ebx = ebx | 0x00000040;
         if fcs_fds_deprecated() then ebx = ebx | 0x00002000;
         var ecx : dword = 0x00000000;
-        if has_avx512     then ecx = ecx | 0x00005842;  // VBMI(1)+VBMI2(6)+VNNI(11)+BITALG(12)+VPOPCNTDQ(14)
+        if has_avx512_vbmi then ecx = ecx | 0x00000002;   // bit 1 (AVX512_VBMI)
+        if has_avx512_vbmi2 then ecx = ecx | 0x00000040;  // bit 6 (AVX512_VBMI2)
+        if has_avx512_vnni then ecx = ecx | 0x00000800;   // bit 11 (AVX512_VNNI)
+        if has_avx512_bitalg then ecx = ecx | 0x00001000; // bit 12 (AVX512_BITALG)
+        if has_avx512_vpopcntdq then ecx = ecx | 0x00004000; // bit 14 (AVX512_VPOPCNTDQ)
         if has_waitpkg    then ecx = ecx | 0x00000020;  // bit 5 (WAITPKG)
         if has_gfni       then ecx = ecx | 0x00000100;  // bit 8 (GFNI)
         if has_vaes       then ecx = ecx | 0x00000200;  // bit 9 (VAES)
@@ -180,18 +189,18 @@ function cpuid(leaf, subleaf) = {
         if has_movdir64b  then ecx = ecx | 0x10000000;  // bit 28
         if has_enqcmd     then ecx = ecx | 0x20000000;  // bit 29 (ENQCMD)
         var edx : dword = 0x00000000;
-        if has_avx512     then edx = edx | 0x00000100;  // bit 8 (AVX512_VP2INTERSECT)
+        if has_avx512_vp2intersect then edx = edx | 0x00000100; // bit 8 (AVX512_VP2INTERSECT)
         if has_avx512_fp16 then edx = edx | 0x00800000; // bit 23 (AVX512_FP16)
         if has_amx_bf16   then edx = edx | 0x00400000;  // bit 22 (AMX-BF16)
         if has_amx_tile   then edx = edx | 0x01000000;  // bit 24 (AMX-TILE)
         if has_amx_int8   then edx = edx | 0x02000000;  // bit 25 (AMX-INT8)
         // EAX: maximum sub-leaf; sub-leaf 1 exists once something is in it
-        let max_sub : dword = if has_avx_vnni | has_avx512 then 0x00000001 else 0x00000000;
+        let max_sub : dword = if has_avx_vnni | has_avx512_bf16 then 0x00000001 else 0x00000000;
         (max_sub, ebx, ecx, edx)
       } else if sub_val == 1 then {
         var eax : dword = 0x00000000;
         if has_avx_vnni   then eax = eax | 0x00000010;  // bit 4 (AVX-VNNI)
-        if has_avx512     then eax = eax | 0x00000020;  // bit 5 (AVX512_BF16)
+        if has_avx512_bf16 then eax = eax | 0x00000020; // bit 5 (AVX512_BF16)
         (eax, 0x00000000, 0x00000000, 0x00000000)
       } else {
         (0x00000000, 0x00000000, 0x00000000, 0x00000000)

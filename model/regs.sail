@@ -743,8 +743,30 @@ register has_movdiri   : bool
 register has_movdir64b : bool
 register has_enqcmd    : bool  // CPUID.07H:ECX[29] — ENQCMD, ENQCMDS and IA32_PASID
 register has_xsave     : bool  // XSAVE/XRSTOR, XSETBV/XGETBV, XCR0 (CPUID.01H:ECX[26])
-register has_avx512    : bool  // silicon support (separate from XCR0 enable)
+// The AVX-512 extensions, each its own CPUID bit (SDM Vol.1 Tables 21-19
+// to 21-22, pp. 21-27 to 21-30), which the model reports in leaf 7 and
+// whose instructions are #UD without it ("If any corresponding CPUID
+// feature flag is '0'", Vol.2A Table 2-46 and the other EVEX exception
+// classes; "If relevant CPUID feature flag is '0'", Tables 2-65 and 2-66
+// of the opmask instructions).  evex_extension in insn_evex_forms.sail
+// gives each EVEX form its extension; AVX512VL adds the 128- and 256-bit
+// forms of the instructions that have a 512-bit form.
+register has_avx512f      : bool  // CPUID.07H:EBX[16]
+register has_avx512dq     : bool  // CPUID.07H:EBX[17]
+register has_avx512_ifma  : bool  // CPUID.07H:EBX[21]
+register has_avx512pf     : bool  // CPUID.07H:EBX[26] — VGATHERPF*, VSCATTERPF* (Xeon Phi)
+register has_avx512er     : bool  // CPUID.07H:EBX[27] — VEXP2*, VRCP28*, VRSQRT28* (Xeon Phi)
+register has_avx512cd     : bool  // CPUID.07H:EBX[28]
+register has_avx512bw     : bool  // CPUID.07H:EBX[30]
+register has_avx512vl     : bool  // CPUID.07H:EBX[31]
+register has_avx512_vbmi  : bool  // CPUID.07H:ECX[1]
+register has_avx512_vbmi2 : bool  // CPUID.07H:ECX[6]
+register has_avx512_vnni  : bool  // CPUID.07H:ECX[11] — EVEX VPDPBUSD/VPDPBUSDS/VPDPWSSD/VPDPWSSDS
+register has_avx512_bitalg : bool // CPUID.07H:ECX[12]
+register has_avx512_vpopcntdq : bool // CPUID.07H:ECX[14]
+register has_avx512_vp2intersect : bool // CPUID.07H:EDX[8]
 register has_avx512_fp16 : bool  // CPUID.07H:EDX[23] — AVX512-FP16 (EVEX maps 5 and 6, and 0F3A forms)
+register has_avx512_bf16  : bool  // CPUID.(07H,1):EAX[5]
 register has_la57      : bool  // CPUID.07H:ECX[16] — 5-Level Paging
 register has_vmx       : bool  // CPUID.01H:ECX[5] — VMX support
 register has_amx_tile  : bool  // CPUID.07H:EDX[24] — AMX tile architecture (LDTILECFG, TILELOADD, ...)
@@ -841,11 +863,18 @@ val avx_enabled : unit -> bool
 function avx_enabled() =
   CR4[18] == 0b1 & XCR0[2] == 0b1 & XCR0[1] == 0b1
 
-// AVX-512 enabled: AVX enabled + silicon support + XCR0 bits 5,6,7
+// The state requirement of the AVX-512 instructions, the EVEX-encoded and
+// the opmask ones: "software can execute Intel AVX-512 instructions only
+// if CR4.OSXSAVE = 1 and XCR0[7:5] = 111b.  Otherwise, any execution of an
+// Intel AVX-512 instruction causes an invalid-opcode exception (#UD)"
+// (SDM Vol.1 §13.3, p. 13-5; Vol.2A Table 2-39: "111xx111b", and
+// "111xxx11b" for the opmask instructions, a difference XSETBV leaves no
+// room for: it allows XCR0[7:5] = 111b only with XCR0[2:1] = 11b, §13.3).
+// Their CPUID features are checked per instruction (evex_check_form,
+// vex_check_form).
 val avx512_enabled : unit -> bool
 function avx512_enabled() =
-  avx_enabled() & has_avx512 &
-  XCR0[5] == 0b1 & XCR0[6] == 0b1 & XCR0[7] == 0b1
+  avx_enabled() & XCR0[5] == 0b1 & XCR0[6] == 0b1 & XCR0[7] == 0b1
 
 // =========================================================================
 // Convenience functions: configure features by processor level
@@ -886,8 +915,22 @@ function enable_features_v1() = {
   has_rdpid = false;
   has_crc32 = false;
   has_xsave = false;
-  has_avx512 = false;
+  has_avx512f = false;
+  has_avx512dq = false;
+  has_avx512_ifma = false;
+  has_avx512pf = false;
+  has_avx512er = false;
+  has_avx512cd = false;
+  has_avx512bw = false;
+  has_avx512vl = false;
+  has_avx512_vbmi = false;
+  has_avx512_vbmi2 = false;
+  has_avx512_vnni = false;
+  has_avx512_bitalg = false;
+  has_avx512_vpopcntdq = false;
+  has_avx512_vp2intersect = false;
   has_avx512_fp16 = false;
+  has_avx512_bf16 = false;
   has_vmx = false;
   has_amx_tile = false;
   has_amx_int8 = false;
@@ -936,15 +979,27 @@ function enable_features_v3() = {
 }
 
 // x86-64-v4 and everything above it that the model implements: AVX-512
-// (F/CD/BW/DQ/VL and the sub-extensions advertised in cpuid), SHA, RDSEED,
-// GFNI, VAES, VPCLMULQDQ, AVX-VNNI
+// (F/CD/BW/DQ/VL, IFMA, VBMI, VBMI2, VNNI, BITALG, VPOPCNTDQ,
+// VP2INTERSECT, FP16, BF16), SHA, RDSEED, GFNI, VAES, VPCLMULQDQ, AVX-VNNI
 val enable_features_v4 : unit -> unit
 function enable_features_v4() = {
   enable_features_v3();
   XCR0_SUPPORTED = 0x00000000000000E7;  // + opmask + ZMM_Hi256 + Hi16_ZMM
   XCR0 = 0x00000000000000E7;
-  has_avx512 = true;
+  has_avx512f = true;
+  has_avx512dq = true;
+  has_avx512_ifma = true;
+  has_avx512cd = true;
+  has_avx512bw = true;
+  has_avx512vl = true;
+  has_avx512_vbmi = true;
+  has_avx512_vbmi2 = true;
+  has_avx512_vnni = true;
+  has_avx512_bitalg = true;
+  has_avx512_vpopcntdq = true;
+  has_avx512_vp2intersect = true;
   has_avx512_fp16 = true;
+  has_avx512_bf16 = true;
   has_rdseed = true;
   has_rdpid = true;
   has_sha = true;
@@ -955,12 +1010,16 @@ function enable_features_v4() = {
 }
 
 // Everything the model implements: x86-64-v4 plus Intel AMX (AMX-TILE,
-// AMX-INT8, AMX-BF16), whose tile state XCR0 bits 17 and 18 enable.
+// AMX-INT8, AMX-BF16), whose tile state XCR0 bits 17 and 18 enable, and
+// AVX512ER and AVX512PF, the extensions of the Xeon Phi processors only
+// (SDM Vol.1 Table 21-19).
 val enable_features_all : unit -> unit
 function enable_features_all() = {
   enable_features_v4();
   XCR0_SUPPORTED = XCR0_SUPPORTED | 0x0000000000060000;  // + TILECFG + TILEDATA
   XCR0 = XCR0 | 0x0000000000060000;
+  has_avx512er = true;
+  has_avx512pf = true;
   has_amx_tile = true;
   has_amx_int8 = true;
   has_amx_bf16 = true;
