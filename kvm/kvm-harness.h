@@ -633,6 +633,121 @@ void fxsave_x87_undefined(TestCase &tc, u16 off, unsigned open, bool w = false);
 enum CpuidReg { CPUID_EAX, CPUID_EBX, CPUID_ECX, CPUID_EDX };
 bool host_has(u32 leaf, u32 subleaf, CpuidReg reg, unsigned bit);
 
+struct CpuidBit {
+  u32 leaf, subleaf;
+  CpuidReg reg;
+  unsigned bit;
+};
+inline bool host_has(CpuidBit b) { return host_has(b.leaf, b.subleaf, b.reg, b.bit); }
+
+// The feature bits the model profile and the templates consult (SDM Vol.1
+// Chapter 21, Tables 21-9, 21-19 to 21-22, 21-35, 21-49 and 21-86; APM
+// Vol.3 Appendix E).
+namespace feature {
+constexpr CpuidBit SSE3{1, 0, CPUID_ECX, 0};
+constexpr CpuidBit PCLMULQDQ{1, 0, CPUID_ECX, 1};
+constexpr CpuidBit VMX{1, 0, CPUID_ECX, 5};
+constexpr CpuidBit SSSE3{1, 0, CPUID_ECX, 9};
+constexpr CpuidBit FMA{1, 0, CPUID_ECX, 12};
+constexpr CpuidBit CX16{1, 0, CPUID_ECX, 13};
+constexpr CpuidBit SSE4_1{1, 0, CPUID_ECX, 19};
+constexpr CpuidBit SSE4_2{1, 0, CPUID_ECX, 20};  // also CRC32
+constexpr CpuidBit MOVBE{1, 0, CPUID_ECX, 22};
+constexpr CpuidBit POPCNT{1, 0, CPUID_ECX, 23};
+constexpr CpuidBit AESNI{1, 0, CPUID_ECX, 25};
+constexpr CpuidBit XSAVE{1, 0, CPUID_ECX, 26};
+constexpr CpuidBit AVX{1, 0, CPUID_ECX, 28};
+constexpr CpuidBit F16C{1, 0, CPUID_ECX, 29};
+constexpr CpuidBit RDRAND{1, 0, CPUID_ECX, 30};
+constexpr CpuidBit FSGSBASE{7, 0, CPUID_EBX, 0};
+constexpr CpuidBit BMI1{7, 0, CPUID_EBX, 3};
+constexpr CpuidBit AVX2{7, 0, CPUID_EBX, 5};
+constexpr CpuidBit BMI2{7, 0, CPUID_EBX, 8};
+constexpr CpuidBit INVPCID{7, 0, CPUID_EBX, 10};
+constexpr CpuidBit AVX512F{7, 0, CPUID_EBX, 16};
+constexpr CpuidBit AVX512DQ{7, 0, CPUID_EBX, 17};
+constexpr CpuidBit RDSEED{7, 0, CPUID_EBX, 18};
+constexpr CpuidBit ADX{7, 0, CPUID_EBX, 19};
+constexpr CpuidBit SMAP{7, 0, CPUID_EBX, 20};
+constexpr CpuidBit AVX512_IFMA{7, 0, CPUID_EBX, 21};
+constexpr CpuidBit CLFLUSHOPT{7, 0, CPUID_EBX, 23};
+constexpr CpuidBit CLWB{7, 0, CPUID_EBX, 24};
+constexpr CpuidBit PT{7, 0, CPUID_EBX, 25};
+constexpr CpuidBit AVX512PF{7, 0, CPUID_EBX, 26};
+constexpr CpuidBit AVX512ER{7, 0, CPUID_EBX, 27};
+constexpr CpuidBit AVX512CD{7, 0, CPUID_EBX, 28};
+constexpr CpuidBit SHA{7, 0, CPUID_EBX, 29};
+constexpr CpuidBit AVX512BW{7, 0, CPUID_EBX, 30};
+constexpr CpuidBit AVX512VL{7, 0, CPUID_EBX, 31};
+constexpr CpuidBit AVX512_VBMI{7, 0, CPUID_ECX, 1};
+constexpr CpuidBit WAITPKG{7, 0, CPUID_ECX, 5};
+constexpr CpuidBit AVX512_VBMI2{7, 0, CPUID_ECX, 6};
+constexpr CpuidBit GFNI{7, 0, CPUID_ECX, 8};
+constexpr CpuidBit VAES{7, 0, CPUID_ECX, 9};
+constexpr CpuidBit VPCLMULQDQ{7, 0, CPUID_ECX, 10};
+constexpr CpuidBit AVX512_VNNI{7, 0, CPUID_ECX, 11};
+constexpr CpuidBit AVX512_BITALG{7, 0, CPUID_ECX, 12};
+constexpr CpuidBit AVX512_VPOPCNTDQ{7, 0, CPUID_ECX, 14};
+constexpr CpuidBit LA57{7, 0, CPUID_ECX, 16};
+constexpr CpuidBit RDPID{7, 0, CPUID_ECX, 22};
+constexpr CpuidBit CLDEMOTE{7, 0, CPUID_ECX, 25};
+constexpr CpuidBit MOVDIRI{7, 0, CPUID_ECX, 27};
+constexpr CpuidBit MOVDIR64B{7, 0, CPUID_ECX, 28};
+constexpr CpuidBit ENQCMD{7, 0, CPUID_ECX, 29};
+constexpr CpuidBit AVX512_VP2INTERSECT{7, 0, CPUID_EDX, 8};
+constexpr CpuidBit SERIALIZE{7, 0, CPUID_EDX, 14};
+constexpr CpuidBit AMX_BF16{7, 0, CPUID_EDX, 22};
+constexpr CpuidBit AVX512_FP16{7, 0, CPUID_EDX, 23};
+constexpr CpuidBit AMX_TILE{7, 0, CPUID_EDX, 24};
+constexpr CpuidBit AMX_INT8{7, 0, CPUID_EDX, 25};
+constexpr CpuidBit AVX_VNNI{7, 1, CPUID_EAX, 4};
+constexpr CpuidBit AVX512_BF16{7, 1, CPUID_EAX, 5};
+constexpr CpuidBit AMX_FP16{7, 1, CPUID_EAX, 21};
+constexpr CpuidBit XSAVEOPT{0xD, 1, CPUID_EAX, 0};
+constexpr CpuidBit XSAVEC{0xD, 1, CPUID_EAX, 1};
+constexpr CpuidBit XGETBV1{0xD, 1, CPUID_EAX, 2};
+constexpr CpuidBit XSAVES{0xD, 1, CPUID_EAX, 3};
+constexpr CpuidBit XFD{0xD, 1, CPUID_EAX, 4};
+constexpr CpuidBit PTWRITE{0x14, 0, CPUID_EBX, 4};
+constexpr CpuidBit LZCNT{0x80000001, 0, CPUID_ECX, 5};
+constexpr CpuidBit SSE4A{0x80000001, 0, CPUID_ECX, 6};
+constexpr CpuidBit MISALIGNSSE{0x80000001, 0, CPUID_ECX, 7};
+constexpr CpuidBit PREFETCHW{0x80000001, 0, CPUID_ECX, 8};
+constexpr CpuidBit RDTSCP{0x80000001, 0, CPUID_EDX, 27};
+}  // namespace feature
+
+// The guest's CPUID for a leaf and sub-leaf (EAX, EBX, ECX, EDX), for the
+// value fields: KVM_GET_SUPPORTED_CPUID as the harness installs it, with
+// leaf 0DH restricted to the state components of guest_xcr0_supported and
+// to no supervisor component.  Zeros for a leaf the guest does not have.
+std::array<u32, 4> guest_cpuid(u32 leaf, u32 subleaf);
+
+// The XCR0 bits the guest supports, among those the harness uses: x87,
+// SSE, AVX, the three AVX-512 components (5-7) and the two AMX ones (17,
+// 18), each group whole or not at all.  0x3 without XSAVE.
+u64 guest_xcr0_supported();
+
+// The XCR0 and the CR4 every case starts with, unless it overrides them:
+// guest_xcr0_supported() without AMX; PAE, OSFXSR and OSXMMEXCPT, with
+// FSGSBASE and OSXSAVE where the guest has the features.
+u64 guest_xcr0();
+u64 guest_cr4();
+constexpr u64 CR4_OSFXSR = 1ULL << 9;
+constexpr u64 CR4_FSGSBASE = 1ULL << 16;
+constexpr u64 CR4_OSXSAVE = 1ULL << 18;
+
+// MXCSR_MASK as the host's FXSAVE stores it (SDM Vol.1 §11.6.6), which
+// the model is given: 0 stands for the default 0000FFBFH.
+u32 host_mxcsr_mask();
+
+// AVX-512 in the guest: AVX512F with its three state components.
+bool host_has_avx512();
+
+// Intel AMX in the guest, as the model implements it: AMX-TILE with both
+// state components, and the palette and TMUL limits of SDM Tables 21-65 to
+// 21-67.
+bool host_has_amx();
+
 // A known difference between a test host and the manuals.  A case's
 // expected outcome is the one the SDM (or, where the two manuals define
 // different behaviour, the APM for AMD) gives, the same on every host; a
@@ -683,7 +798,8 @@ enum Avx512Feature : unsigned {
   AVX512_FEATURES
 };
 const char *avx512_feature_name(Avx512Feature f);
-// host_has for the feature, less those --host-lacks names.
+// host_has for the feature, less those --host-lacks names; none without
+// the AVX-512 state components (host_has_avx512).
 bool host_has(Avx512Feature f);
 
 // The AVX-512 features the instructions of a case need, as a mask of

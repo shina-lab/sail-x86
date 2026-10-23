@@ -43,17 +43,29 @@ add_dependencies(kvm_harness generated_sail_x86_model)
 
 # The harness writes its ctest entries after each link (write_ctest_file in
 # kvm-harness.cpp): one per category, in slices short enough for ctest -j.
-# ctest reads them through kvm-tests.cmake.
+# ctest reads them through kvm-tests.cmake.  The cases are those of the
+# host that wrote the entries, whose fingerprint they record; ctest on a
+# host with another fingerprint (--host-fingerprint) writes them anew
+# first.
 set(KVM_TESTS_GENERATED ${CMAKE_CURRENT_BINARY_DIR}/kvm-tests-generated.cmake)
 add_custom_command(TARGET kvm_harness POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E env KVM_CTEST=${KVM_TESTS_GENERATED} $<TARGET_FILE:kvm_harness>
   VERBATIM)
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/kvm-tests.cmake
-  "if(EXISTS \"${KVM_TESTS_GENERATED}\")\n"
-  "  include(\"${KVM_TESTS_GENERATED}\")\n"
-  "else()\n"
-  "  add_test(kvm_harness_NOT_BUILT kvm_harness_NOT_BUILT)\n"
-  "endif()\n")
+file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/kvm-tests.cmake CONTENT
+  "if(EXISTS \"${KVM_TESTS_GENERATED}\" AND EXISTS \"$<TARGET_FILE:kvm_harness>\")
+  execute_process(COMMAND \"$<TARGET_FILE:kvm_harness>\" --host-fingerprint
+                  OUTPUT_VARIABLE kvm_host OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+  file(STRINGS \"${KVM_TESTS_GENERATED}\" kvm_listed REGEX \"^# host: \" LIMIT_COUNT 1)
+  if(NOT kvm_listed STREQUAL \"# host: \${kvm_host}\")
+    message(STATUS \"kvm: writing the ctest entries for this host\")
+    execute_process(COMMAND \"${CMAKE_COMMAND}\" -E env \"KVM_CTEST=${KVM_TESTS_GENERATED}\"
+                            \"$<TARGET_FILE:kvm_harness>\" ERROR_QUIET)
+  endif()
+  include(\"${KVM_TESTS_GENERATED}\")
+else()
+  add_test(kvm_harness_NOT_BUILT kvm_harness_NOT_BUILT)
+endif()
+")
 set_property(DIRECTORY APPEND PROPERTY TEST_INCLUDE_FILES
   ${CMAKE_CURRENT_BINARY_DIR}/kvm-tests.cmake)
 

@@ -6,71 +6,65 @@
 // =========================================================================
 
 // -------------------------------------------------------------------------
-// XSAVE area size computation (CPUID leaf 0xD)
+// XSAVE area layout (CPUID leaf 0xD), from the implementation's
+// parameters xsave_comp_size, xsave_comp_offset and xsave_comp_align
+// (regs.sail).
 //
-// Standard format: each component has a fixed offset (from CPUID.0DH.n:EBX)
-// and size (from CPUID.0DH.n:EAX). The total size is max(offset+size) over
-// all enabled components. The minimum is 576 (legacy 512 + header 64).
+// Standard format: "Each state component i (i≥ 2) is located at the byte
+// offset from the base address of the XSAVE area enumerated in
+// CPUID.0DH.i:EBX" (SDM Vol.1 §13.4.3 p.13-9).  The size for a set of
+// components is the end of the last one, at least 576 (the legacy region
+// and the header).
 //
-// Compacted format: components are packed contiguously with 64-byte alignment
-// for components that require it (CPUID.0DH.n:ECX bit 1).
+// Compacted format (same page): the first component of XCOMP_BV is at 576;
+// each other one i at "locationJ + sizeJ" after the preceding one j, or
+// "ceiling(locationJ + sizeJ, 64)" where CPUID.0DH.i:ECX[1] = 1.
 // -------------------------------------------------------------------------
 
-// Standard-format offset of a state component (CPUID.0DH.n:EBX).  The SDM
-// only requires that software read these from CPUID, and the two vendors
-// lay the AVX-512 components out differently: Intel keeps the MPX slots
-// (components 3 and 4, 64 bytes each at 960 and 1024) reserved even on
-// parts without MPX, so opmask, ZMM_Hi256 and Hi16_ZMM start at 1088,
-// 1152 and 1664; AMD enumerates no MPX components and packs the three
-// right after the AVX component at 832, 896 and 1408.  The AVX component
-// is at 576 on both.  The choice follows the vendor profile register.
-// Sizes are the same on both: 256 (AVX), 64 (opmask), 512 (ZMM_Hi256),
-// 1024 (Hi16_ZMM).  The Intel AMX components 17 (TILECFG, 64 bytes) and
-// 18 (TILEDATA, 8192 bytes) follow the PKRU slot (component 9, 2688) at
-// 2752 and 2816 (CPUID.0DH.11H/12H:EBX on Sapphire Rapids and Emerald
-// Rapids); no AMD part implements AMX, so the AMD profile uses the same
-// values.
-val xsave_std_offset : int -> range(0, 16383)
-function xsave_std_offset(component) = match component {
-  2 => 576,
-  5 => match vendor { Vendor_Intel => 1088, Vendor_AMD => 832 },
-  6 => match vendor { Vendor_Intel => 1152, Vendor_AMD => 896 },
-  7 => match vendor { Vendor_Intel => 1664, Vendor_AMD => 1408 },
-  17 => 2752,
-  18 => 2816,
-  _ => 0
-}
+// The #UD of the XSAVE feature set (SDM Vol.2D XSAVE, XSAVEOPT, XSAVEC,
+// XSAVES, XRSTOR, XRSTORS, XSETBV; Vol.2B XGETBV): "If
+// CPUID.01H:ECX.XSAVE[26] = 0", "If CR4.OSXSAVE[bit 18] = 0", and for an
+// extension of CPUID.0DH.01H:EAX (ext; true for the base instructions)
+// "If ... CPUID.0DH.01H:EAX.<bit> = 0".  The model raises it ahead of the
+// #NM of CR0.TS; the two are in one class of Vol.3A Table 7-2, within
+// which "the priority of events ... is implementation-dependent" (p.7-9).
+val check_xsave_enabled : bool -> unit
+function check_xsave_enabled(ext) =
+  if ~(has_xsave) | ~(ext) | CR4[18] == bitzero then raise_UD()
 
-// Standard format XSAVE area size for a given feature mask: the end of
-// the highest enabled component, or 576 (legacy region + header) if none.
+val xsave_std_offset : range(0, 18) -> int
+function xsave_std_offset(component) = unsigned(xsave_comp_offset[component])
+
+val xsave_comp_bytes : range(0, 18) -> int
+function xsave_comp_bytes(component) = unsigned(xsave_comp_size[component])
+
+// The standard-format size for the components of mask.
 val xsave_area_size_standard : qword -> dword
 function xsave_area_size_standard(mask) = {
-  // Ascending blend: each higher enabled component overwrites the total
-  // size, which is valid because the offsets increase with the component
-  // number in both vendor layouts.
-  let s0 : dword = to_bits(32, 576);
-  let s1 : dword = blend(s0, to_bits(32, xsave_std_offset(2) + 256), mask[2]);
-  let s2 : dword = blend(s1, to_bits(32, xsave_std_offset(5) + 64), mask[5]);
-  let s3 : dword = blend(s2, to_bits(32, xsave_std_offset(6) + 512), mask[6]);
-  let s4 : dword = blend(s3, to_bits(32, xsave_std_offset(7) + 1024), mask[7]);
-  let s5 : dword = blend(s4, to_bits(32, xsave_std_offset(17) + 64), mask[17]);
-  blend(s5, to_bits(32, xsave_std_offset(18) + 8192), mask[18])
+  var size : int = 576;
+  foreach (i from 2 to 18) {
+    let last : int = xsave_std_offset(i) + xsave_comp_bytes(i);
+    if mask[i] == bitone & last > size then size = last
+  };
+  get_slice_int(32, size, 0)
 }
 
-// Compacted format XSAVE area size for a given feature mask.  Components
-// 2, 5, 6, 7, 17 and 18 are packed from offset 576 in component order;
-// every size is a multiple of 64, so the 64-byte alignment that
-// components 5-7, 17 and 18 require (CPUID.0DH.n:ECX[1]) never adds
-// padding.  Unlike the standard layout this does not depend on the vendor.
+// The offset in the compacted format of the component that follows
+// `offset`, the end of the components before it: aligned to 64 bytes
+// where CPUID.0DH.i:ECX[1] is set.
+val xsave_compacted_place : (qword, range(0, 18)) -> qword
+function xsave_compacted_place(offset, i) =
+  if xsave_comp_align[i] then (offset + 63) & 0xFFFFFFFFFFFFFFC0 else offset
+
+// The compacted-format size for the components of mask.
 val xsave_area_size_compacted : qword -> dword
 function xsave_area_size_compacted(mask) = {
-  let s0 : dword = to_bits(32, 576);
-  let s1 : dword = s0 + blend(zeros() : dword, to_bits(32, 256), mask[2]);
-  let s2 : dword = s1 + blend(zeros() : dword, to_bits(32, 64), mask[5]);
-  let s3 : dword = s2 + blend(zeros() : dword, to_bits(32, 512), mask[6]);
-  let s4 : dword = s3 + blend(zeros() : dword, to_bits(32, 1024), mask[7]);
-  let s5 : dword = s4 + blend(zeros() : dword, to_bits(32, 64), mask[17]);
-  s5 + blend(zeros() : dword, to_bits(32, 8192), mask[18])
+  var offset : qword = to_bits(64, 576);
+  foreach (i from 2 to 18) {
+    if mask[i] == bitone then
+      offset = xsave_compacted_place(offset, i) + xsave_comp_bytes(i)
+  };
+  offset[31..0]
 }
 
 // -------------------------------------------------------------------------
@@ -196,17 +190,11 @@ function xrstor_x87(base, w, fx) = {
   }
 }
 
-// MXCSR_MASK reports which MXCSR bits the processor accepts; the SDM
-// leaves the value implementation dependent (Vol. 1, Ch. 11, "Guidelines
-// for Writing to the MXCSR Register").  Intel processors report
-// 0x0000FFFF (bits 15:0, DAZ included); AMD processors report 0x0002FFFF
-// because bit 17 is their misaligned-SSE mode, gated by the MISALIGNSSE
-// CPUID feature.  The value follows the vendor profile register.
+// The MXCSR bits the processor accepts: the MXCSR_MASK parameter
+// (regs.sail), or 0000FFBFH where that is 0 (SDM Vol.1 §11.6.6 p.11-21).
+// FXSAVE and XSAVE store the parameter itself.
 val mxcsr_mask : unit -> dword
-function mxcsr_mask() = match vendor {
-  Vendor_Intel => 0x0000FFFF,
-  Vendor_AMD   => 0x0002FFFF
-}
+function mxcsr_mask() = if MXCSR_MASK == zeros() then 0x0000FFBF else MXCSR_MASK
 
 // LDMXCSR and VLDMXCSR: #GP(0) for a value that sets a reserved bit, one
 // clear in MXCSR_MASK (SDM LDMXCSR).
@@ -220,7 +208,7 @@ function load_mxcsr(value) = {
 val xsave_mxcsr : qword -> unit
 function xsave_mxcsr(base) = {
   write_mem(base + 24, __stmxcsr());
-  write_mem(base + 28, mxcsr_mask())
+  write_mem(base + 28, MXCSR_MASK)
 }
 
 // The XMM registers in the legacy region: XMM0-XMM15 in 64-bit mode,
@@ -291,7 +279,7 @@ function exec_fxsave(base, w) = {
         write_mem(128, base + 160 + 16 * i, undefined)
       }
     };
-    write_mem(base + 28, mxcsr_mask())
+    write_mem(base + 28, MXCSR_MASK)
   }
 }
 
@@ -377,6 +365,12 @@ function xrstor_zmm_hi256_at(addr) = {
 val xfd_enabled : range(0, 63) -> bool
 function xfd_enabled(i) = XCR0[i] == bitone & IA32_XFD[i] == bitone
 
+// The components with CPUID.0DH.i:ECX[2], those IA32_XFD can disable.  The
+// model implements XFD for TILEDATA (component 18) only.
+val xfd_supported : unit -> qword
+function xfd_supported() =
+  if has_xfd & XCR0_SUPPORTED[18] == bitone then 0x0000000000040000 else zeros()
+
 val raise_xfd_nm : forall ('a : Type). range(0, 63) -> 'a
 function raise_xfd_nm(i) = {
   IA32_XFD_ERR = IA32_XFD & (zero_extend(0b1) << i);
@@ -453,7 +447,7 @@ function xrstor_hi16_zmm_at(addr) = {
 }
 
 // -------------------------------------------------------------------------
-// Standard-offset save/restore wrappers (base + the profile's offset)
+// Standard-format save/restore wrappers (base + CPUID.0DH.i:EBX)
 // -------------------------------------------------------------------------
 
 val xsave_avx : qword -> unit
@@ -528,6 +522,41 @@ function xinit_hi16_zmm() = {
   foreach (i from 0 to 15) {
     ZMM[16 + i] = zeros()
   }
+}
+
+// The extended-region components the model implements, by number: save
+// component i at addr, restore it from addr, and initialize it.
+val xsave_component_at : (range(0, 18), qword) -> unit
+function xsave_component_at(i, addr) = match i {
+  2 => xsave_avx_at(addr),
+  5 => xsave_opmask_at(addr),
+  6 => xsave_zmm_hi256_at(addr),
+  7 => xsave_hi16_zmm_at(addr),
+  17 => xsave_tilecfg_at(addr),
+  18 => xsave_tiledata_at(addr),
+  _ => ()
+}
+
+val xrstor_component_at : (range(0, 18), qword) -> unit
+function xrstor_component_at(i, addr) = match i {
+  2 => xrstor_avx_at(addr),
+  5 => xrstor_opmask_at(addr),
+  6 => xrstor_zmm_hi256_at(addr),
+  7 => xrstor_hi16_zmm_at(addr),
+  17 => xrstor_tilecfg_at(addr),
+  18 => xrstor_tiledata_at(addr),
+  _ => ()
+}
+
+val xinit_component : range(0, 18) -> unit
+function xinit_component(i) = match i {
+  2 => xinit_avx(),
+  5 => xinit_opmask(),
+  6 => xinit_zmm_hi256(),
+  7 => xinit_hi16_zmm(),
+  17 => amx_init_tilecfg(),
+  18 => amx_zero_all_tiles(),
+  _ => ()
 }
 
 // =========================================================================
@@ -644,7 +673,9 @@ function exec_xsaveopt(base, mask, w) = xsave_standard(base, mask, w, true)
 // XINUSE[1] = 0".  With the init optimization a component is saved only
 // where XSTATE_BV is 1, the SSE one with MXCSR and MXCSR_MASK, whatever
 // RFBM[2] is.  Components are packed from offset 576 in the order of
-// XCOMP_BV, each in its place whether saved or not.
+// XCOMP_BV, each in its place whether saved or not
+// (xsave_compacted_place).  A component XFD disables keeps its place too
+// (XCOMP_BV is unaffected, §13.14) but is not written (xinuse_saved).
 // =========================================================================
 
 val exec_xsavec : (qword, qword, bool) -> unit
@@ -657,53 +688,13 @@ function exec_xsavec(base, mask, w) = {
   if save[0] == bitone then xsave_x87(base, w);
   if save[1] == bitone then xsave_sse(base);
 
-  // Save extended region in compacted format.
-  // Components packed starting at offset 576.
-  // Component sizes and alignment (from CPUID.0DH.n):
-  //   2 (AVX): 256 bytes, no 64-byte align requirement
-  //   5 (opmask): 64 bytes, 64-byte aligned
-  //   6 (ZMM_Hi256): 512 bytes, 64-byte aligned
-  //   7 (Hi16_ZMM): 1024 bytes, 64-byte aligned
-  var offset : qword = base + 576;
-
-  if rfbm[2] == bitone then {
-    if save[2] == bitone then xsave_avx_at(offset);
-    offset = offset + 256
-  };
-
-  // Components 3, 4 not supported — skip
-  if rfbm[5] == bitone then {
-    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0; // 64-byte align
-    if save[5] == bitone then xsave_opmask_at(offset);
-    offset = offset + 64
-  };
-
-  if rfbm[6] == bitone then {
-    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
-    if save[6] == bitone then xsave_zmm_hi256_at(offset);
-    offset = offset + 512
-  };
-
-  if rfbm[7] == bitone then {
-    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
-    if save[7] == bitone then xsave_hi16_zmm_at(offset);
-    offset = offset + 1024
-  };
-
-  // Components 17 (TILECFG, 64 bytes) and 18 (TILEDATA, 8192), both
-  // 64-byte aligned.  A component XFD disables keeps its place in the
-  // layout (XCOMP_BV is unaffected, §13.14) but is not written
-  // (xinuse_saved).
-  if rfbm[17] == bitone then {
-    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
-    if save[17] == bitone then xsave_tilecfg_at(offset);
-    offset = offset + 64
-  };
-
-  if rfbm[18] == bitone then {
-    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
-    if save[18] == bitone then xsave_tiledata_at(offset);
-    offset = offset + 8192
+  var offset : qword = to_bits(64, 576);
+  foreach (i from 2 to 18) {
+    if rfbm[i] == bitone then {
+      offset = xsave_compacted_place(offset, i);
+      if save[i] == bitone then xsave_component_at(i, base + offset);
+      offset = offset + xsave_comp_bytes(i)
+    }
   };
 
   write_mem(base + 512, save);                       // XSTATE_BV
@@ -768,79 +759,17 @@ function xrstor_compacted(base, rfbm, xstate_bv, xcomp_bv, w) = {
     else xinit_sse()
   };
 
-  // Compute compacted offsets for extended components
-  var offset : qword = base + 576;
-
-  // Component 2 (AVX)
-  if xcomp_bv[2] == bitone then {
-    if rfbm[2] == bitone then {
-      if xstate_bv[2] == bitone then xrstor_avx_at(offset)
-      else xinit_avx()
+  // The extended region: each component of XCOMP_BV has its place
+  // (xsave_compacted_place), and the callers have checked that XSTATE_BV
+  // is within XCOMP_BV.
+  var offset : qword = to_bits(64, 576);
+  foreach (i from 2 to 18) {
+    if xcomp_bv[i] == bitone then offset = xsave_compacted_place(offset, i);
+    if rfbm[i] == bitone then {
+      if xstate_bv[i] == bitone then xrstor_component_at(i, base + offset)
+      else xinit_component(i)
     };
-    offset = offset + 256
-  } else {
-    if rfbm[2] == bitone then xinit_avx()
-  };
-
-  // Components 3, 4 not supported
-
-  // Component 5 (opmask)
-  if xcomp_bv[5] == bitone then {
-    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
-    if rfbm[5] == bitone then {
-      if xstate_bv[5] == bitone then xrstor_opmask_at(offset)
-      else xinit_opmask()
-    };
-    offset = offset + 64
-  } else {
-    if rfbm[5] == bitone then xinit_opmask()
-  };
-
-  // Component 6 (ZMM_Hi256)
-  if xcomp_bv[6] == bitone then {
-    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
-    if rfbm[6] == bitone then {
-      if xstate_bv[6] == bitone then xrstor_zmm_hi256_at(offset)
-      else xinit_zmm_hi256()
-    };
-    offset = offset + 512
-  } else {
-    if rfbm[6] == bitone then xinit_zmm_hi256()
-  };
-
-  // Component 7 (Hi16_ZMM)
-  if xcomp_bv[7] == bitone then {
-    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
-    if rfbm[7] == bitone then {
-      if xstate_bv[7] == bitone then xrstor_hi16_zmm_at(offset)
-      else xinit_hi16_zmm()
-    };
-    offset = offset + 1024
-  } else {
-    if rfbm[7] == bitone then xinit_hi16_zmm()
-  };
-
-  // Component 17 (TILECFG)
-  if xcomp_bv[17] == bitone then {
-    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
-    if rfbm[17] == bitone then {
-      if xstate_bv[17] == bitone then xrstor_tilecfg_at(offset)
-      else amx_init_tilecfg()
-    };
-    offset = offset + 64
-  } else {
-    if rfbm[17] == bitone then amx_init_tilecfg()
-  };
-
-  // Component 18 (TILEDATA)
-  if xcomp_bv[18] == bitone then {
-    offset = (offset + 63) & 0xFFFFFFFFFFFFFFC0;
-    if rfbm[18] == bitone then {
-      if xstate_bv[18] == bitone then xrstor_tiledata_at(offset)
-      else amx_zero_all_tiles()
-    }
-  } else {
-    if rfbm[18] == bitone then amx_zero_all_tiles()
+    if xcomp_bv[i] == bitone then offset = offset + xsave_comp_bytes(i)
   }
 }
 
@@ -869,7 +798,9 @@ function exec_xrstor(base, mask, w) = {
   let xcomp_bv : qword = read_mem(base + 520);
 
   if xcomp_bv[63] == bitone then {
-    // Compacted form (Section 13.8.2)
+    // Compacted form (Section 13.8.2), #GP(0) "If bit 63 of the XCOMP_BV
+    // field of the XSAVE header is 1 and CPUID.0DH.01H:EAX.XSAVEC[1] = 0"
+    if ~(has_xsavec) then raise_GP0();
     if (xcomp_bv & 0x7FFFFFFFFFFFFFFF & ~(XCR0)) != zeros() then raise_GP0();
     if (xstate_bv & ~(xcomp_bv & 0x7FFFFFFFFFFFFFFF)) != zeros() then raise_GP0();
     foreach (i from 0 to 5) {

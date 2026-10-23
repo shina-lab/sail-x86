@@ -11,6 +11,7 @@
 #include <cfenv>
 #include <csetjmp>
 #include <csignal>
+#include <map>
 #include <unordered_map>
 #include <sys/syscall.h>
 #include <sys/utsname.h>
@@ -44,33 +45,29 @@ static void print_host_identity() {
           un.sysname, un.release, un.machine);
 }
 
-// Byte offsets of the extended state components in the standard-format
-// XSAVE area, as enumerated by the host's CPUID leaf 0xD.  KVM_SET_XSAVE
-// and KVM_GET_XSAVE use the host layout, and it is vendor-specific: Intel
-// keeps the MPX slots (components 3 and 4) reserved, so opmask, ZMM_Hi256
-// and Hi16_ZMM start at 1088, 1152 and 1664, whereas AMD packs them right
-// after the AVX component at 832, 896 and 1408.
-struct XsaveLayout {
-  u32 ymm_hi128;  // component 2: YMM0-15 bits 255:128
-  u32 opmask;     // component 5: k0-k7
-  u32 zmm_hi256;  // component 6: ZMM0-15 bits 511:256
-  u32 hi16_zmm;   // component 7: ZMM16-31
-  u32 tilecfg;    // component 17: AMX TILECFG (0 when the host has no AMX)
-  u32 tiledata;   // component 18: AMX TILEDATA, 8 tiles of 1024 bytes
-};
-
-// Intel AMX on the host: CPUID.(7,0):EDX[24] (AMX-TILE).  The AMX
-// templates are constructed only where it is present, and the model's
-// AMX support is enabled to match, so the CPUID and XSAVE enumeration of
-// the two sides agree on either host.
-static bool host_has_amx() {
-  return host_has(7, 0, CPUID_EDX, 24);
+// The host's CPUID, read once per leaf and sub-leaf (under a hypervisor
+// each CPUID exits to it); zeros above the maximum leaf.
+static std::array<u32, 4> host_cpuid(u32 leaf, u32 subleaf) {
+  static std::map<std::pair<u32, u32>, std::array<u32, 4>> cache;
+  auto [it, added] = cache.try_emplace({leaf, subleaf});
+  std::array<u32, 4> &r = it->second;
+  if (added && __get_cpuid_max(leaf & 0x80000000, nullptr) >= leaf)
+    __cpuid_count(leaf, subleaf, r[0], r[1], r[2], r[3]);
+  return r;
 }
 
-// The CPUID entries KVM supports for a guest, read once.
+// The CPUID entries KVM supports for a guest, read once; none without
+// /dev/kvm.  Linux grants a guest the AMX tile data component
+// (XFEATURE_XTILEDATA = 18) only to a process that asked for it with
+// ARCH_REQ_XCOMP_GUEST_PERM: before that KVM_GET_SUPPORTED_CPUID omits XCR0
+// bits 17 and 18, and KVM_SET_XCRS rejects them.
 static const std::vector<kvm_cpuid_entry2> &kvm_supported_cpuid() {
   static const std::vector<kvm_cpuid_entry2> entries = [] {
     std::vector<kvm_cpuid_entry2> v;
+    if ((host_cpuid(7, 0)[CPUID_EDX] >> 24 & 1) &&
+        syscall(SYS_arch_prctl, 0x1025 /* ARCH_REQ_XCOMP_GUEST_PERM */, 18) < 0)
+      fprintf(stderr, "ARCH_REQ_XCOMP_GUEST_PERM(XTILEDATA): %s; the guest has no AMX\n",
+              strerror(errno));
     int fd = open("/dev/kvm", O_RDWR | O_CLOEXEC);
     if (fd < 0)
       return v;
@@ -79,27 +76,134 @@ static const std::vector<kvm_cpuid_entry2> &kvm_supported_cpuid() {
     cpuid->nent = 256;
     if (ioctl(fd, KVM_GET_SUPPORTED_CPUID, cpuid) == 0)
       v.assign(cpuid->entries, cpuid->entries + cpuid->nent);
+    else
+      perror("KVM_GET_SUPPORTED_CPUID");
     close(fd);
     return v;
   }();
   return entries;
 }
 
-bool host_has(u32 leaf, u32 subleaf, CpuidReg reg, unsigned bit) {
-  if (__get_cpuid_max(leaf & 0x80000000, nullptr) < leaf)
-    return false;
-  u32 r[4];
-  __cpuid_count(leaf, subleaf, r[0], r[1], r[2], r[3]);
-  if (!(r[reg] >> bit & 1))
-    return false;
-  for (const kvm_cpuid_entry2 &e : kvm_supported_cpuid()) {
-    bool indexed = e.flags & KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
-    if (e.function == leaf && (!indexed || e.index == subleaf)) {
-      u32 g[4] = {e.eax, e.ebx, e.ecx, e.edx};
-      return g[reg] >> bit & 1;
+static kvm_cpuid_entry2 *find_cpuid_entry(std::vector<kvm_cpuid_entry2> &v, u32 leaf,
+                                          u32 subleaf) {
+  for (kvm_cpuid_entry2 &e : v)
+    if (e.function == leaf &&
+        (!(e.flags & KVM_CPUID_FLAG_SIGNIFCANT_INDEX) || e.index == subleaf))
+      return &e;
+  return nullptr;
+}
+
+// The CPUID the harness installs in the guest (KVM_SET_CPUID2): what KVM
+// supports, with leaf 0DH restricted to the state components the harness
+// uses, as the model implements them, and to no supervisor component.
+// Sub-leaf 0 then enumerates those components and the largest standard
+// format for them ("EAX[31:0] ... Bit i is 1 if bit i of XCR0 can be set
+// to 1", ECX the size for "all supported state components"; SDM Table
+// 21-34), sub-leaf 1 no IA32_XSS bit (ECX and EDX, Table 21-35), and the
+// sub-leaf of a component left out zeros, as for one "not supported"
+// (Table 21-36).  KVM keeps the guest's XCR0 and IA32_XSS within these
+// bits and computes the dynamic sizes (0DH.0:EBX, 0DH.1:EBX) itself.
+//
+// Two instructions the guest executes as the host's processor does,
+// whatever its CPUID says, are ones KVM does not report: ENQCMD and
+// ENQCMDS (CPUID.(7,0):ECX[29]), and PTWRITE (CPUID.(14H,0):EBX[4], in the
+// leaf of Intel PT, CPUID.(7,0):EBX[25]).  Their bits are the host's, so
+// that the guest's CPUID describes the instructions it has.
+static std::vector<kvm_cpuid_entry2> &guest_cpuid_entries() {
+  static std::vector<kvm_cpuid_entry2> entries = [] {
+    std::vector<kvm_cpuid_entry2> v = kvm_supported_cpuid();
+    if (v.empty())
+      return v;
+    if (kvm_cpuid_entry2 *e7 = find_cpuid_entry(v, 7, 0)) {
+      e7->ecx |= host_cpuid(7, 0)[CPUID_ECX] & (1u << 29);
+      if ((host_cpuid(7, 0)[CPUID_EBX] >> 25 & 1) && (host_cpuid(0x14, 0)[CPUID_EBX] >> 4 & 1)) {
+        kvm_cpuid_entry2 *e14 = find_cpuid_entry(v, 0x14, 0);
+        if (!e14) {
+          v.push_back({.function = 0x14, .index = 0, .flags = KVM_CPUID_FLAG_SIGNIFCANT_INDEX});
+          e14 = &v.back();
+          e7 = find_cpuid_entry(v, 7, 0);
+        }
+        e7->ebx |= 1u << 25;
+        e14->ebx |= 1u << 4;
+      }
     }
-  }
-  return false;
+    kvm_cpuid_entry2 *d0 = find_cpuid_entry(v, 0xD, 0);
+    if (!d0)
+      return v;
+    // x87 (0), SSE (1), AVX (2), AVX-512 (5-7) and AMX (17, 18).  XSETBV
+    // takes the AVX-512 components only "for all three state components,
+    // and only if it also does so for AVX state and SSE state", and the
+    // AMX ones only together (SDM Vol.1 §13.3 p.13-5, 13-6), so each
+    // group is given whole or not at all.
+    u64 x = (d0->eax | (u64)d0->edx << 32) & 0x600E7;
+    if ((x & 0x6) != 0x6) x &= ~0xE4ULL;
+    if ((x & 0xE0) != 0xE0) x &= ~0xE0ULL;
+    if ((x & 0x60000) != 0x60000) x &= ~0x60000ULL;
+    u32 size = 576;
+    for (kvm_cpuid_entry2 &e : v) {
+      if (e.function != 0xD || e.index < 2) continue;
+      if (e.index < 64 && (x >> e.index & 1))
+        size = std::max(size, e.eax + e.ebx);
+      else
+        e.eax = e.ebx = e.ecx = e.edx = 0;
+    }
+    d0->eax = (u32)x;
+    d0->edx = (u32)(x >> 32);
+    d0->ecx = size;
+    if (kvm_cpuid_entry2 *d1 = find_cpuid_entry(v, 0xD, 1))
+      d1->ecx = d1->edx = 0;
+    return v;
+  }();
+  return entries;
+}
+
+std::array<u32, 4> guest_cpuid(u32 leaf, u32 subleaf) {
+  const kvm_cpuid_entry2 *e = find_cpuid_entry(guest_cpuid_entries(), leaf, subleaf);
+  if (!e)
+    return {};
+  return {e->eax, e->ebx, e->ecx, e->edx};
+}
+
+bool host_has(u32 leaf, u32 subleaf, CpuidReg reg, unsigned bit) {
+  return (host_cpuid(leaf, subleaf)[reg] >> bit & 1) &&
+         (guest_cpuid(leaf, subleaf)[reg] >> bit & 1);
+}
+
+u64 guest_xcr0_supported() {
+  if (!host_has(feature::XSAVE))
+    return 0x3;
+  std::array<u32, 4> d0 = guest_cpuid(0xD, 0);
+  return d0[CPUID_EAX] | (u64)d0[CPUID_EDX] << 32;
+}
+
+u64 guest_xcr0() { return guest_xcr0_supported() & ~0x60000ULL; }
+
+u64 guest_cr4() {
+  return 0x620 | (host_has(feature::FSGSBASE) ? CR4_FSGSBASE : 0) |
+         (host_has(feature::XSAVE) ? CR4_OSXSAVE : 0);
+}
+
+bool host_has_avx512() {
+  return host_has(feature::AVX512F) && (guest_xcr0_supported() & 0xE0) == 0xE0;
+}
+
+bool host_has_amx() {
+  static const bool amx = [] {
+    if (!host_has(feature::AMX_TILE) || (guest_xcr0_supported() & 0x60000) != 0x60000)
+      return false;
+    // Palette 1 of 8 tiles of 16 rows of 64 bytes, and tmul_maxk 16 and
+    // tmul_maxn 64: each field "Value = ..." in the SDM, as is the
+    // highest palette, 1.
+    std::array<u32, 4> palette1 = {0x04002000, 0x00080040, 0x00000010, 0};
+    if (guest_cpuid(0x1D, 0)[CPUID_EAX] < 1 || guest_cpuid(0x1D, 1) != palette1 ||
+        (guest_cpuid(0x1E, 0)[CPUID_EBX] & 0xFFFFFF) != 0x004010) {
+      fprintf(stderr, "the guest's AMX palette or TMUL limits (CPUID 1DH, 1EH) are not "
+              "the SDM's: AMX left out\n");
+      return false;
+    }
+    return true;
+  }();
+  return amx;
 }
 
 // ---- The AVX-512 features (kvm-harness.h) ----
@@ -115,42 +219,41 @@ bool host_has(u32 leaf, u32 subleaf, CpuidReg reg, unsigned bit) {
 
 static const struct {
   const char *name;
-  u32 leaf, subleaf;
-  CpuidReg reg;
-  unsigned bit;
+  CpuidBit bit;
 } AVX512_FEATURE_BITS[AVX512_FEATURES] = {
-  {"AVX512F", 7, 0, CPUID_EBX, 16},
-  {"AVX512DQ", 7, 0, CPUID_EBX, 17},
-  {"AVX512_IFMA", 7, 0, CPUID_EBX, 21},
-  {"AVX512PF", 7, 0, CPUID_EBX, 26},
-  {"AVX512ER", 7, 0, CPUID_EBX, 27},
-  {"AVX512CD", 7, 0, CPUID_EBX, 28},
-  {"AVX512BW", 7, 0, CPUID_EBX, 30},
-  {"AVX512VL", 7, 0, CPUID_EBX, 31},
-  {"AVX512_VBMI", 7, 0, CPUID_ECX, 1},
-  {"AVX512_VBMI2", 7, 0, CPUID_ECX, 6},
-  {"GFNI", 7, 0, CPUID_ECX, 8},
-  {"VAES", 7, 0, CPUID_ECX, 9},
-  {"VPCLMULQDQ", 7, 0, CPUID_ECX, 10},
-  {"AVX512_VNNI", 7, 0, CPUID_ECX, 11},
-  {"AVX512_BITALG", 7, 0, CPUID_ECX, 12},
-  {"AVX512_VPOPCNTDQ", 7, 0, CPUID_ECX, 14},
-  {"AVX512_VP2INTERSECT", 7, 0, CPUID_EDX, 8},
-  {"AVX512_FP16", 7, 0, CPUID_EDX, 23},
-  {"AVX512_BF16", 7, 1, CPUID_EAX, 5},
+  {"AVX512F", feature::AVX512F},
+  {"AVX512DQ", feature::AVX512DQ},
+  {"AVX512_IFMA", feature::AVX512_IFMA},
+  {"AVX512PF", feature::AVX512PF},
+  {"AVX512ER", feature::AVX512ER},
+  {"AVX512CD", feature::AVX512CD},
+  {"AVX512BW", feature::AVX512BW},
+  {"AVX512VL", feature::AVX512VL},
+  {"AVX512_VBMI", feature::AVX512_VBMI},
+  {"AVX512_VBMI2", feature::AVX512_VBMI2},
+  {"GFNI", feature::GFNI},
+  {"VAES", feature::VAES},
+  {"VPCLMULQDQ", feature::VPCLMULQDQ},
+  {"AVX512_VNNI", feature::AVX512_VNNI},
+  {"AVX512_BITALG", feature::AVX512_BITALG},
+  {"AVX512_VPOPCNTDQ", feature::AVX512_VPOPCNTDQ},
+  {"AVX512_VP2INTERSECT", feature::AVX512_VP2INTERSECT},
+  {"AVX512_FP16", feature::AVX512_FP16},
+  {"AVX512_BF16", feature::AVX512_BF16},
 };
 
 static u32 g_host_lacks, g_model_lacks;  // masks of 1 << Avx512Feature
 
 const char *avx512_feature_name(Avx512Feature f) { return AVX512_FEATURE_BITS[f].name; }
 
+// None without the AVX-512 state components, which every EVEX instruction
+// needs enabled in XCR0.
 static u32 host_avx512_features() {
   static const u32 has = [] {
     u32 mask = 0;
-    for (unsigned f = 0; f < AVX512_FEATURES; f++) {
-      const auto &b = AVX512_FEATURE_BITS[f];
-      if (host_has(b.leaf, b.subleaf, b.reg, b.bit)) mask |= 1u << f;
-    }
+    if (host_has_avx512())
+      for (unsigned f = 0; f < AVX512_FEATURES; f++)
+        if (host_has(AVX512_FEATURE_BITS[f].bit)) mask |= 1u << f;
     return mask;
   }();
   return has & ~g_host_lacks;
@@ -191,7 +294,7 @@ static void set_avx512_features(x86::Model &model) {
   model.zhas_avx512_fp16 = on(AVX512_FP16);
   model.zhas_avx512_bf16 = on(AVX512_BF16);
   // GFNI, VAES and VPCLMULQDQ are features of VEX and legacy forms too,
-  // which the general feature setup gives the model; here only
+  // which set_model_profile gives the model from host_has; here only
   // --model-lacks clears them.
   if (g_model_lacks >> GFNI & 1) model.zhas_gfni = false;
   if (g_model_lacks >> VAES & 1) model.zhas_vaes = false;
@@ -200,23 +303,39 @@ static void set_avx512_features(x86::Model &model) {
 
 // ---- End of the AVX-512 features ----
 
+// Byte offsets of the extended state components in the standard-format
+// XSAVE image that KVM_GET_XSAVE and KVM_SET_XSAVE exchange: "the byte
+// offset from the base address of the XSAVE area enumerated in
+// CPUID.0DH.i:EBX" (SDM Vol.1 §13.4.3 p.13-9).  0 for a component the
+// guest does not have.
+struct XsaveLayout {
+  u32 ymm_hi128;  // component 2: YMM0-15 bits 255:128
+  u32 opmask;     // component 5: k0-k7
+  u32 zmm_hi256;  // component 6: ZMM0-15 bits 511:256
+  u32 hi16_zmm;   // component 7: ZMM16-31
+  u32 tilecfg;    // component 17: AMX TILECFG
+  u32 tiledata;   // component 18: AMX TILEDATA, 8 tiles of 1024 bytes
+};
+
 static XsaveLayout host_xsave_layout() {
-  auto offset = [](u32 component) {
-    u32 a, b, c, d;
-    __cpuid_count(0xD, component, a, b, c, d);
-    if (a == 0) {
-      fprintf(stderr, "host CPUID.(0xD,%u) reports no XSAVE component: "
-              "the harness needs AVX-512\n", component);
-      exit(1);
-    }
-    return b;
+  auto offset = [](unsigned i) -> u32 {
+    return guest_xcr0_supported() >> i & 1 ? guest_cpuid(0xD, i)[CPUID_EBX] : 0;
   };
-  XsaveLayout xl = {offset(2), offset(5), offset(6), offset(7), 0, 0};
-  if (host_has_amx()) {
-    xl.tilecfg = offset(17);
-    xl.tiledata = offset(18);
-  }
-  return xl;
+  return {offset(2), offset(5), offset(6), offset(7), offset(17), offset(18)};
+}
+
+// MXCSR_MASK as the host's FXSAVE stores it, the procedure SDM Vol.1
+// §11.6.6 (p.11-21) gives for software to learn the MXCSR bits the
+// processor supports.  The guest runs on the same processor.
+u32 host_mxcsr_mask() {
+  static const u32 mask = [] {
+    alignas(16) u8 image[512] = {};
+    asm volatile("fxsave %0" : "=m"(image));
+    u32 m;
+    memcpy(&m, image + 28, 4);
+    return m;
+  }();
+  return mask;
 }
 
 // Whether a test enables the AMX tile components (XCR0 bits 17 and 18);
@@ -225,10 +344,10 @@ static bool test_has_amx(const TestCase &tc) {
   return (tc.xcr0_override & (3ULL << 17)) == (3ULL << 17);
 }
 
-// The model's vendor profile covers the values the SDM leaves to the
-// implementation (the standard-format XSAVE offsets of the AVX-512
-// components and MXCSR_MASK).  Select the host's, so those values are
-// compared with the silicon rather than masked out of the comparison.
+// The model's vendor register selects the manual whose rule the model
+// follows where the SDM and the APM define different behaviour, and the
+// x87 pointer CPUID bits of each (model/regs.sail).  The host's is the
+// guest's.
 static x86::zVendor host_vendor() {
   u32 a, b, c, d;
   __get_cpuid(0, &a, &b, &c, &d);
@@ -388,10 +507,11 @@ static void write_page_tables(u8 *base, u64 pml4_addr) {
 // test and loaded from TestCase::msrs.  IA32_EFER is handled through the
 // segment state (KVM) and the EFER register (model).
 static constexpr u32 MSR_IA32_EFER = 0xC0000080;
+static constexpr u32 MSR_IA32_TSC_AUX = 0xC0000103;
 static constexpr u32 FAST_CALL_MSRS[] = {
   0xC0000081, 0xC0000082, 0xC0000083, 0xC0000084,  // STAR, LSTAR, CSTAR, FMASK
   0x00000174, 0x00000175, 0x00000176,              // SYSENTER_CS, _ESP, _EIP
-  0xC0000103,                                      // IA32_TSC_AUX (RDPID, RDTSCP)
+  MSR_IA32_TSC_AUX,                                // RDPID, RDTSCP
 };
 
 // The model's __rdmsr/__wrmsr externals keep their values here
@@ -504,13 +624,11 @@ struct KvmVm {
       return false;
     }
 
-    // Linux grants a guest the AMX tile data component only to a process
-    // that asked for it before creating the VM (ARCH_REQ_XCOMP_GUEST_PERM
-    // for XFEATURE_XTILEDATA = 18); without it KVM_SET_XCRS rejects XCR0
-    // bits 17 and 18 and KVM_GET_SUPPORTED_CPUID omits the AMX bits.
-    if (host_has_amx() && syscall(SYS_arch_prctl, 0x1025 /* ARCH_REQ_XCOMP_GUEST_PERM */, 18) < 0)
-      fprintf(stderr, "ARCH_REQ_XCOMP_GUEST_PERM(XTILEDATA): %s; AMX tests will fail\n",
-              strerror(errno));
+    // The AMX permission (kvm_supported_cpuid) comes before the VM.
+    if (guest_cpuid_entries().empty()) {
+      fprintf(stderr, "KVM_GET_SUPPORTED_CPUID failed\n");
+      return false;
+    }
     int xsave2 = ioctl(kvm_fd, KVM_CHECK_EXTENSION, KVM_CAP_XSAVE2);
     if (xsave2 > 0) {
       have_xsave2 = true;
@@ -559,23 +677,38 @@ struct KvmVm {
       return false;
     }
 
-    // Set up CPUID with host-supported features (needed for AVX, XSAVE, etc.)
+    // The guest's CPUID (guest_cpuid_entries), which the gates and the
+    // model's profile follow.
     {
-      size_t buf_size = sizeof(struct kvm_cpuid2) + 256 * sizeof(struct kvm_cpuid_entry2);
-      auto buf = std::vector<u8>(buf_size, 0);
-      auto *cpuid = (struct kvm_cpuid2 *)buf.data();
-      cpuid->nent = 256;
-      if (ioctl(kvm_fd, KVM_GET_SUPPORTED_CPUID, cpuid) < 0)
-        perror("KVM_GET_SUPPORTED_CPUID");
-      else if (ioctl(vcpu_fd, KVM_SET_CPUID2, cpuid) < 0)
+      const std::vector<kvm_cpuid_entry2> &entries = guest_cpuid_entries();
+      std::vector<u8> buf(sizeof(kvm_cpuid2) + entries.size() * sizeof(kvm_cpuid_entry2));
+      auto *cpuid = (kvm_cpuid2 *)buf.data();
+      cpuid->nent = entries.size();
+      std::copy(entries.begin(), entries.end(), cpuid->entries);
+      if (ioctl(vcpu_fd, KVM_SET_CPUID2, cpuid) < 0) {
         perror("KVM_SET_CPUID2");
+        return false;
+      }
     }
 
-    setup_long_mode();
-    return true;
+    return setup_long_mode();
   }
 
-  void setup_long_mode() {
+  // Sets XCR0, which exists with XSAVE.  False if KVM rejects the value.
+  bool set_xcr0(u64 value) {
+    if (!host_has(feature::XSAVE)) {
+      errno = EINVAL;
+      return value == 0x3;
+    }
+    struct kvm_xcrs xcrs = {};
+    xcrs.nr_xcrs = 1;
+    xcrs.xcrs[0].xcr = 0;
+    xcrs.xcrs[0].value = value;
+    return ioctl(vcpu_fd, KVM_SET_XCRS, &xcrs) == 0;
+  }
+
+  // The VM's long-mode setup.  False, with a message, if KVM rejects it.
+  bool setup_long_mode() {
     memset(guest_mem, 0, GUEST_MEM_SIZE);
     // The guest cannot reach its page tables, below CODE_ADDR, so they are
     // written once; load_test rewrites the system tables for every case.
@@ -583,10 +716,13 @@ struct KvmVm {
     write_system_tables(guest_mem);
 
     struct kvm_sregs sregs;
-    ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
+    if (ioctl(vcpu_fd, KVM_GET_SREGS, &sregs) < 0) {
+      perror("KVM_GET_SREGS");
+      return false;
+    }
 
     sregs.cr0 = 0x80000011;  // PE + PG + ET (EM=0, TS=0 for SSE)
-    sregs.cr4 = 0x50620;     // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
+    sregs.cr4 = guest_cr4();
     sregs.efer = 0x500;      // LME + LMA
     sregs.cr3 = PML4_ADDR;
 
@@ -641,35 +777,41 @@ struct KvmVm {
     sregs.ldt.type = 0x2;
     sregs.ldt.unusable = 1;
 
-    ioctl(vcpu_fd, KVM_SET_SREGS, &sregs);
-
-    // Enable AVX in XCR0: bit 0 (x87), bit 1 (SSE), bit 2 (AVX)
-    struct kvm_xcrs xcrs = {};
-    xcrs.nr_xcrs = 1;
-    xcrs.xcrs[0].xcr = 0;  // XCR0
-    xcrs.xcrs[0].value = 0xE7;  // x87 + SSE + AVX + opmask + ZMM_Hi256 + Hi16_ZMM
-    int xcr_ret = ioctl(vcpu_fd, KVM_SET_XCRS, &xcrs);
-    if (xcr_ret < 0)
-      fprintf(stderr, "KVM_SET_XCRS failed: %s\n", strerror(errno));
-
+    if (ioctl(vcpu_fd, KVM_SET_SREGS, &sregs) < 0) {
+      perror("KVM_SET_SREGS");
+      return false;
+    }
+    if (!set_xcr0(guest_xcr0())) {
+      fprintf(stderr, "KVM_SET_XCRS of XCR0 %#lx: %s\n", guest_xcr0(), strerror(errno));
+      return false;
+    }
+    return true;
   }
 
-  void load_test(const TestCase &tc) {
+  // A KVM ioctl that fails on the harness's own state: the environment, not
+  // the case, is at fault, and the run cannot go on.
+  [[noreturn]] static void environment_error(const char *what) {
+    fprintf(stderr, "environment error: %s: %s\n", what, strerror(errno));
+    abort();
+  }
+
+  // Loads the case into the VM.  Returns why the guest cannot take it
+  // when KVM rejects a value the case sets (a CR4 or XCR0 bit, an MSR, a
+  // register value), and an empty string otherwise.
+  std::string load_test(const TestCase &tc) {
     write_system_tables(guest_mem);  // as the previous case may have left them
 
     // Restore the default XCR0, CR0 and CR4, which a previous test may have
     // changed ("mov cr0,rax sets TS" leaves CR0.TS set, and an SSE
     // instruction in a later case then raised #NM on KVM only).
-    struct kvm_xcrs xcrs_default = {};
-    xcrs_default.nr_xcrs = 1;
-    xcrs_default.xcrs[0].xcr = 0;
-    xcrs_default.xcrs[0].value = 0xE7;
-    ioctl(vcpu_fd, KVM_SET_XCRS, &xcrs_default);
+    if (!set_xcr0(guest_xcr0()))
+      environment_error("KVM_SET_XCRS (default XCR0)");
 
     struct kvm_sregs sregs_tmp;
-    ioctl(vcpu_fd, KVM_GET_SREGS, &sregs_tmp);
+    if (ioctl(vcpu_fd, KVM_GET_SREGS, &sregs_tmp) < 0)
+      environment_error("KVM_GET_SREGS");
     sregs_tmp.cr0 = 0x80000011;  // PE + PG + ET, as in init and the model's start
-    sregs_tmp.cr4 = 0x50620;  // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
+    sregs_tmp.cr4 = guest_cr4();
     // TPR, as the model starts every run with it.  KVM on AMD also keeps a
     // guest's CR8 write in the VMCB, which this does not reach, so a
     // template that writes CR8 restores 0 itself.
@@ -711,23 +853,31 @@ struct KvmVm {
     sregs_tmp.efer = 0x500;
     for (auto [msr, value] : tc.msrs)
       if (msr == MSR_IA32_EFER) sregs_tmp.efer = value;
-    ioctl(vcpu_fd, KVM_SET_SREGS, &sregs_tmp);
+    if (tc.cr4_override)
+      sregs_tmp.cr4 = tc.cr4_override;
+    if (ioctl(vcpu_fd, KVM_SET_SREGS, &sregs_tmp) < 0)
+      return std::format("KVM_SET_SREGS (CR4 {:#x}, EFER {:#x}): {}", (u64)sregs_tmp.cr4,
+                         (u64)sregs_tmp.efer, strerror(errno));
 
-    // The fast-call MSRs: zero unless the test loads them.  With AMX the
+    // The fast-call MSRs: zero unless the test loads them.  IA32_TSC_AUX
+    // exists with RDTSCP or RDPID (SDM Vol.4 Table 2-2), and KVM refuses
+    // it to a guest with neither.  With XFD (CPUID.(0DH,1):EAX[4]) the
     // guest has IA32_XFD and IA32_XFD_ERR (1C4H, 1C5H), which a test that
     // faults on XFD leaves set; they are zeroed as well.
     {
+      bool tsc_aux = host_has(feature::RDTSCP) || host_has(feature::RDPID);
       struct {
         struct kvm_msrs hdr;
         struct kvm_msr_entry entries[sizeof(FAST_CALL_MSRS) / sizeof(u32) + 2];
       } msrs = {};
-      msrs.hdr.nmsrs = sizeof(FAST_CALL_MSRS) / sizeof(u32);
-      for (u32 i = 0; i < msrs.hdr.nmsrs; i++) {
-        msrs.entries[i].index = FAST_CALL_MSRS[i];
+      for (u32 m : FAST_CALL_MSRS) {
+        if (m == MSR_IA32_TSC_AUX && !tsc_aux) continue;
+        kvm_msr_entry &e = msrs.entries[msrs.hdr.nmsrs++];
+        e.index = m;
         for (auto [msr, value] : tc.msrs)
-          if (msr == FAST_CALL_MSRS[i]) msrs.entries[i].data = value;
+          if (msr == m) e.data = value;
       }
-      if (host_has_amx()) {
+      if (host_has(feature::XFD)) {
         msrs.entries[msrs.hdr.nmsrs++].index = 0x1C4;
         msrs.entries[msrs.hdr.nmsrs++].index = 0x1C5;
       }
@@ -739,10 +889,19 @@ struct KvmVm {
                   tc.name.c_str(), msr);
           abort();
         }
+        if (msr == MSR_IA32_TSC_AUX && !tsc_aux)
+          return "loads IA32_TSC_AUX, which a guest without RDTSCP and RDPID lacks";
       }
-      if (ioctl(vcpu_fd, KVM_SET_MSRS, &msrs) != (int)msrs.hdr.nmsrs) {
-        perror("KVM_SET_MSRS");  // host API failure, not a divergence
-        abort();
+      int set = ioctl(vcpu_fd, KVM_SET_MSRS, &msrs);
+      if (set < 0)
+        environment_error("KVM_SET_MSRS");
+      if (set != (int)msrs.hdr.nmsrs) {
+        const kvm_msr_entry &e = msrs.entries[set];
+        for (auto [msr, value] : tc.msrs)
+          if (msr == e.index)
+            return std::format("KVM_SET_MSRS rejects MSR {:#x} = {:#x}", msr, value);
+        errno = EINVAL;
+        environment_error(std::format("KVM_SET_MSRS of MSR {:#x}", (u32)e.index).c_str());
       }
     }
 
@@ -775,17 +934,22 @@ struct KvmVm {
     regs.rip = CODE_ADDR;
     regs.rflags = tc.initial.rflags | 0x2;
 
-    ioctl(vcpu_fd, KVM_SET_REGS, &regs);
+    if (ioctl(vcpu_fd, KVM_SET_REGS, &regs) < 0)
+      return std::format("KVM_SET_REGS: {}", strerror(errno));
 
     struct kvm_debugregs dbg = {};
     for (int i = 0; i < 4; i++) dbg.db[i] = tc.initial.dr[i];
     dbg.dr6 = tc.initial.dr6;
     dbg.dr7 = tc.initial.dr7;
-    ioctl(vcpu_fd, KVM_SET_DEBUGREGS, &dbg);
+    if (ioctl(vcpu_fd, KVM_SET_DEBUGREGS, &dbg) < 0)
+      return std::format("KVM_SET_DEBUGREGS (DR6 {:#x}, DR7 {:#x}): {}", (u64)dbg.dr6,
+                         (u64)dbg.dr7, strerror(errno));
 
-    // Set XMM registers, MXCSR, and x87 state via XSAVE.  Components
-    // absent from XSTATE_BV (here the AMX tiles, 17 and 18) return to
-    // their initial configuration, so no tile state survives a test.
+    // Set XMM registers, MXCSR, and x87 state via XSAVE, for the components
+    // of the default XCR0 (a case's state of the others is zero:
+    // without_absent_state).  Components absent from XSTATE_BV (here the
+    // AMX tiles, 17 and 18) return to their initial configuration, so no
+    // tile state survives a test.
     std::vector<u8> xsave_buf(xsave_size, 0);
     u8 *xs = xsave_buf.data();
     // x87 state: FCW=0x037F (default), FSW=0, FTW=0xFF (all empty)
@@ -801,39 +965,27 @@ struct KvmVm {
     for (int i = 0; i < 16; i++)
       memcpy(xs + 0xA0 + i * 16, &tc.initial.xmm[i].q[0], 16);
     // The extended components sit at the host's CPUID-enumerated offsets.
-    for (int i = 0; i < 16; i++)
-      memcpy(xs + xl.ymm_hi128 + i * 16, &tc.initial.xmm[i].q[2], 16);
-    for (int i = 0; i < 8; i++)
-      memcpy(xs + xl.opmask + i * 8, &tc.initial.kregs[i], 8);
-    for (int i = 0; i < 16; i++)
-      memcpy(xs + xl.zmm_hi256 + i * 32, &tc.initial.xmm[i].q[4], 32);
-    for (int i = 0; i < 16; i++)
-      memcpy(xs + xl.hi16_zmm + i * 64, &tc.initial.xmm[16 + i].q[0], 64);
+    if (xl.ymm_hi128)
+      for (int i = 0; i < 16; i++)
+        memcpy(xs + xl.ymm_hi128 + i * 16, &tc.initial.xmm[i].q[2], 16);
+    if (xl.opmask)
+      for (int i = 0; i < 8; i++)
+        memcpy(xs + xl.opmask + i * 8, &tc.initial.kregs[i], 8);
+    if (xl.zmm_hi256)
+      for (int i = 0; i < 16; i++)
+        memcpy(xs + xl.zmm_hi256 + i * 32, &tc.initial.xmm[i].q[4], 32);
+    if (xl.hi16_zmm)
+      for (int i = 0; i < 16; i++)
+        memcpy(xs + xl.hi16_zmm + i * 64, &tc.initial.xmm[16 + i].q[0], 64);
 
-    // XSTATE_BV: mark all AVX-512 components as valid
-    u64 xstate_bv = 0xE7;  // x87 + SSE + AVX + opmask + ZMM_Hi256 + Hi16_ZMM
+    u64 xstate_bv = guest_xcr0();
     memcpy(xs + 0x200, &xstate_bv, 8);
-    if (ioctl(vcpu_fd, KVM_SET_XSAVE, xs) < 0) {
-      perror("KVM_SET_XSAVE");  // host API failure, not a divergence
-      abort();
-    }
+    if (ioctl(vcpu_fd, KVM_SET_XSAVE, xs) < 0)
+      return std::format("KVM_SET_XSAVE (MXCSR {:#x}): {}", tc.initial.mxcsr, strerror(errno));
 
-    // Apply per-test XCR0 override if requested
-    if (tc.xcr0_override) {
-      struct kvm_xcrs xcrs = {};
-      xcrs.nr_xcrs = 1;
-      xcrs.xcrs[0].xcr = 0;
-      xcrs.xcrs[0].value = tc.xcr0_override;
-      ioctl(vcpu_fd, KVM_SET_XCRS, &xcrs);
-    }
-
-    // Apply per-test CR4 override if requested
-    if (tc.cr4_override) {
-      struct kvm_sregs sregs;
-      ioctl(vcpu_fd, KVM_GET_SREGS, &sregs);
-      sregs.cr4 = tc.cr4_override;
-      ioctl(vcpu_fd, KVM_SET_SREGS, &sregs);
-    }
+    if (tc.xcr0_override && !set_xcr0(tc.xcr0_override))
+      return std::format("KVM_SET_XCRS of XCR0 {:#x}: {}", tc.xcr0_override, strerror(errno));
+    return "";
   }
 
   // Check if a KVM run resulted in a fault (HLT in exception handler area).
@@ -947,20 +1099,30 @@ struct KvmVm {
     memcpy(&state.mxcsr, xs + 0x18, 4);
     for (int i = 0; i < 16; i++)
       memcpy(&state.xmm[i].q[0], xs + 0xA0 + i * 16, 16);
-    for (int i = 0; i < 16; i++)
-      memcpy(&state.xmm[i].q[2], xs + xl.ymm_hi128 + i * 16, 16);
-    for (int i = 0; i < 8; i++)
-      memcpy(&state.kregs[i], xs + xl.opmask + i * 8, 8);
+    // A component the guest lacks reads as zeros, as the model, with the
+    // same initial state (without_absent_state), leaves it.
+    for (int i = 0; i < 32; i++)
+      for (int q = i < 16 ? 2 : 0; q < 8; q++)
+        state.xmm[i].q[q] = 0;
+    state.kregs.fill(0);
+    if (xl.ymm_hi128)
+      for (int i = 0; i < 16; i++)
+        memcpy(&state.xmm[i].q[2], xs + xl.ymm_hi128 + i * 16, 16);
+    if (xl.opmask)
+      for (int i = 0; i < 8; i++)
+        memcpy(&state.kregs[i], xs + xl.opmask + i * 8, 8);
     {
       struct kvm_debugregs dbg = {};
       ioctl(vcpu_fd, KVM_GET_DEBUGREGS, &dbg);
       state.dr6 = dbg.dr6;
       state.dr7 = dbg.dr7;
     }
-    for (int i = 0; i < 16; i++)
-      memcpy(&state.xmm[i].q[4], xs + xl.zmm_hi256 + i * 32, 32);
-    for (int i = 0; i < 16; i++)
-      memcpy(&state.xmm[16 + i].q[0], xs + xl.hi16_zmm + i * 64, 64);
+    if (xl.zmm_hi256)
+      for (int i = 0; i < 16; i++)
+        memcpy(&state.xmm[i].q[4], xs + xl.zmm_hi256 + i * 32, 32);
+    if (xl.hi16_zmm)
+      for (int i = 0; i < 16; i++)
+        memcpy(&state.xmm[16 + i].q[0], xs + xl.hi16_zmm + i * 64, 64);
     // x87 from the legacy region, which the kernel fills with the initial
     // values when the component is in its initial configuration.
     memcpy(&state.fcw, xs + 0, 2);
@@ -1062,6 +1224,76 @@ static AmxState sail_amx_state(x86::Model &model) {
   return s;
 }
 
+// The model as the machine the guest is: each feature register from the
+// guest's CPUID bit (host_has), and the implementation's parameters, those
+// the manuals leave to it, from the guest's CPUID values and the host's
+// FXSAVE image.  Every feature the model has a register for is set here.
+static void set_model_profile(x86::Model &m) {
+  using namespace feature;
+  m.zenable_features_v1(UNIT);  // every feature off
+  m.zvendor = host_vendor();
+  m.zhas_sse3 = host_has(SSE3);
+  m.zhas_ssse3 = host_has(SSSE3);
+  m.zhas_sse4_1 = host_has(SSE4_1);
+  m.zhas_sse4_2 = host_has(SSE4_2);
+  m.zhas_crc32 = host_has(SSE4_2);
+  m.zhas_cx16 = host_has(CX16);
+  m.zhas_popcnt = host_has(POPCNT);
+  m.zhas_lzzcnt = host_has(LZCNT);
+  m.zhas_bmi1 = host_has(BMI1);
+  m.zhas_bmi2 = host_has(BMI2);
+  m.zhas_fma = host_has(FMA);
+  m.zhas_aesni = host_has(AESNI);
+  m.zhas_pclmulqdq = host_has(PCLMULQDQ);
+  // Qualified: GFNI, VAES and VPCLMULQDQ are also Avx512Features.
+  m.zhas_vpclmulqdq = host_has(feature::VPCLMULQDQ);
+  m.zhas_vaes = host_has(feature::VAES);
+  m.zhas_gfni = host_has(feature::GFNI);
+  m.zhas_avx_vnni = host_has(AVX_VNNI);
+  m.zhas_f16c = host_has(F16C);
+  m.zhas_movbe = host_has(MOVBE);
+  m.zhas_adx = host_has(ADX);
+  m.zhas_sha = host_has(SHA);
+  m.zhas_rdrand = host_has(RDRAND);
+  m.zhas_rdseed = host_has(RDSEED);
+  m.zhas_rdpid = host_has(RDPID);
+  m.zhas_movdiri = host_has(MOVDIRI);
+  m.zhas_movdir64b = host_has(MOVDIR64B);
+  m.zhas_enqcmd = host_has(ENQCMD);
+  m.zhas_xsave = host_has(XSAVE);
+  m.zhas_xsaveopt = host_has(XSAVEOPT);
+  m.zhas_xsavec = host_has(XSAVEC);
+  m.zhas_xgetbv1 = host_has(XGETBV1);
+  m.zhas_xsaves = host_has(XSAVES);
+  m.zhas_xfd = host_has(XFD);
+  m.zhas_la57 = host_has(LA57);
+  m.zhas_vmx = host_has(VMX);
+  m.zhas_amx_tile = host_has_amx();
+  m.zhas_amx_int8 = host_has_amx() && host_has(AMX_INT8);
+  m.zhas_amx_bf16 = host_has_amx() && host_has(AMX_BF16);
+  m.zhas_prefetchw = host_has(PREFETCHW);
+  m.zhas_cldemote = host_has(CLDEMOTE);
+  m.zhas_waitpkg = host_has(WAITPKG);
+  m.zhas_ptwrite = host_has(PT) && host_has(PTWRITE);
+  m.zhas_sse4a = host_has(SSE4A);
+  m.zhas_misalignsse = host_has(MISALIGNSSE);
+  m.zhas_smap = host_has(SMAP);
+  set_avx512_features(m);
+
+  // The state components, with the layout CPUID.(0DH,i) gives the
+  // guest, and CR4.OSXSAVE as XSAVE allows it.
+  m.zXCR0_SUPPORTED = guest_xcr0_supported();
+  m.zXCR0 = guest_xcr0();
+  for (unsigned i : {2, 5, 6, 7, 17, 18}) {
+    if (!(guest_xcr0_supported() >> i & 1)) continue;
+    std::array<u32, 4> d = guest_cpuid(0xD, i);
+    m.zxsave_comp_sizze.data[i] = d[CPUID_EAX];
+    m.zxsave_comp_offset.data[i] = d[CPUID_EBX];
+    m.zxsave_comp_align.data[i] = d[CPUID_ECX] >> 1 & 1;
+  }
+  m.zMXCSR_MASK = host_mxcsr_mask();
+}
+
 ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out,
                    std::string *err, AmxState *amx_out = nullptr) {
   auto save_pages = [&] {
@@ -1076,44 +1308,10 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
   x86::Model model;
   model.model_init();
   model.zinitializze_registers(UNIT);
-  x86::enable_all_features(model);
-  set_avx512_features(model);
-  model.zvendor = host_vendor();
-  // Intel AMX as the host has it: the model's profile enables it, the
-  // guest of a host without it has neither the CPUID bits nor XCR0 bits
-  // 17 and 18 (XSETBV of those bits is #GP there).
-  if (!host_has_amx()) {
-    model.zhas_amx_tile = false;
-    model.zhas_amx_int8 = false;
-    model.zhas_amx_bf16 = false;
-    model.zXCR0_SUPPORTED &= ~(3ULL << 17);
-  }
-  // WAITPKG (CPUID.(7,0):ECX[5]) likewise: without it the guest's 66/F2/F3
-  // 0F AE /6 register forms and IA32_UMWAIT_CONTROL are #UD and #GP.  And
-  // ENQCMD (ECX[29]), without which F2/F3 0F 38 F8 are #UD.  The guest
-  // executes ENQCMD and ENQCMDS natively whatever its CPUID says, and so
-  // PTWRITE, whose bit is CPUID.(14H,0):EBX[4], a leaf that exists with
-  // Intel PT (EBX[25]).
-  {
-    u32 a, b, c, d;
-    __cpuid_count(7, 0, a, b, c, d);
-    model.zhas_waitpkg = (c & (1u << 5)) != 0;
-    model.zhas_enqcmd = (c & (1u << 29)) != 0;
-    model.zhas_ptwrite = false;
-    if ((b & (1u << 25)) && __get_cpuid_max(0, nullptr) >= 0x14) {
-      __cpuid_count(0x14, 0, a, b, c, d);
-      model.zhas_ptwrite = (b & (1u << 4)) != 0;
-    }
-    // AMD SSE4A (CPUID Fn8000_0001_ECX[6]): EXTRQ, INSERTQ, MOVNTSS and
-    // MOVNTSD, which the guest also executes natively.
-    __cpuid(0x80000001, a, b, c, d);
-    model.zhas_sse4a = (c & (1u << 6)) != 0;
-  }
-  // SMAP (CPUID.(7,0):EBX[20]), without which CLAC and STAC are #UD.
-  model.zhas_smap = host_has(7, 0, CPUID_EBX, 20);
-  // XCR0 as the guest starts every test (x87, SSE, AVX and the AVX-512
-  // components); a test's override, below, may add the AMX components.
-  model.zXCR0 = 0xE7;
+  set_model_profile(model);
+  // XCR0 as the guest starts every test; a test's override, below, may
+  // add the AMX components.
+  model.zXCR0 = guest_xcr0();
   model.zcur_mode = tc.compat_mode ? x86::zCompatibilityMode : x86::zLongMode;
   model.zcur_cpl = 0;
 
@@ -1141,7 +1339,7 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
   for (int i = 0; i < 6; i++)
     model.zSegReg.data[i] = 0x10;
   model.zSegReg.data[x86::SEG_CS] = tc.compat_mode ? 0x48 : 0x08;
-  model.zCR4 = 0x50620;  // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
+  model.zCR4 = guest_cr4();
 
   // The model reaches guest memory at the same addresses in this process.
   // Back all that the guest maps, its 2MB from CODE_ADDR: the test's pages,
@@ -1655,15 +1853,60 @@ static int list_tests(const char *path) {
   return 0;
 }
 
+// What the cases the suite constructs, and the model's profile, depend on
+// in the host: the guest's CPUID, the host's own for the same leaves (and
+// leaf 14H, whose PTWRITE bit the guest gets from it), and MXCSR_MASK.  A
+// hash of them, which the ctest script records (write_ctest_file) and
+// kvm-tests.cmake compares with the host that runs ctest.
+static u64 host_fingerprint() {
+  u64 h = 0xcbf29ce484222325;  // FNV-1a
+  auto mix = [&](u32 v) {
+    for (int i = 0; i < 4; i++, v >>= 8) h = (h ^ (v & 0xFF)) * 0x100000001b3;
+  };
+  // The cases follow the guest's CPUID, host_has (the host's bits where
+  // the guest has them), the leaves a template reads on the host itself
+  // (07H and 14H) and MXCSR_MASK.  The host's other bits are left out, and
+  // so are the fields that differ between its logical processors, which
+  // KVM_GET_SUPPORTED_CPUID passes through from the one it runs on: the
+  // initial APIC ID (01H:EBX[31:24]), the x2APIC ID (0BH and 1FH:EDX),
+  // the core type (1AH:EAX) and the extended APIC, core and node IDs
+  // (8000001EH).  They would change the fingerprint from run to run.
+  for (const kvm_cpuid_entry2 &e : guest_cpuid_entries()) {
+    std::array<u32, 4> guest = {e.eax, e.ebx, e.ecx, e.edx};
+    switch (e.function) {
+    case 0x1: guest[CPUID_EBX] &= 0x00FFFFFF; break;
+    case 0xB: case 0x1F: guest[CPUID_EDX] = 0; break;
+    case 0x1A: guest[CPUID_EAX] = 0; break;
+    case 0x8000001E: guest = {}; break;
+    }
+    for (u32 v : {e.function, e.index, e.flags}) mix(v);
+    std::array<u32, 4> host = host_cpuid(e.function, e.index);
+    for (int r = 0; r < 4; r++) {
+      mix(guest[r]);
+      mix(host[r] & guest[r]);
+    }
+  }
+  for (std::pair<u32, u32> leaf : {std::pair<u32, u32>{7, 0}, {7, 1}, {0x14, 0}})
+    for (u32 v : host_cpuid(leaf.first, leaf.second)) mix(v);
+  mix(host_mxcsr_mask());
+  return h;
+}
+
 // KVM_CTEST=<path>: write the suite's ctest entries as a CTest script and
 // exit.  Each category gets an entry that selects it exactly, split into
 // slices of at most CTEST_SLICE cases so that no entry runs for more than a
 // few seconds.  The build writes the script after linking the harness
 // (kvm/CMakeLists.txt), so the entries follow the templates and variants
 // with no list to keep in step, and each case runs in exactly one entry.
+// The cases are those of this host: the script records its fingerprint,
+// and ctest on a host with another has kvm-tests.cmake write the script
+// anew.  Every entry is skipped (77) where KVM cannot run, and without
+// /dev/kvm the script has a single entry, which is.
 static int write_ctest_file(const char *path) {
   constexpr size_t CTEST_SLICE = 1500;
-  Suite suite = build_suite();
+  Suite suite;
+  if (!guest_cpuid_entries().empty())
+    suite = build_suite();
   std::vector<std::string> categories;
   std::unordered_map<std::string, size_t> count;
   std::unordered_map<std::string, std::vector<std::string>> files;  // of a template's category
@@ -1688,6 +1931,14 @@ static int write_ctest_file(const char *path) {
     return 1;
   }
   fprintf(out, "# Written by %s (KVM_CTEST).\n", exe);
+  fprintf(out, "# host: %016lx\n", host_fingerprint());
+  auto entry = [&](const std::string &test, const std::string &args) {
+    fprintf(out, "add_test([==[%s]==] [==[%s]==]%s)\n", test.c_str(), exe, args.c_str());
+    fprintf(out, "set_tests_properties([==[%s]==] PROPERTIES SKIP_RETURN_CODE 77)\n",
+            test.c_str());
+  };
+  if (categories.empty())
+    entry("kvm_unavailable", " [==[--check-kvm]==]");
   for (const std::string &cat : categories) {
     std::string name = "kvm_" + cat;
     for (char &ch : name)
@@ -1695,11 +1946,10 @@ static int write_ctest_file(const char *path) {
     std::string templates;
     for (const std::string &f : files[cat]) templates += " [==[--template=" + f + "]==]";
     size_t slices = (count[cat] + CTEST_SLICE - 1) / CTEST_SLICE;
-    for (size_t k = 0; k < slices; k++) {
-      std::string test = slices == 1 ? name : std::format("{}_{}of{}", name, k + 1, slices);
-      fprintf(out, "add_test([==[%s]==] [==[%s]==] [==[--category=%s]==] [==[--slice=%zu/%zu]==]%s)\n",
-              test.c_str(), exe, cat.c_str(), k, slices, templates.c_str());
-    }
+    for (size_t k = 0; k < slices; k++)
+      entry(slices == 1 ? name : std::format("{}_{}of{}", name, k + 1, slices),
+            std::format(" [==[--category={}]==] [==[--slice={}/{}]==]{}", cat, k, slices,
+                        templates));
   }
   fclose(out);
   return 0;
@@ -1712,7 +1962,7 @@ static bool compare_faults(const TestCase &tc, KvmVm &vm, const FaultInfo &kvm_f
                            const FaultInfo &sail_fault) {
   bool ok = true;
   // IA32_XFD_ERR, which an XFD #NM loads (SDM Vol.1 §13.14).
-  if (host_has_amx()) {
+  if (host_has(feature::XFD)) {
     u64 kvm_xfd_err = vm.read_msr(0x1C5);
     if (kvm_xfd_err != sail_fault.xfd_err) {
       fprintf(stderr, "  MISMATCH IA32_XFD_ERR: kvm=0x%lx sail=0x%lx\n",
@@ -1834,16 +2084,41 @@ void fxsave_x87_undefined(TestCase &tc, u16 off, unsigned open, bool w) {
     undefined_bytes(tc, off + 0x06, 18);  // FOP, FIP, FCS, FDP, FDS
 }
 
-enum class CaseResult { Pass, Deviation, Fail };
+enum class CaseResult { Pass, Deviation, Fail, Skip };
+
+// The case without state in the vector components the guest's XCR0 lacks
+// (bits 255:128 of YMM0-15 without AVX; bits 511:256, ZMM16-31 and the
+// opmask registers without AVX-512), which the guest does not have and
+// reads as zeros: the model starts with zeros there as well.  `copy`
+// holds the case when it changes.
+static const TestCase &without_absent_state(const TestCase &tc, TestCase &copy) {
+  u64 x = guest_xcr0();
+  if ((x & 0xE4) == 0xE4)
+    return tc;
+  copy = tc;
+  for (int i = 0; i < 32; i++)
+    for (int q = 0; q < 8; q++)
+      if (!(i < 16 ? q < 2 || (q < 4 ? x & 0x4 : x & 0x40) : x & 0x80))
+        copy.initial.xmm[i].q[q] = 0;
+  if (!(x & 0x20))
+    copy.initial.kregs.fill(0);
+  return copy;
+}
 
 // Runs one case on both sides and compares the outcome: the exception for
 // a run that faults, the architectural state for one that completes, and
 // in either case the memory the run may have written.  A mismatch is a
 // known deviation if `dev`, the case's entry for this host, covers it
 // (KnownDeviation::model_outcome and host_outcome), and a failure
-// otherwise; a harness or model error is always a failure.
-static CaseResult run_case(KvmVm &vm, const TestCase &tc, const KnownDeviation *dev) {
-  vm.load_test(tc);
+// otherwise; a harness or model error is always a failure.  A case whose
+// state KVM rejects is skipped: the host cannot run it.
+static CaseResult run_case(KvmVm &vm, const TestCase &orig, const KnownDeviation *dev) {
+  TestCase copy;
+  const TestCase &tc = without_absent_state(orig, copy);
+  if (std::string why = vm.load_test(tc); !why.empty()) {
+    fprintf(stderr, "CANNOT RUN on this host: %s (%s)\n", tc.name.c_str(), why.c_str());
+    return CaseResult::Skip;
+  }
 
   std::string err;
   ArchState kvm_state, sail_state;
@@ -1962,10 +2237,21 @@ static CaseResult run_case(KvmVm &vm, const TestCase &tc, const KnownDeviation *
   return CaseResult::Pass;
 }
 
+// Exit status of a run that has nothing to compare: no KVM, or no case
+// selected or runnable on this host.  ctest reports it as skipped
+// (SKIP_RETURN_CODE in write_ctest_file).
+static constexpr int EXIT_SKIP = 77;
+
 int main(int argc, char **argv) {
+  bool check_kvm = false;
   for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
-    if (arg.starts_with("--category=")) {
+    if (arg == "--host-fingerprint") {
+      printf("%016lx\n", host_fingerprint());
+      return 0;
+    } else if (arg == "--check-kvm") {
+      check_kvm = true;
+    } else if (arg.starts_with("--category=")) {
       g_category = arg.substr(11);
     } else if (arg.starts_with("--template=")) {
       g_templates.push_back(arg.substr(11));
@@ -2002,16 +2288,28 @@ int main(int argc, char **argv) {
   if (const char *path = getenv("KVM_LIST"))
     return list_tests(path);
 
-  auto vm = std::make_unique<KvmVm>();
-  if (!vm->init()) {
-    fprintf(stderr, "Failed to initialize KVM VM\n");
+  if (guest_cpuid_entries().empty()) {
+    fprintf(stderr, "KVM is not available (/dev/kvm): nothing to run\n");
+    return EXIT_SKIP;
+  }
+  if (check_kvm) {
+    fprintf(stderr, "KVM is available, but the ctest entries were written without it: "
+            "run ctest again to write them for this host\n");
     return 1;
   }
+  auto vm = std::make_unique<KvmVm>();
+  if (!vm->init()) {
+    fprintf(stderr, "environment error: KVM rejects the harness's VM setup\n");
+    return 1;
+  }
+  fprintf(stderr, "guest XCR0 %#lx, CR4 %#lx, MXCSR_MASK %#x\n", guest_xcr0_supported(),
+          guest_cr4(), host_mxcsr_mask());
 
   Suite suite = build_suite();
   int passed = 0;
   int deviations = 0;
   int failed = 0;
+  int skipped = 0;
   std::string last_cat;
   bool vm_lost = false;
   size_t selected = 0;
@@ -2035,6 +2333,8 @@ int main(int argc, char **argv) {
     } else if (result == CaseResult::Deviation) {
       fprintf(stderr, "  (%s)\n", dev->reason);
       deviations++;
+    } else if (result == CaseResult::Skip) {
+      skipped++;
     } else {
       failed++;
     }
@@ -2055,7 +2355,12 @@ int main(int argc, char **argv) {
   if (vm_lost)
     return 1;
 
-  fprintf(stderr, "%d passed, %d known deviations, %d failed out of %d tests\n",
+  fprintf(stderr, "%d passed, %d known deviations, %d failed out of %d tests",
           passed, deviations, failed, passed + deviations + failed);
-  return failed > 0 ? 1 : 0;
+  if (skipped)
+    fprintf(stderr, "; %d the host cannot run", skipped);
+  fprintf(stderr, "\n");
+  if (failed > 0)
+    return 1;
+  return passed + deviations == 0 ? EXIT_SKIP : 0;
 }

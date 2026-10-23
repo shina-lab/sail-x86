@@ -419,10 +419,39 @@ function fetch_modrm_raw(pfx) = {
   (reg_field, modrm_rm(modrm, pfx))
 }
 
+// The 16-byte alignment of the m128 source of a legacy SSE load/execute
+// instruction: #GP(0) if misaligned, unless MXCSR.MM (bit 17) is 1.  "AMD
+// processors that support Misaligned SSE Mode may be programmed to disable
+// this exception behavior for legacy load/execute SSE instructions"; "If
+// MXCSR.MM is set, the #GP is inhibited and the exception behavior depends
+// on the alignment checking mechanism" (APM Vol.1 §4.3.2 p.120-121), whose
+// #AC the model implements for no instruction.  MM can be 1 only on a
+// machine whose MXCSR_MASK has bit 17, one with MisAlignSse
+// (has_misalignsse).  The instructions that "do not support misaligned
+// accesses" use decode_xmm_src_aligned.
+val check_sse_src_alignment : MemRef -> unit
+function check_sse_src_alignment(m) =
+  if __stmxcsr()[17] == bitzero then check_alignment(m, 16)
+
 // Helper: decode XMM src operand value (read from register or memory).
 // Enforces 16-byte alignment for memory operands (legacy SSE default).
 val decode_xmm_src : XRM -> xmmword
 function decode_xmm_src(src) = match src {
+  XRM_reg(xi) => read_simd(xi),
+  XRM_mem(m)  => { check_sse_src_alignment(m); read_mem(m) },
+}
+
+// The loads of MOVAPS, MOVAPD, MOVDQA and MOVNTDQA, #GP(0) for a
+// misaligned operand whatever MXCSR.MM: "The FXSAVE, FXRSTOR, (V)MOVAPD,
+// (V)MOVAPS, and (V)MOVDQA, (V)MOVNTDQ, (V)MOVNTPD and (V)MOVNTPS
+// instructions do not support misaligned accesses" (APM Vol.1 §4.3.2
+// p.121), and the pages of these and of MOVNTDQA give the #GP with no MM
+// condition (APM Vol.4 pp.283, 286, 296, 321).  For MOVNTDQA, APM Vol.1
+// p.152 says instead that the read "causes a #GP or invokes the alignment
+// checking mechanism depending on the setting of the MXCSR[MM] bit"; the
+// model follows its instruction page.
+val decode_xmm_src_aligned : XRM -> xmmword
+function decode_xmm_src_aligned(src) = match src {
   XRM_reg(xi) => read_simd(xi),
   XRM_mem(m)  => { check_alignment(m, 16); read_mem(m) },
 }
@@ -443,7 +472,7 @@ function decode_sse_fp_src(src, mp) = match src {
   XRM_mem(m)  => match mp {
     MP_F3 => zero_extend(read_mem(32, m)),
     MP_F2 => zero_extend(read_mem(64, m)),
-    _     => { check_alignment(m, 16); read_mem(m) },
+    _     => { check_sse_src_alignment(m); read_mem(m) },
   },
 }
 

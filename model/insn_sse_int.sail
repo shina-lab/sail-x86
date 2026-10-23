@@ -505,7 +505,7 @@ function dispatch_2byte_sse_int(op, pfx) = {
         let src = modrm_xrm(modrm, pfx);
         // MOVDQA (66) requires 16-byte alignment; MOVDQU (F3) does not
         if mp == MP_66 then {
-          ZMM[xreg][127..0] = decode_xmm_src(src)
+          ZMM[xreg][127..0] = decode_xmm_src_aligned(src)
         } else {
           ZMM[xreg][127..0] = decode_xmm_src_u(src)
         }
@@ -887,6 +887,8 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
       zero_extend(decode_xmm_partial_src(32, src))
     else if op == 34 | op == 50 then
       zero_extend(decode_xmm_partial_src(16, src))
+    else if op == 42 then
+      decode_xmm_src_aligned(src)  // MOVNTDQA
     else
       decode_xmm_src(src);
 
@@ -959,7 +961,7 @@ function dispatch_3byte_38_sse_int(opcode, pfx) = {
     // MOVNTDQA xmm, m128
     42 => match src {
       XRM_reg(_) => raise_UD(),
-      XRM_mem(m) => ZMM[xreg][127..0] = read_mem(m),
+      XRM_mem(_) => ZMM[xreg][127..0] = src_xmm,
     },
     // PACKUSDW xmm1, xmm2/m128
     43 => ZMM[xreg][127..0] = packed_pack(PN_SatSU, 32, 16, read_simd(xreg), src_xmm),

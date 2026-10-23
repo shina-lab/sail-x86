@@ -207,37 +207,42 @@ function cpuid(leaf, subleaf) = {
       }
     },
 
-    // Leaf 0xD: XSAVE state component info
+    // Leaf 0xD: XSAVE state component info (SDM Table 21-36, Vol.1 §13.2)
     13 => match (has_xsave, sub_val) {
-      // EAX = XCR0_SUPPORTED
+      // EAX/EDX = XCR0_SUPPORTED
       // EBX = standard size for currently enabled components (dynamic)
       // ECX = max standard size for all supported components
       (true, 0) => (XCR0_SUPPORTED[31..0],
                     xsave_area_size_standard(XCR0),
                     xsave_area_size_standard(XCR0_SUPPORTED),
-                    0x00000000),
+                    XCR0_SUPPORTED[63..32]),
       // EAX: XSAVEOPT(0), XSAVEC(1), XGETBV w/ ECX=1(2), XSAVES/XRSTORS(3),
-      //      XFD(4) with AMX (SDM Vol.1 §13.14)
-      // EBX = compacted size for currently enabled components (dynamic)
+      //      XFD(4)
+      // EBX = compacted size for XCR0 | IA32_XSS (dynamic), "If EAX[1]
+      //       and EAX[3] are both enumerated as 0, EBX enumerates zero"
       // ECX = supported IA32_XSS bits [31:0] (none)
       // EDX = supported IA32_XSS bits [63:32] (none)
-      (true, 1) => (if has_amx_tile then 0x0000001F else 0x0000000F,
-                    xsave_area_size_compacted(XCR0), 0x00000000, 0x00000000),
-      // Components 2 (AVX, 256 bytes), 5 (opmask, 64), 6 (ZMM_Hi256, 512)
-      // and 7 (Hi16_ZMM, 1024).  EBX, the standard-format offset, follows
-      // the vendor profile: see xsave_std_offset in insn_xsave.sail.
-      (true, 2) => (0x00000100, to_bits(32, xsave_std_offset(2)), 0x00000000, 0x00000000),
-      (true, 5) => (0x00000040, to_bits(32, xsave_std_offset(5)), 0x00000000, 0x00000000),
-      (true, 6) => (0x00000200, to_bits(32, xsave_std_offset(6)), 0x00000000, 0x00000000),
-      (true, 7) => (0x00000400, to_bits(32, xsave_std_offset(7)), 0x00000000, 0x00000000),
-      // Components 17 (TILECFG, 64 bytes) and 18 (TILEDATA, 8192 bytes)
-      // of Intel AMX; ECX[1]: 64-byte aligned in the compacted format;
-      // ECX[2]: IA32_XFD can disable the component (TILEDATA only, as on
-      // the first processors with AMX).
-      (true, 17) => if has_amx_tile then (0x00000040, to_bits(32, xsave_std_offset(17)), 0x00000002, 0x00000000)
-                    else (0x00000000, 0x00000000, 0x00000000, 0x00000000),
-      (true, 18) => if has_amx_tile then (0x00002000, to_bits(32, xsave_std_offset(18)), 0x00000006, 0x00000000)
-                    else (0x00000000, 0x00000000, 0x00000000, 0x00000000),
+      (true, 1) => {
+        var eax : dword = 0x00000000;
+        if has_xsaveopt then eax = eax | 0x00000001;
+        if has_xsavec   then eax = eax | 0x00000002;
+        if has_xgetbv1  then eax = eax | 0x00000004;
+        if has_xsaves   then eax = eax | 0x00000008;
+        if has_xfd      then eax = eax | 0x00000010;
+        let ebx : dword = if has_xsavec | has_xsaves then xsave_area_size_compacted(XCR0) else 0x00000000;
+        (eax, ebx, 0x00000000, 0x00000000)
+      },
+      // A user state component i of XCR0_SUPPORTED: EAX its size, EBX its
+      // standard-format offset, ECX[1] its 64-byte alignment in the
+      // compacted format and ECX[2] whether IA32_XFD can disable it (the
+      // model implements XFD for TILEDATA only).
+      (true, i) => if 2 <= i & i <= 18 then {
+                     if XCR0_SUPPORTED[i] == bitone then {
+                       let ecx : dword = (if xsave_comp_align[i] then 0x00000002 else 0x00000000)
+                                       | (if xfd_supported()[i] == bitone then 0x00000004 else 0x00000000);
+                       (xsave_comp_size[i], xsave_comp_offset[i], ecx, 0x00000000)
+                     } else (0x00000000, 0x00000000, 0x00000000, 0x00000000)
+                   } else (0x00000000, 0x00000000, 0x00000000, 0x00000000),
       _ => (0x00000000, 0x00000000, 0x00000000, 0x00000000)
     },
 
@@ -275,10 +280,12 @@ function cpuid(leaf, subleaf) = {
 
     // Leaf 0x80000001: Extended feature bits
     2147483649 => {
-      // ECX: LAHF(0), conditionally LZCNT(5), SSE4A(6) and PREFETCHW(8)
+      // ECX: LAHF(0), conditionally LZCNT(5), SSE4A(6), MisAlignSse(7)
+      // and PREFETCHW(8)
       var ecx : dword = 0x00000001;  // LAHF
       if has_lzcnt     then ecx = ecx | 0x00000020;  // bit 5
       if has_sse4a     then ecx = ecx | 0x00000040;  // bit 6 (AMD APM Vol.3 Appendix E)
+      if has_misalignsse then ecx = ecx | 0x00000080;  // bit 7 (APM Vol.3 Appendix E)
       if has_prefetchw then ecx = ecx | 0x00000100;  // bit 8
       // EDX: SYSCALL(11), NX(20), LM(29)
       let edx : dword = 0x20100800;
@@ -1053,8 +1060,11 @@ function dispatch_2byte_gpr(op, pfx) = {
         // 0F 01 D1: XSETBV — Write XCR (ECX selects register, EDX:EAX = value)
         // SDM: #GP(0) if CPL > 0; #GP(0) if ECX != 0 (only XCR0 exists);
         // #GP(0) if attempting to set unsupported bits or violating constraints.
-        // Unconditional VM exit in non-root (SDM §26.1.2).
+        // Unconditional VM exit in non-root (SDM §26.1.2), after the #UD of
+        // the XSAVE feature set ("invalid-opcode exceptions" "have priority
+        // over VM exits", Vol.3C §28.1.1 p.28-1).
         209 => {
+          check_xsave_enabled(true);
           vmx_exit_xsetbv();
           if cur_cpl != 0 then raise_GP0();
           let ecx_val : dword = v(RCX);
@@ -1079,10 +1089,13 @@ function dispatch_2byte_gpr(op, pfx) = {
         // returns "the logical-AND of XCR0 and the current value of the
         // XINUSE state-component bitmap", with "EAX[1] to 1 if XCR0[1] = 1
         // and MXCSR does not have its RESET value of 1F80H" (SDM XGETBV;
-        // Vol.1 §13.6 p.13-18; APM Vol.4 XGETBV p.1763).
+        // Vol.1 §13.6 p.13-18; APM Vol.4 XGETBV p.1763).  Any other ECX is
+        // #GP(0), which "includes ECX = 1 if
+        // CPUID.0DH.01H:EAX.XGETBV1[2] = 0".
         208 => {
+          check_xsave_enabled(true);
           let ecx_val : dword = v(RCX);
-          if ecx_val == 0x00000000 | ecx_val == 0x00000001 then {
+          if ecx_val == 0x00000000 | (ecx_val == 0x00000001 & has_xgetbv1) then {
             var xcr : qword = XCR0;
             if ecx_val == 0x00000001 then {
               xcr = XCR0 & xinuse();
@@ -1563,7 +1576,10 @@ function dispatch_2byte_gpr(op, pfx) = {
         KERNEL_GS_BASE = msr_val
       } else if ecx == 0x00000DA0 then {
         // IA32_XSS (0xDA0): supervisor state components for XSAVES/XRSTORS.
-        // No supervisor components supported, so only 0 is valid.
+        // It exists with XSAVES (SDM Vol.1 §13.2 p.13-4), and "A bit can
+        // be set in the IA32_XSS MSR if and only if the corresponding bit
+        // is set in" CPUID.0DH.01H:EDX:ECX, which has none.
+        if ~(has_xsaves) then raise_GP0();
         if msr_val != zeros() then raise_GP0()
       } else if ecx == 0x000000E1 then {
         // IA32_UMWAIT_CONTROL (0xE1, SDM Vol.2B TPAUSE/UMWAIT): the OS
@@ -1573,11 +1589,12 @@ function dispatch_2byte_gpr(op, pfx) = {
         if msr_val[63..32] != zeros() | msr_val[1] == bitone then raise_GP0();
         __wrmsr(ecx, msr_val)
       } else if ecx == 0x000001C4 | ecx == 0x000001C5 then {
-        // IA32_XFD (1C4H) and IA32_XFD_ERR (1C5H), SDM Vol.1 §13.14: exist
-        // with XFD (CPUID.0DH.01H:EAX[4], here with AMX); a bit can be set
-        // only for a component with CPUID.0DH.i:ECX[2], i.e. bit 18.
-        if ~(has_amx_tile) then raise_GP0();
-        if (msr_val & ~(0x0000000000040000 : qword)) != zeros() then raise_GP0();
+        // IA32_XFD (1C4H) and IA32_XFD_ERR (1C5H), SDM Vol.1 §13.14
+        // p.13-27: exist with XFD (CPUID.0DH.01H:EAX[4]); "Bit i of either
+        // MSR can be set to 1 only if CPUID.0DH.i:ECX[2] is enumerated as
+        // 1", and WRMSR of another bit is #GP.
+        if ~(has_xfd) then raise_GP0();
+        if (msr_val & ~(xfd_supported())) != zeros() then raise_GP0();
         if ecx == 0x000001C4 then IA32_XFD = msr_val else IA32_XFD_ERR = msr_val
       } else if ecx == 0x00000D93 then {
         // IA32_PASID (D93H): exists with ENQCMD; bits 19:0 (PASID) and
@@ -1649,12 +1666,14 @@ function dispatch_2byte_gpr(op, pfx) = {
       let msr : qword = match ecx {
         0xC0000080 => EFER,
         0x0000003A => ia32_feature_control,
-        0x00000DA0 => zeros(), // IA32_XSS is always 0 (no supervisor state components supported)
+        // IA32_XSS exists with XSAVES and is always 0 (no supervisor state
+        // components supported)
+        0x00000DA0 => { if ~(has_xsaves) then raise_GP0(); zeros() },
         // IA32_UMWAIT_CONTROL exists with WAITPKG; the value written, 0 at reset
         0x000000E1 => { if ~(has_waitpkg) then raise_GP0(); __rdmsr(ecx) },
-        // IA32_XFD and IA32_XFD_ERR exist with XFD (here with AMX)
-        0x000001C4 => { if ~(has_amx_tile) then raise_GP0(); IA32_XFD },
-        0x000001C5 => { if ~(has_amx_tile) then raise_GP0(); IA32_XFD_ERR },
+        // IA32_XFD and IA32_XFD_ERR exist with XFD
+        0x000001C4 => { if ~(has_xfd) then raise_GP0(); IA32_XFD },
+        0x000001C5 => { if ~(has_xfd) then raise_GP0(); IA32_XFD_ERR },
         // IA32_PASID exists with ENQCMD
         0x00000D93 => { if ~(has_enqcmd) then raise_GP0(); IA32_PASID },
         0xC0000100 => SegCache[FS].seg_base,
@@ -1816,6 +1835,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // XSAVE family: SDM Vol.2D XSAVE)
         4 => match dest {
           RM_mem(m) => {
+            check_xsave_enabled(true);
             check_cr0_ts();
             let mask : qword = v(32, RDX) @ v(32, RAX);
             exec_xsave(seg_linear(m, 576), mask, pfx.rex_w)
@@ -1826,6 +1846,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         5 => match dest {
           RM_mem(m) => {
             // /5 mem: XRSTOR m
+            check_xsave_enabled(true);
             check_cr0_ts();
             let mask : qword = v(32, RDX) @ v(32, RAX);
             exec_xrstor(seg_linear(m, 576), mask, pfx.rex_w)
@@ -1845,6 +1866,7 @@ function dispatch_2byte_gpr(op, pfx) = {
               cache_line_access(m)  // CLWB
             } else {
               // XSAVEOPT: architecturally equivalent to XSAVE
+              check_xsave_enabled(has_xsaveopt);
               check_cr0_ts();
               let mask : qword = v(32, RDX) @ v(32, RAX);
               exec_xsaveopt(seg_linear(m, 576), mask, pfx.rex_w)
@@ -2169,9 +2191,11 @@ function dispatch_2byte_gpr(op, pfx) = {
     188 => {
       let os = opsize(pfx);
       let (reg, src) = fetch_modrm(pfx);
-      if pfx.has_rep then {
-        // TZCNT r16/r32/r64, r/m16/r/m32/r/m64
-        if ~(has_bmi1) then raise_UD();
+      if pfx.has_rep & has_bmi1 then {
+        // TZCNT r16/r32/r64, r/m16/r/m32/r/m64.  "On processors that do
+        // not support TZCNT, the instruction byte encoding is executed as
+        // BSF" (SDM Vol.2B TZCNT p.4-727; APM Vol.3 TZCNT p.362: "treated
+        // as the BSF instruction").
         let src_val = v(os, src);
         let count = ctz(src_val);
         let result : qword = to_bits_truncate(count);
@@ -2223,9 +2247,11 @@ function dispatch_2byte_gpr(op, pfx) = {
     189 => {
       let os = opsize(pfx);
       let (reg, src) = fetch_modrm(pfx);
-      if pfx.has_rep then {
-        // LZCNT r16/r32/r64, r/m16/r/m32/r/m64
-        if ~(has_lzcnt) then raise_UD();
+      if pfx.has_rep & has_lzcnt then {
+        // LZCNT r16/r32/r64, r/m16/r/m32/r/m64.  "On processors that do
+        // not support LZCNT, the instruction byte encoding is executed as
+        // BSR" (SDM Vol.2A LZCNT p.3-578; APM Vol.3 LZCNT p.234:
+        // "interpreted as the BSR instruction").
         let src_val = v(os, src);
         let count = clz(src_val);
         let result : qword = to_bits_truncate(count);
@@ -2402,6 +2428,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // XSAVES.
         3 => match dest {
           RM_mem(m) => {
+            check_xsave_enabled(has_xsaves);
             check_cr0_ts();
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = v(32, RDX) @ v(32, RAX);
@@ -2412,6 +2439,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // /4 mem: XSAVEC — save extended state with compaction
         4 => match dest {
           RM_mem(m) => {
+            check_xsave_enabled(has_xsavec);
             check_cr0_ts();
             let mask : qword = v(32, RDX) @ v(32, RAX);
             exec_xsavec(seg_linear(m, 576), mask, pfx.rex_w)
@@ -2421,6 +2449,7 @@ function dispatch_2byte_gpr(op, pfx) = {
         // /5 mem: XSAVES — save extended state (supervisor, requires CPL=0)
         5 => match dest {
           RM_mem(m) => {
+            check_xsave_enabled(has_xsaves);
             check_cr0_ts();
             if cur_cpl != 0 then raise_GP0();
             let mask : qword = v(32, RDX) @ v(32, RAX);

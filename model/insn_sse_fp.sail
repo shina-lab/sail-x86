@@ -259,7 +259,7 @@ function dispatch_2byte_sse_fp(op, pfx) = {
     40 => {
       let modrm = fetch(1);
       let xreg = modrm_xreg(modrm, pfx);
-      ZMM[xreg][127..0] = decode_xmm_src(modrm_xrm(modrm, pfx))
+      ZMM[xreg][127..0] = decode_xmm_src_aligned(modrm_xrm(modrm, pfx))
     },
     // 0F 29: MOVAPS/MOVAPD xmm/m128, xmm
     41 => {

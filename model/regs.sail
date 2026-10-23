@@ -119,10 +119,8 @@ let R14 : gpr_idx = 14
 let R15 : gpr_idx = 15
 
 // Vendor profile for the values the SDM leaves to the implementation and
-// on which the two vendors differ: the standard-format XSAVE offsets of
-// the AVX-512 components (CPUID.0DH.n:EBX), MXCSR_MASK, and the CPUID bits
-// that govern the x87 pointers.  See xsave_std_offset and mxcsr_mask in
-// insn_xsave.sail and fdp_excptn_only below.
+// on which the two vendors differ: the CPUID bits that govern the x87
+// pointers.  See fdp_excptn_only below.
 // The CPUID vendor string stays "GenuineIntel" either way.  The KVM
 // differential harness selects the host's vendor so that both profiles are
 // checked against silicon; the emulators keep the Intel default.
@@ -765,6 +763,19 @@ register has_avx512_vnni  : bool  // CPUID.07H:ECX[11] — EVEX VPDPBUSD/VPDPBUS
 register has_avx512_bitalg : bool // CPUID.07H:ECX[12]
 register has_avx512_vpopcntdq : bool // CPUID.07H:ECX[14]
 register has_avx512_vp2intersect : bool // CPUID.07H:EDX[8]
+// The XSAVE extensions of CPUID.(0DH,1):EAX (SDM Vol.1 §13.2 p.13-3,
+// Table 21-35): "If EAX[0] = 0, execution of XSAVEOPT causes an
+// invalid-opcode exception (#UD)"; EAX[1], "the compacted format", XSAVEC
+// and "the compacted form of XRSTOR"; EAX[2], XGETBV with ECX = 1; EAX[3],
+// XSAVES, XRSTORS and IA32_XSS ("an attempt to access the IA32_XSS MSR
+// using RDMSR or WRMSR causes a general-protection exception (#GP)"
+// without it); EAX[4], extended feature disable (§13.14: IA32_XFD and
+// IA32_XFD_ERR).
+register has_xsaveopt  : bool
+register has_xsavec    : bool
+register has_xgetbv1   : bool
+register has_xsaves    : bool
+register has_xfd       : bool
 register has_avx512_fp16 : bool  // CPUID.07H:EDX[23] — AVX512-FP16 (EVEX maps 5 and 6, and 0F3A forms)
 register has_avx512_bf16  : bool  // CPUID.(07H,1):EAX[5]
 register has_la57      : bool  // CPUID.07H:ECX[16] — 5-Level Paging
@@ -792,6 +803,46 @@ register has_ptwrite   : bool
 // the CPUID presents, so none sets it; the KVM harness gives it the
 // host's value.
 register has_sse4a     : bool
+// AMD Misaligned SSE mode, CPUID Fn8000_0001_ECX[MisAlignSse] (bit 7;
+// APM Vol.3 Appendix E p.649): MXCSR.MM (bit 17) then exists and masks the
+// #GP of a misaligned legacy SSE memory operand (check_sse_src_alignment
+// in insn_modrm.sail; APM Vol.1 §4.2.2 p.118, §4.3.2 p.120).  "The
+// corresponding MXCSR_MASK bit (17) is 1", so a machine with it reports
+// that bit in MXCSR_MASK as well.  No enable_features_* profile sets it;
+// the KVM harness sets it, and MXCSR_MASK, from the host.
+register has_misalignsse : bool
+
+// MXCSR_MASK, the value FXSAVE and XSAVE store at bytes 31:28 of the
+// legacy region: "All bits set to 0 in the MXCSR_MASK value indicate
+// reserved bits in the MXCSR register", which LDMXCSR, FXRSTOR and XRSTOR
+// may not set (#GP(0)), and "If the value of the MXCSR_MASK field is
+// 00000000H, then the MXCSR_MASK value is the default value of 0000FFBFH"
+// (SDM Vol.1 §11.6.6 p.11-21; APM Vol.2 §11.5.10 p.364).  The value is the
+// implementation's, which software reads from an FXSAVE image; the KVM
+// harness sets the host's.  The default is bits 15:0, DAZ included.
+register MXCSR_MASK : dword = 0x0000FFFF
+
+// The XSAVE layout of the user state components the model implements:
+// 2 (AVX), 5-7 (AVX-512) and 17-18 (AMX).  For each, CPUID.(0DH,i) "EAX
+// enumerates the size (in bytes) required for state component i", "EBX
+// enumerates the offset (in bytes, from the base of the XSAVE area) of the
+// section used for state component i" in the standard format, and "If
+// ECX[1] returns 1, state component i is located on the next 64-byte
+// boundary following the preceding state component" in the compacted one
+// (SDM Vol.1 §13.2 p.13-4, §13.4.3; APM Vol.2 §11.5.3, Table 11-6).
+// Neither manual fixes the offsets or the alignment, so they are the
+// implementation's; the KVM harness sets the host's.  Indexed by
+// component; a component the processor does not support has size 0.
+register xsave_comp_size   : vector(19, dword)
+register xsave_comp_offset : vector(19, dword)
+register xsave_comp_align  : vector(19, bool)
+
+val set_xsave_component : (range(0, 18), int, int, bool) -> unit
+function set_xsave_component(i, size, offset, align) = {
+  xsave_comp_size[i] = get_slice_int(32, size, 0);
+  xsave_comp_offset[i] = get_slice_int(32, offset, 0);
+  xsave_comp_align[i] = align
+}
 
 // The user-level monitor of UMONITOR/UMWAIT (SDM Vol.2B): armed by
 // UMONITOR, consumed by UMWAIT.  Stores to the monitored range are not
@@ -830,8 +881,8 @@ register TMM               : vector(128, zmmword)
 // Extended feature disable (SDM Vol.1 §13.14; CPUID.0DH.01H:EAX[4]):
 // IA32_XFD (1C4H) disables the state components whose bits it and XCR0
 // both have, and IA32_XFD_ERR (1C5H) names the components an instruction
-// faulted on (#NM).  Only bit 18 (TILEDATA) can be set, as on the first
-// processors with AMX (CPUID.0DH.12H:ECX[2]); both reset to zero.
+// faulted on (#NM).  Only bit 18 (TILEDATA) can be set (xfd_supported in
+// insn_xsave.sail); both reset to zero.
 register IA32_XFD     : qword = zeros()
 register IA32_XFD_ERR : qword = zeros()
 
@@ -914,6 +965,9 @@ function enable_features_v1() = {
   has_rdseed = false;
   has_rdpid = false;
   has_crc32 = false;
+  has_movdiri = false;
+  has_movdir64b = false;
+  has_enqcmd = false;
   has_xsave = false;
   has_avx512f = false;
   has_avx512dq = false;
@@ -929,9 +983,15 @@ function enable_features_v1() = {
   has_avx512_bitalg = false;
   has_avx512_vpopcntdq = false;
   has_avx512_vp2intersect = false;
+  has_xsaveopt = false;
+  has_xsavec = false;
+  has_xgetbv1 = false;
+  has_xsaves = false;
+  has_xfd = false;
   has_avx512_fp16 = false;
   has_avx512_bf16 = false;
   has_vmx = false;
+  has_la57 = false;
   has_amx_tile = false;
   has_amx_int8 = false;
   has_amx_bf16 = false;
@@ -939,8 +999,13 @@ function enable_features_v1() = {
   has_cldemote = false;
   has_ptwrite = false;
   has_sse4a = false;
+  has_misalignsse = false;
   has_waitpkg = false;
-  has_enqcmd = false
+  MXCSR_MASK = 0x0000FFFF;
+  // No extended state component: x87 and SSE are in the legacy region.
+  foreach (i from 0 to 18) {
+    set_xsave_component(i, 0, 0, false)
+  }
 }
 
 // x86-64-v2: Nehalem+ (SSE4.2, POPCNT, CMPXCHG16B)
@@ -953,6 +1018,10 @@ function enable_features_v2() = {
   has_sse4_2 = true;
   has_cx16 = true;
   has_xsave = true;
+  has_xsaveopt = true;
+  has_xsavec = true;
+  has_xgetbv1 = true;
+  has_xsaves = true;
   has_popcnt = true;
   has_crc32 = true;
   has_pclmulqdq = true;
@@ -966,6 +1035,8 @@ function enable_features_v3() = {
   CR4 = CR4 | 0x0000000000040000;  // OSXSAVE
   XCR0_SUPPORTED = 0x0000000000000007;  // x87 + SSE + AVX
   XCR0 = 0x0000000000000007;
+  // The extended region starts right after the 64-byte header.
+  set_xsave_component(2, 256, 576, false);
   has_bmi1 = true;
   has_bmi2 = true;
   has_fma = true;
@@ -986,6 +1057,11 @@ function enable_features_v4() = {
   enable_features_v3();
   XCR0_SUPPORTED = 0x00000000000000E7;  // + opmask + ZMM_Hi256 + Hi16_ZMM
   XCR0 = 0x00000000000000E7;
+  // The places of the MPX components 3 and 4 (960 and 1024, 64 bytes
+  // each) stay unused.
+  set_xsave_component(5, 64, 1088, false);
+  set_xsave_component(6, 512, 1152, false);
+  set_xsave_component(7, 1024, 1664, false);
   has_avx512f = true;
   has_avx512dq = true;
   has_avx512_ifma = true;
@@ -1020,6 +1096,11 @@ function enable_features_all() = {
   XCR0 = XCR0 | 0x0000000000060000;
   has_avx512er = true;
   has_avx512pf = true;
+  // After the PKRU component (9, 2688, 8 bytes), each 64-byte aligned in
+  // the compacted format.
+  set_xsave_component(17, 64, 2752, true);
+  set_xsave_component(18, 8192, 2816, true);
+  has_xfd = true;
   has_amx_tile = true;
   has_amx_int8 = true;
   has_amx_bf16 = true;
