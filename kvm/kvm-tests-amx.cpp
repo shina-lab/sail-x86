@@ -1,8 +1,8 @@
 // Intel AMX (AMX-TILE, AMX-INT8, AMX-BF16): LDTILECFG, STTILECFG,
 // TILERELEASE, TILEZERO, TILELOADD/TILELOADDT1, TILESTORED, the TDPB*D
-// byte dot products and TDPBF16PS.  Constructed only where the host has
-// AMX-TILE (CPUID.(7,0):EDX[24]); the templates were run against an Intel
-// Xeon Platinum 8562Y+ (Emerald Rapids).
+// byte dot products and TDPBF16PS.  Constructed only where the guest has
+// AMX as the model implements it (host_has_amx), and the AMX-INT8 and
+// AMX-BF16 cases where it has those (CPUID.(7,0):EDX[25], EDX[22]).
 //
 // Every test enables the tile components in XCR0 (bits 17 and 18) through
 // xcr0_override, which also makes the harness compare the TILECFG image and
@@ -17,11 +17,11 @@
 
 #include "kvm-harness.h"
 #include <array>
-#include <cpuid.h>
 
 namespace {
 
-constexpr u64 AMX_XCR0 = 0xE7 | (3ULL << 17);  // x87, SSE, AVX, AVX-512, TILECFG, TILEDATA
+// The guest's XCR0 with TILECFG and TILEDATA.
+u64 amx_xcr0() { return guest_xcr0() | 3ULL << 17; }
 constexpr size_t PAGE = 0x1000;
 constexpr size_t CFG_OFF = 0x000, CFG2_OFF = 0x040, A_OFF = 0x100, B_OFF = 0x500, C_OFF = 0x900;
 enum Gpr { RAX = 0, RCX = 1, RDX = 2, RBX = 3, RSP = 4, RBP = 5, RSI = 6, RDI = 7 };
@@ -154,11 +154,9 @@ struct Page {
 }  // namespace
 
 void add_amx_tests(std::vector<TestCase> &tests) {
-  u32 a7, b7, c7, d7;
-  __cpuid_count(7, 0, a7, b7, c7, d7);
-  if (!(d7 & (1u << 24))) return;  // no AMX-TILE
-  const bool has_int8 = d7 & (1u << 25);
-  const bool has_bf16 = d7 & (1u << 22);
+  if (!host_has_amx()) return;
+  const bool has_int8 = host_has(feature::AMX_INT8);
+  const bool has_bf16 = host_has(feature::AMX_BF16);
 
   std::string category;
   const ArchState base_regs = {
@@ -168,7 +166,7 @@ void add_amx_tests(std::vector<TestCase> &tests) {
 
   // regs replaces base_regs where a test needs other register values.
   auto add = [&](const std::string &name, std::vector<u8> code, const Page &page,
-                 size_t compare_len = 0, const ArchState *regs = nullptr, u64 xcr0 = AMX_XCR0) {
+                 size_t compare_len = 0, const ArchState *regs = nullptr, u64 xcr0 = amx_xcr0()) {
     TestCase tc;
     tc.name = name;
     tc.category = category;
@@ -181,7 +179,7 @@ void add_amx_tests(std::vector<TestCase> &tests) {
     tests.push_back(std::move(tc));
   };
   auto add_fault = [&](const std::string &name, std::vector<u8> code, const Page &page, int vec,
-                       u64 xcr0 = AMX_XCR0, const ArchState *regs = nullptr) {
+                       u64 xcr0 = amx_xcr0(), const ArchState *regs = nullptr) {
     TestCase tc;
     tc.name = name;
     tc.category = category;
@@ -345,7 +343,7 @@ void add_amx_tests(std::vector<TestCase> &tests) {
     tc.flags_mask = FL_ALL;
     tc.expect_fault = true;
     tc.expected_vector = 14;
-    tc.xcr0_override = AMX_XCR0;
+    tc.xcr0_override = amx_xcr0();
     tc.enable_paging = true;
     tc.init_data = p.data;
     tests.push_back(std::move(tc));
@@ -492,9 +490,13 @@ void add_amx_tests(std::vector<TestCase> &tests) {
   category = "AMX faults";
   {
     Page p;
-    // LDTILECFG configuration checks: #GP(0)
-    p.cfg(tilecfg(2, 0, {64, 64, 64, 64, 64, 64, 64, 64}, {16, 16, 16, 16, 16, 16, 16, 16}));
-    add_fault("ldtilecfg palette 2 #GP", ldtilecfg_rdi(), p, 13);
+    // LDTILECFG configuration checks: #GP(0).  A palette_id above
+    // max_palette, CPUID.(1DH,0):EAX, is one (SDM Vol.2A LDTILECFG p.3-545),
+    // which palette 2 is where the highest palette is 1, the model's.
+    if (guest_cpuid(0x1D, 0)[CPUID_EAX] == 1) {
+      p.cfg(tilecfg(2, 0, {64, 64, 64, 64, 64, 64, 64, 64}, {16, 16, 16, 16, 16, 16, 16, 16}));
+      add_fault("ldtilecfg palette 2 #GP", ldtilecfg_rdi(), p, 13);
+    }
     p.cfg(tilecfg(1, 0, {68, 0, 0, 0, 0, 0, 0, 0}, {16, 0, 0, 0, 0, 0, 0, 0}));
     add_fault("ldtilecfg colsb 68 #GP", ldtilecfg_rdi(), p, 13);
     p.cfg(tilecfg(1, 0, {64, 0, 0, 0, 0, 0, 0, 0}, {17, 0, 0, 0, 0, 0, 0, 0}));
@@ -560,7 +562,7 @@ void add_amx_tests(std::vector<TestCase> &tests) {
       tc.flags_mask = FL_ALL;
       tc.expect_fault = true;
       tc.expected_vector = 6;
-      tc.xcr0_override = AMX_XCR0;
+      tc.xcr0_override = amx_xcr0();
       tc.compat_mode = true;
       tests.push_back(tc);
       tc.name = "ldtilecfg in compatibility mode #UD";
@@ -572,10 +574,10 @@ void add_amx_tests(std::vector<TestCase> &tests) {
   {
     // XCR0 without the tile components (the guest's default XCR0)
     Page p; p.cfg(cfg_full());
-    add_fault("ldtilecfg with XCR0[18:17] = 0 #UD", ldtilecfg_rdi(), p, 6, 0xE7);
-    add_fault("tilerelease with XCR0[18:17] = 0 #UD", tilerelease(), p, 6, 0xE7);
-    add_fault("tilezero with XCR0[18:17] = 0 #UD", tilezero(0), p, 6, 0xE7);
-    // CR4.OSXSAVE clear (0x10620 = the guest's CR4 without bit 18)
+    add_fault("ldtilecfg with XCR0[18:17] = 0 #UD", ldtilecfg_rdi(), p, 6, guest_xcr0());
+    add_fault("tilerelease with XCR0[18:17] = 0 #UD", tilerelease(), p, 6, guest_xcr0());
+    add_fault("tilezero with XCR0[18:17] = 0 #UD", tilezero(0), p, 6, guest_xcr0());
+    // CR4.OSXSAVE clear
     {
       TestCase tc;
       tc.name = "tilerelease with OSXSAVE = 0 #UD";
@@ -585,8 +587,8 @@ void add_amx_tests(std::vector<TestCase> &tests) {
       tc.flags_mask = FL_ALL;
       tc.expect_fault = true;
       tc.expected_vector = 6;
-      tc.xcr0_override = AMX_XCR0;
-      tc.cr4_override = 0x10620;
+      tc.xcr0_override = amx_xcr0();
+      tc.cr4_override = guest_cr4() & ~CR4_OSXSAVE;
       tests.push_back(std::move(tc));
     }
   }
@@ -613,9 +615,12 @@ void add_amx_tests(std::vector<TestCase> &tests) {
     add_fault("tdpbf16ps unconfigured #UD", tdpbf16ps(0, 1, 2), p, 6);
     add_fault("tdpbf16ps C.colsb != B.colsb #UD", cat({ldtilecfg_rdi(), tdpbf16ps(0, 1, 3)}), p, 6);
     add_fault("tdpbf16ps srcdest == src1 #UD", cat({ldtilecfg_rdi(), tdpbf16ps(1, 1, 2)}), p, 6);
-    // 0F38 5C with the F2 prefix is TDPFP16PS (AMX-FP16), absent here
-    add_fault("0F38 5C F2 (TDPFP16PS, not supported) #UD",
-              cat({ldtilecfg_rdi(), AmxEnc{.pp = 3, .vvvv = 2, .opcode = 0x5C}.bytes(0xC1)}), p, 6);
+    // 0F38 5C with the F2 prefix is TDPFP16PS (AMX-FP16,
+    // CPUID.(7,1):EAX[21]), which the model does not implement: #UD where
+    // the guest does not have it either.
+    if (!host_has(feature::AMX_FP16))
+      add_fault("0F38 5C F2 (TDPFP16PS, not supported) #UD",
+                cat({ldtilecfg_rdi(), AmxEnc{.pp = 3, .vvvv = 2, .opcode = 0x5C}.bytes(0xC1)}), p, 6);
   }
 
   // =====================================================================
@@ -640,7 +645,9 @@ void add_amx_tests(std::vector<TestCase> &tests) {
   auto rdmsr = [](u32 msr) { return std::vector<u8>{0xB9, u8(msr), u8(msr >> 8), 0, 0, 0x0F, 0x32}; };
   const std::vector<u8> xfd_on = wrmsr(0x1C4, 1u << 18);
   const std::vector<u8> xfd_off = wrmsr(0x1C4, 0);
-  {
+  // The MSRs exist with CPUID.(0DH,1):EAX[4] (SDM Vol.1 §13.14 p.13-27).
+  const bool xfd = host_has(feature::XFD);
+  if (xfd) {
     Page p; p.cfg(cfg_full());
     fill_bytes(p.data, A_OFF, 16, 64, pat_a);
     // The MSRs: reset value 0, writable, read back.
@@ -668,54 +675,67 @@ void add_amx_tests(std::vector<TestCase> &tests) {
     add("xfd: tileloadd; xfd on; ldtilecfg zeroes tiles; xfd off",
         cat({ldtilecfg_rdi(), tileloadd(0, RSI, RCX), xfd_on, ldtilecfg_rdi(), xfd_off}), p);
     // Without XCR0[18] the MSR bit has no effect on the #UD (AMX disabled).
-    add_fault("xfd with XCR0[18:17]=0: tilezero #UD", cat({xfd_on, tilezero(0)}), p, 6, 0xE7);
+    add_fault("xfd with XCR0[18:17]=0: tilezero #UD", cat({xfd_on, tilezero(0)}), p, 6, guest_xcr0());
   }
   {
-    // XSAVE of TILECFG (component 17): standard offset 2752 and XSTATE_BV
-    // bit 17; the image fits the data page, TILEDATA (8 KB at 2816) does not.
+    // XSAVE of TILECFG (component 17) at its standard offset,
+    // CPUID.(0DH,11H):EBX (SDM Vol.1 §13.4.3), and XSTATE_BV bit 17, where
+    // the image fits the data page below the configuration; TILEDATA (8 KB)
+    // does not fit.
+    const u32 tilecfg_off = guest_cpuid(0xD, 17)[CPUID_EBX];
+    const bool tilecfg_fits = tilecfg_off + 64 <= 0xF00;
+    const bool xsavec = host_has(feature::XSAVEC);
     Page p; p.cfg(cfg_full(), 0xF00);  // the configuration high in the page
     ArchState r = base_regs;
     r.rdi = DATA_ADDR + 0xF00;  // LDTILECFG source
     r.rax = 1u << 17;           // XSAVE mask EDX:EAX
     r.rdx = 0;
     r.rbx = DATA_ADDR;          // XSAVE area
-    add("ldtilecfg; xsave [rbx] mask TILECFG", cat({ldtilecfg_rdi(), {0x0F, 0xAE, 0x23}}), p, 0xF00, &r);
-    add("ldtilecfg; xsavec [rbx] mask TILECFG", cat({ldtilecfg_rdi(), {0x0F, 0xC7, 0x23}}), p, 0xF00, &r);
+    if (tilecfg_fits)
+      add("ldtilecfg; xsave [rbx] mask TILECFG", cat({ldtilecfg_rdi(), {0x0F, 0xAE, 0x23}}), p, 0xF00, &r);
+    if (xsavec)
+      add("ldtilecfg; xsavec [rbx] mask TILECFG", cat({ldtilecfg_rdi(), {0x0F, 0xC7, 0x23}}), p, 0xF00, &r);
     // XSAVEC of TILEDATA under XFD writes nothing but a header with
     // XSTATE_BV[18] = 0 (XCOMP_BV keeps bit 18).
-    r.rax = 1u << 18;
-    add("ldtilecfg; xfd on; xsavec [rbx] mask TILEDATA (init under XFD); xfd off",
-        cat({ldtilecfg_rdi(), xfd_on, {0x0F, 0xC7, 0x23}, xfd_off}), p, 0xF00, &r);
-    r.rax = (1u << 17) | (1u << 18);
-    add("ldtilecfg; xfd on; xsavec [rbx] mask TILECFG+TILEDATA; xfd off",
-        cat({ldtilecfg_rdi(), xfd_on, {0x0F, 0xC7, 0x23}, xfd_off}), p, 0xF00, &r);
+    if (xsavec && xfd) {
+      r.rax = 1u << 18;
+      add("ldtilecfg; xfd on; xsavec [rbx] mask TILEDATA (init under XFD); xfd off",
+          cat({ldtilecfg_rdi(), xfd_on, {0x0F, 0xC7, 0x23}, xfd_off}), p, 0xF00, &r);
+      r.rax = (1u << 17) | (1u << 18);
+      add("ldtilecfg; xfd on; xsavec [rbx] mask TILECFG+TILEDATA; xfd off",
+          cat({ldtilecfg_rdi(), xfd_on, {0x0F, 0xC7, 0x23}, xfd_off}), p, 0xF00, &r);
+    }
     // XRSTOR of a TILECFG image (standard format): the configuration is
     // loaded; one LDTILECFG would reject (colsb 68) initializes instead.
-    Page q;
-    std::vector<u8> img = cfg_full();
-    memcpy(q.data.data() + 2752, img.data(), 64);
-    u64 bv = 1ULL << 17;
-    memcpy(q.data.data() + 512, &bv, 8);
     ArchState s = base_regs;
     s.rax = 1u << 17; s.rdx = 0; s.rbx = DATA_ADDR;
-    // STTILECFG [rdi] (rdi = DATA_ADDR, the page's first 64 bytes; RAX holds
-    // the XRSTOR mask): VEX.128.66.0F38.W0 49 /0 with rm = rdi.
-    const std::vector<u8> sttilecfg_rdi = AmxEnc{.pp = 1, .opcode = 0x49}.bytes(0x07);
-    add("xrstor [rbx] TILECFG image; sttilecfg [rdi]", cat({{0x0F, 0xAE, 0x2B}, sttilecfg_rdi}), q, 0x40, &s);
-    std::vector<u8> bad = tilecfg(1, 0, {68, 0, 0, 0, 0, 0, 0, 0}, {16, 0, 0, 0, 0, 0, 0, 0});
-    memcpy(q.data.data() + 2752, bad.data(), 64);
-    add("xrstor [rbx] invalid TILECFG image (initializes); sttilecfg [rdi]",
-        cat({{0x0F, 0xAE, 0x2B}, sttilecfg_rdi}), q, 0x40, &s);
+    if (tilecfg_fits) {
+      Page q;
+      std::vector<u8> img = cfg_full();
+      memcpy(q.data.data() + tilecfg_off, img.data(), 64);
+      u64 bv = 1ULL << 17;
+      memcpy(q.data.data() + 512, &bv, 8);
+      // STTILECFG [rdi] (rdi = DATA_ADDR, the page's first 64 bytes; RAX
+      // holds the XRSTOR mask): VEX.128.66.0F38.W0 49 /0 with rm = rdi.
+      const std::vector<u8> sttilecfg_rdi = AmxEnc{.pp = 1, .opcode = 0x49}.bytes(0x07);
+      add("xrstor [rbx] TILECFG image; sttilecfg [rdi]", cat({{0x0F, 0xAE, 0x2B}, sttilecfg_rdi}), q, 0x40, &s);
+      std::vector<u8> bad = tilecfg(1, 0, {68, 0, 0, 0, 0, 0, 0, 0}, {16, 0, 0, 0, 0, 0, 0, 0});
+      memcpy(q.data.data() + tilecfg_off, bad.data(), 64);
+      add("xrstor [rbx] invalid TILECFG image (initializes); sttilecfg [rdi]",
+          cat({{0x0F, 0xAE, 0x2B}, sttilecfg_rdi}), q, 0x40, &s);
+    }
     // XRSTOR loading TILEDATA (XSTATE_BV[18] = 1) under XFD: #NM; with
     // XSTATE_BV[18] = 0 it initializes the tiles instead.
-    Page t;
-    bv = 1ULL << 18;
-    memcpy(t.data.data() + 512, &bv, 8);
-    s.rax = 1u << 18;
-    add_fault("xfd: xrstor [rbx] with XSTATE_BV[18] #NM", cat({xfd_on, {0x0F, 0xAE, 0x2B}}), t, 7, AMX_XCR0, &s);
-    Page u;
-    add("xfd: xrstor [rbx] with XSTATE_BV[18] = 0 (initializes); xfd off",
-        cat({xfd_on, {0x0F, 0xAE, 0x2B}, xfd_off}), u, 0, &s);
+    if (xfd) {
+      Page t;
+      u64 bv = 1ULL << 18;
+      memcpy(t.data.data() + 512, &bv, 8);
+      s.rax = 1u << 18;
+      add_fault("xfd: xrstor [rbx] with XSTATE_BV[18] #NM", cat({xfd_on, {0x0F, 0xAE, 0x2B}}), t, 7, amx_xcr0(), &s);
+      Page u;
+      add("xfd: xrstor [rbx] with XSTATE_BV[18] = 0 (initializes); xfd off",
+          cat({xfd_on, {0x0F, 0xAE, 0x2B}, xfd_off}), u, 0, &s);
+    }
   }
   {
     // CPUID enumeration: 0DH sub-leaf 1 EAX[4] (XFD), sub-leaves 17 and 18.

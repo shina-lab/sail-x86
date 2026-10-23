@@ -1,11 +1,16 @@
 #include "kvm-harness.h"
 
+#include <algorithm>
 #include <cpuid.h>
 
 void add_xsave_tests(std::vector<TestCase> &tests) {
+  using namespace feature;
   std::string cat;
 
-  static constexpr size_t XSAVE_AREA_SIZE = 0x980;
+  // The cases' XSAVE areas are the data page, which starts zeroed.  The
+  // XSAVE extensions are enumerated in CPUID leaf 0DH, which a processor
+  // has with XSAVE (SDM Vol.1 §13.2 p.13-3).
+  const bool xsave = host_has(XSAVE);
 
   // =====================================================================
   // XSAVEC round-trip — save compacted, restore via XRSTOR
@@ -15,7 +20,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // Every component saved is out of its initial configuration (FLD1 for
   // x87): XSAVEC writes a component in its initial configuration or not at
   // the implementation's choice (SDM Vol.1 §13.6, §13.10).
-  {
+  if (xsave && host_has(XSAVEC)) {
     ArchState s = with_xsave_vector_inputs({}, 0x7);
     s.rflags = initial_flags();
     s.rdi = DATA_ADDR;
@@ -26,8 +31,6 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     s.xmm[0].q[2] = 0x4444444444444444;  // AVX: bits 255:128
     s.xmm[2].lo = 0x2222222222222222;
     s.xmm[2].hi = 0x3333333333333333;
-
-    std::vector<u8> init(XSAVE_AREA_SIZE, 0);
 
     // FLD1
     // XSAVEC [RDI]          ; save in compacted format
@@ -40,13 +43,12 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                        0x66, 0x0F, 0xEF, 0xC0,        // PXOR XMM0, XMM0
                        0x66, 0x0F, 0xEF, 0xD2,        // PXOR XMM2, XMM2
                        0x0F, 0xAE, 0x2F},             // XRSTOR [RDI]
-                      s, FL_ALL, 0x5, false,          // compare XMM0, XMM2
-                      init, 0});
+                      s, FL_ALL, 0x5});               // compare XMM0, XMM2
     fxsave_x87_undefined(tests.back(), 0, X87_NO_DATA | X87_LONG_MODE);  // FLD1
   }
 
   // XSAVEC with full components, round-trip
-  {
+  if (xsave && host_has(XSAVEC)) {
     ArchState s = with_xsave_vector_inputs({}, 0xE7);
     s.rflags = initial_flags();
     s.rdi = DATA_ADDR;
@@ -62,8 +64,6 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     s.kregs[0] = 0xDEAD;
     s.kregs[7] = 0xBEEF;
 
-    std::vector<u8> init(XSAVE_AREA_SIZE, 0);
-
     tests.push_back({"xsavec-xrstor full roundtrip", cat,
                       {0xD9, 0xE8,                    // FLD1
                        0x0F, 0xC7, 0x27,              // XSAVEC [RDI]
@@ -71,7 +71,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                        0x66, 0x45, 0x0F, 0xEF, 0xFF,  // PXOR XMM15, XMM15
                        0x0F, 0xAE, 0x2F},             // XRSTOR [RDI]
                       s, FL_ALL, (1u << 0) | (1u << 15), false,
-                      init, 0,
+                      {}, 0,
                       false, -1,
                       (1u << 0) | (1u << 7)});  // compare k0, k7
     fxsave_x87_undefined(tests.back(), 0, X87_NO_DATA | X87_LONG_MODE);  // FLD1
@@ -80,11 +80,11 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // SSE with the XMM registers 0 and MXCSR 7F80H: "if RFBM[1] = 1 and MXCSR
   // does not have the value 1F80H, XSAVEC writes XSTATE_BV[1] as 1 even if
   // XINUSE[1] = 0" and "saves all of state component 1" (SDM Vol.1
-  // §13.10).  The area starts as EEh, so the bytes XSAVEC leaves show.  The
+  // §13.10).  The page starts as EEh, so the bytes XSAVEC leaves show.  The
   // APM has XSTATE_BV = "the logical AND of the RFBM and XINUSE bitmaps"
   // and no MXCSR rule (Vol.4 XSAVEC p.1776), so on AMD hosts the bit and
   // the component are open.
-  {
+  if (xsave && host_has(XSAVEC)) {
     ArchState s = with_xsave_vector_inputs({}, 0x2);
     s.rflags = initial_flags();
     s.rdi = DATA_ADDR;
@@ -93,7 +93,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     s.mxcsr = 0x7F80;
     tests.push_back({"xsavec [rdi] mask SSE (XMM registers 0, MXCSR 7F80H)", cat,
                       {0x0F, 0xC7, 0x27},             // XSAVEC [RDI]
-                      s, FL_ALL, 0, false, std::vector<u8>(XSAVE_AREA_SIZE, 0xEE), 0});
+                      s, FL_ALL, 0, false, std::vector<u8>(0x1000, 0xEE), 0});
     u32 a, b, c, d;
     __get_cpuid(0, &a, &b, &c, &d);
     if (b == 0x68747541) {  // "Auth" of AuthenticAMD
@@ -109,7 +109,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   cat = "XGETBV";
 
   // XGETBV ECX=0: should return XCR0 in EDX:EAX
-  {
+  if (xsave) {
     ArchState s;
     s.rcx = 0;
     tests.push_back({"xgetbv ecx=0", cat,
@@ -121,8 +121,9 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // out of its initial configuration and either value for one in it
   // (SDM Vol.1 §13.6), and EAX[1] is 1 "if XCR0[1] = 1 and MXCSR does not
   // have its RESET value of 1F80H" (SDM XGETBV; APM Vol.4 XGETBV).  The
-  // bits of the components left initial are masked.
-  {
+  // bits of the components left initial are masked.  ECX = 1 needs
+  // CPUID.(0DH,1):EAX[2] (SDM Vol.2D XGETBV p.6-35).
+  if (xsave && host_has(XGETBV1)) {
     ArchState s;
     s.rcx = 1;
     s.xmm[0].lo = 0x1234;  // SSE in use
@@ -146,7 +147,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   }
 
   // XGETBV ECX=2: should #GP
-  {
+  if (xsave) {
     ArchState s;
     s.rcx = 2;
 
@@ -166,38 +167,27 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "CPUID XSAVE";
 
-  // CPUID leaf 0xD, subleaf 2: AVX component info (size=256, offset=576)
-  {
+  // CPUID leaf 0xD, subleaf 0: EDX:EAX the XCR0 bits the processor
+  // supports, EBX the standard-format size for the components XCR0
+  // enables and ECX the one for every supported component (SDM Vol.1
+  // §13.2 p.13-3).  The guest's leaf has the harness's components
+  // (guest_cpuid), as the model's does, so all four registers are
+  // compared.
+  if (xsave) {
     ArchState s;
     s.rax = 0xD;
-    s.rcx = 2;
-    tests.push_back({"cpuid leaf 0xD sub 2", cat,
+    s.rcx = 0;
+    tests.push_back({"cpuid leaf 0xD sub 0", cat,
                       {0x0F, 0xA2},
                       s, FL_ALL});
   }
 
-  // CPUID leaf 0xD, subleaf 0.  EAX (XCR0_SUPPORTED) and ECX (the
-  // standard-format size covering every supported component) are masked
-  // because the hosts support components the model does not: PKRU on
-  // both, AMX on Intel.  EBX, the size for the components enabled in
-  // XCR0, depends on the vendor's component offsets and is compared as
-  // is.
-  {
-    ArchState s;
-    s.rax = 0xD;
-    s.rcx = 0;
-    tests.push_back({"cpuid leaf 0xD sub 0 (EBX)", cat,
-                      {0x0F, 0xA2,                    // cpuid
-                       0x25, 0xFF, 0x00, 0x00, 0x00,  // and eax, 0xFF
-                       0x31, 0xC9},                   // xor ecx, ecx
-                      s, FL_ALL});
-  }
-
-  // CPUID leaf 0xD, subleaves 5-7: the AVX-512 components.  Their
-  // standard-format offsets differ between Intel (1088/1152/1664) and
-  // AMD (832/896/1408); the model follows the vendor profile the harness
-  // selects from the host, so all four registers are compared.
-  for (u64 sub : {5ull, 6ull, 7ull}) {
+  // CPUID leaf 0xD, subleaves 2 and 5-7: the AVX and AVX-512 components'
+  // sizes, standard-format offsets and compacted-format alignment, which
+  // neither manual fixes (SDM Vol.1 §13.2 p.13-4); the model is given the
+  // guest's.  A component the guest does not have reads as zeros.
+  for (u64 sub : {2ull, 5ull, 6ull, 7ull}) {
+    if (!xsave) break;
     ArchState s;
     s.rax = 0xD;
     s.rcx = sub;
@@ -211,8 +201,12 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "IA32_XSS";
 
+  // The MSR exists with XSAVES, CPUID.(0DH,1):EAX[3] (SDM Vol.1 §13.2
+  // p.13-4).  The guest's CPUID.(0DH,1):EDX:ECX has no supervisor
+  // component (guest_cpuid), so the MSR's only valid value is 0.
+
   // RDMSR IA32_XSS: should return 0 (no supervisor components supported)
-  {
+  if (xsave && host_has(XSAVES)) {
     ArchState s;
     s.rcx = 0xDA0;           // IA32_XSS
     // 0F 32 = RDMSR
@@ -222,7 +216,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   }
 
   // WRMSR IA32_XSS with 0: should succeed (no-op)
-  {
+  if (xsave && host_has(XSAVES)) {
     ArchState s;
     s.rcx = 0xDA0;
     s.rax = 0;               // low 32 bits = 0
@@ -234,7 +228,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   }
 
   // WRMSR IA32_XSS with nonzero: should #GP (no bits supported)
-  {
+  if (xsave && host_has(XSAVES)) {
     ArchState s;
     s.rcx = 0xDA0;
     s.rax = 0x100;           // bit 8 (PT state) — not supported
@@ -251,17 +245,16 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     tests.push_back(tc);
   }
 
-  // Subleaf 0 tests omitted: EAX/ECX mismatch due to host PKRU support
-  // (KVM XCR0_SUPPORTED=0x2E7 includes bit 9, our model doesn't have PKRU).
-  // The dynamic EBX values (0x240, 0x340, 0x980) were verified to match
-  // on the AMD host; an Intel host enumerates the AVX-512 components at
-  // different offsets (see XsaveLayout in kvm-harness.cpp).
-
-  // CPUID leaf 0xD, subleaf 1: dynamic EBX (compacted size of the
-  // XCR0-enabled components).  EAX is masked to bits 3:0 (XSAVEOPT,
-  // XSAVEC, XGETBV1, XSAVES) before the comparison: bit 4 (XFD) reflects
-  // the host's AMX support, which the model does not implement.
-  for (u64 xcr0 : {0x03ull, 0x07ull, 0xE7ull}) {
+  // CPUID leaf 0xD, subleaf 1: EAX the XSAVE extensions, and EBX the
+  // compacted size of the components XCR0 | IA32_XSS enables, with XSAVEC
+  // or XSAVES (SDM Vol.1 §13.2 p.13-4), for XCR0 of SSE, of SSE and AVX
+  // and of every component the guest enables.  EAX is masked to the bits
+  // the manual defines, 4:0 ("EAX[31:5] are reserved").
+  std::vector<u64> xcr0s;
+  for (u64 x : {u64(0x3), guest_xcr0() & 0x7, guest_xcr0()})
+    if (std::find(xcr0s.begin(), xcr0s.end(), x) == xcr0s.end()) xcr0s.push_back(x);
+  for (u64 xcr0 : xcr0s) {
+    if (!xsave) break;
     ArchState s;
     s.rax = 0xD;
     s.rcx = 1;
@@ -269,7 +262,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     tc.name = std::format("cpuid 0xD.1 EBX xcr0=0x{:02X}", xcr0);
     tc.category = cat;
     tc.code = {0x0F, 0xA2,         // cpuid
-               0x83, 0xE0, 0x0F};  // and eax, 0xF
+               0x83, 0xE0, 0x1F};  // and eax, 0x1F
     tc.initial = s;
     tc.flags_mask = FL_ALL;
     tc.xcr0_override = xcr0;
@@ -277,27 +270,27 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
-  // Standard-format XSAVE images — the vendor-specific component layout
+  // Standard-format XSAVE images — the implementation's component layout
   // =====================================================================
-  // The standard-format offsets of the AVX-512 components come from
-  // CPUID.(0xD,i).EBX and differ between vendors.  The harness selects
-  // the model's vendor profile from the host, so an image can be compared
-  // byte for byte on either vendor, and each layout is thereby checked
-  // against its own silicon.  Component 0 (x87) is left out of the
-  // masks: the harness starts it in its initial configuration, and
-  // whether XSAVE then reports it in XSTATE_BV (XINUSE tracking) is
+  // Component i of a standard-format image is at "the offset (in bytes,
+  // from the base of the XSAVE area)" CPUID.(0DH,i):EBX gives, and is
+  // CPUID.(0DH,i):EAX bytes long (SDM Vol.1 §13.2 p.13-4, §13.4.3).  The
+  // manuals leave the offsets to the implementation; the model is given
+  // the guest's, so an image is compared byte for byte on any processor.
+  // The images hold every component the guest's XCR0 enables but x87
+  // (component 0): the harness starts it in its initial configuration,
+  // and whether XSAVE then reports it in XSTATE_BV (XINUSE tracking) is
   // implementation specific.  Every other component is loaded with
   // nonzero data, so XINUSE is 1 and XSTATE_BV is determined.
   cat = "XSAVE image";
-
-  // Standard-format offset of a component on this host.
-  auto host_offset = [](u32 component) {
-    u32 a, b, c, d;
-    __cpuid_count(0xD, component, a, b, c, d);
-    return b;
-  };
-  // End of the Intel layout (Hi16_ZMM at 1664 + 1024); AMD's fits inside.
-  static constexpr size_t STD_IMAGE_SIZE = 2688;
+  const u64 image_mask = guest_xcr0() & ~1ULL;
+  u32 image_size = 576;  // the legacy region and the XSAVE header
+  for (unsigned i = 2; i < 64; i++) {
+    if (!(image_mask >> i & 1)) continue;
+    std::array<u32, 4> d = guest_cpuid(0xD, i);
+    image_size = std::max(image_size, d[CPUID_EBX] + d[CPUID_EAX]);
+  }
+  const bool image_fits = xsave && image_size <= 0x1000;  // in the data page
 
   // Every ZMM register and every k register gets a distinct nonzero value.
   auto zmm_pattern = [](int i) {
@@ -308,47 +301,50 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
   };
   auto k_pattern = [](int i) { return (u64)0x1111 * (i + 1); };
 
-  // XSAVE [RDI] with EDX:EAX = 0xE6: every component but x87 is written.
-  {
+  // XSAVE [RDI] with EDX:EAX = image_mask: every component but x87 is
+  // written.
+  if (image_fits) {
     ArchState s;
     s.rdi = DATA_ADDR;
-    s.rax = 0xE6;
+    s.rax = image_mask;
     s.rdx = 0;
     for (int i = 0; i < 32; i++) s.xmm[i] = zmm_pattern(i);
     for (int i = 0; i < 8; i++) s.kregs[i] = k_pattern(i);
-    std::vector<u8> init(STD_IMAGE_SIZE, 0);
-    tests.push_back({"xsave standard image (mask 0xE6)", cat,
+    tests.push_back({std::format("xsave standard image (mask 0x{:X})", image_mask), cat,
                       {0x0F, 0xAE, 0x27},             // XSAVE [RDI]
-                      s, FL_ALL, 0, false, init, STD_IMAGE_SIZE});
+                      s, FL_ALL});
   }
 
-  // XRSTOR [RDI] from a standard-format image laid out at the host's
+  // XRSTOR [RDI] from a standard-format image laid out at the guest's
   // component offsets; every ZMM and k register is compared afterwards.
-  {
+  if (image_fits) {
     ArchState s;
     s.rdi = DATA_ADDR;
-    s.rax = 0xE6;
+    s.rax = image_mask;
     s.rdx = 0;
-    std::vector<u8> init(STD_IMAGE_SIZE, 0);
+    std::vector<u8> init(image_size, 0);
+    // n bytes at byte j of component i's section, if the image has it.
+    auto put = [&](unsigned i, u32 j, const void *src, size_t n) {
+      if (image_mask >> i & 1) memcpy(init.data() + guest_cpuid(0xD, i)[CPUID_EBX] + j, src, n);
+    };
     u32 mxcsr = 0x1F80;
     memcpy(init.data() + 0x18, &mxcsr, 4);
     for (int i = 0; i < 16; i++) {
       ZmmVal v = zmm_pattern(i);
       memcpy(init.data() + 0xA0 + i * 16, &v.q[0], 16);
-      memcpy(init.data() + host_offset(2) + i * 16, &v.q[2], 16);
-      memcpy(init.data() + host_offset(6) + i * 32, &v.q[4], 32);
+      put(2, i * 16, &v.q[2], 16);
+      put(6, i * 32, &v.q[4], 32);
     }
     for (int i = 0; i < 16; i++) {
       ZmmVal v = zmm_pattern(16 + i);
-      memcpy(init.data() + host_offset(7) + i * 64, &v.q[0], 64);
+      put(7, i * 64, &v.q[0], 64);
     }
     for (int i = 0; i < 8; i++) {
       u64 k = k_pattern(i);
-      memcpy(init.data() + host_offset(5) + i * 8, &k, 8);
+      put(5, i * 8, &k, 8);
     }
-    u64 xstate_bv = 0xE6;
-    memcpy(init.data() + 512, &xstate_bv, 8);
-    tests.push_back({"xrstor standard image (mask 0xE6)", cat,
+    memcpy(init.data() + 512, &image_mask, 8);  // XSTATE_BV
+    tests.push_back({std::format("xrstor standard image (mask 0x{:X})", image_mask), cat,
                       {0x0F, 0xAE, 0x2F},             // XRSTOR [RDI]
                       s, FL_ALL, 0xFFFFFFFFu, false, init, 0,
                       false, -1, 0xFF});
@@ -434,7 +430,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
     // either way.  The image MXCSR is valid: whether its #GP remains when
     // MXCSR is not loaded, neither manual says.
     {
-      const u64 CR4_NO_OSFXSR = 0x50420;  // the guest's CR4 without bit 9
+      const u64 CR4_NO_OSFXSR = guest_cr4() & ~CR4_OSFXSR;
       u32 a, b, c, d;
       __get_cpuid(0, &a, &b, &c, &d);
       const bool intel = b != 0x68747541;  // "Auth" of AuthenticAMD
@@ -481,6 +477,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
       code.insert(code.end(), {0xD9, 0xB7, 0x00, 0x02, 0x00, 0x00});  // fnstenv [rdi+0x200]
       fx("fxrstor [rdi] (" + what + "); fnstenv: the x87 pointers", code, s, img);
       x87_env_undefined(tests.back(), 0x200, X87_CW_LOADED | X87_LONG_MODE);
+      if (!xsave) continue;
       img.resize(576, 0);
       img[512] = 1;  // XSTATE_BV: x87
       code = {0x0F, 0xAE, 0x2F,                       // xrstor [rdi]
