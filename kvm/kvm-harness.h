@@ -515,6 +515,7 @@ struct UndefinedState {
   std::array<u64, 8> kregs = {};
   u16 fcw = 0;
   u32 mxcsr = 0;
+  u64 dr6 = 0;                                  // also in the DR6 of a #DB
 };
 
 // Clears the bits `u` marks undefined in `s`.  In compatibility mode the

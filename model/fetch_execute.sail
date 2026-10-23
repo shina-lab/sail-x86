@@ -6,13 +6,14 @@
 
 // Raise #DB reporting the given DR6 status bits: the processor clears B0-B3
 // and sets what it reports, never clearing the rest (SDM Vol.3B §20.2.3).
-// With an IDT the exception is delivered with RIP as the return address:
-// already advanced past the instruction for a trap (single step), still at
-// the instruction for a fault (instruction breakpoint).  Without an IDT it
-// is reported like any fault, with that RIP.
-val raise_debug_exception : qword -> unit
-function raise_debug_exception(status) = {
-  DR6 = (DR6 & 0xFFFFFFFFFFFFFFF0) | status;
+// The B0-B3 in `open` are undefined.  With an IDT the exception is
+// delivered with RIP as the return address: already advanced past the
+// instruction for a trap (single step), still at the instruction for a
+// fault (instruction breakpoint).  Without an IDT it is reported like any
+// fault, with that RIP.
+val raise_debug_exception : (qword, bits(4)) -> unit
+function raise_debug_exception(status, open) = {
+  DR6 = (DR6 & 0xFFFFFFFFFFFFFFF0) | status | zero_extend((undefined : bits(4)) & open);
   if system_mode then {
     try {
       deliver_exception(EXN_DB, 0x00000000, EV_Exception)
@@ -32,17 +33,18 @@ function raise_debug_exception(status) = {
 }
 
 // Instruction breakpoints matching a linear address (SDM Vol.3B §20.2.5):
-// DRn enabled by Ln or Gn, R/Wn = 00 (execute) with LENn = 00 (any other
-// length is undefined for instruction breakpoints), and DRn equal to the
-// address of the instruction's first byte, prefixes included.
-val insn_breakpoint_hits : qword -> bits(4)
-function insn_breakpoint_hits(lin) = {
+// R/Wn = 00 (execute) with LENn = 00 (any other length is undefined for
+// instruction breakpoints), and DRn equal to the address of the
+// instruction's first byte, prefixes included.  `enabled` selects the
+// breakpoints that Ln or Gn enables, the hits, or the others.
+val insn_breakpoint_matches : (qword, bool) -> bits(4)
+function insn_breakpoint_matches(lin, enabled) = {
   var hits : bits(4) = 0x0;
   foreach (n from 0 to 3) {
-    let enabled : bool = DR7[2 * n] == bitone | DR7[2 * n + 1] == bitone;
+    let on : bool = DR7[2 * n] == bitone | DR7[2 * n + 1] == bitone;
     let rw_len : bits(4) = DR7[(19 + 4 * n) .. (16 + 4 * n)];
     let dr : qword = match n { 0 => DR0, 1 => DR1, 2 => DR2, _ => DR3 };
-    if enabled & rw_len == 0x0 & dr == lin then hits[n] = bitone
+    if on == enabled & rw_len == 0x0 & dr == lin then hits[n] = bitone
   };
   hits
 }
@@ -56,7 +58,10 @@ function step() = {
   rep_trap_rf = false;
   // Data breakpoints hit by a MOV SS/POP SS are delivered after the
   // following instruction (SDM Vol.3B §20.3.1.2), so they survive one step.
-  if ss_shadow != 1 then pending_dbp = 0x0;
+  if ss_shadow != 1 then {
+    pending_dbp = 0x0;
+    open_dbp = 0x0
+  };
 
   // Check for pending SMI before anything else.
   // SDM §34.2: "The SMI takes precedence over [...] debug exceptions
@@ -114,9 +119,10 @@ function step() = {
   // §8.1.4, p.245).  RF is then cleared, so it protects exactly one
   // instruction.
   if RF == 0b0 & ss_shadow != 1 then {
-    let hits = insn_breakpoint_hits(RIP + get_seg_base(CS));
+    let lin = RIP + get_seg_base(CS);
+    let hits = insn_breakpoint_matches(lin, true);
     if hits != 0x0 then {
-      raise_debug_exception(zero_extend(hits));
+      raise_debug_exception(zero_extend(hits), insn_breakpoint_matches(lin, false));
       return ()
     }
   };
@@ -208,26 +214,29 @@ function step() = {
   //        unless the instruction delivered an event through the IDT
   //        (INT n, INT3, INTO and INT1 clear TF as part of delivery);
   //   Bn — data breakpoints hit by the instruction's accesses (§20.3.1.2),
-  //        which INT n does not discard;
-  //   and on Intel the Bn of an instruction breakpoint matching the
-  //   instruction a single-step trap is taken before ("when BS is set, any
-  //   of the other debug status bits also may be set", §20.2.3; observed on
-  //   Emerald Rapids, not on Zen 4).
-  // A fault loses them (the early return above), and after MOV SS/POP SS
-  // the single-step trap is suppressed and the data breakpoints wait for
-  // the following instruction (§7.8.3, §20.3.1.2).
+  //        which INT n does not discard.
+  // With BS the other B0-B3 are undefined: "When the BS flag is set, any of
+  // the other debug status bits also may be set" (§20.2.3 p.20-4); "Other
+  // status bits within the DR6 register can be set by the processor along
+  // with the BS bit" (APM Vol.2 §13.1.1.3 p.395).  A fault loses them (the
+  // early return above), and after MOV SS/POP SS the single-step trap is
+  // suppressed and the data breakpoints wait for the following instruction
+  // (§7.8.3, §20.3.1.2).
   if ~(faulted) & system_state == SysRunning & ss_shadow != 2 then {
     let bs : qword = if tf_at_start & ~(event_delivered) then 0x0000000000004000 else zeros();
-    let code_hits : bits(4) =
-      if vendor == Vendor_Intel & bs != zeros() then insn_breakpoint_hits(RIP + get_seg_base(CS)) else 0x0;
-    let status : qword = bs | zero_extend(pending_dbp) | zero_extend(code_hits);
+    let status : qword = bs | zero_extend(pending_dbp);
+    let open : bits(4) = (if bs != zeros() then 0xF else open_dbp) & ~(pending_dbp);
     if status != zeros() then {
-      // A trap after a non-final iteration of a repeated string instruction
-      // pushes RF = 1 (§20.3.1.1) on Intel; AMD Zen 4 pushes RF = 0 there
-      // (observed with the pushed image compared under KVM, where SVM
-      // delivers the #DB natively).
-      if rep_trap_rf & vendor == Vendor_Intel then RF = 0b1;
-      raise_debug_exception(status)
+      // RF in the image of a trap after a non-final iteration of a repeated
+      // string instruction is undefined.  The SDM pushes 1: "For any
+      // trap-class exception generated by any iteration of a repeated
+      // string instruction but the last iteration, the value pushed for RF
+      // is 1" (§20.3.1.1 p.20-9).  The APM sets it "when a string
+      // instruction is interrupted", "However, when a #DB exception occurs,
+      // the processor clears RFLAGS.RF to 0 in the rFLAGS image" (Vol.2
+      // §8.2.2 p.250).
+      if rep_trap_rf then RF = undefined;
+      raise_debug_exception(status, open)
     }
   };
 

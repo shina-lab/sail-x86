@@ -1969,7 +1969,7 @@ static bool compare_faults(const TestCase &tc, KvmVm &vm, const FaultInfo &kvm_f
             kvm_fault.faulting_rip, sail_fault.faulting_rip);
     ok = false;
   }
-  if ((kvm_fault.dr6 ^ sail_fault.dr6) & DR6_CMP_MASK) {
+  if ((kvm_fault.dr6 ^ sail_fault.dr6) & DR6_CMP_MASK & ~tc.undefined.dr6) {
     fprintf(stderr, "  MISMATCH DR6: kvm=0x%lx sail=0x%lx\n",
             kvm_fault.dr6, sail_fault.dr6);
     ok = false;
@@ -2008,6 +2008,7 @@ void clear_undefined(ArchState &s, const UndefinedState &u, bool compat_mode) {
   for (int i = 0; i < 8; i++) s.kregs[i] &= ~u.kregs[i];
   s.fcw &= ~u.fcw;
   s.mxcsr &= ~u.mxcsr;
+  s.dr6 &= ~u.dr6;
 }
 
 static void undefined_bytes(TestCase &tc, unsigned off, unsigned len, u8 bits = 0xFF) {

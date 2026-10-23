@@ -24,26 +24,41 @@ val write_mem_ref : forall 'n, 'n > 0. (implicit('n), MemRef, bits('n)) -> unit
 overload read_mem = {read_mem_data, read_mem_ref}
 overload write_mem = {write_mem_linear, write_mem_ref}
 
-// Data breakpoints (SDM Vol.3B §20.2.5, §20.3.1.2): an access hits DRn
-// when the breakpoint is enabled by Ln or Gn, R/Wn is 01 (writes) or 11
-// (reads and writes), and any byte of the access lies in the LENn-byte
-// range at DRn, whose low address bits LENn masks (1, 2, 8 and 4 bytes for
-// 00, 01, 10 and 11).  Instruction fetches and the processor's own
-// descriptor-table reads do not count.  Hits accumulate in pending_dbp for
-// the trap that step() raises after the instruction.
+// Records that an access matches breakpoint n: a hit in pending_dbp when
+// Ln or Gn enables it, otherwise a match in open_dbp.  LENn = 10b is eight
+// bytes in long mode: "Breakpoint conditions for 8-byte memory read/writes
+// are supported in all modes" (SDM Vol.3B §20.2.6 p.20-7), "8 byte ...
+// (Long mode only; otherwise undefined.)" (APM Vol.2 §13.1.1.4 p.397).
+// Outside long mode such a breakpoint matches only within the eight bytes,
+// and whether it hits is undefined.
+val note_breakpoint_match : (range(0, 3), bool) -> unit
+function note_breakpoint_match(n, len8) = {
+  let long_mode : bool = cur_mode == LongMode | cur_mode == CompatibilityMode;
+  if DR7[2 * n] == bitone | DR7[2 * n + 1] == bitone then {
+    if ~(len8) | long_mode | (undefined : bool) then pending_dbp[n] = bitone
+  } else open_dbp[n] = bitone
+}
+
+// Data breakpoints (SDM Vol.3B §20.2.5, §20.3.1.2): an access matches DRn
+// when R/Wn is 01 (writes) or 11 (reads and writes) and any byte of the
+// access lies in the LENn-byte range at DRn, whose low address bits LENn
+// masks (1, 2, 8 and 4 bytes for 00, 01, 10 and 11).  Instruction fetches
+// and the processor's own descriptor-table reads do not count.  Hits
+// accumulate in pending_dbp for the trap that step() raises after the
+// instruction.
 val note_data_access : (qword, int, bool) -> unit
 function note_data_access(lin, nbytes, is_write) = {
   foreach (n from 0 to 3) {
-    let enabled : bool = DR7[2 * n] == bitone | DR7[2 * n + 1] == bitone;
     let rw : bits(2) = DR7[(17 + 4 * n) .. (16 + 4 * n)];
-    let len : range(1, 8) = match DR7[(19 + 4 * n) .. (18 + 4 * n)] {
+    let len_field : bits(2) = DR7[(19 + 4 * n) .. (18 + 4 * n)];
+    let len : range(1, 8) = match len_field {
       0b00 => 1, 0b01 => 2, 0b10 => 8, _ => 4
     };
     let dr : qword = match n { 0 => DR0, 1 => DR1, 2 => DR2, _ => DR3 };
     let base : int = unsigned(dr & ~(to_bits(64, len - 1)));
     let applies : bool = (rw == 0b01 & is_write) | rw == 0b11;
-    if enabled & applies & unsigned(lin) < base + len & base < unsigned(lin) + nbytes then
-      pending_dbp[n] = bitone
+    if applies & unsigned(lin) < base + len & base < unsigned(lin) + nbytes then
+      note_breakpoint_match(n, len_field == 0b10)
   }
 }
 
@@ -55,16 +70,16 @@ val note_io_access : (word, int) -> unit
 function note_io_access(port, nbytes) = {
   if CR4[3] == bitone then {
     foreach (n from 0 to 3) {
-      let enabled : bool = DR7[2 * n] == bitone | DR7[2 * n + 1] == bitone;
       let rw : bits(2) = DR7[(17 + 4 * n) .. (16 + 4 * n)];
-      let len : range(1, 8) = match DR7[(19 + 4 * n) .. (18 + 4 * n)] {
+      let len_field : bits(2) = DR7[(19 + 4 * n) .. (18 + 4 * n)];
+      let len : range(1, 8) = match len_field {
         0b00 => 1, 0b01 => 2, 0b10 => 8, _ => 4
       };
       let dr : qword = match n { 0 => DR0, 1 => DR1, 2 => DR2, _ => DR3 };
       let base : int = unsigned(dr & ~(to_bits(64, len - 1)));
       let p : int = unsigned(port);
-      if enabled & rw == 0b10 & p < base + len & base < p + nbytes then
-        pending_dbp[n] = bitone
+      if rw == 0b10 & p < base + len & base < p + nbytes then
+        note_breakpoint_match(n, len_field == 0b10)
     }
   }
 }

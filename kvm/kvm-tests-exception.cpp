@@ -184,31 +184,41 @@ void add_exception_tests(std::vector<TestCase> &tests) {
 
   // Single-step (RFLAGS.TF = 0x100): TF is sampled before each instruction
   // and the trap is taken after it, with the next RIP pushed and DR6.BS set
-  // (SDM Vol.3B §20.3.1.4).  Both RIP and DR6 are compared with the host.
-  add_fault("single-step nop", {0x90, 0xF4}, {.rflags = initial_flags() | 0x100}, 1);
-  add_fault("single-step jmp (RIP = target)",
-            {0xEB, 0x02, 0x90, 0x90, 0xF4}, {.rflags = initial_flags() | 0x100}, 1);
+  // (SDM Vol.3B §20.3.1.4).  RIP and DR6 are compared with the host, except
+  // B0-B3, which BS leaves undefined: "When the BS flag is set, any of the
+  // other debug status bits also may be set" (§20.2.3 p.20-4), "Other
+  // status bits within the DR6 register can be set by the processor along
+  // with the BS bit" (APM Vol.2 §13.1.1.3 p.395).  add_step masks them; a
+  // case whose instruction hits a data breakpoint compares that bit.
+  auto add_step = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                      int vec) {
+    add_fault(name, std::move(code), init, vec);
+    tests.back().undefined.dr6 = 0xF;
+  };
+  add_step("single-step nop", {0x90, 0xF4}, {.rflags = initial_flags() | 0x100}, 1);
+  add_step("single-step jmp (RIP = target)",
+           {0xEB, 0x02, 0x90, 0x90, 0xF4}, {.rflags = initial_flags() | 0x100}, 1);
   // MOV SS suppresses its own trap; the following NOP is trapped (§7.8.3).
-  add_fault("single-step mov ss; nop (trap after the nop)",
-            {0x8E, 0xD0, 0x90, 0xF4}, {.rax = 0x10, .rflags = initial_flags() | 0x100}, 1);
+  add_step("single-step mov ss; nop (trap after the nop)",
+           {0x8E, 0xD0, 0x90, 0xF4}, {.rax = 0x10, .rflags = initial_flags() | 0x100}, 1);
   // The instruction that sets TF is not trapped: PUSH 0x102; POPFQ; NOP; NOP.
-  add_fault("single-step popf setting TF (trap after the next nop)",
-            {0x68, 0x02, 0x01, 0x00, 0x00, 0x9D, 0x90, 0x90, 0xF4}, {}, 1);
+  add_step("single-step popf setting TF (trap after the next nop)",
+           {0x68, 0x02, 0x01, 0x00, 0x00, 0x9D, 0x90, 0x90, 0xF4}, {}, 1);
   // INT3 and INT1 clear TF as part of delivery: no single-step trap follows.
   add_fault("single-step int3 (vector 3, no #DB)", {0xCC, 0xF4}, {.rflags = initial_flags() | 0x100}, 3);
   add_fault("single-step int1 (one #DB, DR6.BS clear)", {0xF1, 0xF4}, {.rflags = initial_flags() | 0x100}, 1);
   // A faulting instruction gets no trap.
   add_fault("single-step ud2 (fault, no #DB)", {0x0F, 0x0B}, {.rflags = initial_flags() | 0x100}, 6);
-  add_fault("single-step mov dr7", {0x0F, 0x23, 0xF8, 0x90, 0xF4},
-            {.rax = 0x400, .rflags = initial_flags() | 0x100}, 1);
+  add_step("single-step mov dr7", {0x0F, 0x23, 0xF8, 0x90, 0xF4},
+           {.rax = 0x400, .rflags = initial_flags() | 0x100}, 1);
   tests.back().rflags_image_ignore = mov_dr_undefined_flags;
   // Probes whose outcome the SDM leaves to the reader; the host decides.
-  add_fault("single-step sti; nop (STI shadow and the trap)",
-            {0xFB, 0x90, 0xF4}, {.rflags = initial_flags() | 0x100}, -1);
+  add_step("single-step sti; nop (STI shadow and the trap)",
+           {0xFB, 0x90, 0xF4}, {.rflags = initial_flags() | 0x100}, -1);
   {
     ArchState s = {.rflags = initial_flags() | 0x100};
-    s.dr6 = 0xFFFF0FF3;  // B0/B1 preset: cleared by the trap?
-    add_fault("single-step with DR6.B0/B1 preset", {0x90, 0xF4}, s, -1);
+    s.dr6 = 0xFFFF0FF3;  // B0/B1 preset, undefined after the trap
+    add_step("single-step with DR6.B0/B1 preset", {0x90, 0xF4}, s, -1);
   }
   {
     // POPFQ that clears TF while TF was set at its start: trap after it?
@@ -222,6 +232,7 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     tc.expected_vector = -1;
     tc.init_data.assign(72, 0);
     tc.init_data[64] = 0x02;  // RFLAGS image with TF clear
+    tc.undefined.dr6 = 0xF;
     tests.push_back(std::move(tc));
   }
 
@@ -280,15 +291,17 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     s.rbx = 0x2;
     add_fault("insn bp taken after IRETQ without RF", code, s, 1);
   }
-  // A matching but disabled DR1 next to enabled DR0: neither vendor reports
-  // B1.  A single-step trap taken before a breakpointed instruction: Intel
-  // reports B0 together with BS, AMD reports BS alone; the model follows
-  // its vendor profile.
+  // A matching but disabled DR1 next to enabled DR0: B1 is undefined, as
+  // B0-B3 "may or may not be set if the breakpoint is not enabled by the Ln
+  // or the Gn flags" (SDM Vol.3B §20.2.3 p.20-4), where the APM clears it
+  // (Vol.2 §13.1.1.3 p.394).  A single-step trap taken before a
+  // breakpointed instruction: B0 is one of the bits BS leaves undefined.
   {
     ArchState s = bp_state(0, CODE_ADDR + 1, 0x1); s.dr[1] = CODE_ADDR + 1;
     add_fault("insn bp with a matching disabled DR1 alongside", {0x90, 0x90, 0xF4}, s, -1);
+    tests.back().undefined.dr6 = 0x2;
     ArchState t = bp_state(0, CODE_ADDR + 1, 0x1); t.rflags = initial_flags() | 0x100;
-    add_fault("single-step trap before a breakpointed instruction", {0x90, 0x90, 0xF4}, t, -1);
+    add_step("single-step trap before a breakpointed instruction", {0x90, 0x90, 0xF4}, t, -1);
   }
 
   // Data breakpoints (SDM Vol.3B §20.2.5, §20.3.1.2): R/Wn = 01 for writes,
@@ -330,7 +343,8 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   }
   {
     ArchState s = dbp_store(0, DATA_ADDR, 1, 0); s.rflags = initial_flags() | 0x100;
-    add_fault("data bp with single-step: BS and B0 together", {0x88, 0x07, 0x90, 0xF4}, s, 1);
+    add_step("data bp with single-step: BS and B0 together", {0x88, 0x07, 0x90, 0xF4}, s, 1);
+    tests.back().undefined.dr6 = 0xE;  // B0 is the hit
   }
   {
     // A faulting instruction loses its data breakpoint: divb [rdi] with
@@ -361,15 +375,20 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     tc.init_data = {0x10, 0x00};  // SS selector
     tests.push_back(std::move(tc));
   }
-  // Repeated string instructions: the trap follows the iteration that hit
-  // (or each iteration under TF), RIP back at the instruction with RF = 1
-  // in the image (§20.3.1.1), unless the processor batches iterations
-  // (fast strings, §20.3.1.2): probes.
+  // Repeated string instructions.  A data breakpoint may be reported after
+  // a later iteration than the one that hit, "delivery of the resulting
+  // debug exception may be delayed until completion of the corresponding
+  // group of iterations" (§20.3.1.2 p.20-10; APM Vol.2 §13.1.1.4 p.397),
+  // so the case hits on the last one, and the trap follows the
+  // instruction.  Under TF the trap follows each iteration, with RIP back
+  // at the instruction; RF in its image is undefined, 1 in the SDM
+  // (§20.3.1.1 p.20-9) and 0 for any #DB in the APM (Vol.2 §8.2.2 p.250).
   {
-    ArchState s = dbp(0, DATA_ADDR + 2, 1, 0); s.rcx = 4; s.rax = 0x41;
-    add_fault("data bp inside rep stosb (trap after the hitting iteration)", {0xF3, 0xAA, 0x90, 0xF4}, s, -1);
+    ArchState s = dbp(0, DATA_ADDR + 3, 1, 0); s.rcx = 4; s.rax = 0x41;
+    add_fault("data bp on the last iteration of rep stosb (trap after it)", {0xF3, 0xAA, 0x90, 0xF4}, s, -1);
     ArchState t = {.rax = 0, .rcx = 3, .rdi = DATA_ADDR, .rflags = initial_flags() | 0x100};
-    add_fault("single-step of rep stosb (trap after the first iteration, RF=1)", {0xF3, 0xAA, 0x90, 0xF4}, t, -1);
+    add_step("single-step of rep stosb (trap after the first iteration)", {0xF3, 0xAA, 0x90, 0xF4}, t, -1);
+    tests.back().rflags_image_ignore = 0x10000;  // RF
   }
 
   // General detect (DR7.GD, §20.3.1.3): any MOV DR raises #DB before the

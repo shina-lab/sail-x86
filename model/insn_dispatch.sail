@@ -280,9 +280,16 @@ function exec_rep(prefix, op, os, asz, pfx) = {
     if prefix == REP_repne & ZF == 0b1 then return ();
     // A data breakpoint hit by this iteration, or single-step, is reported
     // after the iteration: the instruction resumes for the remaining count
-    // (RIP back at its first byte) and the trap's image carries RF = 1
-    // (SDM Vol.3B §20.3.1.1, §20.3.1.2).
-    if (pending_dbp != 0x0 | TF == 0b1) & v(asz, RCX) != zeros() then {
+    // (RIP back at its first byte; SDM Vol.3B §20.3.1.1, §20.3.1.2).  A
+    // data breakpoint may wait for later iterations: with fast-string
+    // operation "the processor recognizes interrupts and data breakpoints
+    // only on boundaries between these groups", whose size is
+    // implementation-specific (SDM Vol.1 §7.3.9.3 p.7-19), and "All
+    // breakpoint conditions, except certain string operations preceded by
+    // a repeat prefix, are exact" (APM Vol.2 §13.1.1.4 p.397).  So whether
+    // the group goes on is undefined.
+    let group_continues : bool = undefined;
+    if (pending_dbp != 0x0 & ~(group_continues) | TF == 0b1) & v(asz, RCX) != zeros() then {
       next_rip = Some(insn_start);
       rep_trap_rf = true;
       return ()

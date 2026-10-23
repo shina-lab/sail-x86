@@ -645,10 +645,17 @@ register sti_shadow : range(0, 2) = 0
 //                 instruction's accesses; reported as a trap after it,
 //                 kept across a MOV SS/POP SS and delivered after the
 //                 following instruction, lost on a fault.
+//   open_dbp    — Bn of the breakpoints the accesses match although
+//                 neither Ln nor Gn enables them: "They may or may not be
+//                 set if the breakpoint is not enabled" (§20.2.3 p.20-4),
+//                 where the APM clears them (Vol.2 §13.1.1.3 p.394), so
+//                 they are undefined in the DR6 of the trap.
 //   rep_trap_rf — a repeated string instruction stopped after an
 //                 iteration that is not its last (data breakpoint or single
-//                 step): the trap's RFLAGS image carries RF = 1 (§20.3.1.1).
+//                 step): RF in the trap's RFLAGS image is undefined (see
+//                 step()).
 register pending_dbp : bits(4) = 0x0
+register open_dbp : bits(4) = 0x0
 register rep_trap_rf : bool = false
 
 // CR0 bit positions
