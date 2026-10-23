@@ -120,24 +120,42 @@ void add_exception_tests(std::vector<TestCase> &tests) {
 
   // Prefixed forms of 0F 01, 0F AE and 0F C7 encodings that are distinct
   // instructions of features neither the model nor the guest has: #UD,
-  // not the unprefixed instruction they once executed as.  UINTR: CLUI,
-  // STUI, TESTUI, UIRET (F3 0F 01 EC-EF) and SENDUIPI (F3 0F C7 /6), #UD
-  // with CR4.UINTR = 0 in any case; FRED: ERETS and ERETU (F2/F3 0F 01
-  // CA), #UD on the Xeon, whereas the Threadripper runs them as CLAC (the
-  // SDM's "NP" allows either, §3.1.1.1), so Intel hosts only; WAITPKG:
-  // TPAUSE, UMONITOR and UMWAIT (66/F3/F2 0F AE /6 with mod=11), on hosts
-  // without the feature; and F2 on the NFx opcodes of RDRAND and RDSEED.
+  // not the unprefixed instruction they once executed as.  In the SDM a
+  // prefix that "NP" or "NFx" forbids "will either cause an invalid-opcode
+  // exception (#UD) or result in the encoding for a different instruction"
+  // (Vol.2A §3.1.1.1 p.3-2), here one the guest lacks.  The APM's maps
+  // give F2h and F3h rows of their own where they select the opcode, and
+  // leave these cells of them empty (Vol.3 Table A-8 p.538, 0F 01 /5;
+  // Table A-7, Group 9); elsewhere the prefixes "affect only certain
+  // string instructions" (Vol.3 §1.2.1 p.6).
+  //   - UINTR: CLUI, STUI, TESTUI, UIRET (F3 0F 01 EC-EF) and SENDUIPI (F3
+  //     0F C7 /6), #UD with CR4.UINTR = 0 or without the feature; RDPKRU
+  //     and WRPKRU, the unprefixed 0F 01 EE and EF, are #UD with CR4.PKE =
+  //     0 as well.
+  //   - F2 on the NFx opcodes of RDRAND and RDSEED, empty cells of both
+  //     maps.
+  //   - FRED: ERETS and ERETU (F2 and F3 0F 01 CA), "#UD If CR4.FRED = 0"
+  //     (SDM Vol.2A ERETS p.3-300, ERETU p.3-304), where the host has FRED
+  //     (CPUID.(7,1):EAX[17]).  Without it, the APM's map has no F2 or F3
+  //     row for 0F 01 /1, so the encoding may also run as CLAC.
+  //   - WAITPKG: TPAUSE, UMONITOR and UMWAIT (66/F3/F2 0F AE /6 with
+  //     mod=11), on hosts without the feature.
   add_fault("clui (F3 0F 01 EE → #UD, not RDPKRU)", {0xF3, 0x0F, 0x01, 0xEE}, {}, 6);
   add_fault("stui (F3 0F 01 EF → #UD, not WRPKRU)", {0xF3, 0x0F, 0x01, 0xEF}, {}, 6);
   add_fault("testui (F3 0F 01 ED → #UD)", {0xF3, 0x0F, 0x01, 0xED}, {}, 6);
   add_fault("uiret (F3 0F 01 EC → #UD)", {0xF3, 0x0F, 0x01, 0xEC}, {}, 6);
   {
-    u32 a, b, c, d;
-    __get_cpuid(0, &a, &b, &c, &d);
-    if (b != 0x68747541) {  // not "Auth" of AuthenticAMD
-      add_fault("erets (F2 0F 01 CA → #UD, not CLAC)", {0xF2, 0x0F, 0x01, 0xCA}, {}, 6);
-      add_fault("eretu (F3 0F 01 CA → #UD, not CLAC)", {0xF3, 0x0F, 0x01, 0xCA}, {}, 6);
-    }
+    bool fred = host_has(7, 1, CPUID_EAX, 17);
+    auto add_fred = [&](const std::string &name, std::vector<u8> code) {
+      add_fault(name, std::move(code), {}, 6);
+      if (!fred) {
+        tests.back().expect_fault = false;
+        tests.back().expected_vector = -1;
+        tests.back().allowed_outcomes = {6, -1};
+      }
+    };
+    add_fred("erets (F2 0F 01 CA → #UD, or CLAC without FRED)", {0xF2, 0x0F, 0x01, 0xCA});
+    add_fred("eretu (F3 0F 01 CA → #UD, or CLAC without FRED)", {0xF3, 0x0F, 0x01, 0xCA});
   }
   add_fault("senduipi rbx (F3 0F C7 /6 → #UD, not RDRAND)", {0xF3, 0x0F, 0xC7, 0xF3}, {}, 6);
   add_fault("rdrand rbx with F2 (NFx → #UD)", {0xF2, 0x0F, 0xC7, 0xF3}, {}, 6);

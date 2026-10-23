@@ -506,9 +506,7 @@ function exec_tpause_umwait(r, is_umwait) = {
 // the address size; DS unless overridden.  The SDM gives the instruction
 // "the permission checking and faults associated with a byte load"
 // (#GP(0) or #SS(0) for a non-canonical address, #PF), so the model reads
-// a byte there; the monitored range itself is not tracked.  (A Xeon
-// Platinum 8562Y+ under KVM raises none of these faults; see the paper's
-// evidence for the observation.  The model follows the manual.)
+// a byte there; the monitored range itself is not tracked.
 val exec_umonitor : (GPRRef, Prefixes) -> unit
 function exec_umonitor(r, pfx) = {
   if ~(has_waitpkg) then raise_UD();

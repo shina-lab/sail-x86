@@ -1170,19 +1170,6 @@ bool system_group(const Insn &in) {
   return in.enc == Enc::Legacy && in.map == 1 && in.op <= 0x01;
 }
 
-// UMONITOR (F3 0F AE /6, mod = 11), which an F3h prefix makes of MFENCE
-// and TPAUSE (and of UMWAIT, but F3h is not added beside its F2h:
-// defined_prefix).  Its address is then whatever the register holds,
-// usually 0, where the guest maps nothing, and an unmapped address is no
-// case (kvm-tests-waitpkg.cpp): the model raises the #PF of the SDM's
-// byte load, the Xeon Platinum 8562Y+ under KVM completes.
-bool umonitor(const Insn &in) {
-  if (!in.legacy(1, 0xAE) || in.mod() != 3 || (in.modrm >> 3 & 7) != 6) return false;
-  for (size_t i = in.prefixes.size(); i-- > 0;)
-    if (in.prefixes[i] == 0xF2 || in.prefixes[i] == 0xF3) return in.prefixes[i] == 0xF3;
-  return false;
-}
-
 bool amd_host() {
   static const bool amd = [] {
     u32 a, b, c, d;
@@ -1670,7 +1657,7 @@ void make_prefixes(const Base &b, const Emit &emit) {
       }
     }
     for (auto &[detail, in] : changed) {
-      if ((umonitor(in) && !umonitor(orig)) || amd_far_load_w(in))
+      if (amd_far_load_w(in))
         continue;
       // An x87 image keeps the format of its case, whose masks of the open
       // fields (x87_env_undefined, which depend on the host) and reads of

@@ -30,7 +30,7 @@
 namespace {
 
 // The outcomes the entries name.
-constexpr int COMPLETES = -1, DB = 1, UD = 6, GP = 13;
+constexpr int COMPLETES = -1, DB = 1, UD = 6, GP = 13, PF = 14;
 
 // The reasons of the gather entries, which share them.
 const char *const GATHER_VEX_UPPER =
@@ -156,6 +156,25 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "The SDM loads all of ESP0: \"NewESP := 4 bytes loaded from (current TSS base + 4)\" and "
      "\"ESP := NewESP\" (Vol.2A INT n, INTERRUPT-FROM-VIRTUAL-8086-MODE, 3-476); so does the "
      "APM: \"RSP = temp_RSP\" from \"READ_MEM.d [tss:new_cpl*8+4]\" (Vol.3 INT p.199, p.74)."},
+
+    // UMONITOR (kvm-tests-waitpkg.cpp)
+    {false, "umonitor rdi (non-canonical) #GP*",
+     "An Emerald Rapids under KVM completes UMONITOR on a non-canonical address.  The SDM "
+     "makes the instruction \"subject to the permission checking and faults associated with "
+     "a byte load\" (Vol.2B UMONITOR p.4-736), which for a non-canonical address in 64-bit "
+     "mode is #GP(0).",
+     GP, COMPLETES},
+    {false, "umonitor rdi (unmapped) #PF*",
+     "An Emerald Rapids under KVM completes UMONITOR on an address whose page is not "
+     "present.  The SDM makes the instruction \"subject to the permission checking and "
+     "faults associated with a byte load\" (Vol.2B UMONITOR p.4-736), which there is #PF.",
+     PF, COMPLETES},
+    {false, "mfence [prefix F3h]*",
+     "An Emerald Rapids under KVM completes F3 0F AE F0, which is UMONITOR RAX (F3 0F AE /6 "
+     "with mod = 11, SDM Vol.2B UMONITOR p.4-736), on an address whose page is not present "
+     "(RAX = 0).  The SDM makes the instruction \"subject to the permission checking and "
+     "faults associated with a byte load\", which there is #PF.",
+     PF, COMPLETES},
 
     // Gathers and scatters (kvm-tests-avx-vex.cpp, kvm-tests-avx-special.cpp)
     {false, "VPGATHERDD xmm element *", GATHER_VEX_UPPER},

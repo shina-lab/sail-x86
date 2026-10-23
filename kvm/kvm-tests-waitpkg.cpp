@@ -133,11 +133,16 @@ void add_waitpkg_tests(std::vector<TestCase> &tests) {
   }
   add_fault("lock tpause #UD", cat({deadline(0, 0), {0xF0, 0x66, 0x0F, 0xAE, 0xF3}}), 6);
   add_fault("lock umonitor #UD", {0xF0, 0xF3, 0x0F, 0xAE, 0xF7}, 6);
-  // UMONITOR on a non-canonical or an unmapped address is not a case
-  // here: the SDM gives the instruction the faults of a byte load (#GP(0),
-  // #SS(0), #PF), which the model raises, but the Xeon Platinum 8562Y+
-  // under KVM completes both without a fault (recorded with the evidence
-  // as a manual-versus-hardware observation).
+  // UMONITOR is "subject to the permission checking and faults associated
+  // with a byte load" (SDM Vol.2B UMONITOR p.4-736): #GP(0) for a
+  // non-canonical address, #PF for an unmapped one (kvm-deviations.cpp).
+  {
+    ArchState r = regs; r.rdi = 0x8000000000000000;
+    add_fault("umonitor rdi (non-canonical) #GP", UMONITOR_RDI, 13, &r);
+    r.rdi = 0x1000;  // the harness maps nothing below CODE_ADDR
+    add_fault("umonitor rdi (unmapped) #PF", UMONITOR_RDI, 14, &r);
+    tests.back().enable_paging = true;
+  }
   {
     ArchState r = regs; r.rcx = 0xE1; r.rax = 2; r.rdx = 0;
     add_fault("wrmsr UMWAIT_CONTROL with bit 1 #GP", {0x0F, 0x30}, 13, &r);
