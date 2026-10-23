@@ -417,25 +417,28 @@ function dispatch_evex_fma(op, pfx) = {
   },
 
   // 0F38 2A: VPBROADCASTMB2Q (F3, W=1) [CD] — also VMOVNTDQA (66)
-  // 0F38 C6: VGATHERPF0DPS/DPD, VGATHERPF1DPS/DPD (66) [PF]
-  // Gather prefetch — architectural NOP (just compute VSIB addresses and discard)
+  // 0F38 C6: VGATHERPF0DPS/DPD, VGATHERPF1DPS/DPD, VSCATTERPF0DPS/DPD,
+  // VSCATTERPF1DPS/DPD (66) [PF]
+  // Sparse prefetch — architectural NOP (just compute VSIB addresses and discard)
   198 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-    // reg=1: PF0, reg=2: PF1; VSIB addressing
-    if (reg_field != 1 & reg_field != 2) then raise_UD();
+    // reg=1: VGATHERPF0, reg=2: VGATHERPF1, reg=5: VSCATTERPF0, reg=6:
+    // VSCATTERPF1 (SDM Vol.2D pp. 8-12, 8-36); VSIB addressing
+    if (reg_field != 1 & reg_field != 2 & reg_field != 5 & reg_field != 6) then raise_UD();
     let disp_n : range(4, 64) = if pfx.rex_w then 8 else 4;
     let _ = decode_vsib_evex(modrm, pfx, disp_n)
   },
 
-  // 0F38 C7: VGATHERPF0QPS/QPD, VGATHERPF1QPS/QPD (66) [PF]
-  // Gather prefetch (qword index) — architectural NOP
+  // 0F38 C7: VGATHERPF0QPS/QPD, VGATHERPF1QPS/QPD, VSCATTERPF0QPS/QPD,
+  // VSCATTERPF1QPS/QPD (66) [PF]
+  // Sparse prefetch (qword index) — architectural NOP
   199 => {
     if mp != MP_66 then raise_UD();
     let modrm = fetch(1);
     let reg_field : range(0, 7) = unsigned(modrm[5..3]);
-    if (reg_field != 1 & reg_field != 2) then raise_UD();
+    if (reg_field != 1 & reg_field != 2 & reg_field != 5 & reg_field != 6) then raise_UD();
     let disp_n : range(4, 64) = if pfx.rex_w then 8 else 4;
     let _ = decode_vsib_evex(modrm, pfx, disp_n)
   },
