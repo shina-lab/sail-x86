@@ -623,6 +623,16 @@ void x87_env_undefined(TestCase &tc, u16 off, unsigned open, bool o16 = false);
 // FXSAVE, Field Definitions; APM Vol.2 Figures 11-9 and 11-10).
 void fxsave_x87_undefined(TestCase &tc, u16 off, unsigned open, bool w = false);
 
+// A CPUID feature bit of the test host as its guest has it: set where both
+// the host's CPUID and the CPUID that KVM supports for a guest
+// (KVM_GET_SUPPORTED_CPUID, which the harness installs) set it.  Which
+// cases run, and the features the model has, follow these bits, so that a
+// case passes on any host that follows its manual.  Only for feature bits:
+// the dynamic ones (OSXSAVE, OSPKE) and the value fields (sizes, offsets,
+// identification) are not combined so.
+enum CpuidReg { CPUID_EAX, CPUID_EBX, CPUID_ECX, CPUID_EDX };
+bool host_has(u32 leaf, u32 subleaf, CpuidReg reg, unsigned bit);
+
 // A known difference between a test host and the manuals.  A case's
 // expected outcome is the one the SDM (or, where the two manuals define
 // different behaviour, the APM for AMD) gives, the same on every host; a

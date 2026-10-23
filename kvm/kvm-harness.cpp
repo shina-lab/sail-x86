@@ -64,9 +64,42 @@ struct XsaveLayout {
 // AMX support is enabled to match, so the CPUID and XSAVE enumeration of
 // the two sides agree on either host.
 static bool host_has_amx() {
-  u32 a, b, c, d;
-  __cpuid_count(7, 0, a, b, c, d);
-  return d & (1u << 24);
+  return host_has(7, 0, CPUID_EDX, 24);
+}
+
+// The CPUID entries KVM supports for a guest, read once.
+static const std::vector<kvm_cpuid_entry2> &kvm_supported_cpuid() {
+  static const std::vector<kvm_cpuid_entry2> entries = [] {
+    std::vector<kvm_cpuid_entry2> v;
+    int fd = open("/dev/kvm", O_RDWR | O_CLOEXEC);
+    if (fd < 0)
+      return v;
+    std::vector<u8> buf(sizeof(kvm_cpuid2) + 256 * sizeof(kvm_cpuid_entry2));
+    auto *cpuid = (kvm_cpuid2 *)buf.data();
+    cpuid->nent = 256;
+    if (ioctl(fd, KVM_GET_SUPPORTED_CPUID, cpuid) == 0)
+      v.assign(cpuid->entries, cpuid->entries + cpuid->nent);
+    close(fd);
+    return v;
+  }();
+  return entries;
+}
+
+bool host_has(u32 leaf, u32 subleaf, CpuidReg reg, unsigned bit) {
+  if (__get_cpuid_max(leaf & 0x80000000, nullptr) < leaf)
+    return false;
+  u32 r[4];
+  __cpuid_count(leaf, subleaf, r[0], r[1], r[2], r[3]);
+  if (!(r[reg] >> bit & 1))
+    return false;
+  for (const kvm_cpuid_entry2 &e : kvm_supported_cpuid()) {
+    bool indexed = e.flags & KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
+    if (e.function == leaf && (!indexed || e.index == subleaf)) {
+      u32 g[4] = {e.eax, e.ebx, e.ecx, e.edx};
+      return g[reg] >> bit & 1;
+    }
+  }
+  return false;
 }
 
 static XsaveLayout host_xsave_layout() {
