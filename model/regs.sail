@@ -753,6 +753,11 @@ register has_amx_bf16  : bool  // CPUID.07H:EDX[22] — TDPBF16PS
 register has_prefetchw : bool  // CPUID.80000001H:ECX[8] — PREFETCHW (0F 0D /1; a NOP either way)
 register has_cldemote  : bool  // CPUID.07H:ECX[25] — CLDEMOTE (0F 1C /0; a NOP either way)
 register has_waitpkg   : bool  // CPUID.07H:ECX[5] — TPAUSE, UMONITOR, UMWAIT and IA32_UMWAIT_CONTROL
+// SMAP (CPUID.07H:EBX[20]): CLAC and STAC are #UD without it (SDM Vol.2A
+// CLAC, Vol.2B STAC; APM Vol.3 CLAC, STAC).  The model has the
+// instructions but not CR4.SMAP's access checks, so no profile sets it;
+// the KVM harness gives it the guest's value.
+register has_smap      : bool
 // PTWRITE (F3 0F AE /4) is #UD unless CPUID.(14H,0):EBX[4] = 1 (SDM Vol.2B
 // PTWRITE), a leaf of Intel PT, which CPUID.07H:EBX[25] reports (SDM
 // §36.3.1).  The model has no processor trace (no IA32_RTIT_* MSRs), so

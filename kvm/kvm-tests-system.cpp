@@ -203,7 +203,8 @@ void add_system_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
-  // CLI (FA), INVD (0F 08), WBINVD (0F 09), RSM (0F AA), INT n (CD ib)
+  // CLI (FA), INVD (0F 08), WBINVD (0F 09), RSM (0F AA), INT n (CD ib),
+  // CLAC (0F 01 CA), STAC (0F 01 CB), SWAPGS (0F 01 F8)
   // =====================================================================
   cat = "System misc";
   {
@@ -226,6 +227,31 @@ void add_system_tests(std::vector<TestCase> &tests) {
       add_fault("int " + std::to_string(vec), {0xCD, u8(vec), 0x90}, {}, vec);
     }
     add_fault("int 3 after mov rax,imm", {0x48, 0xC7, 0xC0, 0x78, 0x56, 0x34, 0x12, 0xCD, 0x03, 0x90}, {}, 3);
+
+    // CLAC and STAC at CPL 0 clear and set AC, "This instruction's
+    // operation is the same in non-64-bit modes and 64-bit mode", and are
+    // #UD "If CPUID.07H.00H:EBX.SMAP[20] = 0" (SDM Vol.2A CLAC 3-139,
+    // Vol.2B STAC 4-670; APM Vol.3 CLAC p.381, STAC p.477); CR4.SMAP does
+    // not enter.  SWAPGS is #UD outside 64-bit mode: "IF CS.L ≠ 1 (* Not in
+    // 64-Bit Mode *) ... THEN #UD" (SDM Vol.2B SWAPGS 4-696), "Invalid in
+    // legacy and compatibility modes" (APM Vol.3 SWAPGS p.482).  CPL 3 is
+    // in "System fast call".
+    const std::vector<u8> clac = {0x0F, 0x01, 0xCA}, stac = {0x0F, 0x01, 0xCB};
+    const bool smap = host_has(7, 0, CPUID_EBX, 20);
+    for (bool compat : {false, true}) {
+      const std::string mode = compat ? " in compatibility mode" : "";
+      const size_t first = tests.size();
+      if (smap) {
+        add("stac" + mode, stac, {});
+        add("stac; clac" + mode, {0x0F, 0x01, 0xCB, 0x0F, 0x01, 0xCA}, {});
+        add("clac with AC clear" + mode, clac, {});
+      } else {
+        add_fault("stac without SMAP (#UD)" + mode, stac, {}, 6);
+        add_fault("clac without SMAP (#UD)" + mode, clac, {}, 6);
+      }
+      if (compat) add_fault("swapgs in compatibility mode (#UD)", {0x0F, 0x01, 0xF8}, {}, 6);
+      for (size_t i = first; i < tests.size(); i++) tests[i].compat_mode = compat;
+    }
   }
 
   // =====================================================================

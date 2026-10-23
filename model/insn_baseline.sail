@@ -159,6 +159,7 @@ function cpuid(leaf, subleaf) = {
         if has_avx512     then ebx = ebx | 0xD0230000;  // F(16)+DQ(17)+IFMA(21)+CD(28)+BW(30)+VL(31)
         if has_rdseed     then ebx = ebx | 0x00040000;  // bit 18
         if has_adx        then ebx = ebx | 0x00080000;  // bit 19
+        if has_smap       then ebx = ebx | 0x00100000;  // bit 20 (SMAP)
         if has_ptwrite    then ebx = ebx | 0x02000000;  // bit 25 (Intel PT: leaf 14H)
         if has_sha        then ebx = ebx | 0x20000000;  // bit 29
         // The x87 pointer rules of the Intel profile (fdp_excptn_only,
@@ -852,13 +853,23 @@ function dispatch_2byte_gpr(op, pfx) = {
         // 0F 01 CA: CLAC — Clear AC flag (SMAP).  With F2 the encoding is
         // ERETS and with F3 ERETU (SDM Vol.2A: FRED event returns), which
         // the model does not implement: #UD, as on a processor without FRED.
+        // CLAC and STAC are #UD "If the CPL > 0", "If
+        // CPUID.07H.00H:EBX.SMAP[20] = 0", and in virtual-8086 mode, "not
+        // recognized" there (SDM Vol.2A CLAC 3-139, Vol.2B STAC 4-670); the
+        // APM has the same three (Vol.3 CLAC p.381, STAC p.477: "Instruction
+        // not supported by CPUID", "Instruction is not supported in virtual
+        // mode", "CPL was not 0").
         202 => {
           if pfx.has_rep | pfx.has_repne then raise_UD();
+          if ~(has_smap) | cur_mode == Virtual8086Mode | cur_cpl != 0 then raise_UD();
           AC_flag = 0b0
         },
 
         // 0F 01 CB: STAC — Set AC flag (SMAP)
-        203 => AC_flag = 0b1,
+        203 => {
+          if ~(has_smap) | cur_mode == Virtual8086Mode | cur_cpl != 0 then raise_UD();
+          AC_flag = 0b1
+        },
 
         // 0F 01 E8: SERIALIZE — NOP in sequential interpreter
         232 => (),
@@ -905,8 +916,12 @@ function dispatch_2byte_gpr(op, pfx) = {
           exec_vmxoff()
         },
 
-        // 0F 01 F8: SWAPGS (requires CPL=0)
+        // 0F 01 F8: SWAPGS, in 64-bit mode at CPL 0: "IF CS.L ≠ 1 (* Not
+        // in 64-Bit Mode *) ... THEN #UD; FI; IF CPL ≠ 0 THEN #GP(0)" (SDM
+        // Vol.2B SWAPGS 4-696); "Executing SWAPGS in any other mode
+        // generates an undefined opcode exception" (APM Vol.3 SWAPGS p.482).
         248 => {
+          if cur_mode != LongMode then raise_UD();
           if cur_cpl != 0 then raise_GP0();
           let tmp = SegCache[GS].seg_base;
           SegCache[GS].seg_base = KERNEL_GS_BASE;

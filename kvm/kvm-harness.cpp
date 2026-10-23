@@ -1012,6 +1012,8 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
     __cpuid(0x80000001, a, b, c, d);
     model.zhas_sse4a = (c & (1u << 6)) != 0;
   }
+  // SMAP (CPUID.(7,0):EBX[20]), without which CLAC and STAC are #UD.
+  model.zhas_smap = host_has(7, 0, CPUID_EBX, 20);
   // XCR0 as the guest starts every test (x87, SSE, AVX and the AVX-512
   // components); a test's override, below, may add the AMX components.
   model.zXCR0 = 0xE7;
