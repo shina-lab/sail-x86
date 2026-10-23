@@ -5,11 +5,12 @@
 // pause"), and its IA32_UMWAIT_CONTROL starts at 0.
 //
 // A wait ends at its deadline: EDX:EAX, or the OS limit IA32_UMWAIT_CONTROL
-// [31:2] TSC quanta from now when that is earlier, in which case CF is set.
-// A deadline of 0 has passed, one of 2^64 - 1 never comes, so the cases use
-// those two and an OS limit of 0x1000 cycles (a microsecond) to make the
-// waits deterministic and short; the limit is written and then restored to
-// 0 inside the code sequence, because the guest's MSR outlives a test.
+// [31:2] TSC quanta from now when that is earlier, in which case CF is set,
+// or earlier at another event.  A deadline of 0 has passed, one of 2^64 - 1
+// never comes, so the cases use those two and an OS limit of 0x1000 cycles
+// (a microsecond) to make the waits short; the limit is written and then
+// restored to 0 inside the code sequence, because the guest's MSR outlives
+// a test.
 
 #include "kvm-harness.h"
 
@@ -83,12 +84,17 @@ void add_waitpkg_tests(std::vector<TestCase> &tests) {
   add("umwait ebx without umonitor, deadline 0", cat({deadline(0, 0), UMWAIT_EBX}));
   add("umonitor rdi; umwait ebx, deadline 0", cat({deadline(0, 0), UMONITOR_RDI, UMWAIT_EBX}));
   // A deadline that never comes with an OS limit of 0x1000 cycles: the
-  // limit ends the wait, CF = 1.  The MSR is restored afterwards.
-  add("wrmsr UMWAIT_CONTROL=0x1000; tpause ebx, deadline -1 (CF=1); wrmsr 0",
+  // limit ends the wait with CF = 1, unless another event ends it first
+  // with CF = 0 (an NMI, an SMI and the others of SDM Vol.2B TPAUSE
+  // p.4-725; "Other implementation-dependent events", UMWAIT p.4-739), so
+  // CF is not compared.  The MSR is restored afterwards.
+  add("wrmsr UMWAIT_CONTROL=0x1000; tpause ebx, deadline -1 (OS limit); wrmsr 0",
       cat({wrmsr_umwait_control(0x1000), deadline(~0u, ~0u), TPAUSE_EBX, wrmsr_umwait_control(0)}));
-  add("wrmsr UMWAIT_CONTROL=0x1000; umonitor rdi; umwait ebx, deadline -1 (CF=1); wrmsr 0",
+  tests.back().flags_mask &= ~FL_CF;
+  add("wrmsr UMWAIT_CONTROL=0x1000; umonitor rdi; umwait ebx, deadline -1 (OS limit); wrmsr 0",
       cat({wrmsr_umwait_control(0x1000), UMONITOR_RDI, deadline(~0u, ~0u), UMWAIT_EBX,
            wrmsr_umwait_control(0)}));
+  tests.back().flags_mask &= ~FL_CF;
   // Without an armed monitor UMWAIT does not wait: TSC < deadline, CF = 0.
   add("wrmsr UMWAIT_CONTROL=0x1000; umwait ebx without umonitor, deadline -1 (CF=0); wrmsr 0",
       cat({wrmsr_umwait_control(0x1000), deadline(~0u, ~0u), UMWAIT_EBX, wrmsr_umwait_control(0)}));

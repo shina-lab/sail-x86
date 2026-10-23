@@ -923,17 +923,20 @@ void add_compat_tests(std::vector<TestCase> &tests) {
   // Compat PUSH/POP Segment
   // =====================================================================
   // --- PUSH/POP Segment ---
+  // A 32-bit push of a segment register writes "either a zero-extended
+  // value ... or the segment selector ... using a 16-bit move", which leaves
+  // "the upper portion of the stack location unmodified" (SDM Vol.2B PUSH
+  // p.4-522): the upper two bytes of the slot are undefined.  The stack is
+  // in the data page, whose bytes can be masked.
   {
-    // PUSH FS (0F A0) + POP FS (0F A1)
-    {
+    auto add_push = [&](const std::string &name, std::vector<u8> code) {
       ArchState s = {};
-      add("compat push fs; pop fs", {0x0F, 0xA0, 0x0F, 0xA1}, s, FL_ALL);
-    }
-    // PUSH GS (0F A8) + POP GS (0F A9)
-    {
-      ArchState s = {};
-      add("compat push gs; pop gs", {0x0F, 0xA8, 0x0F, 0xA9}, s, FL_ALL);
-    }
+      s.rsp = DATA_ADDR + 0x40;
+      add(name, std::move(code), s, FL_ALL);
+      tests.back().data_undefined = {{0x3E, 0xFF}, {0x3F, 0xFF}};
+    };
+    add_push("compat push fs; pop fs", {0x0F, 0xA0, 0x0F, 0xA1});  // 0F A0, 0F A1
+    add_push("compat push gs; pop gs", {0x0F, 0xA8, 0x0F, 0xA9});  // 0F A8, 0F A9
   }
 
   // =====================================================================

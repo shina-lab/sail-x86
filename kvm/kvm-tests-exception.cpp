@@ -168,10 +168,11 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   u32 vendor_eax, vendor_ebx, vendor_ecx, vendor_edx;
   __get_cpuid(0, &vendor_eax, &vendor_ebx, &vendor_ecx, &vendor_edx);
   const bool amd_host = (vendor_ebx == 0x68747541);  // "Auth" of AuthenticAMD
-  // A completed MOV DR, where the manuals differ: "The OF, SF, ZF, AF, PF,
-  // and CF flags are undefined" (SDM Vol.2B MOV—Move to/from Debug
-  // Registers, 4-35); "rFLAGS Affected: None" (APM Vol.3 MOV DRn, p.428).
-  const u64 mov_dr_undefined_flags = amd_host ? 0 : FL_ARITH;
+  // A completed MOV DR leaves the arithmetic flags undefined: "The OF, SF,
+  // ZF, AF, PF, and CF flags are undefined" (SDM Vol.2B MOV—Move to/from
+  // Debug Registers, 4-35), where the APM's "rFLAGS Affected: None" (Vol.3
+  // MOV DRn, p.428) is one of the values the SDM allows.
+  const u64 mov_dr_undefined_flags = FL_ARITH;
 
   // INT1/ICEBP (F1) is a trap: the pushed RIP is past the instruction and
   // DR6 is not modified (SDM Vol.2A INT n/INTO/INT3/INT1; APM Vol.2 §8.2.2:

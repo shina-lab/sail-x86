@@ -55,11 +55,11 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
   // #NM are in one class, in no order (as for add_ud below), and the
   // model has no switch for AVX2.
   using namespace feature;
-  // The arithmetic flags after MOV to CR0, where the manuals differ: "The
-  // OF, SF, ZF, AF, PF, and CF flags are undefined" (SDM Vol.2B MOV—Move
-  // to/from Control Registers); "rFLAGS Affected None" (APM Vol.3 MOV
-  // CRn).
-  const u64 flags = amd_host ? FL_ALL : FL_DF;
+  // The arithmetic flags after MOV to CR0 are undefined: "The OF, SF, ZF,
+  // AF, PF, and CF flags are undefined" (SDM Vol.2B MOV—Move to/from
+  // Control Registers, 4-33), where the APM's "rFLAGS Affected None"
+  // (Vol.3 MOV CRn, p.427) is one of the values the SDM allows.
+  const u64 flags = FL_DF;
 
   // vec is the exception the instruction raises, or NONE when it completes.
   auto add = [&](const std::string &cat, u64 bits, const std::string &name,

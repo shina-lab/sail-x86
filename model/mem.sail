@@ -172,6 +172,24 @@ function pop(n) = {
   x
 }
 
+// PUSH of a segment register: "if the operand size is 64-bits, a
+// zero-extended value is pushed on the stack; if the operand size is
+// 32-bits, either a zero-extended value is pushed on the stack or the
+// segment selector is written on the stack using a 16-bit move", which
+// leaves "the upper portion of the stack location unmodified" (SDM Vol.2B
+// PUSH p.4-522).  The APM says only that the operand size "determines the
+// number of bytes pushed" (Vol.3 PUSH).  So with a 32-bit operand size the
+// upper two bytes of the slot are undefined.
+val push_segreg : ({16, 32, 64}, segreg_idx) -> unit
+function push_segreg(os, idx) = {
+  let sel = read_segreg(idx);
+  match os {
+    16 => push(16, sel),
+    32 => push(32, (undefined : word) @ sel),
+    64 => push(64, zero_extend(sel)),
+  }
+}
+
 // =========================================================================
 // Segment register loading
 // =========================================================================

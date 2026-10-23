@@ -923,15 +923,11 @@ function decode_execute() = {
   } else {
     match op {
       // 06: PUSH ES — Push ES selector onto stack (SDM Vol.2B PUSH)
-      // Invalid in 64-bit mode. Operand size determines push width:
-      // 32 → push zero-extended dword; 16 → push word.
+      // Invalid in 64-bit mode.  The operand size determines the push
+      // width (push_segreg).
       6 => {
         if cur_mode == LongMode then raise_UD();
-        let os = opsize(pfx);
-        match os {
-          32 => push(32, zero_extend(read_segreg(ES))),
-          _  => push(16, read_segreg(ES)),
-        }
+        push_segreg(opsize(pfx), ES)
       },
 
       // 07: POP ES — Pop stack into ES (SDM Vol.2B POP)
@@ -951,11 +947,7 @@ function decode_execute() = {
       // Invalid in 64-bit mode.
       14 => {
         if cur_mode == LongMode then raise_UD();
-        let os = opsize(pfx);
-        match os {
-          32 => push(32, zero_extend(read_segreg(CS))),
-          _  => push(16, read_segreg(CS)),
-        }
+        push_segreg(opsize(pfx), CS)
       },
 
       // 0F: Two-byte escape
@@ -968,11 +960,7 @@ function decode_execute() = {
       // Invalid in 64-bit mode.
       22 => {
         if cur_mode == LongMode then raise_UD();
-        let os = opsize(pfx);
-        match os {
-          32 => push(32, zero_extend(read_segreg(SS))),
-          _  => push(16, read_segreg(SS)),
-        }
+        push_segreg(opsize(pfx), SS)
       },
 
       // 17: POP SS — Pop stack into SS (SDM Vol.2B POP)
@@ -993,11 +981,7 @@ function decode_execute() = {
       // Invalid in 64-bit mode.
       30 => {
         if cur_mode == LongMode then raise_UD();
-        let os = opsize(pfx);
-        match os {
-          32 => push(32, zero_extend(read_segreg(DS))),
-          _  => push(16, read_segreg(DS)),
-        }
+        push_segreg(opsize(pfx), DS)
       },
 
       // 1F: POP DS — Pop stack into DS (SDM Vol.2B POP)

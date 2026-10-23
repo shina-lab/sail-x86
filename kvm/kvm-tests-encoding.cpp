@@ -405,72 +405,36 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
   {
     cat = "BSF/BSR";
 
-    // BSF: 0F BC /r -- scan forward (LSB to MSB)
-    // The SDM defines only ZF (set if the source is zero) and leaves CF,
-    // OF, SF, AF, PF and, for a zero source, the destination undefined.
-    // The model fixes the de-facto behavior (see insn_baseline.sail):
-    // CF/OF/SF/AF cleared, PF from the result's parity, destination
-    // unchanged on a zero source.  These cases compare all of it.
+    // BSF (0F BC /r) scans from the LSB, BSR (0F BD /r) from the MSB.  ZF
+    // is set for a zero source; CF, OF, SF, AF and PF are undefined: the SDM
+    // sets PF from the source's parity and clears the others, but "On some
+    // older processors, the CF, OF, SF, AF, and PF flags are unmodified"
+    // (Vol.2A BSF p.3-107 and BSR p.3-109, footnote 2), and the APM marks
+    // all five U (Vol.3 BSF p.123, BSR p.124).  For a zero source the
+    // destination keeps its value, but "use of a 32-bit operand size may
+    // clear the upper 32 bits of a 64-bit destination while leaving the
+    // lower 32 bits unmodified" (footnote 1): those bits are undefined.
+    // RAX holds the case's initial fill.
+    auto add = [&](const std::string &name, std::vector<u8> code, u64 rbx,
+                   bool upper_undefined = false) {
+      TestCase tc{name, cat, std::move(code), {.rbx = rbx}, FL_ZF};
+      if (upper_undefined) tc.undefined.gpr[0] = 0xFFFFFFFF00000000;
+      tests.push_back(std::move(tc));
+    };
+    add("bsf eax,ebx lsb", {0x0F, 0xBC, 0xC3}, 1);
+    add("bsf eax,ebx msb", {0x0F, 0xBC, 0xC3}, 0x80000000);
+    add("bsf eax,ebx zero", {0x0F, 0xBC, 0xC3}, 0, true);
+    add("bsf rax,rbx zero", {0x48, 0x0F, 0xBC, 0xC3}, 0);
+    add("bsf ax,bx zero", {0x66, 0x0F, 0xBC, 0xC3}, 0xDEAD000000000000);
+    add("bsf rax,rbx bit32", {0x48, 0x0F, 0xBC, 0xC3}, 0x0000000100000000);
+    add("bsf ax,bx 0x100", {0x66, 0x0F, 0xBC, 0xC3}, 0xDEAD000000000100);
 
-    // BSF 32-bit: value=1 -> result=0
-    // 0F BC C3: BSF EAX, EBX
-    // Set all flags initially to verify they get cleared.
-    tests.push_back({"bsf eax,ebx lsb", cat, {0x0F, 0xBC, 0xC3},
-                      {.rbx = 1}, FL_ALL});
-
-    // BSF 32-bit: value=0x80000000 -> result=31
-    tests.push_back({"bsf eax,ebx msb", cat, {0x0F, 0xBC, 0xC3},
-                      {.rbx = 0x80000000}, FL_ALL});
-
-    // BSF 32-bit: zero -> ZF=1, dest should be unchanged
-    tests.push_back({"bsf eax,ebx zero", cat, {0x0F, 0xBC, 0xC3},
-                      {.rbx = 0}, FL_ALL});
-
-    // BSF 32-bit: zero source with a nonzero upper half in the destination.
-    // Both differential hosts (AMD Zen 4, Intel Emerald Rapids) leave the
-    // whole 64-bit register untouched, upper half included, and the model
-    // follows.  Linux's ffs() comment describes Intel as rewriting the old
-    // value, which would clear the upper half; the Intel run shows it
-    // does not.
-    tests.push_back({"bsf eax,ebx zero hi32", cat, {0x0F, 0xBC, 0xC3},
-                      {.rbx = 0}, FL_ALL});
-
-    // BSF 64-bit: bit 32 only
-    // 48 0F BC C3: BSF RAX, RBX
-    tests.push_back({"bsf rax,rbx bit32", cat, {0x48, 0x0F, 0xBC, 0xC3},
-                      {.rbx = 0x0000000100000000}, FL_ALL});
-
-    // BSF 16-bit: 66 0F BC C3, BX=0x0100, bsf=8
-    tests.push_back({"bsf ax,bx 0x100", cat, {0x66, 0x0F, 0xBC, 0xC3},
-                      {.rbx = 0xDEAD000000000100}, FL_ALL});
-
-    // BSR: 0F BD /r -- scan reverse (MSB to LSB)
-    // Same flag and destination rules as BSF.
-
-    // BSR 32-bit: value=1 -> result=0
-    // 0F BD C3: BSR EAX, EBX
-    tests.push_back({"bsr eax,ebx lsb", cat, {0x0F, 0xBD, 0xC3},
-                      {.rbx = 1}, FL_ALL});
-
-    // BSR 32-bit: value=0x80000000 -> result=31
-    tests.push_back({"bsr eax,ebx msb", cat, {0x0F, 0xBD, 0xC3},
-                      {.rbx = 0x80000000}, FL_ALL});
-
-    // BSR 32-bit: zero -> ZF=1
-    tests.push_back({"bsr eax,ebx zero", cat, {0x0F, 0xBD, 0xC3},
-                      {.rbx = 0}, FL_ALL});
-
-    // BSR 32-bit: zero source, nonzero upper half in the destination
-    tests.push_back({"bsr eax,ebx zero hi32", cat, {0x0F, 0xBD, 0xC3},
-                      {.rbx = 0}, FL_ALL});
-
-    // BSR 64-bit
-    tests.push_back({"bsr rax,rbx bit63", cat, {0x48, 0x0F, 0xBD, 0xC3},
-                      {.rbx = 0x8000000000000000}, FL_ALL});
-
-    // BSR 32-bit: 0xFF -> result=7
-    tests.push_back({"bsr eax,ebx 0xFF", cat, {0x0F, 0xBD, 0xC3},
-                      {.rbx = 0xFF}, FL_ALL});
+    add("bsr eax,ebx lsb", {0x0F, 0xBD, 0xC3}, 1);
+    add("bsr eax,ebx msb", {0x0F, 0xBD, 0xC3}, 0x80000000);
+    add("bsr eax,ebx zero", {0x0F, 0xBD, 0xC3}, 0, true);
+    add("bsr rax,rbx zero", {0x48, 0x0F, 0xBD, 0xC3}, 0);
+    add("bsr rax,rbx bit63", {0x48, 0x0F, 0xBD, 0xC3}, 0x8000000000000000);
+    add("bsr eax,ebx 0xFF", {0x0F, 0xBD, 0xC3}, 0xFF);
   }
 
   // =====================================================================

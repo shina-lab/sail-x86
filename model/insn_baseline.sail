@@ -476,10 +476,11 @@ function bt_adjust(os, rm, bit_idx) = {
 // IA32_UMWAIT_CONTROL[31:2] (TSC quanta; 0 for no limit), and sets CF when
 // the OS limit ended the wait; UMWAIT also wakes on a store to the UMONITOR
 // range and does not rest at all when no monitor is armed.  The model does
-// not idle: a wait ends at its deadline, which the SDM allows (other
-// implementation-dependent events may end it earlier), so CF is 1 exactly
-// when the instruction would rest and the OS limit is the earlier deadline.
-// AF, PF, SF, ZF and OF are cleared.
+// not idle: a wait ends at once.  "Other implementation-dependent events
+// may also cause the processor to exit" (SDM Vol.2B UMWAIT p.4-739; TPAUSE
+// lists NMI, SMI and the like, p.4-725) before the OS limit, so when the
+// instruction would rest and the OS limit is the earlier deadline, CF is
+// undefined; otherwise it is 0.  AF, PF, SF, ZF and OF are cleared.
 val exec_tpause_umwait : (GPRRef, bool) -> unit
 function exec_tpause_umwait(r, is_umwait) = {
   if ~(has_waitpkg) then raise_UD();
@@ -491,7 +492,7 @@ function exec_tpause_umwait(r, is_umwait) = {
   let instr_deadline : qword = v(32, RDX) @ v(32, RAX);
   let rests : bool = ~(is_umwait) | umonitor_armed;
   let using_os_deadline : bool = limit != zeros() & (tsc + limit) <_u instr_deadline;
-  CF = bool_to_bit(rests & using_os_deadline);
+  CF = if rests & using_os_deadline then undefined else 0b0;
   OF = 0b0;
   SF = 0b0;
   ZF = 0b0;
@@ -1269,10 +1270,19 @@ function dispatch_2byte_gpr(op, pfx) = {
             // No privilege check required (accessible from any CPL).
             // SDM: stores low 16 bits of CR0 to r/m16. With 32-bit
             // register operand, stores low 32 bits; with 64-bit, all 64.
+            // Outside 64-bit mode "when the destination operand is a
+            // 32-bit register, the low-order 16 bits of register CR0 are
+            // copied into the low-order 16 bits of the register and the
+            // high-order 16 bits are undefined" (SDM Vol.2B SMSW p.4-658),
+            // where the APM stores "the low 32 bits of CR0" (Vol.3 SMSW
+            // p.476).
             4 => match dest {
               RM_reg(r) => {
                 let os = opsize(pfx);
-                v(r) = CR0[(os - 1) .. 0]
+                if os == 32 & cur_mode != LongMode then
+                  v(r) = (undefined : word) @ CR0[15..0]
+                else
+                  v(r) = CR0[(os - 1) .. 0]
               },
               RM_mem(m) => v(m) = CR0[15..0],
             },
@@ -1906,14 +1916,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F A0: PUSH FS (d64)
     // SDM: pushes FS selector. d64 = default 64 in long mode.
     // Non-64-bit mode: operand size from CS.D and 66h prefix.
-    160 => {
-      let os = opsize_default64(pfx);
-      match os {
-        16 => push(16, read_segreg(FS)),
-        32 => push(32, zero_extend(read_segreg(FS))),
-        64 => push(64, zero_extend(read_segreg(FS))),
-      }
-    },
+    160 => push_segreg(opsize_default64(pfx), FS),
 
     // 0F A1: POP FS (d64)
     161 => {
@@ -1957,14 +1960,7 @@ function dispatch_2byte_gpr(op, pfx) = {
     },
 
     // 0F A8: PUSH GS (d64)
-    168 => {
-      let os = opsize_default64(pfx);
-      match os {
-        16 => push(16, read_segreg(GS)),
-        32 => push(32, zero_extend(read_segreg(GS))),
-        64 => push(64, zero_extend(read_segreg(GS))),
-      }
-    },
+    168 => push_segreg(opsize_default64(pfx), GS),
 
     // 0F A9: POP GS (d64)
     169 => {
@@ -2207,38 +2203,33 @@ function dispatch_2byte_gpr(op, pfx) = {
         PF = undefined
       } else {
         // BSF r16/r32/r64, r/m16/r/m32/r/m64
-        // SDM: ZF is set if the source is zero and cleared otherwise; CF,
-        // OF, SF, AF, PF are undefined, and so is the destination for a
-        // zero source.  The model deliberately fixes the de-facto behavior
-        // instead.  Flags: CF/OF/SF/AF cleared and PF from the result's
-        // parity, as observed on both differential hosts (AMD Zen 4 and
-        // Intel Emerald Rapids).  Destination: untouched on a zero
-        // source.  That rule is a contract programs rely on, not a
-        // modeling choice: AMD documents it, and Linux's ffs()/fls()
-        // (arch/x86/include/asm/bitops.h) preload -1 into the destination
-        // and depend on it surviving, citing Intel's architects for the
-        // same guarantee.  A model that leaves the destination undefined
-        // (the C++ backend folds it to zero) panics Linux early in boot.
-        // "Untouched" means the whole 64-bit register: for a 32-bit
-        // operand both hosts preserve the upper half too, so the write
-        // below is undone rather than repeated at operand width (which
-        // would zero-extend).  The kernel comment describes Intel as
-        // rewriting the old value, which would clear the upper half; the
-        // Emerald Rapids run shows that it does not.  The differential
-        // templates compare the fixed behavior.
+        // ZF is set for a zero source and cleared otherwise.  The other
+        // flags are undefined: the SDM sets PF from the source's parity and
+        // clears CF, OF, SF and AF, but "On some older processors, the CF,
+        // OF, SF, AF, and PF flags are unmodified" (Vol.2A BSF p.3-107,
+        // footnote 2), and the APM marks all five U (Vol.3 BSF p.123).
+        // For a zero source "the destination operand is unmodified", but
+        // "on some older processors, use of a 32-bit operand size may clear
+        // the upper 32 bits of a 64-bit destination while leaving the lower
+        // 32 bits unmodified" (SDM, footnote 1); the APM "does not change
+        // the contents of the destination register".  So the register
+        // stays, except bits 63:32 after a 32-bit BSF, which are undefined.
+        // Linux's ffs(), fls() and fls64() (arch/x86/include/asm/bitops.h)
+        // preload -1 and rely only on the low 32 bits surviving.
         let src_val = v(os, src);
         let zf : bit = is_zero(src_val);
         let idx = ctz(src_val);
         let result : qword = to_bits_truncate(idx);
-        CF = 0b0;
-        OF = 0b0;
-        SF = 0b0;
-        AF = 0b0;
+        CF = undefined;
+        OF = undefined;
+        SF = undefined;
+        AF = undefined;
         ZF = zf;
-        PF = blend(compute_PF(result[7..0]), 0b1, zf);  // PF(0x00) = 1 (even parity)
+        PF = undefined;
         let old : qword = GPR[reg.gpr_idx];
+        let kept : qword = if os == 32 then (undefined : dword) @ old[31..0] else old;
         v(reg) = result[(os - 1) .. 0];
-        GPR[reg.gpr_idx] = blend(GPR[reg.gpr_idx], old, zf)
+        GPR[reg.gpr_idx] = blend(GPR[reg.gpr_idx], kept, zf)
       }
     },
 
@@ -2263,23 +2254,23 @@ function dispatch_2byte_gpr(op, pfx) = {
         PF = undefined
       } else {
         // BSR r16/r32/r64, r/m16/r/m32/r/m64
-        // Same flag and destination rules as BSF above, fixed for the same
-        // reasons (Linux's fls() relies on the destination surviving a
-        // zero source exactly as ffs() does).
+        // The flag and destination rules of BSF above, in the same words
+        // (SDM Vol.2A BSR p.3-109 and its footnotes; APM Vol.3 BSR p.124).
         let src_val = v(os, src);
         let zf : bit = is_zero(src_val);
         // Sentinel bit 0 ensures bsr gets nonzero input; result ignored when zf=1
         let idx : range(0, 63) = bsr(zero_extend(src_val) | 0x0000000000000001);
         let result : qword = to_bits_truncate(idx);
-        CF = 0b0;
-        OF = 0b0;
-        SF = 0b0;
-        AF = 0b0;
+        CF = undefined;
+        OF = undefined;
+        SF = undefined;
+        AF = undefined;
         ZF = zf;
-        PF = blend(compute_PF(result[7..0]), 0b1, zf);  // PF(0x00) = 1 (even parity)
+        PF = undefined;
         let old : qword = GPR[reg.gpr_idx];
+        let kept : qword = if os == 32 then (undefined : dword) @ old[31..0] else old;
         v(reg) = result[(os - 1) .. 0];
-        GPR[reg.gpr_idx] = blend(GPR[reg.gpr_idx], old, zf)
+        GPR[reg.gpr_idx] = blend(GPR[reg.gpr_idx], kept, zf)
       }
     },
 

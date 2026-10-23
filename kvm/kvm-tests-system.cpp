@@ -14,13 +14,11 @@
 void add_system_tests(std::vector<TestCase> &tests) {
   std::string cat;
 
-  u32 vendor_eax, vendor_ebx, vendor_ecx, vendor_edx;
-  __get_cpuid(0, &vendor_eax, &vendor_ebx, &vendor_ecx, &vendor_edx);
-  const bool amd_host = (vendor_ebx == 0x68747541);  // "Auth" of AuthenticAMD
-  // MOV to/from CR, where the manuals differ: "The OF, SF, ZF, AF, PF, and
-  // CF flags are undefined" (SDM Vol.2B MOV—Move to/from Control
-  // Registers, 4-33); "rFLAGS Affected: None" (APM Vol.3 MOV CRn, p.427).
-  const u64 mov_cr_flags = amd_host ? FL_ALL : FL_DF;
+  // MOV to/from CR leaves the arithmetic flags undefined: "The OF, SF, ZF,
+  // AF, PF, and CF flags are undefined" (SDM Vol.2B MOV—Move to/from
+  // Control Registers, 4-33), where the APM's "rFLAGS Affected: None"
+  // (Vol.3 MOV CRn, p.427) is one of the values the SDM allows.
+  const u64 mov_cr_flags = FL_DF;
 
   // The model's CR0 and EFER equal the guest's (0x80000011, 0x500) only
   // when a test asks for the guest's identity paging, so every test that
