@@ -256,6 +256,51 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
+  // The two encodings whose meaning the manuals give differently, where
+  // the model follows the host's vendor (vendor, model/regs.sail): 66h on
+  // a near branch in 64-bit mode, ignored in the SDM, a 16-bit operand
+  // size in the APM (opsize_forced64 and opsize_rel, model/operands.sail),
+  // and far CALL and JMP with REX.W, an m16:64 pointer in the SDM and an
+  // m16:32 one in the APM (far_pointer_offset_size, model/insn_groups.sail).
+  // Each case runs to an outcome that tells them apart: the one manual's
+  // target is at CODE_ADDR, the other's below it, where the guest maps
+  // nothing, or above, in an unmapped page.  The run's outcome is the
+  // model's (may_fault).
+  // =====================================================================
+  {
+    cat = "Vendor encodings";
+    auto add = [&](const std::string &name, std::vector<u8> code, ArchState init,
+                   std::vector<u8> data = {}) {
+      TestCase tc;
+      tc.name = name;
+      tc.category = cat;
+      tc.code = std::move(code);
+      tc.initial = init;
+      tc.flags_mask = FL_ALL;
+      tc.init_data = std::move(data);
+      tc.enable_paging = true;
+      tc.may_fault = true;
+      tests.push_back(std::move(tc));
+    };
+    // JZ not taken: rel32 in the SDM (7 bytes), rel16 in the APM (5 bytes,
+    // then INC EAX).
+    add("jz rel with 66h, not taken", {0x66, 0x0F, 0x84, 0x00, 0x00, 0xFF, 0xC0, 0xF4},
+        {.rax = 0, .rflags = initial_flags(FL_ZF, 0)});
+    // JMP and CALL to the next instruction: offset 6 with rel32, 4 with
+    // rel16 and the target truncated to 16 bits; CALL pushes 8 or 2 bytes.
+    add("jmp rel with 66h", {0x66, 0xE9, 0x00, 0x00, 0x00, 0x00, 0xF4}, {});
+    add("call rel with 66h", {0x66, 0xE8, 0x00, 0x00, 0x00, 0x00, 0xF4}, {});
+    // RET pops 8 or 2 bytes of the pushed CODE_ADDR + 7.
+    add("push CODE_ADDR+7; ret with 66h", {0x68, 0x07, 0x00, 0x01, 0x00, 0x66, 0xC3, 0xF4}, {});
+    // The far pointer at [rdi]: the dword CODE_ADDR + 3 (the HLT) and the
+    // selector 08h after it for m16:32; as a qword, 8_0001_0003h, and the
+    // selector 08h after that, for m16:64.
+    const std::vector<u8> far_ptr = {0x03, 0x00, 0x01, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08, 0x00};
+    add("jmp far [rdi] with REX.W", {0x48, 0xFF, 0x2F, 0xF4}, {.rdi = DATA_ADDR}, far_ptr);
+    add("call far [rdi] with REX.W", {0x48, 0xFF, 0x1F, 0xF4}, {.rdi = DATA_ADDR}, far_ptr);
+  }
+
+  // =====================================================================
   // LZCNT / TZCNT — F3 mandatory prefix, all operand sizes, flag semantics
   // =====================================================================
   {

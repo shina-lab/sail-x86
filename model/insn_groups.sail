@@ -189,6 +189,17 @@ function dispatch_group3(reg_field, dest, os) = {
 // Group 5 (FF): INC/DEC/CALL/JMP/PUSH
 // =========================================================================
 
+// The width of the offset in the far pointer of FF /3 and FF /5 at
+// operand size os.  With REX.W the manuals give the encoding different
+// meanings, so the model follows the vendor register (regs.sail): "REX.W
+// FF /3 CALL m16:64" and "REX.W FF /5 JMP m16:64" (SDM Vol.2A CALL, JMP),
+// where "If the operand-size is 32 or 64 bits, the operand is a 32-bit
+// offset followed by a 16-bit selector" (APM Vol.3 CALL (Far) p.139; JMP
+// (Far) p.210, "a 16-bit selector followed by a 32-bit offset").  The
+// operand size still sets the width of the pushes.
+val far_pointer_offset_size : {16, 32, 64} -> {16, 32, 64}
+function far_pointer_offset_size(os) = if os == 64 & vendor == Vendor_AMD then 32 else os
+
 val dispatch_group5 : (range(0, 7), RM, Prefixes) -> unit
 function dispatch_group5(reg_field, dest, pfx) = {
   match reg_field {
@@ -204,9 +215,8 @@ function dispatch_group5(reg_field, dest, pfx) = {
       v(dest) = exec_dec(read_rmw(os, dest))
     },
 
-    // CALL near indirect
-    // SDM: "operand size for near call is forced to 64-bits" in 64-bit mode.
-    // 66h prefix is ignored; 16/32-bit forms are N.E. (Not Encodable).
+    // CALL near indirect, at the operand size of a near branch
+    // (opsize_forced64).
     2 => {
       let os = opsize_forced64(pfx);
       let target : qword = zero_extend(v(os, dest));
@@ -223,13 +233,14 @@ function dispatch_group5(reg_field, dest, pfx) = {
         RM_reg(_) => raise_UD(),
         RM_mem(m) => {
           let os = opsize(pfx);
-          let (far_offset, far_selector) = read_far_pointer(os, m);
+          let (far_offset, far_selector) = read_far_pointer(far_pointer_offset_size(os), m);
           exec_far_call(far_selector, far_offset, os)
         },
       }
     },
 
-    // JMP near indirect
+    // JMP near indirect, at the operand size of a near branch
+    // (opsize_forced64).
     4 => next_rip = Some(zero_extend(v(opsize_forced64(pfx), dest))),
 
     // JMP far indirect m16:16/m16:32/m16:64
@@ -240,7 +251,7 @@ function dispatch_group5(reg_field, dest, pfx) = {
         RM_reg(_) => raise_UD(),
         RM_mem(m) => {
           let os = opsize(pfx);
-          let (far_offset, far_selector) = read_far_pointer(os, m);
+          let (far_offset, far_selector) = read_far_pointer(far_pointer_offset_size(os), m);
           exec_far_jmp(far_selector, far_offset, os)
         },
       }

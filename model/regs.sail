@@ -118,10 +118,15 @@ let R13 : gpr_idx = 13
 let R14 : gpr_idx = 14
 let R15 : gpr_idx = 15
 
-// The vendor whose manual the model follows where the SDM and the APM
-// define different behaviour.  The CPUID vendor string stays
-// "GenuineIntel" either way.  The KVM differential harness selects the
-// host's vendor; the emulators keep the Intel default.
+// The vendor whose manual the model follows where the SDM and the APM give
+// one encoding different meanings that no undefined value can express:
+// 66h on the near branches in 64-bit mode, which changes the instruction's
+// length, its stack width and the truncation of RIP (opsize_forced64 and
+// opsize_rel, operands.sail), and far CALL and JMP with REX.W, which read
+// an m16:64 or an m16:32 pointer (far_pointer_offset_size,
+// insn_groups.sail).  It does not change the CPUID vendor string.  The KVM
+// differential harness sets it from the host; the emulators keep the Intel
+// default.
 enum Vendor = { Vendor_Intel, Vendor_AMD }
 register vendor : Vendor = Vendor_Intel
 

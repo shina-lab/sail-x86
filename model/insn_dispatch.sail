@@ -52,8 +52,11 @@ function exec_pop_reg(dst, os) = {
 // LOOP/LOOPcc — Loop According to ECX Counter
 enum LoopVariant = { LOOP_always, LOOP_e, LOOP_ne }
 
-val exec_loop : (byte, LoopVariant, address_size) -> unit
-function exec_loop(rel8, variant, asz) = {
+// os is the operand size of the near branch (opsize_forced64), which
+// truncates the target: "IF OperandSize = 16 THEN tempEIP := tempEIP AND
+// 0000FFFFH" (SDM Vol.2A LOOP/LOOPcc).
+val exec_loop : (byte, LoopVariant, address_size, {16, 32, 64}) -> unit
+function exec_loop(rel8, variant, asz, os) = {
   v(RCX) = v(asz, RCX) - 1;
   let count_nonzero : bool = v(asz, RCX) != zeros();
   let take_branch : bool = match variant {
@@ -62,9 +65,6 @@ function exec_loop(rel8, variant, asz) = {
     LOOP_ne     => if count_nonzero then ZF == 0b0 else false,
   };
   if take_branch then {
-    let os = if cur_mode == LongMode then 64
-             else if get_cs_db() == 0b1 then 32
-             else 16;
     next_rip = Some(zero_extend((decode_pos + sign_extend(rel8))[(os - 1) .. 0]));
   }
 }
@@ -1742,9 +1742,8 @@ function decode_execute() = {
         exec_shift_rm(reg_field, dest, count, os)
       },
 
-      // C2: RET near imm16
-      // SDM: In 64-bit mode, operand size = stack-address size = 64.
-      // 66h prefix is ignored; 16/32-bit forms are not encodable.
+      // C2: RET near imm16, at the operand size of a near branch
+      // (opsize_forced64).
       194 => {
         let imm = fetch(2);
         let os = opsize_forced64(pfx);
@@ -1752,9 +1751,8 @@ function decode_execute() = {
         v(64, RSP) = v(RSP) + zero_extend(imm)
       },
 
-      // C3: RET near
-      // SDM: In 64-bit mode, operand size = stack-address size = 64.
-      // 66h prefix is ignored; 16/32-bit forms are not encodable.
+      // C3: RET near, at the operand size of a near branch
+      // (opsize_forced64).
       195 => next_rip = Some(zero_extend(pop(opsize_forced64(pfx)))),
 
       // C4: LES r, m16:16/32 (non-64-bit) or 3-byte VEX prefix
@@ -2122,21 +2120,21 @@ function decode_execute() = {
       224 => {
         let rel = fetch(1);
         let asz = get_address_size(pfx);
-        exec_loop(rel, LOOP_ne, asz)
+        exec_loop(rel, LOOP_ne, asz, opsize_forced64(pfx))
       },
 
       // E1: LOOPE/LOOPZ rel8
       225 => {
         let rel = fetch(1);
         let asz = get_address_size(pfx);
-        exec_loop(rel, LOOP_e, asz)
+        exec_loop(rel, LOOP_e, asz, opsize_forced64(pfx))
       },
 
       // E2: LOOP rel8
       226 => {
         let rel = fetch(1);
         let asz = get_address_size(pfx);
-        exec_loop(rel, LOOP_always, asz)
+        exec_loop(rel, LOOP_always, asz, opsize_forced64(pfx))
       },
 
       // E3: JCXZ/JECXZ/JRCXZ rel8

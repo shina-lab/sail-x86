@@ -217,42 +217,36 @@ function opsize_default64(pfx) =
     if pfx.has_opsize then 32 else 16
   }
 
-// Operand size for instructions forced to 64-bit (JMP rel, CALL rel, Jcc rel).
-// LongMode: always OS64, 66h ignored.
-// Non-LongMode, CS.D=1: always OS32.
-// Non-LongMode, CS.D=0: always OS16.
-// Operand size for f64 instructions (CALL near, RET near, JMP near).
-// In LongMode: forced to OS64 (66h prefix is accepted but overrides to OS16).
-// In non-LongMode: same as normal operand size, respecting 66h prefix.
-// SDM Vol.2A Table 3-4: "f64" means "64-Bit Mode: Forced to 64-bit operand
-// size when in 64-bit mode (prefixes that change operand size are ignored
-// for this instruction in 64-bit mode)."
-// In non-64-bit modes, the 66h prefix works normally per CS.D setting.
+// Operand size of the near branches: CALL, RET, Jcc, JrCXZ, JMP, LOOP and
+// LOOPcc.  It sets the truncation of the new instruction pointer, the size
+// of CALL's push and RET's pop, and the indirect-branch operand size.
+// Outside 64-bit mode it is the operand size (CS.D and 66h).  In 64-bit
+// mode the manuals give 66h different meanings, so the model follows the
+// vendor register (regs.sail): "all of the above actions are forced to 64
+// bits regardless of operand size prefixes (operand size prefixes are
+// silently ignored)" (SDM Vol.1 §6.4.7 p.6-12; "f64", Vol.2D Table A-1),
+// where on AMD "The operand size for near branches can be overridden to
+// 16 bits in 64-bit mode" (APM Vol.2 §2.5.6 p.32; Vol.1 §3.7.9.1 Table
+// 3-9 p.90; Vol.3 Table B-1, note 6), and REX.W, which takes precedence
+// over 66h (Vol.3 §1.2.2 p.8), keeps it at 64.
 val opsize_forced64 : Prefixes -> {16, 32, 64}
 function opsize_forced64(pfx) =
-  if pfx.rex_w then {
-    64
-  } else if cur_mode == LongMode then {
-    if pfx.has_opsize then 16 else 64
+  if cur_mode == LongMode then {
+    if pfx.has_opsize & ~(pfx.rex_w) & vendor == Vendor_AMD then 16 else 64
   } else if get_cs_db() == 0b1 then {
     if pfx.has_opsize then 16 else 32
   } else {
     if pfx.has_opsize then 32 else 16
   }
 
-// Operand size for relative displacements (Jcc rel, CALL rel, JMP rel).
-// LongMode: always OS32 (66h ignored; displacement is sign-extended to 64).
-// Non-LongMode, CS.D=1: default OS32, 66h → OS16.
-// Non-LongMode, CS.D=0: default OS16, 66h → OS32.
+// Displacement size of CALL rel, JMP rel and Jcc rel (E8, E9, 0F 80-8F):
+// the operand size outside 64-bit mode, and in 64-bit mode 32 bits ("the
+// displacement field for relative branches is still limited to 32 bits",
+// SDM Vol.1 §6.4.7 p.6-12), but 16 bits where 66h makes the operand size
+// 16 on AMD (opsize_forced64): "CALL rel16off E8 iw", "JMP rel16off E9
+// cw", "JO rel16off 0F 80 cw" (APM Vol.3 CALL (Near), JMP (Near), Jcc).
 val opsize_rel : Prefixes -> {16, 32}
-function opsize_rel(pfx) =
-  if cur_mode == LongMode then {
-    32
-  } else if get_cs_db() == 0b1 then {
-    if pfx.has_opsize then 16 else 32
-  } else {
-    if pfx.has_opsize then 32 else 16
-  }
+function opsize_rel(pfx) = if opsize_forced64(pfx) == 16 then 16 else 32
 
 // =========================================================================
 // Register index helpers (extending 3-bit fields with REX bits)
