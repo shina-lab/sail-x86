@@ -121,13 +121,6 @@ const std::vector<KnownDeviation> DEVIATIONS = {
     {true, "fucomip st(0),st(1) (unmasked underflow, flags clear)*",
      "A Zen 4 sets ZF, PF and CF to unordered (111) on an unmasked stack underflow; the APM "
      "leaves the destination unchanged (Vol.1 Table 6-22, p.337), as for FCOMI."},
-    {false, "fcmovb st(0),st(1), ST(0) empty*",
-     "An Emerald Rapids raises a stack underflow for FCMOVcc with ST(0), its destination, empty, "
-     "whether or not the condition holds: masked it writes the indefinite to ST(0), unmasked it "
-     "sets IE, SF and ES.  The SDM: \"The source operand is always in the ST(i) register and the "
-     "destination operand is always ST(0)\" (Vol.2A FCMOVcc, p.3-322), and a stack underflow is "
-     "when \"An instruction references an empty x87 FPU register as a source operand\" (Vol.1 "
-     "§8.5.1.1, p.8-26)."},
 
     // System instructions, the MOV SS shadow, INT1 (sysmisc)
     {true, "int1 (F1) trap, RIP past the instruction*",

@@ -199,19 +199,21 @@ function x87_write_result(i, r) =
 // FCMOVcc, Operation, p.3-322).  "The source operand is always in the
 // ST(i) register and the destination operand is always ST(0)" (ibid.),
 // and a stack underflow is a reference to "an empty x87 FPU register as a
-// source operand" (Vol.1 §8.5.1.1, p.8-26), so an empty ST(0) is written
-// like any other destination.  The APM's "referencing an empty stack
+// source operand" (Vol.1 §8.5.1.1, p.8-26), so the SDM writes an empty
+// ST(0) like any other destination.  The APM's "referencing an empty stack
 // register" (Vol.1 §6.2.2.7, p.291) does not say whether a destination
-// counts; the model reads it as the SDM does, on both vendors.  Neither
-// manual says whether an empty ST(i) is an underflow when the condition
-// is false: the Operation reads ST(i) only when it is true, but the
-// underflow is defined on the source operand, which the instruction names
-// either way.  The model checks ST(i) either way, and a masked underflow
-// returns the indefinite "to the destination operand" (§8.5.1.1, p.8-27),
-// ST(0).
+// counts, so an empty ST(0) is an underflow or not, undefined; the
+// emulator takes the SDM's reading.  Neither manual says whether an empty
+// ST(i) is an underflow when the condition is false: the Operation reads
+// ST(i) only when it is true, but the underflow is defined on the source
+// operand, which the instruction names either way.  That is undefined as
+// well; the emulator checks ST(i).  A masked underflow returns the
+// indefinite "to the destination operand" (§8.5.1.1, p.8-27), ST(0).
 val x87_fcmov : (int, bit) -> unit
 function x87_fcmov(sti, cond) = {
-  let v = x87_operand(sti);
+  if x87_is_empty(0) & (undefined : bool) then x87_stack_fault(0b0);
+  let v : fp80 = if cond == bitone | ~(undefined : bool) then x87_operand(sti)
+                 else x87_read_st(sti);
   if cond == bitone | x87_stack_faulted then x87_write_result(0, v)
 }
 
@@ -260,12 +262,16 @@ function x87_trig_source(pushes) = {
 // reduction, "C2 := 1" for a partial one (SDM Vol.2A FPREM and FPREM1,
 // Operation).  There the SDM leaves C0, C3 and C1 open and the APM clears
 // them ("SW.C2 = 1 / {SW.C0, SW.C3, SW.C1} = 0", Vol.5 FPREM and FPREM1,
-// Action), as the model does on both vendors.  A NaN result (an invalid
-// operation, a NaN operand, a masked stack fault) has no quotient, and the
-// manuals give only C2 := 0 for a zero divisor or an infinite dividend
-// (SDM Vol.1 Table 8-10, APM Vol.1 Table 6-21) and C1 := 0 for a stack
-// underflow; the model clears C2 and C1 and leaves C0 and C3.  It clears
-// C2 first, so also when an unmasked stack fault ends the instruction.
+// Action): they are undefined, and the emulator's zeros are the APM's.
+// How far a partial step reduces, the SDM's "implementation-dependent
+// number between 32 and 63" and the APM's "32 + (ExpDiff mod 32)", is the
+// externs', which take the APM's, one of the SDM's.  A NaN result (an
+// invalid operation, a NaN operand, a masked stack fault) has no quotient,
+// and the manuals give only C2 := 0 for a zero divisor or an infinite
+// dividend (SDM Vol.1 Table 8-10, APM Vol.1 Table 6-21) and C1 := 0 for a
+// stack underflow; the model clears C2 and C1 and leaves C0 and C3.  It
+// clears C2 first, so also when an unmasked stack fault ends the
+// instruction.
 val x87_partial_remainder : bool -> unit
 function x87_partial_remainder(nearest) = {
   x87_sw[10] = 0b0;
@@ -274,10 +280,16 @@ function x87_partial_remainder(nearest) = {
   let r : bits(84) = if nearest then __f80_prem1(st0, st1) else __f80_prem(st0, st1);
   x87_write_result(0, r[79..0]);
   x87_sw[10] = r[83];  // C2: the reduction is incomplete
-  x87_sw[9] = r[80];   // C1 := Q0
-  if ~(r[78..64] == ones() & r[62..0] != zeros()) then {
-    x87_sw[8] = r[82];   // C0 := Q2
-    x87_sw[14] = r[81]   // C3 := Q1
+  if r[83] == bitone then {
+    x87_sw[8] = undefined;
+    x87_sw[9] = undefined;
+    x87_sw[14] = undefined
+  } else {
+    x87_sw[9] = r[80];   // C1 := Q0
+    if ~(r[78..64] == ones() & r[62..0] != zeros()) then {
+      x87_sw[8] = r[82];   // C0 := Q2
+      x87_sw[14] = r[81]   // C3 := Q1
+    }
   }
 }
 

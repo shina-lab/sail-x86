@@ -19,7 +19,6 @@
 
 #include "kvm-harness.h"
 #include <bit>
-#include <cpuid.h>
 #include <optional>
 
 namespace {
@@ -54,12 +53,6 @@ bool finite_nonzero(F80 v) { return (v.se & 0x7FFF) != 0x7FFF && v.m != 0; }
 int exponent_of(F80 v) {
   int exp = v.se & 0x7FFF;
   return exp == 0 ? 1 - std::countl_zero(v.m) : exp;
-}
-
-bool host_is_amd() {
-  u32 a, b, c, d;
-  __get_cpuid(0, &a, &b, &c, &d);
-  return b == 0x68747541;  // "Auth" of AuthenticAMD
 }
 
 // The 108-byte FRSTOR image (32-bit protected-mode layout, SDM Vol.1
@@ -112,7 +105,6 @@ const std::vector<u8> FFREE_ST0 = {0xDD, 0xC0}, FFREE_ST1 = {0xDD, 0xC1};
 }  // namespace
 
 void add_x87_cc_tests(std::vector<TestCase> &tests) {
-  const bool amd_host = host_is_amd();
   const F80 five = {0xA000000000000000ull, 0x4001};
   const F80 seven = {0xE000000000000000ull, 0x4001};
 
@@ -217,26 +209,24 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
   // are exact, so ST(0) is compared, and so are the exception flags but
   // where an operand is a denormal or NaN, or invalid.  ST(1) = b.
   //
-  // Every case expects the same on both hosts.  In two places one manual
-  // defines the outcome and the other leaves it open, and there the host
-  // whose manual leaves it open compares less; it is never given another
-  // value.
+  // In two places one manual defines the outcome and the other leaves it
+  // open, so it is open on every host: the case frees the result after
+  // FNSTSW and does not compare the condition codes left open.
   // - A partial step (D >= 64).  The APM defines it: "N = 32 + (ExpDiff
   //   mod 32)", "SW.C2 = 1", "{SW.C0, SW.C3, SW.C1} = 0" (Vol.5 FPREM
-  //   and FPREM1, Action, p.282 and p.284), as the model computes it.  The
-  //   SDM leaves it open: "N := An implementation-dependent number between
-  //   32 and 63", and its ELSE branch sets only "C2 := 1" (Vol.2A FPREM
-  //   and FPREM1, Operation, p.3-367 and p.3-369).  So an Intel host frees
-  //   the partial remainder after FNSTSW and does not compare C0, C3 and
-  //   C1 there.
+  //   and FPREM1, Action, p.282 and p.284), which the externs compute.
+  //   The SDM leaves it open: "N := An implementation-dependent number
+  //   between 32 and 63", and its ELSE branch sets only "C2 := 1" (Vol.2A
+  //   FPREM and FPREM1, Operation, p.3-367 and p.3-369).  The partial
+  //   remainder, C0, C3 and C1 are open; the model's condition codes are
+  //   undefined.
   // - FPREM1 with D = -1.  The SDM defines it: for "IF D < 64" its
-  //   Operation computes the complete remainder, as the model does.  The
+  //   Operation computes the complete remainder, as the externs do.  The
   //   APM leaves it open, since its Action leaves ST(0) for "IF (ExpDiff <
   //   0)" while its Description says "The remainder returned is a complete
   //   remainder and is less than or equal to one half of the magnitude of
   //   the divisor".  So where |ST(0)| is above half of |ST(1)| there (the
-  //   quotient rounds to 1), an AMD host frees ST(0) and does not compare
-  //   C1.
+  //   quotient rounds to 1), ST(0) and C1 are open.
   {
     const std::string cat = "x87 fprem";
     struct Op { const char *name; u8 modrm; bool nearest; };
@@ -246,11 +236,11 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
       std::vector<u8> after;
       if (finite_nonzero(a) && finite_nonzero(b)) {
         int d = exponent_of(a) - exponent_of(b);
-        if (!amd_host && d >= 64) {  // a partial step, by an open N
+        if (d >= 64) {  // a partial step, by an open N
           unmodeled |= C0 | C1 | C3;
           after = FFREE_ST0;
         }
-        if (amd_host && op.nearest && d == -1 && a.m > b.m) {  // |Q| rounds to 1
+        if (op.nearest && d == -1 && a.m > b.m) {  // |Q| rounds to 1
           unmodeled |= C1;
           after = FFREE_ST0;
         }
@@ -317,9 +307,8 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
       // the model for at most 1000 instructions.)  The final remainder does
       // not depend on N, and the final quotient bits locate "the original
       // angle in the correct one of eight sectors" (SDM FPREM and FPREM1,
-      // Description), so both hosts compare them.  The count depends on N,
-      // which the APM defines and the SDM leaves open (above): the expected
-      // count is the same, and an Intel host does not compare ECX.
+      // Description), so they are compared.  The count depends on N, which
+      // the APM defines and the SDM leaves open (above), and ECX is not.
       for (int d : {64, 100, 1000, 5000}) {
         std::vector<u8> loop = {0x31, 0xC9, 0xD9, op.modrm, 0xFF, 0xC1,
                                 0xDF, 0xE0, 0xF6, 0xC4, 0x04, 0x75, 0xF5};
@@ -328,7 +317,7 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
                                          {F80{0xC90FDAA22168C234ull, u16(0x3FFF + d)},
                                           F80{0xADF85458A2B5A3EBull, 0x3FFF}}),
                                loop, 0, {}, false);
-        if (!amd_host) tc.undefined.gpr[1] = ~0ull;  // RCX
+        tc.undefined.gpr[1] = ~0ull;  // RCX
         tests.push_back(std::move(tc));
       }
     }
@@ -382,15 +371,14 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
     // (Vol.1 §8.5.1.1).  So the SDM defines an empty ST(0) as no
     // underflow: taken, it gets ST(i); not taken, it stays empty.  The APM
     // leaves it open: its underflow, "referencing an empty stack register"
-    // (Vol.1 §6.2.2.7, p.291), may or may not include the destination.
-    // Both hosts expect the SDM's outcome; an AMD host compares less, not
-    // the exception flags, C1 and ST(0), and is never given another value.
-    // An empty ST(i) is an underflow when the move is taken: the indefinite
+    // (Vol.1 §6.2.2.7, p.291), may or may not include the destination.  So
+    // the exception flags, C1 and ST(0) are open, as in the model.  An
+    // empty ST(i) is an underflow when the move is taken: the indefinite
     // (masked) or nothing (unmasked).  Not taken, the Operation does not
     // reference ST(i), and neither manual says whether its tag is checked:
-    // open on every host.  C0, C2 and C3 are undefined; C1 is "Set to 0 if
-    // stack underflow occurred" and otherwise left.  fcmovb st(0),st(1),
-    // taken with CF = 1.
+    // open as well.  C0, C2 and C3 are undefined; C1 is "Set to 0 if stack
+    // underflow occurred" and otherwise left.  fcmovb st(0),st(1), taken
+    // with CF = 1.
     const u16 open_fault = IE | SF | ES | B | C1;
     std::vector<u8> drop_st0 = FNCLEX;
     drop_st0.insert(drop_st0.end(), FFREE_ST0.begin(), FFREE_ST0.end());
@@ -400,7 +388,7 @@ void add_x87_cc_tests(std::vector<TestCase> &tests) {
         for (int empty : {0, 1}) {
           std::vector<std::optional<F80>> st = {seven, five};
           st[empty] = std::nullopt;
-          bool open = empty == 0 ? amd_host : !taken;
+          bool open = empty == 0 || !taken;
           TestCase tc = x87_case(
               cat,
               std::format("fcmovb st(0),st(1), ST({}) empty, CF = {} ({})", empty, int(taken), how),

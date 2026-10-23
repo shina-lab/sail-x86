@@ -670,21 +670,28 @@ function exec_xsaveopt(base, mask, w) = xsave_standard(base, mask, w, true)
 // XSAVEC — Compacted format save (SDM Vol.1 §13.10 p.13-23)
 //
 // RFBM = XCR0 & EDX:EAX.  XCOMP_BV[63] = 1 and XCOMP_BV[62:0] = RFBM;
-// XSTATE_BV = RFBM & XINUSE, written whole, but "if RFBM[1] = 1 and MXCSR
-// does not have the value 1F80H, XSAVEC writes XSTATE_BV[1] as 1 even if
-// XINUSE[1] = 0".  With the init optimization a component is saved only
-// where XSTATE_BV is 1, the SSE one with MXCSR and MXCSR_MASK, whatever
-// RFBM[2] is.  Components are packed from offset 576 in the order of
-// XCOMP_BV, each in its place whether saved or not
-// (xsave_compacted_place).  A component XFD disables keeps its place too
-// (XCOMP_BV is unaffected, §13.14) but is not written (xinuse_saved).
+// XSTATE_BV = RFBM & XINUSE, written whole.  The SDM adds that "if
+// RFBM[1] = 1 and MXCSR does not have the value 1F80H, XSAVEC writes
+// XSTATE_BV[1] as 1 even if XINUSE[1] = 0", for "XINUSE[1] pertains only
+// to the state of the XMM registers and not to MXCSR"; the APM has
+// XSTATE_BV = "the logical AND of the RFBM and XINUSE bitmaps" and no
+// such rule (Vol.4 XSAVEC p.1776), so with the XMM registers in their
+// initial configuration XSTATE_BV[1] is XINUSE[1], either value, there.
+// The bit is undefined then, and the emulator takes the SDM's 1.  With the
+// init optimization a component is saved only where XSTATE_BV is 1, the
+// SSE one with MXCSR and MXCSR_MASK, whatever RFBM[2] is.  Components are
+// packed from offset 576 in the order of XCOMP_BV, each in its place
+// whether saved or not (xsave_compacted_place).  A component XFD disables
+// keeps its place too (XCOMP_BV is unaffected, §13.14) but is not written
+// (xinuse_saved).
 // =========================================================================
 
 val exec_xsavec : (qword, qword, bool) -> unit
 function exec_xsavec(base, mask, w) = {
   let rfbm : qword = mask & XCR0;
   var save : qword = rfbm & xinuse_saved();
-  if rfbm[1] == bitone & __stmxcsr() != 0x00001F80 then save[1] = bitone;
+  if rfbm[1] == bitone & __stmxcsr() != 0x00001F80 then
+    save[1] = if (undefined : bool) then save[1] else bitone;
 
   // Save legacy region (same offsets as standard format)
   if save[0] == bitone then xsave_x87(base, w, false);
