@@ -1495,8 +1495,10 @@ struct Suite {
   std::vector<const char *> origins;  // per case, the template file
 
   // Of the cases the templates construct, per Avx512Feature, those that
-  // need it and those not run because the host lacks it.
+  // need it and those not run because the host lacks it, and per extension
+  // the model does not implement, those not run because the host has it.
   std::array<size_t, AVX512_FEATURES> avx512_cases{}, avx512_not_run{};
+  std::vector<std::pair<std::string, size_t>> unimplemented_not_run;
 
   // Whether the host runs a constructed case, counted as above.
   bool host_runs(const TestCase &tc) {
@@ -1509,6 +1511,15 @@ struct Suite {
         avx512_not_run[f]++;
         runs = false;
       }
+    }
+    if (const char *ext = host_unimplemented_extension(tc)) {
+      auto it = std::find_if(unimplemented_not_run.begin(), unimplemented_not_run.end(),
+                             [&](const auto &p) { return p.first == ext; });
+      if (it == unimplemented_not_run.end())
+        unimplemented_not_run.push_back({ext, 1});
+      else
+        it->second++;
+      runs = false;
     }
     return runs;
   }
@@ -1557,6 +1568,12 @@ Suite build_suite() {
                              s.avx512_not_run[f]);
   if (!not_run.empty())
     fprintf(stderr, "Cases not run, the host lacks:%s\n", not_run.c_str());
+  not_run.clear();
+  for (const auto &[ext, n] : s.unimplemented_not_run)
+    not_run += std::format(" {} ({})", ext, n);
+  if (!not_run.empty())
+    fprintf(stderr, "Cases not run, the host has what the model does not implement:%s\n",
+            not_run.c_str());
   return s;
 }
 
@@ -1625,6 +1642,9 @@ static int list_tests(const char *path) {
     fprintf(out, " %s %zu%s", avx512_feature_name(Avx512Feature(f)), suite.avx512_cases[f],
             host_has(Avx512Feature(f)) ? "" : " (not run: the host lacks it)");
   fprintf(out, "\n");
+  for (const auto &[ext, n] : suite.unimplemented_not_run)
+    fprintf(out, "# not run, of %s, which the host has and the model does not implement: %zu\n",
+            ext.c_str(), n);
   fprintf(out, "template\tfill\tcategory\tname\tcode\tcompat_mode\texpect_fault\t"
                "expected_vector\tinit_data_len\tmay_fault\tenable_paging\t"
                "system_mode\tflags_mask\tapprox\tmsrs\txcr0_override\t"

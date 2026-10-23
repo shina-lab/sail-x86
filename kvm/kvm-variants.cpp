@@ -617,6 +617,9 @@ struct Emit {
     if (p == std::string::npos) p = b.tc.name.size();
     v.name = b.tc.name.substr(0, p) + " [" + detail + "]" + b.tc.name.substr(p);
     v.category = category;
+    // An encoding that an extension of the host defines and the model
+    // does not implement.
+    if (host_unimplemented_extension(v)) return;
     mark_undefined(v);
     fn(std::move(v));
   }
@@ -1390,6 +1393,22 @@ bool open_encoding(const Insn &orig, const Insn &in) {
   return in.map == 3 && in.pp == 1 && (in.op == 0x00 || in.op == 0x01) && !in.W && orig.W;
 }
 
+// Whether the host has Intel AVX10 of version 2 or later: CPUID.(07H,1):
+// EDX[19] and the version in CPUID.24H.00H:EBX[7:0] (SDM Vol.1 Table 16-1).
+// The SDM describes version 1, which is the AVX-512 instructions.  Version
+// 2 defines EVEX encodings across the maps that the model does not
+// implement (VADDBF16, EVEX.66.MAP5 58, is a pp flip of VADDPH), so on
+// such a host the EVEX fields are not flipped.
+bool host_has_avx10_2() {
+  static const bool has = [] {
+    if (!host_has(7, 1, CPUID_EDX, 19)) return false;
+    u32 a, b, c, d;
+    __cpuid_count(0x24, 0, a, b, c, d);
+    return (b & 0xFF) >= 2;
+  }();
+  return has;
+}
+
 // The fields of VEX and EVEX prefixes, one at a time: W, vvvv and V' (1111b
 // and 1 where there is no such operand), L or L'L, pp, EVEX.b, z and aaa,
 // and the bits EVEX fixes (P0[3] = 0, P1[2] = 1).  The result is another
@@ -1399,7 +1418,7 @@ void make_fields(const Base &b, const Emit &emit) {
   if (!b.movable) return;
   for (size_t i = 0; i < b.insns.size(); i++) {
     const Insn &orig = b.insns[i];
-    if (orig.enc == Enc::Legacy) continue;
+    if (orig.enc == Enc::Legacy || (orig.enc == Enc::Evex && host_has_avx10_2())) continue;
     bool evex = orig.enc == Enc::Evex;
     std::vector<std::pair<std::string, Insn>> flips;
     auto flip = [&](std::string detail, auto change) {
@@ -1738,8 +1757,10 @@ void for_each_variant(const std::vector<TestCase> &tests,
 // ---- The CPUID features of the instructions ----
 //
 // Which cases a host runs, from the encodings of their instructions: one
-// of AVX-512 instructions where the host has the features they need
-// (build_suite in kvm-harness.cpp).
+// of AVX-512 instructions where the host has the features they need, and
+// one of an encoding that an extension the model does not implement
+// defines where the host lacks that extension (build_suite in
+// kvm-harness.cpp; a variant likewise, Emit above).
 
 namespace {
 
@@ -1895,6 +1916,66 @@ u32 opmask_features(const Insn &in) {
   return 1u << AVX512F | 1u << ext;
 }
 
+// The encodings of extensions that the model does not implement: their
+// opcodes in their map with their prefixes, whatever W and L.
+struct Unimplemented {
+  const char *name;
+  u32 leaf, subleaf;
+  CpuidReg reg;
+  unsigned bit;
+  bool (*defines)(const Insn &in);
+};
+
+bool vex_map(const Insn &in, int map) { return in.enc == Enc::Vex && in.map == map; }
+bool evex_map(const Insn &in, int map) { return in.enc == Enc::Evex && in.map == map; }
+
+const Unimplemented UNIMPLEMENTED[] = {
+  // Intel APX makes EVEX P0[3] and P1[2], which are 0 and 1 in the SDM
+  // ("P[3] | if > 0", "P[10] | if 0": Vol.2A Table 2-40, #UD), the fifth
+  // bits of the B and X register fields (CPUID.(07H,1):EDX[21], Intel APX
+  // Architecture Specification).
+  {"APX_F", 7, 1, CPUID_EDX, 21,
+   [](const Insn &in) { return in.enc == Enc::Evex && (in.evex_p0_bit3 || !in.evex_p1_bit2); }},
+  // The Intel Xeon Phi extensions (SDM Vol.2D Chapter 8; Vol.1 Table
+  // 21-21): VP4DPWSSD, VP4DPWSSDS (EVEX.F2.0F38 52, 53) and V4FMADDPS,
+  // V4FMADDSS, V4FNMADDPS, V4FNMADDSS (EVEX.F2.0F38 9A, 9B, AA, AB).
+  {"AVX512_4VNNIW", 7, 0, CPUID_EDX, 2,
+   [](const Insn &in) { return evex_map(in, 2) && in.pp == 3 && (in.op == 0x52 || in.op == 0x53); }},
+  {"AVX512_4FMAPS", 7, 0, CPUID_EDX, 3,
+   [](const Insn &in) { return evex_map(in, 2) && in.pp == 3 && one_of(in.op, {0x9A, 0x9B, 0xAA, 0xAB}); }},
+  // The VEX extensions of Vol.1 Tables 21-22 and 21-25: VPDPBSSD ...
+  // VPDPBUUDS (F2, F3 and NP 0F38 50, 51), the AVX-NE-CONVERT loads and
+  // conversions (0F38 B0, 66 and F3 B1, F3 72), VPDPWSUD ... VPDPWUUDS
+  // (F3, 66 and NP 0F38 D2, D3), VSHA512MSG1, VSHA512MSG2, VSHA512RNDS2
+  // (F2 0F38 CC, CD, CB), VSM3MSG1, VSM3MSG2 (NP and 66 0F38 DA), VSM3RNDS2
+  // (66 0F3A DE), VSM4KEY4, VSM4RNDS4 (F3 and F2 0F38 DA), CMPccXADD (66
+  // 0F38 E0-EF), TDPFP16PS (F2 0F38 5C) and VPMADD52LUQ, VPMADD52HUQ (66
+  // 0F38 B4, B5).
+  {"AVX_VNNI_INT8", 7, 1, CPUID_EDX, 4,
+   [](const Insn &in) { return vex_map(in, 2) && in.pp != 1 && (in.op == 0x50 || in.op == 0x51); }},
+  {"AVX_NE_CONVERT", 7, 1, CPUID_EDX, 5,
+   [](const Insn &in) {
+     return vex_map(in, 2) && (in.op == 0xB0 || (in.op == 0xB1 && (in.pp == 1 || in.pp == 2)) ||
+                           (in.op == 0x72 && in.pp == 2));
+   }},
+  {"AVX_VNNI_INT16", 7, 1, CPUID_EDX, 10,
+   [](const Insn &in) { return vex_map(in, 2) && in.pp <= 2 && (in.op == 0xD2 || in.op == 0xD3); }},
+  {"SHA512", 7, 1, CPUID_EAX, 0,
+   [](const Insn &in) { return vex_map(in, 2) && in.pp == 3 && in.op >= 0xCB && in.op <= 0xCD; }},
+  {"SM3", 7, 1, CPUID_EAX, 1,
+   [](const Insn &in) {
+     return (vex_map(in, 2) && in.pp <= 1 && in.op == 0xDA) || (vex_map(in, 3) && in.pp == 1 && in.op == 0xDE);
+   }},
+  {"SM4", 7, 1, CPUID_EAX, 2,
+   [](const Insn &in) { return vex_map(in, 2) && in.pp >= 2 && in.op == 0xDA; }},
+  {"CMPCCXADD", 7, 1, CPUID_EAX, 7,
+   [](const Insn &in) { return vex_map(in, 2) && in.pp == 1 && (in.op & 0xF0) == 0xE0; }},
+  {"AMX_FP16", 7, 1, CPUID_EAX, 21,
+   [](const Insn &in) { return vex_map(in, 2) && in.pp == 3 && in.op == 0x5C; }},
+  {"AVX_IFMA", 7, 1, CPUID_EAX, 23,
+   [](const Insn &in) { return vex_map(in, 2) && in.pp == 1 && (in.op == 0xB4 || in.op == 0xB5); }},
+};
+
 }  // namespace
 
 u32 avx512_case_features(const TestCase &tc) {
@@ -1906,4 +1987,18 @@ u32 avx512_case_features(const TestCase &tc) {
       needs |= opmask_features(in);
   }
   return needs;
+}
+
+const char *host_unimplemented_extension(const TestCase &tc) {
+  static const std::vector<const Unimplemented *> host = [] {
+    std::vector<const Unimplemented *> v;
+    for (const Unimplemented &u : UNIMPLEMENTED)
+      if (host_has(u.leaf, u.subleaf, u.reg, u.bit)) v.push_back(&u);
+    return v;
+  }();
+  if (host.empty()) return nullptr;
+  for (const Insn &in : leading_insns(tc.code, tc.compat_mode))
+    for (const Unimplemented *u : host)
+      if (u->defines(in)) return u->name;
+  return nullptr;
 }

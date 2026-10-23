@@ -690,6 +690,11 @@ bool host_has(Avx512Feature f);
 // 1 << Avx512Feature (kvm-variants.cpp).
 u32 avx512_case_features(const TestCase &tc);
 
+// The extension that the model does not implement and the host reports
+// that defines one of the instructions of a case, or nullptr: the model
+// raises #UD for them, and the host executes them (kvm-variants.cpp).
+const char *host_unimplemented_extension(const TestCase &tc);
+
 // Test registration functions (defined in separate kvm-tests-*.cpp files)
 void add_systematic_tests(std::vector<TestCase> &tests);
 void add_baseline_tests(std::vector<TestCase> &tests);

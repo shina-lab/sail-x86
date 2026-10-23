@@ -167,3 +167,8 @@ the cases that need it not run, and every case must pass but the variants
 whose encoding needs it (#UD on both sides of a host that lacks it);
 `--model-lacks=NAME` clears it in the model only, and a case that needs it
 must then fail with the model's #UD where the host executes it.
+
+A case or variant of an encoding that an extension the model does not
+implement defines (APX, AVX512_4FMAPS, AMX-FP16, AVX-VNNI-INT8, ...) does not
+run on a host that has that extension (`host_unimplemented_extension` in
+`kvm-variants.cpp`): the model raises #UD for it, and such a host executes it.
