@@ -31,17 +31,19 @@ void add_feature_tests(std::vector<TestCase> &tests) {
   add_ud("VPXOR with AVX disabled", {0xC5, 0xF1, 0xEF, 0xC2}, {}, 0x03);
   add_ud("VMOVDQA with AVX disabled", {0xC5, 0xF9, 0x6F, 0xC1}, {}, 0x03);
 
-  // --- AVX-512 disabled (XCR0=0x07: x87+SSE+AVX, no opmask/ZMM) ---
+  // --- AVX-512 disabled (XCR0 = x87+SSE+AVX where the guest has AVX, no
+  // opmask/ZMM) ---
+  const u64 no_avx512 = guest_xcr0() & 0x07;
   // VPADDD zmm0, zmm1, zmm2  (62 F1 75 48 FE C2)
   add_ud("VPADDD zmm with AVX-512 disabled",
-         {0x62, 0xF1, 0x75, 0x48, 0xFE, 0xC2}, {}, 0x07);
+         {0x62, 0xF1, 0x75, 0x48, 0xFE, 0xC2}, {}, no_avx512);
   // VPXORD zmm0, zmm1, zmm2  (62 F1 75 48 EF C2)
   add_ud("VPXORD zmm with AVX-512 disabled",
-         {0x62, 0xF1, 0x75, 0x48, 0xEF, 0xC2}, {}, 0x07);
+         {0x62, 0xF1, 0x75, 0x48, 0xEF, 0xC2}, {}, no_avx512);
 
-  // --- CR4.OSXSAVE disabled (0x10620 = 0x50620 without bit 18) ---
+  // --- CR4.OSXSAVE disabled (the guest's CR4 without bit 18) ---
   add_ud("VADDPS with OSXSAVE disabled", {0xC5, 0xF0, 0x58, 0xC2},
-         {}, 0xE7, 0x10620);
+         {}, guest_xcr0(), guest_cr4() & ~CR4_OSXSAVE);
 
   // --- GPR instructions unaffected by AVX being disabled ---
   {

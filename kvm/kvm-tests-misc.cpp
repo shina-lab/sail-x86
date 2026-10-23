@@ -24,7 +24,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "SSE4.2";
 
-  {
+  if (host_has(feature::SSE4_2)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x0001020304050607, 0x08090A0B0C0D0E0F);
@@ -34,7 +34,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   }
 
   // PCMPISTRI — implicit-length string compare
-  {
+  if (host_has(feature::SSE4_2)) {
     ArchState s;
     // "Hello\0\0..." in xmm0
     s.xmm[0] = xmm_from_u64(0x0000006F6C6C6548, 0);
@@ -53,7 +53,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   }
 
   // PCMPISTRM — implicit-length string compare, result in XMM0
-  {
+  if (host_has(feature::SSE4_2)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0x0000006F6C6C6548, 0);
     s.xmm[1] = xmm_from_u64(0x0000006F6C6C6548, 0);
@@ -63,7 +63,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   }
 
   // PCMPESTRI — explicit-length string compare (length in EAX/EDX)
-  {
+  if (host_has(feature::SSE4_2)) {
     ArchState s;
     s.rax = 5;  // length of string in xmm0
     s.rdx = 5;  // length of string in xmm1
@@ -76,7 +76,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   }
 
   // PCMPESTRM — explicit-length, result in XMM0
-  {
+  if (host_has(feature::SSE4_2)) {
     ArchState s;
     s.rax = 5;
     s.rdx = 5;
@@ -88,7 +88,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   }
 
   // CRC32
-  {
+  if (host_has(feature::SSE4_2)) {
     ArchState s;
     s.rax = 0;         // initial CRC
     s.rcx = 0x12345678;
@@ -106,7 +106,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "AES";
 
-  {
+  if (host_has(feature::AESNI)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -124,6 +124,11 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // AESKEYGENASSIST XMM1, XMM0, 0x01: 66 0F 3A DF C8 01
     add_xmm("aeskeygenassist xmm1,xmm0,0x01", {0x66, 0x0F, 0x3A, 0xDF, 0xC8, 0x01},
         with_vector_inputs(s, 0x1), 0x2);
+  }
+  if (host_has(feature::PCLMULQDQ)) {
+    ArchState s;
+    s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
+    s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
     // PCLMULQDQ XMM0, XMM1, 0x00: 66 0F 3A 44 C1 00
     add_xmm("pclmulqdq xmm0,xmm1,0x00", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
   }
@@ -294,12 +299,9 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // MOVNTI [RDI], RAX: 48 0F C3 07
     add_mem("movnti [rdi],rax", {0x48, 0x0F, 0xC3, 0x07}, s, FL_ALL, {}, 8);
 
-    // MOVDIRI/MOVDIR64B: only test if the host CPU supports them
+    // MOVDIRI/MOVDIR64B: only where the guest has them
     // (CPUID leaf 7, ECX bit 27 = MOVDIRI, bit 28 = MOVDIR64B)
-    u32 eax7, ebx7, ecx7, edx7;
-    __cpuid_count(7, 0, eax7, ebx7, ecx7, edx7);
-
-    if (ecx7 & (1u << 27)) {
+    if (host_has(feature::MOVDIRI)) {
       // MOVDIRI [RDI], EAX: NP 0F 38 F9 07
       add_mem("movdiri [rdi],eax", {0x0F, 0x38, 0xF9, 0x07}, s, FL_ALL, {}, 4);
 
@@ -315,7 +317,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       add_mem("movdiri [rdi],r8", {0x4C, 0x0F, 0x38, 0xF9, 0x07}, s, FL_ALL, {}, 8);
     }
 
-    if (ecx7 & (1u << 28)) {
+    if (host_has(feature::MOVDIR64B)) {
       // MOVDIR64B RAX, [RDI]: 66 0F 38 F8 07
       // reg=RAX holds destination address, r/m=[RDI] is source
       ArchState s2;
@@ -341,7 +343,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // alignment, 4-52) the exception lists leave open, so a case that
     // pairs it with a #PF allows both.  No case has an ES base or limit:
     // the guest's GDT has no data segment with either.
-    if (ecx7 & (1u << 28)) {
+    if (host_has(feature::MOVDIR64B)) {
       cat = "MOVDIR64B";
       const std::vector<u8> MOVDIR64B = {0x66, 0x0F, 0x38, 0xF8, 0x07};
       const u64 dst = DATA_ADDR + 0x80;
@@ -425,7 +427,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       add_md("movdir64b register form → #UD", {0x66, 0x0F, 0x38, 0xF8, 0xC7}, {}, 6);
     }
 
-    // ENQCMD (F2 0F 38 F8) and ENQCMDS (F3 0F 38 F8): only where the host
+    // ENQCMD (F2 0F 38 F8) and ENQCMDS (F3 0F 38 F8): only where the guest
     // has them (CPUID leaf 7, ECX bit 29).  The cases run at CPL 0, where
     // ENQCMDS completes: its destination is memory, so the enqueue store
     // is dropped (written neither to memory nor anywhere else) with ZF = 1
@@ -442,7 +444,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // both, and whether the dropped store hits a data breakpoint on writes
     // is open too.  rdi is the source, rax the destination, as in
     // MOVDIR64B.
-    if (ecx7 & (1u << 29)) {
+    if (host_has(feature::ENQCMD)) {
       cat = "ENQCMD";
       const std::vector<u8> ENQCMDS = {0xF3, 0x0F, 0x38, 0xF8, 0x07};
       const std::vector<u8> ENQCMD = {0xF2, 0x0F, 0x38, 0xF8, 0x07};
@@ -578,7 +580,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   //     ADDSUBPS/PD
   // =====================================================================
   cat = "SSE3";
-  {
+  if (host_has(feature::SSE3)) {
     ArchState s;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -598,7 +600,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // ADDSUBPS XMM0, XMM1: F2 0F D0 C1
     add_xmm("addsubps xmm0,xmm1", {0xF2, 0x0F, 0xD0, 0xC1}, s, 0x3);
   }
-  {
+  if (host_has(feature::SSE3)) {
     ArchState s;
     s.xmm[0] = xmm_from_f64(1.5, 2.5);
     s.xmm[1] = xmm_from_f64(3.0, 4.0);
@@ -620,7 +622,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // 38. SSE4.1 remaining — BLENDVPS, BLENDVPD, PBLENDVB, PHMINPOSUW
   // =====================================================================
   cat = "SSE4.1v";
-  {
+  if (host_has(feature::SSE4_1)) {
     ArchState s;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -646,7 +648,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     s.xmm[2] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
     add_xmm("pblendvb xmm2,xmm1,xmm0", {0x66, 0x0F, 0x38, 0x10, 0xD1}, s, 0x7);
   }
-  {
+  if (host_has(feature::SSE4_1)) {
     // PHMINPOSUW XMM0, XMM1: 66 0F 38 41 C1
     ArchState s;
     s.xmm[1] = xmm_from_u64(0x0005000300070001, 0x0009000200040008);
@@ -762,10 +764,9 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // Test: MOVD MM0,EAX (marks tags valid), then EMMS, then
     // FXSAVE [RDI] to capture state. Compare the saved area —
     // the abridged tag word at offset 4 should be 0xFF (all empty).
-    // The image includes MXCSR_MASK (bytes 28-31), which the SDM leaves
-    // implementation specific (0xFFFF on Intel, 0x2FFFF on AMD); the
-    // model follows the vendor profile the harness selects from the host,
-    // so the field is compared like the rest.
+    // The image includes MXCSR_MASK (bytes 28-31), which is implementation
+    // specific (SDM Vol.1 §11.6.6); the harness gives the model the value
+    // of the host's own FXSAVE, so the field is compared like the rest.
     {
       std::vector<u8> init_data(512, 0);
       tests.push_back({"emms clears tags", cat,
@@ -782,7 +783,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // 42. MOVNTDQA (SSE4.1 streaming load)
   // =====================================================================
   cat = "SSE4.1v";
-  {
+  if (host_has(feature::SSE4_1)) {
     ArchState s;
     s.rdi = DATA_ADDR;
     // 16 bytes of test data (aligned)
@@ -798,7 +799,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "GFNI";
 
-  {
+  if (host_has(feature::GFNI)) {
     ArchState s;
     // Use an 8x8 identity-like matrix in XMM1 and some data in XMM0
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
@@ -823,7 +824,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "SHA";
 
-  {
+  if (host_has(feature::SHA)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0x6A09E667BB67AE85, 0x3C6EF372A54FF53A);
     s.xmm[1] = xmm_from_u64(0x510E527F9B05688C, 0x1F83D9AB5BE0CD19);
@@ -867,7 +868,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   //     Requires CR4.FSGSBASE (bit 16) = 1
   // =====================================================================
   cat = "FSGSBASE";
-  {
+  if (host_has(feature::FSGSBASE)) {
     // WRFSBASE RBX; RDFSBASE RAX — 64-bit round-trip
     // F3 REX.W 0F AE /2 = WRFSBASE r64 (F3 48 0F AE D3: mod=11, reg=010, rm=011=RBX)
     // F3 REX.W 0F AE /0 = RDFSBASE r64 (F3 48 0F AE C0: mod=11, reg=000, rm=000=RAX)
@@ -921,7 +922,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   //   XRSTOR [RDI]: 0F AE /5 -> ModRM 00 101 111 = 0x2F
   //   EDX:EAX = component mask (bit 0 = x87, bit 1 = SSE)
   // =====================================================================
-  {
+  if (host_has(feature::XSAVE)) {
     cat = "XSAVE/XRSTOR";
 
     // Round-trip: XSAVE then PXOR to clear XMMs, then XRSTOR to restore.
@@ -1115,7 +1116,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
   // BMI2 — bit manipulation instructions (GPR tests)
   // =====================================================================
   cat = "BMI2";
-  {
+  if (host_has(feature::BMI2)) {
     // BZHI eax, ecx, edx — zero high bits in ecx starting at bit position in edx
     // VEX.NDS.LZ.0F38.W0 F5 /r — C4 E2 68 F5 C1
     // reg=0(eax dest), rm=1(ecx src), vvvv=~2=1101(edx index)
@@ -1793,7 +1794,8 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     // R̄=1, vvvv=1111, L=0, pp=01(66) → 0xF9
     // C5 F9 D6 C8: VMOVQ xmm0, xmm1
     // reg=xmm1(1), rm=xmm0(0): ModRM = mod=11, reg=001, rm=000 → 0xC8
-    add_xmm("vmovq xmm0,xmm1 (VEX D6)", {0xC5, 0xF9, 0xD6, 0xC8}, s, 0x3);
+    if (host_has(feature::AVX))
+      add_xmm("vmovq xmm0,xmm1 (VEX D6)", {0xC5, 0xF9, 0xD6, 0xC8}, s, 0x3);
   }
 
   cat = "K-register ops";
@@ -2170,7 +2172,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     }
 
     // VMOVAPS [rdi], xmm0: C5 F8 29 07
-    {
+    if (host_has(feature::AVX)) {
       TestCase tc;
       tc.name = "vmovaps [rdi],xmm0";
       tc.category = cat;
@@ -2183,7 +2185,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     }
 
     // VMOVDQU [rdi], xmm0: C5 FA 7F 07
-    {
+    if (host_has(feature::AVX)) {
       TestCase tc;
       tc.name = "vmovdqu [rdi],xmm0";
       tc.category = cat;
@@ -2200,7 +2202,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
 
     // VMOVAPS [rdi], ymm0: need to set up ymm0 first
     // Use VINSERTF128 ymm0, ymm0, xmm1, 1 (C4 E3 7D 18 C1 01) to set hi half
-    {
+    if (host_has(feature::AVX)) {
       TestCase tc;
       tc.name = "vmovaps [rdi],ymm0 (32 bytes)";
       tc.category = cat;
@@ -2214,7 +2216,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
     }
 
     // VMOVDQU [rdi], ymm0: C5 FE 7F 07
-    {
+    if (host_has(feature::AVX)) {
       TestCase tc;
       tc.name = "vmovdqu [rdi],ymm0 (32 bytes)";
       tc.category = cat;

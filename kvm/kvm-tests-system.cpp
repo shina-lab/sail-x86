@@ -55,7 +55,7 @@ void add_system_tests(std::vector<TestCase> &tests) {
   };
 
   const u64 CR0_GUEST = 0x80000011;  // PG + ET + PE, as the harness sets it
-  const u64 CR4_GUEST = 0x50620;     // PAE + OSFXSR + OSXMMEXCPT + FSGSBASE + OSXSAVE
+  const u64 CR4_GUEST = guest_cr4();  // as the harness sets it
 
   // =====================================================================
   // MOV r64, CRn / MOV CRn, r64 (0F 20 /r, 0F 22 /r) and CLTS (0F 06)
@@ -153,20 +153,17 @@ void add_system_tests(std::vector<TestCase> &tests) {
 
     // RDPID (F3 0F C7 /7): IA32_TSC_AUX into the destination, the full
     // 64-bit register in 64-bit mode whatever the 66 prefix says.
-    {
-      u32 a, b, c, d;
-      if (__get_cpuid_count(7, 0, &a, &b, &c, &d) && (c & (1u << 22))) {
-        const u32 MSR_TSC_AUX = 0xC0000103;
-        auto rdpid = [&](const std::string &name, std::vector<u8> code, u64 aux) {
-          TestCase tc = {name, cat, std::move(code), {}, FL_ALL};
-          tc.msrs = {{MSR_TSC_AUX, aux}};
-          tests.push_back(std::move(tc));
-        };
-        rdpid("rdpid rbx", {0xF3, 0x0F, 0xC7, 0xFB}, 0x00C0FFEE);
-        rdpid("rdpid rbx (TSC_AUX = 0)", {0xF3, 0x0F, 0xC7, 0xFB}, 0);
-        rdpid("rdpid rbx (66 prefix: still the full register)", {0x66, 0xF3, 0x0F, 0xC7, 0xFB}, 0x89ABCDEF);
-        rdpid("rdpid r11 (REX.B)", {0xF3, 0x41, 0x0F, 0xC7, 0xFB}, 0x12345678);
-      }
+    if (host_has(feature::RDPID)) {
+      const u32 MSR_TSC_AUX = 0xC0000103;
+      auto rdpid = [&](const std::string &name, std::vector<u8> code, u64 aux) {
+        TestCase tc = {name, cat, std::move(code), {}, FL_ALL};
+        tc.msrs = {{MSR_TSC_AUX, aux}};
+        tests.push_back(std::move(tc));
+      };
+      rdpid("rdpid rbx", {0xF3, 0x0F, 0xC7, 0xFB}, 0x00C0FFEE);
+      rdpid("rdpid rbx (TSC_AUX = 0)", {0xF3, 0x0F, 0xC7, 0xFB}, 0);
+      rdpid("rdpid rbx (66 prefix: still the full register)", {0x66, 0xF3, 0x0F, 0xC7, 0xFB}, 0x89ABCDEF);
+      rdpid("rdpid r11 (REX.B)", {0xF3, 0x41, 0x0F, 0xC7, 0xFB}, 0x12345678);
     }
   }
 

@@ -257,7 +257,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   //   opcode=0x58, ModRM=0xC2 (mod=11, reg=0, rm=2)
   // =====================================================================
   cat = "AVX smoke";
-  {
+  if (host_has(feature::AVX)) {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -301,7 +301,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   }
 
   // AVX packed double
-  {
+  if (host_has(feature::AVX)) {
     ArchState s;
     s.xmm[1] = xmm_from_f64(1.5, 2.5);
     s.xmm[2] = xmm_from_f64(3.0, 4.0);
@@ -331,7 +331,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   }
 
   // AVX scalar
-  {
+  if (host_has(feature::AVX)) {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -360,7 +360,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   }
 
   // AVX data movement
-  {
+  if (host_has(feature::AVX)) {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
 
@@ -377,7 +377,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   }
 
   // AVX packed integer
-  {
+  if (host_has(feature::AVX)) {
     ArchState s;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -405,7 +405,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   }
 
   // AVX VCMPPS/VCMPPD
-  {
+  if (host_has(feature::AVX)) {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(1.0f, 3.0f, 2.0f, 4.0f);
@@ -417,7 +417,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   }
 
   // AVX conversion: VCVTDQ2PS, VCVTPS2DQ
-  {
+  if (host_has(feature::AVX)) {
     ArchState s;
     s.xmm[1] = xmm_from_u32(1, 2, 0xFFFFFFFF, 100);  // ints: 1, 2, -1, 100
 
@@ -435,11 +435,11 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // 48. AVX VBROADCAST, VINSERTF128/VEXTRACTF128
   // =====================================================================
   cat = "AVX smoke";
-  {
+  if (host_has(feature::AVX2)) {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
 
-    // VBROADCASTSS xmm0, xmm1: VEX.128.66.0F38.W0 18 /r
+    // VBROADCASTSS xmm0, xmm1: VEX.128.66.0F38.W0 18 /r (AVX2, with a register source)
     // 3-byte VEX: C4 [R̄.X̄.B̄.mmmmm] [W.vvvv.L.pp]
     // R̄=1, X̄=1, B̄=1, mmmmm=00010 (0F38) → byte1 = 0b_111_00010 = 0xE2
     // W=0, vvvv=1111 (unused), L=0, pp=01 (66) → byte2 = 0b_0_1111_0_01 = 0x79
@@ -655,7 +655,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   //   P1: W=0, vvvv=~1=1110, L=0, pp=01 (66) → 0x71
   // =====================================================================
   cat = "AVX smoke";
-  {
+  if (host_has(feature::FMA)) {
     ArchState s;
     s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -712,7 +712,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   //   C4 E3 7D 19 C2 01 → extract upper 128 of ymm0 into xmm2
   // =====================================================================
   cat = "AVX smoke";
-  {
+  if (host_has(feature::AVX)) {
     ArchState s;
     s.xmm[1] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
     s.xmm[2] = xmm_from_u64(0xAAAAAAAABBBBBBBB, 0xCCCCCCCCDDDDDDDD);
@@ -1827,7 +1827,7 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
   // 73. VEX VFMADDSUB / VFMSUBADD
   // =====================================================================
   cat = "AVX smoke";
-  {
+  if (host_has(feature::FMA)) {
     ArchState s;
     s.xmm[0] = xmm_from_f32(2.0f, 3.0f, 4.0f, 5.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);

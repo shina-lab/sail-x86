@@ -114,14 +114,7 @@ void add_hint_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "PTWRITE";
   {
-    u32 a, b, c, d;
-    __cpuid_count(7, 0, a, b, c, d);
-    bool ptwrite = false;
-    if ((b & (1u << 25)) && __get_cpuid_max(0, nullptr) >= 0x14) {
-      __cpuid_count(0x14, 0, a, b, c, d);
-      ptwrite = (b & (1u << 4)) != 0;
-    }
-    if (ptwrite) {
+    if (host_has(feature::PT) && host_has(feature::PTWRITE)) {
       add("ptwrite eax", {0xF3, 0x0F, 0xAE, 0xE0});
       add("ptwrite rax (REX.W)", {0xF3, 0x48, 0x0F, 0xAE, 0xE0});
       add("ptwrite dword [rdi]", {0xF3, 0x0F, 0xAE, 0x27});
@@ -137,16 +130,12 @@ void add_hint_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // SERIALIZE — NP 0F 01 E8: no effect on registers, flags or memory.
   // #UD where CPUID.7.0:EDX[14] = 0, so it is constructed only on a host
-  // with it (the AMD host has none; that #UD is not modeled yet).
+  // whose guest has it (that #UD is not modeled yet).
   // =====================================================================
-  {
-    u32 a, b, c, d;
-    __cpuid_count(7, 0, a, b, c, d);
-    if (d & (1u << 14)) {
-      cat = "SERIALIZE";
-      add("serialize", {0x0F, 0x01, 0xE8});
-      add("serialize; serialize", {0x0F, 0x01, 0xE8, 0x0F, 0x01, 0xE8});
-      add_ud("lock serialize #UD", {0xF0, 0x0F, 0x01, 0xE8});
-    }
+  if (host_has(feature::SERIALIZE)) {
+    cat = "SERIALIZE";
+    add("serialize", {0x0F, 0x01, 0xE8});
+    add("serialize; serialize", {0x0F, 0x01, 0xE8, 0x0F, 0x01, 0xE8});
+    add_ud("lock serialize #UD", {0xF0, 0x0F, 0x01, 0xE8});
   }
 }

@@ -1,5 +1,4 @@
 #include "kvm-avx-encoder.h"
-#include <cpuid.h>
 
 void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   std::string cat = "AVX VEX-only";
@@ -32,7 +31,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VADDSUBPS: VEX.F2.0F.WIG D0 /r
   // VADDSUBPD: VEX.66.0F.WIG D0 /r
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     float ps1[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     float ps2[] = {10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f};
@@ -63,7 +62,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VHADDPS: VEX.F2.0F.WIG 7C /r   VHADDPD: VEX.66.0F.WIG 7C /r
   // VHSUBPS: VEX.F2.0F.WIG 7D /r   VHSUBPD: VEX.66.0F.WIG 7D /r
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     float ps1[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     float ps2[] = {10.0f, 20.0f, 30.0f, 40.0f, 50.0f, 60.0f, 70.0f, 80.0f};
@@ -106,7 +105,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VBLENDPS: VEX.66.0F3A.WIG 0C /r ib
   // VBLENDPD: VEX.66.0F3A.WIG 0D /r ib
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].set<u32>(i, 0xAAAAAAAA);
     for (int i = 0; i < 8; i++) s.xmm[2].set<u32>(i, 0x55555555);
@@ -130,7 +129,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VROUNDPD: VEX.66.0F3A.WIG 09 /r ib
   // VROUNDSS: VEX.66.0F3A.WIG 0A /r ib
   // VROUNDSD: VEX.66.0F3A.WIG 0B /r ib
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     float ps[] = {1.3f, 2.7f, -1.5f, 3.9f, -0.1f, 4.5f, -2.2f, 8.8f};
     memcpy(s.xmm[1].q, ps, 32);
@@ -158,7 +157,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VDPPS: VEX.66.0F3A.WIG 40 /r ib
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     float ps1[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
     float ps2[] = {2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f};
@@ -178,7 +177,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VLDDQU: VEX.F2.0F.WIG F0 /r (load unaligned from memory)
   // Needs memory operand — test with [rdi]
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     s.rdi = DATA_ADDR;
     std::vector<u8> data(32);
@@ -202,7 +201,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VPERM2F128: VEX.256.66.0F3A.W0 06 /r ib
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     for (int i = 0; i < 4; i++) s.xmm[1].q[i] = 0x1111111111111111ULL * (i + 1);
     for (int i = 0; i < 4; i++) s.xmm[2].q[i] = 0xAAAAAAAAAAAAAAAAULL + i;
@@ -218,7 +217,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VINSERTF128: VEX.256.66.0F3A.W0 18 /r ib
   // VEXTRACTF128: VEX.256.66.0F3A.W0 19 /r ib
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     for (int i = 0; i < 4; i++) s.xmm[1].q[i] = 0x1111111111111111ULL * (i + 1);
     s.xmm[2] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
@@ -246,7 +245,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VZEROALL: VEX.256.0F.WIG 77
   // VZEROUPPER: VEX.128.0F.WIG 77
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     for (int i = 0; i < 16; i++) {
       s.xmm[i] = xmm_from_u64(0xDEADDEADDEADDEAD, 0xCAFECAFECAFECAFE);
@@ -264,7 +263,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VMOVMSKPS: VEX.NP.0F.WIG 50 /r (extract sign bits → GPR)
   // VMOVMSKPD: VEX.66.0F.WIG 50 /r
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     float ps[] = {-1.0f, 2.0f, -3.0f, 4.0f, -5.0f, 6.0f, -7.0f, 8.0f};
     memcpy(s.xmm[1].q, ps, 32);
@@ -286,7 +285,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VPMOVMSKB: VEX.66.0F.WIG D7 /r (byte sign bits → GPR)
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     for (int i = 0; i < 32; i++) ((u8 *)s.xmm[1].q)[i] = (i % 3 == 0) ? 0x80 : 0x01;
 
@@ -295,11 +294,12 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     v.L = false;
     tests.push_back({"VPMOVMSKB xmm", cat, v.encode_rr(), s, FL_ALL, 0, false});
     v.L = true;
-    tests.push_back({"VPMOVMSKB ymm", cat, v.encode_rr(), s, FL_ALL, 0, false});
+    if (host_has(feature::AVX2))
+      tests.push_back({"VPMOVMSKB ymm", cat, v.encode_rr(), s, FL_ALL, 0, false});
   }
 
   // VTESTPS: VEX.66.0F38.W0 0E /r    VTESTPD: VEX.66.0F38.W0 0F /r
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[0].set<u32>(i, 0x80000000);  // all negative
     for (int i = 0; i < 8; i++) s.xmm[2].set<u32>(i, 0x80000000);
@@ -320,7 +320,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VDPPD: VEX.66.0F3A.WIG 41 /r ib (double dot product)
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     double pd1[] = {2.0, 3.0};
     double pd2[] = {4.0, 5.0};
@@ -334,7 +334,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VPBLENDD: VEX.66.0F3A.W0 02 /r ib
-  {
+  if (host_has(feature::AVX2)) {
     ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].set<u32>(i, 0xAAAAAAAA);
     for (int i = 0; i < 8; i++) s.xmm[2].set<u32>(i, 0x55555555);
@@ -350,7 +350,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VPBLENDW: VEX.66.0F3A.WIG 0E /r ib
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     for (int i = 0; i < 16; i++) s.xmm[1].set<u16>(i, 0xAAAA);
     for (int i = 0; i < 16; i++) s.xmm[2].set<u16>(i, 0x5555);
@@ -361,13 +361,15 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VPBLENDW xmm imm=0x55", cat, v.encode_rr_imm(0x55), s, FL_ALL, 0x3, false});
     { auto c = v.encode_rm_mem(); c.push_back(0x55); add_vok("VPBLENDW xmm,[rdi] misaligned", c, {1}); }
     v.L = true;
-    tests.push_back({"VPBLENDW ymm imm=0x55", cat, v.encode_rr_imm(0x55), s, FL_ALL, 0x3, false});
-    { auto c = v.encode_rm_mem(); c.push_back(0x55); add_vok("VPBLENDW ymm,[rdi] misaligned", c, {1}); }
+    if (host_has(feature::AVX2)) {
+      tests.push_back({"VPBLENDW ymm imm=0x55", cat, v.encode_rr_imm(0x55), s, FL_ALL, 0x3, false});
+      auto c = v.encode_rm_mem(); c.push_back(0x55); add_vok("VPBLENDW ymm,[rdi] misaligned", c, {1});
+    }
   }
 
   // VMOVHLPS: VEX.NP.0F.WIG 12 /r (move high to low)
   // VMOVLHPS: VEX.NP.0F.WIG 16 /r (move low to high)
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     s.xmm[1] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
     s.xmm[2] = xmm_from_u64(0xCCCCCCCCCCCCCCCC, 0xDDDDDDDDDDDDDDDD);
@@ -380,7 +382,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VPERM2I128: VEX.256.66.0F3A.W0 46 /r ib
-  {
+  if (host_has(feature::AVX2)) {
     ArchState s = {};
     for (int i = 0; i < 4; i++) s.xmm[1].q[i] = 0x1111111111111111ULL * (i + 1);
     for (int i = 0; i < 4; i++) s.xmm[2].q[i] = 0xAAAAAAAAAAAAAAAAULL + i;
@@ -393,7 +395,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VINSERTPS: VEX.66.0F3A.WIG 21 /r ib
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     s.xmm[1] = xmm_from_u64(0xAAAAAAAABBBBBBBB, 0xCCCCCCCCDDDDDDDD);
     s.xmm[2] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
@@ -405,7 +407,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VEXTRACTPS: VEX.66.0F3A.WIG 17 /r ib (extract f32 to GPR)
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     s.xmm[1] = xmm_from_u32(0x11111111, 0x22222222, 0x33333333, 0x44444444);
 
@@ -416,7 +418,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
   // VEXTRACTI128: VEX.256.66.0F3A.W0 39 /r ib
   // VINSERTI128: VEX.256.66.0F3A.W0 38 /r ib
-  {
+  if (host_has(feature::AVX2)) {
     ArchState s = {};
     for (int i = 0; i < 4; i++) s.xmm[1].q[i] = 0x1111111111111111ULL * (i + 1);
     s.xmm[2] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
@@ -437,7 +439,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VMPSADBW: VEX.66.0F3A.WIG 42 /r ib
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     for (int i = 0; i < 32; i++) ((u8 *)s.xmm[1].q)[i] = i;
     for (int i = 0; i < 32; i++) ((u8 *)s.xmm[2].q)[i] = 32 + i;
@@ -448,8 +450,10 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VMPSADBW xmm imm=0", cat, v.encode_rr_imm(0), s, FL_ALL, 0x3, false});
     { auto c = v.encode_rm_mem(); c.push_back(0); add_vok("VMPSADBW xmm,[rdi] misaligned", c, {1}); }
     v.L = true;
-    tests.push_back({"VMPSADBW ymm imm=0", cat, v.encode_rr_imm(0), s, FL_ALL, 0x3, false});
-    { auto c = v.encode_rm_mem(); c.push_back(0); add_vok("VMPSADBW ymm,[rdi] misaligned", c, {1}); }
+    if (host_has(feature::AVX2)) {
+      tests.push_back({"VMPSADBW ymm imm=0", cat, v.encode_rr_imm(0), s, FL_ALL, 0x3, false});
+      auto c = v.encode_rm_mem(); c.push_back(0); add_vok("VMPSADBW ymm,[rdi] misaligned", c, {1});
+    }
   }
 
   // VPTEST: VEX.66.0F38.WIG 17 /r (already tested, but let's confirm VEX encoding)
@@ -458,7 +462,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VAESENCLAST: VEX.66.0F38.WIG DD /r
   // VAESDEC: VEX.66.0F38.WIG DE /r
   // VAESDECLAST: VEX.66.0F38.WIG DF /r
-  {
+  if (host_has(feature::AVX) && host_has(feature::AESNI)) {
     ArchState s = {};
     s.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
     s.xmm[2] = xmm_from_u64(0x0F0E0D0C0B0A0908, 0x0706050403020100);
@@ -480,9 +484,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
     // VEX.256 needs the VAES extension (CPUID.7.0:ECX[9]); each 128-bit
     // lane is one round on its own state and round key.
-    u32 eax7, ebx7, ecx7, edx7;
-    __cpuid_count(7, 0, eax7, ebx7, ecx7, edx7);
-    if (ecx7 & (1u << 9)) {
+    if (host_has(feature::VAES)) {
       s.xmm[1].q[2] = 0x8000000000000001; s.xmm[1].q[3] = 0x00FF00FF00FF00FF;
       s.xmm[2].q[2] = 0x1F1E1D1C1B1A1918; s.xmm[2].q[3] = 0x1716151413121110;
       v.L = true;
@@ -500,7 +502,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VAESIMC: VEX.66.0F38.WIG DB /r
-  {
+  if (host_has(feature::AVX) && host_has(feature::AESNI)) {
     ArchState s = {};
     s.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
 
@@ -511,7 +513,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VAESKEYGENASSIST: VEX.66.0F3A.WIG DF /r ib
-  {
+  if (host_has(feature::AVX) && host_has(feature::AESNI)) {
     ArchState s = {};
     s.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
 
@@ -522,7 +524,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VEX SSSE3: VPHADDD/W/SW, VPHSUBD/W/SW, VPSIGNB/D/W
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].set<int32_t>(i, i * 100 - 300);
     for (int i = 0; i < 8; i++) s.xmm[2].set<int32_t>(i, i * 50 + 100);
@@ -534,18 +536,22 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VPHADDD xmm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
     add_vok("VPHADDD xmm,[rdi] misaligned", v.encode_rm_mem(), {1});
     v.L = true;
-    tests.push_back({"VPHADDD ymm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
-    add_vok("VPHADDD ymm,[rdi] misaligned", v.encode_rm_mem(), {1});
+    if (host_has(feature::AVX2)) {
+      tests.push_back({"VPHADDD ymm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
+      add_vok("VPHADDD ymm,[rdi] misaligned", v.encode_rm_mem(), {1});
+    }
 
     // VPHSUBD: VEX.66.0F38.WIG 06 /r
     v.opcode = 0x06; v.L = false;
     tests.push_back({"VPHSUBD xmm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
     add_vok("VPHSUBD xmm,[rdi] misaligned", v.encode_rm_mem(), {1});
     v.L = true;
-    tests.push_back({"VPHSUBD ymm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
-    add_vok("VPHSUBD ymm,[rdi] misaligned", v.encode_rm_mem(), {1});
+    if (host_has(feature::AVX2)) {
+      tests.push_back({"VPHSUBD ymm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
+      add_vok("VPHSUBD ymm,[rdi] misaligned", v.encode_rm_mem(), {1});
+    }
   }
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     for (int i = 0; i < 16; i++) s.xmm[1].set<int16_t>(i, i * 100 - 700);
     for (int i = 0; i < 16; i++) s.xmm[2].set<int16_t>(i, i * 50 + 100);
@@ -557,8 +563,10 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VPHADDW xmm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
     add_vok("VPHADDW xmm,[rdi] misaligned", v.encode_rm_mem(), {1});
     v.L = true;
-    tests.push_back({"VPHADDW ymm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
-    add_vok("VPHADDW ymm,[rdi] misaligned", v.encode_rm_mem(), {1});
+    if (host_has(feature::AVX2)) {
+      tests.push_back({"VPHADDW ymm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
+      add_vok("VPHADDW ymm,[rdi] misaligned", v.encode_rm_mem(), {1});
+    }
 
     // VPHADDSW: VEX.66.0F38.WIG 03 /r
     v.opcode = 0x03; v.L = false;
@@ -570,15 +578,17 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VPHSUBW xmm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
     add_vok("VPHSUBW xmm,[rdi] misaligned", v.encode_rm_mem(), {1});
     v.L = true;
-    tests.push_back({"VPHSUBW ymm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
-    add_vok("VPHSUBW ymm,[rdi] misaligned", v.encode_rm_mem(), {1});
+    if (host_has(feature::AVX2)) {
+      tests.push_back({"VPHSUBW ymm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
+      add_vok("VPHSUBW ymm,[rdi] misaligned", v.encode_rm_mem(), {1});
+    }
 
     // VPHSUBSW: VEX.66.0F38.WIG 07 /r
     v.opcode = 0x07; v.L = false;
     tests.push_back({"VPHSUBSW xmm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
     add_vok("VPHSUBSW xmm,[rdi] misaligned", v.encode_rm_mem(), {1});
   }
-  {
+  if (host_has(feature::AVX)) {
     // VPSIGNB/D/W
     ArchState s = {};
     for (int i = 0; i < 32; i++) ((int8_t *)s.xmm[1].q)[i] = i - 16;
@@ -590,8 +600,10 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VPSIGNB xmm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
     add_vok("VPSIGNB xmm,[rdi] misaligned", v.encode_rm_mem(), {1});
     v.L = true;
-    tests.push_back({"VPSIGNB ymm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
-    add_vok("VPSIGNB ymm,[rdi] misaligned", v.encode_rm_mem(), {1});
+    if (host_has(feature::AVX2)) {
+      tests.push_back({"VPSIGNB ymm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
+      add_vok("VPSIGNB ymm,[rdi] misaligned", v.encode_rm_mem(), {1});
+    }
     // VPSIGNW: VEX.66.0F38.WIG 09 /r
     v.opcode = 0x09; v.L = false;
     tests.push_back({"VPSIGNW xmm", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
@@ -603,7 +615,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VPTEST: VEX.66.0F38.WIG 17 /r
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     s.xmm[1] = xmm_from_u64(0xFFFFFFFF00000000, 0x00000000FFFFFFFF);
     s.xmm[2] = xmm_from_u64(0xFFFFFFFF00000000, 0x00000000FFFFFFFF);
@@ -621,7 +633,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VPHMINPOSUW: VEX.66.0F38.WIG 41 /r
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     u16 vals[] = {5, 3, 7, 1, 9, 2, 4, 6};
     memcpy(s.xmm[1].q, vals, 16);
@@ -636,7 +648,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VEX VRSQRTPS: VEX.NP.0F.WIG 52 /r
   // VEX VRCPSS: VEX.F3.0F.WIG 53 /r
   // VEX VRSQRTSS: VEX.F3.0F.WIG 52 /r
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     float vals[] = {1.0f, 4.0f, 9.0f, 16.0f, 25.0f, 36.0f, 49.0f, 64.0f};
     memcpy(s.xmm[1].q, vals, 32);
@@ -682,7 +694,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VPSHUFB VEX: VEX.66.0F38.WIG 00 /r
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     for (int i = 0; i < 32; i++) ((u8 *)s.xmm[1].q)[i] = i + 1;
     for (int i = 0; i < 32; i++) ((u8 *)s.xmm[2].q)[i] = 15 - (i % 16);
@@ -693,32 +705,37 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VPSHUFB xmm (VEX)", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
     add_vok("VPSHUFB xmm,[rdi] misaligned", v.encode_rm_mem(), {1});
     v.L = true;
-    tests.push_back({"VPSHUFB ymm (VEX)", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
-    add_vok("VPSHUFB ymm,[rdi] misaligned", v.encode_rm_mem(), {1});
+    if (host_has(feature::AVX2)) {
+      tests.push_back({"VPSHUFB ymm (VEX)", cat, v.encode_rr(), s, FL_ALL, 0x3, false});
+      add_vok("VPSHUFB ymm,[rdi] misaligned", v.encode_rm_mem(), {1});
+    }
   }
 
   // VPSHUFHW VEX: VEX.F3.0F.WIG 70 /r ib
   // VPSHUFLW VEX: VEX.F2.0F.WIG 70 /r ib
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     for (int i = 0; i < 32; i++) s.xmm[1].set<u16>(i, 0x100 * (i + 1));
 
     Vex v; v.mm = 1; v.W = false; v.opcode = 0x70;
     v.reg = 0; v.vvvv = 0; v.rm = 1;
+    const bool avx2 = host_has(feature::AVX2);  // the ymm forms
 
     // VPSHUFHW (F3)
     v.pp = 2;
     v.L = false;
     tests.push_back({"VPSHUFHW xmm (VEX)", cat, v.encode_rr_imm(0x1B), s, FL_ALL, 0x3, false});
     v.L = true;
-    tests.push_back({"VPSHUFHW ymm (VEX)", cat, v.encode_rr_imm(0x1B), s, FL_ALL, 0x3, false});
+    if (avx2)
+      tests.push_back({"VPSHUFHW ymm (VEX)", cat, v.encode_rr_imm(0x1B), s, FL_ALL, 0x3, false});
 
     // VPSHUFLW (F2)
     v.pp = 3;
     v.L = false;
     tests.push_back({"VPSHUFLW xmm (VEX)", cat, v.encode_rr_imm(0x1B), s, FL_ALL, 0x3, false});
     v.L = true;
-    tests.push_back({"VPSHUFLW ymm (VEX)", cat, v.encode_rr_imm(0x1B), s, FL_ALL, 0x3, false});
+    if (avx2)
+      tests.push_back({"VPSHUFLW ymm (VEX)", cat, v.encode_rr_imm(0x1B), s, FL_ALL, 0x3, false});
 
     // Memory forms
     s.rdi = DATA_ADDR;
@@ -729,25 +746,25 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     { TestCase tc = {"VPSHUFHW xmm [rdi] (VEX)", cat, v.encode_rm_mem_imm(0x1B), with_vector_inputs(s, 0), FL_ALL, 0x3, false};
       tc.init_data = data; tests.push_back(std::move(tc)); }
     v.L = true;
-    { TestCase tc = {"VPSHUFHW ymm [rdi] (VEX)", cat, v.encode_rm_mem_imm(0x1B), with_vector_inputs(s, 0), FL_ALL, 0x3, false};
+    if (avx2) {
+      TestCase tc = {"VPSHUFHW ymm [rdi] (VEX)", cat, v.encode_rm_mem_imm(0x1B), with_vector_inputs(s, 0), FL_ALL, 0x3, false};
       tc.init_data = data; tests.push_back(std::move(tc)); }
     v.pp = 3;
     v.L = false;
     { TestCase tc = {"VPSHUFLW xmm [rdi] (VEX)", cat, v.encode_rm_mem_imm(0x1B), with_vector_inputs(s, 0), FL_ALL, 0x3, false};
       tc.init_data = data; tests.push_back(std::move(tc)); }
     v.L = true;
-    { TestCase tc = {"VPSHUFLW ymm [rdi] (VEX)", cat, v.encode_rm_mem_imm(0x1B), with_vector_inputs(s, 0), FL_ALL, 0x3, false};
+    if (avx2) {
+      TestCase tc = {"VPSHUFLW ymm [rdi] (VEX)", cat, v.encode_rm_mem_imm(0x1B), with_vector_inputs(s, 0), FL_ALL, 0x3, false};
       tc.init_data = data; tests.push_back(std::move(tc)); }
   }
 
   // AVX-VNNI: VEX.66.0F38.W0 50-53 /r (VPDPBUSD/VPDPBUSDS/VPDPWSSD/VPDPWSSDS)
-  // Only run where the host has it (CPUID.(7,1):EAX[4]).  Odd accumulator
+  // Only run where the guest has it (CPUID.(7,1):EAX[4]).  Odd accumulator
   // dwords start near saturation so the "s" forms differ from the wrapping
   // ones; byte and word lanes mix signs.
-  {
-    u32 eax71, ebx71, ecx71, edx71;
-    __cpuid_count(7, 1, eax71, ebx71, ecx71, edx71);
-    if (eax71 & (1u << 4)) {
+  if (host_has(feature::AVX)) {
+    if (host_has(feature::AVX_VNNI)) {
       ArchState s = {};
       for (int i = 0; i < 8; i++) {
         s.xmm[0].set<u32>(i, (i & 1) ? 0x7FFFFF00u : 1000u * i);
@@ -770,7 +787,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VPCLMULQDQ VEX: VEX.66.0F3A.WIG 44 /r ib
-  {
+  if (host_has(feature::AVX) && host_has(feature::PCLMULQDQ)) {
     ArchState s = {};
     s.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);
     s.xmm[2] = xmm_from_u64(0x5A5A5A5A5A5A5A5A, 0xA5A5A5A5A5A5A5A5);
@@ -783,9 +800,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
 
     // VEX.256 needs the VPCLMULQDQ extension (CPUID.7.0:ECX[10]); both
     // 128-bit lanes use the same quadword selectors.
-    u32 eax7, ebx7, ecx7, edx7;
-    __cpuid_count(7, 0, eax7, ebx7, ecx7, edx7);
-    if (ecx7 & (1u << 10)) {
+    if (host_has(feature::VPCLMULQDQ)) {
       s.xmm[1].q[2] = 0x8000000000000001; s.xmm[1].q[3] = 0x0000000000000003;
       s.xmm[2].q[2] = 0x0123456789ABCDEF; s.xmm[2].q[3] = 0xFFFFFFFFFFFFFFFF;
       v.L = true;
@@ -798,7 +813,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VMASKMOVPS load: VEX.66.0F38 2C /r
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     s.rdi = DATA_ADDR;
     // mask in xmm1: high bit of each dword selects
@@ -811,7 +826,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VMASKMOVPD load: VEX.66.0F38 2D /r
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     s.rdi = DATA_ADDR;
     s.xmm[1].q[0] = 0x8000000000000000ULL; s.xmm[1].q[1] = 0;
@@ -823,7 +838,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VMASKMOVPS store: VEX.66.0F38 2E /r
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
@@ -835,7 +850,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VMASKMOVPD store: VEX.66.0F38 2F /r
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
@@ -847,7 +862,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VPMASKMOVD load: VEX.66.0F38 8C /r
-  {
+  if (host_has(feature::AVX2)) {
     ArchState s = {};
     s.rdi = DATA_ADDR;
     for (int i = 0; i < 4; i++) s.xmm[1].set<u32>(i, (i % 2) ? 0x80000000 : 0);
@@ -859,7 +874,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VPMASKMOVD store: VEX.66.0F38 8E /r
-  {
+  if (host_has(feature::AVX2)) {
     ArchState s = {};
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0x1111111122222222, 0x3333333344444444);
@@ -871,7 +886,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VPMASKMOVQ load: VEX.66.0F38.W1 8C /r
-  {
+  if (host_has(feature::AVX2)) {
     ArchState s = {};
     s.rdi = DATA_ADDR;
     s.xmm[1].q[0] = 0x8000000000000000ULL; s.xmm[1].q[1] = 0;
@@ -883,7 +898,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   }
 
   // VPMASKMOVQ store: VEX.66.0F38.W1 8E /r
-  {
+  if (host_has(feature::AVX2)) {
     ArchState s = {};
     s.rdi = DATA_ADDR;
     s.xmm[0] = xmm_from_u64(0xAAAAAAAAAAAAAAAA, 0xBBBBBBBBBBBBBBBB);
@@ -898,7 +913,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // VBLENDVPD: VEX.66.0F3A.W0 4B /r is4
   // VPBLENDVB: VEX.66.0F3A.W0 4C /r is4
   // 4-operand variable blend: imm8[7:4] = mask register index
-  {
+  if (host_has(feature::AVX)) {
     ArchState s = {};
     for (int i = 0; i < 8; i++) s.xmm[1].set<u32>(i, 0xAAAAAAAA);
     for (int i = 0; i < 8; i++) s.xmm[2].set<u32>(i, 0x55555555);
@@ -946,13 +961,15 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     tests.push_back({"VPBLENDVB xmm", cat, v.encode_rr_imm(0x30), s, FL_ALL, 0x7, false});
     { auto c = v.encode_rm_mem(); c.push_back(0x30); add_vok("VPBLENDVB xmm,[rdi] misaligned", c, {1, 3}); }
     v.L = true;
-    tests.push_back({"VPBLENDVB ymm", cat, v.encode_rr_imm(0x30), s, FL_ALL, 0x7, false});
-    { auto c = v.encode_rm_mem(); c.push_back(0x30); add_vok("VPBLENDVB ymm,[rdi] misaligned", c, {1, 3}); }
+    if (host_has(feature::AVX2)) {
+      tests.push_back({"VPBLENDVB ymm", cat, v.encode_rr_imm(0x30), s, FL_ALL, 0x7, false});
+      auto c = v.encode_rm_mem(); c.push_back(0x30); add_vok("VPBLENDVB ymm,[rdi] misaligned", c, {1, 3});
+    }
   }
 
   // VPCMPESTRM: VEX.66.0F3A.WIG 60 /r ib  VPCMPESTRI: 61
   // VPCMPISTRM: VEX.66.0F3A.WIG 62 /r ib  VPCMPISTRI: 63
-  {
+  if (host_has(feature::AVX) && host_has(feature::SSE4_2)) {
     ArchState s = {};
     s.rax = 4; s.rdx = 4;
     s.xmm[1] = xmm_from_u64(0x0000000061616161, 0);  // "aaaa\0..."
@@ -996,7 +1013,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
   // register also checks that VEX zeroes the destination above VL.
   // =====================================================================
   cat = "AVX VEX forms";
-  {
+  if (host_has(feature::AVX)) {
     // Sources: xmm1 (vvvv) and xmm2 (r/m) hold byte patterns that give
     // signed and unsigned values of every size; every other dword of xmm2
     // equals xmm1 so the compares see both outcomes.
@@ -1013,10 +1030,12 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     memcpy(mem2.data(), s.xmm[2].q, 32);
     memcpy(mem4.data(), s.xmm[4].q, 32);
 
-    // reg-reg and reg-mem at VL128 and VL256
+    // reg-reg and reg-mem at VL128 and VL256; the VL256 forms of the
+    // integer instructions are AVX2's.
     auto add_forms = [&](const std::string &name, Vex v, u32 inputs,
-                         const std::vector<u8> &mem, bool with_ymm = true) {
-      for (int l = 0; l <= (with_ymm ? 1 : 0); l++) {
+                         const std::vector<u8> &mem, CpuidBit ymm_needs = feature::AVX2) {
+      for (int l = 0; l <= 1; l++) {
+        if (l && !host_has(ymm_needs)) continue;
         v.L = l;
         std::string suffix = l ? " ymm" : " xmm";
         tests.push_back({name + suffix, cat, v.encode_rr(),
@@ -1041,12 +1060,18 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
       {"VPCMPEQB", 1, 0x74, 1, 2},   {"VPCMPEQW", 1, 0x75, 1, 2},
       {"VPCMPEQD", 1, 0x76, 1, 2},
       {"VPCMPEQQ", 2, 0x29, 1, 2},   {"VPACKUSDW", 2, 0x2B, 1, 2},
-      {"VPCMPGTQ", 2, 0x37, 1, 2},   {"VGF2P8MULB", 2, 0xCF, 1, 2},
+      {"VPCMPGTQ", 2, 0x37, 1, 2},
     };
     for (const Op3 &op : ops3) {
       Vex v; v.mm = op.mm; v.pp = 1; v.W = false; v.opcode = op.opcode;
       v.reg = 0; v.vvvv = op.src1; v.rm = op.src2;
       add_forms(op.name, v, (1u << op.src1) | (1u << op.src2), op.src2 == 4 ? mem4 : mem2);
+    }
+    // VGF2P8MULB: GFNI with AVX at either length (SDM Vol.2A GF2P8MULB).
+    if (host_has(feature::GFNI)) {
+      Vex v; v.mm = 2; v.pp = 1; v.W = false; v.opcode = 0xCF;
+      v.reg = 0; v.vvvv = 1; v.rm = 2;
+      add_forms("VGF2P8MULB", v, (1u << 1) | (1u << 2), mem2, feature::AVX);
     }
 
     // Widening moves: dst xmm0 from r/m xmm2 (or the low bytes of [rdi]);
@@ -1124,7 +1149,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
     // (sign bits), indices in xmm2, table at [rdi + index*scale].  The
     // instruction zeroes the mask register.  rdi points into the middle
     // of a 2 KB table so that negative indices stay inside the data page.
-    {
+    if (host_has(feature::AVX2)) {
       std::vector<u8> table(2048);
       for (int i = 0; i < 512; i++) {
         u32 val = 0x01000000u * u32(i & 0xFF) + 0x1234u + u32(i);
@@ -1235,8 +1260,10 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
         f.rdi = DATA_ADDR + 1024 - 0x100;
         std::vector<u8> wrfsbase = {0xF3, 0x48, 0x0F, 0xAE, 0xD6, 0x64};  // wrfsbase rsi; fs:
         std::vector<u8> wrgsbase = {0xF3, 0x48, 0x0F, 0xAE, 0xDE, 0x65};  // wrgsbase rsi; gs:
-        add_vsib("fs:[rdi+idx*4]", with_prefix(wrfsbase, code), f);
-        add_vsib("gs:[rdi+idx*4]", with_prefix(wrgsbase, code), f);
+        if (host_has(feature::FSGSBASE)) {
+          add_vsib("fs:[rdi+idx*4]", with_prefix(wrfsbase, code), f);
+          add_vsib("gs:[rdi+idx*4]", with_prefix(wrgsbase, code), f);
+        }
         // [rbp+idx*4+0]: mod = 01, SIB.base = 101b, disp8 = 0.
         std::vector<u8> bp = code;
         bp[4] = (bp[4] & 0x3F) | 0x40;
@@ -1362,6 +1389,7 @@ void add_avx_vex_only_tests(std::vector<TestCase> &tests) {
             tests.push_back(std::move(tc));
           };
           add_mem("[edi] (67h, RDI[63:32] ignored)", concat({0x67}, m.code), a);
+          if (!host_has(feature::FSGSBASE)) continue;
           add_mem("fs:[rdi]", concat({0xF3, 0x48, 0x0F, 0xAE, 0xD6, 0x64}, m.code), f);
           add_mem("gs:[rdi]", concat({0xF3, 0x48, 0x0F, 0xAE, 0xDE, 0x65}, m.code), f);
         }

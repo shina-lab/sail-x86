@@ -18,7 +18,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   cat = "AVX Edge";
 
   // --- A. VEX FP boundary-value matrix (f32) ---
-  {
+  if (host_has(feature::AVX)) {
     const u32 POS_ZERO  = 0x00000000;
     const u32 NEG_ZERO  = 0x80000000;
     const u32 POS_INF   = 0x7F800000;
@@ -174,7 +174,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   }
 
   // --- B. VEX FP boundary-value matrix (f64) ---
-  {
+  if (host_has(feature::AVX)) {
     const u64 POS_ZERO_D  = 0x0000000000000000ULL;
     const u64 NEG_ZERO_D  = 0x8000000000000000ULL;
     const u64 POS_INF_D   = 0x7FF0000000000000ULL;
@@ -302,7 +302,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   }
 
   // --- D. VEX upper-128 clearing verification ---
-  {
+  if (host_has(feature::AVX)) {
     ArchState s;
     // Pre-load xmm0 with all-ones (simulating dirty YMM upper half)
     s.xmm[0] = xmm_from_u64(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
@@ -323,7 +323,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
   // --- E. VEX 256-bit arithmetic ---
   // 256-bit packed float
-  {
+  if (host_has(feature::AVX)) {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -346,7 +346,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   }
 
   // 256-bit packed double
-  {
+  if (host_has(feature::AVX)) {
     ArchState s;
     s.xmm[1] = xmm_from_f64(1.5, 2.5);
     s.xmm[2] = xmm_from_f64(3.0, 4.0);
@@ -363,7 +363,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   }
 
   // 256-bit packed integer
-  {
+  if (host_has(feature::AVX2)) {
     ArchState s;
     s.xmm[1] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[2] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -383,7 +383,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   }
 
   // --- F. VEX integer SIMD boundary values ---
-  {
+  if (host_has(feature::AVX)) {
     struct IntPair { u32 a; u32 b; const char *desc; };
     IntPair int_pairs[] = {
       {0x00000000, 0x00000000, "zero_zero"},
@@ -462,7 +462,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   }
 
   // --- G. VCMPPS full predicate coverage with mixed operands ---
-  {
+  if (host_has(feature::AVX)) {
     const u32 ONE  = 0x3F800000;
     const u32 TWO  = 0x40000000;
     const u32 FOUR = 0x40800000;
@@ -479,7 +479,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   }
 
   // --- 256-bit VCMPPS/VCMPPD ---
-  {
+  if (host_has(feature::AVX)) {
     ArchState s;
     s.xmm[1] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[2] = xmm_from_f32(1.0f, 3.0f, 2.0f, 4.0f);
@@ -490,7 +490,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     // VCMPPS ymm0,ymm1,ymm2,6 (NLE): C5 F4 C2 C2 06
     add_xmm("vcmpps ymm nle", {0xC5, 0xF4, 0xC2, 0xC2, 0x06}, s, 0x7);
   }
-  {
+  if (host_has(feature::AVX)) {
     ArchState s;
     s.xmm[1] = xmm_from_f64(1.5, 2.5);
     s.xmm[2] = xmm_from_f64(1.5, 3.0);
@@ -500,7 +500,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   }
 
   // --- H. VEX conversion edge cases ---
-  {
+  if (host_has(feature::AVX)) {
     const u32 POS_INF  = 0x7F800000;
     const u32 NEG_INF  = 0xFF800000;
     const u32 QNAN     = 0x7FC00000;
@@ -1143,7 +1143,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   {
     // POPCNT with edge values
-    {
+    if (host_has(feature::POPCNT)) {
       ArchState s;
       s.rcx = 0;
       // POPCNT eax, ecx: F3 0F B8 C1
@@ -1167,7 +1167,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
 
     // LZCNT with edge values
-    {
+    if (host_has(feature::LZCNT)) {
       ArchState s;
       s.rcx = 0;
       // LZCNT eax, ecx: F3 0F BD C1
@@ -1191,7 +1191,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
 
     // TZCNT with edge values
-    {
+    if (host_has(feature::BMI1)) {
       ArchState s;
       s.rcx = 0;
       // TZCNT eax, ecx: F3 0F BC C1
@@ -1212,7 +1212,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
 
     // PCLMULQDQ — carry-less multiplication
-    {
+    if (host_has(feature::PCLMULQDQ)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x0000000000000001, 0x0000000000000003);
       s.xmm[1] = xmm_from_u64(0x0000000000000001, 0x0000000000000007);
@@ -1225,7 +1225,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
       add_xmm("pclmulqdq 0x11", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x11}, s, 0x3); // high×high
     }
     // PCLMULQDQ with larger values
-    {
+    if (host_has(feature::PCLMULQDQ)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x8000000000000000, 0xFFFFFFFFFFFFFFFF);
       s.xmm[1] = xmm_from_u64(0x8000000000000000, 0x0000000000000002);
@@ -1234,7 +1234,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPISTRI — implicit-length string comparison, result in ECX
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       // "ABCD" (null-terminated in bytes)
       s.xmm[0] = xmm_from_u32(0x44434241, 0x00000000, 0x00000000, 0x00000000);
@@ -1248,7 +1248,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPISTRI — equal strings
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u32(0x44434241, 0x00000000, 0x00000000, 0x00000000);
       s.xmm[1] = xmm_from_u32(0x44434241, 0x00000000, 0x00000000, 0x00000000);
@@ -1256,7 +1256,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPISTRM — result in XMM0 as bitmask
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u32(0x44434241, 0x00000000, 0x00000000, 0x00000000);
       s.xmm[1] = xmm_from_u32(0x41414141, 0x42424242, 0x00000000, 0x00000000);
@@ -1279,7 +1279,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
 
     // BMI1: ANDN, BLSI, BLSMSK, BLSR, BEXTR
     // BMI flags: SF, ZF, CF defined; OF=0; PF, AF undefined
-    {
+    if (host_has(feature::BMI1)) {
       const u64 FL_BMI = FL_SF | FL_ZF | FL_OF | FL_CF;
       const u64 FL_BEXTR = FL_ZF | FL_OF | FL_CF;
       ArchState s;
@@ -1324,7 +1324,7 @@ void add_fp_edge_tests(std::vector<TestCase> &tests) {
     // ADCX only modifies CF (preserves OF, SF, ZF, PF, AF)
     // ADOX only modifies OF (preserves CF, SF, ZF, PF, AF)
     // Encoding: 66 0F 38 F6 /r = ADCX; F3 0F 38 F6 /r = ADOX
-    {
+    if (host_has(feature::ADX)) {
       cat = "ADCX/ADOX";
 
       // ADCX r32, r32: 66 0F 38 F6 modrm

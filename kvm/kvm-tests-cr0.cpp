@@ -50,11 +50,11 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
   u32 a, b, c, d;
   __get_cpuid(0, &a, &b, &c, &d);
   const bool amd_host = b == 0x68747541;  // "Auth" of AuthenticAMD
-  __cpuid_count(7, 0, a, b, c, d);
-  const bool amx_host = d & (1u << 24);  // AMX-TILE
-  __get_cpuid(0x80000001, &a, &b, &c, &d);
-  const bool sse4a_host = c & (1u << 6);  // SSE4A: CPUID Fn8000_0001_ECX[6]
-  const u64 AMX_XCR0 = 0xE7 | (3ULL << 17);
+  const u64 AMX_XCR0 = guest_xcr0() | 3ULL << 17;
+  // A case of an instruction the guest lacks is left out: its #UD and the
+  // #NM are in one class, in no order (as for add_ud below), and the
+  // model has no switch for AVX2.
+  using namespace feature;
   // The arithmetic flags after MOV to CR0, where the manuals differ: "The
   // OF, SF, ZF, AF, PF, and CF flags are undefined" (SDM Vol.2B MOV—Move
   // to/from Control Registers); "rFLAGS Affected None" (APM Vol.3 MOV
@@ -130,30 +130,46 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add(cat, bits, "movups xmm0,[rsi] (unmapped)", {0x0F, 0x10, 0x06}, NM, unmapped);
     add(cat, bits, "movaps [rsi],xmm1 (unmapped)", {0x0F, 0x29, 0x0E}, NM, unmapped);
     add(cat, bits, "movd xmm0,eax", {0x66, 0x0F, 0x6E, 0xC0}, NM);
-    add(cat, bits, "haddps xmm0,xmm1 (SSE3)", {0xF2, 0x0F, 0x7C, 0xC1}, NM);
-    add(cat, bits, "lddqu xmm0,[rsi] (SSE3, unmapped)", {0xF2, 0x0F, 0xF0, 0x06}, NM, unmapped);
-    add(cat, bits, "pshufb xmm0,xmm1 (SSSE3)", {0x66, 0x0F, 0x38, 0x00, 0xC1}, NM);
-    add(cat, bits, "ptest xmm0,xmm1 (SSE4.1)", {0x66, 0x0F, 0x38, 0x17, 0xC1}, NM);
-    add(cat, bits, "movntdqa xmm0,[rsi] (unmapped)", {0x66, 0x0F, 0x38, 0x2A, 0x06}, NM, unmapped);
-    add(cat, bits, "palignr xmm0,xmm1,4", {0x66, 0x0F, 0x3A, 0x0F, 0xC1, 0x04}, NM);
-    add(cat, bits, "pextrb [rsi],xmm1,1 (unmapped)", {0x66, 0x0F, 0x3A, 0x14, 0x0E, 0x01}, NM,
-        unmapped);
-    add(cat, bits, "pcmpistri xmm0,xmm1,0Ch (SSE4.2)", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x0C}, NM);
-    add(cat, bits, "aesenc xmm0,xmm1", {0x66, 0x0F, 0x38, 0xDC, 0xC1}, NM);
-    add(cat, bits, "pclmulqdq xmm0,xmm1,0", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, NM);
-    add(cat, bits, "sha1nexte xmm0,xmm1", {0x0F, 0x38, 0xC8, 0xC1}, NM);
-    add(cat, bits, "sha1rnds4 xmm0,xmm1,0", {0x0F, 0x3A, 0xCC, 0xC1, 0x00}, NM);
-    add(cat, bits, "gf2p8mulb xmm0,xmm1", {0x66, 0x0F, 0x38, 0xCF, 0xC1}, NM);
+    if (host_has(SSE3)) {
+      add(cat, bits, "haddps xmm0,xmm1 (SSE3)", {0xF2, 0x0F, 0x7C, 0xC1}, NM);
+      add(cat, bits, "lddqu xmm0,[rsi] (SSE3, unmapped)", {0xF2, 0x0F, 0xF0, 0x06}, NM, unmapped);
+    }
+    if (host_has(SSSE3)) {
+      add(cat, bits, "pshufb xmm0,xmm1 (SSSE3)", {0x66, 0x0F, 0x38, 0x00, 0xC1}, NM);
+      add(cat, bits, "palignr xmm0,xmm1,4", {0x66, 0x0F, 0x3A, 0x0F, 0xC1, 0x04}, NM);
+    }
+    if (host_has(SSE4_1)) {
+      add(cat, bits, "ptest xmm0,xmm1 (SSE4.1)", {0x66, 0x0F, 0x38, 0x17, 0xC1}, NM);
+      add(cat, bits, "movntdqa xmm0,[rsi] (unmapped)", {0x66, 0x0F, 0x38, 0x2A, 0x06}, NM,
+          unmapped);
+      add(cat, bits, "pextrb [rsi],xmm1,1 (unmapped)", {0x66, 0x0F, 0x3A, 0x14, 0x0E, 0x01}, NM,
+          unmapped);
+    }
+    if (host_has(SSE4_2))
+      add(cat, bits, "pcmpistri xmm0,xmm1,0Ch (SSE4.2)", {0x66, 0x0F, 0x3A, 0x63, 0xC1, 0x0C},
+          NM);
+    if (host_has(AESNI))
+      add(cat, bits, "aesenc xmm0,xmm1", {0x66, 0x0F, 0x38, 0xDC, 0xC1}, NM);
+    if (host_has(PCLMULQDQ))
+      add(cat, bits, "pclmulqdq xmm0,xmm1,0", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, NM);
+    if (host_has(SHA)) {
+      add(cat, bits, "sha1nexte xmm0,xmm1", {0x0F, 0x38, 0xC8, 0xC1}, NM);
+      add(cat, bits, "sha1rnds4 xmm0,xmm1,0", {0x0F, 0x3A, 0xCC, 0xC1, 0x00}, NM);
+    }
+    if (host_has(feature::GFNI))
+      add(cat, bits, "gf2p8mulb xmm0,xmm1", {0x66, 0x0F, 0x38, 0xCF, 0xC1}, NM);
     add(cat, bits, "ldmxcsr [rsi] (unmapped)", {0x0F, 0xAE, 0x16}, NM, unmapped);
     add(cat, bits, "stmxcsr [rsi] (unmapped)", {0x0F, 0xAE, 0x1E}, NM, unmapped);
-    if (sse4a_host)
+    if (host_has(SSE4A))
       add(cat, bits, "extrq xmm0,xmm1 (SSE4A)", {0x66, 0x0F, 0x79, 0xC1}, NM);
 
     // MMX
     add(cat, bits, "paddb mm0,mm1", {0x0F, 0xFC, 0xC1}, NM);
     add(cat, bits, "movq mm0,[rsi] (unmapped)", {0x0F, 0x6F, 0x06}, NM, unmapped);
-    add(cat, bits, "pshufb mm0,mm1", {0x0F, 0x38, 0x00, 0xC1}, NM);
-    add(cat, bits, "palignr mm0,mm1,1", {0x0F, 0x3A, 0x0F, 0xC1, 0x01}, NM);
+    if (host_has(SSSE3)) {
+      add(cat, bits, "pshufb mm0,mm1", {0x0F, 0x38, 0x00, 0xC1}, NM);
+      add(cat, bits, "palignr mm0,mm1,1", {0x0F, 0x3A, 0x0F, 0xC1, 0x01}, NM);
+    }
     add(cat, bits, "cvtpi2ps xmm0,mm1", {0x0F, 0x2A, 0xC1}, NM);
     add(cat, bits, "emms", {0x0F, 0x77}, NM);
 
@@ -163,7 +179,8 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add(cat, bits, "fnstsw ax", {0xDF, 0xE0}, NM);
     add(cat, bits, "fninit", {0xDB, 0xE3}, NM);
     add(cat, bits, "fnstcw [rsi] (unmapped)", {0xD9, 0x3E}, NM, unmapped);
-    add(cat, bits, "fisttp dword [rsi] (SSE3, unmapped)", {0xDB, 0x0E}, NM, unmapped);
+    if (host_has(SSE3))
+      add(cat, bits, "fisttp dword [rsi] (SSE3, unmapped)", {0xDB, 0x0E}, NM, unmapped);
     add(cat, bits, "fwait", {0x9B}, bits & MP ? NM : NONE);
 
     // The XSAVE family and FXSAVE/FXRSTOR
@@ -171,23 +188,35 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add(cat, bits, "fxsave [rsi] (unmapped)", {0x0F, 0xAE, 0x06}, NM, unmapped);
     add(cat, bits, "fxrstor [rsi] (unmapped)", {0x0F, 0xAE, 0x0E}, NM, unmapped);
     add(cat, bits, "fxsave [rdi+8] (misaligned)", {0x0F, 0xAE, 0x47, 0x08}, NM, mem);
-    add(cat, bits, "xsave [rsi] (unmapped)", {0x0F, 0xAE, 0x26}, NM, xmask);
-    add(cat, bits, "xrstor [rsi] (unmapped)", {0x0F, 0xAE, 0x2E}, NM, xmask);
-    add(cat, bits, "xsaveopt [rsi] (unmapped)", {0x0F, 0xAE, 0x36}, NM, xmask);
-    add(cat, bits, "xsavec [rsi] (unmapped)", {0x0F, 0xC7, 0x26}, NM, xmask);
-    add(cat, bits, "xsaves [rsi] (unmapped)", {0x0F, 0xC7, 0x2E}, NM, xmask);
-    add(cat, bits, "xrstors [rsi] (unmapped)", {0x0F, 0xC7, 0x1E}, NM, xmask);
+    if (host_has(XSAVE)) {
+      add(cat, bits, "xsave [rsi] (unmapped)", {0x0F, 0xAE, 0x26}, NM, xmask);
+      add(cat, bits, "xrstor [rsi] (unmapped)", {0x0F, 0xAE, 0x2E}, NM, xmask);
+    }
+    if (host_has(XSAVEOPT))
+      add(cat, bits, "xsaveopt [rsi] (unmapped)", {0x0F, 0xAE, 0x36}, NM, xmask);
+    if (host_has(XSAVEC))
+      add(cat, bits, "xsavec [rsi] (unmapped)", {0x0F, 0xC7, 0x26}, NM, xmask);
+    if (host_has(XSAVES)) {
+      add(cat, bits, "xsaves [rsi] (unmapped)", {0x0F, 0xC7, 0x2E}, NM, xmask);
+      add(cat, bits, "xrstors [rsi] (unmapped)", {0x0F, 0xC7, 0x1E}, NM, xmask);
+    }
 
     // VEX: AVX, AVX2, FMA, F16C, the opmask instructions (class K20/K21)
-    add(cat, bits, "vaddps ymm0,ymm1,ymm2", {0xC5, 0xF4, 0x58, 0xC2}, NM);
-    add(cat, bits, "vmovups ymm0,[rsi] (unmapped)", {0xC5, 0xFC, 0x10, 0x06}, NM, unmapped);
-    add(cat, bits, "vmovaps ymm0,[rdi+8] (misaligned)", {0xC5, 0xFC, 0x28, 0x47, 0x08}, NM, mem);
-    add(cat, bits, "vzeroupper", {0xC5, 0xF8, 0x77}, NM);
-    add(cat, bits, "vldmxcsr [rsi] (unmapped)", {0xC5, 0xF8, 0xAE, 0x16}, NM, unmapped);
-    add(cat, bits, "vpgatherdd xmm0,[rsi+xmm1*4],xmm2 (unmapped)",
-        {0xC4, 0xE2, 0x69, 0x90, 0x04, 0x8E}, NM, unmapped);
-    add(cat, bits, "vfmadd231ps ymm0,ymm1,ymm2", {0xC4, 0xE2, 0x75, 0xB8, 0xC2}, NM);
-    add(cat, bits, "vcvtph2ps ymm0,xmm1", {0xC4, 0xE2, 0x7D, 0x13, 0xC1}, NM);
+    if (host_has(AVX)) {
+      add(cat, bits, "vaddps ymm0,ymm1,ymm2", {0xC5, 0xF4, 0x58, 0xC2}, NM);
+      add(cat, bits, "vmovups ymm0,[rsi] (unmapped)", {0xC5, 0xFC, 0x10, 0x06}, NM, unmapped);
+      add(cat, bits, "vmovaps ymm0,[rdi+8] (misaligned)", {0xC5, 0xFC, 0x28, 0x47, 0x08}, NM,
+          mem);
+      add(cat, bits, "vzeroupper", {0xC5, 0xF8, 0x77}, NM);
+      add(cat, bits, "vldmxcsr [rsi] (unmapped)", {0xC5, 0xF8, 0xAE, 0x16}, NM, unmapped);
+    }
+    if (host_has(AVX2))
+      add(cat, bits, "vpgatherdd xmm0,[rsi+xmm1*4],xmm2 (unmapped)",
+          {0xC4, 0xE2, 0x69, 0x90, 0x04, 0x8E}, NM, unmapped);
+    if (host_has(FMA))
+      add(cat, bits, "vfmadd231ps ymm0,ymm1,ymm2", {0xC4, 0xE2, 0x75, 0xB8, 0xC2}, NM);
+    if (host_has(F16C))
+      add(cat, bits, "vcvtph2ps ymm0,xmm1", {0xC4, 0xE2, 0x7D, 0x13, 0xC1}, NM);
     add(cat, bits, "kmovw k1,k2", {0xC5, 0xF8, 0x90, 0xCA}, NM);
     add(cat, bits, "kmovw k1,[rsi] (unmapped)", {0xC5, 0xF8, 0x90, 0x0E}, NM, unmapped);
 
@@ -207,8 +236,10 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
         {0x62, 0xF2, 0x7D, 0x49, 0x90, 0x04, 0x8E}, NM, unmapped);
 
     // Unaffected
-    add(cat, bits, "crc32 eax,ebx", {0xF2, 0x0F, 0x38, 0xF1, 0xC3}, NONE, gprs);
-    add(cat, bits, "popcnt eax,ebx", {0xF3, 0x0F, 0xB8, 0xC3}, NONE, gprs);
+    if (host_has(SSE4_2))
+      add(cat, bits, "crc32 eax,ebx", {0xF2, 0x0F, 0x38, 0xF1, 0xC3}, NONE, gprs);
+    if (host_has(POPCNT))
+      add(cat, bits, "popcnt eax,ebx", {0xF3, 0x0F, 0xB8, 0xC3}, NONE, gprs);
     {
       ArchState s = gprs;
       s.rdi = DATA_ADDR;
@@ -220,14 +251,17 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add(cat, bits, "lfence", {0x0F, 0xAE, 0xE8}, NONE);
     add(cat, bits, "mfence", {0x0F, 0xAE, 0xF0}, NONE);
     add(cat, bits, "clflush [rdi]", {0x0F, 0xAE, 0x3F}, NONE, mem);
-    add(cat, bits, "andn eax,ebx,ecx (BMI1)", {0xC4, 0xE2, 0x60, 0xF2, 0xC1}, NONE, gprs);
-    af_pf_undefined();
-    add(cat, bits, "rorx eax,ebx,3 (BMI2)", {0xC4, 0xE3, 0x7B, 0xF0, 0xC3, 0x03}, NONE, gprs);
-    {
+    if (host_has(BMI1)) {
+      add(cat, bits, "andn eax,ebx,ecx (BMI1)", {0xC4, 0xE2, 0x60, 0xF2, 0xC1}, NONE, gprs);
+      af_pf_undefined();
+    }
+    if (host_has(BMI2))
+      add(cat, bits, "rorx eax,ebx,3 (BMI2)", {0xC4, 0xE3, 0x7B, 0xF0, 0xC3, 0x03}, NONE, gprs);
+    if (host_has(XSAVE)) {
       ArchState s = {.rcx = 0};
       add(cat, bits, "xgetbv (ecx = 0)", {0x0F, 0x01, 0xD0}, NONE, s);
     }
-    if (amx_host) {
+    if (host_has_amx()) {
       add(cat, bits, "tilerelease", {0xC4, 0xE2, 0x78, 0x49, 0xC0}, NONE);
       tests.back().xcr0_override = AMX_XCR0;
       add(cat, bits, "ldtilecfg [rsi] (unmapped)", {0xC4, 0xE2, 0x78, 0x49, 0x06}, 14, unmapped);
@@ -336,7 +370,7 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add_media("sha1nexte xmm0,xmm1", {0x0F, 0x38, 0xC8, 0xC1});
     add_media("ldmxcsr [rsi] (unmapped)", {0x0F, 0xAE, 0x16}, unmapped);
     add_media("stmxcsr [rsi] (unmapped)", {0x0F, 0xAE, 0x1E}, unmapped);
-    if (sse4a_host) add_media("extrq xmm0,xmm1 (SSE4A)", {0x66, 0x0F, 0x79, 0xC1});
+    if (host_has(SSE4A)) add_media("extrq xmm0,xmm1 (SSE4A)", {0x66, 0x0F, 0x79, 0xC1});
     add_media("paddb mm0,mm1", {0x0F, 0xFC, 0xC1});
     add_media("pshufb mm0,mm1", {0x0F, 0x38, 0x00, 0xC1});
     add_media("cvtpi2ps xmm0,mm1", {0x0F, 0x2A, 0xC1});
@@ -361,7 +395,7 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     // The XSAVE family and the VEX forms of SSE instructions ignore EM; TS
     // still applies.
     int ts = bits & TS ? NM : NONE;
-    {
+    if (host_has(XSAVE)) {
       ArchState s = with_xsave_vector_inputs({.rax = 3, .rdx = 0, .rdi = DATA_ADDR}, 3);
       add(cat, bits, name("xsave [rdi] (x87, SSE)"), {0x0F, 0xAE, 0x27}, ts, s);
       // Both components are in their initial configuration, for which
@@ -378,12 +412,16 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
       // §8.2.7: #UD for "any SSE instruction (uses ZMM/YMM/XMM registers)
       // ... when CR0.EM = 1"; the PADDD/VPADDD and LDMXCSR/VLDMXCSR pages:
       // the EM row for the SSE forms only), so an AMD host may raise #UD.
-      add(cat, bits, name("vpaddd ymm0,ymm1,ymm2"), {0xC5, 0xF5, 0xFE, 0xC2}, ts, s);
-      if (amd_host) allow({UD, ts});
-      add(cat, bits, name("vldmxcsr [rdi]"), {0xC5, 0xF8, 0xAE, 0x17}, ts, s, mxcsr_1f80);
-      if (amd_host) allow({UD, ts});
-      add(cat, bits, name("vstmxcsr [rdi]"), {0xC5, 0xF8, 0xAE, 0x1F}, ts, s);
-      if (amd_host) allow({UD, ts});
+      if (host_has(AVX2)) {
+        add(cat, bits, name("vpaddd ymm0,ymm1,ymm2"), {0xC5, 0xF5, 0xFE, 0xC2}, ts, s);
+        if (amd_host) allow({UD, ts});
+      }
+      if (host_has(AVX)) {
+        add(cat, bits, name("vldmxcsr [rdi]"), {0xC5, 0xF8, 0xAE, 0x17}, ts, s, mxcsr_1f80);
+        if (amd_host) allow({UD, ts});
+        add(cat, bits, name("vstmxcsr [rdi]"), {0xC5, 0xF8, 0xAE, 0x1F}, ts, s);
+        if (amd_host) allow({UD, ts});
+      }
       // AVX-512, EVEX and the opmask instructions: the SDM's classes
       // (E1-E12, K20, K21) give EM no rule; the APM gives it #UD (Vol.4
       // §3.2.1), and with TS set as well #UD or #NM, in no order.
@@ -398,25 +436,32 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
       // (Vol.2 §8.2.7; Classes 4G, 4H and 4H-1 name it, the others do not
       // contradict it), and with TS set as well #UD or #NM, in no order.
       // One of each kind of class: 4G, 4H, 4H-1, 4J, 4K, 6B, 6D-X, 8.
-      for (const auto &[n, insn] : std::vector<std::pair<std::string, std::vector<u8>>>{
-               {"vtestps xmm1,xmm2", {0xC4, 0xE2, 0x79, 0x0E, 0xCA}},
-               {"vpermd ymm0,ymm1,ymm2", {0xC4, 0xE2, 0x75, 0x36, 0xC2}},
-               {"vpermq ymm0,ymm1,1Bh", {0xC4, 0xE3, 0xFD, 0x00, 0xC1, 0x1B}},
-               {"vpblendd ymm0,ymm1,ymm2,55h", {0xC4, 0xE3, 0x75, 0x02, 0xC2, 0x55}},
-               {"vpsllvd ymm0,ymm1,ymm2", {0xC4, 0xE2, 0x75, 0x47, 0xC2}},
-               {"vinserti128 ymm0,ymm1,xmm2,1", {0xC4, 0xE3, 0x75, 0x38, 0xC2, 0x01}},
-               {"vbroadcastss ymm0,xmm1", {0xC4, 0xE2, 0x7D, 0x18, 0xC1}},
-               {"vzeroupper", {0xC5, 0xF8, 0x77}}}) {
+      using Case = std::tuple<std::string, CpuidBit, std::vector<u8>>;
+      for (const auto &[n, needs, insn] : std::vector<Case>{
+               {"vtestps xmm1,xmm2", AVX, {0xC4, 0xE2, 0x79, 0x0E, 0xCA}},
+               {"vpermd ymm0,ymm1,ymm2", AVX2, {0xC4, 0xE2, 0x75, 0x36, 0xC2}},
+               {"vpermq ymm0,ymm1,1Bh", AVX2, {0xC4, 0xE3, 0xFD, 0x00, 0xC1, 0x1B}},
+               {"vpblendd ymm0,ymm1,ymm2,55h", AVX2, {0xC4, 0xE3, 0x75, 0x02, 0xC2, 0x55}},
+               {"vpsllvd ymm0,ymm1,ymm2", AVX2, {0xC4, 0xE2, 0x75, 0x47, 0xC2}},
+               {"vinserti128 ymm0,ymm1,xmm2,1", AVX2, {0xC4, 0xE3, 0x75, 0x38, 0xC2, 0x01}},
+               {"vbroadcastss ymm0,xmm1", AVX2, {0xC4, 0xE2, 0x7D, 0x18, 0xC1}},
+               {"vzeroupper", AVX, {0xC5, 0xF8, 0x77}}}) {
+        if (!host_has(needs)) continue;
         add(cat, bits, name(n), insn, em_amd, s);
         if (amd_host && bits & TS) allow(UD_OR_NM);
       }
     }
 
     // Unaffected
-    add(cat, bits, name("crc32 eax,ebx"), {0xF2, 0x0F, 0x38, 0xF1, 0xC3}, NONE, gprs);
-    add(cat, bits, name("popcnt eax,ebx"), {0xF3, 0x0F, 0xB8, 0xC3}, NONE, gprs);
-    add(cat, bits, name("andn eax,ebx,ecx (BMI1)"), {0xC4, 0xE2, 0x60, 0xF2, 0xC1}, NONE, gprs);
-    af_pf_undefined();
+    if (host_has(SSE4_2))
+      add(cat, bits, name("crc32 eax,ebx"), {0xF2, 0x0F, 0x38, 0xF1, 0xC3}, NONE, gprs);
+    if (host_has(POPCNT))
+      add(cat, bits, name("popcnt eax,ebx"), {0xF3, 0x0F, 0xB8, 0xC3}, NONE, gprs);
+    if (host_has(BMI1)) {
+      add(cat, bits, name("andn eax,ebx,ecx (BMI1)"), {0xC4, 0xE2, 0x60, 0xF2, 0xC1}, NONE,
+          gprs);
+      af_pf_undefined();
+    }
     add(cat, bits, name("sfence"), {0x0F, 0xAE, 0xF8}, NONE);
     add(cat, bits, name("clflush [rdi]"), {0x0F, 0xAE, 0x3F}, NONE, mem);
   }

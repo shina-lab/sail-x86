@@ -1,5 +1,4 @@
 #include "kvm-harness.h"
-#include <cpuid.h>
 
 void add_sse_tests(std::vector<TestCase> &tests) {
   std::string cat;
@@ -875,9 +874,11 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     s2.xmm[1] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
     tests.push_back({"pextrw eax,xmm1,2", cat, {0x66, 0x0F, 0xC5, 0xC1, 0x02},
                       s2, FL_ALL, 0x0, false});
-    add_misalign_ok_st("pextrw [rdi],xmm0,0 misaligned", {0x66, 0x0F, 0x3A, 0x15, 0x07, 0x00}, 2);
-    add_misalign_ok("pinsrq xmm0,[rdi],0 misaligned", {0x66, 0x48, 0x0F, 0x3A, 0x22, 0x07, 0x00}, {0});
-    add_misalign_ok_st("pextrq [rdi],xmm0,0 misaligned", {0x66, 0x48, 0x0F, 0x3A, 0x16, 0x07, 0x00}, 8);
+    if (host_has(feature::SSE4_1)) {  // the 66 0F 3A forms
+      add_misalign_ok_st("pextrw [rdi],xmm0,0 misaligned", {0x66, 0x0F, 0x3A, 0x15, 0x07, 0x00}, 2);
+      add_misalign_ok("pinsrq xmm0,[rdi],0 misaligned", {0x66, 0x48, 0x0F, 0x3A, 0x22, 0x07, 0x00}, {0});
+      add_misalign_ok_st("pextrq [rdi],xmm0,0 misaligned", {0x66, 0x48, 0x0F, 0x3A, 0x16, 0x07, 0x00}, 8);
+    }
   }
 
   // SSE2 PSHUFHW/PSHUFLW
@@ -898,7 +899,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "SSSE3";
 
-  {
+  if (host_has(feature::SSSE3)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x0003020100070605, 0x0403020108070605);
@@ -908,7 +909,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_misalign_fault("pshufb xmm0,[rdi] misaligned", {0x66, 0x0F, 0x38, 0x00, 0x07}, {0});
   }
 
-  {
+  if (host_has(feature::SSSE3)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0x0001000200030004, 0x0005000600070008);
     s.xmm[1] = xmm_from_u64(0x0010002000300040, 0x0050006000700080);
@@ -940,7 +941,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_misalign_fault("pmulhrsw xmm0,[rdi] misaligned", {0x66, 0x0F, 0x38, 0x0B, 0x07}, {0});
   }
 
-  {
+  if (host_has(feature::SSSE3)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
 
@@ -955,7 +956,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_misalign_fault("pabsd xmm0,[rdi] misaligned", {0x66, 0x0F, 0x38, 0x1E, 0x07});
   }
 
-  {
+  if (host_has(feature::SSSE3)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
     s.xmm[1] = xmm_from_u64(0x0001000100010001, 0xFFFF0000FFFF0000);
@@ -971,7 +972,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     add_misalign_fault("psignd xmm0,[rdi] misaligned", {0x66, 0x0F, 0x38, 0x0A, 0x07}, {0});
   }
 
-  {
+  if (host_has(feature::SSSE3)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -986,7 +987,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   cat = "SSE4.1";
 
-  {
+  if (host_has(feature::SSE4_1)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0x7FFFFFFF80000001);
     s.xmm[1] = xmm_from_u64(0x02FE027E04806183, 0x80000000FFFFFFFF);
@@ -1056,7 +1057,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // PINSRB/PINSRD/PEXTRB/PEXTRD
-  {
+  if (host_has(feature::SSE4_1)) {
     ArchState s;
     s.rax = 0x42;
     s.xmm[0] = xmm_from_u64(0, 0);
@@ -1082,7 +1083,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // EXTRACTPS/INSERTPS
-  {
+  if (host_has(feature::SSE4_1)) {
     ArchState s;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
 
@@ -1098,7 +1099,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // BLENDPS/BLENDPD/PBLENDW
-  {
+  if (host_has(feature::SSE4_1)) {
     ArchState s;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(10.0f, 20.0f, 30.0f, 40.0f);
@@ -1125,7 +1126,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // ROUNDPS/ROUNDPD/ROUNDSS/ROUNDSD
-  {
+  if (host_has(feature::SSE4_1)) {
     ArchState s;
     s.xmm[0] = xmm_from_f32(1.3f, 2.7f, -1.5f, -2.5f);
 
@@ -1157,7 +1158,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // PTEST — sets ZF and CF in EFLAGS
-  {
+  if (host_has(feature::SSE4_1)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0xFF00FF00FF00FF00, 0x00FF00FF00FF00FF);
     s.xmm[1] = xmm_from_u64(0x00FF00FF00FF00FF, 0xFF00FF00FF00FF00);
@@ -1172,7 +1173,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // PMOVZX — zero-extend packed integers
-  {
+  if (host_has(feature::SSE4_1)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0);
 
@@ -1197,7 +1198,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // PMOVSX — sign-extend packed integers
-  {
+  if (host_has(feature::SSE4_1)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0x01FF037F05816082, 0);
 
@@ -1222,7 +1223,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // DPPS/DPPD — dot product
-  {
+  if (host_has(feature::SSE4_1)) {
     ArchState s;
     s.xmm[0] = xmm_from_f32(1.0f, 2.0f, 3.0f, 4.0f);
     s.xmm[1] = xmm_from_f32(5.0f, 6.0f, 7.0f, 8.0f);
@@ -1243,7 +1244,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   }
 
   // MPSADBW — test all 8 imm8[2:0] combinations
-  {
+  if (host_has(feature::SSE4_1)) {
     ArchState s;
     s.xmm[0] = xmm_from_u64(0x0102030405060708, 0x090A0B0C0D0E0F10);
     s.xmm[1] = xmm_from_u64(0x1112131415161718, 0x191A1B1C1D1E1F20);
@@ -1271,7 +1272,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // INSERTPS memory form — imm8[7:6] forced to 0, reads 32 bits
   // =====================================================================
-  {
+  if (host_has(feature::SSE4_1)) {
     cat = "SSE";
 
     // INSERTPS XMM0, [RDI], imm8: 66 0F 3A 21 07 imm8
@@ -1302,7 +1303,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // VEX 0F 12/16 variants: VMOVLPD, VMOVSLDUP, VMOVDDUP, VMOVHPD, VMOVSHDUP
   // =====================================================================
-  {
+  if (host_has(feature::AVX)) {
     cat = "SSE";
 
     // VMOVLPD xmm0, xmm1, [rdi]: VEX.128.66.0F.WIG 12 /r
@@ -1446,7 +1447,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // VCVTPS2PH rounding control
   // =====================================================================
-  {
+  if (host_has(feature::F16C)) {
     cat = "SSE";
 
     // VCVTPS2PH XMM0, XMM1, 0x03: VEX.128.66.0F3A.WIG 1D /r ib
@@ -1470,7 +1471,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // PEXTRW SSE4.1 memory form (66 0F 3A 15)
   // =====================================================================
-  {
+  if (host_has(feature::SSE4_1)) {
     cat = "SSE";
 
     // PEXTRW [RDI], XMM0, 2: 66 0F 3A 15 07 02
@@ -1505,7 +1506,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // VEX VCVTDQ2PS/VCVTPS2DQ/VCVTTPS2DQ
   // =====================================================================
-  {
+  if (host_has(feature::AVX)) {
     cat = "SSE";
 
     // VCVTDQ2PS xmm0, xmm1: VEX.128.NP.0F.WIG 5B /r
@@ -1550,7 +1551,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // VCMPPS 5-bit predicates (predicates 8-15 test NaN-aware comparisons)
   // =====================================================================
-  {
+  if (host_has(feature::AVX)) {
     cat = "SSE";
 
     auto add_xmm = [&](const std::string &name, std::vector<u8> code, ArchState init,
@@ -1612,7 +1613,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // load into XMM0, then VEXTRACTI128 XMM1,YMM0,1 to read upper 128.
   // XMM1 should retain the pattern if upper bits are preserved.
   // =====================================================================
-  {
+  if (host_has(feature::AVX2)) {
     cat = "SSE Legacy Upper";
 
     // Data layout at DATA_ADDR:
@@ -1716,7 +1717,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPISTRI xmm1, xmm2, imm8: 66 0F 3A 63 /r ib
     // Mode 0x00: unsigned bytes, equal any, LSB index
     // XMM0 = "abcd\0...", XMM1 = "xxbx\0..." -> find 'b' at index 2
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x0000000064636261, 0);  // "abcd\0..."
       s.xmm[1] = xmm_from_u64(0x0000000078627878, 0);  // "xxbx\0..."
@@ -1726,7 +1727,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // PCMPxSTRx do NOT require 16-byte alignment (SDM exception class 4)
 
     // PCMPISTRI: equal each (mode 0x08) -- byte-by-byte compare
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x00006F6C6C6568, 0);  // "hello\0..."
       s.xmm[1] = xmm_from_u64(0x00006F6C6C6568, 0);  // "hello\0..."
@@ -1734,7 +1735,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPISTRI: equal each with difference at byte 2
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
       s.xmm[1] = xmm_from_u64(0x0000000044584241, 0);  // "AB\x58D\0..."
@@ -1743,7 +1744,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // PCMPISTRM: equal each (mode 0x08), returns mask in XMM0
     // 66 0F 3A 62 C1 08: PCMPISTRM XMM0, XMM1, 0x08
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
       s.xmm[1] = xmm_from_u64(0x00000000FF43FF41, 0);  // "A\xffC\xff\0..."
@@ -1752,7 +1753,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // PCMPESTRI: explicit length -- 66 0F 3A 61 C1 imm8
     // EAX=length of xmm0 string, EDX=length of xmm1 string
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.rax = 3;  // length of needle
       s.rdx = 4;  // length of haystack
@@ -1765,7 +1766,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // PCMPISTRI: ranges (mode 0x04) — check if chars in xmm1 fall in [A-Z] range
     // xmm0 = range pair "AZ" (0x41, 0x5A), xmm1 = "Hello" (mixed case)
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x000000000000005A41, 0);  // "AZ\0..."
       s.xmm[1] = xmm_from_u64(0x000000006F6C6C6548, 0);  // "Hello\0..."
@@ -1774,7 +1775,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
 
     // PCMPISTRI: equal ordered (mode 0x0C) — substring search
     // Search for "BC" in "ABCD"
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x0000000000004342, 0);  // "BC\0..."
       s.xmm[1] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
@@ -1782,7 +1783,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPISTRI: equal ordered — no match
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x0000000000005958, 0);  // "XY\0..."
       s.xmm[1] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
@@ -1790,7 +1791,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPISTRI: negative polarity (mode 0x18) — inverts result
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
       s.xmm[1] = xmm_from_u64(0x0000000044434241, 0);  // "ABCD\0..."
@@ -1799,7 +1800,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPISTRI: MSB index (imm8[6]=1, mode 0x48)
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x0000000064636261, 0);  // "abcd\0..."
       s.xmm[1] = xmm_from_u64(0x0000000078627878, 0);  // "xxbx\0..."
@@ -1807,7 +1808,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPISTRI: word mode (imm8[0]=1, mode 0x01) — unsigned words, equal any
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x0000000200000001, 0);  // words: 1, 2, 0, 0
       s.xmm[1] = xmm_from_u64(0x0003000100040002, 0);  // words: 2, 4, 1, 3
@@ -1815,7 +1816,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPISTRI: signed bytes, equal each (mode 0x0A)
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x00000000807F0102, 0);  // bytes: 2,1,127,-128,0...
       s.xmm[1] = xmm_from_u64(0x00000000807F0102, 0);  // same
@@ -1823,7 +1824,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPISTRI: full 16-byte strings (no nulls in first 16 bytes)
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x4847464544434241, 0x504F4E4D4C4B4A49);  // "ABCDEFGHIJKLMNOP"
       s.xmm[1] = xmm_from_u64(0x4847464544434241, 0x504F4E4D4C4B4A49);  // same
@@ -1831,7 +1832,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPISTRI: full 16-byte strings that differ at last byte
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x4847464544434241, 0x504F4E4D4C4B4A49);  // "ABCDEFGHIJKLMNOP"
       s.xmm[1] = xmm_from_u64(0x4847464544434241, 0x5A4F4E4D4C4B4A49);  // "ABCDEFGHIJKLMNOZ"
@@ -1841,7 +1842,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // ---- Additional PCMPISTRM tests ----
 
     // PCMPISTRM: equal any, byte-expand mask (imm8[6]=1, mode 0x40)
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x0000000064636261, 0);  // "abcd\0..."
       s.xmm[1] = xmm_from_u64(0x0000000078627878, 0);  // "xxbx\0..."
@@ -1850,7 +1851,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPISTRM: equal each, bitmask (mode 0x08)
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x4847464544434241, 0x504F4E4D4C4B4A49);
       s.xmm[1] = xmm_from_u64(0x4847464544434241, 0x5A4F4E4D4C4B4A49);
@@ -1858,7 +1859,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPISTRM: ranges, bitmask (mode 0x04)
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.xmm[0] = xmm_from_u64(0x000000000000007A61, 0);  // "az\0..." (lowercase range)
       s.xmm[1] = xmm_from_u64(0x000000006F6C6C6548, 0);  // "Hello\0..."
@@ -1868,7 +1869,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // ---- Additional PCMPESTRI tests ----
 
     // PCMPESTRI: equal any with explicit lengths
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.rax = 4;  // length of charset
       s.rdx = 5;  // length of string
@@ -1878,7 +1879,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPESTRI: negative length (treated as unsigned, saturated to 16)
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.rax = -1LL;  // abs(-1) = 1? No, SDM says abs value, saturated to 16
       s.rdx = 4;
@@ -1888,7 +1889,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPESTRM: equal each with explicit lengths
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.rax = 3;
       s.rdx = 3;
@@ -1899,7 +1900,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     }
 
     // PCMPESTRM: zero-length operands
-    {
+    if (host_has(feature::SSE4_2)) {
       ArchState s;
       s.rax = 0;
       s.rdx = 0;
@@ -1911,7 +1912,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
     // ---- PCLMULQDQ tests ----
 
     // PCLMULQDQ XMM0, XMM1, imm8: 66 0F 3A 44 C1 imm8
-    {
+    if (host_has(feature::PCLMULQDQ)) {
       ArchState s;
 
       // Simple: 1 × 1 = 1
@@ -1949,17 +1950,18 @@ void add_sse_tests(std::vector<TestCase> &tests) {
       add_xmm("pclmulqdq FxF 11", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x11}, s, 0x3);
       add_misalign_fault("pclmulqdq xmm0,[rdi],0 misaligned", {0x66, 0x0F, 0x3A, 0x44, 0x07, 0x00}, {0});
 
+      // MSB set: 0x8000000000000000 × 0x8000000000000000
+      s.xmm[0] = xmm_from_u64(0x8000000000000000, 0);
+      s.xmm[1] = xmm_from_u64(0x8000000000000000, 0);
+      add_xmm("pclmulqdq MSB", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
+    }
+    if (host_has(feature::GFNI)) {
       // GFNI: GF2P8MULB (66 0F 38 CF, align=16)
       add_misalign_fault("gf2p8mulb xmm0,[rdi] misaligned", {0x66, 0x0F, 0x38, 0xCF, 0x07}, {0});
       // GF2P8AFFINEQB (66 0F 3A CE, align=16)
       add_misalign_fault("gf2p8affineqb xmm0,[rdi],0 misaligned", {0x66, 0x0F, 0x3A, 0xCE, 0x07, 0x00}, {0});
       // GF2P8AFFINEINVQB (66 0F 3A CF, align=16)
       add_misalign_fault("gf2p8affineinvqb xmm0,[rdi],0 misaligned", {0x66, 0x0F, 0x3A, 0xCF, 0x07, 0x00}, {0});
-
-      // MSB set: 0x8000000000000000 × 0x8000000000000000
-      s.xmm[0] = xmm_from_u64(0x8000000000000000, 0);
-      s.xmm[1] = xmm_from_u64(0x8000000000000000, 0);
-      add_xmm("pclmulqdq MSB", {0x66, 0x0F, 0x3A, 0x44, 0xC1, 0x00}, s, 0x3);
     }
 
     // ---- MASKMOVDQU test ----
@@ -2028,8 +2030,10 @@ void add_sse_tests(std::vector<TestCase> &tests) {
           tests.push_back(std::move(tc));
         };
         add_seg("maskmovdqu [edi] (67h, RDI[63:32] ignored)", {0x67}, 0x1234567800000000ULL | DATA_ADDR);
-        add_seg("maskmovdqu fs:[rdi]", {0xF3, 0x48, 0x0F, 0xAE, 0xD6, 0x64}, DATA_ADDR + 0x100);
-        add_seg("maskmovdqu gs:[rdi]", {0xF3, 0x48, 0x0F, 0xAE, 0xDE, 0x65}, DATA_ADDR + 0x100);
+        if (host_has(feature::FSGSBASE)) {
+          add_seg("maskmovdqu fs:[rdi]", {0xF3, 0x48, 0x0F, 0xAE, 0xD6, 0x64}, DATA_ADDR + 0x100);
+          add_seg("maskmovdqu gs:[rdi]", {0xF3, 0x48, 0x0F, 0xAE, 0xDE, 0x65}, DATA_ADDR + 0x100);
+        }
       }
     }
   }
@@ -2061,7 +2065,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // misalignment case above faults before reaching the instruction.
   // =====================================================================
   cat = "SSE4.1";
-  {
+  if (host_has(feature::SSE4_1)) {
     ArchState s;
     s.xmm[0] = xmm_from_u32(0xFFFFFFFE, 0x11111111, 0x7FFFFFFF, 0x22222222);  // -2, ., INT_MAX, .
     s.xmm[1] = xmm_from_u32(0x00000003, 0x33333333, 0x80000000, 0x44444444);  // 3, ., INT_MIN, .
@@ -2083,9 +2087,7 @@ void add_sse_tests(std::vector<TestCase> &tests) {
   // of the destination are undefined" (INSERTQ p.195), so each case leaves
   // them out; its fields end by bit 63, the results the APM defines.  MOVNTSS and MOVNTSD store the low element (p.326-329).
   // =====================================================================
-  u32 ext_a, ext_b, ext_c, ext_d;
-  __cpuid(0x80000001, ext_a, ext_b, ext_c, ext_d);
-  if (ext_c & (1u << 6)) {
+  if (host_has(feature::SSE4A)) {
     cat = "SSE4A";
     ArchState s;
     s.xmm[1] = xmm_from_u64(0x0123456789ABCDEF, 0xFEDCBA9876543210);

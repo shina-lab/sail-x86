@@ -1083,13 +1083,14 @@ void add_mmx_tests(std::vector<TestCase> &tests) {
     }
     // DS:rDI of the address size, with a segment override (SDM Vol.2B
     // MASKMOVQ), as for MASKMOVDQU in kvm-tests-sse.cpp.
-    struct Seg { const char *name; std::vector<u8> prefix; u64 rdi; };
+    struct Seg { const char *name; std::vector<u8> prefix; u64 rdi; bool fsgsbase; };
     const Seg segs[] = {
-      {"[edi] (67h, RDI[63:32] ignored)", {0x67}, 0x1234567800000000ULL | DATA_ADDR},
-      {"fs:[rdi]", {0xF3, 0x48, 0x0F, 0xAE, 0xD6, 0x64}, DATA_ADDR + 0x100},  // wrfsbase rsi; fs:
-      {"gs:[rdi]", {0xF3, 0x48, 0x0F, 0xAE, 0xDE, 0x65}, DATA_ADDR + 0x100},  // wrgsbase rsi; gs:
+      {"[edi] (67h, RDI[63:32] ignored)", {0x67}, 0x1234567800000000ULL | DATA_ADDR, false},
+      {"fs:[rdi]", {0xF3, 0x48, 0x0F, 0xAE, 0xD6, 0x64}, DATA_ADDR + 0x100, true},  // wrfsbase rsi; fs:
+      {"gs:[rdi]", {0xF3, 0x48, 0x0F, 0xAE, 0xDE, 0x65}, DATA_ADDR + 0x100, true},  // wrgsbase rsi; gs:
     };
     for (const Seg &sg : segs) {
+      if (sg.fsgsbase && !host_has(feature::FSGSBASE)) continue;
       TestCase tc;
       tc.name = std::string("maskmovq mm0,mm1 ") + sg.name;
       tc.category = cat;
@@ -1112,7 +1113,7 @@ void add_mmx_tests(std::vector<TestCase> &tests) {
   // "With 64-bit Operands" forms of the SDM's Operation sections
   // =====================================================================
   cat = "MMX SSSE3";
-  {
+  if (host_has(feature::SSSE3)) {
     // op mm0, mm1 with mm0 from rax and mm1 from rbx; the result comes
     // back in rax.
     auto op_rr = [&](const std::string &name, std::vector<u8> op, u64 a, u64 b) {

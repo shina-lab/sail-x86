@@ -260,106 +260,111 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   {
     cat = "LZCNT/TZCNT";
+    // Without LZCNT (CPUID.80000001H:ECX[5]) or BMI1 (TZCNT, CPUID.07H:
+    // EBX[3]) the encodings execute as BSR and BSF (SDM Vol.2A LZCNT
+    // 3-578, Vol.2B TZCNT 4-727), whose cases are under "BSF/BSR".
+    auto lzcnt = [&](TestCase tc) { if (host_has(feature::LZCNT)) tests.push_back(std::move(tc)); };
+    auto tzcnt = [&](TestCase tc) { if (host_has(feature::BMI1)) tests.push_back(std::move(tc)); };
 
     // LZCNT: F3 0F BD /r
     // CF=1 if source is zero, ZF=1 if result is zero (i.e., MSB is set)
 
     // LZCNT 32-bit: value with MSB set -> result=0, ZF=1
     // F3 0F BD C0: LZCNT EAX, EAX
-    tests.push_back({"lzcnt eax,eax msb", cat, {0xF3, 0x0F, 0xBD, 0xC0},
-                      {.rax = 0x80000000}, FL_CF | FL_ZF});
+    lzcnt({"lzcnt eax,eax msb", cat, {0xF3, 0x0F, 0xBD, 0xC0},
+            {.rax = 0x80000000}, FL_CF | FL_ZF});
 
     // LZCNT 32-bit: zero -> result=32, CF=1
-    tests.push_back({"lzcnt eax,eax zero", cat, {0xF3, 0x0F, 0xBD, 0xC0},
-                      {.rax = 0}, FL_CF | FL_ZF});
+    lzcnt({"lzcnt eax,eax zero", cat, {0xF3, 0x0F, 0xBD, 0xC0},
+            {.rax = 0}, FL_CF | FL_ZF});
 
     // LZCNT 32-bit: 1 -> result=31
-    tests.push_back({"lzcnt eax,eax one", cat, {0xF3, 0x0F, 0xBD, 0xC0},
-                      {.rax = 1}, FL_CF | FL_ZF});
+    lzcnt({"lzcnt eax,eax one", cat, {0xF3, 0x0F, 0xBD, 0xC0},
+            {.rax = 1}, FL_CF | FL_ZF});
 
     // LZCNT 64-bit: F3 REX.W 0F BD C0
     // bit 32 set -> lzcnt=31
-    tests.push_back({"lzcnt rax,rax bit32", cat, {0xF3, 0x48, 0x0F, 0xBD, 0xC0},
-                      {.rax = 0x0000000100000000}, FL_CF | FL_ZF});
+    lzcnt({"lzcnt rax,rax bit32", cat, {0xF3, 0x48, 0x0F, 0xBD, 0xC0},
+            {.rax = 0x0000000100000000}, FL_CF | FL_ZF});
 
     // LZCNT 64-bit: zero -> result=64, CF=1
-    tests.push_back({"lzcnt rax,rax zero", cat, {0xF3, 0x48, 0x0F, 0xBD, 0xC0},
-                      {.rax = 0}, FL_CF | FL_ZF});
+    lzcnt({"lzcnt rax,rax zero", cat, {0xF3, 0x48, 0x0F, 0xBD, 0xC0},
+            {.rax = 0}, FL_CF | FL_ZF});
 
     // LZCNT 16-bit: 66 F3 0F BD C0
     // AX=0x0001, lzcnt16=15
-    tests.push_back({"lzcnt ax,ax one", cat, {0x66, 0xF3, 0x0F, 0xBD, 0xC0},
-                      {.rax = 0xDEAD000000000001}, FL_CF | FL_ZF});
+    lzcnt({"lzcnt ax,ax one", cat, {0x66, 0xF3, 0x0F, 0xBD, 0xC0},
+            {.rax = 0xDEAD000000000001}, FL_CF | FL_ZF});
 
     // LZCNT 16-bit: zero -> result=16, CF=1
     // AX=0x0000
-    tests.push_back({"lzcnt ax,ax zero", cat, {0x66, 0xF3, 0x0F, 0xBD, 0xC0},
-                      {.rax = 0xDEAD000000000000}, FL_CF | FL_ZF});
+    lzcnt({"lzcnt ax,ax zero", cat, {0x66, 0xF3, 0x0F, 0xBD, 0xC0},
+            {.rax = 0xDEAD000000000000}, FL_CF | FL_ZF});
 
     // TZCNT: F3 0F BC /r
     // CF=1 if source is zero, ZF=1 if result is zero (i.e., LSB is set)
 
     // TZCNT 32-bit: LSB set -> result=0, ZF=1
-    tests.push_back({"tzcnt eax,eax lsb", cat, {0xF3, 0x0F, 0xBC, 0xC0},
-                      {.rax = 1}, FL_CF | FL_ZF});
+    tzcnt({"tzcnt eax,eax lsb", cat, {0xF3, 0x0F, 0xBC, 0xC0},
+            {.rax = 1}, FL_CF | FL_ZF});
 
     // TZCNT 32-bit: zero -> result=32, CF=1
-    tests.push_back({"tzcnt eax,eax zero", cat, {0xF3, 0x0F, 0xBC, 0xC0},
-                      {.rax = 0}, FL_CF | FL_ZF});
+    tzcnt({"tzcnt eax,eax zero", cat, {0xF3, 0x0F, 0xBC, 0xC0},
+            {.rax = 0}, FL_CF | FL_ZF});
 
     // TZCNT 32-bit: 0x80000000 -> result=31
-    tests.push_back({"tzcnt eax,eax msb", cat, {0xF3, 0x0F, 0xBC, 0xC0},
-                      {.rax = 0x80000000}, FL_CF | FL_ZF});
+    tzcnt({"tzcnt eax,eax msb", cat, {0xF3, 0x0F, 0xBC, 0xC0},
+            {.rax = 0x80000000}, FL_CF | FL_ZF});
 
     // TZCNT 64-bit: bit 63 only -> result=63
-    tests.push_back({"tzcnt rax,rax bit63", cat, {0xF3, 0x48, 0x0F, 0xBC, 0xC0},
-                      {.rax = 0x8000000000000000}, FL_CF | FL_ZF});
+    tzcnt({"tzcnt rax,rax bit63", cat, {0xF3, 0x48, 0x0F, 0xBC, 0xC0},
+            {.rax = 0x8000000000000000}, FL_CF | FL_ZF});
 
     // TZCNT 16-bit: AX=0x8000 -> result=15
-    tests.push_back({"tzcnt ax,ax msb16", cat, {0x66, 0xF3, 0x0F, 0xBC, 0xC0},
-                      {.rax = 0xDEAD000000008000}, FL_CF | FL_ZF});
+    tzcnt({"tzcnt ax,ax msb16", cat, {0x66, 0xF3, 0x0F, 0xBC, 0xC0},
+            {.rax = 0xDEAD000000008000}, FL_CF | FL_ZF});
 
     // TZCNT with different src/dst regs: TZCNT EAX, EBX
     // F3 0F BC C3: TZCNT EAX, EBX (reg=eax, rm=ebx)
     // tzcnt=8
-    tests.push_back({"tzcnt eax,ebx 0x100", cat, {0xF3, 0x0F, 0xBC, 0xC3},
-                      {.rbx = 0x100}, FL_CF | FL_ZF});
+    tzcnt({"tzcnt eax,ebx 0x100", cat, {0xF3, 0x0F, 0xBC, 0xC3},
+            {.rbx = 0x100}, FL_CF | FL_ZF});
 
     // --- Memory operand tests ---
 
     // LZCNT EAX, [RDI]: F3 0F BD 07
     // Memory contains 0x00010000 -> lzcnt32 = 15
-    tests.push_back({"lzcnt eax,[rdi]", cat, {0xF3, 0x0F, 0xBD, 0x07},
-                      {.rdi = DATA_ADDR},
-                      FL_CF | FL_ZF, 0, false,
-                      {0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}, 0});
+    lzcnt({"lzcnt eax,[rdi]", cat, {0xF3, 0x0F, 0xBD, 0x07},
+            {.rdi = DATA_ADDR},
+            FL_CF | FL_ZF, 0, false,
+            {0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}, 0});
 
     // LZCNT RAX, [RDI]: F3 48 0F BD 07
     // Memory contains 0x0000000100000000 -> lzcnt64 = 31
-    tests.push_back({"lzcnt rax,[rdi]", cat, {0xF3, 0x48, 0x0F, 0xBD, 0x07},
-                      {.rdi = DATA_ADDR},
-                      FL_CF | FL_ZF, 0, false,
-                      {0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}, 0});
+    lzcnt({"lzcnt rax,[rdi]", cat, {0xF3, 0x48, 0x0F, 0xBD, 0x07},
+            {.rdi = DATA_ADDR},
+            FL_CF | FL_ZF, 0, false,
+            {0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}, 0});
 
     // TZCNT EAX, [RDI]: F3 0F BC 07
     // Memory contains 0x00000100 -> tzcnt32 = 8
-    tests.push_back({"tzcnt eax,[rdi]", cat, {0xF3, 0x0F, 0xBC, 0x07},
-                      {.rdi = DATA_ADDR},
-                      FL_CF | FL_ZF, 0, false,
-                      {0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0});
+    tzcnt({"tzcnt eax,[rdi]", cat, {0xF3, 0x0F, 0xBC, 0x07},
+            {.rdi = DATA_ADDR},
+            FL_CF | FL_ZF, 0, false,
+            {0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0});
 
     // TZCNT RAX, [RDI]: F3 48 0F BC 07
     // Memory contains 0x8000000000000000 -> tzcnt64 = 63
-    tests.push_back({"tzcnt rax,[rdi]", cat, {0xF3, 0x48, 0x0F, 0xBC, 0x07},
-                      {.rdi = DATA_ADDR},
-                      FL_CF | FL_ZF, 0, false,
-                      {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80}, 0});
+    tzcnt({"tzcnt rax,[rdi]", cat, {0xF3, 0x48, 0x0F, 0xBC, 0x07},
+            {.rdi = DATA_ADDR},
+            FL_CF | FL_ZF, 0, false,
+            {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80}, 0});
   }
 
   // =====================================================================
   // POPCNT — F3 mandatory prefix, all operand sizes, flag semantics
   // =====================================================================
-  {
+  if (host_has(feature::POPCNT)) {
     cat = "POPCNT";
 
     // POPCNT clears OF, SF, AF, CF, PF and sets ZF=1 if count==0
@@ -656,7 +661,7 @@ void add_encoding_tests(std::vector<TestCase> &tests) {
   // =====================================================================
   // MOVBE — byte-swap load/store (0F 38 F0/F1)
   // =====================================================================
-  {
+  if (host_has(feature::MOVBE)) {
     cat = "MOVBE";
 
     // MOVBE EAX, [RDI]: 0F 38 F0 07 (load 32-bit, byte-swap)

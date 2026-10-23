@@ -598,7 +598,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
       add("compat bsr eax,ebx", {0x0F, 0xBD, 0xC3}, bs, FL_ZF);
     }
     // POPCNT EAX, EBX: F3 0F B8 C3
-    {
+    if (host_has(feature::POPCNT)) {
       ArchState pc = {};
       pc.rbx = 0x12345678;
       pc.rflags = initial_flags();
@@ -941,7 +941,7 @@ void add_compat_tests(std::vector<TestCase> &tests) {
   // VEX is valid when C4/C5 byte2 has mod=11 (R/X/B must be 1 = no R8-R15)
   // =====================================================================
   // --- VEX in 32-bit mode ---
-  {
+  if (host_has(feature::AVX)) {
     // VADDPS XMM0, XMM1, XMM2: C5 F0 58 C2
     // VEX.R=1, VEX.vvvv=0001 (XMM1), L=0 (128), pp=00
     {

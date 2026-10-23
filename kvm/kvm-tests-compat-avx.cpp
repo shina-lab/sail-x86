@@ -101,23 +101,26 @@ void add_compat_avx_tests(std::vector<TestCase> &tests) {
     // numbers: ModR/M.reg (or the /digit), VEX.vvvv and ModR/M.r/m.
     const u64 FL_BMI = FL_ALL & ~(FL_AF | FL_PF);
     const u64 FL_BEXTR = FL_ZF | FL_OF | FL_CF | FL_DF;
-    struct Bmi { const char *name; int mm, pp; u8 op; int reg, vvvv, rm, imm; u64 flags; };
+    struct Bmi {
+      const char *name; int mm, pp; u8 op; int reg, vvvv, rm, imm; u64 flags; CpuidBit needs;
+    };
     static const Bmi bmis[] = {
-      {"andn eax,ebx,ecx", 2, 0, 0xF2, 0, 3, 1, -1, FL_BMI},
-      {"blsr ebx,ecx", 2, 0, 0xF3, 1, 3, 1, -1, FL_BMI},
-      {"blsmsk ebx,ecx", 2, 0, 0xF3, 2, 3, 1, -1, FL_BMI},
-      {"blsi ebx,ecx", 2, 0, 0xF3, 3, 3, 1, -1, FL_BMI},
-      {"bextr eax,ecx,edx", 2, 0, 0xF7, 0, 2, 1, -1, FL_BEXTR},
-      {"bzhi eax,ecx,esi", 2, 0, 0xF5, 0, 6, 1, -1, FL_BMI},
-      {"pdep eax,ebx,ecx", 2, 3, 0xF5, 0, 3, 1, -1, FL_ALL},
-      {"pext eax,ebx,ecx", 2, 2, 0xF5, 0, 3, 1, -1, FL_ALL},
-      {"mulx eax,ebx,ecx", 2, 3, 0xF6, 0, 3, 1, -1, FL_ALL},
-      {"sarx eax,ecx,esi", 2, 2, 0xF7, 0, 6, 1, -1, FL_ALL},
-      {"shlx eax,ecx,esi", 2, 1, 0xF7, 0, 6, 1, -1, FL_ALL},
-      {"shrx eax,ecx,esi", 2, 3, 0xF7, 0, 6, 1, -1, FL_ALL},
-      {"rorx eax,ecx,40", 3, 3, 0xF0, 0, 0, 1, 40, FL_ALL},
+      {"andn eax,ebx,ecx", 2, 0, 0xF2, 0, 3, 1, -1, FL_BMI, feature::BMI1},
+      {"blsr ebx,ecx", 2, 0, 0xF3, 1, 3, 1, -1, FL_BMI, feature::BMI1},
+      {"blsmsk ebx,ecx", 2, 0, 0xF3, 2, 3, 1, -1, FL_BMI, feature::BMI1},
+      {"blsi ebx,ecx", 2, 0, 0xF3, 3, 3, 1, -1, FL_BMI, feature::BMI1},
+      {"bextr eax,ecx,edx", 2, 0, 0xF7, 0, 2, 1, -1, FL_BEXTR, feature::BMI1},
+      {"bzhi eax,ecx,esi", 2, 0, 0xF5, 0, 6, 1, -1, FL_BMI, feature::BMI2},
+      {"pdep eax,ebx,ecx", 2, 3, 0xF5, 0, 3, 1, -1, FL_ALL, feature::BMI2},
+      {"pext eax,ebx,ecx", 2, 2, 0xF5, 0, 3, 1, -1, FL_ALL, feature::BMI2},
+      {"mulx eax,ebx,ecx", 2, 3, 0xF6, 0, 3, 1, -1, FL_ALL, feature::BMI2},
+      {"sarx eax,ecx,esi", 2, 2, 0xF7, 0, 6, 1, -1, FL_ALL, feature::BMI2},
+      {"shlx eax,ecx,esi", 2, 1, 0xF7, 0, 6, 1, -1, FL_ALL, feature::BMI2},
+      {"shrx eax,ecx,esi", 2, 3, 0xF7, 0, 6, 1, -1, FL_ALL, feature::BMI2},
+      {"rorx eax,ecx,40", 3, 3, 0xF0, 0, 0, 1, 40, FL_ALL, feature::BMI2},
     };
     for (const Bmi &b : bmis) {
+      if (!host_has(b.needs)) continue;
       auto encode = [&](const Vex &v, bool mem) {
         if (b.imm >= 0) return mem ? v.encode_rm_mem_imm(b.imm) : v.encode_rr_imm(b.imm);
         return mem ? v.encode_rm_mem() : v.encode_rr();
@@ -170,7 +173,7 @@ void add_compat_avx_tests(std::vector<TestCase> &tests) {
     }
     // W is an opcode extension or element size for vector instructions and
     // stays meaningful: VPSLLVQ (W1) vs. VPSLLVD (W0).
-    {
+    if (host_has(feature::AVX2)) {
       ArchState s = g;
       for (int j = 0; j < 4; j++) s.xmm[2].q[j] = 5 + j;  // dword counts 5+j and 0
       Vex q; q.mm = 2; q.pp = 1; q.opcode = 0x47; q.reg = 0; q.vvvv = 1; q.rm = 2;
@@ -228,7 +231,7 @@ void add_compat_avx_tests(std::vector<TestCase> &tests) {
     // overridden to 16 bits" (SDM Vol.2A §2.3.12); "VSIB addressing is only
     // valid in 32-bit or 64-bit effective addressing mode" (APM Vol.4
     // §1.3.2).
-    {
+    if (host_has(feature::AVX2)) {
       ArchState s = g;
       s.rdi = 0x5A5A5A5A00000000 | (DATA_ADDR + 16);
       for (int j = 0; j < 8; j++) s.xmm[2].set<int32_t>(j, (j * 5) % 8 - 4);

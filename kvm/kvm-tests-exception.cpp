@@ -142,14 +142,10 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   add_fault("senduipi rbx (F3 0F C7 /6 → #UD, not RDRAND)", {0xF3, 0x0F, 0xC7, 0xF3}, {}, 6);
   add_fault("rdrand rbx with F2 (NFx → #UD)", {0xF2, 0x0F, 0xC7, 0xF3}, {}, 6);
   add_fault("rdseed rbx with F2 (NFx → #UD)", {0xF2, 0x0F, 0xC7, 0xFB}, {}, 6);
-  {
-    u32 a, b, c, d;
-    bool waitpkg = __get_cpuid_count(7, 0, &a, &b, &c, &d) && (c & (1u << 5));
-    if (!waitpkg) {
-      add_fault("tpause ebx (66 0F AE /6 → #UD, not MFENCE)", {0x66, 0x0F, 0xAE, 0xF3}, {}, 6);
-      add_fault("umonitor rbx (F3 0F AE /6 → #UD, not MFENCE)", {0xF3, 0x0F, 0xAE, 0xF3}, {}, 6);
-      add_fault("umwait ebx (F2 0F AE /6 → #UD, not MFENCE)", {0xF2, 0x0F, 0xAE, 0xF3}, {}, 6);
-    }
+  if (!host_has(feature::WAITPKG)) {
+    add_fault("tpause ebx (66 0F AE /6 → #UD, not MFENCE)", {0x66, 0x0F, 0xAE, 0xF3}, {}, 6);
+    add_fault("umonitor rbx (F3 0F AE /6 → #UD, not MFENCE)", {0xF3, 0x0F, 0xAE, 0xF3}, {}, 6);
+    add_fault("umwait ebx (F2 0F AE /6 → #UD, not MFENCE)", {0xF2, 0x0F, 0xAE, 0xF3}, {}, 6);
   }
 
   // VLDMXCSR/VSTMXCSR are VEX.LZ with vvvv reserved: VEX.L = 1 and
@@ -436,65 +432,100 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   add_fault("movapd [rdi],xmm0 store (unaligned → #GP)", {0x66, 0x0F, 0x29, 0x07},
             {.rdi = DATA_ADDR + 5}, 13);
 
-  // VEX VMOVAPS load unaligned (128-bit)
-  // VMOVAPS XMM0, [RDI]: C5 F8 28 07
-  add_fault("vmovaps xmm0,[rdi] load (unaligned → #GP)", {0xC5, 0xF8, 0x28, 0x07},
-            {.rdi = DATA_ADDR + 1}, 13);
+  // AMD's Misaligned SSE mode: with MXCSR.MM (bit 17) set, "the #GP is
+  // inhibited" for a misaligned operand of a legacy load/execute SSE
+  // instruction, whereas "(V)MOVAPD, (V)MOVAPS, and (V)MOVDQA" "do not
+  // support misaligned accesses" (APM Vol.1 §4.3.2 p.120-121), nor does
+  // MOVNTDQA, whose page gives the #GP with no MM condition (APM Vol.4
+  // p.321).  MM exists where MXCSR_MASK has bit 17 (§4.2.2 p.118);
+  // elsewhere loading it is #GP, as for any reserved bit ("#GP For an
+  // attempt to set reserved bits in MXCSR", SDM Vol.2A LDMXCSR 3-539).
+  if (host_mxcsr_mask() >> 17 & 1) {
+    ArchState s = {.rdi = DATA_ADDR + 1};
+    s.mxcsr = 0x1F80 | 1u << 17;
+    tests.push_back({"addps xmm0,[rdi] misaligned with MXCSR.MM", cat, {0x0F, 0x58, 0x07},
+                     s, FL_ALL, 0x1});
+    tests.push_back({"paddd xmm0,[rdi] misaligned with MXCSR.MM", cat, {0x66, 0x0F, 0xFE, 0x07},
+                     s, FL_ALL, 0x1});
+    add_fault("movaps xmm0,[rdi] misaligned with MXCSR.MM → #GP", {0x0F, 0x28, 0x07}, s, 13);
+    add_fault("movdqa xmm0,[rdi] misaligned with MXCSR.MM → #GP", {0x66, 0x0F, 0x6F, 0x07}, s, 13);
+    if (host_has(feature::SSE4_1))
+      add_fault("movntdqa xmm0,[rdi] misaligned with MXCSR.MM → #GP",
+                {0x66, 0x0F, 0x38, 0x2A, 0x07}, s, 13);
+  } else {
+    TestCase tc;
+    tc.name = "ldmxcsr [rdi] with MXCSR.MM (reserved → #GP)";
+    tc.category = cat;
+    tc.code = {0x0F, 0xAE, 0x17};
+    tc.initial = {.rdi = DATA_ADDR};
+    tc.init_data = {0x80, 0x1F, 0x02, 0x00};
+    tc.flags_mask = FL_ALL;
+    tc.expect_fault = true;
+    tc.expected_vector = 13;
+    tests.push_back(std::move(tc));
+  }
 
-  // VEX VMOVAPS store unaligned (128-bit)
-  // VMOVAPS [RDI], XMM0: C5 F8 29 07
-  add_fault("vmovaps [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF8, 0x29, 0x07},
-            {.rdi = DATA_ADDR + 7}, 13);
+  if (host_has(feature::AVX)) {
+    // VEX VMOVAPS load unaligned (128-bit)
+    // VMOVAPS XMM0, [RDI]: C5 F8 28 07
+    add_fault("vmovaps xmm0,[rdi] load (unaligned → #GP)", {0xC5, 0xF8, 0x28, 0x07},
+              {.rdi = DATA_ADDR + 1}, 13);
 
-  // VEX VMOVAPD load unaligned (128-bit)
-  // VMOVAPD XMM0, [RDI]: C5 F9 28 07
-  add_fault("vmovapd xmm0,[rdi] load (unaligned → #GP)", {0xC5, 0xF9, 0x28, 0x07},
-            {.rdi = DATA_ADDR + 2}, 13);
+    // VEX VMOVAPS store unaligned (128-bit)
+    // VMOVAPS [RDI], XMM0: C5 F8 29 07
+    add_fault("vmovaps [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF8, 0x29, 0x07},
+              {.rdi = DATA_ADDR + 7}, 13);
 
-  // VEX VMOVAPS load unaligned (256-bit, 32-byte alignment required)
-  // VMOVAPS YMM0, [RDI]: C5 FC 28 07 (VEX.256.NP)
-  add_fault("vmovaps ymm0,[rdi] load (16-aligned, not 32 → #GP)", {0xC5, 0xFC, 0x28, 0x07},
-            {.rdi = DATA_ADDR + 16}, 13);  // 16-byte aligned but not 32-byte aligned
+    // VEX VMOVAPD load unaligned (128-bit)
+    // VMOVAPD XMM0, [RDI]: C5 F9 28 07
+    add_fault("vmovapd xmm0,[rdi] load (unaligned → #GP)", {0xC5, 0xF9, 0x28, 0x07},
+              {.rdi = DATA_ADDR + 2}, 13);
 
-  // VEX VMOVAPD store unaligned (128-bit)
-  // VMOVAPD [RDI], XMM0: C5 F9 29 07
-  add_fault("vmovapd [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF9, 0x29, 0x07},
-            {.rdi = DATA_ADDR + 3}, 13);
+    // VEX VMOVAPS load unaligned (256-bit, 32-byte alignment required)
+    // VMOVAPS YMM0, [RDI]: C5 FC 28 07 (VEX.256.NP)
+    add_fault("vmovaps ymm0,[rdi] load (16-aligned, not 32 → #GP)", {0xC5, 0xFC, 0x28, 0x07},
+              {.rdi = DATA_ADDR + 16}, 13);  // 16-byte aligned but not 32-byte aligned
 
-  // VEX VMOVAPD load unaligned (256-bit, 32-byte alignment required)
-  // VMOVAPD YMM0, [RDI]: C5 FD 28 07
-  add_fault("vmovapd ymm0,[rdi] load (16-aligned, not 32 → #GP)", {0xC5, 0xFD, 0x28, 0x07},
-            {.rdi = DATA_ADDR + 16}, 13);  // 16-byte aligned but not 32-byte aligned
+    // VEX VMOVAPD store unaligned (128-bit)
+    // VMOVAPD [RDI], XMM0: C5 F9 29 07
+    add_fault("vmovapd [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF9, 0x29, 0x07},
+              {.rdi = DATA_ADDR + 3}, 13);
 
-  // VEX VMOVAPS store unaligned (256-bit)
-  // VMOVAPS [RDI], YMM0: C5 FC 29 07
-  add_fault("vmovaps [rdi],ymm0 store (16-aligned, not 32 → #GP)", {0xC5, 0xFC, 0x29, 0x07},
-            {.rdi = DATA_ADDR + 16}, 13);
+    // VEX VMOVAPD load unaligned (256-bit, 32-byte alignment required)
+    // VMOVAPD YMM0, [RDI]: C5 FD 28 07
+    add_fault("vmovapd ymm0,[rdi] load (16-aligned, not 32 → #GP)", {0xC5, 0xFD, 0x28, 0x07},
+              {.rdi = DATA_ADDR + 16}, 13);  // 16-byte aligned but not 32-byte aligned
 
-  // VEX VMOVAPD store unaligned (256-bit)
-  // VMOVAPD [RDI], YMM0: C5 FD 29 07
-  add_fault("vmovapd [rdi],ymm0 store (16-aligned, not 32 → #GP)", {0xC5, 0xFD, 0x29, 0x07},
-            {.rdi = DATA_ADDR + 16}, 13);
+    // VEX VMOVAPS store unaligned (256-bit)
+    // VMOVAPS [RDI], YMM0: C5 FC 29 07
+    add_fault("vmovaps [rdi],ymm0 store (16-aligned, not 32 → #GP)", {0xC5, 0xFC, 0x29, 0x07},
+              {.rdi = DATA_ADDR + 16}, 13);
 
-  // VEX VMOVDQA load unaligned (128-bit)
-  // VMOVDQA XMM0, [RDI]: C5 F9 6F 07
-  add_fault("vmovdqa xmm0,[rdi] load (unaligned → #GP)", {0xC5, 0xF9, 0x6F, 0x07},
-            {.rdi = DATA_ADDR + 1}, 13);
+    // VEX VMOVAPD store unaligned (256-bit)
+    // VMOVAPD [RDI], YMM0: C5 FD 29 07
+    add_fault("vmovapd [rdi],ymm0 store (16-aligned, not 32 → #GP)", {0xC5, 0xFD, 0x29, 0x07},
+              {.rdi = DATA_ADDR + 16}, 13);
 
-  // VEX VMOVDQA store unaligned (128-bit)
-  // VMOVDQA [RDI], XMM0: C5 F9 7F 07
-  add_fault("vmovdqa [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF9, 0x7F, 0x07},
-            {.rdi = DATA_ADDR + 1}, 13);
+    // VEX VMOVDQA load unaligned (128-bit)
+    // VMOVDQA XMM0, [RDI]: C5 F9 6F 07
+    add_fault("vmovdqa xmm0,[rdi] load (unaligned → #GP)", {0xC5, 0xF9, 0x6F, 0x07},
+              {.rdi = DATA_ADDR + 1}, 13);
 
-  // VEX VMOVNTDQ store unaligned (128-bit)
-  // VMOVNTDQ [RDI], XMM0: C5 F9 E7 07
-  add_fault("vmovntdq [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF9, 0xE7, 0x07},
-            {.rdi = DATA_ADDR + 1}, 13);
+    // VEX VMOVDQA store unaligned (128-bit)
+    // VMOVDQA [RDI], XMM0: C5 F9 7F 07
+    add_fault("vmovdqa [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF9, 0x7F, 0x07},
+              {.rdi = DATA_ADDR + 1}, 13);
 
-  // VEX VMOVNTPS store unaligned (128-bit)
-  // VMOVNTPS [RDI], XMM0: C5 F8 2B 07
-  add_fault("vmovntps [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF8, 0x2B, 0x07},
-            {.rdi = DATA_ADDR + 1}, 13);
+    // VEX VMOVNTDQ store unaligned (128-bit)
+    // VMOVNTDQ [RDI], XMM0: C5 F9 E7 07
+    add_fault("vmovntdq [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF9, 0xE7, 0x07},
+              {.rdi = DATA_ADDR + 1}, 13);
+
+    // VEX VMOVNTPS store unaligned (128-bit)
+    // VMOVNTPS [RDI], XMM0: C5 F8 2B 07
+    add_fault("vmovntps [rdi],xmm0 store (unaligned → #GP)", {0xC5, 0xF8, 0x2B, 0x07},
+              {.rdi = DATA_ADDR + 1}, 13);
+  }
 
   // Segment loads in 64-bit mode (SDM Vol.2B MOV, 64-Bit Mode Exceptions).
   // The GDT offers 0x10 (data), 0x38 (read-only data), 0x40 (execute-only
@@ -856,6 +887,7 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // MB (WRFSBASE first) and RDI 1 MB below the data page, the load reads
   // the page through FS and faults (#PF) through DS.
   for (bool fs_last : {false, true}) {
+    if (!host_has(feature::FSGSBASE)) break;
     TestCase tc;
     tc.name = fs_last ? "mov rax,ds:fs:[rdi] (FS applies)" : "mov rax,fs:ds:[rdi] (DS has no effect)";
     tc.category = cat;
@@ -873,10 +905,12 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // CLFLUSH, CLFLUSHOPT and CLWB, which fault like a byte load (SDM Vol.2A)
   add_fault("clflush [rdi] non-canonical → #GP(0)", {0x0F, 0xAE, 0x3F},
             {.rdi = 0x0000800000000000ULL}, 13);
-  add_fault("clflushopt [rbp] non-canonical (SS default) → #SS(0)",
-            {0x66, 0x0F, 0xAE, 0x7D, 0x00}, {.rbp = 0x0000800000000000ULL}, 12);
-  add_fault("clwb [rdi] non-canonical → #GP(0)", {0x66, 0x0F, 0xAE, 0x37},
-            {.rdi = 0x0000800000000000ULL}, 13);
+  if (host_has(feature::CLFLUSHOPT))
+    add_fault("clflushopt [rbp] non-canonical (SS default) → #SS(0)",
+              {0x66, 0x0F, 0xAE, 0x7D, 0x00}, {.rbp = 0x0000800000000000ULL}, 12);
+  if (host_has(feature::CLWB))
+    add_fault("clwb [rdi] non-canonical → #GP(0)", {0x66, 0x0F, 0xAE, 0x37},
+              {.rdi = 0x0000800000000000ULL}, 13);
   // The last canonical address of the low half is reachable (a #PF from
   // the unmapped page, not #GP).
   {
@@ -968,7 +1002,9 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     // a read #PF, though they change no data
     pf.rbx = 0x300000;
     add_pf("pf clflush [0x300000]", {0x0F, 0xAE, 0x3B}, pf);
-    add_pf("pf clflushopt [0x300000]", {0x66, 0x0F, 0xAE, 0x3B}, pf);
-    add_pf("pf clwb [0x300000]", {0x66, 0x0F, 0xAE, 0x33}, pf);
+    if (host_has(feature::CLFLUSHOPT))
+      add_pf("pf clflushopt [0x300000]", {0x66, 0x0F, 0xAE, 0x3B}, pf);
+    if (host_has(feature::CLWB))
+      add_pf("pf clwb [0x300000]", {0x66, 0x0F, 0xAE, 0x33}, pf);
   }
 }

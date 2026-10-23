@@ -1,9 +1,8 @@
 // WAITPKG: TPAUSE (66 0F AE /6), UMWAIT (F2 0F AE /6), UMONITOR (F3 0F AE /6),
 // all with ModRM.mod = 11, and the IA32_UMWAIT_CONTROL MSR (E1H).
-// Constructed only where the host has WAITPKG (CPUID.(7,0):ECX[5]); run
-// against an Intel Xeon Platinum 8562Y+ (Emerald Rapids) under KVM, where
-// the guest executes them natively ("enable user wait and pause") and its
-// IA32_UMWAIT_CONTROL starts at 0.
+// Constructed only where the guest has WAITPKG (CPUID.(7,0):ECX[5]); KVM
+// then lets the guest execute them natively ("enable user wait and
+// pause"), and its IA32_UMWAIT_CONTROL starts at 0.
 //
 // A wait ends at its deadline: EDX:EAX, or the OS limit IA32_UMWAIT_CONTROL
 // [31:2] TSC quanta from now when that is earlier, in which case CF is set.
@@ -13,7 +12,6 @@
 // 0 inside the code sequence, because the guest's MSR outlives a test.
 
 #include "kvm-harness.h"
-#include <cpuid.h>
 
 namespace {
 
@@ -42,9 +40,7 @@ std::vector<u8> cat(std::initializer_list<std::vector<u8>> parts) {
 }  // namespace
 
 void add_waitpkg_tests(std::vector<TestCase> &tests) {
-  u32 a7, b7, c7, d7;
-  __cpuid_count(7, 0, a7, b7, c7, d7);
-  if (!(c7 & (1u << 5))) return;  // no WAITPKG
+  if (!host_has(feature::WAITPKG)) return;
 
   const std::string cat_name = "WAITPKG";
   // rbx: the control register operand (bit 0: C0.1); rdi: the monitor
