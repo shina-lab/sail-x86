@@ -49,8 +49,10 @@ function scan_prefixes() = {
       // 26 = ES override.  In 64-bit mode, "the CS, DS, ES, and SS
       // segment-override prefixes have no effect" and "are treated as null
       // prefixes" (AMD64 APM Vol.3 §1.2.4): they leave the segment, and an
-      // FS or GS override before them, as they are.  An Emerald Rapids
-      // agrees: a non-canonical ds:[rbp] is #SS(0), as without the prefix.
+      // FS or GS override before them, as they are.  So does the SDM:
+      // "Other segment override prefixes (CS, DS, ES, and SS) are ignored"
+      // (Vol.1 §3.3.7.1 p.3-10), and a non-canonical ds:[rbp] is #SS(0),
+      // as without the prefix.
       38 => pfx = {pfx with seg_override = if cur_mode == LongMode then pfx.seg_override else Some(ES),
               has_rex = false, rex_w = false, rex_r = 0b0, rex_x = 0b0, rex_b = 0b0},
       // 2E = CS override

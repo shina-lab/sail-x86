@@ -199,10 +199,12 @@ function opsize(pfx) =
     if pfx.has_opsize then 32 else 16
   }
 
-// Operand size for instructions that default to 64-bit (PUSH, POP, CALL, RET).
+// Operand size for instructions that default to 64-bit (PUSH, POP).
 // LongMode: default OS64, 66h → OS16 (OS32 not encodable), REX.W → OS64
-// with or without 66h ("REX.W takes precedence over the operand-size
-// prefix", SDM Vol.2A §2.2.1.2; checked on a Zen 4 and an Emerald Rapids).
+// with or without 66h ("setting REX.W takes precedence over the operand-
+// size prefix (66H) when both are used", SDM Vol.1 §3.6.1 p.3-19; "if a
+// 66H prefix is used with prefix (REX.W = 1), 66H is ignored", Vol.2A
+// §2.2.1.2 p.2-8).
 // Non-LongMode, CS.D=1: default OS32, 66h → OS16.
 // Non-LongMode, CS.D=0: default OS16, 66h → OS32.
 val opsize_default64 : Prefixes -> {16, 32, 64}

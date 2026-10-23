@@ -71,10 +71,14 @@ function resolve_seg(pfx, default_seg) = match pfx.seg_override {
 
 // The default segment of a 32- or 64-bit memory operand with the base
 // register field base (ModR/M.rm, or SIB.base after rm = 100b): SS for an
-// rSP or rBP base, DS otherwise (SDM Vol.1 Table 3-5).  R12 and R13, which
-// are rSP's and rBP's encodings with REX.B (VEX.B̄, EVEX.B̄ clear), are not
-// stack pointers: an Emerald Rapids raises #GP(0), not #SS(0), for a
-// non-canonical [r13+0].  SIB.base = 101b with mod = 00b names no base.
+// rSP or rBP base, DS otherwise ("When the ESP or EBP register is used as
+// the base, the SS segment is the default segment. In all other cases,
+// the DS segment is the default segment", SDM Vol.1 §3.7.5 p.3-23; in
+// 64-bit mode "instructions using RSP/RBP as base registers", §3.3.7.1
+// p.3-10).  R12 and R13, whose encodings are rSP's and rBP's with REX.B
+// (VEX.B̄, EVEX.B̄ clear), are other registers: DS, so a non-canonical
+// [r13+0] is #GP(0), not #SS(0).  SIB.base = 101b with mod = 00b names no
+// base.
 val base_default_seg : (bits(3), range(0, 3), Prefixes) -> segreg_idx
 function base_default_seg(base, modbits, pfx) =
   if pfx.rex_b == 0b0 & (base == 0b100 | base == 0b101 & modbits != 0) then SS else DS

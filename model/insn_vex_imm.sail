@@ -173,8 +173,8 @@ function dispatch_vex_0f3a(opcode, pfx) = {
   if op != 240 & mp != MP_66 then raise_UD();
 
   match op {
-  // 0F3A 00/01: VPERMQ / VPERMPD — ymm, ymm/m256, imm8 (VEX.256, W1 on
-  // Intel; see vex_forms_0f3a)
+  // 0F3A 00/01: VPERMQ / VPERMPD — ymm, ymm/m256, imm8 (VEX.256.W1; W0 is
+  // not defined by either manual; see vex_forms_0f3a)
   op if op == 0 | op == 1 => {
     let (dst, src, imm) = vex_fetch_xrm_imm(pfx);
     write_simd(256, dst, avx_vpermq(decode_vex_src(256, src), imm))
