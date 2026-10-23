@@ -62,7 +62,7 @@ target_link_libraries(kvm_state_compare PRIVATE x86_model)
 add_dependencies(kvm_state_compare generated_sail_x86_model)
 add_test(NAME kvm_state_compare COMMAND kvm_state_compare)
 
-add_executable(kvm_vm86 test-vm86.cpp)
+add_executable(kvm_vm86 test-vm86.cpp kvm-deviations.cpp)
 target_link_libraries(kvm_vm86 PRIVATE x86_system_model)
 target_compile_options(kvm_vm86 PRIVATE -Wno-missing-field-initializers)
 add_dependencies(kvm_vm86 generated_sail_x86_model)

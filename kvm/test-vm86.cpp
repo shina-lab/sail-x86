@@ -2,8 +2,11 @@
 // system model and KVM. Both enter through IRETD, then stop in an IDT handler
 // at HLT. Compare the registers, saved exception frame and application memory.
 // --model-only also runs without /dev/kvm, checking the expected exit vector.
-// --slice=K/N runs every Nth test from the Kth on.
+// --slice=K/N runs every Nth test from the Kth on.  Where a host differs from
+// the manuals, the case is listed in kvm-deviations.cpp as "vm86: <name>
+// [fill=...]" and its mismatch is reported as a known deviation.
 
+#include "kvm-harness.h"  // known_deviation
 #include "sail_x86_model.h"
 #include "x86-helpers.h"
 #include <algorithm>
@@ -311,6 +314,19 @@ public:
 static std::vector<Test> tests() {
   std::vector<Test> ts;
   ts.push_back({"nop", {0x90}});
+  // ESP after an interrupt from virtual-8086 mode to a 16-bit monitor
+  // stack: ESP0, all 32 bits, in both manuals ("SS := NewSS; ESP :=
+  // NewESP", SDM Vol.2A INT n 3-476; "RSP = temp_RSP", APM Vol.3 INT
+  // p.199), the pushes moving SP alone.  The test hosts keep the
+  // interrupted ESP's bits 31:16 instead (kvm-deviations.cpp).  The cases
+  // of 16-bit monitor stacks give ESP0 those bits, so that they compare
+  // the rest; "16-bit monitor stack: ESP[31:16] from ESP0" gives it others.
+  auto esp0_high_as_esp = [](Test &t) { t.kernel_sp |= t.sp & 0xffff0000; };
+  Test high{"16-bit monitor stack: ESP[31:16] from ESP0", {0x90}};
+  high.kernel_stack_limit = 0xffff;
+  high.kernel_stack_flags = 0;
+  high.kernel_sp = 0x5678a000;
+  ts.push_back(high);
   for (bool wide : {false, true}) {
     Test t{"descriptor accessed on monitor entry wide=" + std::to_string(wide), {0x90}};
     t.gate_type = wide ? 0xe : 0x6;
@@ -319,6 +335,7 @@ static std::vector<Test> tests() {
     t.kernel_stack_limit = wide ? 0xfffff : 0xffff;
     t.patches.push_back({GDT + 13, {0x9a}});
     t.check_descriptor_accessed = true;
+    if (!wide) esp0_high_as_esp(t);
     ts.push_back(t);
   }
 
@@ -570,6 +587,7 @@ static std::vector<Test> tests() {
     down.kernel_stack_limit = 0x9000;
     down.kernel_stack_access = 0x97;
     down.kernel_stack_flags = db ? 4 : 0;
+    if (!db) esp0_high_as_esp(down);
     ts.push_back(down);
   }
   for (bool down : {false, true}) {
@@ -578,6 +596,7 @@ static std::vector<Test> tests() {
     wrap.kernel_stack_access = down ? 0x97 : 0x93;
     wrap.kernel_stack_flags = 0;
     wrap.kernel_sp = 0;
+    esp0_high_as_esp(wrap);
     ts.push_back(wrap);
   }
   return ts;
@@ -597,7 +616,7 @@ int main(int argc, char **argv) {
     }
   }
   if (!model_only && access("/dev/kvm", R_OK | W_OK)) return 77;
-  unsigned passed = 0, failed = 0, index = 0;
+  unsigned passed = 0, deviations = 0, failed = 0, index = 0;
   for (const auto &t : tests()) {
     if (index++ % slices != slice) continue;
     for (u32 fill : {0U, ~0U}) {
@@ -620,14 +639,14 @@ int main(int argc, char **argv) {
       if (!model_only) {
         Kvm kvm; // independent VM and fresh memory for each run
         Result hw = kvm.execute(t, mem, fill);
-        ok &= m.gpr == hw.gpr && m.ip == hw.ip && m.flags == hw.flags &&
-              m.seg == hw.seg && m.cr2 == hw.cr2;
+        bool same = m.gpr == hw.gpr && m.ip == hw.ip && m.flags == hw.flags &&
+                    m.seg == hw.seg && m.cr2 == hw.cr2;
         if (t.check_descriptor_accessed) {
           for (u32 addr : {GDT + 13, GDT + 21}) {
             if (!(m.mem[addr] & 1) || m.mem[addr] != hw.mem[addr]) {
               fprintf(stderr, "%s: descriptor[%x] model=%02x hardware=%02x\n",
                       t.name.c_str(), addr, m.mem[addr], hw.mem[addr]);
-              ok = false;
+              same = false;
             }
           }
         }
@@ -637,10 +656,10 @@ int main(int argc, char **argv) {
           if (m.mem[addr] != hw.mem[addr]) {
             fprintf(stderr, "%s: memory[%x] model=%02x hardware=%02x\n",
                     t.name.c_str(), addr, m.mem[addr], hw.mem[addr]);
-            ok = false; break;
+            same = false; break;
           }
         }
-        if (!ok) {
+        if (!same) {
           fprintf(stderr, "%s: ip=%x/%x flags=%x/%x cr2=%x/%x (model/hardware)\n",
                   t.name.c_str(), m.ip, hw.ip, m.flags, hw.flags, m.cr2, hw.cr2);
           for (int i = 0; i < 8; i++)
@@ -652,12 +671,21 @@ int main(int argc, char **argv) {
             memcpy(&b, hw.mem.data() + monitor_stack_addr(t, hw) + i * 4, 4);
             fprintf(stderr, "  frame[%d]=%x/%x\n", i, a, b);
           }
+          // A host's difference from the manuals, where the model's own
+          // checks above hold.
+          const std::string name = "vm86: " + t.name + (fill ? " [fill=ones]" : " [fill=zeros]");
+          if (const KnownDeviation *d = ok ? known_deviation(name) : nullptr) {
+            printf("KNOWN DEVIATION: %s\n  (%s)\n", name.c_str(), d->reason);
+            deviations++;
+            continue;
+          }
         }
+        ok &= same;
       }
       printf("%s %s [fill=%s]\n", ok ? "PASS" : "FAIL", t.name.c_str(), fill ? "ones" : "zeros");
       ok ? passed++ : failed++;
     }
   }
-  printf("vm86: %u passed, %u failed\n", passed, failed);
+  printf("vm86: %u passed, %u known deviations, %u failed\n", passed, deviations, failed);
   return failed != 0;
 }

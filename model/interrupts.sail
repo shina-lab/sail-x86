@@ -261,9 +261,12 @@ function deliver_exception_vm86(vec, err_code, kind) = {
   SegCache[SS] = accessed_stack;
   write_segreg(CS, gate.gate_sel & 0xFFFC);
   write_segreg(SS, ss0);
-  // A 16-bit monitor stack replaces SP only, preserving the interrupted
-  // ESP's high half (confirmed on AMD and Intel).
-  v(32, RSP) = if stack_desc.seg_db == bitone then bottom else old_sp[31..16] @ bottom[15..0];
+  // ESP is the TSS's ESP0, all 32 bits, and the pushes on a 16-bit stack
+  // move SP alone: "SS := NewSS; ESP := NewESP" (SDM Vol.2A INT n,
+  // INTERRUPT-FROM-VIRTUAL-8086-MODE, 3-476), "temp_RSP = READ_MEM.d
+  // [tss:new_cpl*8+4]" and "RSP = temp_RSP" (APM Vol.3 INT p.199,
+  // READ_INNER_LEVEL_SP p.74).
+  v(32, RSP) = if stack_desc.seg_db == bitone then bottom else esp0[31..16] @ bottom[15..0];
   foreach (j from 0 to 3) {
     let i : segreg_idx = match j { 0 => ES, 1 => DS, 2 => FS, _ => GS };
     write_segreg(i, 0x0000);

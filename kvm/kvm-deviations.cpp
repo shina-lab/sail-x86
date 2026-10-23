@@ -177,6 +177,20 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "suppresses the breakpoint \"as if EFLAGS.RF were 1\" (Vol.3A §7.8.3 p.7-8).",
      COMPLETES, DB},
 
+    // Interrupts from virtual-8086 mode (test-vm86.cpp)
+    {true, "vm86: 16-bit monitor stack: ESP[31:16] from ESP0*",
+     "A Zen 4 entering a 16-bit monitor stack from virtual-8086 mode loads SP from the TSS "
+     "and keeps the interrupted ESP's bits 31:16 (0x1234 here, against ESP0's 0x5678).  The "
+     "APM loads all of ESP0: \"temp_SS_desc:temp_RSP = READ_INNER_LEVEL_SP(CPL, temp_ist); "
+     "RSP = temp_RSP\" (Vol.3 INT p.199), with \"temp_RSP = READ_MEM.d [tss:new_cpl*8+4]\" "
+     "(p.74); so does the SDM: \"ESP := NewESP\" (Vol.2A INT n, 3-476)."},
+    {false, "vm86: 16-bit monitor stack: ESP[31:16] from ESP0*",
+     "An Emerald Rapids entering a 16-bit monitor stack from virtual-8086 mode loads SP from "
+     "the TSS and keeps the interrupted ESP's bits 31:16 (0x1234 here, against ESP0's 0x5678).  "
+     "The SDM loads all of ESP0: \"NewESP := 4 bytes loaded from (current TSS base + 4)\" and "
+     "\"ESP := NewESP\" (Vol.2A INT n, INTERRUPT-FROM-VIRTUAL-8086-MODE, 3-476); so does the "
+     "APM: \"RSP = temp_RSP\" from \"READ_MEM.d [tss:new_cpl*8+4]\" (Vol.3 INT p.199, p.74)."},
+
     // Gathers and scatters (kvm-tests-avx-vex.cpp, kvm-tests-avx-special.cpp)
     {false, "VPGATHERDD xmm element *", GATHER_VEX_UPPER},
     {false, "VPGATHERDD ymm element *", GATHER_VEX_UPPER},
