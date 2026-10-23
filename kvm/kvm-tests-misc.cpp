@@ -956,7 +956,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.xmm_mask = 0x3;
       tc.cmp_mxcsr = true;
       tc.init_data = std::vector<u8>(576, 0);
-      fxsave_x87_undefined(tc, 0, X87_NO_DATA | X87_LONG_MODE);  // FLD1
+      fxsave_x87_undefined(tc, 0, X87_XSAVE_NO_ES);  // FSW.ES = 0 after FLD1
       tests.push_back(std::move(tc));
     }
 
@@ -1103,7 +1103,7 @@ void add_misc_instruction_tests(std::vector<TestCase> &tests) {
       tc.flags_mask = FL_ALL;
       tc.xmm_mask = (1 << 8) | (1 << 15);
       tc.init_data = std::vector<u8>(576, 0);
-      fxsave_x87_undefined(tc, 0, X87_NO_DATA | X87_LONG_MODE);  // FLD1
+      fxsave_x87_undefined(tc, 0, X87_XSAVE_NO_ES);  // FSW.ES = 0 after FLD1
       tests.push_back(std::move(tc));
     }
   }

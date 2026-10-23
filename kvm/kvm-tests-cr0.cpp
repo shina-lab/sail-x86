@@ -401,7 +401,7 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
       // Both components are in their initial configuration, for which
       // XSTATE_BV[i] "may be written with either 0 or 1" (SDM Vol.1 §13.7).
       if (ts == NONE) {
-        fxsave_x87_undefined(tests.back(), 0, 0);
+        fxsave_x87_undefined(tests.back(), 0, X87_XSAVE_NO_ES);
         tests.back().data_undefined.push_back({0x200, 0x03});
       }
     }

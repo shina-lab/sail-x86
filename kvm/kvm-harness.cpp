@@ -345,34 +345,12 @@ static bool test_has_amx(const TestCase &tc) {
 }
 
 // The model's vendor register selects the manual whose rule the model
-// follows where the SDM and the APM define different behaviour, and the
-// x87 pointer CPUID bits of each (model/regs.sail).  The host's is the
-// guest's.
+// follows where the SDM and the APM define different behaviour
+// (model/regs.sail).  The host's is the guest's.
 static x86::zVendor host_vendor() {
   u32 a, b, c, d;
   __get_cpuid(0, &a, &b, &c, &d);
   return b == 0x68747541 ? x86::zVendor_AMD : x86::zVendor_Intel;  // "Auth"
-}
-
-// The model's vendor profiles report the CPUID bits that select the x87
-// pointer rules (fdp_excptn_only, fcs_fds_deprecated and rstr_fp_err_ptrs
-// in model/regs.sail): FDP_EXCPTN_ONLY and FCS_FDS_DEPRECATION,
-// CPUID.(7,0):EBX[6] and EBX[13], on Intel, and RstrFpErrPtrs,
-// Fn8000_0008_EBX[2], on AMD.  A host without them follows the manuals'
-// other rules, which the x87 cases do not expect.
-static void check_host_x87_pointer_bits() {
-  u32 a, b, c, d;
-  bool ok;
-  if (host_vendor() == x86::zVendor_AMD) {
-    ok = __get_cpuid(0x80000008, &a, &b, &c, &d) && (b & (1u << 2));
-  } else {
-    __cpuid_count(7, 0, a, b, c, d);
-    ok = (b & (1u << 6)) && (b & (1u << 13));
-  }
-  if (!ok)
-    fprintf(stderr, "warning: the host does not report the x87 pointer CPUID bits "
-            "of the model's %s profile; x87 image cases will differ\n",
-            host_vendor() == x86::zVendor_AMD ? "AMD" : "Intel");
 }
 
 // Exception handlers for vectors 0-31 at handler_addr (16-byte stubs, then a
@@ -1279,6 +1257,12 @@ static void set_model_profile(x86::Model &m) {
   m.zhas_misalignsse = host_has(MISALIGNSSE);
   m.zhas_smap = host_has(SMAP);
   set_avx512_features(m);
+  // The x87 pointer rules (model/regs.sail); the fields of an x87 image
+  // that each leaves open where it is 0 are masked (x87_env_undefined,
+  // fxsave_x87_undefined).
+  m.zhas_fdp_excptn_only = host_has(FDP_EXCPTN_ONLY);
+  m.zhas_fcs_fds_deprecation = host_has(FCS_FDS_DEPRECATION);
+  m.zhas_rstr_fp_err_ptrs = host_has(RSTR_FP_ERR_PTRS);
 
   // The state components, with the layout CPUID.(0DH,i) gives the
   // guest, and CR4.OSXSAVE as XSAVE allows it.
@@ -2036,32 +2020,47 @@ void x87_cw_undefined(TestCase &tc, u16 off) {
   undefined_bytes(tc, off + 1, 1, 0xE0);
 }
 
+// Whether `open` leaves all of FOP, FIP, FCS, FDP and FDS open on this
+// host: after FFREE and the like, and in an image of FXSAVE, or of XSAVE
+// on a host without RstrFpErrPtrs, with FSW.ES = 0.
+static bool x87_pointers_open(unsigned open) {
+  return (open & (X87_FXSAVE_NO_ES | X87_STACK_CONTROL)) ||
+         ((open & X87_XSAVE_NO_ES) && !host_has(feature::RSTR_FP_ERR_PTRS));
+}
+
 void x87_env_undefined(TestCase &tc, u16 off, unsigned open, bool o16) {
   // The reserved high halves of the FCW, FSW, FTW and FDS doublewords
   // ("Reserved, IGN", APM Vol.2 Figure 11-4).  The 16-bit format is all
-  // words, with no reserved fields.
+  // words, with no reserved fields and no FOP.
   if (!o16)
     for (unsigned half : {0x02, 0x06, 0x0A, 0x1A})
       undefined_bytes(tc, off + half, 2);
   if (open & X87_CW_LOADED)
     x87_cw_undefined(tc, off);
-  bool amd = host_vendor() == x86::zVendor_AMD;
-  if ((open & (X87_LONG_MODE | X87_NO_DATA)) && amd)
+  if ((open & X87_XSAVE_NO_ES) && host_has(feature::RSTR_FP_ERR_PTRS))
+    open &= ~X87_XSAVE_NO_ES;  // XRSTOR loaded the pointers
+  bool all = x87_pointers_open(open);
+  bool selectors = !host_has(feature::FCS_FDS_DEPRECATION);
+  if (all)
+    undefined_bytes(tc, off + (o16 ? 0x06 : 0x0C), o16 ? 2 : 4);  // FIP
+  if (!o16 && (all || (open & X87_NO_UNMASKED))) {
+    undefined_bytes(tc, off + 0x12, 1);        // FOP[7:0]
+    undefined_bytes(tc, off + 0x13, 1, 0x07);  // FOP[10:8]
+  }
+  if (selectors && (all || (open & (X87_LONG_MODE | X87_NO_DATA))))
     undefined_bytes(tc, off + (o16 ? 0x0C : 0x18), 2);  // FDS
-  if ((open & X87_LONG_MODE) && amd)
+  if (selectors && (all || (open & X87_LONG_MODE)))
     undefined_bytes(tc, off + (o16 ? 0x08 : 0x10), 2);  // FCS
-  if (open & X87_NO_DATA)
+  if (all || (open & X87_NO_DATA))
     undefined_bytes(tc, off + (o16 ? 0x0A : 0x14), o16 ? 2 : 4);  // FDP
 }
 
 void fxsave_x87_undefined(TestCase &tc, u16 off, unsigned open, bool w) {
-  bool amd = host_vendor() == x86::zVendor_AMD;
   // Byte 5 is "Rsvd" in the SDM; "(Byte 05h contains the value 00h.)" in
   // the APM (Vol.2 p.363).  FOP bits 15:11 are reserved (SDM FXSAVE), as
   // are bytes 0Eh-0Fh and 16h-17h of the 32-bit format and the last six
   // bytes of each register (both manuals).
-  if (!amd)
-    undefined_bytes(tc, off + 0x05, 1);
+  undefined_bytes(tc, off + 0x05, 1);
   undefined_bytes(tc, off + 0x07, 1, 0xF8);
   if (!w) {
     undefined_bytes(tc, off + 0x0E, 2);
@@ -2069,19 +2068,29 @@ void fxsave_x87_undefined(TestCase &tc, u16 off, unsigned open, bool w) {
   }
   for (unsigned i = 0; i < 8; i++) {
     undefined_bytes(tc, off + 0x20 + 16 * i + 10, 6);
-    if ((open & X87_MMX) && !amd)
+    if (open & X87_MMX)
       undefined_bytes(tc, off + 0x20 + 16 * i + 8, 2);
   }
   if (open & X87_CW_LOADED)
     x87_cw_undefined(tc, off);
-  if ((open & (X87_LONG_MODE | X87_NO_DATA)) && !w && amd)
+  // An XSAVE with RstrFpErrPtrs zeroes the pointer fields "if there is no
+  // pending #MF" (APM Vol.2 §11.5.10).
+  if ((open & X87_XSAVE_NO_ES) && host_has(feature::RSTR_FP_ERR_PTRS))
+    return;
+  bool all = x87_pointers_open(open);
+  bool selectors = !w && !host_has(feature::FCS_FDS_DEPRECATION);
+  if (all || (open & X87_NO_UNMASKED)) {
+    undefined_bytes(tc, off + 0x06, 1);        // FOP[7:0]
+    undefined_bytes(tc, off + 0x07, 1, 0x07);  // FOP[10:8]
+  }
+  if (all)
+    undefined_bytes(tc, off + 0x08, w ? 8 : 4);  // FIP
+  if (selectors && (all || (open & (X87_LONG_MODE | X87_NO_DATA))))
     undefined_bytes(tc, off + 0x14, 2);  // FDS
-  if ((open & X87_LONG_MODE) && !w && amd)
+  if (selectors && (all || (open & X87_LONG_MODE)))
     undefined_bytes(tc, off + 0x0C, 2);  // FCS
-  if (open & X87_NO_DATA)
+  if (all || (open & X87_NO_DATA))
     undefined_bytes(tc, off + 0x10, w ? 8 : 4);  // FDP
-  if ((open & X87_FXSAVE_NO_ES) && amd)
-    undefined_bytes(tc, off + 0x06, 18);  // FOP, FIP, FCS, FDP, FDS
 }
 
 enum class CaseResult { Pass, Deviation, Fail, Skip };
@@ -2283,7 +2292,6 @@ int main(int argc, char **argv) {
     return write_ctest_file(path);
 
   print_host_identity();
-  check_host_x87_pointer_bits();
 
   if (const char *path = getenv("KVM_LIST"))
     return list_tests(path);

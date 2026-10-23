@@ -1267,13 +1267,15 @@ void make_reg_to_mem(const Base &b, const Emit &emit) {
         for (int j = 0; j < 8; j++) v.init_data[0x800 + j] = u8(gpr(v.initial, reg & 15) >> (8 * j));
       // D9 F0-FF and DD F0-F7 become FNSTENV, FNSTCW and FNSAVE (D9 /6,
       // D9 /7, DD /6), whose images hold what no case set up to compare:
-      // the reserved fields, the pointers (x87_env_undefined), and
-      // condition codes the instructions before may leave undefined.
+      // the reserved fields, the pointers and opcode after whichever x87
+      // instruction ran before (x87_env_undefined; X87_STACK_CONTROL opens
+      // them all), and condition codes the instructions before may leave
+      // undefined.
       int digit = in.modrm >> 3 & 7;
       bool d9 = in.legacy(0, 0xD9), dd = in.legacy(0, 0xDD);
       if ((d9 || dd) && digit == 6) {
         bool o16 = x87_image16(in);
-        x87_env_undefined(v, 0x800, X87_CW_LOADED | X87_NO_DATA | X87_LONG_MODE, o16);
+        x87_env_undefined(v, 0x800, X87_CW_LOADED | X87_STACK_CONTROL, o16);
         v.data_undefined.push_back({u16(o16 ? 0x803 : 0x805), 0x47});  // C3, C2, C1, C0
       }
       if (d9 && digit == 7)

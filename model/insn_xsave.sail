@@ -105,38 +105,40 @@ function ftw_abridged_to_full(ab) = {
 // The x87 component: FCW, FSW, the abridged FTW, FOP, FIP and FDP, and
 // ST(0)-ST(7) in stack order, each in 16 bytes (SDM Vol.2A FXSAVE, Field
 // Definitions p.3-413-3-414; APM Vol.2 §11.5.10, Figures 11-9 and 11-10
-// p.362-363).  The reserved parts, for which neither manual gives a value,
-// are written undefined: FOP bits 15:11 ("upper 5 bits are reserved"),
-// bytes 0Eh-0Fh and 16h-17h of the 32-bit format ("rsrvd, IGN" in the
-// APM), and the last 6 bytes of each register; byte 5 as well on Intel
-// ("Rsvd"), where the APM has "(Byte 05h contains the value 00h.)".  Two
-// more rules are the SDM's alone: after MMX code "the high 16 bits of the
-// field are reserved" for each register, and in 16-bit mode the "high 16
-// bits are reserved" of FIP and FDP.
+// p.362-363).  The reserved parts, for which the two manuals give no
+// common value, are written undefined: FOP bits 15:11 ("upper 5 bits are
+// reserved"), bytes 0Eh-0Fh and 16h-17h of the 32-bit format ("rsrvd, IGN"
+// in the APM), the last 6 bytes of each register, and byte 5, "Rsvd" in the
+// SDM and "(Byte 05h contains the value 00h.)" in the APM.  Two more rules
+// are the SDM's alone, and the fields they reserve are undefined as well:
+// after MMX code "the high 16 bits of the field are reserved" for each
+// register, which the APM saves like any other, and in 16-bit mode the
+// "high 16 bits are reserved" of FIP and FDP.
 //
-// Intel saves FOP, FIP and FDP always (SDM Vol.1 §8.1.8).  AMD saves them
-// only while an x87 exception is pending (FSW.ES = 1).  Otherwise, with
-// RstrFpErrPtrs (the AMD profile), XSAVE writes zeros: "the error pointer
-// fields in the save area are zeroed if there is no pending #MF" (APM
-// Vol.2 §11.5.10 p.361, Vol.4 XSAVE p.1774).  FXSAVE "does not save the
-// x87 pointer registers" then (Vol.5 FXSAVE p.26), without saying what
-// the fields hold; the model writes the same zeros.
-val xsave_x87 : (qword, bool) -> unit
-function xsave_x87(base, w) = {
-  let intel = vendor == Vendor_Intel;
-  let pointers : bool = intel | x87_sw[7] == bitone;
-  let fop : bits(11) = if pointers then x87_fop else zeros();
-  let fip : qword = if pointers then x87_fip else zeros();
-  let fdp : qword = if pointers then x87_fdp else zeros();
-  let fcs : word = if pointers then x87_saved_selector(x87_fcs) else zeros();
-  let fds : word = if pointers then x87_saved_selector(x87_fds) else zeros();
-  let mode16 = intel & cur_mode != LongMode & get_cs_db() == bitzero;
+// The SDM saves FOP, FIP, FCS, FDP and FDS always (Vol.1 §8.1.8).  The APM
+// saves them only while an x87 exception is pending (FSW.ES = 1): FXSAVE
+// "does not save the x87 pointer registers" otherwise (Vol.5 FXSAVE p.26),
+// nor does XSAVE "On processors where CPUID Fn8000_0008_EBX[2] is 0", and
+// with RstrFpErrPtrs "the error pointer fields in the save area are zeroed
+// if there is no pending #MF" (Vol.2 §11.5.10 p.361, Vol.4 XSAVE p.1774).
+// With FSW.ES = 0 the fields are therefore undefined, but for those of an
+// XSAVE with RstrFpErrPtrs (fx is FXSAVE).
+val xsave_x87 : (qword, bool, bool) -> unit
+function xsave_x87(base, w, fx) = {
+  let pointers : bool = x87_sw[7] == bitone;
+  let zeroed : bool = ~(pointers) & ~(fx) & has_rstr_fp_err_ptrs;
+  let fop : bits(11) = if pointers then x87_fop else if zeroed then zeros() else undefined;
+  let fip : qword = if pointers then x87_fip else if zeroed then zeros() else undefined;
+  let fdp : qword = if pointers then x87_fdp else if zeroed then zeros() else undefined;
+  let fcs : word = if pointers then x87_saved_selector(x87_fcs) else if zeroed then zeros() else undefined;
+  let fds : word = if pointers then x87_saved_selector(x87_fds) else if zeroed then zeros() else undefined;
+  let mode16 = cur_mode != LongMode & get_cs_db() == bitzero;
   let fip32 : dword = if mode16 then (undefined : word) @ fip[15..0] else fip[31..0];
   let fdp32 : dword = if mode16 then (undefined : word) @ fdp[15..0] else fdp[31..0];
   write_mem(base, x87_cw);
   write_mem(base + 2, x87_sw);
   write_mem(base + 4, ftw_full_to_abridged(x87_tw));
-  write_mem(base + 5, if intel then (undefined : byte) else 0x00);
+  write_mem(base + 5, undefined : byte);
   write_mem(base + 6, (undefined : bits(5)) @ fop);
   if w then {
     write_mem(base + 8, fip);
@@ -149,28 +151,30 @@ function xsave_x87(base, w) = {
   };
   foreach (i from 0 to 7) {
     let st : fp80 = x87_read_st(i);
-    let high : word = if intel & x87_mmx_last then undefined else st[79..64];
+    let high : word = if x87_mmx_last then undefined else st[79..64];
     write_mem(base + 32 + 16 * i, high @ st[63..0]);
     write_mem(48, base + 32 + 16 * i + 10, undefined)
   }
 }
 
 // The x87 component back from an image, for FXRSTOR (fx) or XRSTOR.
-// Intel loads FOP, FIP and FDP always, and FCS and FDS from the 32-bit
-// format; the 64-bit format (REX.W) "clears FCS and FDS" (SDM Vol.1
-// §8.1.8).  AMD's FXRSTOR loads the pointers "when FXRSTOR sets FSW.ES=1
-// after recomputing it" and otherwise leaves them (APM Vol.5 FXRSTOR
-// p.24).  Its XRSTOR, with RstrFpErrPtrs (the AMD profile), loads them
-// always, "and if in 64-bit mode the CS and DS portions of the error
-// pointer registers are zeroed" (Vol.2 §11.5.10 p.361).
+// The SDM loads FOP, FIP and FDP always, and FCS and FDS from the 32-bit
+// format; the 64-bit format (REX.W) "clears FCS and FDS" (Vol.1 §8.1.8).
+// The APM's FXRSTOR loads the pointers only "when FXRSTOR sets FSW.ES=1
+// after recomputing it" (Vol.5 FXRSTOR p.24), and its XRSTOR as well "On
+// processors where CPUID Fn8000_0008_EBX[2] is 0"; with RstrFpErrPtrs
+// XRSTOR loads them always, "and if in 64-bit mode the CS and DS portions
+// of the error pointer registers are zeroed" (Vol.2 §11.5.10 p.361).  So
+// when the recomputed FSW.ES is 0 they are undefined after the load, but
+// for those of an XRSTOR with RstrFpErrPtrs.
 val xrstor_x87 : (qword, bool, bool) -> unit
 function xrstor_x87(base, w, fx) = {
   x87_set_cw(read_mem(base));
   x87_set_sw(read_mem(base + 2));
   x87_tw = ftw_abridged_to_full(read_mem(base + 4));
-  let pointers : bool = vendor == Vendor_Intel | x87_sw[7] == bitone
-    | ~(fx) & rstr_fp_err_ptrs();
-  let no_selectors : bool = w | ~(fx) & rstr_fp_err_ptrs() & cur_mode == LongMode;
+  let rstr : bool = ~(fx) & has_rstr_fp_err_ptrs;
+  let pointers : bool = x87_sw[7] == bitone | rstr;
+  let no_selectors : bool = w | rstr & cur_mode == LongMode;
   if pointers then {
     let fop : word = read_mem(base + 6);
     x87_fop = fop[10..0];
@@ -183,7 +187,7 @@ function xrstor_x87(base, w, fx) = {
     };
     x87_fcs = if no_selectors then zeros() else read_mem(base + 12);
     x87_fds = if no_selectors then zeros() else read_mem(base + 20)
-  };
+  } else x87_forget_last();
   // ST(i) relative to the TOP just loaded.
   foreach (i from 0 to 7) {
     x87_ST[x87_physical(i)] = read_mem(base + 32 + 16 * i)
@@ -260,24 +264,23 @@ function check_image_mxcsr(base) = {
 //
 // With CR4.OSFXSR = 0, "FXSAVE and FXRSTOR may or may not operate on SSE
 // state; this behavior is implementation dependent" (SDM Vol.1 §10.5.1
-// p.10-16; FXSAVE p.3-414, FXRSTOR p.3-409), so on Intel the MXCSR and
-// XMM fields FXSAVE writes, and MXCSR and the XMM registers after FXRSTOR,
-// are undefined (MXCSR within MXCSR_MASK, as either outcome is).  AMD's
-// FXSAVE "does not save the image of XMM0–XMM15 or MXCSR", and its
-// FXRSTOR does not load it (APM Vol.5 FXSAVE p.26, FXRSTOR p.24).
-// MXCSR_MASK is outside either rule and is saved.  Whether FXRSTOR's #GP
-// for reserved MXCSR bits remains when MXCSR is not loaded neither manual
-// says; the model keeps it where MXCSR may be loaded, on Intel.
+// p.10-16; FXSAVE p.3-414, FXRSTOR p.3-409), and the APM's FXSAVE "does
+// not save the image of XMM0–XMM15 or MXCSR" and its FXRSTOR does not load
+// it (APM Vol.5 FXSAVE p.26, FXRSTOR p.24).  So the MXCSR and XMM fields
+// FXSAVE writes, and MXCSR and the XMM registers after FXRSTOR, are
+// undefined (MXCSR within MXCSR_MASK, as either outcome is).  MXCSR_MASK is
+// outside either rule and is saved.  FXRSTOR raises its #GP for reserved
+// MXCSR bits only with OSFXSR = 1: with 0 the APM's FXRSTOR does not load
+// MXCSR, so it makes no attempt "to load non-zero values into reserved
+// MXCSR bits" (p.24), and only an SDM processor that loads it could fault.
 val exec_fxsave : (qword, bool) -> unit
 function exec_fxsave(base, w) = {
-  xsave_x87(base, w);
+  xsave_x87(base, w, true);
   if CR4[9] == bitone then xsave_sse(base)   // OSFXSR
   else {
-    if vendor == Vendor_Intel then {
-      write_mem(base + 24, undefined : dword);
-      foreach (i from 0 to legacy_xmm_count() - 1) {
-        write_mem(128, base + 160 + 16 * i, undefined)
-      }
+    write_mem(base + 24, undefined : dword);
+    foreach (i from 0 to legacy_xmm_count() - 1) {
+      write_mem(128, base + 160 + 16 * i, undefined)
     };
     write_mem(base + 28, MXCSR_MASK)
   }
@@ -286,11 +289,10 @@ function exec_fxsave(base, w) = {
 val exec_fxrstor : (qword, bool) -> unit
 function exec_fxrstor(base, w) = {
   let osfxsr = CR4[9] == bitone;
-  let intel = vendor == Vendor_Intel;
-  if osfxsr | intel then check_image_mxcsr(base);
+  if osfxsr then check_image_mxcsr(base);
   xrstor_x87(base, w, true);
   if osfxsr then xrstor_sse(base)
-  else if intel then {
+  else {
     __ldmxcsr((undefined : dword) & mxcsr_mask());
     foreach (i from 0 to legacy_xmm_count() - 1) {
       ZMM[i][127..0] = undefined
@@ -644,7 +646,7 @@ function xsave_standard(base, mask, w, opt) = {
   let used : qword = xinuse_saved();
   let save : qword = if opt then rfbm & used else rfbm;
 
-  if save[0] == bitone then xsave_x87(base, w);
+  if save[0] == bitone then xsave_x87(base, w, false);
   if save[1] == bitone then xsave_sse(base)
   else if rfbm[1] == bitone | rfbm[2] == bitone then xsave_mxcsr(base);
   if save[2] == bitone then xsave_avx(base);
@@ -685,7 +687,7 @@ function exec_xsavec(base, mask, w) = {
   if rfbm[1] == bitone & __stmxcsr() != 0x00001F80 then save[1] = bitone;
 
   // Save legacy region (same offsets as standard format)
-  if save[0] == bitone then xsave_x87(base, w);
+  if save[0] == bitone then xsave_x87(base, w, false);
   if save[1] == bitone then xsave_sse(base);
 
   var offset : qword = to_bits(64, 576);

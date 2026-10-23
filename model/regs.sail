@@ -118,12 +118,10 @@ let R13 : gpr_idx = 13
 let R14 : gpr_idx = 14
 let R15 : gpr_idx = 15
 
-// Vendor profile for the values the SDM leaves to the implementation and
-// on which the two vendors differ: the CPUID bits that govern the x87
-// pointers.  See fdp_excptn_only below.
-// The CPUID vendor string stays "GenuineIntel" either way.  The KVM
-// differential harness selects the host's vendor so that both profiles are
-// checked against silicon; the emulators keep the Intel default.
+// The vendor whose manual the model follows where the SDM and the APM
+// define different behaviour.  The CPUID vendor string stays
+// "GenuineIntel" either way.  The KVM differential harness selects the
+// host's vendor; the emulators keep the Intel default.
 enum Vendor = { Vendor_Intel, Vendor_AMD }
 register vendor : Vendor = Vendor_Intel
 
@@ -141,7 +139,7 @@ register x87_sw : word    // status word (default 0x0000)
 register x87_tw : word    // tag word (default 0xFFFF = all empty)
 // The last non-control x87 instruction's address, CS selector and opcode,
 // and its memory operand's offset and segment selector (SDM Vol.1 §8.1.8,
-// §8.1.9).  x87_record_last says what each vendor updates.
+// §8.1.9).  x87_record_last says when each is recorded.
 register x87_fip : qword
 register x87_fcs : word
 register x87_fop : bits(11)
@@ -304,28 +302,28 @@ function x87_set_sw(sw) = {
   x87_update_es()
 }
 
-// The CPUID bits that select how the x87 pointers are kept and saved.  The
-// Intel profile reports CPUID.(EAX=07H,ECX=0):EBX[6] FDP_EXCPTN_ONLY ("the
-// x87 FPU Data Pointer is updated only on x87 exceptions") and EBX[13]
-// FCS_FDS_DEPRECATION (SDM Vol.1 Table 21-19 p.21-27, §8.1.8), which the
-// APM reserves; the AMD profile reports CPUID Fn8000_0008_EBX[2]
+// The CPUID bits that select how the x87 pointers are kept and saved, each
+// enumerated by one manual and reserved (0) in the other, and so three
+// independent parameters: CPUID.(EAX=07H,ECX=0):EBX[6] FDP_EXCPTN_ONLY, "If
+// 1, the x87 FPU Data Pointer is updated only on x87 exceptions", and
+// EBX[13] FCS_FDS_DEPRECATION, "If 1, deprecates FPU CS and FPU DS values"
+// (SDM Vol.1 Table 21-19 p.21-27, §8.1.8 p.8-9), and CPUID Fn8000_0008_EBX[2]
 // RstrFpErrPtrs, "FP Error Pointers Restored by XRSTOR" (APM Vol.3
-// Appendix E p.659, Vol.2 §11.5.10), which the SDM reserves.
-val fdp_excptn_only : unit -> bool
-function fdp_excptn_only() = vendor == Vendor_Intel
-
-val fcs_fds_deprecated : unit -> bool
-function fcs_fds_deprecated() = vendor == Vendor_Intel
-
-val rstr_fp_err_ptrs : unit -> bool
-function rstr_fp_err_ptrs() = vendor == Vendor_AMD
+// Appendix E p.659, Vol.2 §11.5.10 p.361).  CPUID reports them as they are
+// set, and x87_record_last, xsave_x87 and xrstor_x87 follow them; where a
+// bit is 0, the value the other manual's rule then gives is open as well.
+// The defaults are those of the processor the CPUID identifies
+// ("GenuineIntel"); the KVM harness sets each from its host.
+register has_fdp_excptn_only : bool = true
+register has_fcs_fds_deprecation : bool = true
+register has_rstr_fp_err_ptrs : bool = false
 
 // The FCS or FDS that FNSTENV, FNSAVE, FXSAVE and XSAVE write: "If
 // CPUID.07H.00H:EBX[13] = 1, the processor deprecates FCS and FDS; it
 // saves each as 0000H" (SDM Vol.1 §8.1.8).  The loads take both from the
-// image on either vendor.
+// image either way.
 val x87_saved_selector : word -> word
-function x87_saved_selector(sel) = if fcs_fds_deprecated() then 0x0000 else sel
+function x87_saved_selector(sel) = if has_fcs_fds_deprecation then 0x0000 else sel
 
 // =========================================================================
 // MMX register access
@@ -387,10 +385,10 @@ function x87_load_env(buf) = {
 // The 14-byte environment of a 16-bit operand size in protected mode
 // (SDM Vol.1 §8.1.10, Figure 8-11 p.8-12; APM Vol.2 Figure 11-6 p.354):
 // FCW, FSW, FTW, FIP[15:0], FCS, FDP[15:0] and FDS, without FOP.  Loading
-// it zero-extends the two offsets ("loads the lower 32 bits from memory
-// and clears the upper 32 bits", §8.1.8, of which the image holds 16).
-// Neither manual says what FOP becomes, since the image has none; the
-// model clears it.
+// it clears bits 63:32 of the two offsets ("loads the lower 32 bits from
+// memory and clears the upper 32 bits", §8.1.8), of whose lower 32 the
+// image holds 16.  Neither manual gives bits 31:16 of the offsets, nor
+// FOP, which the image does not have, a value: both are undefined.
 val x87_save_env16 : unit -> bits(112)
 function x87_save_env16() =
   x87_saved_selector(x87_fds) @ x87_fdp[15..0] @ x87_saved_selector(x87_fcs) @ x87_fip[15..0]
@@ -401,10 +399,10 @@ function x87_load_env16(buf) = {
   x87_set_cw(buf[15..0]);
   x87_set_sw(buf[31..16]);
   x87_tw = buf[47..32];
-  x87_fip = zero_extend(buf[63..48]);
+  x87_fip = zero_extend((undefined : word) @ buf[63..48]);
   x87_fcs = buf[79..64];
-  x87_fop = zeros();
-  x87_fdp = zero_extend(buf[95..80]);
+  x87_fop = undefined;
+  x87_fdp = zero_extend((undefined : word) @ buf[95..80]);
   x87_fds = buf[111..96]
 }
 

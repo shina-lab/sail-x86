@@ -2151,13 +2151,16 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
       // D9 /6 FNSTENV, 32-bit protected-mode layout at [rdi+8], compared
       // but for the fields the manuals leave open (x87_env_undefined); the
       // control, status, and tag words are also read through GPRs.  The
-      // last non-control instruction runs in 64-bit mode (X87_LONG_MODE).
+      // last non-control instruction runs in 64-bit mode (X87_LONG_MODE),
+      // and none here incurs an unmasked exception (X87_NO_UNMASKED).
       const std::vector<u8> ENV_WORDS = {
         0x0F, 0xB7, 0x47, 0x08,  // movzx eax, word [rdi+8]   (FCW)
         0x0F, 0xB7, 0x5F, 0x0C,  // movzx ebx, word [rdi+12]  (FSW)
         0x0F, 0xB7, 0x4F, 0x10,  // movzx ecx, word [rdi+16]  (FTW)
       };
-      auto env_open = [&](u16 off, unsigned open) { x87_env_undefined(tests.back(), off, open); };
+      auto env_open = [&](u16 off, unsigned open) {
+        x87_env_undefined(tests.back(), off, open | X87_NO_UNMASKED);
+      };
       add_mem("fld a; fld b; fnstenv [rdi+8]; read FCW/FSW/FTW",
               join({FLD_A, FLD_B, {0xD9, 0x77, 0x08}, ENV_WORDS}), s, FL_ALL, ab(3.0, 1.5), 0);
       env_open(8, X87_LONG_MODE);
@@ -2178,12 +2181,13 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
       add_mem("fld a; fld b; fst st(3); fnstenv [rdi+8]; read FTW (FST marks non-empty)",
               join({FLD_A, FLD_B, {0xDD, 0xD3}, {0xD9, 0x77, 0x08}, ENV_WORDS}), s, FL_ALL, ab(3.0, 1.5), 0);
       env_open(8, X87_LONG_MODE | X87_NO_DATA);
-      // FXAM after FFREE makes FXAM the last non-control instruction on
-      // either vendor: FFREE, FINCSTP, FDECSTP and FNOP are control
+      // FXAM after FFREE makes FXAM the last non-control instruction in
+      // both manuals: FFREE, FINCSTP, FDECSTP and FNOP are control
       // instructions in the SDM (Vol.1 §8.3.11) and not in the APM (Vol.1
-      // §6.4.7-6.4.9).  Their own effect on the pointers is the next four,
-      // whose condition codes are undefined but for the C1 that FINCSTP
-      // and FDECSTP clear (SDM FFREE, FINCSTP, FDECSTP, FNOP).
+      // §6.4.7-6.4.9), which leaves the pointers open after them
+      // (X87_STACK_CONTROL).  The next four have them last, with condition
+      // codes undefined but for the C1 that FINCSTP and FDECSTP clear (SDM
+      // FFREE, FINCSTP, FDECSTP, FNOP).
       add_mem("fld a; fld b; ffree st(1); fxam; fnstenv [rdi+8]; read FTW",
               join({FLD_A, FLD_B, {0xDD, 0xC1}, {0xD9, 0xE5}, {0xD9, 0x77, 0x08}, ENV_WORDS}),
               s, FL_ALL, ab(3.0, 1.5), 0);
@@ -2193,9 +2197,9 @@ void add_x87_avx_tests(std::vector<TestCase> &tests) {
         {"fdecstp", {0xD9, 0xF6}, 0x45}, {"fnop", {0xD9, 0xD0}, 0x47},
       };
       for (auto &c : controls) {
-        add_mem(std::format("x87 pointers after {}: fld a; fld b; {}; fnstenv [rdi+8]", c.name, c.name),
+        add_mem(std::format("x87 environment after {}: fld a; fld b; {}; fnstenv [rdi+8]", c.name, c.name),
                 join({FLD_A, FLD_B, c.code, {0xD9, 0x77, 0x08}}), s, FL_ALL, ab(3.0, 1.5), 0);
-        env_open(8, X87_LONG_MODE | X87_NO_DATA);
+        env_open(8, X87_STACK_CONTROL);
         tests.back().data_undefined.push_back({8 + 5, c.undefined_cc});  // FSW C3, C2, C1, C0
       }
       // With a 16-bit operand size, 66h without REX.W, the 14-byte format:

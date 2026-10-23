@@ -8,12 +8,14 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
   // result. Compare all eight 80-bit registers, CW, SW and the full tag
   // word, and the whole FSAVE image but for the undefined condition codes
   // and the fields the manuals leave open, among them the reserved CW bits
-  // that FRSTOR loads (x87_env_undefined).  Every instruction here but
-  // the obsolete NOPs is recorded as the last non-control instruction on
-  // at least one vendor and has no memory operand.
+  // that FRSTOR loads (x87_env_undefined).  `last` says what the last x87
+  // instruction leaves open: by default it is a non-control instruction
+  // without a memory operand that incurs no unmasked exception; the
+  // obsolete NOPs leave the pointers that FRSTOR loaded (0), and FFREEP
+  // all of them (X87_STACK_CONTROL).
   auto add_state = [&](const std::string &name, std::vector<u8> insn,
                        u16 cw, u16 sw, u16 tw, u16 undefined_cc, bool compat32,
-                       bool recorded = true) {
+                       unsigned last = X87_NO_DATA | X87_NO_UNMASKED) {
     std::vector<u8> data(0x100 + 108, 0);
     memcpy(&data[0x100], &cw, 2);
     memcpy(&data[0x104], &sw, 2);
@@ -50,11 +52,8 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
     tc.initial.rdi = DATA_ADDR;
     tc.flags_mask = undefined_cc ? FL_NO_AF : FL_ALL;
     tc.data_undefined = {{0x104, u8(undefined_cc)}, {0x105, u8(undefined_cc >> 8)}};
-    unsigned open = X87_CW_LOADED;
-    if (recorded) {
-      open |= X87_NO_DATA;
-      if (!compat32) open |= X87_LONG_MODE;
-    }
+    unsigned open = X87_CW_LOADED | last;
+    if (last && !compat32) open |= X87_LONG_MODE;
     x87_env_undefined(tc, 0x100, open);
     tc.undefined.gpr[0] = 0xE0C0;  // the saved CW
     tc.init_data = std::move(data);
@@ -70,10 +69,10 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
     for (u16 sw : {0x0000, 0x7F05}) {
       for (u8 modrm : {0xE0, 0xE1, 0xE4}) {
         add_state(std::format("obsolete NOP DB {:02x}", modrm), {0xDB, modrm},
-                  0x0B7F, sw, 0x3300, 0, compat32, false);
+                  0x0B7F, sw, 0x3300, 0, compat32, 0);
         // FWAIT is a separate instruction with undefined C0/C1/C2/C3.
         add_state(std::format("fwait; obsolete NOP DB {:02x}", modrm),
-                  {0x9B, 0xDB, modrm}, 0x0B7F, sw, 0x3300, 0x4700, compat32, false);
+                  {0x9B, 0xDB, modrm}, 0x0B7F, sw, 0x3300, 0x4700, compat32, 0);
       }
     }
   }
@@ -114,11 +113,11 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
   // underflow, and DF C0+i (FFREEP) frees ST(i) before popping ST(0).
   // Check a full stack, an empty source, an empty destination and an
   // entirely empty stack, including with invalid-operation unmasked.
-  // FFREEP is a control instruction on Intel only (it "behaves the same as
-  // FFREE", SDM Vol.3B §25.18.9, Vol.1 §8.3.11; APM Vol.1 §6.4.7), so an
-  // FXAM, which raises no exception and changes no register or tag, gives
-  // the image the same last-instruction pointer on either vendor; FFREEP's
-  // own effect on the pointers is the case after the loop.
+  // FFREEP is a control instruction in the SDM only (it "behaves the same
+  // as FFREE", SDM Vol.3B §25.18.9, Vol.1 §8.3.11; APM Vol.1 §6.4.7), which
+  // leaves the pointers open after it, so an FXAM, which raises no
+  // exception and changes no register or tag, follows it; the case after
+  // the loop has FFREEP last.
   category = "x87 compatibility stack";
   for (bool compat32 : {false, true}) {
     for (unsigned top : {0, 3, 7}) {
@@ -136,8 +135,8 @@ void add_x87_compat_tests(std::vector<TestCase> &tests) {
         }
       }
     }
-    add_state("ffreep st(1) (last-instruction pointers)", {0xDF, 0xC1},
-              0x037F, 0x4700, 0, 0x4700, compat32);
+    add_state("ffreep st(1), the last x87 instruction", {0xDF, 0xC1},
+              0x037F, 0x4700, 0, 0x4700, compat32, X87_STACK_CONTROL);
   }
 
   // Adjacent reserved cells are still invalid. In particular, DE D0+i is

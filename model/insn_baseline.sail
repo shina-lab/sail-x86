@@ -167,11 +167,10 @@ function cpuid(leaf, subleaf) = {
         if has_smap       then ebx = ebx | 0x00100000;  // bit 20 (SMAP)
         if has_ptwrite    then ebx = ebx | 0x02000000;  // bit 25 (Intel PT: leaf 14H)
         if has_sha        then ebx = ebx | 0x20000000;  // bit 29
-        // The x87 pointer rules of the Intel profile (fdp_excptn_only,
-        // fcs_fds_deprecated in regs.sail): FDP_EXCPTN_ONLY (bit 6) and
+        // The x87 pointer rules (regs.sail): FDP_EXCPTN_ONLY (bit 6) and
         // FCS_FDS_DEPRECATION (bit 13), reserved in the APM.
-        if fdp_excptn_only()    then ebx = ebx | 0x00000040;
-        if fcs_fds_deprecated() then ebx = ebx | 0x00002000;
+        if has_fdp_excptn_only     then ebx = ebx | 0x00000040;
+        if has_fcs_fds_deprecation then ebx = ebx | 0x00002000;
         var ecx : dword = 0x00000000;
         if has_avx512_vbmi then ecx = ecx | 0x00000002;   // bit 1 (AVX512_VBMI)
         if has_avx512_vbmi2 then ecx = ecx | 0x00000040;  // bit 6 (AVX512_VBMI2)
@@ -303,11 +302,11 @@ function cpuid(leaf, subleaf) = {
     // Leaf 0x80000008: Address sizes
     // EAX[7:0] = physical address bits (39), EAX[15:8] = virtual address bits
     // Virtual: 57 with LA57, 48 without
-    // EBX[2] = RstrFpErrPtrs in the AMD profile (rstr_fp_err_ptrs in
-    // regs.sail; reserved in the SDM)
+    // EBX[2] = RstrFpErrPtrs (has_rstr_fp_err_ptrs in regs.sail; reserved
+    // in the SDM)
     2147483656 => {
       let virt_bits : dword = if has_la57 then 0x00003900 else 0x00003000;
-      let ebx : dword = if rstr_fp_err_ptrs() then 0x00000004 else 0x00000000;
+      let ebx : dword = if has_rstr_fp_err_ptrs then 0x00000004 else 0x00000000;
       (virt_bits | 0x00000027, ebx, 0x00000000, 0x00000000)
     },
 

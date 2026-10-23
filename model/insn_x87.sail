@@ -830,31 +830,39 @@ function dispatch_x87_df(modrm, operand, _) = {
 }
 
 // The x87 control instructions, which leave the last-instruction pointers
-// and opcode alone: FLDENV, FLDCW, FNSTENV, FNSTCW, FRSTOR, FNSAVE,
-// FNSTSW, FNCLEX and FNINIT (SDM Vol.1 §8.1.8, §8.3.11; APM Vol.1 §6.2.5,
-// §6.4.9), and the obsolete FENI, FDISI and FSETPM, for which "no
-// internal states are affected" (SDM Vol.3B §25.18.9 p.25-14).  The SDM's
-// list also has FINCSTP, FDECSTP, FFREE and FNOP (Vol.1 §8.3.11 p.8-23),
-// and DF C0+i "behaves the same as FFREE ... with the addition of an x87
-// stack POP" (Vol.3B p.25-15), so on Intel those are control instructions
-// as well.  The APM puts them under "Stack Management" and "No Operation"
-// instead (Vol.1 §6.4.7-6.4.8 p.322-323), outside the "Control"
-// instructions that §6.2.5 exempts, so AMD records them.
+// and opcode alone in both manuals: FLDENV, FLDCW, FNSTENV, FNSTCW,
+// FRSTOR, FNSAVE, FNSTSW, FNCLEX and FNINIT (SDM Vol.1 §8.1.8, §8.3.11;
+// APM Vol.1 §6.2.5, §6.4.9), and the obsolete FENI, FDISI and FSETPM, for
+// which "no internal states are affected" (SDM Vol.3B §25.18.9 p.25-14).
 val x87_control : (byte, byte) -> bool
 function x87_control(opcode, modrm) = {
   let mem = modrm[7..6] != 0b11;
   let reg : range(0, 7) = unsigned(modrm[5..3]);
-  let intel = vendor == Vendor_Intel;
   match unsigned(opcode) {
-    // D9 /4-/7; FNOP, FDECSTP and FINCSTP
-    217 => mem & reg >= 4 | intel & (modrm == 0xD0 | modrm == 0xF6 | modrm == 0xF7),
-    // DD /4, /6, /7; FFREE
-    221 => mem & (reg == 4 | reg >= 6) | intel & ~(mem) & reg == 0,
-    219 => modrm >=_u 0xE0 & modrm <=_u 0xE4,   // DB E0-E4
-    // FNSTSW AX; FFREEP
-    223 => modrm == 0xE0 | intel & ~(mem) & reg == 0,
+    217 => mem & reg >= 4,                        // D9 /4-/7
+    221 => mem & (reg == 4 | reg >= 6),           // DD /4, /6, /7
+    219 => modrm >=_u 0xE0 & modrm <=_u 0xE4,     // DB E0-E4
+    223 => modrm == 0xE0,                         // FNSTSW AX
     _ => false,
   }
+}
+
+// FNOP, FDECSTP, FINCSTP, FFREE and FFREEP, which one manual makes control
+// instructions and the other not.  The SDM lists FINCSTP, FDECSTP, FFREE
+// and FNOP among the "x87 FPU Control Instructions" (Vol.1 §8.3.11
+// p.8-23), whose pointers are those of "the last non-control instruction
+// executed" (§8.1.8), and DF C0+i "behaves the same as FFREE ... with the
+// addition of an x87 stack POP" (Vol.3B §25.18.9 p.25-15).  The APM puts
+// them under "Stack Management" and "No Operation" (Vol.1 §6.4.7-6.4.8
+// p.322-323), outside the "Control" instructions (§6.4.9) that §6.2.5
+// exempts.  After one of them the last-instruction pointer, its selector,
+// the opcode and the data pointer are therefore undefined.
+val x87_stack_control : (byte, byte) -> bool
+function x87_stack_control(opcode, modrm) = match unsigned(opcode) {
+  217 => modrm == 0xD0 | modrm == 0xF6 | modrm == 0xF7,  // FNOP, FDECSTP, FINCSTP
+  221 => modrm[7..3] == 0b11000,                        // FFREE
+  223 => modrm[7..3] == 0b11000,                        // FFREEP
+  _ => false,
 }
 
 // Record the last non-control x87 instruction (SDM Vol.1 §8.1.8-8.1.9,
@@ -862,38 +870,50 @@ function x87_control(opcode, modrm) = {
 // and FDS are the code segment's and the memory operand's selectors
 // outside 64-bit mode.  In 64-bit mode the APM keeps only the 64-bit
 // offsets ("The 16-bit code-segment (CS) selector is not saved", §6.2.5.1,
-// and §6.2.5.3), and its XRSTOR zeroes "the CS and DS portions" there
-// (Vol.2 §11.5.10); the model reads that as both selectors being 0 in
-// 64-bit mode.  (With FCS_FDS_DEPRECATION the Intel profile never stores
-// either.)
+// and §6.2.5.3), and the SDM records the selectors there as well, unless
+// CPUID reports FCS_FDS_DEPRECATION, with which it "saves each as 0000H"
+// (§8.1.8): without the bit the two selectors are undefined in 64-bit
+// mode, with it their value is never seen.
 //
 // FOP takes the low three bits of the first opcode byte, then the ModR/M
-// byte, as encoded.  AMD records it for every non-control instruction
-// (§6.2.5.2); the SDM records "the opcode of the last x87 non-control
-// instruction executed that incurred an unmasked x87 exception" (§8.1.9).
-// FDP and FDS hold the memory operand's offset and selector; with
-// FDP_EXCPTN_ONLY (the Intel profile) "the data pointer is updated only
-// for x87 non-control instructions that incur unmasked x87 exceptions"
-// (§8.1.8).  Of the unmasked exceptions the model raises only the stack
-// faults.  For an instruction without a memory operand "the value in the
-// data pointer is undefined (reserved)" (SDM §8.1.8), "implementation
-// dependent" (APM Vol.2 §11.4.3 p.349).
+// byte, as encoded.  The SDM records "the opcode of the last x87
+// non-control instruction executed that incurred an unmasked x87
+// exception" (§8.1.9), the APM that of every non-control instruction
+// (§6.2.5.2), so it is undefined after an instruction without one.  FDP
+// and FDS hold the memory operand's offset and selector, in both manuals;
+// with FDP_EXCPTN_ONLY "the data pointer is updated only for x87
+// non-control instructions that incur unmasked x87 exceptions" (§8.1.8).
+// Of the unmasked exceptions the model raises only the stack faults.  For
+// an instruction without a memory operand "the value in the data pointer
+// is undefined (reserved)" (SDM §8.1.8), "implementation dependent" (APM
+// Vol.2 §11.4.3 p.349).
 val x87_record_last : (byte, byte, RM, bool) -> unit
 function x87_record_last(opcode, modrm, operand, unmasked) = {
   let in64 = cur_mode == LongMode;
   x87_fip = insn_start;
-  x87_fcs = if in64 then 0x0000 else SegReg[CS];
-  if vendor == Vendor_AMD | unmasked then x87_fop = opcode[2..0] @ modrm;
+  x87_fcs = if in64 then undefined else SegReg[CS];
+  x87_fop = if unmasked then opcode[2..0] @ modrm else undefined;
   match operand {
-    RM_mem(m) => if ~(fdp_excptn_only()) | unmasked then {
+    RM_mem(m) => if ~(has_fdp_excptn_only) | unmasked then {
       x87_fdp = fixup_addr(m.addr);
-      x87_fds = if in64 then 0x0000 else SegReg[m.seg]
+      x87_fds = if in64 then undefined else SegReg[m.seg]
     },
     RM_reg(_) => {
       x87_fdp = undefined;
       x87_fds = undefined
     },
   }
+}
+
+// The pointers and opcode after FNOP, FDECSTP, FINCSTP, FFREE or FFREEP
+// (x87_stack_control).
+val x87_forget_last : unit -> unit
+function x87_forget_last() = {
+  x87_fip = undefined;
+  x87_fcs = undefined;
+  x87_fop = undefined;
+  x87_fdp = undefined;
+  x87_fds = undefined
 }
 
 // =========================================================================
@@ -985,7 +1005,8 @@ function dispatch_x87(encoded_opcode, pfx) = {
   // depend on the exception.  C1 is the fault's (Vol.1 §8.5.1.1).
   if completed then x87_finish_cc(opcode, modrm)
   else x87_undefine_cc(x87_undefined_cc(opcode, modrm));
-  if ~(x87_control(encoded_opcode, encoded_modrm)) then
+  if x87_stack_control(encoded_opcode, encoded_modrm) then x87_forget_last()
+  else if ~(x87_control(encoded_opcode, encoded_modrm)) then
     x87_record_last(encoded_opcode, encoded_modrm, operand, ~(completed));
   x87_mmx_last = false
 }

@@ -576,36 +576,56 @@ struct TestCase {
 
 // What ran before a case saves an x87 state image, for the fields of the
 // image that the manuals then leave open (x87_env_undefined and
-// fxsave_x87_undefined, below).  The reserved fields that have no value
-// in either manual are always open.
+// fxsave_x87_undefined, below).  The reserved fields that have no common
+// value in the two manuals are always open.  Where a field is open only
+// on a host without one of the CPUID bits of the x87 pointer rules
+// (FDP_EXCPTN_ONLY, FCS_FDS_DEPRECATION, RstrFpErrPtrs; model/regs.sail),
+// it is masked on such a host, whatever its vendor.
 enum X87ImageOpen : unsigned {
   // The last non-control x87 instruction had no memory operand: "the
   // value in the data pointer is undefined (reserved)" (SDM Vol.1
   // §8.1.8), "implementation dependent" (APM Vol.2 §11.4.3).  FDP, and FDS
-  // on AMD hosts.  (With CPUID.(7,0):EBX[13], which the harness checks an
-  // Intel host for, the SDM saves FCS and FDS "each as 0000H", §8.1.8.)
+  // where CPUID.(7,0):EBX[13] FCS_FDS_DEPRECATION is 0 (with it the SDM
+  // saves FCS and FDS "each as 0000H", §8.1.8).
   X87_NO_DATA = 1u << 0,
   // The image is saved in 64-bit mode after a non-control x87 instruction
   // or a load of the pointers there.  The APM keeps no selectors in 64-bit
-  // mode (Vol.1 §6.2.5.1, §6.2.5.3) but saves "sel:offset32" in the
-  // 32-bit format (Vol.5 FXSAVE); the model's reading is not compared.
-  // FCS and FDS, on AMD hosts.
+  // mode (Vol.1 §6.2.5.1, §6.2.5.3), and the SDM saves them unless
+  // FCS_FDS_DEPRECATION is 1.  FCS and FDS where that bit is 0.
   X87_LONG_MODE = 1u << 1,
-  // An FXSAVE with FSW.ES = 0: AMD "does not save the x87 pointer
-  // registers" (APM Vol.5 FXSAVE p.26) and does not say what the fields
-  // hold; Intel saves them (SDM Vol.1 §8.1.8).  FOP, FIP, FCS, FDP and
-  // FDS, on AMD hosts.
+  // An FXSAVE with FSW.ES = 0, or an image saved after an FXRSTOR that
+  // loaded FSW.ES = 0 and before the next non-control x87 instruction:
+  // the APM "does not save the x87 pointer registers" (Vol.5 FXSAVE p.26)
+  // and does not restore them (FXRSTOR p.24), the SDM saves and loads
+  // them (Vol.1 §8.1.8).  FOP, FIP, FCS, FDP and FDS.
   X87_FXSAVE_NO_ES = 1u << 2,
   // FCW was loaded (FLDCW, FLDENV, FRSTOR, FXRSTOR, XRSTOR) and not
   // reinitialized since: bits 15:13 and 7:6 are reserved (SDM Vol.1
   // Figure 8-6; APM Vol.1 Figure 6-4) and no manual says what a load
   // leaves in them.
   X87_CW_LOADED = 1u << 3,
-  // MMX instructions ran after the last x87 instruction: on Intel "the
-  // high 16 bits of the field are reserved" for each register in an
-  // FXSAVE image (SDM Vol.2A FXSAVE p.3-414); the APM has no such rule.
-  // Bytes 8-9 of each register, on Intel hosts.
+  // MMX instructions ran after the last x87 instruction: "the high 16 bits
+  // of the field are reserved" for each register in an FXSAVE image (SDM
+  // Vol.2A FXSAVE p.3-414); the APM saves the register.  Bytes 8-9 of each
+  // register.
   X87_MMX = 1u << 4,
+  // The last non-control x87 instruction incurred no unmasked exception:
+  // the SDM keeps "the opcode of the last x87 non-control instruction
+  // executed that incurred an unmasked x87 exception" (Vol.1 §8.1.9), the
+  // APM that of the last one (Vol.1 §6.2.5.2).  FOP.
+  X87_NO_UNMASKED = 1u << 5,
+  // FFREE, FFREEP, FINCSTP, FDECSTP or FNOP ran after the last other
+  // non-control x87 instruction: control instructions in the SDM (Vol.1
+  // §8.3.11), not in the APM (Vol.1 §6.4.7-6.4.9).  FOP, FIP, FCS, FDP and
+  // FDS.
+  X87_STACK_CONTROL = 1u << 6,
+  // An XSAVE with FSW.ES = 0, or an image saved after an XRSTOR that loaded
+  // FSW.ES = 0 and before the next non-control x87 instruction: where
+  // CPUID Fn8000_0008_EBX[2] RstrFpErrPtrs is 0 "the x87 error pointers
+  // are not saved or restored" (APM Vol.2 §11.5.10), while the SDM saves
+  // and loads them (Vol.1 §8.1.8); with the bit XSAVE zeroes the fields and
+  // XRSTOR loads them.  FOP, FIP, FCS, FDP and FDS where the bit is 0.
+  X87_XSAVE_NO_ES = 1u << 7,
 };
 
 // Marks data_undefined the reserved bits 15:13 and 7:6 of a control word
@@ -662,8 +682,10 @@ constexpr CpuidBit RDRAND{1, 0, CPUID_ECX, 30};
 constexpr CpuidBit FSGSBASE{7, 0, CPUID_EBX, 0};
 constexpr CpuidBit BMI1{7, 0, CPUID_EBX, 3};
 constexpr CpuidBit AVX2{7, 0, CPUID_EBX, 5};
+constexpr CpuidBit FDP_EXCPTN_ONLY{7, 0, CPUID_EBX, 6};
 constexpr CpuidBit BMI2{7, 0, CPUID_EBX, 8};
 constexpr CpuidBit INVPCID{7, 0, CPUID_EBX, 10};
+constexpr CpuidBit FCS_FDS_DEPRECATION{7, 0, CPUID_EBX, 13};
 constexpr CpuidBit AVX512F{7, 0, CPUID_EBX, 16};
 constexpr CpuidBit AVX512DQ{7, 0, CPUID_EBX, 17};
 constexpr CpuidBit RDSEED{7, 0, CPUID_EBX, 18};
@@ -714,6 +736,7 @@ constexpr CpuidBit SSE4A{0x80000001, 0, CPUID_ECX, 6};
 constexpr CpuidBit MISALIGNSSE{0x80000001, 0, CPUID_ECX, 7};
 constexpr CpuidBit PREFETCHW{0x80000001, 0, CPUID_ECX, 8};
 constexpr CpuidBit RDTSCP{0x80000001, 0, CPUID_EDX, 27};
+constexpr CpuidBit RSTR_FP_ERR_PTRS{0x80000008, 0, CPUID_EBX, 2};
 }  // namespace feature
 
 // The guest's CPUID for a leaf and sub-leaf (EAX, EBX, ECX, EDX), for the

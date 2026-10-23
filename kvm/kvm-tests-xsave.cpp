@@ -44,7 +44,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                        0x66, 0x0F, 0xEF, 0xD2,        // PXOR XMM2, XMM2
                        0x0F, 0xAE, 0x2F},             // XRSTOR [RDI]
                       s, FL_ALL, 0x5});               // compare XMM0, XMM2
-    fxsave_x87_undefined(tests.back(), 0, X87_NO_DATA | X87_LONG_MODE);  // FLD1
+    fxsave_x87_undefined(tests.back(), 0, X87_XSAVE_NO_ES);  // FSW.ES = 0 after FLD1
   }
 
   // XSAVEC with full components, round-trip
@@ -74,7 +74,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
                       {}, 0,
                       false, -1,
                       (1u << 0) | (1u << 7)});  // compare k0, k7
-    fxsave_x87_undefined(tests.back(), 0, X87_NO_DATA | X87_LONG_MODE);  // FLD1
+    fxsave_x87_undefined(tests.back(), 0, X87_XSAVE_NO_ES);  // FSW.ES = 0 after FLD1
   }
 
   // SSE with the XMM registers 0 and MXCSR 7F80H: "if RFBM[1] = 1 and MXCSR
@@ -424,16 +424,14 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
 
     // CR4.OSFXSR = 0: "FXSAVE and FXRSTOR may or may not operate on SSE
     // state; this behavior is implementation dependent" (SDM Vol.1 §10.5.1
-    // p.10-16), so the SSE state is open on Intel hosts; on AMD, FXSAVE
-    // "does not save the image of XMM0–XMM15 or MXCSR" and FXRSTOR does not
-    // load it (APM Vol.5 FXSAVE p.26, FXRSTOR p.24).  MXCSR_MASK is written
-    // either way.  The image MXCSR is valid: whether its #GP remains when
-    // MXCSR is not loaded, neither manual says.
+    // p.10-16), and the APM's FXSAVE "does not save the image of
+    // XMM0–XMM15 or MXCSR" and its FXRSTOR does not load it (APM Vol.5
+    // FXSAVE p.26, FXRSTOR p.24): the SSE fields and state are open.
+    // MXCSR_MASK is written either way.  The image MXCSR is valid: the
+    // #GP for a reserved bit, which only an SDM processor that loads it
+    // could raise, is not tested.
     {
       const u64 CR4_NO_OSFXSR = guest_cr4() & ~CR4_OSFXSR;
-      u32 a, b, c, d;
-      __get_cpuid(0, &a, &b, &c, &d);
-      const bool intel = b != 0x68747541;  // "Auth" of AuthenticAMD
       ArchState o = s;
       o.mxcsr = 0x7F80;
       for (int i = 0; i < 16; i++)
@@ -441,25 +439,22 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
       fx("fxsave [rdi] with CR4.OSFXSR = 0", fxsave, o, std::vector<u8>(512, 0xEE));
       tests.back().cr4_override = CR4_NO_OSFXSR;
       fxsave_x87_undefined(tests.back(), 0, X87_FXSAVE_NO_ES);
-      if (intel) {
-        for (u16 j = 0x18; j < 0x1C; j++) tests.back().data_undefined.push_back({j, 0xFF});
-        for (u16 j = 0xA0; j < 0x1A0; j++) tests.back().data_undefined.push_back({j, 0xFF});
-      }
+      for (u16 j = 0x18; j < 0x1C; j++) tests.back().data_undefined.push_back({j, 0xFF});
+      for (u16 j = 0xA0; j < 0x1A0; j++) tests.back().data_undefined.push_back({j, 0xFF});
       fx("fxrstor [rdi] with CR4.OSFXSR = 0", fxrstor, o, image(0x1F80));
       tests.back().cr4_override = CR4_NO_OSFXSR;
-      if (intel) {
-        tests.back().undefined.mxcsr = ~0u;
-        for (int i = 0; i < 16; i++) tests.back().undefined.zmm[i][0] = tests.back().undefined.zmm[i][1] = ~0ULL;
-      }
+      tests.back().undefined.mxcsr = ~0u;
+      for (int i = 0; i < 16; i++) tests.back().undefined.zmm[i][0] = tests.back().undefined.zmm[i][1] = ~0ULL;
     }
 
-    // The x87 pointers an image carries, read back with FNSTENV: Intel's
+    // The x87 pointers an image carries, read back with FNSTENV.  The SDM's
     // FXRSTOR and XRSTOR load FOP, FIP and FDP, and FCS and FDS from the
-    // 32-bit format (SDM Vol.1 §8.1.8), which FNSTENV then saves as 0000H
-    // (CPUID.(7,0):EBX[13]).  AMD's FXRSTOR loads them only "when FXRSTOR
-    // sets FSW.ES=1 after recomputing it" (APM Vol.5 FXRSTOR p.24); its
-    // XRSTOR, with RstrFpErrPtrs, always, zeroing "the CS and DS portions"
-    // in 64-bit mode (Vol.2 §11.5.10 p.361).
+    // 32-bit format (Vol.1 §8.1.8).  The APM's FXRSTOR loads them only
+    // "when FXRSTOR sets FSW.ES=1 after recomputing it" (Vol.5 FXRSTOR
+    // p.24), its XRSTOR likewise where RstrFpErrPtrs is 0 and always where
+    // it is 1, zeroing "the CS and DS portions" in 64-bit mode (Vol.2
+    // §11.5.10 p.361).  With FSW.ES = 0 they are open but after an XRSTOR
+    // with RstrFpErrPtrs (X87_FXSAVE_NO_ES, X87_XSAVE_NO_ES).
     for (bool es : {false, true}) {
       std::vector<u8> img = image(0x1F80);
       u16 cw = es ? 0x037E : 0x037F, sw = es ? 0x0001 : 0x0000;  // IE, unmasked or not
@@ -476,7 +471,8 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
       std::vector<u8> code = fxrstor;
       code.insert(code.end(), {0xD9, 0xB7, 0x00, 0x02, 0x00, 0x00});  // fnstenv [rdi+0x200]
       fx("fxrstor [rdi] (" + what + "); fnstenv: the x87 pointers", code, s, img);
-      x87_env_undefined(tests.back(), 0x200, X87_CW_LOADED | X87_LONG_MODE);
+      unsigned open = X87_CW_LOADED | X87_LONG_MODE;
+      x87_env_undefined(tests.back(), 0x200, es ? open : open | X87_FXSAVE_NO_ES);
       if (!xsave) continue;
       img.resize(576, 0);
       img[512] = 1;  // XSTATE_BV: x87
@@ -486,7 +482,7 @@ void add_xsave_tests(std::vector<TestCase> &tests) {
       x.rax = 1;
       x.rdx = 0;
       fx("xrstor [rdi] (" + what + "); fnstenv: the x87 pointers", code, x, img);
-      x87_env_undefined(tests.back(), 0x240, X87_CW_LOADED | X87_LONG_MODE);
+      x87_env_undefined(tests.back(), 0x240, es ? open : open | X87_XSAVE_NO_ES);
     }
   }
 }
