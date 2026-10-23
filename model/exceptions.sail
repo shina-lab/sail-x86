@@ -112,44 +112,18 @@ function check_cr0_sse() = {
   if CR0[3] == 0b1 then raise_NM()    // TS
 }
 
-// The VEX forms of the SSE instructions, and XSAVE, XRSTOR, XSAVEOPT,
-// XSAVEC, XSAVES and XRSTORS: #NM if TS = 1.  EM does not affect them:
-// the SDM's VEX classes name it only as "Legacy SSE instruction: If
-// CR0.EM[bit 2] = 1" (Vol.2A §2.5, Type 5, Table 2-22), and neither
-// manual's XSAVE pages name it.  For these VEX instructions the APM
-// contradicts itself: Vol.2 §8.2.7 gives #UD for "any SSE instruction
-// (uses ZMM/YMM/XMM registers) ... when CR0.EM = 1", while their classes
-// and pages in Vol.4 (Class 1 and the other "AVX / SSE" classes, PADDD/
-// VPADDD, LDMXCSR/VLDMXCSR) mark the EM row "S — SSE exception" only.  The
-// model follows the SDM on both vendors.
+// The VEX- and EVEX-encoded SIMD instructions, the opmask instructions,
+// and XSAVE, XRSTOR, XSAVEOPT, XSAVEC, XSAVES and XRSTORS: #NM if TS = 1.
+// EM does not affect them in the SDM: its VEX classes name it only as
+// "Legacy SSE instruction: If CR0.EM[bit 2] = 1" (Vol.2A §2.5, Type 5,
+// Table 2-22) or not at all (Types 6, 8 and 12), the EVEX Types E1-E12
+// (§2.8) and the opmask Types K20 and K21 (§2.9) not at all, and neither
+// manual's XSAVE pages name it.  The APM's #UD for "any SSE instruction
+// (uses ZMM/YMM/XMM registers) ... when CR0.EM = 1" (Vol.2 §8.2.7), and
+// for AVX-512 under "CR0.EM = 1" (Vol.4 §3.2.1), is a fault of one manual
+// only, which the model does not raise.
 val check_cr0_ts : unit -> unit
 function check_cr0_ts() = if CR0[3] == 0b1 then raise_NM()
-
-// AVX-512 instructions, and the VEX-encoded SIMD instructions that have no
-// legacy SSE form (vex_no_sse_form, insn_vex_dispatch.sail): #NM if TS =
-// 1, and on AMD first #UD if EM = 1, like the other #UDs the enabled state
-// decides.  The SDM's classes give EM no rule for them: the EVEX Types
-// E1-E12 (Vol.2A §2.8), the opmask Types K20 and K21 (§2.9), and the VEX
-// Types, whose only EM row is that of the legacy SSE instructions (Type 4,
-// Table 2-21) or which have none (Types 6, 8 and 12, Tables 2-23, 2-25 and
-// 2-27).  The APM gives the #UD in both groups, and nothing in it says
-// otherwise:
-//   - AVX-512: "CR0.EM = 1" under "Invalid opcode, #UD" (Vol.4 §3.2.1,
-//     "Control Register Exceptions"), to which the pages of the opmask
-//     instructions refer as well ("Exceptions for AVX512 instructions are
-//     enumerated in Section 3.2").
-//   - The VEX instructions without an SSE form: Vol.2 §8.2.7 (above).  Of
-//     their classes (Vol.4 Table 3-1, "Legacy Type —"), 4G, 4H and 4H-1
-//     list "CR0.EM = 1" under #UD for them ("X — AVX exception", "A — AVX2
-//     exception"; pp. 1831-1833), as do the pages of VTESTPS and VPERMD;
-//     the others (4J, 4K, 6A-1 to 6F, 8, 11, 12) and the pages of FMA3 do
-//     not name EM, and those of AVX-VNNI give only "Exceptions for AVX512
-//     instructions are enumerated in Section 3.2".
-val check_cr0_em_amd : unit -> unit
-function check_cr0_em_amd() = {
-  if vendor == Vendor_AMD & CR0[2] == 0b1 then raise_UD();  // EM
-  check_cr0_ts()
-}
 
 // x87 instructions (Vol.3A Table 2-2), FXSAVE and FXRSTOR: #NM if EM = 1
 // or TS = 1.  FXSAVE and FXRSTOR: "#NM If CR0.TS[bit 3] = 1. If

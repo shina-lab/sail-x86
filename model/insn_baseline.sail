@@ -1626,10 +1626,10 @@ function dispatch_2byte_gpr(op, pfx) = {
     // hint moves no architectural state and takes no memory fault.  The
     // APM defines the opcode as PREFETCH/PREFETCHW, where "only the memory
     // form of ModRM is valid.  The register form of ModRM causes an
-    // invalid-opcode exception" (Vol.3 PREFETCH, p.293-294): #UD on AMD.
+    // invalid-opcode exception" (Vol.3 PREFETCH, p.293-294), a #UD of one
+    // manual only, which the model does not raise.
     13 => {
       let modrm = fetch(1);
-      if modrm[7..6] == 0b11 & vendor == Vendor_AMD then raise_UD();
       let _ = modrm_rm(modrm, pfx)
     },
 
@@ -2051,18 +2051,13 @@ function dispatch_2byte_gpr(op, pfx) = {
     // 0F B5: LGS r, m16:16/32/64 — Load far pointer into GS
     // Memory format: [offset (16/32/64-bit)][selector (16-bit)]
     // Register operand only (memory source); #UD for register source.
-    // With REX.W the manuals differ.  The SDM has "REX.W + 0F B2 /r LSS
-    // r64,m16:64" (Vol.2A LDS/LES/LFS/LGS/LSS p.3-540).  The APM lists only
-    // the mem16:16 and mem16:32 forms: "The operand-size attribute
-    // determines whether the pointer loaded is 32 or 48 bits in length.  A
-    // 64-bit operand is not supported" (Vol.3 LDS-LSS p.216), without
-    // saying what REX.W then does.  For AMD the model loads an m16:32
-    // pointer, its offset zero-extended, with or without 66h: REX.W still
-    // overrides 66h ("The W bit field of the REX prefix takes precedence
-    // over the 66h prefix", Vol.3 §1.2.2 p.9), and the size stops at the
-    // 32 bits the APM supports.
+    // With REX.W the SDM has "REX.W + 0F B2 /r LSS r64,m16:64" (Vol.2A
+    // LDS/LES/LFS/LGS/LSS p.3-540), the only definition of the form: the
+    // APM lists only mem16:16 and mem16:32, "A 64-bit operand is not
+    // supported" (Vol.3 LDS-LSS p.216), without saying what REX.W then
+    // does.  The model loads the SDM's m16:64.
     op if op == 178 | op == 180 | op == 181 => {
-      let os : {16, 32, 64} = if pfx.rex_w & vendor == Vendor_AMD then 32 else opsize(pfx);
+      let os : {16, 32, 64} = opsize(pfx);
       let (reg, src) = fetch_modrm(pfx);
       match src {
         RM_mem(m) => {

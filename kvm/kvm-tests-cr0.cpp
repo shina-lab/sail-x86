@@ -11,16 +11,14 @@
 //     CRC32, POPCNT, the VEX-encoded general-purpose instructions (BMI1,
 //     BMI2: exception class 13) or XGETBV.
 //   - EM = 1: #NM for x87 and FXSAVE/FXRSTOR.  #UD for MMX, legacy SSE,
-//     LDMXCSR/STMXCSR and EMMS: on Intel whatever TS ("If the EM flag is
-//     set, the setting of the TS flag has no effect", SDM Vol.3A §2.5);
-//     the APM gives EM its #UD and TS its #NM in no order.  The XSAVE
-//     family ignores EM.  The SDM's VEX and EVEX classes ignore it.  The
-//     APM gives #UD for AVX-512 (EVEX and the opmask instructions; Vol.4
-//     §3.2.1) and for the VEX SIMD instructions without a legacy SSE form
-//     (Vol.2 §8.2.7; Vol.4 Table 3-1, Classes 4G and 4H), and contradicts
-//     itself for the VEX forms of SSE instructions (Vol.2 §8.2.7: #UD; the
-//     PADDD and LDMXCSR pages: SSE forms only), so there an AMD case
-//     accepts either.
+//     LDMXCSR/STMXCSR and EMMS, whatever TS in the SDM ("If the EM flag is
+//     set, the setting of the TS flag has no effect", Vol.3A §2.5), while
+//     the APM gives EM its #UD and TS its #NM in no order, so with TS a
+//     case accepts either.  The XSAVE family ignores EM.  The SDM's VEX and
+//     EVEX classes ignore it; the APM's #UD for AVX-512 (Vol.4 §3.2.1) and
+//     for "any SSE instruction (uses ZMM/YMM/XMM registers)" (Vol.2 §8.2.7)
+//     is a fault of one manual only, which the model does not raise
+//     (check_cr0_ts, model/exceptions.sail), and which has no case.
 //   - WAIT/FWAIT: #NM only when TS = 1 and MP = 1.
 //   - #NM and #UD are both faults from decoding the instruction, in one
 //     class whose internal order the manuals leave open (SDM Vol.3A §7.9,
@@ -47,9 +45,6 @@ constexpr int NONE = -1, UD = 6, NM = 7;
 }  // namespace
 
 void add_cr0_tests(std::vector<TestCase> &tests) {
-  u32 a, b, c, d;
-  __get_cpuid(0, &a, &b, &c, &d);
-  const bool amd_host = b == 0x68747541;  // "Auth" of AuthenticAMD
   const u64 AMX_XCR0 = guest_xcr0() | 3ULL << 17;
   // A case of an instruction the guest lacks is left out: its #UD and the
   // #NM are in one class, in no order (as for add_ud below), and the
@@ -111,12 +106,6 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
   const ArchState unmapped = {.rsi = UNMAPPED};
   ArchState gprs = {.rax = 0x0123456789ABCDEF, .rbx = 0xFEDCBA9876543210,
                     .rcx = 0x0F0F0F0F0F0F0F0F};
-  ArchState vectors;
-  for (int i = 0; i < 3; i++)
-    for (int q = 0; q < 8; q++)
-      vectors.xmm[i].q[q] = 0x0101010101010101ULL * (i + 1) + q;
-  for (int i = 1; i < 3; i++) vectors.kregs[i] = 0x5A5A + i;
-  const std::vector<u8> mxcsr_1f80 = {0x80, 0x1F, 0x00, 0x00};
 
   // =====================================================================
   for (u64 bits : {TS, TS | MP}) {
@@ -355,12 +344,13 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     std::string tag = std::string(" [EM") + (bits & MP ? " MP" : "") + (bits & TS ? " TS" : "");
     auto name = [&](const std::string &n) { return n + tag + "]"; };
 
-    // Legacy SSE and MMX: #UD.  With TS set as well, #UD on Intel (SDM
-    // Vol.3A §2.5, Tables 15-1 and 16-1); the APM gives the #UD of EM
-    // (Vol.2 §3.1.1) and the #NM of TS in no order (Table 8-9, group 6).
+    // Legacy SSE and MMX: #UD.  With TS set as well, #UD in the SDM
+    // (Vol.3A §2.5, Tables 15-1 and 16-1), while the APM gives the #UD of
+    // EM (Vol.2 §3.1.1) and the #NM of TS in no order (Table 8-9, group
+    // 6): either.
     auto add_media = [&](const std::string &n, std::vector<u8> insn, ArchState init = {}) {
       add(cat, bits, name(n), std::move(insn), UD, init);
-      if (amd_host && bits & TS) allow(UD_OR_NM);
+      if (bits & TS) allow(UD_OR_NM);
     };
     add_media("addps xmm0,xmm1", {0x0F, 0x58, 0xC1});
     add_media("movups xmm0,[rsi] (unmapped)", {0x0F, 0x10, 0x06}, unmapped);
@@ -392,8 +382,7 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
     add_ud(cat, bits, name("VEX.0F AE /0"), {0xC5, 0xF8, 0xAE, 0x07}, mem);
     add_ud(cat, bits, name("EVEX.0F AE /1"), {0x62, 0xF1, 0x7C, 0x48, 0xAE, 0x0F}, mem);
 
-    // The XSAVE family and the VEX forms of SSE instructions ignore EM; TS
-    // still applies.
+    // The XSAVE family ignores EM; TS still applies.
     int ts = bits & TS ? NM : NONE;
     if (host_has(XSAVE)) {
       ArchState s = with_xsave_vector_inputs({.rax = 3, .rdx = 0, .rdi = DATA_ADDR}, 3);
@@ -403,52 +392,6 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
       if (ts == NONE) {
         fxsave_x87_undefined(tests.back(), 0, X87_XSAVE_NO_ES);
         tests.back().data_undefined.push_back({0x200, 0x03});
-      }
-    }
-    {
-      ArchState s = vectors;
-      s.rdi = DATA_ADDR;
-      // For the VEX SIMD instructions the APM contradicts itself (Vol.2
-      // §8.2.7: #UD for "any SSE instruction (uses ZMM/YMM/XMM registers)
-      // ... when CR0.EM = 1"; the PADDD/VPADDD and LDMXCSR/VLDMXCSR pages:
-      // the EM row for the SSE forms only), so an AMD host may raise #UD.
-      if (host_has(AVX2)) {
-        add(cat, bits, name("vpaddd ymm0,ymm1,ymm2"), {0xC5, 0xF5, 0xFE, 0xC2}, ts, s);
-        if (amd_host) allow({UD, ts});
-      }
-      if (host_has(AVX)) {
-        add(cat, bits, name("vldmxcsr [rdi]"), {0xC5, 0xF8, 0xAE, 0x17}, ts, s, mxcsr_1f80);
-        if (amd_host) allow({UD, ts});
-        add(cat, bits, name("vstmxcsr [rdi]"), {0xC5, 0xF8, 0xAE, 0x1F}, ts, s);
-        if (amd_host) allow({UD, ts});
-      }
-      // AVX-512, EVEX and the opmask instructions: the SDM's classes
-      // (E1-E12, K20, K21) give EM no rule; the APM gives it #UD (Vol.4
-      // §3.2.1), and with TS set as well #UD or #NM, in no order.
-      int em_amd = amd_host ? UD : ts;
-      add(cat, bits, name("vpaddd zmm0,zmm1,zmm2"), {0x62, 0xF1, 0x75, 0x48, 0xFE, 0xC2}, em_amd,
-          s);
-      if (amd_host && bits & TS) allow(UD_OR_NM);
-      add(cat, bits, name("kmovw k1,k2"), {0xC5, 0xF8, 0x90, 0xCA}, em_amd, s);
-      if (amd_host && bits & TS) allow(UD_OR_NM);
-      // The VEX SIMD instructions without a legacy SSE form: the SDM's
-      // classes (Types 4, 6 and 8) give EM no rule; the APM gives it #UD
-      // (Vol.2 §8.2.7; Classes 4G, 4H and 4H-1 name it, the others do not
-      // contradict it), and with TS set as well #UD or #NM, in no order.
-      // One of each kind of class: 4G, 4H, 4H-1, 4J, 4K, 6B, 6D-X, 8.
-      using Case = std::tuple<std::string, CpuidBit, std::vector<u8>>;
-      for (const auto &[n, needs, insn] : std::vector<Case>{
-               {"vtestps xmm1,xmm2", AVX, {0xC4, 0xE2, 0x79, 0x0E, 0xCA}},
-               {"vpermd ymm0,ymm1,ymm2", AVX2, {0xC4, 0xE2, 0x75, 0x36, 0xC2}},
-               {"vpermq ymm0,ymm1,1Bh", AVX2, {0xC4, 0xE3, 0xFD, 0x00, 0xC1, 0x1B}},
-               {"vpblendd ymm0,ymm1,ymm2,55h", AVX2, {0xC4, 0xE3, 0x75, 0x02, 0xC2, 0x55}},
-               {"vpsllvd ymm0,ymm1,ymm2", AVX2, {0xC4, 0xE2, 0x75, 0x47, 0xC2}},
-               {"vinserti128 ymm0,ymm1,xmm2,1", AVX2, {0xC4, 0xE3, 0x75, 0x38, 0xC2, 0x01}},
-               {"vbroadcastss ymm0,xmm1", AVX2, {0xC4, 0xE2, 0x7D, 0x18, 0xC1}},
-               {"vzeroupper", AVX, {0xC5, 0xF8, 0x77}}}) {
-        if (!host_has(needs)) continue;
-        add(cat, bits, name(n), insn, em_amd, s);
-        if (amd_host && bits & TS) allow(UD_OR_NM);
       }
     }
 

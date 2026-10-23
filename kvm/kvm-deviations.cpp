@@ -62,42 +62,8 @@ const char *const GATHER_EVEX_UPPER_AMD =
     "to zero\" (Vol.4 VPGATHERDD p.1397, VGATHERDPD p.1158), nothing of the bits above VL, so "
     "the model has the SDM's rule on both vendors.";
 
-// The reason of the VEX instructions without an SSE form under CR0.EM.
-const char *const VEX_NO_SSE_FORM_EM =
-    "Zen 4 executes a VEX instruction without a legacy SSE form with CR0.EM = 1; APM Vol.2 "
-    "§8.2.7 (p.252) gives #UD for \"any SSE instruction (uses ZMM/YMM/XMM registers)\" when "
-    "CR0.EM = 1, and of the classes of these instructions (Vol.4 Table 3-1, \"Legacy Type "
-    "—\") 4G, 4H and 4H-1 list \"CR0.EM = 1\" under #UD (pp.1831-1833, VTESTPS, VPERMD, "
-    "VPERMQ), while the others (VPBLENDD, VPSLLVD, VINSERTI128, VBROADCASTSS, VZEROUPPER) "
-    "do not name EM, which leaves §8.2.7.";
-
 const std::vector<KnownDeviation> DEVIATIONS = {
     // {amd, "case name", "reason"[, model outcome[, host outcome]]},
-
-    // CR0.EM and CR0.TS (kvm-tests-cr0.cpp)
-    {true, "vpaddd zmm0,zmm1,zmm2 [EM]*",
-     "Zen 4 executes an EVEX instruction with CR0.EM = 1; APM Vol.4 §3.2.1 (p. 1878), the "
-     "control register exceptions of the AVX512 instructions, lists \"CR0.EM = 1\" under "
-     "\"Invalid opcode, #UD\", as Vol.2 §8.2.7 (p. 252) does for \"any SSE instruction (uses "
-     "ZMM/YMM/XMM registers)\"", UD},
-    {true, "vpaddd zmm0,zmm1,zmm2 [EM MP]*",
-     "Zen 4 executes an EVEX instruction with CR0.EM = 1; APM Vol.4 §3.2.1 (p. 1878) lists "
-     "\"CR0.EM = 1\" under \"Invalid opcode, #UD\" for the AVX512 instructions", UD},
-    {true, "kmovw k1,k2 [EM]*",
-     "Zen 4 executes VEX KMOVW with CR0.EM = 1; the APM's KMOVW page (Vol.4 p. 212) says "
-     "\"Exceptions for AVX512 instructions are enumerated in Section 3.2\", and §3.2.1 "
-     "(p. 1878) lists \"CR0.EM = 1\" under \"Invalid opcode, #UD\"", UD},
-    {true, "kmovw k1,k2 [EM MP]*",
-     "Zen 4 executes VEX KMOVW with CR0.EM = 1; the APM's KMOVW page (Vol.4 p. 212) refers to "
-     "§3.2, whose §3.2.1 (p. 1878) lists \"CR0.EM = 1\" under \"Invalid opcode, #UD\"", UD},
-    {true, "vtestps xmm1,xmm2 [EM*", VEX_NO_SSE_FORM_EM, UD},
-    {true, "vpermd ymm0,ymm1,ymm2 [EM*", VEX_NO_SSE_FORM_EM, UD},
-    {true, "vpermq ymm0,ymm1,1Bh [EM*", VEX_NO_SSE_FORM_EM, UD},
-    {true, "vpblendd ymm0,ymm1,ymm2,55h [EM*", VEX_NO_SSE_FORM_EM, UD},
-    {true, "vpsllvd ymm0,ymm1,ymm2 [EM*", VEX_NO_SSE_FORM_EM, UD},
-    {true, "vinserti128 ymm0,ymm1,xmm2,1 [EM*", VEX_NO_SSE_FORM_EM, UD},
-    {true, "vbroadcastss ymm0,xmm1 [EM*", VEX_NO_SSE_FORM_EM, UD},
-    {true, "vzeroupper [EM*", VEX_NO_SSE_FORM_EM, UD},
 
     // x87 stack faults and condition codes (kvm-tests-x87-cc.cpp)
     {false, "fsincos 2^63, ST(7) full (out of range*",

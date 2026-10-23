@@ -25,13 +25,19 @@ function iret_to_vm86(ip, cs, flags) = {
   load_vm86_segment(FS, fs);
   load_vm86_segment(GS, gs);
   v(RSP) = sp;
-  // IRETD entry loads the low 16 bits of EIP (checked on AMD and Intel).
+  // IRETD entry loads the low 16 bits of EIP: "RIP = temp_RIP AND
+  // 0x0000FFFF" (APM Vol.3 IRET p.409).  The SDM's "IF EIP not within CS
+  // limit THEN #GP(0)" (Vol.2A IRET, RETURN-TO-VIRTUAL-8086-MODE) is a
+  // fault of one manual only, which the model does not raise.
   next_rip = Some(zero_extend(ip[15..0]))
 }
 
 // IRET within virtual-8086 mode cannot leave it or change IOPL/VIP.
-// With VME, a 16-bit IRET virtualizes IF like POPF. This behavior is
-// missing from Vol.2's IRET pseudocode, but occurs on both AMD and Intel.
+// With VME, a 16-bit IRET virtualizes IF like POPF: at IOPL < 3, "VIF =
+// EFLAGS.IF Stack Image", and with VIP = 1 an image with IF = 1 is #GP
+// (APM Vol.2 §8.10.3 Table 8-12 p.295); the SDM's IRET pseudocode leaves
+// this out, and Vol.3B §23.3.2 (p.23-16) names IRET beside POPF as an
+// instruction after which VIF and VIP can both be set.
 val iret_in_vm86 : forall 'os, 'os in {16, 32}. int('os) -> unit
 function iret_in_vm86(os) = {
   let virtualize = IOPL != 0b11;

@@ -1328,12 +1328,15 @@ bool x87_fcmov_form(const Insn &in) {
 // stack underflow (SDM Vol.2A FCMOVcc, p.3-322: "IF condition TRUE THEN
 // ST(0) := ST(i); FI;" and "#IS Stack underflow occurred."), which a case
 // written for the memory form does not choose ST(i) and the flags to avoid.
+// Nor is 0F 0D, whose register form the APM's PREFETCH makes #UD ("The
+// register form of ModRM causes an invalid-opcode exception", Vol.3
+// p.293-294), a fault of one manual only, which the model does not raise.
 void make_mem_to_reg(const Base &b, const Emit &emit) {
   if (!b.movable) return;
   for (size_t i = 0; i < b.insns.size(); i++) {
     const Insn &orig = b.insns[i];
     if (!orig.has_mem() || system_group(orig) || x87_fcmov_form(orig) ||
-        !claim(b, orig, "memory r/m as register"))
+        orig.legacy(1, 0x0D) || !claim(b, orig, "memory r/m as register"))
       continue;
     Insn in = orig;
     in.modrm = u8(0xC0 | (in.modrm & 0x3F));

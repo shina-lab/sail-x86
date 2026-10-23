@@ -60,6 +60,9 @@ struct Test {
   // The run ends in an interrupt from virtual-8086 mode, whose frame holds
   // VM; not where SYSENTER leaves virtual-8086 mode first.
   bool vm86_frame = true;
+  // False where one manual alone faults: the model runs the other one's
+  // definition, and only its outcome is checked, against no host.
+  bool differential = true;
 };
 
 static constexpr u32 MSR_SYSENTER_CS = 0x174, MSR_SYSENTER_ESP = 0x175, MSR_SYSENTER_EIP = 0x176;
@@ -511,8 +514,11 @@ static std::vector<Test> tests() {
   limit.vector = 13; ts.push_back(limit);
   Test stack{"stack segment limit", {0x66,0x58}};
   stack.sp = 0xffff; stack.vector = 12; ts.push_back(stack);
+  // EIP above FFFFh: "RIP = temp_RIP AND 0x0000FFFF" (APM Vol.3 IRET
+  // p.409), where the SDM's "IF EIP not within CS limit THEN #GP(0)"
+  // (Vol.2A IRET p.3-492) is a fault of one manual only.
   Test entry{"IRETD entry truncates EIP", {}};
-  entry.ip = 0x10000; entry.vector = 3;
+  entry.ip = 0x10000; entry.vector = 3; entry.differential = false;
   entry.patches.push_back({VM_CODE, {0xcc}}); ts.push_back(entry);
   Test trap{"INT3 ignores IOPL", {0xcc}};
   trap.flags = VM_FLAG | 2; ts.push_back(trap);
@@ -636,7 +642,7 @@ int main(int argc, char **argv) {
                (t.gate_type & 8) ? 4 : 2);
         ok &= saved == t.error;
       }
-      if (!model_only) {
+      if (!model_only && t.differential) {
         Kvm kvm; // independent VM and fresh memory for each run
         Result hw = kvm.execute(t, mem, fill);
         bool same = m.gpr == hw.gpr && m.ip == hw.ip && m.flags == hw.flags &&

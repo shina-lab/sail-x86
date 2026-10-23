@@ -165,9 +165,6 @@ void add_exception_tests(std::vector<TestCase> &tests) {
   // ---- #DB (vector 1): Debug exception ----
   cat = "Exception #DB";
 
-  u32 vendor_eax, vendor_ebx, vendor_ecx, vendor_edx;
-  __get_cpuid(0, &vendor_eax, &vendor_ebx, &vendor_ecx, &vendor_edx);
-  const bool amd_host = (vendor_ebx == 0x68747541);  // "Auth" of AuthenticAMD
   // A completed MOV DR leaves the arithmetic flags undefined: "The OF, SF,
   // ZF, AF, PF, and CF flags are undefined" (SDM Vol.2B MOV—Move to/from
   // Debug Registers, 4-35), where the APM's "rFLAGS Affected: None" (Vol.3
@@ -563,16 +560,9 @@ void add_exception_tests(std::vector<TestCase> &tests) {
     tests.push_back({"mov ds,ax (0x53 DPL 3 code); mov eax,ds", cat, seg_load(0x0053, 0xD8, 0xD8), {}, FL_ALL});
     tests.push_back({"mov es,ax (0x38 read-only data); mov eax,es", cat, seg_load(0x0038, 0xC0, 0xC0), {}, FL_ALL});
     tests.push_back({"mov ds,ax (null); mov eax,ds", cat, seg_load(0x0000, 0xD8, 0xD8), {}, FL_ALL});
-    // A null SS whose RPL differs from CPL, where the manuals differ: the
-    // SDM's 64-bit MOV raises "#GP(0) If an attempt is made to load SS
-    // register with NULL segment selector when CPL < 3 and CPL ≠ RPL"
-    // (Vol.2B MOV); the APM faults on a null SS only "in non-64-bit mode or
-    // while CPL = 3" (Vol.3 MOV p.242; Vol.2 §4.5.1), so AMD loads it.
-    if (amd_host)
-      tests.push_back({"mov ss,ax (null, RPL 3 at CPL 0) → loaded (AMD)", cat,
-                       seg_load(0x0003, 0xD0, 0xD0), {}, FL_ALL});
-    else
-      add_fault("mov ss,ax (null, RPL 3 at CPL 0) → #GP(0)", seg_load(0x0003, 0xD0, 0xD0), {}, 13);
+    // A null SS whose RPL differs from CPL has no case: the SDM's #GP(0)
+    // there is a fault of one manual only, which the model does not raise
+    // (load_data_segment_register, mem.sail).
     // #GP(selector): SS must be a writable data segment with RPL = DPL = CPL
     add_fault("mov ss,ax (0x38 read-only) → #GP", seg_load(0x0038, 0xD0, 0xD0), {}, 13);
     add_fault("mov ss,ax (0x48 code) → #GP", seg_load(0x0048, 0xD0, 0xD0), {}, 13);
