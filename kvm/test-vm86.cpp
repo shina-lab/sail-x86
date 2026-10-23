@@ -52,7 +52,14 @@ struct Test {
   u32 kernel_sp = KERNEL_SP;
   std::vector<std::pair<u32, Bytes>> patches;
   bool check_descriptor_accessed = false;
+  // IA32_SYSENTER_CS, _ESP and _EIP (174H-176H), zero unless given.
+  u32 sysenter_cs = 0, sysenter_esp = 0, sysenter_eip = 0;
+  // The run ends in an interrupt from virtual-8086 mode, whose frame holds
+  // VM; not where SYSENTER leaves virtual-8086 mode first.
+  bool vm86_frame = true;
 };
+
+static constexpr u32 MSR_SYSENTER_CS = 0x174, MSR_SYSENTER_ESP = 0x175, MSR_SYSENTER_EIP = 0x176;
 
 template <typename T> static void store(Bytes &mem, u32 addr, T value) {
   assert(addr + sizeof(value) <= mem.size());
@@ -176,6 +183,10 @@ static Result run_model(const Test &t, const Bytes &mem, u32 fill) {
     cache.zseg_l = 0;
     cache.zseg_g = 1;
   }
+  // The externals keep the MSRs across models: set each.
+  m.z__wrmsr(MSR_SYSENTER_CS, t.sysenter_cs);
+  m.z__wrmsr(MSR_SYSENTER_ESP, t.sysenter_esp);
+  m.z__wrmsr(MSR_SYSENTER_EIP, t.sysenter_eip);
   assert(m.phys_mem.init(MEM_SIZE));
   m.phys_mem.write_bytes(0, mem.data(), mem.size());
   for (unsigned n = 0; n < 1000; n++) {
@@ -256,6 +267,18 @@ public:
     s.tr = {.base=TSS, .limit=TSS_LIMIT, .selector=24, .type=11, .present=1};
     s.ldt = {.type=2, .unusable=1};
     checked(ioctl(cpu, KVM_SET_SREGS, &s), "set sregs");
+    struct {
+      kvm_msrs header;
+      kvm_msr_entry entries[3];
+    } msrs{};
+    msrs.header.nmsrs = 3;
+    msrs.entries[0] = {.index = MSR_SYSENTER_CS, .data = t.sysenter_cs};
+    msrs.entries[1] = {.index = MSR_SYSENTER_ESP, .data = t.sysenter_esp};
+    msrs.entries[2] = {.index = MSR_SYSENTER_EIP, .data = t.sysenter_eip};
+    if (ioctl(cpu, KVM_SET_MSRS, &msrs) != 3) {
+      fprintf(stderr, "%s: KVM_SET_MSRS failed\n", t.name.c_str());
+      abort();
+    }
     kvm_regs regs{};
     regs.rax = regs.rbx = regs.rcx = regs.rdx = fill;
     regs.rsi = regs.rdi = regs.rbp = fill;
@@ -373,11 +396,78 @@ static std::vector<Test> tests() {
       {"LSL", {0x0f,0x03,0xc0}}}) {
     Test t{name + " #UD", code}; t.vector = 6; ts.push_back(t);
   }
+  // Also #UD in virtual-8086 mode in both manuals: SWAPGS outside 64-bit
+  // mode (SDM Vol.2B SWAPGS 4-696; APM Vol.3 SWAPGS p.482); CLAC and STAC,
+  // "not recognized in virtual-8086 mode" (SDM Vol.2A CLAC 3-139, Vol.2B
+  // STAC 4-670; APM Vol.3 CLAC p.381, STAC p.477); SYSCALL and SYSRET,
+  // which the SDM does not recognize in virtual-8086 mode (Vol.2B SYSCALL
+  // 4-700, SYSRET 4-710) and the APM makes #UD with IA32_EFER.SCE = 0, as
+  // here (Vol.3 SYSCALL p.486, SYSRET p.493).
   for (auto [name, code] : std::vector<std::pair<std::string, Bytes>>{
       {"BLSI", {0xc4,0xe2,0x78,0xf3,0xd8}},
       {"VZEROUPPER", {0xc5,0xf8,0x77}},
-      {"VMXON", {0xf3,0x0f,0xc7,0x36,0,1}}}) {
+      {"VMXON", {0xf3,0x0f,0xc7,0x36,0,1}},
+      {"SWAPGS", {0x0f,0x01,0xf8}}, {"CLAC", {0x0f,0x01,0xca}},
+      {"STAC", {0x0f,0x01,0xcb}}, {"SYSCALL", {0x0f,0x05}},
+      {"SYSRET", {0x0f,0x07}}}) {
     Test t{name + " #UD in vm86", code}; t.vector = 6; ts.push_back(t);
+  }
+  // SYSENTER from virtual-8086 mode, which both manuals allow: "IF CR0.PE
+  // = 0 OR (... IA32_SYSENTER_CS[15:2] = 0) THEN #GP(0)", then VM and IF
+  // cleared, CS := IA32_SYSENTER_CS AND FFFCH and SS := CS + 8 at CPL 0,
+  // ESP := IA32_SYSENTER_ESP, EIP := IA32_SYSENTER_EIP (SDM Vol.2B
+  // SYSENTER 4-702); "MSR_SYSENTER_CS was a null selector" is the #GP of
+  // virtual-8086 and protected mode (APM Vol.3 SYSENTER p.489).  The
+  // selector's RPL, which the manuals give differently, is 0 here.  The
+  // run ends at the HLT at IA32_SYSENTER_EIP.
+  {
+    Test t{"SYSENTER from vm86", {0x0f,0x34}};
+    t.flags |= 0x200;  // IF, which SYSENTER clears
+    t.sysenter_cs = 0x08;
+    t.sysenter_esp = 0x9f00;
+    t.sysenter_eip = HANDLERS + 0x40 * 16;
+    t.vector = 0x40;
+    t.vm86_frame = false;
+    ts.push_back(t);
+    for (u32 cs : {0U, 3U}) {
+      Test f{"SYSENTER with IA32_SYSENTER_CS=" + std::to_string(cs) + " #GP", {0x0f,0x34}};
+      f.sysenter_cs = cs;
+      f.vector = 13;
+      ts.push_back(f);
+    }
+  }
+  // SYSEXIT in virtual-8086 mode: #GP(0) in both manuals ("The SYSEXIT
+  // instruction is not recognized in virtual-8086 mode", SDM Vol.2B
+  // SYSEXIT 4-707; "This instruction is only recognized in protected
+  // mode", APM Vol.3 SYSEXIT p.491, a #GP).
+  {
+    Test t{"SYSEXIT in vm86 #GP", {0x0f,0x35}};
+    t.sysenter_cs = 0x08;
+    t.vector = 13;
+    ts.push_back(t);
+  }
+  // SYSENTER to CPL 0, and SYSEXIT from there to protected mode at CPL 3:
+  // CS := IA32_SYSENTER_CS + 16 and SS := CS + 8 at CPL 3, ESP := ECX, EIP
+  // := EDX (SDM Vol.2B SYSEXIT 4-706; APM Vol.3 SYSEXIT p.490), where INT
+  // 80H, through the DPL 3 gate, ends the run on the monitor stack.  With
+  // IA32_SYSENTER_CS = 0BH the selectors are 1BH and 23H in both manuals:
+  // the SDM forces the RPL to 3, the APM takes the selector's.
+  {
+    const u32 user_eip = VM_CODE + 0x400, user_esp = VM_STACK + 0x800;
+    Test t{"SYSENTER, SYSEXIT to CPL 3, INT 80H", {0x0f,0x34}};
+    t.sysenter_cs = 0x0b;
+    t.sysenter_esp = 0x9f00;
+    t.sysenter_eip = HANDLERS + 0x40 * 16;
+    Bytes handler = {0xb9};  // mov ecx, user_esp
+    for (unsigned i = 0; i < 4; i++) handler.push_back(user_esp >> (i * 8));
+    handler.push_back(0xba);  // mov edx, user_eip
+    for (unsigned i = 0; i < 4; i++) handler.push_back(user_eip >> (i * 8));
+    handler.insert(handler.end(), {0x0f, 0x35});  // sysexit
+    t.patches.push_back({HANDLERS + 0x40 * 16, handler});
+    t.patches.push_back({user_eip, {0xcd, 0x80}});
+    t.vector = 0x80;
+    t.vm86_frame = false;
+    ts.push_back(t);
   }
   for (auto [name, code] : std::vector<std::pair<std::string, Bytes>>{
       {"MOV CR0", {0x0f,0x20,0xc0}}, {"CLTS", {0x0f,0x06}},
@@ -515,7 +605,7 @@ int main(int argc, char **argv) {
       Result m = run_model(t, mem, fill);
       bool ok = m.ip == HANDLERS + t.vector * 16 + 1;
       bool error = t.vector == 12 || t.vector == 13 || t.vector == 14;
-      if (t.gate_type & 8) {
+      if ((t.gate_type & 8) && t.vm86_frame) {
         u32 saved_flags;
         memcpy(&saved_flags, m.mem.data() + monitor_stack_addr(t, m) +
                (error ? 12 : 8), 4);

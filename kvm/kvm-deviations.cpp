@@ -176,17 +176,6 @@ const std::vector<KnownDeviation> DEVIATIONS = {
      "SS or POP SS instruction completes execution\" (Vol.2 §8.1.4 p.245); the SDM "
      "suppresses the breakpoint \"as if EFLAGS.RF were 1\" (Vol.3A §7.8.3 p.7-8).",
      COMPLETES, DB},
-    {true, "sysexit*",
-     "KVM on AMD intercepts the #UD of SYSEXIT in long mode and emulates the "
-     "instruction as the SDM gives it (#GP(0) for IA32_SYSENTER_CS = 0, else the "
-     "return to CPL 3).  The APM makes SYSEXIT #UD in long mode: \"An invalid-opcode "
-     "exception occurs if this instruction is used in long mode\" (Vol.3 SYSEXIT p.490)."},
-    {true, "sysenter*",
-     "KVM on AMD intercepts the #UD of SYSENTER in long mode and cannot emulate it in 64-bit "
-     "mode (the run ends in KVM_EXIT_INTERNAL_ERROR), so the case does not run.  The APM makes "
-     "SYSENTER #UD in long mode: \"An invalid-opcode exception occurs if this instruction is "
-     "used in long mode\" (Vol.3 SYSENTER p.488).",
-     ANY_OUTCOME, HOST_CANNOT_RUN},
 
     // Gathers and scatters (kvm-tests-avx-vex.cpp, kvm-tests-avx-special.cpp)
     {false, "VPGATHERDD xmm element *", GATHER_VEX_UPPER},

@@ -3,9 +3,9 @@
 
 // System and privileged instructions that the differential suite can observe
 // from CPL 0 in the guest: control-register moves and CLTS, RDTSC's zero
-// extension, RDPMC's #GP, the fault paths of SYSCALL/SYSRET/SYSENTER/SYSEXIT
-// without their MSRs, VMREAD/VMWRITE outside VMX operation, CLI, INT n, RSM
-// outside SMM, and the cache instructions KVM intercepts.
+// extension, RDPMC's #GP, SYSCALL and SYSRET and what CPL 3 reaches by
+// them, VMREAD/VMWRITE outside VMX operation, CLI, INT n, RSM outside SMM,
+// CLAC, STAC and SWAPGS, and the cache instructions KVM intercepts.
 //
 // For an intercepted instruction the reference behavior includes KVM's
 // implementation: INVD and WBINVD are emulated as no-ops, MOV to CR0/CR4/CR8
@@ -171,24 +171,19 @@ void add_system_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
-  // SYSCALL/SYSRET without EFER.SCE, SYSENTER/SYSEXIT without their MSR
+  // SYSCALL/SYSRET without EFER.SCE
   // =====================================================================
   cat = "System fast-call faults";
   {
-    // The guest's EFER is LME+LMA with SCE clear; IA32_SYSENTER_CS is 0.
+    // The guest's EFER is LME+LMA with SCE clear.
     add_fault("syscall with EFER.SCE=0 (#UD)", {0x0F, 0x05}, {}, 6);
     add_fault("sysret with EFER.SCE=0 (#UD)", {0x0F, 0x07}, {}, 6);
     add_fault("sysretq with EFER.SCE=0 (#UD)", {0x48, 0x0F, 0x07}, {}, 6);
-    // SYSENTER and SYSEXIT in 64-bit mode, where the manuals differ: the
-    // SDM defines them in IA-32e mode (Vol.2B SYSENTER, SYSEXIT), here
-    // #GP(0) for IA32_SYSENTER_CS[15:2] = 0, and the APM makes them #UD:
+    // SYSENTER and SYSEXIT have no case in long mode, where only the SDM
+    // defines them (Vol.2B SYSENTER, SYSEXIT) and the APM makes them #UD:
     // "An invalid-opcode exception occurs if this instruction is used in
-    // long mode" (Vol.3 SYSENTER p.488, SYSEXIT p.490).  On AMD hosts KVM
-    // emulates SYSEXIT the SDM's way instead (kvm-deviations.cpp).
-    auto sys_vec = [&](int intel) { return amd_host ? 6 : intel; };
-    add_fault("sysenter with IA32_SYSENTER_CS=0", {0x0F, 0x34}, {}, sys_vec(13));
-    add_fault("sysexit with IA32_SYSENTER_CS=0", {0x0F, 0x35}, {}, sys_vec(13));
-    add_fault("sysexitq with IA32_SYSENTER_CS=0", {0x48, 0x0F, 0x35}, {}, sys_vec(13));
+    // long mode" (Vol.3 SYSENTER p.488, SYSEXIT p.490).  test-vm86.cpp
+    // runs them in protected and virtual-8086 mode.
   }
 
   // =====================================================================
@@ -301,20 +296,23 @@ void add_system_tests(std::vector<TestCase> &tests) {
   }
 
   // =====================================================================
-  // SYSCALL/SYSRET/SYSENTER/SYSEXIT with their MSRs
+  // SYSCALL and SYSRET with their MSRs, and what CPL 3 reaches by them
   // =====================================================================
   cat = "System fast call";
   {
     // The model runs in system mode here, delivering exceptions through a
-    // mirror of the guest's IDT, so a return to CPL 3 can end in a UD2
-    // whose #UD (vector, RIP, pushed RFLAGS) is the observed outcome.
+    // mirror of the guest's IDT, so a return to CPL 3 can end in a fault
+    // there whose vector, RIP and pushed RFLAGS are the observed outcome.
+    // Only 64-bit mode is the guest's here, where both manuals define
+    // SYSCALL and SYSRET; outside it the SDM makes them #UD (Vol.2B
+    // SYSCALL 4-698, SYSRET 4-709) and the APM executes them (Vol.3
+    // SYSCALL p.487, SYSRET p.494), and the cases leave them out.
     const u32 MSR_EFER = 0xC0000080, MSR_STAR = 0xC0000081, MSR_LSTAR = 0xC0000082,
-              MSR_FMASK = 0xC0000084, MSR_SYSENTER_CS = 0x174, MSR_SYSENTER_ESP = 0x175,
-              MSR_SYSENTER_EIP = 0x176;
+              MSR_FMASK = 0xC0000084;
     const u64 EFER_SCE = 0x501;                      // LME + LMA + SCE
     const u64 STAR = (0x43ULL << 48) | (0x08ULL << 32);  // SYSRET: CS 0x53/0x43, SS 0x4B; SYSCALL: CS 0x08, SS 0x10
     auto sys = [&](const std::string &name, std::vector<u8> code, ArchState init,
-                   std::vector<std::pair<u32, u64>> msrs, int vec = -2) {
+                   std::vector<std::pair<u32, u64>> msrs, int vec = -2) -> TestCase & {
       TestCase tc;
       tc.name = name;
       tc.category = cat;
@@ -329,11 +327,12 @@ void add_system_tests(std::vector<TestCase> &tests) {
         tc.expected_vector = vec;
       }
       tests.push_back(std::move(tc));
+      return tests.back();
     };
     // Layout: the instruction at offset 0, a UD2 behind it that only a
     // missing transfer would reach, NOPs, and the transfer target at
-    // offset 8: nothing (the harness's HLT) for an entry to CPL 0, UD2 or
-    // INT3 for a return to CPL 3.
+    // offset 8: nothing (the harness's HLT) for an entry to CPL 0, the
+    // instruction under test for a return to CPL 3.
     auto layout = [](std::vector<u8> insn, std::vector<u8> target) {
       std::vector<u8> code = std::move(insn);
       code.insert(code.end(), {0x0F, 0x0B});
@@ -341,77 +340,68 @@ void add_system_tests(std::vector<TestCase> &tests) {
       code.insert(code.end(), target.begin(), target.end());
       return code;
     };
-    const std::vector<u8> ud2 = {0x0F, 0x0B};
+    const std::vector<u8> ud2 = {0x0F, 0x0B}, sysretq = {0x48, 0x0F, 0x07};
     const u64 TARGET = CODE_ADDR + 8;
+    const std::vector<std::pair<u32, u64>> to_cpl3 = {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}};
+    // RF in the RFLAGS that SYSCALL saves, where the manuals differ: "R11
+    // := RFLAGS" (SDM Vol.2B SYSCALL 4-699), "R11.q = RFLAGS // with rf
+    // cleared" (APM Vol.3 SYSCALL p.486).  The model leaves R11[16]
+    // undefined.
+    const u64 R11_RF = 1ULL << 16;
 
     // SYSCALL: RCX := next RIP, R11 := RFLAGS, RFLAGS &= ~FMASK, RIP := LSTAR,
     // CPL stays 0.  IF and DF are set at the call so FMASK's effect shows.
     for (u64 fmask : {0ULL, 0x600ULL}) {
       ArchState s = {.rflags = initial_flags() | 0x600};
       sys(std::format("syscall (FMASK={:#x})", fmask), layout({0x0F, 0x05}, {}), s,
-          {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}, {MSR_LSTAR, TARGET}, {MSR_FMASK, fmask}});
+          {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}, {MSR_LSTAR, TARGET}, {MSR_FMASK, fmask}})
+          .undefined.gpr[11] = R11_RF;
     }
 
     // SYSRET: RIP := RCX, RFLAGS := (R11 & 3C7FD7H) | 2, CS/SS from STAR[63:48],
     // CPL 3.  The UD2 at the target reports the loaded RIP and RFLAGS.
     {
       ArchState s = {.rcx = TARGET, .r11 = 0x202};
-      sys("sysretq to CPL 3 (ud2 there)", layout({0x48, 0x0F, 0x07}, ud2), s,
-          {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 6);
+      sys("sysretq to CPL 3 (ud2 there)", layout(sysretq, ud2), s, to_cpl3, 6);
       ArchState f = {.rcx = TARGET, .r11 = 0x2 | FL_ARITH | (1ULL << 16) | (1ULL << 17)};
-      sys("sysretq with RF and VM in R11 (masked)", layout({0x48, 0x0F, 0x07}, ud2), f,
-          {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 6);
-      sys("sysret to compatibility mode CPL 3 (ud2 there)", layout({0x0F, 0x07}, ud2), s,
-          {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 6);
-      // A non-canonical RCX, where the manuals differ: the SDM raises the
-      // #GP(0) in SYSRET itself ("#GP(0) ... If the return is to 64-bit
-      // mode and RCX contains a non-canonical address", Vol.2B SYSRET);
-      // the APM's SYSRET has no such check ("temp_RIP.q = RCX", Vol.3
-      // p.494), so it returns to CPL 3, where "Attempting to execute code
-      // ... at a non-canonical RIP" is #GP(0) (Vol.2 §8.2.14, Table 8-6),
-      // the frame holding that RIP and the new RFLAGS.
-      {
-        ArchState nc = {.rcx = 0x0000800000000000ULL, .r11 = 0x202};
-        sys("sysretq with a non-canonical RCX (#GP)", layout({0x48, 0x0F, 0x07}, ud2), nc,
-            {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 13);
-      }
-      // INT3 at CPL 3 through a DPL 0 gate: #GP with error code 3*8+2.
-      sys("sysretq then int3 at CPL 3 (#GP, error 0x1a)", layout({0x48, 0x0F, 0x07}, {0xCC}), s,
-          {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}}, 13);
+      sys("sysretq with RF and VM in R11 (masked)", layout(sysretq, ud2), f, to_cpl3, 6);
+      sys("sysret to compatibility mode CPL 3 (ud2 there)", layout({0x0F, 0x07}, ud2), s, to_cpl3, 6);
+      // A non-canonical RCX has no case: the SDM raises the #GP(0) in
+      // SYSRET at CPL 0 (Vol.2B SYSRET 4-710), the APM's processor at the
+      // fetch at CPL 3 (Vol.3 SYSRET p.494; Vol.2 §8.2.14, Table 8-6).
+
+      // At CPL 3 after the return: INT3 through a DPL 0 gate is #GP with
+      // error code 3*8+2; SYSRET is #GP(0) at CPL > 0 in 64-bit mode, "IF
+      // (CPL ≠ 0) THEN #GP(0)" (SDM Vol.2B SYSRET 4-709), "IF
+      // ((!PROTECTED_MODE) || (CPL != 0)) EXCEPTION [#GP(0)]" (APM Vol.3
+      // SYSRET p.493); so is SWAPGS, "IF CPL ≠ 0 THEN #GP(0)" (SDM Vol.2B
+      // SWAPGS 4-696), "CPL was not 0" (APM Vol.3 SWAPGS p.483); CLAC and
+      // STAC are #UD "If the CPL > 0" (SDM Vol.2A CLAC 3-139, Vol.2B STAC
+      // 4-670; APM Vol.3 CLAC p.381, STAC p.477), with SMAP or without it.
+      sys("sysretq then int3 at CPL 3 (#GP, error 0x1a)", layout(sysretq, {0xCC}), s, to_cpl3, 13);
+      sys("sysretq then sysretq at CPL 3 (#GP)", layout(sysretq, sysretq), s, to_cpl3, 13);
+      sys("sysretq then swapgs at CPL 3 (#GP)", layout(sysretq, {0x0F, 0x01, 0xF8}), s, to_cpl3, 13);
+      sys("sysretq then clac at CPL 3 (#UD)", layout(sysretq, {0x0F, 0x01, 0xCA}), s, to_cpl3, 6);
+      sys("sysretq then stac at CPL 3 (#UD)", layout(sysretq, {0x0F, 0x01, 0xCB}), s, to_cpl3, 6);
+      // SYSRET in compatibility mode at CPL 3, where the manuals give
+      // different vectors: "#UD The SYSRET instruction is not recognized in
+      // compatibility mode" (SDM Vol.2B SYSRET 4-710); the APM's #GP(0) for
+      // CPL ≠ 0 (p.493).
+      sys("sysret then sysret at compatibility-mode CPL 3 (#UD or #GP)", layout({0x0F, 0x07}, {0x0F, 0x07}),
+          s, to_cpl3)
+          .allowed_outcomes = {6, 13};
     }
 
-    // SYSENTER and SYSEXIT on Intel, as the SDM gives them; on AMD each is
-    // #UD in long mode (APM Vol.3 SYSENTER p.488, SYSEXIT p.490; above).
-    // vec: the SDM's outcome, -2 for completing.
-    auto sys_x = [&](const std::string &name, std::vector<u8> code, ArchState init,
-                     std::vector<std::pair<u32, u64>> msrs, int vec = -2) {
-      sys(name, std::move(code), init, std::move(msrs), amd_host ? 6 : vec);
-    };
-
-    // SYSENTER: CS 0x08, SS 0x10, RSP and RIP from the MSRs, IF cleared.
-    // Bits 15:2 of IA32_SYSENTER_CS zero: #GP(0).
-    {
-      ArchState s = {.rflags = initial_flags() | 0x200};
-      sys_x("sysenter to CPL 0 (HLT at SYSENTER_EIP)", layout({0x0F, 0x34}, {}), s,
-            {{MSR_SYSENTER_CS, 0x08}, {MSR_SYSENTER_ESP, STACK_TOP - 0x100}, {MSR_SYSENTER_EIP, TARGET}});
-      sys_x("sysenter with IA32_SYSENTER_CS=3 (#GP: bits 15:2 zero)", layout({0x0F, 0x34}, {}), s,
-            {{MSR_SYSENTER_CS, 0x3}, {MSR_SYSENTER_ESP, STACK_TOP - 0x100}, {MSR_SYSENTER_EIP, TARGET}}, 13);
-    }
-
-    // SYSEXIT: CS := IA32_SYSENTER_CS + 32 (64-bit) or + 16, RPL 3, SS := CS + 8,
-    // RIP := RDX, RSP := RCX, CPL 3.  With SYSENTER_CS = 0x33 the selectors
-    // are the GDT's user code and data (0x53, 0x5B) or 0x43 and 0x4B.
-    {
-      ArchState s = {.rcx = STACK_TOP - 0x200, .rdx = TARGET};
-      sys_x("sysexitq to CPL 3 (ud2 there)", layout({0x48, 0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x33}}, 6);
-      sys_x("sysexit to compatibility mode CPL 3 (ud2 there)", layout({0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x33}}, 6);
-      ArchState nc = {.rcx = STACK_TOP - 0x200, .rdx = 0x0000800000000000ULL};
-      sys_x("sysexitq with a non-canonical RDX (#GP)", layout({0x48, 0x0F, 0x35}, ud2), nc, {{MSR_SYSENTER_CS, 0x33}}, 13);
-      // IA32_SYSENTER_CS = 3: bits 15:2 zero, #GP(0) per the SDM's Operation
-      // section and its compatibility-mode list.  The 64-bit list says only
-      // "If IA32_SYSENTER_CS = 0"; the model follows the Operation section.
-      sys_x("sysexit with IA32_SYSENTER_CS=3 (#GP: bits 15:2 zero)", layout({0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x3}}, 13);
-      sys_x("sysexitq with IA32_SYSENTER_CS=3 (#GP: bits 15:2 zero)", layout({0x48, 0x0F, 0x35}, ud2), s, {{MSR_SYSENTER_CS, 0x3}}, 13);
+    // SYSCALL from CPL 3 after a SYSRET there: R11 := the RFLAGS SYSRET
+    // loaded, here with IOPL 3, NT, AC, VIF, VIP and ID set, and LSTAR the
+    // instruction after it, the HLT.  FMASK clears IF, DF, NT, AC, VIF and
+    // VIP: "RFLAGS := RFLAGS AND NOT(IA32_FMASK)" (SDM Vol.2B SYSCALL
+    // 4-699), "RFLAGS = RFLAGS AND ~MSR_SFMASK" (APM Vol.3 SYSCALL p.486).
+    for (u64 fmask : {0ULL, 0x1C4600ULL}) {
+      ArchState s = {.rcx = TARGET, .r11 = 0x3C7ED7};
+      sys(std::format("sysretq then syscall at CPL 3 (FMASK={:#x})", fmask), layout(sysretq, {0x0F, 0x05}), s,
+          {{MSR_EFER, EFER_SCE}, {MSR_STAR, STAR}, {MSR_LSTAR, TARGET + 2}, {MSR_FMASK, fmask}})
+          .undefined.gpr[11] = R11_RF;
     }
   }
 

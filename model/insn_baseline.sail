@@ -628,6 +628,242 @@ function cache_line_access(m) = {
   ()
 }
 
+// =========================================================================
+// Fast system calls: SYSCALL, SYSRET, SYSENTER and SYSEXIT
+//
+// The manuals define them in different modes.  The SDM defines SYSCALL and
+// SYSRET in 64-bit mode only ("not recognized" elsewhere, #UD) and SYSENTER
+// and SYSEXIT in every protected mode; the APM defines SYSCALL and SYSRET
+// in every mode and SYSENTER and SYSEXIT outside long mode only (#UD in
+// it).  The model executes each instruction wherever a manual defines it,
+// as that manual gives it, and where both define it but give different
+// values, the value is undefined: either manual's, `if (undefined : bool)
+// then <the APM's> else <the SDM's>`, of which the emulator, whose
+// undefined values are false and zeros, takes the SDM's.
+// =========================================================================
+
+// The flat segments the fast system calls load into the CS and SS
+// descriptor caches in place of the descriptors their selectors name: base
+// 0, a 4-GByte limit, execute/read or read/write data, accessed, S = 1,
+// P = 1, G = 1, and CS.L and CS.D for 64-bit or 32-bit code.
+val fast_call_code : (range(0, 3), bool) -> SegDescCache
+function fast_call_code(dpl, long) = struct {
+  seg_base    = 0x0000000000000000,
+  seg_limit   = 0xFFFFFFFF,
+  seg_type    = 0xB,
+  seg_s       = 0b1,
+  seg_dpl     = dpl,
+  seg_present = 0b1,
+  seg_db      = if long then 0b0 else 0b1,
+  seg_l       = if long then 0b1 else 0b0,
+  seg_g       = 0b1,
+}
+
+val fast_call_stack : range(0, 3) -> SegDescCache
+function fast_call_stack(dpl) = struct {
+  seg_base    = 0x0000000000000000,
+  seg_limit   = 0xFFFFFFFF,
+  seg_type    = 0x3,
+  seg_s       = 0b1,
+  seg_dpl     = dpl,
+  seg_present = 0b1,
+  seg_db      = 0b1,
+  seg_l       = 0b0,
+  seg_g       = 0b1,
+}
+
+// SYSCALL in system mode, after the IA32_EFER.SCE check both manuals make
+// first.  In IA-32e mode, the APM's SYSCALL_LONG_MODE (Vol.3 SYSCALL
+// p.486): RCX := the next RIP, R11 := RFLAGS, RFLAGS &= ~SFMASK, CS and SS
+// from STAR[47:32] with fixed 64-bit code and stack at CPL 0, and RIP :=
+// LSTAR from 64-bit mode and CSTAR from compatibility mode ("temp_RIP.q =
+// MSR_CSTAR", "Always switch to 64-bit mode in long mode").  The SDM's
+// SYSCALL is the 64-bit-mode part of it (Vol.2B SYSCALL 4-698: "IF
+// IA32_EFER.LMA = 0 OR CS.L = 0 ... THEN #UD").  Outside IA-32e mode, the
+// APM's SYSCALL_LEGACY_MODE (p.487), in real, virtual-8086 and protected
+// mode alike ("There are no permission checks based on the CPL, real
+// mode, or virtual-8086 mode", p.484): "RCX.d = next_RIP; temp_RIP.d =
+// MSR_STAR.EIP; CS.sel = MSR_STAR.SYSCALL_CS AND 0xFFFC; CS.attr = 32-bit
+// code,dpl0 ... SS.sel = MSR_STAR.SYSCALL_CS + 8; SS.attr = 32-bit
+// stack,dpl0 ... RFLAGS.VM,IF,RF=0; CPL = 0", with no R11 or SFMASK.
+// RF is clear here already (the fetch clears it), as both leave it.
+val exec_syscall : unit -> unit
+function exec_syscall() = {
+  let star : qword = __rdmsr(0xC0000081);
+  let flags = read_rflags();
+  write_segreg(CS, star[47..32] & 0xFFFC);
+  write_segreg(SS, star[47..32] + 0x0008);
+  SegCache[SS] = fast_call_stack(0);
+  cur_cpl = 0;
+  if EFER[10] == 0b1 then {
+    v(RCX) = decode_pos;
+    // RF in the saved RFLAGS, where the manuals differ: "R11 := RFLAGS"
+    // (SDM, 4-699), "R11.q = RFLAGS // with rf cleared" (APM, p.486).  (The
+    // model's fetch clears RF before the instruction executes, so it is 0
+    // in `flags`.)
+    v(R11) = if (undefined : bool) then flags & ~(0x0000000000010000) else flags;
+    let fmask : qword = __rdmsr(0xC0000084);
+    write_rflags(flags & ~(fmask));
+    if fmask[19] == bitone then VIF = bitzero;
+    if fmask[20] == bitone then VIP = bitzero;
+    let target : qword = __rdmsr(if cur_mode == LongMode then 0xC0000082 else 0xC0000083);
+    SegCache[CS] = fast_call_code(0, true);
+    cur_mode = LongMode;
+    next_rip = Some(target)
+  } else {
+    v(32, RCX) = decode_pos[31..0];
+    IF_flag = bitzero;
+    SegCache[CS] = fast_call_code(0, false);
+    if cur_mode == Virtual8086Mode then cur_mode = ProtectedMode;
+    next_rip = Some(zero_extend(star[31..0]))
+  }
+}
+
+// SYSRET.  The SDM (Vol.2B SYSRET 4-709) has #UD unless in 64-bit mode
+// with IA32_EFER.SCE = 1, then "IF (CPL ≠ 0) THEN #GP(0)".  The APM (Vol.3
+// SYSRET pp.493-495) has #UD for SCE = 0, then "IF ((!PROTECTED_MODE) ||
+// (CPL != 0)) EXCEPTION [#GP(0)]", and executes SYSRET_64BIT_MODE in
+// 64-bit mode and SYSRET_NON_64BIT_MODE in legacy protected and
+// compatibility mode.  Where the SDM's #UD meets the APM's #GP(0), in real
+// and virtual-8086 mode and at CPL > 0 outside 64-bit mode, the vectors
+// differ; the model raises the APM's, as the manual that defines SYSRET
+// there.
+val exec_sysret : Prefixes -> unit
+function exec_sysret(pfx) = {
+  if EFER[0] != 0b1 then raise_UD();
+  if cur_mode == RealMode | cur_mode == Virtual8086Mode | cur_cpl != 0 then raise_GP0();
+  let star : qword = __rdmsr(0xC0000081);
+  let sysret_cs : word = star[63..48];
+  if cur_mode == LongMode then {
+    // With a 64-bit operand size RIP := RCX, else RIP := ECX.  The SDM
+    // checks RCX first, "IF (RCX is not canonical) THEN #GP(0)"; the APM
+    // does not ("temp_RIP.q = RCX", p.494), and its processor returns to
+    // CPL 3 and faults on the fetch there: "Attempting to execute code
+    // ... at a non-canonical RIP" is #GP(0) (Vol.2 §8.2.14, Table 8-6,
+    // p.256).  The model follows the APM, the fetch raising the #GP.
+    let new_rip : qword = if pfx.rex_w then v(RCX) else zero_extend(v(32, RCX));
+    // "RFLAGS := (R11 & 3C7FD7H) | 2" (SDM), "RFLAGS.q = R11 // RF=0,VM=0"
+    // (APM): R11 but for RF, VM and the reserved bits, VIF and VIP included.
+    let r11 : qword = v(R11);
+    write_rflags((r11 & 0x00000000003C7FD7) | 0x0000000000000002);
+    VIF = r11[19];
+    VIP = r11[20];
+    // "CS.Selector := CS.Selector OR 3; (* RPL forced to 3 *)" (SDM),
+    // "CS.sel = (MSR_STAR.SYSRET_CS + 16) OR 3" or "MSR_STAR.SYSRET_CS OR
+    // 3" (APM), with fixed 64-bit or 32-bit code at DPL 3.
+    write_segreg(CS, (if pfx.rex_w then sysret_cs + 0x0010 else sysret_cs) | 0x0003);
+    SegCache[CS] = fast_call_code(3, pfx.rex_w);
+    // SS, where the manuals differ.  The SDM forces the RPL to 3 and loads
+    // fixed values: "SS.Selector := (IA32_STAR[63:48]+8) OR 3; ... SS.Base
+    // := 0; SS.Limit := FFFFFH; SS.Type := 3; SS.S := 1; SS.DPL := 3; SS.P
+    // := 1; SS.B := 1; SS.G := 1".  The APM loads the selector alone,
+    // "SS.sel = MSR_STAR.SYSRET_CS + 8 // SS selector is changed, // SS
+    // base, limit, attributes unchanged" (p.494), "and its RPL is not
+    // forced to 3" (p.492).
+    let apm_ss : bool = undefined;
+    write_segreg(SS, if apm_ss then sysret_cs + 0x0008 else (sysret_cs + 0x0008) | 0x0003);
+    if ~(apm_ss) then SegCache[SS] = fast_call_stack(3);
+    cur_cpl = 3;
+    set_mode(if pfx.rex_w then LongMode else CompatibilityMode);
+    next_rip = Some(new_rip)
+  } else {
+    // SYSRET_NON_64BIT_MODE (APM p.494): "CS.sel = MSR_STAR.SYSRET_CS OR 3
+    // ... CS.attr = 32-bit code,dpl3; temp_RIP.d = RCX; SS.sel =
+    // MSR_STAR.SYSRET_CS + 8 // SS selector is changed. // SS base, limit,
+    // attributes unchanged.  RFLAGS.IF = 1; CPL = 3".
+    write_segreg(CS, sysret_cs | 0x0003);
+    SegCache[CS] = fast_call_code(3, false);
+    write_segreg(SS, sysret_cs + 0x0008);
+    IF_flag = bitone;
+    cur_cpl = 3;
+    next_rip = Some(zero_extend(v(32, RCX)))
+  }
+}
+
+// SYSENTER.  SDM Vol.2B SYSENTER (4-702): "IF CR0.PE = 0 OR (...
+// IA32_SYSENTER_CS[15:2] = 0) THEN #GP(0)", then "RFLAGS.VM := 0;
+// RFLAGS.IF := 0", RSP := IA32_SYSENTER_ESP and RIP := IA32_SYSENTER_EIP
+// (bits 31:0 outside IA-32e mode), CS := IA32_SYSENTER_CS[15:0] AND FFFCH
+// and SS := CS + 8 with fixed code and stack at CPL 0, and 64-bit mode in
+// IA-32e mode ("When executed in IA-32e mode, the SYSENTER instruction
+// transitions the logical processor to 64-bit mode; otherwise, the logical
+// processor remains in protected mode", 4-701).  The APM gives the same
+// outside long mode (Vol.3 SYSENTER pp.488-489: "If SYSENTER is used in
+// real mode, a #GP is raised", #GP if "MSR_SYSENTER_CS was a null
+// selector", VM and IF cleared) and makes SYSENTER #UD in long mode ("An
+// invalid-opcode exception occurs if this instruction is used in long
+// mode"), where the model executes the SDM's.
+val exec_sysenter : unit -> unit
+function exec_sysenter() = {
+  let sysenter_cs : qword = __rdmsr(0x00000174);
+  if CR0[0] == 0b0 | sysenter_cs[15..2] == zeros() then raise_GP0();
+  let ia32e : bool = EFER[10] == 0b1;
+  // The selectors outside long mode, where the manuals differ: the SDM
+  // forces the RPL to 0, "CS.Selector := IA32_SYSENTER_CS[15:0] AND FFFCH"
+  // and "SS.Selector := CS.Selector + 8"; the APM takes "MSR_SYSENTER_CS:
+  // Contains the CS selector of the called procedure.  The SS selector is
+  // set to MSR_SYSENTER_CS + 8" (p.488).
+  let cs_sel : word = if ~(ia32e) & (undefined : bool) then sysenter_cs[15..0]
+                      else sysenter_cs[15..0] & 0xFFFC;
+  write_segreg(CS, cs_sel);
+  SegCache[CS] = fast_call_code(0, ia32e);
+  write_segreg(SS, cs_sel + 0x0008);
+  SegCache[SS] = fast_call_stack(0);
+  cur_cpl = 0;
+  // Leaving virtual-8086 mode clears VM.
+  cur_mode = if ia32e then LongMode else ProtectedMode;
+  IF_flag = 0b0;
+  let sysenter_esp : qword = __rdmsr(0x00000175);
+  let sysenter_eip : qword = __rdmsr(0x00000176);
+  v(RSP) = if ia32e then sysenter_esp else zero_extend(sysenter_esp[31..0]);
+  next_rip = Some(if ia32e then sysenter_eip else zero_extend(sysenter_eip[31..0]))
+}
+
+// SYSEXIT.  SDM Vol.2B SYSEXIT (4-706): "IF IA32_SYSENTER_CS[15:2] = 0 OR
+// CR0.PE = 0 OR CPL ≠ 0 THEN #GP(0)", which in virtual-8086 mode, at CPL
+// 3, is "#GP(0) The SYSEXIT instruction is not recognized in virtual-8086
+// mode" (4-707); with a 64-bit operand size also "If RCX or RDX contains a
+// non-canonical address" (64-Bit Mode Exceptions).  Then RSP := RCX and
+// RIP := RDX (ECX and EDX without REX.W), CS := IA32_SYSENTER_CS + 32 (64-
+// bit operand size) or + 16, RPL forced to 3, and SS := CS + 8, with fixed
+// code and stack at CPL 3; 64-bit mode with REX.W, else compatibility mode
+// in IA-32e mode and protected mode outside it.  The APM's exception table
+// (Vol.3 SYSEXIT p.491) has the same #GP cases outside long mode ("This
+// instruction is only recognized in protected mode" for real and
+// virtual-8086 mode, "CPL was not 0", "MSR_SYSENTER_CS was a null
+// selector") and #UD in long mode, where the model executes the SDM's.
+//
+// The SDM's 64-bit-mode list has "#GP(0) If IA32_SYSENTER_CS = 0" where
+// its Operation section has bits 15:2: for IA32_SYSENTER_CS from 1 to 3 in
+// 64-bit mode the SDM gives both a #GP(0) and the return.  The model
+// follows the Operation section, the instruction's definition.
+val exec_sysexit : Prefixes -> unit
+function exec_sysexit(pfx) = {
+  let sysenter_cs : qword = __rdmsr(0x00000174);
+  if sysenter_cs[15..2] == zeros() | CR0[0] == 0b0 | cur_cpl != 0 then raise_GP0();
+  if pfx.rex_w & ~(is_canonical_linear(v(64, RCX)) & is_canonical_linear(v(64, RDX))) then raise_GP0();
+  // The selectors outside long mode, where the manuals differ: the SDM
+  // forces the RPL to 3, "CS.Selector := CS.Selector OR 3" and
+  // "SS.Selector := CS.Selector + 8"; the APM gives them as "MSR
+  // SYSENTER_CS+16" and "MSR SYSENTER_CS+24" (p.490).
+  let base : word = sysenter_cs[15..0] + (if pfx.rex_w then 0x0020 else 0x0010);
+  let cs_sel : word = if EFER[10] == 0b0 & (undefined : bool) then base else base | 0x0003;
+  write_segreg(CS, cs_sel);
+  SegCache[CS] = fast_call_code(3, pfx.rex_w);
+  write_segreg(SS, cs_sel + 0x0008);
+  SegCache[SS] = fast_call_stack(3);
+  cur_cpl = 3;
+  if pfx.rex_w then {
+    cur_mode = LongMode;
+    v(RSP) = v(64, RCX);
+    next_rip = Some(v(64, RDX))
+  } else {
+    set_mode(if EFER[10] == 0b1 then CompatibilityMode else ProtectedMode);
+    v(32, RSP) = v(32, RCX);
+    next_rip = Some(zero_extend(v(32, RDX)))
+  }
+}
+
 val dispatch_2byte_gpr : (range(0, 255), Prefixes) -> unit
 function dispatch_2byte_gpr(op, pfx) = {
   // Descriptor-query/task-register instructions are not recognized in
@@ -1110,72 +1346,13 @@ function dispatch_2byte_gpr(op, pfx) = {
       }
     },
 
-    // 0F 05: SYSCALL
-    // SDM: #UD if EFER.SCE (bit 0) = 0
+    // 0F 05: SYSCALL.  #UD if IA32_EFER.SCE = 0, in either manual and
+    // whatever the mode (SDM Vol.2B SYSCALL 4-699; APM Vol.3 SYSCALL
+    // p.486); then exec_syscall.
     5 => {
       if EFER[0] != 0b1 then raise_UD();
-      if system_mode then {
-        // Full hardware SYSCALL per Intel SDM Vol.2.
-        // RCX = return address, R11 = RFLAGS
-        v(RCX) = decode_pos;
-        let saved_rflags = read_rflags();
-        v(R11) = saved_rflags;
-
-        // Read MSRs
-        let star  : qword = __rdmsr(0xC0000081);
-        let lstar : qword = __rdmsr(0xC0000082);
-        let fmask : qword = __rdmsr(0xC0000084);
-
-        // Mask RFLAGS: clear bits in FMASK, also clear RF (bit 16)
-        let new_rflags = saved_rflags & ~(fmask) & ~(0x0000000000010000);
-        write_rflags(new_rflags);
-
-        // CS = STAR[47:32] & 0xFFFC, SS = STAR[47:32] + 8
-        // SDM Vol.2 SYSCALL pseudocode: SYSCALL unconditionally transitions
-        // to 64-bit mode and sets CS/SS descriptor-cache fields to specific
-        // fixed values (the selector is taken from IA32_STAR but the hidden
-        // part is NOT read from the GDT). In particular CS.L=1, CS.D=0 and
-        // SS.B=1 — this is what gets the kernel a real 64-bit stack.
-        // Without this, a 32-bit compat-mode SYSCALL enters the kernel with
-        // stale SegCache values and stack_addr_size() returns 32, so the
-        // very first PUSH on the kernel stack truncates RSP to 32 bits.
-        let syscall_cs : word = star[47..32] & 0xFFFC;
-        write_segreg(CS, syscall_cs);
-        SegCache[CS] = struct {
-          seg_base    = 0x0000000000000000,
-          seg_limit   = 0xFFFFFFFF,
-          seg_type    = 0xB,   // exec/read/accessed
-          seg_s       = 0b1,   // code/data
-          seg_dpl     = 0,
-          seg_present = 0b1,
-          seg_db      = 0b0,   // D = 0
-          seg_l       = 0b1,   // L = 1 (64-bit)
-          seg_g       = 0b1,   // 4KB granularity
-        };
-        write_segreg(SS, syscall_cs + 0x0008);
-        SegCache[SS] = struct {
-          seg_base    = 0x0000000000000000,
-          seg_limit   = 0xFFFFFFFF,
-          seg_type    = 0x3,   // R/W data/accessed
-          seg_s       = 0b1,
-          seg_dpl     = 0,
-          seg_present = 0b1,
-          seg_db      = 0b1,   // B = 1 (32-bit stack — CPL 0 uses RSP anyway)
-          seg_l       = 0b0,
-          seg_g       = 0b1,
-        };
-
-        // Transition to 64-bit long mode.
-        cur_mode = LongMode;
-
-        // CPL = 0
-        cur_cpl = 0;
-
-        // RIP = LSTAR
-        next_rip = Some(lstar)
-      } else {
-        __syscall(RIP, read_rflags())
-      }
+      if system_mode then exec_syscall()
+      else __syscall(RIP, read_rflags())
     },
 
     // 0F 06: CLTS — Clear TS flag in CR0 (requires CPL=0)
@@ -1184,65 +1361,8 @@ function dispatch_2byte_gpr(op, pfx) = {
       CR0[3] = 0b0  // TS = bit 3
     },
 
-    // 0F 07: SYSRET (requires CPL=0)
-    // SDM Vol.2B SYSRET, Operation: #UD unless CS.L = 1, IA32_EFER.LMA = 1
-    // and IA32_EFER.SCE = 1; then #GP(0) if CPL != 0; with a 64-bit operand
-    // size, #GP(0) if RCX is not canonical, and RIP := RCX, else RIP :=
-    // ECX.  The APM's SYSRET has no canonical check ("temp_RIP.q = RCX",
-    // Vol.3 SYSRET p.494): an AMD processor returns to CPL 3 and faults on
-    // the fetch there, "Attempting to execute code ... at a non-canonical
-    // RIP" (APM Vol.2 §8.2.14, Table 8-6, p.256).
-    7 => {
-      if SegCache[CS].seg_l != 0b1 | EFER[10] != 0b1 | EFER[0] != 0b1 then raise_UD();
-      if cur_cpl != 0 then raise_GP0();
-      // SYSRET: restore RIP from RCX, RFLAGS from R11
-      let new_rip : qword = if pfx.rex_w then v(RCX) else zero_extend(v(32, RCX));
-      if pfx.rex_w & vendor == Vendor_Intel & ~(is_canonical_linear(new_rip)) then raise_GP0();
-
-      // SDM: RFLAGS := (R11 & 3C7FD7H) | 2
-      // Clear RF (bit 16), VM (bit 17), reserved bits; force bit 1 = 1
-      write_rflags((v(R11) & 0x00000000003C7FD7) | 0x0000000000000002);
-
-      // Load CS and SS from IA32_STAR MSR.
-      // SDM Vol.2: SYSRET with REX.W (64-bit):
-      //   CS.Sel = STAR[63:48] + 16, SS.Sel = STAR[63:48] + 8
-      // SYSRET without REX.W (32-bit compat):
-      //   CS.Sel = STAR[63:48], SS.Sel = STAR[63:48] + 8
-      // Both forms set the *entire* CS/SS descriptor cache to fixed values
-      // per SDM pseudocode — base=0, limit=4GB, DPL=3, P=1, G=1, etc.
-      let star : qword = __rdmsr(0xC0000081);
-      let sysret_base : bits(16) = star[63..48];
-      write_segreg(CS, if pfx.rex_w then sysret_base + 0x0010 else sysret_base);
-      SegCache[CS] = struct {
-        seg_base    = 0x0000000000000000,
-        seg_limit   = 0xFFFFFFFF,
-        seg_type    = 0xB,   // exec/read/accessed
-        seg_s       = 0b1,
-        seg_dpl     = 3,
-        seg_present = 0b1,
-        seg_db      = if pfx.rex_w then 0b0 else 0b1,
-        seg_l       = if pfx.rex_w then 0b1 else 0b0,
-        seg_g       = 0b1,
-      };
-      write_segreg(SS, sysret_base + 0x0008);
-      SegCache[SS] = struct {
-        seg_base    = 0x0000000000000000,
-        seg_limit   = 0xFFFFFFFF,
-        seg_type    = 0x3,   // R/W data/accessed
-        seg_s       = 0b1,
-        seg_dpl     = 3,
-        seg_present = 0b1,
-        seg_db      = 0b1,
-        seg_l       = 0b0,
-        seg_g       = 0b1,
-      };
-
-      // Return to ring 3
-      cur_cpl = 3;
-      // REX.W -> 64-bit mode; without REX.W -> 32-bit compat mode
-      set_mode(if pfx.rex_w then LongMode else CompatibilityMode);
-      next_rip = Some(new_rip)
-    },
+    // 0F 07: SYSRET (exec_sysret)
+    7 => exec_sysret(pfx),
 
     // 0F 09: WBINVD — Write Back and Invalidate Cache (NOP, requires CPL=0)
     // 0F 08: INVD — Invalidate Internal Caches (requires CPL=0)
@@ -1505,139 +1625,11 @@ function dispatch_2byte_gpr(op, pfx) = {
     // unsupported counter → unconditional #GP(0).
     51 => raise_GP0(),
 
-    // 0F 34: SYSENTER — Fast System Call
-    // SDM Vol.2 SYSENTER pseudocode: loads CS/SS selectors from
-    // IA32_SYSENTER_CS, forces RPL=0, then populates the hidden CS/SS
-    // descriptor cache with fixed values (base=0, limit=4GB, code/data).
-    // In IA-32e mode SYSENTER switches to 64-bit mode (CS.L=1, CS.D=0);
-    // in legacy protected mode it enters 32-bit code (CS.L=0, CS.D=1).
-    // The original handler only wrote the visible selectors and set CPL=0,
-    // which left cur_mode and the stale user SegCache[CS]/[SS] in place —
-    // so the kernel entry point ran with stack_addr_size() returning 32,
-    // truncating PUSH addresses to the low 32 bits of RSP.
-    52 => {
-      // The SDM defines SYSENTER in IA-32e mode (Vol.2B SYSENTER); on AMD
-      // "An invalid-opcode exception occurs if this instruction is used in
-      // long mode" (APM Vol.3 SYSENTER, p.488).
-      if vendor == Vendor_AMD & EFER[10] == 0b1 then raise_UD();
-      let sysenter_cs : qword = __rdmsr(0x00000174);
-      // SDM Vol.2B SYSENTER, Operation: #GP(0) if IA32_SYSENTER_CS[15:2] = 0
-      if sysenter_cs[15..2] == zeros() then raise_GP0();
-      let ia32e : bool = EFER[10] == 0b1;
-      write_segreg(CS, sysenter_cs[15..0] & 0xFFFC);
-      SegCache[CS] = struct {
-        seg_base    = 0x0000000000000000,
-        seg_limit   = 0xFFFFFFFF,
-        seg_type    = 0xB,   // exec/read/accessed code
-        seg_s       = 0b1,
-        seg_dpl     = 0,
-        seg_present = 0b1,
-        seg_db      = if ia32e then 0b0 else 0b1,
-        seg_l       = if ia32e then 0b1 else 0b0,
-        seg_g       = 0b1,
-      };
-      cur_cpl = 0;
-      write_segreg(SS, (sysenter_cs[15..0] + 0x0008) & 0xFFFC);
-      SegCache[SS] = struct {
-        seg_base    = 0x0000000000000000,
-        seg_limit   = 0xFFFFFFFF,
-        seg_type    = 0x3,   // R/W data/accessed
-        seg_s       = 0b1,
-        seg_dpl     = 0,
-        seg_present = 0b1,
-        seg_db      = 0b1,   // B = 1 (32-bit stack); in 64-bit CPL 0 uses RSP
-        seg_l       = 0b0,
-        seg_g       = 0b1,
-      };
-      if ia32e then cur_mode = LongMode
-      else cur_mode = ProtectedMode;
+    // 0F 34: SYSENTER (exec_sysenter)
+    52 => exec_sysenter(),
 
-      let sysenter_esp : qword = __rdmsr(0x00000175);
-      let sysenter_eip : qword = __rdmsr(0x00000176);
-      v(RSP) = if ia32e then sysenter_esp else zero_extend(sysenter_esp[31..0]);
-      IF_flag = 0b0;
-      next_rip = Some(if ia32e then sysenter_eip else zero_extend(sysenter_eip[31..0]))
-    },
-
-    // 0F 35: SYSEXIT — Fast Return from System Call (companion to SYSENTER)
-    // SDM Vol.2 SYSEXIT pseudocode: loads CS/SS selectors from
-    // IA32_SYSENTER_CS and sets the hidden descriptor cache to fixed values.
-    // 64-bit SYSEXIT (REX.W=1) returns to 64-bit user (CS.L=1, CS.D=0);
-    // 32-bit SYSEXIT (REX.W=0) returns to compat-mode user (CS.L=0, CS.D=1).
-    // Without the descriptor-cache / cur_mode updates, the user code runs
-    // with stale kernel-CS metadata (or whatever was last loaded).
-    53 => {
-      // As SYSENTER: #UD in long mode on AMD (APM Vol.3 SYSEXIT, p.490).
-      if vendor == Vendor_AMD & EFER[10] == 0b1 then raise_UD();
-      // SDM Vol.2B SYSEXIT, Operation: #GP(0) if IA32_SYSENTER_CS[15:2] = 0
-      // or CPL != 0 (the 64-bit exception list says "= 0", but the silicon
-      // follows the pseudocode); with a 64-bit operand size also if RCX or
-      // RDX is not canonical.
-      let sysenter_cs : qword = __rdmsr(0x00000174);
-      if sysenter_cs[15..2] == zeros() | cur_cpl != 0 then raise_GP0();
-      if pfx.rex_w & ~(is_canonical_linear(v(64, RCX)) & is_canonical_linear(v(64, RDX))) then raise_GP0();
-      if pfx.rex_w then {
-        // 64-bit: CS.sel = IA32_SYSENTER_CS + 32, SS.sel = IA32_SYSENTER_CS + 40
-        write_segreg(CS, (sysenter_cs[15..0] + 0x0020) | 0x0003);
-        SegCache[CS] = struct {
-          seg_base    = 0x0000000000000000,
-          seg_limit   = 0xFFFFFFFF,
-          seg_type    = 0xB,
-          seg_s       = 0b1,
-          seg_dpl     = 3,
-          seg_present = 0b1,
-          seg_db      = 0b0,
-          seg_l       = 0b1,
-          seg_g       = 0b1,
-        };
-        write_segreg(SS, (sysenter_cs[15..0] + 0x0028) | 0x0003);
-        SegCache[SS] = struct {
-          seg_base    = 0x0000000000000000,
-          seg_limit   = 0xFFFFFFFF,
-          seg_type    = 0x3,
-          seg_s       = 0b1,
-          seg_dpl     = 3,
-          seg_present = 0b1,
-          seg_db      = 0b1,
-          seg_l       = 0b0,
-          seg_g       = 0b1,
-        };
-        cur_cpl = 3;
-        cur_mode = LongMode;
-        next_rip = Some(v(64, RDX));
-        v(RSP) = v(64, RCX)
-      } else {
-        // 32-bit: CS.sel = IA32_SYSENTER_CS + 16, SS.sel = IA32_SYSENTER_CS + 24
-        write_segreg(CS, (sysenter_cs[15..0] + 0x0010) | 0x0003);
-        SegCache[CS] = struct {
-          seg_base    = 0x0000000000000000,
-          seg_limit   = 0xFFFFFFFF,
-          seg_type    = 0xB,
-          seg_s       = 0b1,
-          seg_dpl     = 3,
-          seg_present = 0b1,
-          seg_db      = 0b1,   // D = 1 (32-bit compat code)
-          seg_l       = 0b0,
-          seg_g       = 0b1,
-        };
-        write_segreg(SS, (sysenter_cs[15..0] + 0x0018) | 0x0003);
-        SegCache[SS] = struct {
-          seg_base    = 0x0000000000000000,
-          seg_limit   = 0xFFFFFFFF,
-          seg_type    = 0x3,
-          seg_s       = 0b1,
-          seg_dpl     = 3,
-          seg_present = 0b1,
-          seg_db      = 0b1,
-          seg_l       = 0b0,
-          seg_g       = 0b1,
-        };
-        cur_cpl = 3;
-        set_mode(if EFER[10] == 0b1 then CompatibilityMode else ProtectedMode);
-        next_rip = Some(zero_extend(v(32, RDX)));
-        v(32, RSP) = v(32, RCX)
-      }
-    },
+    // 0F 35: SYSEXIT (exec_sysexit)
+    53 => exec_sysexit(pfx),
 
     // 0F 32: RDMSR — Read MSR (requires CPL=0)
     50 => {
