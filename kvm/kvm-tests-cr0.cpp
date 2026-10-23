@@ -52,7 +52,6 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
   const bool amd_host = b == 0x68747541;  // "Auth" of AuthenticAMD
   __cpuid_count(7, 0, a, b, c, d);
   const bool amx_host = d & (1u << 24);  // AMX-TILE
-  const bool fp16_host = d & (1u << 23);  // AVX512-FP16
   __get_cpuid(0x80000001, &a, &b, &c, &d);
   const bool sse4a_host = c & (1u << 6);  // SSE4A: CPUID Fn8000_0001_ECX[6]
   const u64 AMX_XCR0 = 0xE7 | (3ULL << 17);
@@ -289,9 +288,8 @@ void add_cr0_tests(std::vector<TestCase> &tests) {
            {0x62, 0xE1, 0x7D, 0x48, 0x76, 0xC9});
     add_ud(cat, bits, "v4fmaddps (AVX512_4FMAPS) #UD", {0x62, 0xF2, 0x77, 0x48, 0x9A, 0x06},
            unmapped);
-    if (fp16_host)
-      add_ud(cat, bits, "vfcmulcph zmm0,zmm0,zmm1 (destination = source) #UD",
-             {0x62, 0xF6, 0x7F, 0x48, 0xD6, 0xC1});
+    add_ud(cat, bits, "vfcmulcph zmm0,zmm0,zmm1 (destination = source) #UD",
+           {0x62, 0xF6, 0x7F, 0x48, 0xD6, 0xC1});
 
     // Encodings that are no instruction but whose opcode is that of an x87
     // instruction or of FXSAVE and FXRSTOR: an undefined D8-DF form (APM

@@ -378,15 +378,12 @@ void add_compat_avx_tests(std::vector<TestCase> &tests) {
     // VCVTSI2SD W1 with {rn-sae} in the register form.
     add("vcvtsi2sd xmm0,xmm1,eax,{rn-sae} W1", {0x62, 0xF1, 0xF7, 0x18, 0x2A, 0xC0}, c);
 
-    // The AVX512-FP16 conversions to and from a GPR (map 5), where the host
-    // has them (CPUID.(7,0):EDX[23]).  An FP16 -2.0 converts to a signed
-    // 32-bit value whose zero extension differs from the 64-bit one (an
-    // unsigned conversion gets +2.0, as a negative one would be invalid),
-    // and an EAX or a dword in memory of 2 or 3 converts to FP16 exactly,
-    // whereas RAX or the qword would overflow FP16.
-    u32 a, b, cx, d;
-    __cpuid_count(7, 0, a, b, cx, d);
-    if (d & (1u << 23)) {
+    // The AVX512-FP16 conversions to and from a GPR (map 5).  An FP16 -2.0
+    // converts to a signed 32-bit value whose zero extension differs from
+    // the 64-bit one (an unsigned conversion gets +2.0, as a negative one
+    // would be invalid), and an EAX or a dword in memory of 2 or 3 converts
+    // to FP16 exactly, whereas RAX or the qword would overflow FP16.
+    {
       ArchState h = c;
       h.rax = 0x0000000100000002;
       std::vector<u8> ints(64), neg(64), pos(64);

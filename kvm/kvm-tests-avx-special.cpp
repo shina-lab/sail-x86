@@ -132,26 +132,21 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
   // VAES: VAESENC/VAESENCLAST/VAESDEC/VAESDECLAST
   // EVEX.66.0F38.WIG DC/DD/DE/DF /r (VAES + AVX512VL/F)
   // One AES round per 128-bit lane; no opmask, so only unmasked forms.
-  // Only run where the host has VAES (CPUID.7.0:ECX[9]).
   // =====================================================================
   {
-    u32 eax7, ebx7, ecx7, edx7;
-    __cpuid_count(7, 0, eax7, ebx7, ecx7, edx7);
-    if (ecx7 & (1u << 9)) {
-      ArchState s = {};
-      for (int i = 0; i < 8; i++) {
-        s.xmm[1].q[i] = 0x0123456789ABCDEFULL * (2 * i + 1);
-        s.xmm[2].q[i] = 0x0F0E0D0C0B0A0908ULL + 0x1010101010101010ULL * i;
-      }
-      struct { const char *name; u8 opcode; } aes[] = {
-        {"VAESENC",     0xDC}, {"VAESENCLAST", 0xDD},
-        {"VAESDEC",     0xDE}, {"VAESDECLAST", 0xDF},
-      };
-      for (const auto &a : aes) {
-        Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = a.opcode;
-        e.reg = 0; e.vvvv = 1; e.rm = 2;
-        add_evex_rr_tests(tests, cat, a.name, e, s, 0x6, 0);
-      }
+    ArchState s = {};
+    for (int i = 0; i < 8; i++) {
+      s.xmm[1].q[i] = 0x0123456789ABCDEFULL * (2 * i + 1);
+      s.xmm[2].q[i] = 0x0F0E0D0C0B0A0908ULL + 0x1010101010101010ULL * i;
+    }
+    struct { const char *name; u8 opcode; } aes[] = {
+      {"VAESENC",     0xDC}, {"VAESENCLAST", 0xDD},
+      {"VAESDEC",     0xDE}, {"VAESDECLAST", 0xDF},
+    };
+    for (const auto &a : aes) {
+      Evex e; e.mm = 2; e.pp = 1; e.W = false; e.opcode = a.opcode;
+      e.reg = 0; e.vvvv = 1; e.rm = 2;
+      add_evex_rr_tests(tests, cat, a.name, e, s, 0x6, 0);
     }
   }
 
@@ -663,31 +658,26 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
   // VPCLMULQDQ: EVEX.66.0F3A.WIG 44 /r ib (VPCLMULQDQ + AVX512VL/F)
   // Carry-less multiply of one quadword per 128-bit lane; imm8[0] and
   // imm8[4] select the quadwords.  No opmask, so only unmasked forms.
-  // Only run where the host has the VPCLMULQDQ extension (CPUID.7.0:ECX[10]).
   // =====================================================================
   {
-    u32 eax7, ebx7, ecx7, edx7;
-    __cpuid_count(7, 0, eax7, ebx7, ecx7, edx7);
-    if (ecx7 & (1u << 10)) {
-      ArchState s = {};
-      for (int i = 0; i < 8; i++) {
-        s.xmm[1].q[i] = 0x0123456789ABCDEFULL * (2 * i + 1);
-        s.xmm[2].q[i] = 0x8000000000000001ULL >> i;
-      }
-      Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x44;
-      e.reg = 0; e.vvvv = 1; e.rm = 2;
-      const char *vl[] = {"xmm", "ymm", "zmm"};
-      for (int ll = 0; ll <= 2; ll++) {
-        e.LL = ll; e.aaa = 0; e.z = false;
-        tests.push_back({std::string("VPCLMULQDQ ") + vl[ll] + " imm=0x00",
-                         cat, e.encode_rr_imm(0x00), s, FL_ALL, 0x7, false});
-        tests.push_back({std::string("VPCLMULQDQ ") + vl[ll] + " imm=0x01",
-                         cat, e.encode_rr_imm(0x01), s, FL_ALL, 0x7, false});
-        tests.push_back({std::string("VPCLMULQDQ ") + vl[ll] + " imm=0x10",
-                         cat, e.encode_rr_imm(0x10), s, FL_ALL, 0x7, false});
-        tests.push_back({std::string("VPCLMULQDQ ") + vl[ll] + " imm=0x11",
-                         cat, e.encode_rr_imm(0x11), s, FL_ALL, 0x7, false});
-      }
+    ArchState s = {};
+    for (int i = 0; i < 8; i++) {
+      s.xmm[1].q[i] = 0x0123456789ABCDEFULL * (2 * i + 1);
+      s.xmm[2].q[i] = 0x8000000000000001ULL >> i;
+    }
+    Evex e; e.mm = 3; e.pp = 1; e.W = false; e.opcode = 0x44;
+    e.reg = 0; e.vvvv = 1; e.rm = 2;
+    const char *vl[] = {"xmm", "ymm", "zmm"};
+    for (int ll = 0; ll <= 2; ll++) {
+      e.LL = ll; e.aaa = 0; e.z = false;
+      tests.push_back({std::string("VPCLMULQDQ ") + vl[ll] + " imm=0x00",
+                       cat, e.encode_rr_imm(0x00), s, FL_ALL, 0x7, false});
+      tests.push_back({std::string("VPCLMULQDQ ") + vl[ll] + " imm=0x01",
+                       cat, e.encode_rr_imm(0x01), s, FL_ALL, 0x7, false});
+      tests.push_back({std::string("VPCLMULQDQ ") + vl[ll] + " imm=0x10",
+                       cat, e.encode_rr_imm(0x10), s, FL_ALL, 0x7, false});
+      tests.push_back({std::string("VPCLMULQDQ ") + vl[ll] + " imm=0x11",
+                       cat, e.encode_rr_imm(0x11), s, FL_ALL, 0x7, false});
     }
   }
 
@@ -715,28 +705,22 @@ void add_avx_special_tests(std::vector<TestCase> &tests) {
 
   // =====================================================================
   // VP2INTERSECTD/Q: EVEX.F2.0F38.W0/W1 68 /r -> even/odd mask-register pair
-  // Only where the host has AVX512_VP2INTERSECT (CPUID.7.0:EDX[8]); neither
-  // current oracle host does, so these wait for one that does.
   // =====================================================================
   {
-    u32 eax7, ebx7, ecx7, edx7;
-    __cpuid_count(7, 0, eax7, ebx7, ecx7, edx7);
-    if (edx7 & (1u << 8)) {
-      ArchState s = {};
-      for (int i = 0; i < 16; i++) {
-        s.xmm[1].set<u32>(i, (i * 5) % 11);
-        s.xmm[2].set<u32>(i, (i * 3 + 1) % 9);
-      }
-      const char *vl[] = {"xmm", "ymm", "zmm"};
-      for (int w = 0; w <= 1; w++) {
-        for (int ll = 0; ll <= 2; ll++) {
-          Evex e; e.mm = 2; e.pp = 3; e.W = w; e.opcode = 0x68;
-          e.reg = 3; e.vvvv = 1; e.rm = 2; e.LL = ll;  // k3 encodes the k2/k3 pair
-          TestCase tc = {std::string(w ? "VP2INTERSECTQ " : "VP2INTERSECTD ") + vl[ll] + " -> k2/k3",
-                         cat, e.encode_rr(), s, FL_ALL, 0x0, false};
-          tc.kreg_mask = (1 << 2) | (1 << 3);
-          tests.push_back(std::move(tc));
-        }
+    ArchState s = {};
+    for (int i = 0; i < 16; i++) {
+      s.xmm[1].set<u32>(i, (i * 5) % 11);
+      s.xmm[2].set<u32>(i, (i * 3 + 1) % 9);
+    }
+    const char *vl[] = {"xmm", "ymm", "zmm"};
+    for (int w = 0; w <= 1; w++) {
+      for (int ll = 0; ll <= 2; ll++) {
+        Evex e; e.mm = 2; e.pp = 3; e.W = w; e.opcode = 0x68;
+        e.reg = 3; e.vvvv = 1; e.rm = 2; e.LL = ll;  // k3 encodes the k2/k3 pair
+        TestCase tc = {std::string(w ? "VP2INTERSECTQ " : "VP2INTERSECTD ") + vl[ll] + " -> k2/k3",
+                       cat, e.encode_rr(), s, FL_ALL, 0x0, false};
+        tc.kreg_mask = (1 << 2) | (1 << 3);
+        tests.push_back(std::move(tc));
       }
     }
   }

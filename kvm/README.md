@@ -154,3 +154,16 @@ category, `--category=NAME`, split into `--slice=K/N` entries of at most 1500
 cases so that each finishes in a few seconds, and passing `--template=FILE` so
 that the run constructs only that template's cases. `KVM_LIST=<file>` lists
 the selected cases without running them.
+
+The model has the AVX-512 features of the host, each extension its own CPUID
+bit, and a case runs only where the host has the features its instructions
+need: AVX512F, the extension of each EVEX or opmask instruction, and AVX512VL
+for a 128- or 256-bit form, which the harness reads from the encodings
+(`avx512_case_features` in `kvm-variants.cpp`), so templates need no gates of
+their own for them. `KVM_LIST` reports how many cases need each feature. To
+check those gates against the model on a host that has the feature,
+`--host-lacks=NAME` runs as a host without it would, the model lacking it and
+the cases that need it not run, and every case must pass but the variants
+whose encoding needs it (#UD on both sides of a host that lacks it);
+`--model-lacks=NAME` clears it in the model only, and a case that needs it
+must then fail with the model's #UD where the host executes it.

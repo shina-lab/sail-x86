@@ -671,6 +671,25 @@ void for_each_variant(const std::vector<TestCase> &tests,
                       bool (*wanted)(const std::string &category),
                       const std::function<void(TestCase &&)> &fn);
 
+// The features of the AVX-512 instructions: the AVX-512 extensions, each
+// its own CPUID bit (SDM Vol.1 Tables 21-19 to 21-22), and GFNI, VAES and
+// VPCLMULQDQ, which have EVEX forms.  The model has them as the host does
+// (set_avx512_features), and a case runs only where the host has all
+// those its instructions need (avx512_case_features).
+enum Avx512Feature : unsigned {
+  AVX512F, AVX512DQ, AVX512_IFMA, AVX512PF, AVX512ER, AVX512CD, AVX512BW, AVX512VL,
+  AVX512_VBMI, AVX512_VBMI2, GFNI, VAES, VPCLMULQDQ, AVX512_VNNI, AVX512_BITALG,
+  AVX512_VPOPCNTDQ, AVX512_VP2INTERSECT, AVX512_FP16, AVX512_BF16,
+  AVX512_FEATURES
+};
+const char *avx512_feature_name(Avx512Feature f);
+// host_has for the feature, less those --host-lacks names.
+bool host_has(Avx512Feature f);
+
+// The AVX-512 features the instructions of a case need, as a mask of
+// 1 << Avx512Feature (kvm-variants.cpp).
+u32 avx512_case_features(const TestCase &tc);
+
 // Test registration functions (defined in separate kvm-tests-*.cpp files)
 void add_systematic_tests(std::vector<TestCase> &tests);
 void add_baseline_tests(std::vector<TestCase> &tests);

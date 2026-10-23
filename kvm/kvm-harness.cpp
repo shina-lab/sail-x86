@@ -102,6 +102,104 @@ bool host_has(u32 leaf, u32 subleaf, CpuidReg reg, unsigned bit) {
   return false;
 }
 
+// ---- The AVX-512 features (kvm-harness.h) ----
+//
+// The model has those of the host (set_avx512_features), and a case runs
+// where the host has those it needs (build_suite).  --host-lacks=NAME runs
+// as a host without the feature would: the cases that need it are not run,
+// and the model lacks it (but GFNI, VAES and VPCLMULQDQ, which it keeps
+// for their VEX and legacy forms).  --model-lacks=NAME clears it in the
+// model only, so that a case that needs it fails with the model's #UD
+// where the host executes it.  Between them they check the cases'
+// features against the model's.
+
+static const struct {
+  const char *name;
+  u32 leaf, subleaf;
+  CpuidReg reg;
+  unsigned bit;
+} AVX512_FEATURE_BITS[AVX512_FEATURES] = {
+  {"AVX512F", 7, 0, CPUID_EBX, 16},
+  {"AVX512DQ", 7, 0, CPUID_EBX, 17},
+  {"AVX512_IFMA", 7, 0, CPUID_EBX, 21},
+  {"AVX512PF", 7, 0, CPUID_EBX, 26},
+  {"AVX512ER", 7, 0, CPUID_EBX, 27},
+  {"AVX512CD", 7, 0, CPUID_EBX, 28},
+  {"AVX512BW", 7, 0, CPUID_EBX, 30},
+  {"AVX512VL", 7, 0, CPUID_EBX, 31},
+  {"AVX512_VBMI", 7, 0, CPUID_ECX, 1},
+  {"AVX512_VBMI2", 7, 0, CPUID_ECX, 6},
+  {"GFNI", 7, 0, CPUID_ECX, 8},
+  {"VAES", 7, 0, CPUID_ECX, 9},
+  {"VPCLMULQDQ", 7, 0, CPUID_ECX, 10},
+  {"AVX512_VNNI", 7, 0, CPUID_ECX, 11},
+  {"AVX512_BITALG", 7, 0, CPUID_ECX, 12},
+  {"AVX512_VPOPCNTDQ", 7, 0, CPUID_ECX, 14},
+  {"AVX512_VP2INTERSECT", 7, 0, CPUID_EDX, 8},
+  {"AVX512_FP16", 7, 0, CPUID_EDX, 23},
+  {"AVX512_BF16", 7, 1, CPUID_EAX, 5},
+};
+
+static u32 g_host_lacks, g_model_lacks;  // masks of 1 << Avx512Feature
+
+const char *avx512_feature_name(Avx512Feature f) { return AVX512_FEATURE_BITS[f].name; }
+
+static u32 host_avx512_features() {
+  static const u32 has = [] {
+    u32 mask = 0;
+    for (unsigned f = 0; f < AVX512_FEATURES; f++) {
+      const auto &b = AVX512_FEATURE_BITS[f];
+      if (host_has(b.leaf, b.subleaf, b.reg, b.bit)) mask |= 1u << f;
+    }
+    return mask;
+  }();
+  return has & ~g_host_lacks;
+}
+
+bool host_has(Avx512Feature f) { return host_avx512_features() >> f & 1; }
+
+// The feature of --host-lacks=NAME or --model-lacks=NAME, added to *mask.
+static bool parse_avx512_feature(const std::string &name, u32 *mask) {
+  for (unsigned f = 0; f < AVX512_FEATURES; f++)
+    if (name == AVX512_FEATURE_BITS[f].name) {
+      *mask |= 1u << f;
+      return true;
+    }
+  fprintf(stderr, "unknown AVX-512 feature %s; one of:", name.c_str());
+  for (const auto &b : AVX512_FEATURE_BITS) fprintf(stderr, " %s", b.name);
+  fprintf(stderr, "\n");
+  return false;
+}
+
+static void set_avx512_features(x86::Model &model) {
+  u32 has = host_avx512_features() & ~g_model_lacks;
+  auto on = [has](Avx512Feature f) { return (has >> f & 1) != 0; };
+  model.zhas_avx512f = on(AVX512F);
+  model.zhas_avx512dq = on(AVX512DQ);
+  model.zhas_avx512_ifma = on(AVX512_IFMA);
+  model.zhas_avx512pf = on(AVX512PF);
+  model.zhas_avx512er = on(AVX512ER);
+  model.zhas_avx512cd = on(AVX512CD);
+  model.zhas_avx512bw = on(AVX512BW);
+  model.zhas_avx512vl = on(AVX512VL);
+  model.zhas_avx512_vbmi = on(AVX512_VBMI);
+  model.zhas_avx512_vbmi2 = on(AVX512_VBMI2);
+  model.zhas_avx512_vnni = on(AVX512_VNNI);
+  model.zhas_avx512_bitalg = on(AVX512_BITALG);
+  model.zhas_avx512_vpopcntdq = on(AVX512_VPOPCNTDQ);
+  model.zhas_avx512_vp2intersect = on(AVX512_VP2INTERSECT);
+  model.zhas_avx512_fp16 = on(AVX512_FP16);
+  model.zhas_avx512_bf16 = on(AVX512_BF16);
+  // GFNI, VAES and VPCLMULQDQ are features of VEX and legacy forms too,
+  // which the general feature setup gives the model; here only
+  // --model-lacks clears them.
+  if (g_model_lacks >> GFNI & 1) model.zhas_gfni = false;
+  if (g_model_lacks >> VAES & 1) model.zhas_vaes = false;
+  if (g_model_lacks >> VPCLMULQDQ & 1) model.zhas_vpclmulqdq = false;
+}
+
+// ---- End of the AVX-512 features ----
+
 static XsaveLayout host_xsave_layout() {
   auto offset = [](u32 component) {
     u32 a, b, c, d;
@@ -979,6 +1077,7 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
   model.model_init();
   model.zinitializze_registers(UNIT);
   x86::enable_all_features(model);
+  set_avx512_features(model);
   model.zvendor = host_vendor();
   // Intel AMX as the host has it: the model's profile enables it, the
   // guest of a host without it has neither the CPUID bits nor XCR0 bits
@@ -991,8 +1090,7 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
   }
   // WAITPKG (CPUID.(7,0):ECX[5]) likewise: without it the guest's 66/F2/F3
   // 0F AE /6 register forms and IA32_UMWAIT_CONTROL are #UD and #GP.  And
-  // AVX512-FP16 (EDX[23]), whose encodings are #UD on a host without it,
-  // and ENQCMD (ECX[29]), without which F2/F3 0F 38 F8 are #UD.  The guest
+  // ENQCMD (ECX[29]), without which F2/F3 0F 38 F8 are #UD.  The guest
   // executes ENQCMD and ENQCMDS natively whatever its CPUID says, and so
   // PTWRITE, whose bit is CPUID.(14H,0):EBX[4], a leaf that exists with
   // Intel PT (EBX[25]).
@@ -1001,7 +1099,6 @@ ArchState run_sail(const TestCase &tc, MemPages *pages_out, FaultInfo *fault_out
     __cpuid_count(7, 0, a, b, c, d);
     model.zhas_waitpkg = (c & (1u << 5)) != 0;
     model.zhas_enqcmd = (c & (1u << 29)) != 0;
-    model.zhas_avx512_fp16 = (d & (1u << 23)) != 0;
     model.zhas_ptwrite = false;
     if ((b & (1u << 25)) && __get_cpuid_max(0, nullptr) >= 0x14) {
       __cpuid_count(0x14, 0, a, b, c, d);
@@ -1359,20 +1456,13 @@ static const Template TEMPLATES[] = {
   {"kvm-tests-hints.cpp", add_hint_tests},
   {"kvm-tests-waitpkg.cpp", add_waitpkg_tests},
   {"kvm-tests-cr0.cpp", add_cr0_tests},
-  // AVX-512 FP16 needs the extension on the host (CPUID.(7,0):EDX[23]);
-  // without it every case would report #UD from KVM.  Kept last so the
-  // suite order is the same on hosts with and without it.
+  // AVX-512 FP16 (CPUID.(7,0):EDX[23]), whose cases run where the host has
+  // it (Suite::host_runs), and Intel AMX (EDX[24]), whose template
+  // constructs nothing on a host without it.  Kept last so the suite order
+  // is the same on hosts with and without them.
   {"kvm-tests-avx-fp16.cpp", add_avx_fp16_tests},
-  // Intel AMX likewise (CPUID.(7,0):EDX[24]); the template constructs
-  // nothing on a host without it.
   {"kvm-tests-amx.cpp", add_amx_tests},
 };
-
-static bool host_has_avx512_fp16() {
-  u32 a, b, c, d;
-  __cpuid_count(7, 0, a, b, c, d);
-  return d & (1u << 23);
-}
 
 // The cases this run selects.  A prefix argument and KVM_FILTERS=
 // "prefix1;prefix2" (for bisecting interactions between tests) each select
@@ -1404,6 +1494,25 @@ struct Suite {
   std::vector<TestCase> tests;
   std::vector<const char *> origins;  // per case, the template file
 
+  // Of the cases the templates construct, per Avx512Feature, those that
+  // need it and those not run because the host lacks it.
+  std::array<size_t, AVX512_FEATURES> avx512_cases{}, avx512_not_run{};
+
+  // Whether the host runs a constructed case, counted as above.
+  bool host_runs(const TestCase &tc) {
+    u32 needs = avx512_case_features(tc);
+    bool runs = true;
+    for (unsigned f = 0; f < AVX512_FEATURES; f++) {
+      if (!(needs >> f & 1)) continue;
+      avx512_cases[f]++;
+      if (!host_has(Avx512Feature(f))) {
+        avx512_not_run[f]++;
+        runs = false;
+      }
+    }
+    return runs;
+  }
+
   // The variants of the cases (kvm-variants.cpp) that the run selects,
   // passed to fn one at a time: there are far more than a run needs.
   void for_each_variant(const std::function<void(TestCase &&)> &fn) const {
@@ -1422,27 +1531,42 @@ Suite build_suite() {
       if (!g_templates.empty() &&
           std::find(g_templates.begin(), g_templates.end(), t.file) == g_templates.end())
         continue;
-      if (t.add == add_avx_fp16_tests && !host_has_avx512_fp16()) {
-        if (fill == 0)
-          fprintf(stderr, "AVX-512 FP16 templates skipped: host lacks the extension\n");
-        continue;
-      }
       t.add(s.tests);
       s.origins.resize(s.tests.size(), t.file);
     }
+    // A case of instructions the host does not run as the model does.
+    size_t kept = first;
+    for (size_t i = first; i < s.tests.size(); i++) {
+      if (!s.host_runs(s.tests[i])) continue;
+      if (kept != i) {
+        s.tests[kept] = std::move(s.tests[i]);
+        s.origins[kept] = s.origins[i];
+      }
+      kept++;
+    }
+    s.tests.resize(kept);
+    s.origins.resize(kept);
     for (size_t i = first; i < s.tests.size(); i++)
       s.tests[i].name += fill ? " [initial fill=ones]" : " [initial fill=zero]";
   }
   initial_register_fill = 0;
+  std::string not_run;
+  for (unsigned f = 0; f < AVX512_FEATURES; f++)
+    if (s.avx512_not_run[f])
+      not_run += std::format(" {} ({})", avx512_feature_name(Avx512Feature(f)),
+                             s.avx512_not_run[f]);
+  if (!not_run.empty())
+    fprintf(stderr, "Cases not run, the host lacks:%s\n", not_run.c_str());
   return s;
 }
 
 // KVM_LIST=<path>: write one tab-separated line per constructed case and
 // exit without creating a VM or running the model.  The set of cases is the
-// one this host would run: templates consult CPUID while constructing, so
-// a case a host cannot run (AVX-512 FP16, VAES, AVX-VNNI, ...) is never
-// constructed rather than skipped later.  The header comments record the
-// host so a listing can be told apart from one made elsewhere.  The
+// one this host would run: templates consult CPUID while constructing, and
+// build_suite drops the cases of AVX-512 features the host lacks, so a case
+// a host cannot run (AVX-512 FP16, VAES, AVX-VNNI, ...) is never listed.
+// The header comments record the host so a listing can be told apart from
+// one made elsewhere, and how many cases need each AVX-512 feature.  The
 // selected categories are listed (wanted_category), by default all.
 static int list_tests(const char *path) {
   Suite suite = build_suite();
@@ -1462,11 +1586,20 @@ static int list_tests(const char *path) {
       if (ch == '\t' || ch == '\n') ch = ' ';
     body += std::format("{}\t{}\t{}\t{}\t", origin, fill, tc.category, name);
     for (u8 byte : tc.code) body += std::format("{:02x}", byte);
-    body += std::format("\t{:d}\t{:d}\t{}\t{}\t{:d}\t{:d}\t{:d}\t{:#x}\t{:d}\t{}\t{:#x}\t{:#x}\n",
+    body += std::format("\t{:d}\t{:d}\t{}\t{}\t{:d}\t{:d}\t{:d}\t{:#x}\t{:d}\t{}\t{:#x}\t{:#x}\t",
                         tc.compat_mode, tc.expect_fault, tc.expected_vector,
                         tc.init_data.size(), tc.may_fault, tc.enable_paging, tc.system_mode,
                         tc.flags_mask, tc.approx_rel_tol != 0 || tc.approx_result_bits != 0,
                         tc.msrs.size(), tc.xcr0_override, tc.cr4_override);
+    u32 needs = avx512_case_features(tc);
+    const char *sep = "";
+    for (unsigned f = 0; f < AVX512_FEATURES; f++)
+      if (needs >> f & 1) {
+        body += sep;
+        body += avx512_feature_name(Avx512Feature(f));
+        sep = ",";
+      }
+    body += "\n";
     count++;
   };
   for (size_t i = 0; i < suite.tests.size(); i++)
@@ -1486,12 +1619,16 @@ static int list_tests(const char *path) {
   memcpy(vendor + 8, &c, 4);
   fprintf(out, "# kvm_harness case listing: %zu cases (%zu per register fill)\n",
           count, count / 2);
-  fprintf(out, "# host vendor: %s; AVX-512 FP16 templates: %s\n", vendor,
-          host_has_avx512_fp16() ? "included" : "absent (host lacks the extension)");
+  fprintf(out, "# host vendor: %s\n", vendor);
+  fprintf(out, "# cases (of both fills, variants aside) that need each AVX-512 feature:");
+  for (unsigned f = 0; f < AVX512_FEATURES; f++)
+    fprintf(out, " %s %zu%s", avx512_feature_name(Avx512Feature(f)), suite.avx512_cases[f],
+            host_has(Avx512Feature(f)) ? "" : " (not run: the host lacks it)");
+  fprintf(out, "\n");
   fprintf(out, "template\tfill\tcategory\tname\tcode\tcompat_mode\texpect_fault\t"
                "expected_vector\tinit_data_len\tmay_fault\tenable_paging\t"
                "system_mode\tflags_mask\tapprox\tmsrs\txcr0_override\t"
-               "cr4_override\n");
+               "cr4_override\tavx512_features\n");
   fwrite(body.data(), 1, body.size(), out);
   if (out != stdout) fclose(out);
   fprintf(stderr, "listed %zu cases to %s\n", count, path);
@@ -1812,6 +1949,10 @@ int main(int argc, char **argv) {
       g_category = arg.substr(11);
     } else if (arg.starts_with("--template=")) {
       g_templates.push_back(arg.substr(11));
+    } else if (arg.starts_with("--host-lacks=")) {
+      if (!parse_avx512_feature(arg.substr(13), &g_host_lacks)) return 1;
+    } else if (arg.starts_with("--model-lacks=")) {
+      if (!parse_avx512_feature(arg.substr(14), &g_model_lacks)) return 1;
     } else if (arg.starts_with("--slice=")) {
       if (sscanf(argv[i] + 8, "%u/%u", &g_slice, &g_slices) != 2 || g_slice >= g_slices) {
         fprintf(stderr, "bad %s: expected --slice=K/N with K < N\n", argv[i]);

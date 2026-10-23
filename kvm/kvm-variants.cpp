@@ -1734,3 +1734,176 @@ void for_each_variant(const std::vector<TestCase> &tests,
     }
   }
 }
+
+// ---- The CPUID features of the instructions ----
+//
+// Which cases a host runs, from the encodings of their instructions: one
+// of AVX-512 instructions where the host has the features they need
+// (build_suite in kvm-harness.cpp).
+
+namespace {
+
+// The instructions at the start of a case's code, up to the first that
+// does not decode.  In compatibility mode 40h-4Fh are INC and DEC, and
+// C4h, C5h and 62h are VEX and EVEX only where the next byte's bits 7:6
+// are 11b (SDM Vol.2A §2.3.5, §2.7.1); the decoder knows 64-bit mode.
+std::vector<Insn> leading_insns(const std::vector<u8> &code, bool compat_mode) {
+  std::vector<Insn> insns;
+  for (size_t pos = 0; pos < code.size();) {
+    u8 b = code[pos];
+    if (compat_mode && b >= 0x40 && b <= 0x4F) {
+      pos++;
+      continue;
+    }
+    if (compat_mode && (b == 0xC4 || b == 0xC5 || b == 0x62) &&
+        (pos + 1 >= code.size() || (code[pos + 1] & 0xC0) != 0xC0))
+      break;
+    Insn in;
+    size_t len = decode(code, pos, &in);
+    if (len == 0) break;
+    insns.push_back(in);
+    pos += len;
+  }
+  return insns;
+}
+
+bool one_of(u8 op, std::initializer_list<u8> ops) {
+  for (u8 x : ops)
+    if (x == op) return true;
+  return false;
+}
+
+// The AVX-512 extension of an EVEX instruction: the feature its row in the
+// SDM names besides AVX512VL (the "CPUID Feature Flag" column, Vol.2A-2D).
+// AVX512F where it names no other, and for the encodings it does not
+// define.
+Avx512Feature evex_extension(const Insn &in) {
+  u8 op = in.op;
+  bool W = in.W;
+  int digit = in.modrm >> 3 & 7;
+  switch (in.map) {
+  case 1:
+    switch (in.pp) {
+    case 0:
+      return one_of(op, {0x54, 0x55, 0x56, 0x57}) || (op == 0x5B && W) ? AVX512DQ : AVX512F;
+    case 1:
+      if (one_of(op, {0x60, 0x61, 0x63, 0x64, 0x65, 0x67, 0x68, 0x69, 0x6B, 0x71, 0x74, 0x75,
+                      0xC4, 0xC5, 0xD1, 0xD5, 0xD8, 0xD9, 0xDA, 0xDC, 0xDD, 0xDE, 0xE0, 0xE1,
+                      0xE3, 0xE4, 0xE5, 0xE8, 0xE9, 0xEA, 0xEC, 0xED, 0xEE, 0xF1, 0xF5, 0xF6,
+                      0xF8, 0xF9, 0xFC, 0xFD}) ||
+          (op == 0x73 && (digit == 3 || digit == 7)))
+        return AVX512BW;
+      return one_of(op, {0x54, 0x55, 0x56, 0x57, 0x78, 0x79, 0x7A, 0x7B}) ? AVX512DQ : AVX512F;
+    case 2:
+      if (op == 0x70) return AVX512BW;
+      return (op == 0x7A || op == 0xE6) && W ? AVX512DQ : AVX512F;
+    default:
+      if (one_of(op, {0x6F, 0x70, 0x7F})) return AVX512BW;
+      return op == 0x7A && W ? AVX512DQ : AVX512F;
+    }
+  case 2:
+    switch (in.pp) {
+    case 1:
+      if (one_of(op, {0x00, 0x04, 0x0B, 0x10, 0x11, 0x12, 0x1C, 0x1D, 0x20, 0x26, 0x2B, 0x30,
+                      0x38, 0x3A, 0x3C, 0x3E, 0x66, 0x78, 0x79, 0x7A, 0x7B}) ||
+          (one_of(op, {0x75, 0x7D, 0x8D}) && W))
+        return AVX512BW;
+      if (one_of(op, {0x75, 0x7D, 0x8D, 0x83})) return AVX512_VBMI;
+      if ((one_of(op, {0x19, 0x1B, 0x59, 0x5B}) && !W) || (one_of(op, {0x1A, 0x40, 0x5A}) && W))
+        return AVX512DQ;
+      if (op == 0x44 || op == 0xC4) return AVX512CD;
+      if (op >= 0x50 && op <= 0x53) return AVX512_VNNI;
+      if (op == 0x54 || op == 0x8F) return AVX512_BITALG;
+      if (op == 0x55) return AVX512_VPOPCNTDQ;
+      if (one_of(op, {0x62, 0x63, 0x70, 0x71, 0x72, 0x73})) return AVX512_VBMI2;
+      if (op == 0xB4 || op == 0xB5) return AVX512_IFMA;
+      if (op == 0xC6 || op == 0xC7) return AVX512PF;
+      if (op >= 0xC8 && op <= 0xCD) return AVX512ER;
+      if (op == 0xCF) return GFNI;
+      if (op >= 0xDC && op <= 0xDF) return VAES;
+      return AVX512F;
+    case 2:
+      if (one_of(op, {0x10, 0x20, 0x26, 0x28, 0x29, 0x30})) return AVX512BW;
+      if (op == 0x38 || op == 0x39) return AVX512DQ;
+      if (op == 0x2A || op == 0x3A) return AVX512CD;
+      return op == 0x52 || op == 0x72 ? AVX512_BF16 : AVX512F;
+    case 3:
+      if (op == 0x68) return AVX512_VP2INTERSECT;
+      return op == 0x72 ? AVX512_BF16 : AVX512F;
+    }
+    return AVX512F;
+  case 3:
+    if (in.pp == 0 || (in.pp == 2 && op == 0xC2)) return AVX512_FP16;
+    if (one_of(op, {0x0F, 0x14, 0x15, 0x20, 0x3E, 0x3F, 0x42})) return AVX512BW;
+    if (one_of(op, {0x16, 0x22, 0x50, 0x51, 0x56, 0x57, 0x66, 0x67}) ||
+        (one_of(op, {0x18, 0x19, 0x38, 0x39}) && W) || (one_of(op, {0x1A, 0x1B, 0x3A, 0x3B}) && !W))
+      return AVX512DQ;
+    if (op == 0x44) return VPCLMULQDQ;
+    if (op >= 0x70 && op <= 0x73) return AVX512_VBMI2;
+    return op == 0xCE || op == 0xCF ? GFNI : AVX512F;
+  }
+  return AVX512_FP16;  // maps 5 and 6
+}
+
+// The EVEX forms that are 128-bit only: the moves of one or two elements
+// to and from general-purpose registers and memory (VMOVD, VMOVQ, VMOVW,
+// VMOVLPS ... VMOVHPD, VPINSR*, VPEXTR*, VINSERTPS, VEXTRACTPS).
+bool evex_128_only(const Insn &in) {
+  u8 op = in.op;
+  switch (in.map) {
+  case 1:
+    return (in.pp <= 1 && one_of(op, {0x12, 0x13, 0x16, 0x17})) ||
+           (in.pp == 1 && one_of(op, {0x6E, 0x7E, 0xC4, 0xC5, 0xD6})) || (in.pp == 2 && op == 0x7E);
+  case 3:
+    return in.pp == 1 && ((op >= 0x14 && op <= 0x17) || (op >= 0x20 && op <= 0x22));
+  case 5:
+    return in.pp == 1 && (op == 0x6E || op == 0x7E);
+  }
+  return false;
+}
+
+// The features an EVEX instruction needs: AVX512F and its extension, and
+// AVX512VL for a 128- or 256-bit form of an instruction that has a 512-bit
+// one, the procedure of SDM Vol.1 §15.3 and §15.4 (Figure 15-4, "Check
+// AVX512F and a sibling 512-bit flag"; Table 15-2, "AVX512F & AVX512CD &
+// AVX512VL").  A register form with EVEX.b set and a rounding control or
+// SAE runs at 512 bits.
+u32 evex_features(const Insn &in) {
+  bool short_form = in.L < 2 && !(in.mod() == 3 && (in.evex_zbaaa & 0x10)) && !evex_scalar(in) &&
+                    !evex_128_only(in);
+  return 1u << AVX512F | 1u << evex_extension(in) | (short_form ? 1u << AVX512VL : 0);
+}
+
+// The features of a VEX opmask instruction, AVX512F and: AVX512F for the
+// word forms (no prefix and W0, and W1 of KSHIFTRW and KSHIFTLW) and
+// KUNPCKBW, AVX512DQ for the byte forms (66 and W0), KADDW and KTESTW,
+// AVX512BW for the doubleword and quadword forms (W1, and F2 for KMOVD and
+// KMOVQ with a general-purpose register), KUNPCKWD and KUNPCKDQ (SDM
+// Vol.2A-2B, KADDW-KXORW).
+u32 opmask_features(const Insn &in) {
+  Avx512Feature ext;
+  if (in.map == 3)
+    ext = in.op & 1 ? AVX512BW : in.W ? AVX512F : AVX512DQ;
+  else if (in.op == 0x4B)
+    ext = in.pp == 1 ? AVX512F : AVX512BW;
+  else if (in.pp == 3 || in.W)
+    ext = AVX512BW;
+  else if (in.pp == 1 || in.op == 0x4A || in.op == 0x99)
+    ext = AVX512DQ;
+  else
+    ext = AVX512F;
+  return 1u << AVX512F | 1u << ext;
+}
+
+}  // namespace
+
+u32 avx512_case_features(const TestCase &tc) {
+  u32 needs = 0;
+  for (const Insn &in : leading_insns(tc.code, tc.compat_mode)) {
+    if (in.enc == Enc::Evex)
+      needs |= evex_features(in);
+    else if (in.enc == Enc::Vex && mask_register_fields(in) != K_NONE)
+      needs |= opmask_features(in);
+  }
+  return needs;
+}
